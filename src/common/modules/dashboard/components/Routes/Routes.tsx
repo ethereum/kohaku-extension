@@ -16,6 +16,15 @@ const Routes = ({ openReceiveModal }: { openReceiveModal: () => void }) => {
 
   const routeItems = [
     {
+      testID: 'dashboard-button-privacy',
+      icon: SendIcon,
+      label: t('Privacy'),
+      route: WEB_ROUTES.privacy,
+      isExternal: false,
+      scale: 1.08,
+      scaleOnHover: 1.18
+    },
+    {
       testID: 'dashboard-button-send',
       icon: SendIcon,
       label: t('Send'),
