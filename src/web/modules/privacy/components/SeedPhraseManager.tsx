@@ -7,26 +7,30 @@ import Alert from '@common/components/Alert'
 import Heading from '@common/components/Heading'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
+import { generateSeedPhrase } from '../utils/seedPhrase'
 
 const SeedPhraseManager = () => {
   const [seedPhrase, setSeedPhrase] = useState('')
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [isGenerating] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
   const [isLoading] = useState(false)
 
   const handleGenerateSeedPhrase = async () => {
-    // eslint-disable-next-line no-console
-    console.log('handleGenerateSeedPhrase')
-  }
-
-  const handleLoadAccount = async () => {
-    // eslint-disable-next-line no-console
-    console.log('handleLoadAccount')
+    setIsGenerating(true)
+    const newSeedPhrase = generateSeedPhrase()
+    setSeedPhrase(newSeedPhrase)
+    setMessage({ type: 'success', text: 'Seed phrase generated successfully' })
+    setIsGenerating(false)
   }
 
   const handleSeedPhraseChange = (event: any) => {
     setSeedPhrase(event.target.value)
     if (message) setMessage(null) // Clear messages when user starts typing
+  }
+
+  const handleLoadAccount = async () => {
+    // eslint-disable-next-line no-console
+    console.log('handleLoadAccount')
   }
 
   return (

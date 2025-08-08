@@ -2,7 +2,7 @@
 # yarn lockfile v1
 
 
-"@0xbow/privacy-pools-core-sdk@^0.1.22":
+"@0xbow/privacy-pools-core-sdk@0.1.22":
   version "0.1.22"
   resolved "https://registry.yarnpkg.com/@0xbow/privacy-pools-core-sdk/-/privacy-pools-core-sdk-0.1.22.tgz#eb7223b77ab4f67fd60332ff562588fb90dd8e2e"
   integrity sha512-DMNiokTHfRMkUGgOsd7qyOyKPUf3MoxDS75ovB1HG5Zv/d6l9bGX4m2MNUB5hg3MbFsYGlrsvKtDHjIfKvp0lQ==
