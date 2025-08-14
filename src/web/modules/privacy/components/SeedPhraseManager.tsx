@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { View } from 'react-native'
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
@@ -7,30 +7,27 @@ import Alert from '@common/components/Alert'
 import Heading from '@common/components/Heading'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
-import { generateSeedPhrase } from '../utils/seedPhrase'
+import { usePP } from '../hooks/usePP'
 
-const SeedPhraseManager = () => {
-  const [seedPhrase, setSeedPhrase] = useState('')
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [isLoading] = useState(false)
+type SeedPhraseManagerProps = {
+  ppData: ReturnType<typeof usePP>
+}
 
-  const handleGenerateSeedPhrase = async () => {
-    setIsGenerating(true)
-    const newSeedPhrase = generateSeedPhrase()
-    setSeedPhrase(newSeedPhrase)
-    setMessage({ type: 'success', text: 'Seed phrase generated successfully' })
-    setIsGenerating(false)
-  }
+const SeedPhraseManager = ({ ppData }: SeedPhraseManagerProps) => {
+  const {
+    handleGenerateSeedPhrase,
+    handleLoadAccount,
+    isGenerating,
+    isLoading,
+    message,
+    setMessage,
+    seedPhrase,
+    setSeedPhrase
+  } = ppData
 
   const handleSeedPhraseChange = (event: any) => {
     setSeedPhrase(event.target.value)
-    if (message) setMessage(null) // Clear messages when user starts typing
-  }
-
-  const handleLoadAccount = async () => {
-    // eslint-disable-next-line no-console
-    console.log('handleLoadAccount')
+    if (message) setMessage(null)
   }
 
   return (
