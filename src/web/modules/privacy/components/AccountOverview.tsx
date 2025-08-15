@@ -6,13 +6,16 @@ import Heading from '@common/components/Heading'
 import Panel from '@common/components/Panel'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
+import { usePP } from '../hooks/usePP'
 
-const AccountOverview = () => {
+type AccountOverviewProps = {
+  ppData: ReturnType<typeof usePP>
+}
+
+const AccountOverview = ({ ppData }: AccountOverviewProps) => {
+  const { poolAccounts, loadedAccount: account } = ppData
   const [selectedAccount, setSelectedAccount] = useState<any | null>(null)
   const [ragequitLoading] = useState<Record<string, boolean>>({})
-
-  const poolAccounts: any[] = []
-  const account = null
 
   if (!account && !poolAccounts?.length) {
     return (
@@ -81,6 +84,9 @@ const AccountOverview = () => {
               key={`${poolAccount.chainId}-${poolAccount.name}`}
               onPress={() => handleAccountSelect(poolAccount)}
               disabled={isRagequitLoading(poolAccount)}
+              style={{
+                paddingBottom: '4px'
+              }}
             >
               <Panel
                 style={[

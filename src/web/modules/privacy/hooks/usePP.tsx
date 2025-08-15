@@ -1,9 +1,9 @@
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import { useState } from 'react'
-import { AccountService, PoolAccount } from '@0xbow/privacy-pools-core-sdk'
+import { AccountService } from '@0xbow/privacy-pools-core-sdk'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import { generateSeedPhrase } from '../utils/seedPhrase'
-import { getPoolAccountsFromAccount, loadAccount } from '../utils/privacy/sdk'
+import { getPoolAccountsFromAccount, loadAccount, PoolAccount } from '../utils/privacy/sdk'
 
 type PrivateRequestType = 'privateDepositRequest' | 'privateSendRequest' | 'privateRagequitRequest'
 

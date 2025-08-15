@@ -29,7 +29,7 @@ const PrivacyScreen = () => {
 
           <WithdrawalManager />
 
-          <AccountOverview />
+          <AccountOverview ppData={ppData} />
         </View>
       </View>
     </Wrapper>
