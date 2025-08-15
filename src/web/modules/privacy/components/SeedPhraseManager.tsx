@@ -61,7 +61,7 @@ const SeedPhraseManager = ({ ppData }: SeedPhraseManagerProps) => {
         <Button
           type="secondary"
           onPress={handleLoadAccount}
-          disabled={!seedPhrase.trim() || isGenerating || isLoading}
+          disabled={!seedPhrase?.trim() || isGenerating || isLoading}
           text={isLoading ? 'Loading Account...' : 'Load Existing Account'}
         />
       </View>

@@ -55,7 +55,7 @@ import SignMessageScreen from '@web/modules/sign-message/screens/SignMessageScre
 import SwapAndBridgeScreen from '@web/modules/swap-and-bridge/screens/SwapAndBridgeScreen'
 import TransferScreen from '@web/modules/transfer/screens/TransferScreen'
 import ViewOnlyAccountAdderScreen from '@web/modules/view-only-account-adder/ViewOnlyAccountAdderScreen'
-import PrivacyScreen from '@web/modules/privacy/PrivacyScreen'
+import PrivacyScreen from '@web/modules/privacy/screens/PrivacyScreen'
 
 const MainRoutes = () => {
   const location = useLocation()

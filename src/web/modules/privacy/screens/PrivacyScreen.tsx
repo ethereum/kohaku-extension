@@ -1,15 +1,15 @@
-import { ROUTES } from '@common/modules/router/constants/common'
 import React, { useCallback } from 'react'
+import { ROUTES } from '@common/modules/router/constants/common'
 import { View } from 'react-native'
+import { Wrapper } from '@web/components/TransactionsScreen'
 import useNavigation from '@common/hooks/useNavigation'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
-import { Wrapper } from '@web/components/TransactionsScreen'
-import DepositManager from './components/DepositManager'
-import SeedPhraseManager from './components/SeedPhraseManager'
-import WithdrawalManager from './components/WithdrawalManager'
-import AccountOverview from './components/AccountOverview'
-import { usePP } from './hooks/usePP'
+import DepositManager from '../components/DepositManager'
+import SeedPhraseManager from '../components/SeedPhraseManager'
+import WithdrawalManager from '../components/WithdrawalManager'
+import AccountOverview from '../components/AccountOverview'
+import { usePP } from '../hooks/usePP'
 
 const PrivacyScreen = () => {
   const { navigate } = useNavigation()
