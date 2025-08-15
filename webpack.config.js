@@ -338,6 +338,10 @@ module.exports = async function (env, argv) {
         to: 'assets'
       },
       {
+        from: './src/web/public/artifacts',
+        to: 'artifacts'
+      },
+      {
         from: './src/web/public/style.css',
         to: 'style.css',
         transform(content) {
