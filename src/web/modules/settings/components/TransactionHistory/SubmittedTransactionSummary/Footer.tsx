@@ -20,6 +20,7 @@ import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { createTab } from '@web/extension-services/background/webapi/tab'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
+import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import { sizeMultiplier } from '@web/modules/sign-account-op/components/TransactionSummary'
 
 import RepeatTransaction from './RepeatTransaction'
@@ -50,6 +51,7 @@ const Footer: FC<Props> = ({
   const { styles } = useTheme(getStyles)
   const { addToast } = useToast()
   const { networks } = useNetworksControllerState()
+  const { account: selectedAccount } = useSelectedAccountControllerState()
   const { t } = useTranslation()
   const textSize = 14 * sizeMultiplier[size]
   const iconSize = 26 * sizeMultiplier[size]
@@ -166,7 +168,7 @@ const Footer: FC<Props> = ({
             </Text>
             <LinkIcon width={iconSizeSm} height={iconSizeSm} />
           </TouchableOpacity>
-          {rawCalls?.length ? (
+          {rawCalls?.length && selectedAccount?.addr === accountAddr ? (
             <RepeatTransaction
               accountAddr={accountAddr}
               chainId={network.chainId}

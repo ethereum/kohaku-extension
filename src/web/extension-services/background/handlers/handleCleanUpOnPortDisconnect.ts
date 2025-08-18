@@ -57,11 +57,29 @@ export const handleCleanUpOnPortDisconnect = async ({
       mainCtrl.transfer.unloadScreen()
     }
 
-    // If the Transfer popup is closed during signing or broadcasting, we don't want to show the tracking screen next time.
-    // Previously, the last account op was kept and shown, even after closing mid-process (mainCtrl.#broadcastSignedAccountOp).
-    // With `shouldTrackLatestBroadcastedAccountOp`, we can now prevent this and show a fresh form instead.
+    // If the Transfer popup is closed during signing or broadcasting,
+    // we don't want to show the tracking screen the next time the Transfer popup/screen is opened.
+    // The tracking screen is shown based on the value of `transferController.latestAccountOp`,
+    // which is set asynchronously when `mainCtrl.#broadcastSignedAccountOp` completes.
+    // Therefore, if the popup is intentionally closed during signing or broadcasting, we don't want to enable tracking later,
+    // and we need to prevent updating the `transferController.latestAccountOp` value.
+    // That's why we introduced `shouldTrackLatestBroadcastedAccountOp` flag.
+    //
+    // Trezor Note: For Trezor, we always enable tracking and do not reset the form, because with the Trezor signer,
+    // the Transfer popup is closed and all logic is handled in a new action window.
+    // In that window, we have dedicated logic for clearing the form completely (e.g., if (isActionWindow) mainCtrl.onOneClickTransferClose()).
+    // If we reset the form state here while opening the Trezor action window, the form will be re-initialized
+    // and the current `signAccountOp` will be destroyed, which will break the Trezor signing process.
+    //
+    // Lattice Note: We bypass this logic for Lattice and always enable tracking, because Lattice may call
+    // `LatticeController._getCreds` to retrieve credentials, which briefly opens a new window and causes the popup to close.
+    // Since we can't distinguish between a `getCreds` call and a user intentionally closing the popup after signing,
+    // we always enable tracking. This means that if the popup is closed immediately after signing with Lattice,
+    // the next time you open the Transfer screen, you may see the transaction tracking screen.
     const shouldTrack =
-      mainCtrl.transfer.signAccountOpController?.status?.type === SigningStatus.ReadyToSign
+      mainCtrl.transfer.signAccountOpController?.status?.type === SigningStatus.ReadyToSign ||
+      mainCtrl.transfer.signAccountOpController?.accountOp?.signingKeyType === 'trezor' ||
+      mainCtrl.transfer.signAccountOpController?.accountOp?.signingKeyType === 'lattice'
     // eslint-disable-next-line no-param-reassign
     mainCtrl.transfer.shouldTrackLatestBroadcastedAccountOp = shouldTrack
 

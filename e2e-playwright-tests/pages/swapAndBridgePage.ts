@@ -1,4 +1,3 @@
-import { bootstrapWithStorage } from 'common-helpers/bootstrap'
 import { clickOnElement } from 'common-helpers/clickOnElement'
 import { typeText } from 'common-helpers/typeText'
 import locators from 'constants/locators'
@@ -10,12 +9,6 @@ import Token from '../interfaces/token'
 import { BasePage } from './basePage'
 
 export class SwapAndBridgePage extends BasePage {
-  async init(param) {
-    const { page, context } = await bootstrapWithStorage('swapAndBridgeBA', param)
-    this.page = page // Initialize the POM page property with the Playwright page instance
-    this.context = context
-  }
-
   // General function
   roundAmount(amount, place = 2) {
     // ToDo: Check if values should be int-ed or rounded. Values are currently int-ed

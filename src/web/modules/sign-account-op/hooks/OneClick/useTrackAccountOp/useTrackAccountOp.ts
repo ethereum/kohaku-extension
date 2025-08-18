@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { SubmittedAccountOp } from '@ambire-common/libs/accountOp/submittedAccountOp'
 import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
@@ -20,6 +20,7 @@ const useTrackAccountOp = ({
   navigateOut
 }: Props) => {
   const { dispatch } = useBackgroundService()
+  const [isButtonPressed, setIsButtonPressed] = useState(false)
 
   const sessionHandler = useMemo(() => {
     return {
@@ -69,18 +70,27 @@ const useTrackAccountOp = ({
           addr: submittedAccountOp.accountAddr
         }
       })
+
+      setIsButtonPressed(true)
     } else {
       navigateOut()
     }
-  }, [dispatch, navigateOut, submittedAccountOp])
+  }, [dispatch, navigateOut, submittedAccountOp, setIsButtonPressed])
 
   useEffect(() => {
-    // Navigate out of the screen after the banner is removed. Otherwise the banner
-    // flashes for a split second after the navigation.
-    if (submittedAccountOp?.flags && submittedAccountOp.flags.hideActivityBanner) {
+    // Navigate out of the screen after the banner is removed.
+    // Otherwise the banner flashes for a split second after the navigation.
+    // Note: We introduced a local hook flag, `isButtonPressed`, because in the case of a Bridge transaction,
+    // submittedAccountOp.flags.hideActivityBanner defaults to true,
+    // which activates the logic and causes the user to be redirected out.
+    if (
+      submittedAccountOp?.flags &&
+      submittedAccountOp.flags.hideActivityBanner &&
+      isButtonPressed
+    ) {
       navigateOut()
     }
-  }, [navigateOut, submittedAccountOp?.flags])
+  }, [navigateOut, submittedAccountOp?.flags, isButtonPressed])
 
   return {
     sessionHandler,

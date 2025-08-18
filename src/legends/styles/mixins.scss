@@ -28,17 +28,36 @@
 
   &:not(:disabled) {
     &:hover {
-      background: linear-gradient(100.29deg, $green-500 7.82%, $teal 49.79%, $dark-purple 92.28%), linear-gradient(0deg, rgba(244, 244, 247, 0.102), rgba(244, 244, 247, 0.1));
+      background: linear-gradient(100.29deg, $green-500 7.82%, $teal 49.79%, $dark-purple 92.28%),
+        linear-gradient(0deg, rgba(244, 244, 247, 0.102), rgba(244, 244, 247, 0.1));
     }
     &:active {
       box-shadow: none;
     }
   }
 }
+@mixin gray-button {
+  @include button;
+  padding: 1rem;
+  transition: background 0.3s ease;
+  background-blend-mode: overlay;
+  background: linear-gradient(100.29deg, $green-500 7.82%, $teal 49.79%, $dark-purple 92.28%);
+  border-radius: 8px;
+  opacity: 0.8;
+  background: rgba(141, 147, 172, 0.33);
+
+  &:not(:disabled) {
+    &:hover {
+      border-radius: 8px;
+      background: rgba(244, 244, 247, 0.1);
+    }
+  }
+}
+
 @mixin secondary-button {
   @include button;
   padding: 1rem;
-  gap: .625rem;
+  gap: 0.625rem;
   border-radius: $primaryBorderRadius;
   background-color: transparent;
   border: 0.125rem solid $primaryText;

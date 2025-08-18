@@ -526,6 +526,7 @@ type SwapAndBridgeControllerInitAction = {
     preselectedFromToken?: Pick<TokenResult, 'address' | 'chainId'>
     preselectedToToken?: Pick<TokenResult, 'address' | 'chainId'>
     fromAmount?: string
+    activeRouteIdToDelete?: string
   }
 }
 type SwapAndBridgeControllerUserProceededAction = {
@@ -543,15 +544,22 @@ type SwapAndBridgeControllerUnloadScreenAction = {
 type SwapAndBridgeControllerUpdateFormAction = {
   type: 'SWAP_AND_BRIDGE_CONTROLLER_UPDATE_FORM'
   params: {
-    fromAmount?: string
-    fromAmountInFiat?: string
-    fromAmountFieldMode?: 'fiat' | 'token'
-    shouldSetMaxAmount?: boolean
-    fromChainId?: bigint | number
-    fromSelectedToken?: TokenResult | null
-    toChainId?: bigint | number
-    toSelectedTokenAddr?: SwapAndBridgeToToken['address'] | null
-    routePriority?: 'output' | 'time'
+    formValues: {
+      fromAmount?: string
+      fromAmountInFiat?: string
+      fromAmountFieldMode?: 'fiat' | 'token'
+      shouldSetMaxAmount?: boolean
+      fromChainId?: bigint | number
+      fromSelectedToken?: TokenResult | null
+      toChainId?: bigint | number
+      toSelectedTokenAddr?: SwapAndBridgeToToken['address'] | null
+      routePriority?: 'output' | 'time'
+    }
+    updateProps?: {
+      emitUpdate?: boolean
+      updateQuote?: boolean
+      shouldIncrementFromAmountUpdateCounter?: boolean
+    }
   }
 }
 type SwapAndBridgeControllerAddToTokenByAddress = {

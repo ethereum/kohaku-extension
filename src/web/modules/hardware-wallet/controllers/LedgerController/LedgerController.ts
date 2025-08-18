@@ -405,7 +405,7 @@ class LedgerController implements ExternalSignerController {
     if (notAllKeysGotRetrieved) {
       throw (
         latestGetAddressError ||
-        new ExternalSignerError('Failed to get all address from Ledger device.')
+        new ExternalSignerError('Failed to get all addresses from Ledger device.')
       )
     }
 

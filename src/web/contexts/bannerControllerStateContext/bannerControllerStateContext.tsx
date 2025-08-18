@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-shadow */
-import React, { createContext, useCallback, useEffect } from 'react'
+import React, { createContext, useEffect } from 'react'
 
 import { BannerController } from '@ambire-common/controllers/banner/banner'
 import useDeepMemo from '@common/hooks/useDeepMemo'

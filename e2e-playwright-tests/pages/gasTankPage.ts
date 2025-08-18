@@ -1,17 +1,11 @@
 import selectors from 'constants/selectors'
 
-import { bootstrapWithStorage } from '@helpers/bootstrap'
 import { expect } from '@playwright/test'
 
 import Token from '../interfaces/token'
 import { BasePage } from './basePage'
 
 export class GasTankPage extends BasePage {
-  async init(param) {
-    const { page } = await bootstrapWithStorage('gasTank', param)
-    this.page = page
-  }
-
   async getCurrentBalance() {
     const amountText = await this.page.getByTestId(selectors.dashboardGasTankBalance).innerText()
     const amountNumber = parseFloat(amountText.replace(/[^\d.]/g, ''))

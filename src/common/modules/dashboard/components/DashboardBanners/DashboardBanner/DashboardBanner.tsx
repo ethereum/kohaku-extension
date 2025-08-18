@@ -1,7 +1,11 @@
 import React, { useCallback, useMemo } from 'react'
 import { useModalize } from 'react-native-modalize'
 
-import { Action, Banner as BannerType } from '@ambire-common/interfaces/banner'
+import {
+  Action,
+  Banner as BannerType,
+  BannerType as NonMarketingBannerType
+} from '@ambire-common/interfaces/banner'
 import BatchIcon from '@common/assets/svg/BatchIcon'
 import PendingToBeConfirmedIcon from '@common/assets/svg/PendingToBeConfirmedIcon'
 import SuccessIcon from '@common/assets/svg/SuccessIcon'
@@ -22,7 +26,11 @@ const ERROR_ACTIONS = [
   'dismiss-7702-banner'
 ]
 
-const DashboardBanner = ({ banner }: { banner: BannerType }) => {
+const DashboardBanner = ({
+  banner
+}: {
+  banner: Omit<BannerType, 'type'> & { type: NonMarketingBannerType }
+}) => {
   const { type, category, title, text, actions = [] } = banner
   const { dispatch } = useBackgroundService()
   const { addToast } = useToast()
@@ -129,21 +137,24 @@ const DashboardBanner = ({ banner }: { banner: BannerType }) => {
           })
           break
 
-        case 'update-extension-version': {
-          const shouldPrompt =
-            actionsQueue.filter(({ type: actionType }) => actionType !== 'benzin').length > 0
+        // The "Reload" handler was removed since v5.16.1, because `browser.runtime.reload()`
+        // was causing some funky Chrome glitches, see the deprecation notes in
+        // ExtensionUpdateController.applyUpdate() for more details.
+        // case 'update-extension-version': {
+        //   const shouldPrompt =
+        //     actionsQueue.filter(({ type: actionType }) => actionType !== 'benzin').length > 0
 
-          if (shouldPrompt) {
-            openBottomSheet()
-            break
-          }
+        //   if (shouldPrompt) {
+        //     openBottomSheet()
+        //     break
+        //   }
 
-          dispatch({
-            type: 'EXTENSION_UPDATE_CONTROLLER_APPLY_UPDATE'
-          })
+        //   dispatch({
+        //     type: 'EXTENSION_UPDATE_CONTROLLER_APPLY_UPDATE'
+        //   })
 
-          break
-        }
+        //   break
+        // }
 
         case 'reload-selected-account':
           dispatch({

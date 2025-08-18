@@ -25,6 +25,8 @@ import styles from './styles'
 const RouteStepsPreview = ({
   steps,
   totalGasFeesInUsd,
+  inputValueInUsd,
+  outputValueInUsd,
   estimationInSeconds,
   currentStep = 0,
   loadingEnabled,
@@ -34,6 +36,8 @@ const RouteStepsPreview = ({
 }: {
   steps: SwapAndBridgeStep[]
   totalGasFeesInUsd?: number
+  inputValueInUsd?: number
+  outputValueInUsd?: number
   estimationInSeconds?: number
   currentStep?: number
   loadingEnabled?: boolean
@@ -121,6 +125,7 @@ const RouteStepsPreview = ({
               <Fragment key={step.type}>
                 <View style={[flexbox.flex1, flexbox.directionRow, flexbox.alignCenter]}>
                   <RouteStepsToken
+                    amountInUsd={inputValueInUsd}
                     uri={step.fromAsset.icon}
                     chainId={BigInt(step.fromAsset.chainId)}
                     address={step.fromAsset.address}
@@ -153,6 +158,7 @@ const RouteStepsPreview = ({
                   />
                 </View>
                 <RouteStepsToken
+                  amountInUsd={outputValueInUsd}
                   address={step.toAsset.address}
                   chainId={BigInt(step.toAsset.chainId)}
                   uri={step.toAsset.icon}
@@ -236,7 +242,7 @@ const RouteStepsPreview = ({
               color={
                 !isDisabled
                   ? themeType === THEME_TYPES.DARK
-                    ? theme.primaryLight
+                    ? theme.successDecorative
                     : theme.primary
                   : theme.warningText
               }
@@ -244,7 +250,11 @@ const RouteStepsPreview = ({
                 spacings.phTy,
                 {
                   paddingVertical: 1,
-                  backgroundColor: !isDisabled ? '#6000FF14' : theme.warningBackground,
+                  backgroundColor: !isDisabled
+                    ? themeType === THEME_TYPES.DARK
+                      ? `${String(theme.successDecorative)}20`
+                      : '#6000FF14'
+                    : theme.warningBackground,
                   borderRadius: 12
                 }
               ]}

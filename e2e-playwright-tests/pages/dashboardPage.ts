@@ -1,4 +1,3 @@
-import { bootstrapWithStorage } from 'common-helpers/bootstrap'
 import locators from 'constants/locators'
 import selectors from 'constants/selectors'
 
@@ -8,11 +7,6 @@ import Token from '../interfaces/token'
 import { BasePage } from './basePage'
 
 export class DashboardPage extends BasePage {
-  async init(param) {
-    const { page } = await bootstrapWithStorage('dashboard', param)
-    this.page = page
-  }
-
   // TODO: should be refactored
   async checkBalanceInAccount(): Promise<void> {
     await this.page.waitForSelector(locators.fullAmountDashboard)

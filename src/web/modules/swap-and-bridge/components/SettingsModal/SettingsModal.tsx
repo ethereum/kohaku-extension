@@ -94,7 +94,7 @@ const SettingsModal: React.FC<Props> = ({ handleToggleSettingsMenu, settingModal
     (value: string) => {
       dispatch({
         type: 'SWAP_AND_BRIDGE_CONTROLLER_UPDATE_FORM',
-        params: { routePriority: value as any }
+        params: { formValues: { routePriority: value as any } }
       })
     },
     [dispatch]

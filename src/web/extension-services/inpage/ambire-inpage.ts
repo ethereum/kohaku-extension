@@ -156,9 +156,9 @@ window.addEventListener<any>('eip6963:requestProvider', () => {
       // throw an Error to determine the source of the request
       throw new Error()
     } catch (error: any) {
-      const stack = error.stack // Parse the stack trace to get the caller info
+      const stack = error?.stack // Parse the stack trace to get the caller info
       if (stack) {
-        const callerPage = stack.split('\n')[2].trim()
+        const callerPage = (typeof stack === 'string' && stack.split('\n')[2]?.trim()) || ''
         if (callerPage.includes(window.location.hostname)) {
           isDapp = true
           // Send a request to the provider to notify the background session that this page is a dApp

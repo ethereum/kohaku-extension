@@ -1,8 +1,8 @@
 import { StyleSheet, ViewStyle } from 'react-native'
 
-import spacings from '@common/styles/spacings'
+import spacings, { SPACING, SPACING_MI, SPACING_TY } from '@common/styles/spacings'
 import { ThemeProps } from '@common/styles/themeConfig'
-import common from '@common/styles/utils/common'
+import common, { BORDER_RADIUS_PRIMARY } from '@common/styles/utils/common'
 import flexbox from '@common/styles/utils/flexbox'
 
 interface Style {
@@ -13,7 +13,7 @@ interface Style {
   networkIcon: ViewStyle
   actionsContainer: ViewStyle
   action: ViewStyle
-  visibilityIcon: ViewStyle
+  hideTokenButton: ViewStyle
 }
 
 const getStyles = (theme: ThemeProps) =>
@@ -29,8 +29,8 @@ const getStyles = (theme: ThemeProps) =>
       ...flexbox.flex1
     },
     balance: {
-      ...flexbox.directionRow,
-      ...flexbox.alignCenter,
+      ...flexbox.flex1,
+      ...flexbox.alignSelfStart,
       ...flexbox.wrap
     },
     networkIcon: {
@@ -60,7 +60,15 @@ const getStyles = (theme: ThemeProps) =>
       ...common.borderRadiusPrimary
     },
     // @ts-ignore web style
-    visibilityIcon: { ...spacings.phMi, cursor: 'pointer' }
+    hideTokenButton: {
+      color: theme.primary,
+      padding: SPACING_MI,
+      borderColor: theme.primary,
+      borderRadius: BORDER_RADIUS_PRIMARY,
+      borderWidth: 1,
+      paddingHorizontal: SPACING,
+      paddingVertical: SPACING_TY
+    }
   })
 
 export default getStyles

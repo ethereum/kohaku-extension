@@ -2,17 +2,11 @@ import { KEYSTORE_PASS } from 'constants/env'
 import { networks } from 'constants/networks'
 import selectors from 'constants/selectors'
 
-import { bootstrapWithStorage } from '@helpers/bootstrap'
 import { expect } from '@playwright/test'
 
 import { BasePage } from './basePage'
 
 export class SettingsPage extends BasePage {
-  async init(param): Promise<void> {
-    const { page } = await bootstrapWithStorage('keystore', param)
-    this.page = page
-  }
-
   async openSettingsGeneral() {
     await this.click(selectors.dashboard.hamburgerButton)
     await this.checkUrl('/settings/general')

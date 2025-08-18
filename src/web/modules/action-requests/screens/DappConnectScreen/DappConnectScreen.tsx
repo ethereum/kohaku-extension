@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View } from 'react-native'
 
-import { DappRequestAction } from '@ambire-common/controllers/actions/actions'
+import { isDappRequestAction } from '@ambire-common/libs/actions/actions'
 import wait from '@ambire-common/utils/wait'
 import { useTranslation } from '@common/config/localization'
 import useTheme from '@common/hooks/useTheme'
@@ -32,11 +32,10 @@ const DappConnectScreen = () => {
   )
   const [confirmedRiskCheckbox, setConfirmedRiskCheckbox] = useState(false)
 
-  const dappAction = useMemo(() => {
-    if (state.currentAction?.type !== 'dappRequest') return undefined
-
-    return state.currentAction as DappRequestAction
-  }, [state.currentAction])
+  const dappAction = useMemo(
+    () => (isDappRequestAction(state.currentAction) ? state.currentAction : null),
+    [state.currentAction]
+  )
 
   const userRequest = useMemo(() => {
     if (!dappAction) return undefined

@@ -3,11 +3,15 @@ import tokens from 'constants/tokens'
 import { test } from 'fixtures/pageObjects'
 
 test.describe('Basic Acc - Token balance test', { tag: '@balanceCheck' }, async () => {
-  test.beforeEach(async ({ dashboardPage }) => {
-    await dashboardPage.init(baParams)
+  test.beforeEach(async ({ pages }) => {
+    await pages.initWithStorage(baParams)
   })
 
-  test('check balance of test tokens', async ({ dashboardPage }) => {
+  test.afterEach(async ({ context }) => {
+    await context.close()
+  })
+
+  test('check balance of test tokens', async ({ pages }) => {
     const walletBase = tokens.wallet.base
     const usdcBase = tokens.usdc.base
     const usdcOP = tokens.usdc.optimism
@@ -21,7 +25,7 @@ test.describe('Basic Acc - Token balance test', { tag: '@balanceCheck' }, async 
     const errors: string[] = []
 
     await test.step('Check balance of Gas tank', async () => {
-      const gasTankBalance = await dashboardPage.getCurrentBalance()
+      const gasTankBalance = await pages.dashboard.getCurrentBalance()
 
       if (gasTankBalance < 15) {
         const msg = `⚠️ Gas Tank balance is only ${gasTankBalance} USDC. Top it up.`
@@ -34,7 +38,7 @@ test.describe('Basic Acc - Token balance test', { tag: '@balanceCheck' }, async 
 
       for (let i = 0; i < tokensList.length; i++) {
         const token = tokensList[i]
-        const result = await dashboardPage.checkTokenBalance(token)
+        const result = await pages.dashboard.checkTokenBalance(token)
         results.push(result)
       }
 
@@ -58,11 +62,16 @@ test.describe('Basic Acc - Token balance test', { tag: '@balanceCheck' }, async 
 })
 
 test.describe('Smart Acc - Token balance test', { tag: '@balanceCheck' }, async () => {
-  test.beforeEach(async ({ dashboardPage }) => {
-    await dashboardPage.init(saParams)
+  test.beforeEach(async ({ pages }) => {
+    await pages.initWithStorage(saParams)
   })
 
-  test('check balance of test tokens', async ({ dashboardPage }) => {
+  test.afterEach(async ({ context }) => {
+    await context.close()
+  })
+
+
+  test('check balance of test tokens', async ({ pages }) => {
     const walletBase = tokens.wallet.base
     const usdcBase = tokens.usdc.base
     const usdcOP = tokens.usdc.optimism
@@ -76,7 +85,7 @@ test.describe('Smart Acc - Token balance test', { tag: '@balanceCheck' }, async 
     const errors: string[] = []
 
     await test.step('Check balance of Gas tank', async () => {
-      const gasTankBalance = await dashboardPage.getCurrentBalance()
+      const gasTankBalance = await pages.dashboard.getCurrentBalance()
 
       if (gasTankBalance < 5) {
         const msg = `⚠️ Gas Tank balance is only ${gasTankBalance} USDC. Top it up.`
@@ -89,7 +98,7 @@ test.describe('Smart Acc - Token balance test', { tag: '@balanceCheck' }, async 
 
       for (let i = 0; i < tokensList.length; i++) {
         const token = tokensList[i]
-        const result = await dashboardPage.checkTokenBalance(token)
+        const result = await pages.dashboard.checkTokenBalance(token)
         results.push(result)
       }
 

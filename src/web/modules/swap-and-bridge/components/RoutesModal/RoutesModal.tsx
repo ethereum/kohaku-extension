@@ -112,7 +112,7 @@ const RoutesModal = ({
   const renderItem = useCallback(
     // eslint-disable-next-line react/no-unused-prop-types
     ({ item, index }: { item: SwapAndBridgeRoute; index: number }) => {
-      const { steps } = item
+      const { steps, inputValueInUsd, outputValueInUsd } = item
       const isDisabled = disabledRoutes.indexOf(item.routeId) !== -1
       const isEstimatingRoute = isEstimationLoading && item.routeId === userSelectedRoute?.routeId
       const isSelected = item.routeId === userSelectedRoute?.routeId && !isEstimatingRoute
@@ -151,6 +151,8 @@ const RoutesModal = ({
           )}
           <RouteStepsPreview
             steps={steps}
+            inputValueInUsd={inputValueInUsd}
+            outputValueInUsd={outputValueInUsd}
             totalGasFeesInUsd={item.totalGasFeesInUsd}
             estimationInSeconds={item.serviceTime}
             isSelected={item.routeId === userSelectedRoute?.routeId && !isEstimatingRoute}

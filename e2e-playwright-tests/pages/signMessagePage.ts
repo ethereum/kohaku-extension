@@ -1,4 +1,3 @@
-import { bootstrapWithStorage } from 'common-helpers/bootstrap'
 import { BA_ADDRESS } from 'constants/env'
 import selectors from 'constants/selectors'
 
@@ -7,11 +6,6 @@ import { expect } from '@playwright/test'
 import { BasePage } from './basePage'
 
 export class SignMessagePage extends BasePage {
-  async init(param) {
-    const { page } = await bootstrapWithStorage('signMessage', param)
-    this.page = page
-  }
-
   async signMessage(message: string, type: 'plain' | 'hex' | 'typed') {
     await this.page.goto('https://sigtool.ambire.com/')
 

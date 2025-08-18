@@ -107,7 +107,9 @@ class LatticeController implements ExternalSignerController {
       const ref = await browser.windows.create({ url, type: 'popup' })
       return ref.tabs[0].id
     } catch (err) {
-      throw new ExternalSignerError('Failed to open the Lattice Connector.')
+      throw new ExternalSignerError('Failed to open the Lattice Connector.', {
+        sendCrashReport: true
+      })
     }
   }
 
@@ -165,7 +167,9 @@ class LatticeController implements ExternalSignerController {
         } catch (err) {
           clearInterval(listenInterval)
           reject(
-            new ExternalSignerError('Failed to get login data from Lattice. Please try again.')
+            new ExternalSignerError('Failed to get login data from Lattice. Please try again.', {
+              sendCrashReport: true
+            })
           )
         }
       }, 500)
@@ -178,7 +182,10 @@ class LatticeController implements ExternalSignerController {
   async _connect() {
     if (!this.walletSDK)
       throw new ExternalSignerError(
-        'Could not connect to the Lattice1 device. Please try again or contact Ambire support.'
+        'Could not connect to the Lattice1 device. Please try again or contact Ambire support.',
+        {
+          sendCrashReport: true
+        }
       )
 
     try {
@@ -225,7 +232,9 @@ class LatticeController implements ExternalSignerController {
 
   _genSessionKey() {
     if (!this._hasCreds())
-      throw new ExternalSignerError('No credentials -- cannot create session key!')
+      throw new ExternalSignerError('No credentials -- cannot create session key!', {
+        sendCrashReport: true
+      })
     const buf = Buffer.concat([
       Buffer.from(this.creds.password),
       Buffer.from(this.creds.deviceID),

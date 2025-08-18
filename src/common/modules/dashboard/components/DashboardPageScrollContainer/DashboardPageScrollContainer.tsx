@@ -43,12 +43,12 @@ const DashboardPageScrollContainer: FC<Props> = ({
   ...rest
 }) => {
   const [hasScrollBar, setHasScrollBar] = useState(false)
-  const allBanners = useBanners()
+  const [controllerBanners] = useBanners()
   const flatlistRef = useRef<FlatList | null>(null)
 
   const style = useMemo(
-    () => getFlatListStyle(tab, openTab, allBanners.length),
-    [allBanners.length, openTab, tab]
+    () => getFlatListStyle(tab, openTab, controllerBanners.length),
+    [controllerBanners.length, openTab, tab]
   )
 
   const contentContainerStyle = useMemo(() => {
@@ -57,10 +57,10 @@ const DashboardPageScrollContainer: FC<Props> = ({
     return [
       isPopup ? spacings.plSm : {},
       isPopup ? popUpPaddingRight : { paddingRight: 2 },
-      allBanners.length ? spacings.ptTy : spacings.pt0,
+      controllerBanners.length ? spacings.ptTy : spacings.pt0,
       { flexGrow: 1 }
     ]
-  }, [allBanners.length, hasScrollBar])
+  }, [controllerBanners.length, hasScrollBar])
 
   // Reset scroll position when switching tabs (new)
   useEffect(() => {

@@ -56,6 +56,15 @@ export class ExtensionUpdateController extends EventEmitter {
     this.emitUpdate()
   }
 
+  /**
+   * Deprecated since v5.16.1, because the `browser.runtime.reload()` part was
+   * causing some funky Chrome glitches like:
+   * 1) SOMETIMES bricking the extension due to service worker not starting
+   * property after update (causing infinite loading spinner)
+   * 2) Might be the cause of extension storage being lost on Chrome after an
+   * update. Although this could be related to a race condition with some other logic.
+   * @deprecated
+   */
   applyUpdate() {
     this.#isUpdateAvailable = false
 
@@ -71,13 +80,11 @@ export class ExtensionUpdateController extends EventEmitter {
           id: 'update-available',
           type: 'info',
           title: 'Update Available',
-          text: 'A new version is ready! It will be applied automatically the next time your browser or extension reloads. Reload now to update immediately.',
-          actions: [
-            {
-              label: 'Reload',
-              actionName: 'update-extension-version'
-            }
-          ]
+          text: 'A new version is ready! Please restart your browser to apply the update.',
+          // The "Reload" button was removed since v5.16.1, because `browser.runtime.reload()`
+          // was causing some funky Chrome glitches, see the deprecation notes in
+          // ExtensionUpdateController.applyUpdate() for more details.
+          actions: []
         }
       ]
     }

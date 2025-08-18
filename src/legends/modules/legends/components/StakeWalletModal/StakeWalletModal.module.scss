@@ -326,3 +326,36 @@
     color: #4872ff;
   }
 }
+
+.warningModal {
+  gap: 2rem;
+  border-color: #e7aa27;
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  width: 35rem;
+  .heading {
+    font-weight: 500;
+    font-size: 2.5rem;
+  }
+  .infoText {
+    font-weight: 300;
+    font-style: Light;
+    font-size: 1.25rem;
+    line-height: 2rem;
+    text-align: center;
+  }
+  .buttonWrapper {
+    display: flex;
+    gap: 2rem;
+    width: 100%;
+    .cancelButton {
+      @include gray-button;
+      font-size: 1.25rem;
+    }
+    .confirmButton {
+      @include primary-button;
+      font-size: 1.25rem;
+    }
+  }
+}

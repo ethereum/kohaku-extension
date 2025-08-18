@@ -56,9 +56,14 @@ const Failed: FC<FailedProps> = ({ title, errorMessage, handleClose, toToken, am
                 dispatch({
                   type: 'SWAP_AND_BRIDGE_CONTROLLER_UPDATE_FORM',
                   params: {
-                    toSelectedTokenAddr: toToken?.address,
-                    toChainId: BigInt(toToken?.chainId),
-                    fromAmount: amount
+                    formValues: {
+                      toSelectedTokenAddr: toToken?.address,
+                      toChainId: BigInt(toToken?.chainId),
+                      fromAmount: amount
+                    },
+                    updateProps: {
+                      shouldIncrementFromAmountUpdateCounter: true
+                    }
                   }
                 })
                 if (handleClose) handleClose()

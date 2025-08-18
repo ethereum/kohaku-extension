@@ -1,18 +1,22 @@
 import selectors from 'constants/selectors'
+import BootstrapContext from 'interfaces/bootstrapContext'
 import Token from 'interfaces/token'
 
 import { BrowserContext, expect, Locator, Page } from '@playwright/test'
 
 import { categorizeRequests } from '../utils/requests'
 
-export abstract class BasePage {
+export class BasePage {
   page: Page
 
   context: BrowserContext
 
   collectedRequests: string[] = []
 
-  abstract init(param?): Promise<void> // ⛔ Must be implemented in subclasses
+  constructor({ page, context }: BootstrapContext) {
+    this.page = page
+    this.context = context
+  }
 
   async navigateToURL(url: string) {
     await this.page.goto(`${url}`)

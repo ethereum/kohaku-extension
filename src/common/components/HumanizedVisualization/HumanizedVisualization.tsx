@@ -158,7 +158,9 @@ const HumanizedVisualization: FC<Props> = ({
               fontSize={textSize}
               weight={item.isBold || item.type === 'action' ? 'semiBold' : 'regular'}
               appearance={
-                item.type === 'label'
+                item.warning
+                  ? 'warningText'
+                  : item.type === 'label'
                   ? 'secondaryText'
                   : item.type === 'action'
                   ? 'successText'

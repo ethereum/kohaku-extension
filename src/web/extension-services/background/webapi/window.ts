@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events'
 
-import { WindowProps } from '@ambire-common/interfaces/window'
+import { FocusWindowParams, WindowProps } from '@ambire-common/interfaces/window'
 import { SPACING } from '@common/styles/spacings'
 import { browser, engine, isExtension, isSafari } from '@web/constants/browserapi'
 import { IS_FIREFOX, IS_WINDOWS } from '@web/constants/common'
@@ -229,14 +229,19 @@ const open = async (
   const url = `action-window.html${route ? `#/${route}` : ''}`
   return create(url, customSize, baseWindowId)
 }
-
-// Focuses an existing window. In some cases, the passed window
-// cannot be focused (e.g., on Arc browser). If the window cannot be focused
-// within 1 second, a new window is created and the old one is removed.
-const focus = async (windowProps: WindowProps): Promise<WindowProps> => {
+/**
+ * Focuses an existing window. In some cases, the passed window
+ * cannot be focused (e.g., on Arc browser). If the window cannot be focused
+ * within 1 second, a new window is created and the old one is removed.
+ */
+const focus = async (
+  windowProps: WindowProps,
+  params?: FocusWindowParams
+): Promise<WindowProps> => {
   if (!windowProps) throw new Error('windowProps is undefined')
 
   const { id, width, height, createdFromWindowId } = windowProps
+  const { reopenIfNeeded = true } = params || {}
 
   let baseWindow: chrome.windows.Window | undefined
 
@@ -303,7 +308,7 @@ const focus = async (windowProps: WindowProps): Promise<WindowProps> => {
     timeoutId = setTimeout(async () => {
       cleanup()
 
-      if (!isFocused) {
+      if (!isFocused && reopenIfNeeded) {
         try {
           // Create new window and remove the old one
           const newWindow = await open()

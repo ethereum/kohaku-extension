@@ -81,10 +81,6 @@ const SwapAndBridgeScreen = () => {
   const scrollViewRef: any = useRef(null)
   const { dispatch } = useBackgroundService()
 
-  const handleBackButtonPress = useCallback(() => {
-    navigate(ROUTES.dashboard)
-  }, [navigate])
-
   useEffect(() => {
     if (!pendingRoutes || !prevPendingRoutes) return
     if (!pendingRoutes.length) return
@@ -177,7 +173,7 @@ const SwapAndBridgeScreen = () => {
   const buttons = useMemo(() => {
     return (
       <>
-        {isTab && <BackButton onPress={handleBackButtonPress} />}
+        {isTab && <BackButton onPress={onBackButtonPress} />}
         <Buttons
           signAccountOpErrors={swapSignErrors}
           isNotReadyToProceed={isNotReadyToProceed}
@@ -190,7 +186,7 @@ const SwapAndBridgeScreen = () => {
       </>
     )
   }, [
-    handleBackButtonPress,
+    onBackButtonPress,
     swapSignErrors,
     isNotReadyToProceed,
     isLoading,

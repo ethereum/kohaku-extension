@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 
-import { DappRequestAction } from '@ambire-common/interfaces/actions'
+import { isDappRequestAction } from '@ambire-common/libs/actions/actions'
 import DownArrowLongIcon from '@common/assets/svg/DownArrowLongIcon'
 import ManifestFallbackIcon from '@common/assets/svg/ManifestFallbackIcon'
 import AmbireLogoHorizontal from '@common/components/AmbireLogoHorizontal'
@@ -35,9 +35,10 @@ const SwitchAccountScreen = () => {
   const { accounts } = useAccountsControllerState()
   const [isAuthorizing, setIsAuthorizing] = useState(false)
   const { minHeightSize } = useWindowSize()
-  const dAppAction = useMemo(() => {
-    return state.currentAction as DappRequestAction
-  }, [state.currentAction])
+  const dAppAction = useMemo(
+    () => (isDappRequestAction(state.currentAction) ? state.currentAction : null),
+    [state.currentAction]
+  )
 
   const userRequest = useMemo(() => {
     if (dAppAction?.userRequest?.action?.kind !== 'switchAccount') return null
@@ -102,13 +103,13 @@ const SwitchAccountScreen = () => {
 
   // Resolve the request
   useEffect(() => {
-    if (account?.addr !== nextAccount || !userRequest) return
+    if (account?.addr !== nextAccount || !userRequest || !dAppAction) return
 
     dispatch({
       type: 'REQUESTS_CONTROLLER_RESOLVE_USER_REQUEST',
       params: { data: null, id: dAppAction.id }
     })
-  }, [account?.addr, dAppAction.id, dispatch, nextAccount, userRequest])
+  }, [account?.addr, dAppAction, dispatch, nextAccount, userRequest])
 
   return (
     <TabLayoutContainer
