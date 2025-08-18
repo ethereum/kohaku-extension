@@ -23,7 +23,7 @@ const PrivacyScreen = () => {
     <Wrapper title="Privacy" handleGoBack={onBack} buttons={[]}>
       <View style={[spacings.p16, flexbox.flex1, { overflow: 'scroll', padding: '16px' }]}>
         <View style={[flexbox.flex1, spacings.mt16]}>
-          <SeedPhraseManager ppData={ppData} />
+          <SeedPhraseManager />
 
           <DepositManager ppData={ppData} />
 
