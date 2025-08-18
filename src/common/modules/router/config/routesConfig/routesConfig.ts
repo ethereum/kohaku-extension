@@ -372,8 +372,8 @@ const routesConfig: RouteConfig = {
   },
   [ROUTES.benzin]: {
     route: ROUTES.benzin,
-    title: Platform.select({ default: i18n.t('Benzin') }),
-    name: Platform.select({ default: i18n.t('Benzin') })
+    title: Platform.select({ default: i18n.t('Explorer') }),
+    name: Platform.select({ default: i18n.t('Explorer') })
   },
   [ROUTES.switchAccount]: {
     route: ROUTES.switchAccount,

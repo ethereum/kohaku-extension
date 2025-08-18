@@ -55,7 +55,7 @@ const RepeatTransaction: FC<Props> = ({
       type: 'REQUESTS_CONTROLLER_ADD_USER_REQUEST',
       params: { userRequest }
     })
-  }, [accountAddr, dispatch, chainId, rawCalls])
+  }, [rawCalls, windowId, chainId, accountAddr, dispatch])
 
   return (
     <TouchableOpacity

@@ -5,7 +5,26 @@ function categorizeRequests(requests: string[]) {
     'https://raw.githubusercontent.com/phantom/blocklist/master/blocklist.yaml',
     'https://raw.githubusercontent.com/MetaMask/eth-phishing-detect/main/src/config.json'
   ]
-  const thirdPartyHostsAllowList = ['api.pimlico.io', 'li.quest', 'bundler.biconomy.io']
+  const thirdPartyHostsAllowList = [
+    // Bundles
+    'api.pimlico.io',
+    'api.gelato.digital',
+    'bundler.biconomy.io',
+    // Swap & Bridge quotes
+    'li.quest',
+    // RPCs
+    '480.rpc.thirdweb.com',
+    'unichain-rpc.publicnode.com',
+    'rpc.soniclabs.com',
+    'opbnb-rpc.publicnode.com',
+    'linea-rpc.publicnode.com',
+    'rpc-qnd.inkonchain.com',
+    'rpc.gnosischain.com',
+    'forno.celo.org',
+    'rpc.blast.io',
+    'bepolia.rpc.berachain.com',
+    'rpc.berachain-apis.com'
+  ]
 
   const reqs = requests.reduce(
     (acc, urlStr) => {

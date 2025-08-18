@@ -1,7 +1,8 @@
 import { getAddress } from 'ethers'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pressable, View } from 'react-native'
+import { useModalize } from 'react-native-modalize'
 
 import { getCoinGeckoTokenApiUrl, getCoinGeckoTokenUrl } from '@ambire-common/consts/coingecko'
 import { TokenResult } from '@ambire-common/libs/portfolio'
@@ -9,11 +10,9 @@ import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
 import { getIsNetworkSupported } from '@ambire-common/libs/swapAndBridge/swapAndBridge'
 import EarnIcon from '@common/assets/svg/EarnIcon'
 import InfoIcon from '@common/assets/svg/InfoIcon'
-import InvisibilityIcon from '@common/assets/svg/InvisibilityIcon'
 import SendIcon from '@common/assets/svg/SendIcon'
 import SwapAndBridgeIcon from '@common/assets/svg/SwapAndBridgeIcon'
 import TopUpIcon from '@common/assets/svg/TopUpIcon'
-import VisibilityIcon from '@common/assets/svg/VisibilityIcon'
 import WithdrawIcon from '@common/assets/svg/WithdrawIcon'
 import Text from '@common/components/Text'
 import TokenIcon from '@common/components/TokenIcon'
@@ -25,9 +24,11 @@ import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { RELAYER_URL } from '@env'
+import storage from '@web/extension-services/background/webapi/storage'
 import { createTab } from '@web/extension-services/background/webapi/tab'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useHasGasTank from '@web/hooks/useHasGasTank'
+import { AnimatedPressable, useCustomHover } from '@web/hooks/useHover'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import usePortfolioControllerState from '@web/hooks/usePortfolioControllerState/usePortfolioControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
@@ -36,6 +37,7 @@ import { getTokenId } from '@web/utils/token'
 
 import TokenDetailsButton from './Button'
 import CopyTokenAddress from './CopyTokenAddress'
+import HideTokenModal from './HideTokenModal'
 import getStyles from './styles'
 
 const TokenDetails = ({
@@ -47,6 +49,11 @@ const TokenDetails = ({
 }) => {
   const { styles, theme } = useTheme(getStyles)
   const { navigate } = useNavigation()
+  const {
+    ref: hideTokenModalRef,
+    open: openHideTokenModal,
+    close: closeHideTokenModal
+  } = useModalize()
   const { addToast } = useToast()
   const { t } = useTranslation()
   const { tokenPreferences } = usePortfolioControllerState()
@@ -56,13 +63,18 @@ const TokenDetails = ({
   const { networks } = useNetworksControllerState()
   const [coinGeckoTokenSlug, setCoinGeckoTokenSlug] = useState('')
   const [isTokenInfoLoading, setIsTokenInfoLoading] = useState(false)
-  const { isHidden } = tokenPreferences.find(
-    ({ address, chainId }) => address === token?.address && chainId === token?.chainId
-  ) || { isHidden: false }
+  const [doNotDisplayHideTokenModal, setDoNotDisplayHideTokenModal] = useState(false)
   const network = useMemo(
     () => networks.find((n) => n.chainId === token?.chainId),
     [networks, token?.chainId]
   )
+  const [bindAnimHide, animStyleHide] = useCustomHover({
+    property: 'backgroundColor',
+    values: {
+      from: theme.secondaryBackground,
+      to: theme.tertiaryBackground
+    }
+  })
 
   // if the token is a gas tank token, all actions except
   // top up and maybe token info should be disabled
@@ -88,6 +100,13 @@ const TokenDetails = ({
     year: new Date().getFullYear()
   })
 
+  useEffect(() => {
+    storage
+      .get('doNotShowAgainModalHideToken', false)
+      .then(setDoNotDisplayHideTokenModal)
+      .catch(() => console.error('Failed to load storage value for doNotShowAgainModalHideToken'))
+  }, [setDoNotDisplayHideTokenModal])
+
   const actions = useMemo(
     () => [
       {
@@ -111,8 +130,10 @@ const TokenDetails = ({
         onPress: ({ chainId, address }: TokenResult) =>
           navigate(WEB_ROUTES.swapAndBridge, {
             state: {
-              chainId: String(chainId),
-              address
+              preselectedFromToken: {
+                address,
+                chainId
+              }
             }
           }),
         isDisabled: shouldDisableSwapAndBridge,
@@ -256,19 +277,6 @@ const TokenDetails = ({
       .finally(() => setIsTokenInfoLoading(false))
   }, [t, token?.address, token?.chainId, networks, addToast, network])
 
-  const handleHideToken = () => {
-    if (!token) return
-
-    dispatch({
-      type: 'PORTFOLIO_CONTROLLER_TOGGLE_HIDE_TOKEN',
-      params: {
-        token: {
-          address: token.address,
-          chainId: token.chainId
-        }
-      }
-    })
-  }
   if (!token) return null
 
   const {
@@ -281,8 +289,44 @@ const TokenDetails = ({
   const { priceUSDFormatted, balanceUSDFormatted, isRewards, isVesting, networkData, balance } =
     getAndFormatTokenDetails(token, networks)
 
+  const hideToken = useCallback(() => {
+    if (!token) return
+    dispatch({
+      type: 'PORTFOLIO_CONTROLLER_TOGGLE_HIDE_TOKEN',
+      params: {
+        token: {
+          address: token.address,
+          chainId: token.chainId
+        },
+        shouldUpdatePortfolio: true
+      }
+    })
+  }, [dispatch, token])
+
+  const handleHideTokenFromButton = useCallback(async () => {
+    if (doNotDisplayHideTokenModal) hideToken()
+    else openHideTokenModal()
+  }, [hideToken, openHideTokenModal, doNotDisplayHideTokenModal])
+
+  const handleHideTokenFromModal = useCallback(
+    async (doNotShowModalAnymore: boolean) => {
+      storage
+        .set('doNotShowAgainModalHideToken', doNotShowModalAnymore)
+        .catch(() => console.error('Failed to record value for doNotShowAgainModalHideToken'))
+      setDoNotDisplayHideTokenModal(doNotShowModalAnymore)
+      hideToken()
+      closeHideTokenModal()
+      handleClose()
+    },
+    [hideToken, closeHideTokenModal, handleClose]
+  )
   return (
     <View>
+      <HideTokenModal
+        modalRef={hideTokenModalRef}
+        handleClose={closeHideTokenModal}
+        handleHideToken={handleHideTokenFromModal}
+      />
       <View style={styles.tokenInfoAndIcon}>
         <TokenIcon
           containerHeight={48}
@@ -314,19 +358,15 @@ const TokenDetails = ({
             </View>
             {!onGasTank && !isRewards && !isVesting && !token.flags.defiTokenType && (
               <View style={[flexbox.alignSelfEnd]}>
-                <Pressable
-                  style={[flexbox.directionRow, flexbox.alignCenter]}
-                  onPress={handleHideToken}
+                <AnimatedPressable
+                  {...bindAnimHide}
+                  onPress={handleHideTokenFromButton}
+                  style={animStyleHide}
                 >
-                  <Text weight="medium" fontSize={12}>
-                    {t(isHidden ? 'Show' : 'Hide')}
+                  <Text style={styles.hideTokenButton} weight="medium" fontSize={12}>
+                    {t('Hide token')}
                   </Text>
-                  {isHidden ? (
-                    <InvisibilityIcon color={theme.errorDecorative} style={styles.visibilityIcon} />
-                  ) : (
-                    <VisibilityIcon color={theme.successDecorative} style={styles.visibilityIcon} />
-                  )}
-                </Pressable>
+                </AnimatedPressable>
               </View>
             )}
           </View>
@@ -334,7 +374,7 @@ const TokenDetails = ({
             <Text
               selectable
               style={spacings.mrMi}
-              fontSize={16}
+              fontSize={12}
               weight="number_bold"
               numberOfLines={1}
               dataSet={{ tooltipId: `${tokenId}-details-balance` }}
@@ -345,13 +385,13 @@ const TokenDetails = ({
               <Text
                 selectable
                 style={spacings.mrMi}
-                fontSize={16}
+                fontSize={12}
                 weight="number_bold"
-                appearance="infoText"
+                appearance="secondaryText"
               >
-                ≈ {balanceUSDFormatted}
+                {balanceUSDFormatted}
               </Text>
-              <Text selectable fontSize={16} weight="number_regular" appearance="secondaryText">
+              <Text selectable fontSize={12} weight="number_regular" appearance="secondaryText">
                 (1 ${symbol} ≈ {priceUSDFormatted})
               </Text>
             </View>

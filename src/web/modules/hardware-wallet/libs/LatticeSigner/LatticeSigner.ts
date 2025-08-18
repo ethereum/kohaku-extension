@@ -12,7 +12,9 @@ import { addHexPrefix } from '@ambire-common/utils/addHexPrefix'
 import { getHDPathIndices } from '@ambire-common/utils/hdPath'
 import shortenAddress from '@ambire-common/utils/shortenAddress'
 import wait from '@ambire-common/utils/wait'
-import LatticeController, { GridPlusSDKConstants } from '@web/modules/hardware-wallet/controllers/LatticeController'
+import LatticeController, {
+  GridPlusSDKConstants
+} from '@web/modules/hardware-wallet/controllers/LatticeController'
 
 class LatticeSigner implements KeystoreSignerInterface {
   key: ExternalKey
@@ -28,7 +30,9 @@ class LatticeSigner implements KeystoreSignerInterface {
   // @ts-ignore
   init(externalSignerController?: LatticeController) {
     if (!externalSignerController) {
-      throw new ExternalSignerError('latticeSigner: externalSignerController not initialized')
+      throw new ExternalSignerError('latticeSigner: externalSignerController not initialized', {
+        sendCrashReport: true
+      })
     }
 
     this.controller = externalSignerController
@@ -37,12 +41,18 @@ class LatticeSigner implements KeystoreSignerInterface {
   #prepareForSigning = async () => {
     if (!this.controller)
       throw new ExternalSignerError(
-        'Something went wrong when preparing Lattice1 to sign. Please try again or contact support if the problem persists.'
+        'Something went wrong when preparing Lattice1 to sign. Please try again or contact support if the problem persists.',
+        {
+          sendCrashReport: true
+        }
       )
 
     if (!this.key)
       throw new ExternalSignerError(
-        'Something went wrong when preparing Lattice1 to sign. Required information about the signing key was found missing. Please try again or contact Ambire support.'
+        'Something went wrong when preparing Lattice1 to sign. Required information about the signing key was found missing. Please try again or contact Ambire support.',
+        {
+          sendCrashReport: true
+        }
       )
 
     // Wait a little bit before opening the Lattice Connector on purpose, so
@@ -53,7 +63,10 @@ class LatticeSigner implements KeystoreSignerInterface {
 
     if (!this.controller.walletSDK)
       throw new ExternalSignerError(
-        'Something went wrong when preparing Lattice1 to sign. Please try again or contact support if the problem persists.'
+        'Something went wrong when preparing Lattice1 to sign. Please try again or contact support if the problem persists.',
+        {
+          sendCrashReport: true
+        }
       )
   }
 
@@ -130,7 +143,9 @@ class LatticeSigner implements KeystoreSignerInterface {
 
       // Ensure we got a signature back
       if (!res?.sig || !res.sig.r || !res.sig.s || !res.sig.v) {
-        throw new ExternalSignerError('latticeSigner: no signature returned')
+        throw new ExternalSignerError('latticeSigner: no signature returned', {
+          sendCrashReport: true
+        })
       }
 
       // GridPlus SDK's type for the signature is any, either because of bad
@@ -156,9 +171,14 @@ class LatticeSigner implements KeystoreSignerInterface {
 
       return signedTxn.serialized
     } catch (error: any) {
+      const errorMessage = error?.message || error?.err
+
       throw new ExternalSignerError(
         // An `error.err` message might come from the Lattice .sign() failure
-        error?.message || error?.err || 'latticeSigner: singing failed for unknown reason'
+        errorMessage || 'latticeSigner: singing failed for unknown reason',
+        {
+          sendCrashReport: !errorMessage
+        }
       )
     }
   }
@@ -199,7 +219,10 @@ class LatticeSigner implements KeystoreSignerInterface {
     const res = await this.controller!.walletSDK!.sign(req)
     if (!res.sig)
       throw new ExternalSignerError(
-        'Required signature data was found missing. Please try again later or contact Ambire support.'
+        'Required signature data was found missing. Please try again later or contact Ambire support.',
+        {
+          sendCrashReport: true
+        }
       )
 
     // TODO: Figure out how to retrieve the signing key address from the

@@ -5,7 +5,7 @@ module.exports = {
   ...baseConfig,
   displayName: 'Ambire Extension Unit Tests',
   testPathIgnorePatterns: [
-    path.join('<rootDir>', 'tests/'), // E2E tests, handled by another configuration
+    path.join('<rootDir>', 'e2e-playwright-tests/'), // E2E tests, handled by another configuration
     path.join('<rootDir>', 'src/ambire-common/'), // Tests for the ambire-common library, handled by another configuration
     path.join('<rootDir>', 'node_modules/'),
     // Mobile builds

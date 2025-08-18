@@ -2,9 +2,13 @@ name: E2E Playwright Tests
 
 on:
   push:
-    branches: v2
+    branches:
+      - v2
+      - main
   pull_request:
-    branches: v2
+    branches:
+      - v2
+      - main
 
 jobs:
   e2e-tests:

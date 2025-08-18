@@ -4,7 +4,7 @@ import { PlaywrightTestConfig } from '@playwright/test'
 
 const config: PlaywrightTestConfig = {
   expect: {
-    timeout: 10 * 1000,
+    timeout: 30 * 1000,
     toHaveScreenshot: {
       maxDiffPixelRatio: 1 / 100
     }

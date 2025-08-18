@@ -12,14 +12,18 @@ const OverachieverBanner: React.FC<{ wrapperClassName?: string }> = ({ wrapperCl
   const isOverachieverReached = legends.some(
     (card) => card.id === 'overachiever' && card.card.status === CardStatus.completed
   )
-  if (!isOverachieverReached) return null
+
+  const hasPenalty = legends.some((card) => card.id === 'staking' && card.meta?.hasPenalty)
+
+  if (!isOverachieverReached && !hasPenalty) return null
 
   return (
     <div className={`${styles.overachieverBanner} ${wrapperClassName}`}>
       <LockIcon className={styles.lockIcon} width={29} height={37} />
       <p className={styles.overachieverText}>
-        Daily limit of 20 transactions reached. Every other transaction for the rest of the day
-        earns you 1XP.
+        {hasPenalty
+          ? 'Quests are not available while you have a pending unstake request'
+          : 'Daily limit of 20 transactions reached. Every other transaction for the rest of the day earns you 1XP.'}
       </p>
     </div>
   )

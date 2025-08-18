@@ -1,6 +1,6 @@
-import { bootstrapWithStorage } from 'common-helpers/bootstrap'
 import { baParams } from 'constants/env'
 import selectors from 'constants/selectors'
+import BootstrapContext from 'interfaces/bootstrapContext'
 import Token from 'interfaces/token'
 
 import { expect } from '@playwright/test'
@@ -10,12 +10,9 @@ import { BasePage } from './basePage'
 export class TransferPage extends BasePage {
   extensionURL: string
 
-  async init(param) {
-    const { page, extensionURL, context } = await bootstrapWithStorage('transfer', param)
-    this.page = page
-    this.context = context
-
-    this.extensionURL = extensionURL
+  constructor(opts: BootstrapContext) {
+    super(opts)
+    this.extensionURL = opts.extensionURL
   }
 
   async navigateToTransfer() {

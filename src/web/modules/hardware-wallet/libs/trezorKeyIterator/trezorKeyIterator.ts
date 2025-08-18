@@ -44,7 +44,10 @@ class TrezorKeyIterator implements KeyIteratorInterface {
       return childNode.address
     } catch (error: any) {
       throw new ExternalSignerError(
-        `Could not generate Ethereum address from the extended public key received from your Trezor device. Technical details: <${error?.message}>.`
+        `Could not generate Ethereum address from the extended public key received from your Trezor device. Technical details: <${error?.message}>.`,
+        {
+          sendCrashReport: true
+        }
       )
     }
   }
@@ -85,7 +88,8 @@ class TrezorKeyIterator implements KeyIteratorInterface {
         if (error instanceof ExternalSignerError) throw error
 
         throw new ExternalSignerError(
-          `Could not receive the extended public key from your Trezor device. Technical details: <${error?.message}>.`
+          `Could not receive the extended public key from your Trezor device. Technical details: <${error?.message}>.`,
+          { sendCrashReport: true }
         )
       }
     }

@@ -5,7 +5,6 @@ import {
 import { SENTRY_DSN_BROWSER_EXTENSION } from '@env'
 import * as Sentry from '@sentry/react'
 import { isExtension } from '@web/constants/browserapi'
-import storage from '@web/extension-services/background/webapi/storage'
 
 import { getUiType } from './uiType'
 

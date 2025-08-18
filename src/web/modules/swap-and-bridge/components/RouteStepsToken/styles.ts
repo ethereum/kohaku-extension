@@ -1,6 +1,7 @@
 import { StyleSheet, TextStyle, ViewStyle } from 'react-native'
 
 import spacings from '@common/styles/spacings'
+import flexbox from '@common/styles/utils/flexbox'
 
 interface Style {
   tokenContainer: ViewStyle
@@ -27,7 +28,7 @@ const styles = StyleSheet.create<Style>({
     whiteSpace: 'nowrap'
   },
   tokenContainer: {
-    alignSelf: 'center',
+    ...flexbox.alignSelfCenter,
     ...spacings.mbMi,
     ...spacings.mtSm
   }

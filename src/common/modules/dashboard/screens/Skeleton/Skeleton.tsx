@@ -20,7 +20,7 @@ const { isTab } = getUiType()
 const Skeleton = () => {
   const { styles } = useTheme(getStyles)
   const { minWidthSize } = useWindowSize()
-  const allBanners = useBanners()
+  const [controllerBanners] = useBanners()
 
   return (
     <View style={styles.container}>
@@ -29,7 +29,7 @@ const Skeleton = () => {
         <View
           style={[commonWebStyles.contentContainer, !isTab ? spacings.phSm : {}, spacings.ptTy]}
         >
-          {allBanners.map((banner) => (
+          {controllerBanners.map((banner) => (
             <SkeletonLoader key={banner.id} height={61} width="100%" style={spacings.mbTy} />
           ))}
           <TabsAndSearchSkeleton />

@@ -49,7 +49,7 @@ const TabsAndSearch: FC<Props> = ({ openTab, setOpenTab, searchControl, sessionI
   const searchButtonRef = useRef<any>(null)
   const { styles, theme, themeType } = useTheme(getStyles)
   const { t } = useTranslation()
-  const allBanners = useBanners()
+  const [controllerBanners] = useBanners()
   const [isSearchVisible, setIsSearchVisible] = useState(false)
   const [bindControlPositionAnim, controlPositionStyles] = useMultiHover({
     values: [
@@ -93,7 +93,7 @@ const TabsAndSearch: FC<Props> = ({ openTab, setOpenTab, searchControl, sessionI
   }, [isSearchVisible])
 
   return (
-    <View style={[styles.container, !!allBanners.length && spacings.ptTy]}>
+    <View style={[styles.container, !!controllerBanners.length && spacings.ptTy]}>
       <Tabs
         handleChangeQuery={(tab) => setSearchParams({ tab, sessionId })}
         setOpenTab={setOpenTab}

@@ -62,7 +62,7 @@ const FromToken: FC<Props> = ({
 
       dispatch({
         type: 'SWAP_AND_BRIDGE_CONTROLLER_UPDATE_FORM',
-        params: { fromSelectedToken: tokenToSelect }
+        params: { formValues: { fromSelectedToken: tokenToSelect } }
       })
     },
     [portfolioTokenList, setIsAutoSelectRouteDisabled, toSelectedToken, dispatch]
@@ -71,14 +71,16 @@ const FromToken: FC<Props> = ({
   const handleSetMaxFromAmount = useCallback(() => {
     dispatch({
       type: 'SWAP_AND_BRIDGE_CONTROLLER_UPDATE_FORM',
-      params: { shouldSetMaxAmount: true }
+      params: { formValues: { shouldSetMaxAmount: true } }
     })
   }, [dispatch])
 
   const handleSwitchFromAmountFieldMode = useCallback(() => {
     dispatch({
       type: 'SWAP_AND_BRIDGE_CONTROLLER_UPDATE_FORM',
-      params: { fromAmountFieldMode: fromAmountFieldMode === 'token' ? 'fiat' : 'token' }
+      params: {
+        formValues: { fromAmountFieldMode: fromAmountFieldMode === 'token' ? 'fiat' : 'token' }
+      }
     })
   }, [fromAmountFieldMode, dispatch])
 

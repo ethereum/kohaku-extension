@@ -51,7 +51,9 @@ class TrezorSigner implements KeystoreSignerInterface {
 
   init(externalDeviceController?: ExternalSignerController) {
     if (!externalDeviceController) {
-      throw new ExternalSignerError('trezorSigner: externalDeviceController not initialized')
+      throw new ExternalSignerError('trezorSigner: externalDeviceController not initialized', {
+        sendCrashReport: true
+      })
     }
 
     // TODO: Figure out a better approach than to cast the controller type
@@ -61,14 +63,20 @@ class TrezorSigner implements KeystoreSignerInterface {
   #prepareForSigning = async () => {
     if (!this.controller) {
       throw new ExternalSignerError(
-        'Something went wrong when preparing Trezor to sign. Please try again or contact support if the problem persists.'
+        'Something went wrong when preparing Trezor to sign. Please try again or contact support if the problem persists.',
+        {
+          sendCrashReport: true
+        }
       )
     }
 
     await this.controller.initialLoadPromise
     if (!this.controller.isInitiated || !this.controller.walletSDK) {
       throw new ExternalSignerError(
-        'Something went wrong when preparing Trezor to sign. Please try restarting your browser or contact support if the problem persists.'
+        'Something went wrong when preparing Trezor to sign. Please try restarting your browser or contact support if the problem persists.',
+        {
+          sendCrashReport: true
+        }
       )
     }
 
@@ -126,7 +134,9 @@ class TrezorSigner implements KeystoreSignerInterface {
 
   signRawTransaction: KeystoreSignerInterface['signRawTransaction'] = async (txnRequest) => {
     if (typeof txnRequest.value === 'undefined') {
-      throw new ExternalSignerError('trezorSigner: missing value in transaction request')
+      throw new ExternalSignerError('trezorSigner: missing value in transaction request', {
+        sendCrashReport: true
+      })
     }
 
     await this.#prepareForSigning()
@@ -172,6 +182,7 @@ class TrezorSigner implements KeystoreSignerInterface {
 
     if (!res.success)
       throw new ExternalSignerError(
+        // @TODO: Implement a mechanism that reports the error if it's not humanized
         getMessageFromTrezorErrorCode(res.payload?.code, res.payload?.error)
       )
 
@@ -199,7 +210,10 @@ class TrezorSigner implements KeystoreSignerInterface {
     } catch (error: any) {
       throw new ExternalSignerError(
         error?.message ||
-          'Signing failed for unknown reason. Please try again later or contact support if the problem persists.'
+          'Signing failed for unknown reason. Please try again later or contact support if the problem persists.',
+        {
+          sendCrashReport: true
+        }
       )
     }
   }
@@ -248,6 +262,7 @@ class TrezorSigner implements KeystoreSignerInterface {
 
     if (!res.success)
       throw new ExternalSignerError(
+        // @TODO: Implement a mechanism that reports the error if it's not humanized
         getMessageFromTrezorErrorCode(res.payload?.code, res.payload?.error)
       )
 
@@ -270,7 +285,10 @@ class TrezorSigner implements KeystoreSignerInterface {
 
     if (!res.success)
       throw new ExternalSignerError(
-        getMessageFromTrezorErrorCode(res.payload?.code, res.payload?.error)
+        getMessageFromTrezorErrorCode(res.payload?.code, res.payload?.error),
+        {
+          sendCrashReport: true
+        }
       )
 
     this.#validateSigningKey(res.payload.address)
