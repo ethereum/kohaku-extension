@@ -7,28 +7,18 @@ import Alert from '@common/components/Alert'
 import Heading from '@common/components/Heading'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
-import { usePP } from '../hooks/usePP'
+import usePrivacyForm from '../hooks/usePrivacyForm'
 
-type SeedPhraseManagerProps = {
-  ppData: ReturnType<typeof usePP>
-}
-
-const SeedPhraseManager = ({ ppData }: SeedPhraseManagerProps) => {
+const SeedPhraseManager = () => {
   const {
-    handleGenerateSeedPhrase,
-    handleLoadAccount,
-    isGenerating,
-    isLoading,
     message,
-    setMessage,
     seedPhrase,
-    setSeedPhrase
-  } = ppData
-
-  const handleSeedPhraseChange = (event: any) => {
-    setSeedPhrase(event.target.value)
-    if (message) setMessage(null)
-  }
+    isGenerating,
+    isLoadingAccount,
+    loadAccount,
+    handleGenerateSeedPhrase,
+    handleUpdateForm
+  } = usePrivacyForm()
 
   return (
     <View style={[spacings.mb24]}>
@@ -42,7 +32,7 @@ const SeedPhraseManager = ({ ppData }: SeedPhraseManagerProps) => {
         <TextArea
           label="Seed Phrase"
           value={seedPhrase}
-          onChange={handleSeedPhraseChange}
+          onChange={handleUpdateForm}
           placeholder="Enter your 12 or 24 word seed phrase..."
           multiline
           numberOfLines={4}
@@ -54,15 +44,15 @@ const SeedPhraseManager = ({ ppData }: SeedPhraseManagerProps) => {
         <Button
           type="primary"
           onPress={handleGenerateSeedPhrase}
-          disabled={isGenerating || isLoading}
+          disabled={isGenerating || isLoadingAccount}
           text={isGenerating ? 'Generating...' : 'Generate New Seed Phrase'}
         />
 
         <Button
           type="secondary"
-          onPress={handleLoadAccount}
-          disabled={!seedPhrase?.trim() || isGenerating || isLoading}
-          text={isLoading ? 'Loading Account...' : 'Load Existing Account'}
+          onPress={loadAccount}
+          disabled={!seedPhrase?.trim() || isGenerating || isLoadingAccount}
+          text={isLoadingAccount ? 'Loading Account...' : 'Load Existing Account'}
         />
       </View>
 
