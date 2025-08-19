@@ -1,10 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { formatEther, parseEther } from 'viem'
 
+import { Hash } from '@0xbow/privacy-pools-core-sdk'
 import { PoolAccount } from '@web/contexts/privacyControllerStateContext'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import usePrivacyControllerState from '@web/hooks/usePrivacyControllerState'
 
 import { generateSeedPhrase } from '../utils/seedPhrase'
+import { prepareDepositTransaction } from '../utils/privacy/deposit'
 
 type PrivateRequestType = 'privateDepositRequest' | 'privateSendRequest' | 'privateRagequitRequest'
 
@@ -19,14 +22,19 @@ const usePrivacyForm = () => {
     accountService,
     selectedPoolAccount,
     loadAccount,
+    createDepositSecrets,
     setSelectedPoolAccount
   } = usePrivacyControllerState()
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isLoadingAccount, setIsLoadingAccount] = useState(false)
+  const [displayAmountValue, setDisplayAmountValue] = useState('')
+
+  const poolInfo = chainData?.[11155111]?.poolInfo?.[0]
 
   const handleUpdateForm = (params: { [key: string]: any }) => {
+    console.log('params', params)
     dispatch({
       type: 'PRIVACY_CONTROLLER_UPDATE_FORM',
       params: { ...params }
@@ -95,9 +103,74 @@ const usePrivacyForm = () => {
     })
   }
 
+  const handleDeposit = async () => {
+    if (!amount || !poolInfo) return
+
+    const secrets = createDepositSecrets(poolInfo.scope as Hash)
+    const result = await prepareDepositTransaction({
+      amount,
+      depositSecrets: secrets,
+      entryPointAddress: poolInfo.entryPointAddress
+    })
+
+    // eslint-disable-next-line no-console
+    console.log('result', result)
+
+    handlePrivateRequest('privateDepositRequest', [result])
+  }
+
+  const handleAmountChange = (inputValue: string) => {
+    setDisplayAmountValue(inputValue)
+
+    try {
+      if (inputValue === '') {
+        handleUpdateForm({ amount: '0' })
+        return
+      }
+
+      if (inputValue.endsWith('.') || inputValue === '0.' || /^\d*\.0*$/.test(inputValue)) {
+        return
+      }
+
+      const numValue = parseFloat(inputValue)
+      if (Number.isNaN(numValue) || numValue < 0) {
+        return
+      }
+
+      const weiAmount = parseEther(inputValue)
+      handleUpdateForm({ amount: weiAmount.toString() })
+    } catch (error) {
+      console.warn('Invalid ETH amount entered:', inputValue)
+    }
+  }
+
+  const handleSetMaxAmount = (balance: bigint) => {
+    if (balance && balance > 0n) {
+      const formattedAmount = formatEther(balance)
+      setDisplayAmountValue(formattedAmount)
+      handleUpdateForm({ amount: parseEther(formattedAmount).toString() })
+    } else {
+      setDisplayAmountValue('')
+      handleUpdateForm({ amount: '0' })
+    }
+  }
+
+  useEffect(() => {
+    if (amount && amount !== '0') {
+      try {
+        setDisplayAmountValue(formatEther(BigInt(amount)))
+      } catch {
+        setDisplayAmountValue('')
+      }
+    } else {
+      setDisplayAmountValue('')
+    }
+  }, [amount])
+
   return {
     amount,
     message,
+    poolInfo,
     chainData,
     seedPhrase,
     poolAccounts,
@@ -105,9 +178,13 @@ const usePrivacyForm = () => {
     targetAddress,
     accountService,
     isLoadingAccount,
+    displayAmountValue,
     selectedPoolAccount,
+    handleDeposit,
     handleUpdateForm,
     handleLoadAccount,
+    handleSetMaxAmount,
+    handleAmountChange,
     handlePrivateRequest,
     handleSelectedAccount,
     handleGenerateSeedPhrase
