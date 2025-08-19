@@ -7,19 +7,26 @@ import Alert from '@common/components/Alert'
 import Heading from '@common/components/Heading'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
-import usePrivacyForm from '../hooks/usePrivacyForm'
 
-const SeedPhraseManager = () => {
-  const {
-    message,
-    seedPhrase,
-    isGenerating,
-    isLoadingAccount,
-    loadAccount,
-    handleGenerateSeedPhrase,
-    handleUpdateForm
-  } = usePrivacyForm()
+interface SeedPhraseManagerProps {
+  message: { type: 'success' | 'error'; text: string } | null
+  seedPhrase?: string
+  isGenerating?: boolean
+  isLoadingAccount?: boolean
+  onLoadAccount?: () => void
+  onGenerateSeedPhrase?: () => void
+  onUpdateForm: (params: { [key: string]: any }) => void
+}
 
+const SeedPhraseManager = ({
+  message,
+  seedPhrase,
+  isGenerating,
+  isLoadingAccount,
+  onLoadAccount,
+  onGenerateSeedPhrase,
+  onUpdateForm
+}: SeedPhraseManagerProps) => {
   return (
     <View style={[spacings.mb24]}>
       <Heading style={[spacings.mb16, { textAlign: 'center' }]}>Account Manager</Heading>
@@ -32,7 +39,7 @@ const SeedPhraseManager = () => {
         <TextArea
           label="Seed Phrase"
           value={seedPhrase}
-          onChange={handleUpdateForm}
+          onChange={(event: any) => onUpdateForm({ seedPhrase: event.target.value })}
           placeholder="Enter your 12 or 24 word seed phrase..."
           multiline
           numberOfLines={4}
@@ -43,14 +50,14 @@ const SeedPhraseManager = () => {
       <View style={[flexbox.directionRow, flexbox.justifySpaceBetween, spacings.mb16]}>
         <Button
           type="primary"
-          onPress={handleGenerateSeedPhrase}
+          onPress={onGenerateSeedPhrase}
           disabled={isGenerating || isLoadingAccount}
           text={isGenerating ? 'Generating...' : 'Generate New Seed Phrase'}
         />
 
         <Button
           type="secondary"
-          onPress={loadAccount}
+          onPress={onLoadAccount}
           disabled={!seedPhrase?.trim() || isGenerating || isLoadingAccount}
           text={isLoadingAccount ? 'Loading Account...' : 'Load Existing Account'}
         />
