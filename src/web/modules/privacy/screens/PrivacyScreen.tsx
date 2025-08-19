@@ -9,10 +9,26 @@ import DepositManager from '../components/DepositManager'
 import SeedPhraseManager from '../components/SeedPhraseManager'
 import WithdrawalManager from '../components/WithdrawalManager'
 import AccountOverview from '../components/AccountOverview'
+
 import { usePP } from '../hooks/usePP'
+import usePrivacyForm from '../hooks/usePrivacyForm'
 
 const PrivacyScreen = () => {
   const { navigate } = useNavigation()
+  const {
+    message,
+    seedPhrase,
+    poolAccounts,
+    isGenerating,
+    accountService,
+    isLoadingAccount,
+    selectedPoolAccount,
+    handleUpdateForm,
+    handleLoadAccount,
+    handleSelectedAccount,
+    handleGenerateSeedPhrase
+  } = usePrivacyForm()
+
   const ppData = usePP()
 
   const onBack = useCallback(() => {
@@ -23,13 +39,26 @@ const PrivacyScreen = () => {
     <Wrapper title="Privacy" handleGoBack={onBack} buttons={[]}>
       <View style={[spacings.p16, flexbox.flex1, { overflow: 'scroll', padding: '16px' }]}>
         <View style={[flexbox.flex1, spacings.mt16]}>
-          <SeedPhraseManager />
+          <SeedPhraseManager
+            message={message}
+            seedPhrase={seedPhrase}
+            isGenerating={isGenerating}
+            isLoadingAccount={isLoadingAccount}
+            onLoadAccount={handleLoadAccount}
+            onGenerateSeedPhrase={handleGenerateSeedPhrase}
+            onUpdateForm={handleUpdateForm}
+          />
 
           <DepositManager ppData={ppData} />
 
           <WithdrawalManager />
 
-          <AccountOverview ppData={ppData} />
+          <AccountOverview
+            poolAccounts={poolAccounts}
+            accountService={accountService}
+            selectedAccount={selectedPoolAccount}
+            onSelectAccount={handleSelectedAccount}
+          />
         </View>
       </View>
     </Wrapper>
