@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { formatEther, parseEther } from 'viem'
-
 import { Hash } from '@0xbow/privacy-pools-core-sdk'
 import { PoolAccount } from '@web/contexts/privacyControllerStateContext'
 import useBackgroundService from '@web/hooks/useBackgroundService'
@@ -34,7 +33,6 @@ const usePrivacyForm = () => {
   const poolInfo = chainData?.[11155111]?.poolInfo?.[0]
 
   const handleUpdateForm = (params: { [key: string]: any }) => {
-    console.log('params', params)
     dispatch({
       type: 'PRIVACY_CONTROLLER_UPDATE_FORM',
       params: { ...params }
@@ -185,7 +183,6 @@ const usePrivacyForm = () => {
     handleLoadAccount,
     handleSetMaxAmount,
     handleAmountChange,
-    handlePrivateRequest,
     handleSelectedAccount,
     handleGenerateSeedPhrase
   }
