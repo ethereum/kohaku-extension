@@ -1,11 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { getAddress } from 'viem'
+import { encodeFunctionData } from 'viem'
 import type {
   AccountCommitment,
   AccountService,
   CommitmentProof
 } from '@0xbow/privacy-pools-core-sdk'
-import type { PublicClient, WalletClient, Address } from 'viem'
 import { privacyPoolAbi } from './abi'
 import { generateRagequitProof } from './sdk'
 
@@ -15,17 +14,13 @@ export type RagequitParams = {
     ragequit?: any
     balance: bigint
   }
-  account: AccountService
-  userAddress: Address
   poolAddress: string
-  publicClient: PublicClient
-  walletClient: WalletClient
 }
 
 export type RagequitResult = {
-  success: boolean
-  hash?: `0x${string}`
-  error?: string
+  to: string
+  data: string
+  value: bigint
 }
 
 /**
@@ -101,31 +96,14 @@ export async function generateRagequitData(commitment: AccountCommitment): Promi
  */
 export async function executeRagequitTransaction({
   poolAccount,
-  account,
-  userAddress,
-  poolAddress,
-  publicClient,
-  walletClient
+  poolAddress
 }: RagequitParams): Promise<RagequitResult> {
   try {
-    // Validate ragequit eligibility
-    const validation = canRagequit(poolAccount, account)
-    if (!validation.canRagequit) {
-      return { success: false, error: validation.reason }
-    }
-
     // Generate ragequit data
     const commitment = poolAccount.lastCommitment
-    const { proof, transformedArgs, error } = await generateRagequitData(commitment)
+    const { transformedArgs } = await generateRagequitData(commitment)
 
-    if (error || !proof || !transformedArgs) {
-      return { success: false, error: error || 'Failed to generate ragequit data' }
-    }
-
-    // Simulate and execute contract call
-    const { request } = await publicClient.simulateContract({
-      account: userAddress,
-      address: getAddress(poolAddress),
+    const data = encodeFunctionData({
       abi: privacyPoolAbi,
       functionName: 'ragequit',
       args: [
@@ -138,11 +116,16 @@ export async function executeRagequitTransaction({
       ]
     })
 
-    const hash = await walletClient.writeContract(request)
-    return { success: true, hash }
+    return {
+      to: poolAddress,
+      data,
+      value: 0n
+    }
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Failed to execute ragequit transaction'
-    return { success: false, error: errorMessage }
+    // eslint-disable-next-line no-console
+    console.error(errorMessage)
+    return { to: '', data: '', value: 0n }
   }
 }
