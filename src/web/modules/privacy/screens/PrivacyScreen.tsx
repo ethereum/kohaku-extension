@@ -1,10 +1,12 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useEffect } from 'react'
 import { ROUTES } from '@common/modules/router/constants/common'
 import { View } from 'react-native'
 import { Wrapper } from '@web/components/TransactionsScreen'
+import useBackgroundService from '@web/hooks/useBackgroundService'
 import useNavigation from '@common/hooks/useNavigation'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
+
 import DepositManager from '../components/DepositManager'
 import SeedPhraseManager from '../components/SeedPhraseManager'
 import WithdrawalManager from '../components/WithdrawalManager'
@@ -13,6 +15,8 @@ import usePrivacyForm from '../hooks/usePrivacyForm'
 
 const PrivacyScreen = () => {
   const { navigate } = useNavigation()
+  const { dispatch } = useBackgroundService()
+
   const {
     message,
     poolInfo,
@@ -35,6 +39,12 @@ const PrivacyScreen = () => {
   const onBack = useCallback(() => {
     navigate(ROUTES.dashboard)
   }, [navigate])
+
+  useEffect(() => {
+    return () => {
+      dispatch({ type: 'PRIVACY_CONTROLLER_UNLOAD_SCREEN' })
+    }
+  }, [dispatch])
 
   return (
     <Wrapper title="Privacy" handleGoBack={onBack} buttons={[]}>

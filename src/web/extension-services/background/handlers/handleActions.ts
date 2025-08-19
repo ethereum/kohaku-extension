@@ -406,6 +406,8 @@ export const handleActions = async (
       return mainCtrl.privacy.setSdkInitialized()
     case 'PRIVACY_CONTROLLER_UPDATE_FORM':
       return mainCtrl.privacy.update(params)
+    case 'PRIVACY_CONTROLLER_UNLOAD_SCREEN':
+      return mainCtrl.privacy.unloadScreen()
     case 'ACTIONS_CONTROLLER_REMOVE_FROM_ACTIONS_QUEUE':
       return mainCtrl.requests.actions.removeActions([params.id], params.shouldOpenNextAction)
     case 'ACTIONS_CONTROLLER_FOCUS_ACTION_WINDOW':
