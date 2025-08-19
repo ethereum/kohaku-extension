@@ -9,27 +9,28 @@ import DepositManager from '../components/DepositManager'
 import SeedPhraseManager from '../components/SeedPhraseManager'
 import WithdrawalManager from '../components/WithdrawalManager'
 import AccountOverview from '../components/AccountOverview'
-
-import { usePP } from '../hooks/usePP'
 import usePrivacyForm from '../hooks/usePrivacyForm'
 
 const PrivacyScreen = () => {
   const { navigate } = useNavigation()
   const {
     message,
+    poolInfo,
     seedPhrase,
     poolAccounts,
     isGenerating,
     accountService,
     isLoadingAccount,
+    displayAmountValue,
     selectedPoolAccount,
+    handleDeposit,
     handleUpdateForm,
     handleLoadAccount,
+    handleSetMaxAmount,
+    handleAmountChange,
     handleSelectedAccount,
     handleGenerateSeedPhrase
   } = usePrivacyForm()
-
-  const ppData = usePP()
 
   const onBack = useCallback(() => {
     navigate(ROUTES.dashboard)
@@ -49,7 +50,14 @@ const PrivacyScreen = () => {
             onUpdateForm={handleUpdateForm}
           />
 
-          <DepositManager ppData={ppData} />
+          <DepositManager
+            message={message}
+            poolInfo={poolInfo}
+            displayValue={displayAmountValue}
+            onAmountChange={handleAmountChange}
+            onSetMaxAmount={handleSetMaxAmount}
+            onDeposit={handleDeposit}
+          />
 
           <WithdrawalManager />
 
