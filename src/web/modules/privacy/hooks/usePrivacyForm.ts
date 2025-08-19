@@ -105,8 +105,9 @@ const usePrivacyForm = () => {
     if (!amount || !poolInfo) return
 
     const secrets = createDepositSecrets(poolInfo.scope as Hash)
+
     const result = await prepareDepositTransaction({
-      amount,
+      amount: formatEther(BigInt(amount)),
       depositSecrets: secrets,
       entryPointAddress: poolInfo.entryPointAddress
     })
