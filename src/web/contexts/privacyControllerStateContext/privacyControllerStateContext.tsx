@@ -1,5 +1,13 @@
 /* eslint-disable @typescript-eslint/no-shadow */
-import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react'
+import React, {
+  createContext,
+  Dispatch,
+  SetStateAction,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState
+} from 'react'
 
 import {
   type ChainConfig,
@@ -12,20 +20,49 @@ import {
   type Withdrawal,
   type Secret,
   type LeanIMTMerkleProof,
+  type RagequitEvent,
   Circuits,
   PrivacyPoolSDK,
   DataService,
   AccountService,
   calculateContext,
-  generateMerkleProof
+  generateMerkleProof,
+  PoolAccount as SDKPoolAccount
 } from '@0xbow/privacy-pools-core-sdk'
 
 import useDeepMemo from '@common/hooks/useDeepMemo'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useControllerState from '@web/hooks/useControllerState'
+import { getPoolAccountsFromAccount } from '@web/modules/privacy/utils/privacy/sdk'
 import type { PrivacyController } from '@ambire-common/controllers/privacy/privacy'
 
+export enum ReviewStatus {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  DECLINED = 'declined',
+  EXITED = 'exited',
+  SPENT = 'spent'
+}
+
+type RagequitEventWithTimestamp = RagequitEvent & {
+  timestamp: bigint
+}
+
+export type PoolAccount = SDKPoolAccount & {
+  name: number
+  balance: bigint // has spendable commitments, check with getSpendableCommitments()
+  isValid: boolean // included in ASP leaves
+  reviewStatus: ReviewStatus // ASP status
+  lastCommitment: AccountCommitment
+  chainId: number
+  scope: Hash
+  ragequit?: RagequitEventWithTimestamp
+}
+
 type EnhancedPrivacyControllerState = {
+  accountService: AccountService | undefined
+  selectedPoolAccount: PoolAccount | null
+  poolAccounts: PoolAccount[]
   loadAccount: () => Promise<void>
   generateRagequitProof: (commitment: AccountCommitment) => Promise<CommitmentProof>
   verifyRagequitProof: (commitment: CommitmentProof) => Promise<boolean>
@@ -48,6 +85,7 @@ type EnhancedPrivacyControllerState = {
   }
   getContext: (withdrawal: Withdrawal, scope: Hash) => string
   getMerkleProof: (leaves: bigint[], leaf: bigint) => LeanIMTMerkleProof<bigint>
+  setSelectedPoolAccount: Dispatch<SetStateAction<PoolAccount | null>>
 } & Partial<PrivacyController>
 
 const PrivacyControllerStateContext = createContext<EnhancedPrivacyControllerState>(
@@ -62,6 +100,8 @@ const PrivacyControllerStateProvider: React.FC<any> = ({ children }) => {
   const [sdk, setSdk] = useState<PrivacyPoolSDK>()
   const [dataService, setDataService] = useState<DataService>()
   const [accountService, setAccountService] = useState<AccountService>()
+  const [poolAccounts, setPoolAccounts] = useState<PoolAccount[]>([])
+  const [selectedPoolAccount, setSelectedPoolAccount] = useState<PoolAccount | null>(null)
 
   useEffect(() => {
     if (!Object.keys(state).length) {
@@ -71,46 +111,47 @@ const PrivacyControllerStateProvider: React.FC<any> = ({ children }) => {
 
   const memoizedState = useDeepMemo(state, controller)
 
-  // useEffect(() => {
-  //   // TODO: initialPromiseLoaded is probably not needed
-  //   if (
-  //     !memoizedState.isInitialized &&
-  //     memoizedState.initialPromiseLoaded &&
-  //     memoizedState.chainData
-  //   ) {
-  //     const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
-  //
-  //     const circuits = new Circuits({ baseUrl })
-  //
-  //     const dataServiceConfig: ChainConfig[] = memoizedState.poolsByChain.map((pool) => {
-  //       return {
-  //         chainId: pool.chainId,
-  //         privacyPoolAddress: pool.address,
-  //         startBlock: pool.deploymentBlock,
-  //         rpcUrl: memoizedState.chainData?.[pool.chainId]?.sdkRpcUrl || '',
-  //         apiKey: 'sdk'
-  //       }
-  //     })
-  //
-  //     const sdkModule = new PrivacyPoolSDK(circuits)
-  //     const ds = new DataService(dataServiceConfig)
-  //
-  //     setDataService(ds)
-  //     setSdk(sdkModule)
-  //
-  //     console.log('DEBUG: Privacy controller SDK initialized')
-  //
-  //     dispatch({
-  //       type: 'PRIVACY_CONTROLLER_SDK_LOADED'
-  //     })
-  //   }
-  // }, [
-  //   memoizedState.isInitialized,
-  //   memoizedState.initialPromiseLoaded,
-  //   memoizedState.chainData,
-  //   memoizedState.poolsByChain,
-  //   dispatch
-  // ])
+  useEffect(() => {
+    // TODO: initialPromiseLoaded is probably not needed
+    if (
+      !memoizedState.isInitialized &&
+      memoizedState.initialPromiseLoaded &&
+      memoizedState.chainData
+    ) {
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+
+      const circuits = new Circuits({ baseUrl })
+
+      const dataServiceConfig: ChainConfig[] = memoizedState.poolsByChain.map((pool) => {
+        return {
+          chainId: pool.chainId,
+          privacyPoolAddress: pool.address,
+          startBlock: pool.deploymentBlock,
+          rpcUrl: memoizedState.chainData?.[pool.chainId]?.sdkRpcUrl || '',
+          apiKey: 'sdk'
+        }
+      })
+
+      const sdkModule = new PrivacyPoolSDK(circuits)
+      const ds = new DataService(dataServiceConfig)
+
+      setDataService(ds)
+      setSdk(sdkModule)
+
+      // eslint-disable-next-line no-console
+      console.log('DEBUG: Privacy controller SDK initialized')
+
+      dispatch({
+        type: 'PRIVACY_CONTROLLER_SDK_LOADED'
+      })
+    }
+  }, [
+    memoizedState.isInitialized,
+    memoizedState.initialPromiseLoaded,
+    memoizedState.chainData,
+    memoizedState.poolsByChain,
+    dispatch
+  ])
 
   const loadAccount = useCallback(async () => {
     if (!dataService) {
@@ -126,6 +167,13 @@ const PrivacyControllerStateProvider: React.FC<any> = ({ children }) => {
     )
 
     setAccountService(accountServiceResult.account)
+
+    const { poolAccounts: newPoolAccounts } = await getPoolAccountsFromAccount(
+      accountServiceResult.account.account,
+      11155111
+    )
+
+    setPoolAccounts(newPoolAccounts)
   }, [dataService, memoizedState.seedPhrase, memoizedState.pools])
 
   const generateRagequitProof = useCallback(
@@ -223,6 +271,9 @@ const PrivacyControllerStateProvider: React.FC<any> = ({ children }) => {
   const value = useMemo(
     () => ({
       ...memoizedState,
+      accountService,
+      poolAccounts,
+      selectedPoolAccount,
       loadAccount,
       generateRagequitProof,
       verifyRagequitProof,
@@ -231,10 +282,14 @@ const PrivacyControllerStateProvider: React.FC<any> = ({ children }) => {
       createDepositSecrets,
       createWithdrawalSecrets,
       getContext,
-      getMerkleProof
+      getMerkleProof,
+      setSelectedPoolAccount
     }),
     [
       memoizedState,
+      accountService,
+      poolAccounts,
+      selectedPoolAccount,
       loadAccount,
       generateRagequitProof,
       verifyRagequitProof,
@@ -243,7 +298,8 @@ const PrivacyControllerStateProvider: React.FC<any> = ({ children }) => {
       createDepositSecrets,
       createWithdrawalSecrets,
       getContext,
-      getMerkleProof
+      getMerkleProof,
+      setSelectedPoolAccount
     ]
   )
 

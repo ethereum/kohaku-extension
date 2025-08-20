@@ -1,43 +1,42 @@
 import React, { useState } from 'react'
 import { View, Pressable } from 'react-native'
+
 import Text from '@common/components/Text'
 import Button from '@common/components/Button'
 import Heading from '@common/components/Heading'
 import Panel from '@common/components/Panel'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
+
+import { PoolAccount } from '@web/contexts/privacyControllerStateContext'
+import { AccountService } from '@0xbow/privacy-pools-core-sdk'
 import { formatEther } from 'viem'
-import { usePP } from '../hooks/usePP'
-import { PoolAccount } from '../utils/privacy/sdk'
-import { canRagequit, executeRagequitTransaction } from '../utils/privacy/ragequit'
-import { chainData } from '../config/chainData'
+import { canRagequit } from '../utils/privacy/ragequit'
 
 const truncateHash = (hash: string) => {
   return `${hash.slice(0, 6)}...${hash.slice(-4)}`
 }
 
-type AccountOverviewProps = {
-  ppData: ReturnType<typeof usePP>
+interface AccountOverviewProps {
+  poolAccounts: PoolAccount[]
+  selectedAccount: PoolAccount | null
+  accountService: AccountService | undefined
+  onSelectAccount: (poolAccount: PoolAccount) => void
+  handleRagequit: (poolAccount: PoolAccount, event: any) => Promise<void>
 }
 
-const AccountOverview = ({ ppData }: AccountOverviewProps) => {
-  const { poolAccounts, loadedAccount: account, handlePrivateRequest } = ppData
-  const [selectedAccount, setSelectedAccount] = useState<any | null>(null)
+const AccountOverview = ({
+  poolAccounts,
+  selectedAccount,
+  accountService,
+  onSelectAccount,
+  handleRagequit
+}: AccountOverviewProps) => {
   const [ragequitLoading, setRagequitLoading] = useState<Record<string, boolean>>({})
-
-  // Get pool info for current chain
-  const poolInfo = chainData[11155111]?.poolInfo?.[0]
 
   const isRagequitLoading = (poolAccount: PoolAccount) => {
     const accountKey = `${poolAccount.chainId}-${poolAccount.name}`
     return ragequitLoading[accountKey] || false
-  }
-
-  const handleAccountSelect = (poolAccount: PoolAccount) => {
-    if (isRagequitLoading(poolAccount) && selectedAccount?.name === poolAccount.name) {
-      return
-    }
-    setSelectedAccount(selectedAccount?.name === poolAccount.name ? null : poolAccount)
   }
 
   const formatTimestamp = (timestamp?: bigint) => {
@@ -60,37 +59,21 @@ const AccountOverview = ({ ppData }: AccountOverviewProps) => {
     }
   }
 
-  const handleRagequit = async (poolAccount: PoolAccount, event: any) => {
-    // Prevent the click from bubbling up to the parent AccountCard
-    event.stopPropagation()
-
-    if (!account) return
-
+  const onRagequit = async (poolAccount: PoolAccount, event: any) => {
     const accountKey = `${poolAccount.chainId}-${poolAccount.name}`
     setRagequitLoading((prev) => ({ ...prev, [accountKey]: true }))
+    await handleRagequit(poolAccount, event)
 
-    const result = await executeRagequitTransaction({
-      poolAccount,
-      poolAddress: poolInfo.address
-    })
-
-    // eslint-disable-next-line no-console
-    console.log({ result })
-
-    // eslint-disable-next-line no-console
-    console.log('Ragequit successful for account:', poolAccount.name)
     setRagequitLoading((prev) => ({ ...prev, [accountKey]: false }))
-
-    handlePrivateRequest('privateRagequitRequest', [result])
   }
 
   const canRagequitLocal = (poolAccount: PoolAccount) => {
-    if (!account) return false
-    const validation = canRagequit(poolAccount, account)
+    if (!accountService) return false
+    const validation = canRagequit(poolAccount, accountService)
     return validation.canRagequit
   }
 
-  if (!account && !poolAccounts?.length) {
+  if (!accountService && !poolAccounts?.length) {
     return (
       <View style={[spacings.mb24]}>
         <Panel>
@@ -116,7 +99,7 @@ const AccountOverview = ({ ppData }: AccountOverviewProps) => {
             <Pressable
               // eslint-disable-next-line react/no-array-index-key
               key={`${poolAccount.chainId}-${poolAccount.name}-${index}`}
-              onPress={() => handleAccountSelect(poolAccount)}
+              onPress={() => onSelectAccount(poolAccount)}
               disabled={isRagequitLoading(poolAccount)}
               style={{
                 paddingBottom: '4px'
@@ -418,7 +401,7 @@ const AccountOverview = ({ ppData }: AccountOverviewProps) => {
                           disabled={
                             !canRagequitLocal(poolAccount) || isRagequitLoading(poolAccount)
                           }
-                          onPress={(event) => handleRagequit(poolAccount, event)}
+                          onPress={(event) => onRagequit(poolAccount, event)}
                           text={
                             poolAccount.ragequit
                               ? 'Already Exited'

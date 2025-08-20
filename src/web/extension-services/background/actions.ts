@@ -761,6 +761,10 @@ type PrivacyControllerUpdateFormAction = {
   }
 }
 
+type PrivacyControllerUnloadScreenAction = {
+  type: 'PRIVACY_CONTROLLER_UNLOAD_SCREEN'
+}
+
 export type Action =
   | UpdateNavigationUrl
   | InitControllerStateAction
@@ -902,3 +906,4 @@ export type Action =
   | DismissBanner
   | PrivacyControllerInitializeSdkAction
   | PrivacyControllerUpdateFormAction
+  | PrivacyControllerUnloadScreenAction

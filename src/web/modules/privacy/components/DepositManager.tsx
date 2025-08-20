@@ -1,5 +1,7 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { View } from 'react-native'
+import { formatEther, zeroAddress } from 'viem'
+
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
 import Input from '@common/components/Input'
@@ -8,58 +10,38 @@ import Heading from '@common/components/Heading'
 import Panel from '@common/components/Panel'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
-import { Hash } from '@0xbow/privacy-pools-core-sdk'
-import { chainData } from '../config/chainData'
-import { createDepositSecrets } from '../utils/privacy/sdk'
-import { prepareDepositTransaction } from '../utils/privacy/deposit'
-import { usePP } from '../hooks/usePP'
 
-type DepositManagerProps = {
-  ppData: ReturnType<typeof usePP>
+import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
+import { PoolInfo } from '@ambire-common/controllers/privacy/config'
+import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
+
+interface DepositManagerProps {
+  displayValue: string
+  poolInfo: PoolInfo | undefined
+  message: { type: 'success' | 'error' | 'info'; text: string } | null
+  onDeposit: () => void
+  onAmountChange: (value: string) => void
+  onSetMaxAmount: (balance: bigint) => void
 }
 
-const DepositManager = ({ ppData }: DepositManagerProps) => {
-  const { loadedAccount, handlePrivateRequest } = ppData
-  const [amount, setAmount] = useState('')
-  const [message, setMessage] = useState<{
-    type: 'success' | 'error' | 'info'
-    text: string
-  } | null>(null)
+const DepositManager = ({
+  message,
+  poolInfo,
+  displayValue,
+  onDeposit,
+  onAmountChange,
+  onSetMaxAmount
+}: DepositManagerProps) => {
+  const { portfolio } = useSelectedAccountControllerState()
+
+  const sepoliaEth = portfolio.tokens.find(
+    (token) => token.chainId === 11155111n && token.address === zeroAddress
+  )
+
+  const ethBalance = sepoliaEth ? getTokenAmount(sepoliaEth) : 0n
 
   const isSending = false
   const isConfirming = false
-  const balance = { value: 1n }
-
-  // Get pool info for current chain
-  const poolInfo = chainData[11155111]?.poolInfo?.[0]
-  const maxDeposit = poolInfo ? /* formatEther(poolInfo.maxDeposit) */ '1' : '1'
-
-  const handleAmountChange = (event: any) => {
-    const value = event.target.value
-    setAmount(value)
-    if (message) setMessage(null)
-  }
-
-  const handleDeposit = async () => {
-    if (!loadedAccount) return
-
-    const secrets = createDepositSecrets(loadedAccount, poolInfo.scope as Hash)
-    const result = await prepareDepositTransaction({
-      amount,
-      depositSecrets: secrets,
-      entryPointAddress: poolInfo.entryPointAddress
-    })
-
-    // eslint-disable-next-line no-console
-    console.log('result', result)
-
-    handlePrivateRequest('privateDepositRequest', [result])
-  }
-
-  const handleSetMaxAmount = () => {
-    // eslint-disable-next-line no-console
-    console.log('handleSetMaxAmount')
-  }
 
   if (!poolInfo) {
     return (
@@ -78,13 +60,13 @@ const DepositManager = ({ ppData }: DepositManagerProps) => {
 
       <Text appearance="secondaryText" style={[spacings.mb24, { textAlign: 'center' }]}>
         Deposit ETH into the privacy pool to maintain financial privacy. Maximum deposit:{' '}
-        {maxDeposit} ETH.
+        {ethBalance ? `${formatEther(ethBalance)}` : '0'} ETH.
       </Text>
 
       {/* Balance Display */}
       <Panel style={[spacings.mb24]}>
         <Text appearance="secondaryText">
-          Your Balance: {balance ? `${/* formatEther(balance.value) */ '1'} ETH` : 'Loading...'}
+          Your Balance: {ethBalance ? `${formatEther(ethBalance)} ETH` : 'Loading...'}
         </Text>
       </Panel>
 
@@ -92,12 +74,12 @@ const DepositManager = ({ ppData }: DepositManagerProps) => {
       <View style={[spacings.mb16]}>
         <Input
           label="Deposit Amount"
-          value={amount}
-          onChange={handleAmountChange}
-          placeholder="0.1"
+          value={displayValue}
+          onChange={(event: any) => onAmountChange(event.target.value)}
+          placeholder="0.0"
           button="MAX"
-          onButtonPress={handleSetMaxAmount}
-          buttonProps={{ disabled: !balance }}
+          onButtonPress={() => onSetMaxAmount(ethBalance)}
+          buttonProps={{ disabled: !ethBalance || ethBalance === 0n }}
         />
       </View>
 
@@ -105,7 +87,7 @@ const DepositManager = ({ ppData }: DepositManagerProps) => {
       <View style={[flexbox.directionRow, spacings.mb16]}>
         <Button
           type="primary"
-          onPress={handleDeposit}
+          onPress={() => onDeposit()}
           disabled={isSending || isConfirming}
           text={isSending || isConfirming ? 'Processing...' : 'Confirm Deposit'}
         />
