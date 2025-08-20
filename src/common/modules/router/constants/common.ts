@@ -62,7 +62,7 @@ const WEB_ROUTES = {
   recoveryPhrasesSettings: 'settings/recovery-phrases',
   securityAndPrivacy: 'settings/security-and-privacy',
   onboardingCompleted: 'wallet-setup-completed',
-  privacy: 'privacy'
+  privacyPools: 'privacy-pools'
 }
 
 const ROUTES = { ...MOBILE_ROUTES, ...WEB_ROUTES }

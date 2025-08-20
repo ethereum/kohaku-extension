@@ -47,8 +47,8 @@ export const handleCleanUpOnPortDisconnect = async ({
     mainCtrl.signMessage.reset()
   }
 
-  if (url.pathname.includes('privacy')) {
-    mainCtrl.privacy.unloadScreen()
+  if (url.pathname.includes('privacy-pools')) {
+    mainCtrl.privacyPools.unloadScreen()
   }
 
   if (url.pathname.includes('transfer') || url.pathname.includes('top-up-gas-tank')) {

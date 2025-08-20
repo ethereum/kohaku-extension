@@ -16,10 +16,10 @@ const Routes = ({ openReceiveModal }: { openReceiveModal: () => void }) => {
 
   const routeItems = [
     {
-      testID: 'dashboard-button-privacy',
+      testID: 'dashboard-button-privacy-pools',
       icon: SendIcon,
-      label: t('Privacy'),
-      route: WEB_ROUTES.privacy,
+      label: t('Privacy Pools'),
+      route: WEB_ROUTES.privacyPools,
       isExternal: false,
       scale: 1.08,
       scaleOnHover: 1.18

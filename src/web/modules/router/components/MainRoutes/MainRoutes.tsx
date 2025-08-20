@@ -55,7 +55,7 @@ import SignMessageScreen from '@web/modules/sign-message/screens/SignMessageScre
 import SwapAndBridgeScreen from '@web/modules/swap-and-bridge/screens/SwapAndBridgeScreen'
 import TransferScreen from '@web/modules/transfer/screens/TransferScreen'
 import ViewOnlyAccountAdderScreen from '@web/modules/view-only-account-adder/ViewOnlyAccountAdderScreen'
-import PrivacyScreen from '@web/modules/privacy/screens/PrivacyScreen'
+import PrivacyPoolsScreen from '@web/modules/privacyPools/screens/PrivacyPoolsScreen'
 
 const MainRoutes = () => {
   const location = useLocation()
@@ -153,7 +153,7 @@ const MainRoutes = () => {
       <Route element={<KeystoreUnlockedRoute />}>
         <Route element={<AuthenticatedRoute />}>
           <Route path={WEB_ROUTES.transfer} element={<TransferScreen />} />
-          <Route path={WEB_ROUTES.privacy} element={<PrivacyScreen />} />
+          <Route path={WEB_ROUTES.privacyPools} element={<PrivacyPoolsScreen />} />
           <Route path={WEB_ROUTES.topUpGasTank} element={<TransferScreen isTopUpScreen />} />
           <Route
             path={WEB_ROUTES.signAccountOp}

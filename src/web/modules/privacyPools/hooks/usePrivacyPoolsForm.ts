@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { encodeFunctionData, formatEther, getAddress, parseEther } from 'viem'
 import { Hash } from '@0xbow/privacy-pools-core-sdk'
-import { PoolAccount } from '@web/contexts/privacyControllerStateContext'
+import { PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
 import useBackgroundService from '@web/hooks/useBackgroundService'
-import usePrivacyControllerState from '@web/hooks/usePrivacyControllerState'
+import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
 
 import { generateSeedPhrase } from '../utils/seedPhrase'
 import { transformRagequitProofForContract } from '../utils/privacy/ragequit'
@@ -11,7 +11,7 @@ import { entrypointAbi, privacyPoolAbi } from '../utils/privacy/abi'
 
 type PrivateRequestType = 'privateDepositRequest' | 'privateSendRequest' | 'privateRagequitRequest'
 
-const usePrivacyForm = () => {
+const usePrivacyPoolsForm = () => {
   const { dispatch } = useBackgroundService()
   const {
     amount,
@@ -25,7 +25,7 @@ const usePrivacyForm = () => {
     createDepositSecrets,
     setSelectedPoolAccount,
     generateRagequitProof
-  } = usePrivacyControllerState()
+  } = usePrivacyPoolsControllerState()
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -38,7 +38,7 @@ const usePrivacyForm = () => {
 
   const handleUpdateForm = (params: { [key: string]: any }) => {
     dispatch({
-      type: 'PRIVACY_CONTROLLER_UPDATE_FORM',
+      type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM',
       params: { ...params }
     })
 
@@ -245,4 +245,4 @@ const usePrivacyForm = () => {
   }
 }
 
-export default usePrivacyForm
+export default usePrivacyPoolsForm
