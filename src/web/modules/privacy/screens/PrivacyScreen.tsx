@@ -27,6 +27,7 @@ const PrivacyScreen = () => {
     isLoadingAccount,
     displayAmountValue,
     selectedPoolAccount,
+    isRagequitLoading,
     handleDeposit,
     handleRagequit,
     handleUpdateForm,
@@ -77,7 +78,8 @@ const PrivacyScreen = () => {
             accountService={accountService}
             selectedAccount={selectedPoolAccount}
             onSelectAccount={handleSelectedAccount}
-            handleRagequit={handleRagequit}
+            onRagequit={handleRagequit}
+            isRagequitLoading={isRagequitLoading}
           />
         </View>
       </View>

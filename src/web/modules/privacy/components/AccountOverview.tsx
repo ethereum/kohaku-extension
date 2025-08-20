@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { View, Pressable } from 'react-native'
 
 import Text from '@common/components/Text'
@@ -22,7 +22,8 @@ interface AccountOverviewProps {
   selectedAccount: PoolAccount | null
   accountService: AccountService | undefined
   onSelectAccount: (poolAccount: PoolAccount) => void
-  handleRagequit: (poolAccount: PoolAccount, event: any) => Promise<void>
+  onRagequit: (poolAccount: PoolAccount, event: any) => Promise<void>
+  isRagequitLoading: (poolAccount: PoolAccount) => boolean
 }
 
 const AccountOverview = ({
@@ -30,15 +31,9 @@ const AccountOverview = ({
   selectedAccount,
   accountService,
   onSelectAccount,
-  handleRagequit
+  onRagequit,
+  isRagequitLoading
 }: AccountOverviewProps) => {
-  const [ragequitLoading, setRagequitLoading] = useState<Record<string, boolean>>({})
-
-  const isRagequitLoading = (poolAccount: PoolAccount) => {
-    const accountKey = `${poolAccount.chainId}-${poolAccount.name}`
-    return ragequitLoading[accountKey] || false
-  }
-
   const formatTimestamp = (timestamp?: bigint) => {
     if (!timestamp) return 'Pending...'
     return new Date(Number(timestamp) * 1000).toLocaleDateString()
@@ -57,14 +52,6 @@ const AccountOverview = ({
       default:
         return '#007bff'
     }
-  }
-
-  const onRagequit = async (poolAccount: PoolAccount, event: any) => {
-    const accountKey = `${poolAccount.chainId}-${poolAccount.name}`
-    setRagequitLoading((prev) => ({ ...prev, [accountKey]: true }))
-    await handleRagequit(poolAccount, event)
-
-    setRagequitLoading((prev) => ({ ...prev, [accountKey]: false }))
   }
 
   const canRagequitLocal = (poolAccount: PoolAccount) => {

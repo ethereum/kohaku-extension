@@ -31,6 +31,8 @@ const usePrivacyForm = () => {
   const [isLoadingAccount, setIsLoadingAccount] = useState(false)
   const [displayAmountValue, setDisplayAmountValue] = useState('')
 
+  const [ragequitLoading, setRagequitLoading] = useState<Record<string, boolean>>({})
+
   const poolInfo = chainData?.[11155111]?.poolInfo?.[0]
 
   const handleUpdateForm = (params: { [key: string]: any }) => {
@@ -119,9 +121,16 @@ const usePrivacyForm = () => {
     handlePrivateRequest('privateDepositRequest', [result])
   }
 
+  const isRagequitLoading = (poolAccount: PoolAccount) => {
+    const accountKey = `${poolAccount.chainId}-${poolAccount.name}`
+    return ragequitLoading[accountKey] || false
+  }
+
   const handleRagequit = async (poolAccount: PoolAccount, event: any) => {
     // Prevent the click from bubbling up to the parent AccountCard
     event.stopPropagation()
+    const accountKey = `${poolAccount.chainId}-${poolAccount.name}`
+    setRagequitLoading((prev) => ({ ...prev, [accountKey]: true }))
 
     if (!accountService || !poolInfo) return
 
@@ -134,6 +143,7 @@ const usePrivacyForm = () => {
     console.log('result', result)
 
     handlePrivateRequest('privateRagequitRequest', [result])
+    setRagequitLoading((prev) => ({ ...prev, [accountKey]: false }))
   }
 
   const handleAmountChange = (inputValue: string) => {
@@ -198,6 +208,7 @@ const usePrivacyForm = () => {
     isLoadingAccount,
     displayAmountValue,
     selectedPoolAccount,
+    isRagequitLoading,
     handleDeposit,
     handleRagequit,
     handleUpdateForm,
