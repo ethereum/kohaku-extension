@@ -11,9 +11,9 @@ import DepositManager from '../components/DepositManager'
 import SeedPhraseManager from '../components/SeedPhraseManager'
 import WithdrawalManager from '../components/WithdrawalManager'
 import AccountOverview from '../components/AccountOverview'
-import usePrivacyForm from '../hooks/usePrivacyForm'
+import usePrivacyPoolsForm from '../hooks/usePrivacyPoolsForm'
 
-const PrivacyScreen = () => {
+const PrivacyPoolsScreen = () => {
   const { navigate } = useNavigation()
   const { dispatch } = useBackgroundService()
 
@@ -34,7 +34,7 @@ const PrivacyScreen = () => {
     handleAmountChange,
     handleSelectedAccount,
     handleGenerateSeedPhrase
-  } = usePrivacyForm()
+  } = usePrivacyPoolsForm()
 
   const onBack = useCallback(() => {
     navigate(ROUTES.dashboard)
@@ -42,12 +42,12 @@ const PrivacyScreen = () => {
 
   useEffect(() => {
     return () => {
-      dispatch({ type: 'PRIVACY_CONTROLLER_UNLOAD_SCREEN' })
+      dispatch({ type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN' })
     }
   }, [dispatch])
 
   return (
-    <Wrapper title="Privacy" handleGoBack={onBack} buttons={[]}>
+    <Wrapper title="Privacy Pools" handleGoBack={onBack} buttons={[]}>
       <View style={[spacings.p16, flexbox.flex1, { overflow: 'scroll', padding: '16px' }]}>
         <View style={[flexbox.flex1, spacings.mt16]}>
           <SeedPhraseManager
@@ -83,4 +83,4 @@ const PrivacyScreen = () => {
   )
 }
 
-export default React.memo(PrivacyScreen)
+export default React.memo(PrivacyPoolsScreen)

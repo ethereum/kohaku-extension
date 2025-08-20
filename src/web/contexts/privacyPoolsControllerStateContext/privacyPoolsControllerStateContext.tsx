@@ -33,8 +33,8 @@ import {
 import useDeepMemo from '@common/hooks/useDeepMemo'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useControllerState from '@web/hooks/useControllerState'
-import { getPoolAccountsFromAccount } from '@web/modules/privacy/utils/privacy/sdk'
-import type { PrivacyController } from '@ambire-common/controllers/privacy/privacy'
+import { getPoolAccountsFromAccount } from '@web/modules/privacyPools/utils/privacy/sdk'
+import type { PrivacyPoolsController } from '@ambire-common/controllers/privacyPools/privacyPools'
 
 export enum ReviewStatus {
   PENDING = 'pending',
@@ -59,7 +59,7 @@ export type PoolAccount = SDKPoolAccount & {
   ragequit?: RagequitEventWithTimestamp
 }
 
-type EnhancedPrivacyControllerState = {
+type EnhancedPrivacyPoolsControllerState = {
   accountService: AccountService | undefined
   selectedPoolAccount: PoolAccount | null
   poolAccounts: PoolAccount[]
@@ -86,14 +86,14 @@ type EnhancedPrivacyControllerState = {
   getContext: (withdrawal: Withdrawal, scope: Hash) => string
   getMerkleProof: (leaves: bigint[], leaf: bigint) => LeanIMTMerkleProof<bigint>
   setSelectedPoolAccount: Dispatch<SetStateAction<PoolAccount | null>>
-} & Partial<PrivacyController>
+} & Partial<PrivacyPoolsController>
 
-const PrivacyControllerStateContext = createContext<EnhancedPrivacyControllerState>(
-  {} as EnhancedPrivacyControllerState
+const PrivacyPoolsControllerStateContext = createContext<EnhancedPrivacyPoolsControllerState>(
+  {} as EnhancedPrivacyPoolsControllerState
 )
 
-const PrivacyControllerStateProvider: React.FC<any> = ({ children }) => {
-  const controller = 'privacy'
+const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
+  const controller = 'privacyPools'
   const state = useControllerState(controller)
   const { dispatch } = useBackgroundService()
 
@@ -141,7 +141,7 @@ const PrivacyControllerStateProvider: React.FC<any> = ({ children }) => {
       console.log('DEBUG: Privacy controller SDK initialized')
 
       dispatch({
-        type: 'PRIVACY_CONTROLLER_SDK_LOADED'
+        type: 'PRIVACY_POOLS_CONTROLLER_SDK_LOADED'
       })
     }
   }, [
@@ -303,10 +303,10 @@ const PrivacyControllerStateProvider: React.FC<any> = ({ children }) => {
   )
 
   return (
-    <PrivacyControllerStateContext.Provider value={value}>
+    <PrivacyPoolsControllerStateContext.Provider value={value}>
       {children}
-    </PrivacyControllerStateContext.Provider>
+    </PrivacyPoolsControllerStateContext.Provider>
   )
 }
 
-export { PrivacyControllerStateProvider, PrivacyControllerStateContext }
+export { PrivacyPoolsControllerStateProvider, PrivacyPoolsControllerStateContext }

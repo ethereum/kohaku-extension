@@ -2,7 +2,7 @@ import { parseEther, getAddress, encodeFunctionData } from 'viem'
 import type { Hash, Secret } from '@0xbow/privacy-pools-core-sdk'
 import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
-import { chainData } from '@ambire-common/controllers/privacy/config'
+import { chainData } from '@ambire-common/controllers/privacyPools/config'
 import { entrypointAbi } from './abi'
 
 export type DepositSecrets = {
