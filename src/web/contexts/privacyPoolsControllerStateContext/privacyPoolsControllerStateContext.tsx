@@ -138,6 +138,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       setDataService(ds)
       setSdk(sdkModule)
 
+      // eslint-disable-next-line no-console
       console.log('DEBUG: Privacy controller SDK initialized')
 
       dispatch({
