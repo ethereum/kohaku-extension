@@ -8,7 +8,7 @@ import Heading from '@common/components/Heading'
 import Select from '@common/components/Select'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
-import { chainData } from '../config/chainData'
+import { chainData } from '../utils/chainData'
 
 const WithdrawalManager = () => {
   const poolAccounts: any[] = []
