@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { View, Pressable } from 'react-native'
 
 import Text from '@common/components/Text'
@@ -10,35 +10,30 @@ import flexbox from '@common/styles/utils/flexbox'
 
 import { PoolAccount } from '@web/contexts/privacyControllerStateContext'
 import { AccountService } from '@0xbow/privacy-pools-core-sdk'
+import { formatEther } from 'viem'
+import { canRagequit } from '../utils/privacy/ragequit'
+
+const truncateHash = (hash: string) => {
+  return `${hash.slice(0, 6)}...${hash.slice(-4)}`
+}
 
 interface AccountOverviewProps {
   poolAccounts: PoolAccount[]
   selectedAccount: PoolAccount | null
   accountService: AccountService | undefined
   onSelectAccount: (poolAccount: PoolAccount) => void
+  onRagequit: (poolAccount: PoolAccount, event: any) => Promise<void>
+  isRagequitLoading: (poolAccount: PoolAccount) => boolean
 }
 
 const AccountOverview = ({
   poolAccounts,
   selectedAccount,
   accountService,
-  onSelectAccount
+  onSelectAccount,
+  onRagequit,
+  isRagequitLoading
 }: AccountOverviewProps) => {
-  const [ragequitLoading] = useState<Record<string, boolean>>({})
-
-  if (!accountService && !poolAccounts?.length) {
-    return (
-      <View style={[spacings.mb24]}>
-        <Panel>
-          <Heading style={[spacings.mb16]}>Account Overview</Heading>
-          <Text appearance="secondaryText" style={{ textAlign: 'center', fontStyle: 'italic' }}>
-            Load an account to view your pool history
-          </Text>
-        </Panel>
-      </View>
-    )
-  }
-
   const formatTimestamp = (timestamp?: bigint) => {
     if (!timestamp) return 'Pending...'
     return new Date(Number(timestamp) * 1000).toLocaleDateString()
@@ -59,20 +54,23 @@ const AccountOverview = ({
     }
   }
 
-  const handleRagequit = async (poolAccount: any, event: any) => {
-    // eslint-disable-next-line no-console
-    console.log('handleRagequit', poolAccount, event)
+  const canRagequitLocal = (poolAccount: PoolAccount) => {
+    if (!accountService) return false
+    const validation = canRagequit(poolAccount, accountService)
+    return validation.canRagequit
   }
 
-  const isRagequitLoading = (poolAccount: any) => {
-    const accountKey = `${poolAccount.chainId}-${poolAccount.name}`
-    return ragequitLoading[accountKey] || false
-  }
-
-  const canRagequitLocal = (poolAccount: any) => {
-    // eslint-disable-next-line no-console
-    console.log('canRagequitLocal', poolAccount)
-    return false
+  if (!accountService && !poolAccounts?.length) {
+    return (
+      <View style={[spacings.mb24]}>
+        <Panel>
+          <Heading style={[spacings.mb16]}>Account Overview</Heading>
+          <Text appearance="secondaryText" style={{ textAlign: 'center', fontStyle: 'italic' }}>
+            Load an account to view your pool history
+          </Text>
+        </Panel>
+      </View>
+    )
   }
 
   return (
@@ -84,9 +82,10 @@ const AccountOverview = ({
           <Text weight="medium" style={[spacings.mb8]}>
             Pool Accounts ({poolAccounts.length})
           </Text>
-          {poolAccounts.map((poolAccount) => (
+          {poolAccounts.map((poolAccount, index) => (
             <Pressable
-              key={`${poolAccount.chainId}-${poolAccount.name}`}
+              // eslint-disable-next-line react/no-array-index-key
+              key={`${poolAccount.chainId}-${poolAccount.name}-${index}`}
               onPress={() => onSelectAccount(poolAccount)}
               disabled={isRagequitLoading(poolAccount)}
               style={{
@@ -173,7 +172,7 @@ const AccountOverview = ({
                             Amount:
                           </Text>
                           <Text fontSize={12} style={{ fontFamily: 'monospace' }}>
-                            {/* {formatEther(poolAccount.deposit.value)} ETH */}
+                            {formatEther(poolAccount.deposit.value)} ETH
                           </Text>
                         </View>
                         <View
@@ -217,7 +216,7 @@ const AccountOverview = ({
                             Tx Hash:
                           </Text>
                           <Text fontSize={12} style={{ fontFamily: 'monospace' }}>
-                            {poolAccount.deposit.txHash}
+                            {truncateHash(poolAccount.deposit.txHash)}
                           </Text>
                         </View>
                       </Panel>
@@ -228,9 +227,10 @@ const AccountOverview = ({
                         <Text weight="semiBold" fontSize={14} style={[spacings.mb8]}>
                           Withdrawals ({poolAccount.children.length})
                         </Text>
-                        {poolAccount.children.map((withdrawal: any) => (
+                        {poolAccount.children.map((withdrawal: any, index2: number) => (
                           <Panel
-                            key={`${withdrawal.chainId}-${withdrawal.name}`}
+                            // eslint-disable-next-line react/no-array-index-key
+                            key={`${withdrawal.chainId}-${withdrawal.name}-${index2}`}
                             style={[spacings.mb8]}
                           >
                             <View
@@ -245,7 +245,7 @@ const AccountOverview = ({
                                 Amount:
                               </Text>
                               <Text fontSize={12} style={{ fontFamily: 'monospace' }}>
-                                {/* {formatEther(withdrawal.value)} ETH */}
+                                {formatEther(withdrawal.value)} ETH
                               </Text>
                             </View>
                             <View
@@ -289,7 +289,7 @@ const AccountOverview = ({
                                 Tx Hash:
                               </Text>
                               <Text fontSize={12} style={{ fontFamily: 'monospace' }}>
-                                {withdrawal.txHash}
+                                {truncateHash(withdrawal.txHash)}
                               </Text>
                             </View>
                           </Panel>
@@ -315,7 +315,7 @@ const AccountOverview = ({
                               Amount:
                             </Text>
                             <Text fontSize={12} style={{ fontFamily: 'monospace' }}>
-                              {/* {formatEther(poolAccount.ragequit.value)} ETH */}
+                              {formatEther(poolAccount.ragequit.value)} ETH
                             </Text>
                           </View>
                           <View
@@ -360,7 +360,7 @@ const AccountOverview = ({
                               Tx Hash:
                             </Text>
                             <Text fontSize={12} style={{ fontFamily: 'monospace' }}>
-                              {poolAccount.ragequit.transactionHash}
+                              {truncateHash(poolAccount.ragequit.transactionHash)}
                             </Text>
                           </View>
                           <View
@@ -388,7 +388,7 @@ const AccountOverview = ({
                           disabled={
                             !canRagequitLocal(poolAccount) || isRagequitLoading(poolAccount)
                           }
-                          onPress={(event) => handleRagequit(poolAccount, event)}
+                          onPress={(event) => onRagequit(poolAccount, event)}
                           text={
                             poolAccount.ragequit
                               ? 'Already Exited'

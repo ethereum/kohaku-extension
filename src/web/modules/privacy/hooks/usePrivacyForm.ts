@@ -7,6 +7,7 @@ import usePrivacyControllerState from '@web/hooks/usePrivacyControllerState'
 
 import { generateSeedPhrase } from '../utils/seedPhrase'
 import { prepareDepositTransaction } from '../utils/privacy/deposit'
+import { executeRagequitTransaction } from '../utils/privacy/ragequit'
 
 type PrivateRequestType = 'privateDepositRequest' | 'privateSendRequest' | 'privateRagequitRequest'
 
@@ -29,6 +30,8 @@ const usePrivacyForm = () => {
   const [isGenerating, setIsGenerating] = useState(false)
   const [isLoadingAccount, setIsLoadingAccount] = useState(false)
   const [displayAmountValue, setDisplayAmountValue] = useState('')
+
+  const [ragequitLoading, setRagequitLoading] = useState<Record<string, boolean>>({})
 
   const poolInfo = chainData?.[11155111]?.poolInfo?.[0]
 
@@ -118,6 +121,31 @@ const usePrivacyForm = () => {
     handlePrivateRequest('privateDepositRequest', [result])
   }
 
+  const isRagequitLoading = (poolAccount: PoolAccount) => {
+    const accountKey = `${poolAccount.chainId}-${poolAccount.name}`
+    return ragequitLoading[accountKey] || false
+  }
+
+  const handleRagequit = async (poolAccount: PoolAccount, event: any) => {
+    // Prevent the click from bubbling up to the parent AccountCard
+    event.stopPropagation()
+    const accountKey = `${poolAccount.chainId}-${poolAccount.name}`
+    setRagequitLoading((prev) => ({ ...prev, [accountKey]: true }))
+
+    if (!accountService || !poolInfo) return
+
+    const result = await executeRagequitTransaction({
+      poolAccount,
+      poolAddress: poolInfo.address
+    })
+
+    // eslint-disable-next-line no-console
+    console.log('result', result)
+
+    handlePrivateRequest('privateRagequitRequest', [result])
+    setRagequitLoading((prev) => ({ ...prev, [accountKey]: false }))
+  }
+
   const handleAmountChange = (inputValue: string) => {
     setDisplayAmountValue(inputValue)
 
@@ -139,6 +167,7 @@ const usePrivacyForm = () => {
       const weiAmount = parseEther(inputValue)
       handleUpdateForm({ amount: weiAmount.toString() })
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.warn('Invalid ETH amount entered:', inputValue)
     }
   }
@@ -179,7 +208,9 @@ const usePrivacyForm = () => {
     isLoadingAccount,
     displayAmountValue,
     selectedPoolAccount,
+    isRagequitLoading,
     handleDeposit,
+    handleRagequit,
     handleUpdateForm,
     handleLoadAccount,
     handleSetMaxAmount,
