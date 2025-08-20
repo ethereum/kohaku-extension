@@ -1,23 +1,32 @@
 import React, { useState } from 'react'
 import { View, Pressable } from 'react-native'
+
 import Text from '@common/components/Text'
 import Button from '@common/components/Button'
 import Heading from '@common/components/Heading'
 import Panel from '@common/components/Panel'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
-import { usePP } from '../hooks/usePP'
 
-type AccountOverviewProps = {
-  ppData: ReturnType<typeof usePP>
+import { PoolAccount } from '@web/contexts/privacyControllerStateContext'
+import { AccountService } from '@0xbow/privacy-pools-core-sdk'
+
+interface AccountOverviewProps {
+  poolAccounts: PoolAccount[]
+  selectedAccount: PoolAccount | null
+  accountService: AccountService | undefined
+  onSelectAccount: (poolAccount: PoolAccount) => void
 }
 
-const AccountOverview = ({ ppData }: AccountOverviewProps) => {
-  const { poolAccounts, loadedAccount: account } = ppData
-  const [selectedAccount, setSelectedAccount] = useState<any | null>(null)
+const AccountOverview = ({
+  poolAccounts,
+  selectedAccount,
+  accountService,
+  onSelectAccount
+}: AccountOverviewProps) => {
   const [ragequitLoading] = useState<Record<string, boolean>>({})
 
-  if (!account && !poolAccounts?.length) {
+  if (!accountService && !poolAccounts?.length) {
     return (
       <View style={[spacings.mb24]}>
         <Panel>
@@ -28,10 +37,6 @@ const AccountOverview = ({ ppData }: AccountOverviewProps) => {
         </Panel>
       </View>
     )
-  }
-
-  const handleAccountSelect = (poolAccount: any) => {
-    setSelectedAccount(selectedAccount?.name === poolAccount.name ? null : poolAccount)
   }
 
   const formatTimestamp = (timestamp?: bigint) => {
@@ -82,7 +87,7 @@ const AccountOverview = ({ ppData }: AccountOverviewProps) => {
           {poolAccounts.map((poolAccount) => (
             <Pressable
               key={`${poolAccount.chainId}-${poolAccount.name}`}
-              onPress={() => handleAccountSelect(poolAccount)}
+              onPress={() => onSelectAccount(poolAccount)}
               disabled={isRagequitLoading(poolAccount)}
               style={{
                 paddingBottom: '4px'
