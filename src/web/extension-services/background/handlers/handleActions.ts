@@ -402,12 +402,12 @@ export const handleActions = async (
       return mainCtrl?.transfer?.signAccountOpController?.updateStatus(params.status)
     case 'MAIN_CONTROLLER_REMOVE_ACTIVE_ROUTE':
       return mainCtrl.removeActiveRoute(params.activeRouteId)
-    case 'PRIVACY_CONTROLLER_SDK_LOADED':
-      return mainCtrl.privacy.setSdkInitialized()
-    case 'PRIVACY_CONTROLLER_UPDATE_FORM':
-      return mainCtrl.privacy.update(params)
-    case 'PRIVACY_CONTROLLER_UNLOAD_SCREEN':
-      return mainCtrl.privacy.unloadScreen()
+    case 'PRIVACY_POOLS_CONTROLLER_SDK_LOADED':
+      return mainCtrl.privacyPools.setSdkInitialized()
+    case 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM':
+      return mainCtrl.privacyPools.update(params)
+    case 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN':
+      return mainCtrl.privacyPools.unloadScreen()
     case 'ACTIONS_CONTROLLER_REMOVE_FROM_ACTIONS_QUEUE':
       return mainCtrl.requests.actions.removeActions([params.id], params.shouldOpenNextAction)
     case 'ACTIONS_CONTROLLER_FOCUS_ACTION_WINDOW':

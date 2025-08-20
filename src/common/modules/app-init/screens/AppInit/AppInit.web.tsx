@@ -47,7 +47,7 @@ import { StorageControllerStateProvider } from '@web/contexts/storageControllerS
 import { SwapAndBridgeControllerStateProvider } from '@web/contexts/swapAndBridgeControllerStateContext'
 import { TransferControllerStateProvider } from '@web/contexts/transferControllerStateContext'
 import { WalletStateControllerProvider } from '@web/contexts/walletStateControllerContext'
-import { PrivacyControllerStateProvider } from '@web/contexts/privacyControllerStateContext'
+import { PrivacyPoolsControllerStateProvider } from '@web/contexts/privacyPoolsControllerStateContext'
 
 const Router = isExtension ? HashRouter : BrowserRouter
 
@@ -92,7 +92,7 @@ const AppInit = () => {
                                                                 <AddressBookControllerStateProvider>
                                                                   <SwapAndBridgeControllerStateProvider>
                                                                     <TransferControllerStateProvider>
-                                                                      <PrivacyControllerStateProvider>
+                                                                      <PrivacyPoolsControllerStateProvider>
                                                                         {/* Reading from controllers in components, rendered above ControllersStateLoadedProvider
                                                                     must be done very carefully, as it is not guaranteed that the state is loaded */}
                                                                         <ControllersStateLoadedProvider>
@@ -111,7 +111,7 @@ const AppInit = () => {
                                                                             </KeyboardProvider>
                                                                           </StorageProvider>
                                                                         </ControllersStateLoadedProvider>
-                                                                      </PrivacyControllerStateProvider>
+                                                                      </PrivacyPoolsControllerStateProvider>
                                                                     </TransferControllerStateProvider>
                                                                   </SwapAndBridgeControllerStateProvider>
                                                                 </AddressBookControllerStateProvider>

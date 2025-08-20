@@ -749,11 +749,11 @@ type DismissBanner = {
 }
 
 type PrivacyControllerInitializeSdkAction = {
-  type: 'PRIVACY_CONTROLLER_SDK_LOADED'
+  type: 'PRIVACY_POOLS_CONTROLLER_SDK_LOADED'
 }
 
 type PrivacyControllerUpdateFormAction = {
-  type: 'PRIVACY_CONTROLLER_UPDATE_FORM'
+  type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM'
   params: {
     amount?: string
     seedPhrase?: string
@@ -762,7 +762,7 @@ type PrivacyControllerUpdateFormAction = {
 }
 
 type PrivacyControllerUnloadScreenAction = {
-  type: 'PRIVACY_CONTROLLER_UNLOAD_SCREEN'
+  type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN'
 }
 
 export type Action =

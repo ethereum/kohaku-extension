@@ -8,7 +8,7 @@ import Panel from '@common/components/Panel'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 
-import { PoolAccount } from '@web/contexts/privacyControllerStateContext'
+import { PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
 import { AccountService } from '@0xbow/privacy-pools-core-sdk'
 import { formatEther } from 'viem'
 import { canRagequit } from '../utils/privacy/ragequit'
