@@ -8,9 +8,13 @@ import Heading from '@common/components/Heading'
 import Select from '@common/components/Select'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
-import { chainData } from '../utils/chainData'
+import { PoolInfo } from '@ambire-common/controllers/privacyPools/config'
 
-const WithdrawalManager = () => {
+interface WithdrawalManagerProps {
+  poolInfo?: PoolInfo
+}
+
+const WithdrawalManager = ({ poolInfo }: WithdrawalManagerProps) => {
   const poolAccounts: any[] = []
   const account = null
 
@@ -24,9 +28,6 @@ const WithdrawalManager = () => {
   } | null>(null)
   const [isGeneratingProof] = useState(false)
   const isSending = false
-
-  // Get pool info for current chain
-  const poolInfo = chainData[11155111]?.poolInfo?.[0]
 
   // Get available pool accounts for withdrawal (approved deposits with balance > 0)
   const availablePoolAccounts =

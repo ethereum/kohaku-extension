@@ -5,9 +5,9 @@ import { PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
 
-import { generateSeedPhrase } from '../utils/seedPhrase'
-import { transformRagequitProofForContract } from '../utils/privacy/ragequit'
-import { entrypointAbi, privacyPoolAbi } from '../utils/privacy/abi'
+import { english, generateMnemonic } from 'viem/accounts'
+import { transformRagequitProofForContract } from '../utils/ragequit'
+import { entrypointAbi, privacyPoolAbi } from '../utils/abi'
 
 type PrivateRequestType = 'privateDepositRequest' | 'privateSendRequest' | 'privateRagequitRequest'
 
@@ -60,7 +60,7 @@ const usePrivacyPoolsForm = () => {
       setIsGenerating(true)
       setMessage(null)
 
-      const newSeedPhrase = generateSeedPhrase()
+      const newSeedPhrase = generateMnemonic(english)
       handleUpdateForm({ seedPhrase: newSeedPhrase })
       setMessage({ type: 'success', text: 'New seed phrase generated successfully!' })
     } catch (error) {

@@ -5,11 +5,8 @@
 
 import {
   Circuits,
-  CommitmentProof,
   PrivacyPoolSDK,
   WithdrawalProofInput,
-  calculateContext,
-  Withdrawal,
   Secret,
   generateMerkleProof,
   Hash,
@@ -22,7 +19,7 @@ import {
 } from '@0xbow/privacy-pools-core-sdk'
 import { Chain, createPublicClient, Hex, http, HttpTransport, PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
-import { chainData, whitelistedChains } from '../chainData'
+import { chainData, whitelistedChains } from '@ambire-common/controllers/privacyPools/config'
 import { MtLeavesResponse, aspClient } from './aspClient'
 
 export const transports = {
@@ -85,28 +82,6 @@ const initializeSDK = () => {
 }
 
 /**
- * Generates a zero-knowledge proof for a commitment using Poseidon hash.
- *
- * @param value - The value being committed to
- * @param label - Label associated with the commitment
- * @param nullifier - Unique nullifier for the commitment
- * @param secret - Secret key for the commitment
- * @returns Promise resolving to proof and public signals
- * @throws {ProofError} If proof generation fails
- */
-export const generateRagequitProof = async (
-  commitment: AccountCommitment
-): Promise<CommitmentProof> => {
-  const sdkInstance = initializeSDK()
-  return sdkInstance.proveCommitment(
-    commitment.value,
-    commitment.label,
-    commitment.nullifier,
-    commitment.secret
-  )
-}
-
-/**
  * Generates a withdrawal proof.
  *
  * @param commitment - Commitment to withdraw
@@ -138,10 +113,6 @@ export const generateWithdrawalProof = async (
   )
 }
 
-export const getContext = async (withdrawal: Withdrawal, scope: Hash) => {
-  return calculateContext(withdrawal, scope)
-}
-
 export const getMerkleProof = async (leaves: bigint[], leaf: bigint) => {
   return generateMerkleProof(leaves, leaf)
 }
@@ -149,10 +120,6 @@ export const getMerkleProof = async (leaves: bigint[], leaf: bigint) => {
 export const verifyWithdrawalProof = async (proof: WithdrawalProof) => {
   const sdkInstance = initializeSDK()
   return sdkInstance.verifyWithdrawal(proof)
-}
-
-export const createDepositSecrets = (accountService: AccountService, scope: Hash) => {
-  return accountService.createDepositSecrets(scope)
 }
 
 export const createWithdrawalSecrets = (
