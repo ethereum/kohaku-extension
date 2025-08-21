@@ -63,7 +63,6 @@ const PrivacyPoolsScreen = () => {
           />
 
           <DepositManager
-            message={message}
             poolInfo={poolInfo}
             displayValue={displayAmountValue}
             onAmountChange={handleAmountChange}
@@ -71,7 +70,7 @@ const PrivacyPoolsScreen = () => {
             onDeposit={handleDeposit}
           />
 
-          <WithdrawalManager poolInfo={poolInfo} />
+          <WithdrawalManager poolInfo={poolInfo} poolAccounts={poolAccounts} />
 
           <AccountOverview
             poolAccounts={poolAccounts}
@@ -80,6 +79,7 @@ const PrivacyPoolsScreen = () => {
             onSelectAccount={handleSelectedAccount}
             onRagequit={handleRagequit}
             isRagequitLoading={isRagequitLoading}
+            isLoadingAccount={isLoadingAccount}
           />
         </View>
       </View>

@@ -9,24 +9,21 @@ import Select from '@common/components/Select'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { PoolInfo } from '@ambire-common/controllers/privacyPools/config'
+import { PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
 
 interface WithdrawalManagerProps {
   poolInfo?: PoolInfo
+  poolAccounts: PoolAccount[]
 }
 
-const WithdrawalManager = ({ poolInfo }: WithdrawalManagerProps) => {
-  const poolAccounts: any[] = []
-  const account = null
-
+const WithdrawalManager = ({ poolInfo, poolAccounts }: WithdrawalManagerProps) => {
   const [selectedPoolAccount, setSelectedPoolAccount] = useState<any>(null)
   const [amount, setAmount] = useState('')
   const [targetAddress, setTargetAddress] = useState('')
-  const [showReview, setShowReview] = useState(false)
   const [message, setMessage] = useState<{
     type: 'success' | 'error' | 'info'
     text: string
   } | null>(null)
-  const [isGeneratingProof] = useState(false)
   const isSending = false
 
   // Get available pool accounts for withdrawal (approved deposits with balance > 0)
@@ -53,20 +50,13 @@ const WithdrawalManager = ({ poolInfo }: WithdrawalManagerProps) => {
   const handleAmountChange = (event: any) => {
     const value = event.target.value
     setAmount(value)
-    setShowReview(false)
     if (message) setMessage(null)
   }
 
   const handleTargetAddressChange = (event: any) => {
     const value = event.target.value
     setTargetAddress(value)
-    setShowReview(false)
     if (message) setMessage(null)
-  }
-
-  const handleReviewWithdrawal = async () => {
-    // eslint-disable-next-line no-console
-    console.log('handleReviewWithdrawal')
   }
 
   const handleWithdrawal = async () => {
@@ -161,38 +151,10 @@ const WithdrawalManager = ({ poolInfo }: WithdrawalManagerProps) => {
 
       {/* Action Buttons */}
       <View style={[flexbox.directionRow, spacings.mb16]}>
-        {!showReview ? (
-          <Button
-            type="primary"
-            onPress={handleReviewWithdrawal}
-            disabled={
-              !amount ||
-              !selectedPoolAccount?.value ||
-              !targetAddress ||
-              !account ||
-              isGeneratingProof
-            }
-            text={isGeneratingProof ? 'Generating Proof...' : 'Review Withdrawal'}
-          />
-        ) : (
-          <>
-            <Button
-              type="secondary"
-              onPress={() => {
-                setShowReview(false)
-              }}
-              disabled={isSending}
-              text="Edit Withdrawal"
-            />
-            <Button type="primary" onPress={handleWithdrawal} disabled={isSending}>
-              {isSending ? 'Processing...' : 'Confirm Withdrawal'}
-            </Button>
-          </>
-        )}
+        <Button type="primary" onPress={handleWithdrawal} disabled={isSending}>
+          {isSending ? 'Processing...' : 'Confirm Withdrawal'}
+        </Button>
       </View>
-
-      {/* Messages */}
-      {message && <Alert type={message.type} text={message.text} style={spacings.mt16} />}
     </View>
   )
 }

@@ -4,24 +4,25 @@ import {
   isAddress,
   parseAbiParameters,
   getAddress,
-  parseUnits
+  parseUnits,
+  encodeFunctionData
 } from 'viem'
-import type {
-  Hash,
-  AccountCommitment,
-  WithdrawalProofInput,
-  Withdrawal,
-  Secret,
-  AccountService,
-  WithdrawalProof
+import {
+  type Hash,
+  type AccountCommitment,
+  type WithdrawalProofInput,
+  type Withdrawal,
+  type Secret,
+  type AccountService,
+  type WithdrawalProof,
+  calculateContext
 } from '@0xbow/privacy-pools-core-sdk'
-import type { PublicClient, WalletClient } from 'viem'
+import type { Hex, PublicClient, WalletClient } from 'viem'
 import {
   getMerkleProof,
   generateWithdrawalProof,
   verifyWithdrawalProof,
-  createWithdrawalSecrets,
-  getContext
+  createWithdrawalSecrets
 } from './sdk'
 import { entrypointAbi } from './abi'
 
@@ -109,9 +110,9 @@ export type WithdrawalParams = {
 }
 
 export type WithdrawalResult = {
-  success: boolean
-  hash?: `0x${string}`
-  error?: string
+  to: Address
+  data: Hex
+  value: bigint
 }
 
 /**
@@ -176,7 +177,7 @@ export async function generateWithdrawalData({
     const aspMerkleProof = await getMerkleProof(aspLeaves?.map(BigInt), commitment.label)
 
     // Calculate context
-    const context = await getContext(withdrawal, poolScope)
+    const context = calculateContext(withdrawal, poolScope)
 
     // Create withdrawal secrets
     const { secret, nullifier } = createWithdrawalSecrets(account, commitment)
@@ -232,57 +233,53 @@ export async function executeWithdrawalTransaction({
   aspLeaves,
   account,
   userAddress,
-  entrypointAddress,
-  publicClient,
-  walletClient
+  entrypointAddress
 }: WithdrawalParams): Promise<WithdrawalResult> {
-  try {
-    // Generate withdrawal data
-    const { withdrawal, proof, transformedArgs, error } = await generateWithdrawalData({
-      commitment,
-      amount,
-      decimals,
-      target,
-      relayerAddress,
-      feeBPSForWithdraw,
-      poolScope,
-      stateLeaves,
-      aspLeaves,
-      account,
-      userAddress,
-      entrypointAddress
-    })
+  // Generate withdrawal data
+  const { withdrawal, proof, transformedArgs, error } = await generateWithdrawalData({
+    commitment,
+    amount,
+    decimals,
+    target,
+    relayerAddress,
+    feeBPSForWithdraw,
+    poolScope,
+    stateLeaves,
+    aspLeaves,
+    account,
+    userAddress,
+    entrypointAddress
+  })
 
-    if (error || !withdrawal || !proof || !transformedArgs) {
-      return { success: false, error: error || 'Failed to generate withdrawal data' }
+  if (error || !withdrawal || !proof || !transformedArgs) {
+    return {
+      to: getAddress(entrypointAddress),
+      data: '0x',
+      value: 0n
     }
+  }
 
-    // Simulate and execute contract call
-    const { request } = await publicClient.simulateContract({
-      account: getAddress(userAddress),
-      address: getAddress(entrypointAddress),
-      abi: entrypointAbi,
-      functionName: 'relay',
-      args: [
-        {
-          processooor: getAddress(entrypointAddress),
-          data: withdrawal.data
-        },
-        {
-          pA: transformedArgs.pA,
-          pB: transformedArgs.pB,
-          pC: transformedArgs.pC,
-          pubSignals: transformedArgs.pubSignals
-        },
-        poolScope
-      ]
-    })
+  const result = encodeFunctionData({
+    abi: entrypointAbi,
+    functionName: 'relay',
+    args: [
+      {
+        processooor: getAddress(entrypointAddress),
+        data: withdrawal.data
+      },
+      {
+        pA: transformedArgs.pA,
+        pB: transformedArgs.pB,
+        pC: transformedArgs.pC,
+        pubSignals: transformedArgs.pubSignals
+      },
+      poolScope
+    ]
+  })
 
-    const hash = await walletClient.writeContract(request)
-    return { success: true, hash }
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Failed to execute withdrawal transaction'
-    return { success: false, error: errorMessage }
+  return {
+    to: getAddress(entrypointAddress),
+    data: result,
+    value: 0n
   }
 }
