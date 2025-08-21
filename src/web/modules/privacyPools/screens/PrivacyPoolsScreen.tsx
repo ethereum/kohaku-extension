@@ -71,7 +71,7 @@ const PrivacyPoolsScreen = () => {
             onDeposit={handleDeposit}
           />
 
-          <WithdrawalManager />
+          <WithdrawalManager poolInfo={poolInfo} />
 
           <AccountOverview
             poolAccounts={poolAccounts}

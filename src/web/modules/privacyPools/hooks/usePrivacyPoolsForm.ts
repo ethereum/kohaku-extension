@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
-import { formatEther, parseEther } from 'viem'
+import { encodeFunctionData, formatEther, getAddress, parseEther } from 'viem'
 import { Hash } from '@0xbow/privacy-pools-core-sdk'
 import { PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
 
-import { generateSeedPhrase } from '../utils/seedPhrase'
-import { prepareDepositTransaction } from '../utils/privacy/deposit'
-import { executeRagequitTransaction } from '../utils/privacy/ragequit'
+import { english, generateMnemonic } from 'viem/accounts'
+import { transformRagequitProofForContract } from '../utils/ragequit'
+import { entrypointAbi, privacyPoolAbi } from '../utils/abi'
 
 type PrivateRequestType = 'privateDepositRequest' | 'privateSendRequest' | 'privateRagequitRequest'
 
@@ -23,7 +23,8 @@ const usePrivacyPoolsForm = () => {
     selectedPoolAccount,
     loadAccount,
     createDepositSecrets,
-    setSelectedPoolAccount
+    setSelectedPoolAccount,
+    generateRagequitProof
   } = usePrivacyPoolsControllerState()
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -59,7 +60,7 @@ const usePrivacyPoolsForm = () => {
       setIsGenerating(true)
       setMessage(null)
 
-      const newSeedPhrase = generateSeedPhrase()
+      const newSeedPhrase = generateMnemonic(english)
       handleUpdateForm({ seedPhrase: newSeedPhrase })
       setMessage({ type: 'success', text: 'New seed phrase generated successfully!' })
     } catch (error) {
@@ -109,11 +110,13 @@ const usePrivacyPoolsForm = () => {
 
     const secrets = createDepositSecrets(poolInfo.scope as Hash)
 
-    const result = await prepareDepositTransaction({
-      amount: formatEther(BigInt(amount)),
-      depositSecrets: secrets,
-      entryPointAddress: poolInfo.entryPointAddress
+    const data = encodeFunctionData({
+      abi: entrypointAbi,
+      functionName: 'deposit',
+      args: [secrets.precommitment]
     })
+
+    const result = { to: getAddress(poolInfo.entryPointAddress), data, value: parseEther(amount) }
 
     // eslint-disable-next-line no-console
     console.log('result', result)
@@ -134,10 +137,32 @@ const usePrivacyPoolsForm = () => {
 
     if (!accountService || !poolInfo) return
 
-    const result = await executeRagequitTransaction({
-      poolAccount,
-      poolAddress: poolInfo.address
+    const commitment = poolAccount.lastCommitment
+
+    // Generate ragequit proof using the last commitment (current balance)
+    const proof = await generateRagequitProof(commitment)
+
+    // Transform proof for contract interaction
+    const transformedArgs = transformRagequitProofForContract(proof)
+
+    const data = encodeFunctionData({
+      abi: privacyPoolAbi,
+      functionName: 'ragequit',
+      args: [
+        {
+          pA: transformedArgs.pA,
+          pB: transformedArgs.pB,
+          pC: transformedArgs.pC,
+          pubSignals: transformedArgs.pubSignals
+        }
+      ]
     })
+
+    const result = {
+      to: getAddress(poolInfo.address),
+      data,
+      value: 0n
+    }
 
     // eslint-disable-next-line no-console
     console.log('result', result)

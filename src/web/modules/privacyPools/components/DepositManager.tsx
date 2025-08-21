@@ -12,12 +12,12 @@ import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 
 import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
-import { PoolInfo } from '@ambire-common/controllers/privacy/config'
+import { PoolInfo } from '@ambire-common/controllers/privacyPools/config'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 
 interface DepositManagerProps {
   displayValue: string
-  poolInfo: PoolInfo | undefined
+  poolInfo?: PoolInfo
   message: { type: 'success' | 'error' | 'info'; text: string } | null
   onDeposit: () => void
   onAmountChange: (value: string) => void

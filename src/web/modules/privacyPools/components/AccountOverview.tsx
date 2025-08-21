@@ -11,7 +11,7 @@ import flexbox from '@common/styles/utils/flexbox'
 import { PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
 import { AccountService } from '@0xbow/privacy-pools-core-sdk'
 import { formatEther } from 'viem'
-import { canRagequit } from '../utils/privacy/ragequit'
+import { canRagequit } from '../utils/ragequit'
 
 const truncateHash = (hash: string) => {
   return `${hash.slice(0, 6)}...${hash.slice(-4)}`

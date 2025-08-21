@@ -33,7 +33,7 @@ import {
 import useDeepMemo from '@common/hooks/useDeepMemo'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useControllerState from '@web/hooks/useControllerState'
-import { getPoolAccountsFromAccount } from '@web/modules/privacyPools/utils/privacy/sdk'
+import { getPoolAccountsFromAccount } from '@web/modules/privacyPools/utils/sdk'
 import type { PrivacyPoolsController } from '@ambire-common/controllers/privacyPools/privacyPools'
 
 export enum ReviewStatus {

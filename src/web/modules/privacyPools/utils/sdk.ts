@@ -5,27 +5,21 @@
 
 import {
   Circuits,
-  CommitmentProof,
   PrivacyPoolSDK,
   WithdrawalProofInput,
-  calculateContext,
-  Withdrawal,
   Secret,
   generateMerkleProof,
   Hash,
   WithdrawalProof,
   AccountService,
-  DataService,
   PrivacyPoolAccount,
   PoolAccount as SDKPoolAccount,
   AccountCommitment,
-  ChainConfig,
-  PoolInfo,
   RagequitEvent
 } from '@0xbow/privacy-pools-core-sdk'
 import { Chain, createPublicClient, Hex, http, HttpTransport, PublicClient } from 'viem'
 import { sepolia } from 'viem/chains'
-import { ChainData, chainData, whitelistedChains } from '../chainData'
+import { chainData, whitelistedChains } from '@ambire-common/controllers/privacyPools/config'
 import { MtLeavesResponse, aspClient } from './aspClient'
 
 export const transports = {
@@ -70,15 +64,6 @@ export const getTimestampFromBlockNumber = async (
   return block.timestamp
 }
 
-const chainDataByWhitelistedChains = Object.values(chainData).filter(
-  (chain) =>
-    chain.poolInfo.length > 0 && whitelistedChains.some((c) => c.id === chain.poolInfo[0].chainId)
-)
-
-const poolsByChain = chainDataByWhitelistedChains.flatMap(
-  (chain) => chain.poolInfo
-) as ChainData[keyof ChainData]['poolInfo']
-
 // Lazy load circuits only when needed
 let circuits: Circuits | null = null
 let sdk: PrivacyPoolSDK | null = null
@@ -96,61 +81,6 @@ const initializeSDK = () => {
   return sdk!
 }
 
-const pools: PoolInfo[] = poolsByChain.map((pool) => {
-  return {
-    chainId: pool.chainId,
-    address: pool.address,
-    scope: pool.scope as Hash,
-    deploymentBlock: pool.deploymentBlock
-  }
-})
-
-const dataServiceConfig: ChainConfig[] = poolsByChain.map((pool) => {
-  return {
-    chainId: pool.chainId,
-    privacyPoolAddress: pool.address,
-    startBlock: pool.deploymentBlock,
-    rpcUrl: chainData[pool.chainId].sdkRpcUrl,
-    apiKey: 'sdk' // It's not an api key https://viem.sh/docs/clients/public#key-optional
-  }
-})
-const dataService = new DataService(dataServiceConfig)
-
-/**
- * Generates a zero-knowledge proof for a commitment using Poseidon hash.
- *
- * @param value - The value being committed to
- * @param label - Label associated with the commitment
- * @param nullifier - Unique nullifier for the commitment
- * @param secret - Secret key for the commitment
- * @returns Promise resolving to proof and public signals
- * @throws {ProofError} If proof generation fails
- */
-export const generateRagequitProof = async (
-  commitment: AccountCommitment
-): Promise<CommitmentProof> => {
-  const sdkInstance = initializeSDK()
-  return await sdkInstance.proveCommitment(
-    commitment.value,
-    commitment.label,
-    commitment.nullifier,
-    commitment.secret
-  )
-}
-
-/**
- * Verifies a commitment proof.
- *
- * @param proof - The commitment proof to verify
- * @param publicSignals - Public signals associated with the proof
- * @returns Promise resolving to boolean indicating proof validity
- * @throws {ProofError} If verification fails
- */
-export const verifyRagequitProof = async ({ proof, publicSignals }: CommitmentProof) => {
-  const sdkInstance = initializeSDK()
-  return await sdkInstance.verifyCommitment({ proof, publicSignals })
-}
-
 /**
  * Generates a withdrawal proof.
  *
@@ -165,7 +95,7 @@ export const generateWithdrawalProof = async (
   input: WithdrawalProofInput
 ) => {
   const sdkInstance = initializeSDK()
-  return await sdkInstance.proveWithdrawal(
+  return sdkInstance.proveWithdrawal(
     {
       preimage: {
         label: commitment.label,
@@ -183,33 +113,13 @@ export const generateWithdrawalProof = async (
   )
 }
 
-export const getContext = async (withdrawal: Withdrawal, scope: Hash) => {
-  return await calculateContext(withdrawal, scope)
-}
-
 export const getMerkleProof = async (leaves: bigint[], leaf: bigint) => {
-  return await generateMerkleProof(leaves, leaf)
+  return generateMerkleProof(leaves, leaf)
 }
 
 export const verifyWithdrawalProof = async (proof: WithdrawalProof) => {
   const sdkInstance = initializeSDK()
-  return await sdkInstance.verifyWithdrawal(proof)
-}
-
-export const createAccount = (seed: string) => {
-  const accountService = new AccountService(dataService, { mnemonic: seed })
-
-  return accountService
-}
-
-export const loadAccount = async (seed: string) => {
-  const accountService = new AccountService(dataService, { mnemonic: seed })
-  await accountService.retrieveHistory(pools)
-  return accountService
-}
-
-export const createDepositSecrets = (accountService: AccountService, scope: Hash) => {
-  return accountService.createDepositSecrets(scope)
+  return sdkInstance.verifyWithdrawal(proof)
 }
 
 export const createWithdrawalSecrets = (
@@ -242,44 +152,6 @@ export const addPoolAccount = (
   )
 
   return accountInfo
-}
-
-export const addWithdrawal = async (
-  accountService: AccountService,
-  withdrawalParams: {
-    parentCommitment: AccountCommitment
-    value: bigint
-    nullifier: Secret
-    secret: Secret
-    blockNumber: bigint
-    txHash: Hex
-  }
-) => {
-  return accountService.addWithdrawalCommitment(
-    withdrawalParams.parentCommitment,
-    withdrawalParams.value,
-    withdrawalParams.nullifier,
-    withdrawalParams.secret,
-    withdrawalParams.blockNumber,
-    withdrawalParams.txHash
-  )
-}
-
-export const addRagequit = async (
-  accountService: AccountService,
-  ragequitParams: {
-    label: Hash
-    ragequit: {
-      ragequitter: string
-      commitment: Hash
-      label: Hash
-      value: bigint
-      blockNumber: bigint
-      transactionHash: Hex
-    }
-  }
-) => {
-  return accountService.addRagequitToAccount(ragequitParams.label, ragequitParams.ragequit)
 }
 
 export const getPoolAccountsFromAccount = async (account: PrivacyPoolAccount, chainId: number) => {
