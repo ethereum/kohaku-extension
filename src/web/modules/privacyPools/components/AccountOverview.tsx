@@ -21,6 +21,7 @@ interface AccountOverviewProps {
   poolAccounts: PoolAccount[]
   selectedAccount: PoolAccount | null
   accountService: AccountService | undefined
+  isLoadingAccount: boolean
   onSelectAccount: (poolAccount: PoolAccount) => void
   onRagequit: (poolAccount: PoolAccount, event: any) => Promise<void>
   isRagequitLoading: (poolAccount: PoolAccount) => boolean
@@ -30,6 +31,7 @@ const AccountOverview = ({
   poolAccounts,
   selectedAccount,
   accountService,
+  isLoadingAccount,
   onSelectAccount,
   onRagequit,
   isRagequitLoading
@@ -77,7 +79,13 @@ const AccountOverview = ({
     <View style={[spacings.mb24]}>
       <Heading style={[spacings.mb16]}>Account Overview</Heading>
 
-      {poolAccounts && poolAccounts.length > 0 && (
+      {isLoadingAccount && (
+        <Text weight="medium" style={[spacings.mb8]}>
+          Loading pool accounts...
+        </Text>
+      )}
+
+      {!isLoadingAccount && poolAccounts && poolAccounts.length > 0 && (
         <View style={[flexbox.flex1]}>
           <Text weight="medium" style={[spacings.mb8]}>
             Pool Accounts ({poolAccounts.length})
@@ -113,7 +121,7 @@ const AccountOverview = ({
                 >
                   <Text weight="semiBold">Account #{poolAccount.name}</Text>
                   <Text weight="medium" appearance="successText" fontSize={14}>
-                    {/* {formatEther(poolAccount.balance)} ETH */}
+                    {formatEther(poolAccount.balance)} ETH
                   </Text>
                 </View>
 

@@ -56,20 +56,13 @@ const usePrivacyPoolsForm = () => {
   }
 
   const handleGenerateSeedPhrase = async () => {
-    try {
-      setIsGenerating(true)
-      setMessage(null)
+    setIsGenerating(true)
+    setMessage(null)
 
-      const newSeedPhrase = generateMnemonic(english)
-      handleUpdateForm({ seedPhrase: newSeedPhrase })
-      setMessage({ type: 'success', text: 'New seed phrase generated successfully!' })
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to generate seed phrase. Please try again.'
-      setMessage({ type: 'error', text: errorMessage })
-    } finally {
-      setIsGenerating(false)
-    }
+    const newSeedPhrase = generateMnemonic(english)
+    handleUpdateForm({ seedPhrase: newSeedPhrase })
+    setMessage({ type: 'success', text: 'New seed phrase generated successfully!' })
+    setIsGenerating(false)
   }
 
   const handleLoadAccount = async () => {
@@ -77,22 +70,18 @@ const usePrivacyPoolsForm = () => {
       setMessage({ type: 'error', text: 'Please enter a seed phrase to load an existing account.' })
       return
     }
+    try {
+      setMessage(null)
+      setIsLoadingAccount(true)
 
-    setMessage(null)
-    setIsLoadingAccount(true)
-
-    loadAccount()
-      .then(() => {
-        setMessage({ type: 'success', text: 'Account loaded successfully!' })
-      })
-      .catch((error) => {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Failed to load account. Please try again.'
-        setMessage({ type: 'error', text: errorMessage })
-      })
-      .finally(() => {
-        setIsLoadingAccount(false)
-      })
+      await loadAccount()
+      setMessage({ type: 'success', text: 'Account loaded successfully!' })
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to load account. Please try again.'
+      setMessage({ type: 'error', text: errorMessage })
+    }
+    setIsLoadingAccount(false)
   }
 
   const handleSelectedAccount = (poolAccount: PoolAccount) => {

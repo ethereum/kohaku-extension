@@ -18,14 +18,12 @@ import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountCont
 interface DepositManagerProps {
   displayValue: string
   poolInfo?: PoolInfo
-  message: { type: 'success' | 'error' | 'info'; text: string } | null
   onDeposit: () => void
   onAmountChange: (value: string) => void
   onSetMaxAmount: (balance: bigint) => void
 }
 
 const DepositManager = ({
-  message,
   poolInfo,
   displayValue,
   onDeposit,
@@ -92,9 +90,6 @@ const DepositManager = ({
           text={isSending || isConfirming ? 'Processing...' : 'Confirm Deposit'}
         />
       </View>
-
-      {/* Messages */}
-      {message && <Alert type={message.type} text={message.text} style={spacings.mt16} />}
     </View>
   )
 }
