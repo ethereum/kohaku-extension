@@ -78,28 +78,11 @@ export type LeafIndexResponse = {
   index: number
 }
 
-const fetchJWT = async (): Promise<string> => {
-  const response = await fetch('https://privacypools.com/api/token')
-  if (!response.ok) throw new Error('Failed to get token')
-  const { token } = await response.json()
-  return token
-}
+const fetch = window.fetch.bind(window) as any
 
-const fetchPublic = async <T>(url: string): Promise<T> => {
-  const response = await fetch(url)
-
-  if (!response.ok) throw new Error(`Request failed: ${response.statusText}`)
-  return response.json()
-}
-
-const fetchPrivate = async <T>(url: string, headers?: Record<string, string>): Promise<T> => {
-  const token = await fetchJWT()
-
+const fetchWithHeaders = async <T>(url: string, headers: Record<string, string>): Promise<T> => {
   const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...headers
-    }
+    headers
   })
 
   if (!response.ok) throw new Error(`Request failed: ${response.statusText}`)
@@ -108,13 +91,18 @@ const fetchPrivate = async <T>(url: string, headers?: Record<string, string>): P
 
 const aspClient = {
   fetchMtRoots: (aspUrl: string, chainId: number, scope: string) =>
-    fetchPublic<MtRootResponse>(`${aspUrl}/${chainId}/public/mt-roots/${scope}`),
+    fetchWithHeaders<MtRootResponse>(`${aspUrl}/${chainId}/public/mt-roots`, {
+      'X-Pool-Scope': scope
+    }),
 
   fetchMtLeaves: (aspUrl: string, chainId: number, scope: string) =>
-    fetchPrivate<MtLeavesResponse>(`${aspUrl}/${chainId}/private/mt-leaves/${scope}`),
+    fetchWithHeaders<MtLeavesResponse>(`${aspUrl}/${chainId}/public/mt-leaves`, {
+      'X-Pool-Scope': scope
+    }),
 
   fetchDepositsByLabel: (aspUrl: string, chainId: number, scope: string, labels: string[]) =>
-    fetchPrivate<DepositsByLabelResponse>(`${aspUrl}/${chainId}/private/deposits/${scope}`, {
+    fetchWithHeaders<DepositsByLabelResponse>(`${aspUrl}/${chainId}/public/deposits-by-label`, {
+      'X-Pool-Scope': scope,
       'X-labels': labels.join(',')
     })
 }
