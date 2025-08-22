@@ -33,7 +33,7 @@ import {
 import useDeepMemo from '@common/hooks/useDeepMemo'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useControllerState from '@web/hooks/useControllerState'
-import { getPoolAccountsFromAccount } from '@web/modules/privacyPools/utils/sdk'
+import { getPoolAccountsFromAccount, processDeposits } from '@web/modules/privacyPools/utils/sdk'
 import type { PrivacyPoolsController } from '@ambire-common/controllers/privacyPools/privacyPools'
 import {
   aspClient,
@@ -163,13 +163,37 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
 
     setAccountService(accountServiceResult.account)
 
-    const { poolAccounts: newPoolAccounts } = await getPoolAccountsFromAccount(
+    const { poolAccounts: poolAccountFromAccount } = await getPoolAccountsFromAccount(
       accountServiceResult.account.account,
       11155111
     )
 
+    if (!poolAccountFromAccount || !mtLeaves) {
+      throw new Error('No pool information found.')
+    }
+
+    const firstChainInfo = memoizedState.chainData?.[11155111]
+
+    const firstPool = firstChainInfo?.poolInfo[0]
+    const aspUrl = firstChainInfo?.aspUrl ?? ''
+    const scope = firstPool?.scope?.toString() ?? ''
+
+    const newPoolAccounts = await processDeposits(
+      poolAccountFromAccount,
+      mtLeaves,
+      aspUrl,
+      11155111,
+      scope
+    )
+
     setPoolAccounts(newPoolAccounts)
-  }, [dataService, memoizedState.seedPhrase, memoizedState.pools])
+  }, [
+    mtLeaves,
+    dataService,
+    memoizedState.pools,
+    memoizedState.chainData,
+    memoizedState.seedPhrase
+  ])
 
   const generateRagequitProof = useCallback(
     async (commitment: AccountCommitment): Promise<CommitmentProof> => {
