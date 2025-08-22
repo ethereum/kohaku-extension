@@ -85,7 +85,7 @@ const DepositManager = ({
       <View style={[flexbox.directionRow, spacings.mb16]}>
         <Button
           type="primary"
-          onPress={() => onDeposit()}
+          onPress={onDeposit}
           disabled={isSending || isConfirming}
           text={isSending || isConfirming ? 'Processing...' : 'Confirm Deposit'}
         />
