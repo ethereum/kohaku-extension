@@ -35,6 +35,11 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useControllerState from '@web/hooks/useControllerState'
 import { getPoolAccountsFromAccount } from '@web/modules/privacyPools/utils/sdk'
 import type { PrivacyPoolsController } from '@ambire-common/controllers/privacyPools/privacyPools'
+import {
+  aspClient,
+  MtLeavesResponse,
+  MtRootResponse
+} from '@web/modules/privacyPools/utils/aspClient'
 
 export enum ReviewStatus {
   PENDING = 'pending',
@@ -102,56 +107,46 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   const [accountService, setAccountService] = useState<AccountService>()
   const [poolAccounts, setPoolAccounts] = useState<PoolAccount[]>([])
   const [selectedPoolAccount, setSelectedPoolAccount] = useState<PoolAccount | null>(null)
-
-  useEffect(() => {
-    if (!Object.keys(state).length) {
-      dispatch({ type: 'INIT_CONTROLLER_STATE', params: { controller } })
-    }
-  }, [dispatch, state])
+  const [mtRoots, setMtRoots] = useState<MtRootResponse | undefined>(undefined)
+  const [mtLeaves, setMtLeaves] = useState<MtLeavesResponse | undefined>(undefined)
 
   const memoizedState = useDeepMemo(state, controller)
 
-  useEffect(() => {
-    // TODO: initialPromiseLoaded is probably not needed
-    if (
-      !memoizedState.isInitialized &&
-      memoizedState.initialPromiseLoaded &&
-      memoizedState.chainData
-    ) {
-      const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+  const fetchMtData = useCallback(async () => {
+    try {
+      const firstChainInfo = memoizedState.chainData?.[11155111]
 
-      const circuits = new Circuits({ baseUrl })
+      if (!firstChainInfo || !firstChainInfo.poolInfo.length) {
+        throw new Error('No pool information found')
+      }
 
-      const dataServiceConfig: ChainConfig[] = memoizedState.poolsByChain.map((pool) => {
-        return {
-          chainId: pool.chainId,
-          privacyPoolAddress: pool.address,
-          startBlock: pool.deploymentBlock,
-          rpcUrl: memoizedState.chainData?.[pool.chainId]?.sdkRpcUrl || '',
-          apiKey: 'sdk'
-        }
+      const firstPool = firstChainInfo.poolInfo[0]
+      const { aspUrl } = firstChainInfo
+      const scope = firstPool.scope.toString()
+
+      console.log('Fetching MT data for:', {
+        firstChainInfo,
+        aspUrl,
+        scope
       })
 
-      const sdkModule = new PrivacyPoolSDK(circuits)
-      const ds = new DataService(dataServiceConfig)
+      // Fetch MT roots and leaves in parallel
+      const [rootsData, leavesData] = await Promise.all([
+        aspClient.fetchMtRoots(aspUrl, 11155111, scope),
+        aspClient.fetchMtLeaves(aspUrl, 11155111, scope)
+      ])
 
-      setDataService(ds)
-      setSdk(sdkModule)
+      setMtRoots(rootsData)
+      setMtLeaves(leavesData)
 
-      // eslint-disable-next-line no-console
-      console.log('DEBUG: Privacy controller SDK initialized')
-
-      dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_SDK_LOADED'
+      console.log('MT data fetched successfully:', {
+        roots: rootsData,
+        leaves: leavesData
       })
+    } catch (error) {
+      console.error('Error fetching MT data:', error)
     }
-  }, [
-    memoizedState.isInitialized,
-    memoizedState.initialPromiseLoaded,
-    memoizedState.chainData,
-    memoizedState.poolsByChain,
-    dispatch
-  ])
+  }, [memoizedState.chainData])
 
   const loadAccount = useCallback(async () => {
     if (!dataService) {
@@ -267,6 +262,58 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
     },
     [sdk]
   )
+
+  useEffect(() => {
+    if (!Object.keys(state).length) {
+      dispatch({ type: 'INIT_CONTROLLER_STATE', params: { controller } })
+    }
+  }, [dispatch, state])
+
+  useEffect(() => {
+    // TODO: initialPromiseLoaded is probably not needed
+    if (
+      !memoizedState.isInitialized &&
+      memoizedState.initialPromiseLoaded &&
+      memoizedState.chainData
+    ) {
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+
+      const circuits = new Circuits({ baseUrl })
+
+      const dataServiceConfig: ChainConfig[] = memoizedState.poolsByChain.map((pool) => {
+        return {
+          chainId: pool.chainId,
+          privacyPoolAddress: pool.address,
+          startBlock: pool.deploymentBlock,
+          rpcUrl: memoizedState.chainData?.[pool.chainId]?.sdkRpcUrl || '',
+          apiKey: 'sdk'
+        }
+      })
+
+      const sdkModule = new PrivacyPoolSDK(circuits)
+      const ds = new DataService(dataServiceConfig)
+
+      setDataService(ds)
+      setSdk(sdkModule)
+
+      // eslint-disable-next-line no-console
+      console.log('DEBUG: Privacy controller SDK initialized')
+
+      fetchMtData().catch(console.error)
+
+      dispatch({
+        type: 'PRIVACY_POOLS_CONTROLLER_SDK_LOADED'
+      })
+    }
+  }, [
+    memoizedState.isInitialized,
+    memoizedState.initialPromiseLoaded,
+    memoizedState.chainData,
+    memoizedState.poolsByChain,
+    memoizedState,
+    fetchMtData,
+    dispatch
+  ])
 
   const value = useMemo(
     () => ({
