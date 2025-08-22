@@ -23,20 +23,20 @@ const PrivacyPoolsScreen = () => {
     seedPhrase,
     poolAccounts,
     isGenerating,
+    depositAmount,
+    targetAddress,
     accountService,
+    withdrawalAmount,
     isLoadingAccount,
-    displayAmountValue,
     selectedPoolAccount,
     isRagequitLoading,
     handleDeposit,
     handleRagequit,
+    handleWithdrawal,
     handleUpdateForm,
     handleLoadAccount,
-    handleSetMaxAmount,
-    handleAmountChange,
     handleSelectedAccount,
-    handleGenerateSeedPhrase,
-    handleWithdrawal
+    handleGenerateSeedPhrase
   } = usePrivacyPoolsForm()
 
   const onBack = useCallback(() => {
@@ -64,16 +64,18 @@ const PrivacyPoolsScreen = () => {
           />
 
           <DepositManager
+            amount={depositAmount}
             poolInfo={poolInfo}
-            displayValue={displayAmountValue}
-            onAmountChange={handleAmountChange}
-            onSetMaxAmount={handleSetMaxAmount}
+            onValueChange={handleUpdateForm}
             onDeposit={handleDeposit}
           />
 
           <WithdrawalManager
+            amount={withdrawalAmount}
+            targetAddress={targetAddress}
             poolInfo={poolInfo}
             poolAccounts={poolAccounts}
+            onValueChange={handleUpdateForm}
             onWithdrawal={handleWithdrawal}
           />
 
