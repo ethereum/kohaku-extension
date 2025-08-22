@@ -14,12 +14,13 @@ type PrivateRequestType = 'privateDepositRequest' | 'privateSendRequest' | 'priv
 const usePrivacyPoolsForm = () => {
   const { dispatch } = useBackgroundService()
   const {
-    amount,
-    seedPhrase,
-    targetAddress,
     chainData,
+    seedPhrase,
     poolAccounts,
+    depositAmount,
+    targetAddress,
     accountService,
+    withdrawalAmount,
     selectedPoolAccount,
     loadAccount,
     createDepositSecrets,
@@ -30,7 +31,6 @@ const usePrivacyPoolsForm = () => {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isLoadingAccount, setIsLoadingAccount] = useState(false)
-  const [displayAmountValue, setDisplayAmountValue] = useState('')
 
   const [ragequitLoading, setRagequitLoading] = useState<Record<string, boolean>>({})
 
@@ -95,7 +95,7 @@ const usePrivacyPoolsForm = () => {
   }
 
   const handleDeposit = async () => {
-    if (!amount || !poolInfo) return
+    if (!depositAmount || !poolInfo) return
 
     const secrets = createDepositSecrets(poolInfo.scope as Hash)
 
@@ -108,7 +108,7 @@ const usePrivacyPoolsForm = () => {
     const result = {
       to: getAddress(poolInfo.entryPointAddress),
       data,
-      value: BigInt(amount)
+      value: BigInt(depositAmount)
     }
 
     // eslint-disable-next-line no-console
@@ -169,75 +169,24 @@ const usePrivacyPoolsForm = () => {
     console.log('handleWithdrawal')
   }
 
-  const handleAmountChange = (inputValue: string) => {
-    setDisplayAmountValue(inputValue)
-
-    try {
-      if (inputValue === '') {
-        handleUpdateForm({ amount: '0' })
-        return
-      }
-
-      if (inputValue.endsWith('.') || inputValue === '0.' || /^\d*\.0*$/.test(inputValue)) {
-        return
-      }
-
-      const numValue = parseFloat(inputValue)
-      if (Number.isNaN(numValue) || numValue < 0) {
-        return
-      }
-
-      const weiAmount = parseEther(inputValue)
-      handleUpdateForm({ amount: weiAmount.toString() })
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.warn('Invalid ETH amount entered:', inputValue)
-    }
-  }
-
-  const handleSetMaxAmount = (balance: bigint) => {
-    if (balance && balance > 0n) {
-      const formattedAmount = formatEther(balance)
-      setDisplayAmountValue(formattedAmount)
-      handleUpdateForm({ amount: parseEther(formattedAmount).toString() })
-    } else {
-      setDisplayAmountValue('')
-      handleUpdateForm({ amount: '0' })
-    }
-  }
-
-  useEffect(() => {
-    if (amount && amount !== '0') {
-      try {
-        setDisplayAmountValue(formatEther(BigInt(amount)))
-      } catch {
-        setDisplayAmountValue('')
-      }
-    } else {
-      setDisplayAmountValue('')
-    }
-  }, [amount])
-
   return {
-    amount,
     message,
     poolInfo,
     chainData,
     seedPhrase,
     poolAccounts,
     isGenerating,
+    depositAmount,
     targetAddress,
     accountService,
+    withdrawalAmount,
     isLoadingAccount,
-    displayAmountValue,
     selectedPoolAccount,
     isRagequitLoading,
     handleDeposit,
     handleRagequit,
     handleUpdateForm,
     handleLoadAccount,
-    handleSetMaxAmount,
-    handleAmountChange,
     handleSelectedAccount,
     handleGenerateSeedPhrase,
     handleWithdrawal
