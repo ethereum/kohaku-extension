@@ -168,7 +168,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       11155111
     )
 
-    if (!poolAccounts || !mtLeaves) {
+    if (!poolAccountFromAccount || !mtLeaves) {
       throw new Error('No pool information found.')
     }
 
@@ -190,7 +190,6 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   }, [
     mtLeaves,
     dataService,
-    poolAccounts,
     memoizedState.pools,
     memoizedState.chainData,
     memoizedState.seedPhrase
