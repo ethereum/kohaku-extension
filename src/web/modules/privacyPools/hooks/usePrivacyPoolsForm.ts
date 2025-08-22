@@ -116,7 +116,11 @@ const usePrivacyPoolsForm = () => {
       args: [secrets.precommitment]
     })
 
-    const result = { to: getAddress(poolInfo.entryPointAddress), data, value: parseEther(amount) }
+    const result = {
+      to: getAddress(poolInfo.entryPointAddress),
+      data,
+      value: BigInt(amount)
+    }
 
     // eslint-disable-next-line no-console
     console.log('result', result)
