@@ -10,13 +10,15 @@ import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { PoolInfo } from '@ambire-common/controllers/privacyPools/config'
 import { PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
+import { formatEther } from 'viem'
 
 interface WithdrawalManagerProps {
   poolInfo?: PoolInfo
   poolAccounts: PoolAccount[]
+  onWithdrawal: () => void
 }
 
-const WithdrawalManager = ({ poolInfo, poolAccounts }: WithdrawalManagerProps) => {
+const WithdrawalManager = ({ poolInfo, poolAccounts, onWithdrawal }: WithdrawalManagerProps) => {
   const [selectedPoolAccount, setSelectedPoolAccount] = useState<any>(null)
   const [amount, setAmount] = useState('')
   const [targetAddress, setTargetAddress] = useState('')
@@ -59,11 +61,6 @@ const WithdrawalManager = ({ poolInfo, poolAccounts }: WithdrawalManagerProps) =
     if (message) setMessage(null)
   }
 
-  const handleWithdrawal = async () => {
-    // eslint-disable-next-line no-console
-    console.log('handleWithdrawal')
-  }
-
   if (!poolInfo) {
     return (
       <View style={[spacings.mb24]}>
@@ -104,9 +101,9 @@ const WithdrawalManager = ({ poolInfo, poolAccounts }: WithdrawalManagerProps) =
           value={selectedPoolAccount}
           setValue={setSelectedPoolAccount}
           options={availablePoolAccounts.map((poolAccount) => ({
-            label: `Account #${poolAccount.name} (${poolAccount.reviewStatus}) - ${
-              /* formatEther(poolAccount.balance) */ '1'
-            } ETH`,
+            label: `Account #${poolAccount.name} (${poolAccount.reviewStatus}) - ${formatEther(
+              poolAccount.balance
+            )} ETH`,
             value: poolAccount.label.toString()
           }))}
           placeholder="Select a pool account..."
@@ -151,9 +148,12 @@ const WithdrawalManager = ({ poolInfo, poolAccounts }: WithdrawalManagerProps) =
 
       {/* Action Buttons */}
       <View style={[flexbox.directionRow, spacings.mb16]}>
-        <Button type="primary" onPress={handleWithdrawal} disabled={isSending}>
-          {isSending ? 'Processing...' : 'Confirm Withdrawal'}
-        </Button>
+        <Button
+          type="primary"
+          onPress={onWithdrawal}
+          disabled={isSending}
+          text={isSending ? 'Processing...' : 'Confirm Withdrawal'}
+        />
       </View>
     </View>
   )

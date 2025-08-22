@@ -35,7 +35,8 @@ const PrivacyPoolsScreen = () => {
     handleSetMaxAmount,
     handleAmountChange,
     handleSelectedAccount,
-    handleGenerateSeedPhrase
+    handleGenerateSeedPhrase,
+    handleWithdrawal
   } = usePrivacyPoolsForm()
 
   const onBack = useCallback(() => {
@@ -70,7 +71,11 @@ const PrivacyPoolsScreen = () => {
             onDeposit={handleDeposit}
           />
 
-          <WithdrawalManager poolInfo={poolInfo} poolAccounts={poolAccounts} />
+          <WithdrawalManager
+            poolInfo={poolInfo}
+            poolAccounts={poolAccounts}
+            onWithdrawal={handleWithdrawal}
+          />
 
           <AccountOverview
             poolAccounts={poolAccounts}

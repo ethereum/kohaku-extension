@@ -160,6 +160,11 @@ const usePrivacyPoolsForm = () => {
     setRagequitLoading((prev) => ({ ...prev, [accountKey]: false }))
   }
 
+  const handleWithdrawal = async () => {
+    // eslint-disable-next-line no-console
+    console.log('handleWithdrawal')
+  }
+
   const handleAmountChange = (inputValue: string) => {
     setDisplayAmountValue(inputValue)
 
@@ -230,7 +235,8 @@ const usePrivacyPoolsForm = () => {
     handleSetMaxAmount,
     handleAmountChange,
     handleSelectedAccount,
-    handleGenerateSeedPhrase
+    handleGenerateSeedPhrase,
+    handleWithdrawal
   }
 }
 
