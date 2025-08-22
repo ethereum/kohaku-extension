@@ -1,6 +1,6 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { View } from 'react-native'
-import { formatEther, zeroAddress } from 'viem'
+import { formatEther, parseEther, zeroAddress } from 'viem'
 
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
@@ -16,21 +16,16 @@ import { PoolInfo } from '@ambire-common/controllers/privacyPools/config'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 
 interface DepositManagerProps {
-  displayValue: string
+  amount?: string
   poolInfo?: PoolInfo
   onDeposit: () => void
-  onAmountChange: (value: string) => void
-  onSetMaxAmount: (balance: bigint) => void
+  onValueChange: (params: { [key: string]: any }) => void
 }
 
-const DepositManager = ({
-  poolInfo,
-  displayValue,
-  onDeposit,
-  onAmountChange,
-  onSetMaxAmount
-}: DepositManagerProps) => {
+const DepositManager = ({ amount, poolInfo, onDeposit, onValueChange }: DepositManagerProps) => {
   const { portfolio } = useSelectedAccountControllerState()
+
+  const [displayAmount, setDisplayAmount] = useState('')
 
   const sepoliaEth = portfolio.tokens.find(
     (token) => token.chainId === 11155111n && token.address === zeroAddress
@@ -40,6 +35,57 @@ const DepositManager = ({
 
   const isSending = false
   const isConfirming = false
+
+  const handleSetMaxAmount = (balance: bigint) => {
+    if (balance && balance > 0n) {
+      const formattedAmount = formatEther(balance)
+      setDisplayAmount(formattedAmount)
+      onValueChange({ amount: parseEther(formattedAmount).toString() })
+    } else {
+      setDisplayAmount('')
+      onValueChange({ amount: '0' })
+    }
+  }
+
+  const handleAmountChange = (inputValue: string) => {
+    setDisplayAmount(inputValue)
+
+    try {
+      if (inputValue === '') {
+        onValueChange({ depositAmount: '0' })
+        return
+      }
+
+      if (inputValue.endsWith('.') || inputValue === '0.' || /^\d*\.0*$/.test(inputValue)) {
+        return
+      }
+
+      const numValue = parseFloat(inputValue)
+      if (Number.isNaN(numValue) || numValue < 0) {
+        return
+      }
+
+      const weiAmount = parseEther(inputValue)
+      onValueChange({ depositAmount: weiAmount.toString() })
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.warn('Invalid ETH amount entered:', inputValue)
+    }
+  }
+
+  // This is not 100% needed but prevents the displayAmount to not be
+  // synchronized with the amount prop
+  useEffect(() => {
+    if (amount && amount !== '0') {
+      try {
+        setDisplayAmount(formatEther(BigInt(amount)))
+      } catch {
+        setDisplayAmount('')
+      }
+    } else {
+      setDisplayAmount('')
+    }
+  }, [amount])
 
   if (!poolInfo) {
     return (
@@ -72,11 +118,11 @@ const DepositManager = ({
       <View style={[spacings.mb16]}>
         <Input
           label="Deposit Amount"
-          value={displayValue}
-          onChange={(event: any) => onAmountChange(event.target.value)}
+          value={displayAmount}
+          onChange={(event: any) => handleAmountChange(event.target.value)}
           placeholder="0.0"
           button="MAX"
-          onButtonPress={() => onSetMaxAmount(ethBalance)}
+          onButtonPress={() => handleSetMaxAmount(ethBalance)}
           buttonProps={{ disabled: !ethBalance || ethBalance === 0n }}
         />
       </View>
