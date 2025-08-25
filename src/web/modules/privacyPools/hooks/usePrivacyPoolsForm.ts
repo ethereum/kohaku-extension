@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { encodeFunctionData, formatEther, getAddress, parseEther } from 'viem'
 import { Hash } from '@0xbow/privacy-pools-core-sdk'
 import { PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
@@ -8,6 +8,7 @@ import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsController
 import { english, generateMnemonic } from 'viem/accounts'
 import { transformRagequitProofForContract } from '../utils/ragequit'
 import { entrypointAbi, privacyPoolAbi } from '../utils/abi'
+import { usePOC } from './usePOC'
 
 type PrivateRequestType = 'privateDepositRequest' | 'privateSendRequest' | 'privateRagequitRequest'
 
@@ -26,6 +27,7 @@ const usePrivacyPoolsForm = () => {
     setSelectedPoolAccount,
     generateRagequitProof
   } = usePrivacyPoolsControllerState()
+  const { getData, storeData } = usePOC()
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -36,14 +38,17 @@ const usePrivacyPoolsForm = () => {
 
   const poolInfo = chainData?.[11155111]?.poolInfo?.[0]
 
-  const handleUpdateForm = (params: { [key: string]: any }) => {
-    dispatch({
-      type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM',
-      params: { ...params }
-    })
+  const handleUpdateForm = useCallback(
+    (params: { [key: string]: any }) => {
+      dispatch({
+        type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM',
+        params: { ...params }
+      })
 
-    setMessage(null)
-  }
+      setMessage(null)
+    },
+    [dispatch]
+  )
 
   const handlePrivateRequest = (
     type: PrivateRequestType,
@@ -82,6 +87,7 @@ const usePrivacyPoolsForm = () => {
       setMessage({ type: 'error', text: errorMessage })
     }
     setIsLoadingAccount(false)
+    await storeData(seedPhrase)
   }
 
   const handleSelectedAccount = (poolAccount: PoolAccount) => {
@@ -205,6 +211,18 @@ const usePrivacyPoolsForm = () => {
       handleUpdateForm({ amount: '0' })
     }
   }
+
+  useEffect(() => {
+    const loadSeedPhrase = async () => {
+      const data = await getData()
+      handleUpdateForm({ seedPhrase: data || '' })
+    }
+    loadSeedPhrase().catch((error) => {
+      // eslint-disable-next-line no-console
+      console.error('Error loading seed phrase:', error)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getData])
 
   useEffect(() => {
     if (amount && amount !== '0') {
