@@ -27,10 +27,11 @@ const usePrivacyPoolsForm = () => {
     setSelectedPoolAccount,
     generateRagequitProof
   } = usePrivacyPoolsControllerState()
-  const { getData, storeData } = usePOC()
+  const { getData, storeData, decrypt, encrypt } = usePOC()
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isLoadingSeedPhrase, setIsLoadingSeedPhrase] = useState(false)
   const [isLoadingAccount, setIsLoadingAccount] = useState(false)
   const [displayAmountValue, setDisplayAmountValue] = useState('')
 
@@ -87,7 +88,10 @@ const usePrivacyPoolsForm = () => {
       setMessage({ type: 'error', text: errorMessage })
     }
     setIsLoadingAccount(false)
-    await storeData(seedPhrase)
+    if (seedPhrase) {
+      const encrypted = await encrypt(seedPhrase)
+      await storeData(encrypted)
+    }
   }
 
   const handleSelectedAccount = (poolAccount: PoolAccount) => {
@@ -212,17 +216,17 @@ const usePrivacyPoolsForm = () => {
     }
   }
 
-  useEffect(() => {
-    const loadSeedPhrase = async () => {
-      const data = await getData()
-      handleUpdateForm({ seedPhrase: data || '' })
+  const loadSeedPhrase = useCallback(async () => {
+    const data = await getData()
+    if (data) {
+      setIsLoadingSeedPhrase(true)
+      const decrypted = await decrypt(data)
+      handleUpdateForm({ seedPhrase: decrypted || '' })
+      setIsLoadingSeedPhrase(false)
     }
-    loadSeedPhrase().catch((error) => {
-      // eslint-disable-next-line no-console
-      console.error('Error loading seed phrase:', error)
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getData])
+  }, [getData, decrypt, handleUpdateForm])
+
+  const isLoading = isLoadingSeedPhrase || isLoadingAccount
 
   useEffect(() => {
     if (amount && amount !== '0') {
@@ -249,6 +253,7 @@ const usePrivacyPoolsForm = () => {
     isLoadingAccount,
     displayAmountValue,
     selectedPoolAccount,
+    isLoading,
     isRagequitLoading,
     handleDeposit,
     handleRagequit,
@@ -258,7 +263,8 @@ const usePrivacyPoolsForm = () => {
     handleAmountChange,
     handleSelectedAccount,
     handleGenerateSeedPhrase,
-    handleWithdrawal
+    handleWithdrawal,
+    loadSeedPhrase
   }
 }
 
