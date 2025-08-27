@@ -1,30 +1,35 @@
-import {
-  Address,
-  encodeAbiParameters,
-  isAddress,
-  parseAbiParameters,
-  getAddress,
-  parseUnits,
-  encodeFunctionData
-} from 'viem'
+import { Address, encodeAbiParameters, isAddress, parseAbiParameters } from 'viem'
 import {
   type Hash,
   type AccountCommitment,
   type WithdrawalProofInput,
   type Withdrawal,
   type Secret,
-  type AccountService,
   type WithdrawalProof,
-  calculateContext
+  generateMerkleProof
 } from '@0xbow/privacy-pools-core-sdk'
-import type { Hex, PublicClient, WalletClient } from 'viem'
-import {
-  getMerkleProof,
-  generateWithdrawalProof,
-  verifyWithdrawalProof,
-  createWithdrawalSecrets
-} from './sdk'
-import { entrypointAbi } from './abi'
+import type { Hex } from 'viem'
+import { type PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
+
+export type WithdrawalParams = {
+  commitment: AccountCommitment
+  amount: string
+  decimals: number
+  target: Address
+  relayerAddress: Address
+  feeBPSForWithdraw: number
+  poolScope: Hash
+  stateLeaves: string[]
+  aspLeaves: string[]
+  userAddress: Address
+  entrypointAddress: string
+}
+
+export type WithdrawalResult = {
+  to: Address
+  data: Hex
+  value: bigint
+}
 
 const isNaN = (value: number) => Number.isNaN(value)
 
@@ -57,8 +62,8 @@ export const prepareWithdrawRequest = (
 export const prepareWithdrawalProofInput = (
   commitment: AccountCommitment,
   amount: bigint,
-  stateMerkleProof: Awaited<ReturnType<typeof getMerkleProof>>,
-  aspMerkleProof: Awaited<ReturnType<typeof getMerkleProof>>,
+  stateMerkleProof: Awaited<ReturnType<typeof generateMerkleProof>>,
+  aspMerkleProof: Awaited<ReturnType<typeof generateMerkleProof>>,
   context: bigint,
   secret: Secret,
   nullifier: Secret
@@ -92,29 +97,6 @@ export const prepareWithdrawalProofInput = (
   }
 }
 
-export type WithdrawalParams = {
-  commitment: AccountCommitment
-  amount: string
-  decimals: number
-  target: Address
-  relayerAddress: Address
-  feeBPSForWithdraw: number
-  poolScope: Hash
-  stateLeaves: string[]
-  aspLeaves: string[]
-  account: AccountService
-  userAddress: Address
-  entrypointAddress: string
-  publicClient: PublicClient
-  walletClient: WalletClient
-}
-
-export type WithdrawalResult = {
-  to: Address
-  data: Hex
-  value: bigint
-}
-
 /**
  * Transforms proof for contract interaction
  */
@@ -139,147 +121,63 @@ export function transformProofForContract(proof: WithdrawalProof) {
   }
 }
 
-/**
- * Generates withdrawal proof and prepares transaction data
- */
-export async function generateWithdrawalData({
-  commitment,
-  amount,
-  decimals,
-  target,
-  relayerAddress,
-  feeBPSForWithdraw,
-  poolScope,
-  stateLeaves,
-  aspLeaves,
-  account,
-  entrypointAddress
-}: Omit<WithdrawalParams, 'poolAddress' | 'publicClient' | 'walletClient'>): Promise<{
-  withdrawal: Withdrawal
-  proof: WithdrawalProof
-  transformedArgs: ReturnType<typeof transformProofForContract>
-  error?: string
-}> {
-  try {
-    // Prepare withdrawal request
-    const withdrawal = prepareWithdrawRequest(
-      getAddress(target),
-      getAddress(entrypointAddress),
-      getAddress(relayerAddress),
-      feeBPSForWithdraw.toString()
-    )
-
-    // Generate merkle proofs
-    const stateMerkleProof = await getMerkleProof(
-      stateLeaves?.map(BigInt) as bigint[],
-      commitment.hash
-    )
-    const aspMerkleProof = await getMerkleProof(aspLeaves?.map(BigInt), commitment.label)
-
-    // Calculate context
-    const context = calculateContext(withdrawal, poolScope)
-
-    // Create withdrawal secrets
-    const { secret, nullifier } = createWithdrawalSecrets(account, commitment)
-
-    // Workaround for NaN index, SDK issue
-    aspMerkleProof.index = Object.is(aspMerkleProof.index, NaN) ? 0 : aspMerkleProof.index
-
-    // Prepare withdrawal proof input
-    const withdrawalProofInput = prepareWithdrawalProofInput(
-      commitment,
-      parseUnits(amount, decimals),
-      stateMerkleProof,
-      aspMerkleProof,
-      BigInt(context),
-      secret,
-      nullifier
-    )
-
-    // Generate withdrawal proof
-    const proof = await generateWithdrawalProof(commitment, withdrawalProofInput)
-
-    // Verify the proof
-    await verifyWithdrawalProof(proof)
-
-    // Transform proof for contract interaction
-    const transformedArgs = transformProofForContract(proof)
-
-    return { withdrawal, proof, transformedArgs }
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Failed to generate withdrawal data'
+export const validateWithdrawal = (
+  selectedPA: PoolAccount,
+  withdrawalAmount?: string,
+  targetAddress?: string
+): { isValid: boolean; error: { text: string; type: 'error' | 'success' } | null } => {
+  if (!selectedPA) {
     return {
-      withdrawal: {} as Withdrawal,
-      proof: {} as WithdrawalProof,
-      transformedArgs: {} as ReturnType<typeof transformProofForContract>,
-      error: errorMessage
-    }
-  }
-}
-
-/**
- * Executes withdrawal transaction
- */
-export async function executeWithdrawalTransaction({
-  commitment,
-  amount,
-  decimals,
-  target,
-  relayerAddress,
-  feeBPSForWithdraw,
-  poolScope,
-  stateLeaves,
-  aspLeaves,
-  account,
-  userAddress,
-  entrypointAddress
-}: WithdrawalParams): Promise<WithdrawalResult> {
-  // Generate withdrawal data
-  const { withdrawal, proof, transformedArgs, error } = await generateWithdrawalData({
-    commitment,
-    amount,
-    decimals,
-    target,
-    relayerAddress,
-    feeBPSForWithdraw,
-    poolScope,
-    stateLeaves,
-    aspLeaves,
-    account,
-    userAddress,
-    entrypointAddress
-  })
-
-  if (error || !withdrawal || !proof || !transformedArgs) {
-    return {
-      to: getAddress(entrypointAddress),
-      data: '0x',
-      value: 0n
+      isValid: false,
+      error: {
+        text: 'Please select a pool account to withdraw from.',
+        type: 'error'
+      }
     }
   }
 
-  const result = encodeFunctionData({
-    abi: entrypointAbi,
-    functionName: 'relay',
-    args: [
-      {
-        processooor: getAddress(entrypointAddress),
-        data: withdrawal.data
-      },
-      {
-        pA: transformedArgs.pA,
-        pB: transformedArgs.pB,
-        pC: transformedArgs.pC,
-        pubSignals: transformedArgs.pubSignals
-      },
-      poolScope
-    ]
-  })
+  if (!withdrawalAmount || parseFloat(withdrawalAmount) <= 0) {
+    return {
+      isValid: false,
+      error: {
+        text: 'Please enter a valid amount greater than 0.',
+        type: 'error'
+      }
+    }
+  }
+
+  if (!targetAddress) {
+    return {
+      isValid: false,
+      error: {
+        text: 'Please enter a target address for withdrawal.',
+        type: 'error'
+      }
+    }
+  }
+
+  if (!isAddress(targetAddress)) {
+    return {
+      isValid: false,
+      error: {
+        text: 'Please enter a valid Ethereum address.',
+        type: 'error'
+      }
+    }
+  }
+
+  if (BigInt(withdrawalAmount) > selectedPA.balance) {
+    return {
+      isValid: false,
+      error: {
+        text: 'Amount exceeds available balance in selected pool account.',
+        type: 'error'
+      }
+    }
+  }
 
   return {
-    to: getAddress(entrypointAddress),
-    data: result,
-    value: 0n
+    isValid: true,
+    error: null
   }
 }
