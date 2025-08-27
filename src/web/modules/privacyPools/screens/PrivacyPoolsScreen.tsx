@@ -58,23 +58,23 @@ const PrivacyPoolsScreen = () => {
             seedPhrase={seedPhrase}
             isGenerating={isGenerating}
             isLoadingAccount={isLoadingAccount}
+            onUpdateForm={handleUpdateForm}
             onLoadAccount={handleLoadAccount}
             onGenerateSeedPhrase={handleGenerateSeedPhrase}
-            onUpdateForm={handleUpdateForm}
           />
 
           <DepositManager
-            amount={depositAmount}
             poolInfo={poolInfo}
+            amount={depositAmount}
             onValueChange={handleUpdateForm}
             onDeposit={handleDeposit}
           />
 
           <WithdrawalManager
-            amount={withdrawalAmount}
-            targetAddress={targetAddress}
             poolInfo={poolInfo}
+            amount={withdrawalAmount}
             poolAccounts={poolAccounts}
+            targetAddress={targetAddress}
             onValueChange={handleUpdateForm}
             onWithdrawal={handleWithdrawal}
           />
@@ -83,10 +83,10 @@ const PrivacyPoolsScreen = () => {
             poolAccounts={poolAccounts}
             accountService={accountService}
             selectedAccount={selectedPoolAccount}
-            onSelectAccount={handleSelectedAccount}
+            isLoadingAccount={isLoadingAccount}
             onRagequit={handleRagequit}
             isRagequitLoading={isRagequitLoading}
-            isLoadingAccount={isLoadingAccount}
+            onSelectAccount={handleSelectedAccount}
           />
         </View>
       </View>
