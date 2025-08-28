@@ -23,20 +23,20 @@ const PrivacyPoolsScreen = () => {
     seedPhrase,
     poolAccounts,
     isGenerating,
+    depositAmount,
+    targetAddress,
     accountService,
+    withdrawalAmount,
     isLoadingAccount,
-    displayAmountValue,
     selectedPoolAccount,
     isRagequitLoading,
     handleDeposit,
     handleRagequit,
+    handleWithdrawal,
     handleUpdateForm,
     handleLoadAccount,
-    handleSetMaxAmount,
-    handleAmountChange,
     handleSelectedAccount,
-    handleGenerateSeedPhrase,
-    handleWithdrawal
+    handleGenerateSeedPhrase
   } = usePrivacyPoolsForm()
 
   const onBack = useCallback(() => {
@@ -58,22 +58,24 @@ const PrivacyPoolsScreen = () => {
             seedPhrase={seedPhrase}
             isGenerating={isGenerating}
             isLoadingAccount={isLoadingAccount}
+            onUpdateForm={handleUpdateForm}
             onLoadAccount={handleLoadAccount}
             onGenerateSeedPhrase={handleGenerateSeedPhrase}
-            onUpdateForm={handleUpdateForm}
           />
 
           <DepositManager
             poolInfo={poolInfo}
-            displayValue={displayAmountValue}
-            onAmountChange={handleAmountChange}
-            onSetMaxAmount={handleSetMaxAmount}
+            amount={depositAmount}
+            onValueChange={handleUpdateForm}
             onDeposit={handleDeposit}
           />
 
           <WithdrawalManager
             poolInfo={poolInfo}
+            amount={withdrawalAmount}
             poolAccounts={poolAccounts}
+            targetAddress={targetAddress}
+            onValueChange={handleUpdateForm}
             onWithdrawal={handleWithdrawal}
           />
 
@@ -81,10 +83,10 @@ const PrivacyPoolsScreen = () => {
             poolAccounts={poolAccounts}
             accountService={accountService}
             selectedAccount={selectedPoolAccount}
-            onSelectAccount={handleSelectedAccount}
+            isLoadingAccount={isLoadingAccount}
             onRagequit={handleRagequit}
             isRagequitLoading={isRagequitLoading}
-            isLoadingAccount={isLoadingAccount}
+            onSelectAccount={handleSelectedAccount}
           />
         </View>
       </View>

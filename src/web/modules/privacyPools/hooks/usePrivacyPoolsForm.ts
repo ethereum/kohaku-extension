@@ -1,37 +1,57 @@
-import { useEffect, useState } from 'react'
-import { encodeFunctionData, formatEther, getAddress, parseEther } from 'viem'
-import { Hash } from '@0xbow/privacy-pools-core-sdk'
+import { useState } from 'react'
+import { Address, encodeFunctionData, formatEther, getAddress, parseUnits } from 'viem'
+import { english, generateMnemonic } from 'viem/accounts'
+import { Hash, Withdrawal, WithdrawalProof } from '@0xbow/privacy-pools-core-sdk'
 import { PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
-
-import { english, generateMnemonic } from 'viem/accounts'
+import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
+import {
+  prepareWithdrawalProofInput,
+  prepareWithdrawRequest,
+  transformProofForContract,
+  validateWithdrawal,
+  WithdrawalParams,
+  WithdrawalResult
+} from '../utils/withdrawal'
 import { transformRagequitProofForContract } from '../utils/ragequit'
 import { entrypointAbi, privacyPoolAbi } from '../utils/abi'
 
-type PrivateRequestType = 'privateDepositRequest' | 'privateSendRequest' | 'privateRagequitRequest'
+type PrivateRequestType =
+  | 'privateDepositRequest'
+  | 'privateSendRequest'
+  | 'privateRagequitRequest'
+  | 'privateWithdrawRequest'
 
 const usePrivacyPoolsForm = () => {
   const { dispatch } = useBackgroundService()
   const {
-    amount,
-    seedPhrase,
-    targetAddress,
+    mtRoots,
+    mtLeaves,
     chainData,
+    seedPhrase,
     poolAccounts,
+    depositAmount,
+    targetAddress,
     accountService,
+    withdrawalAmount,
     selectedPoolAccount,
     loadAccount,
+    getContext,
+    getMerkleProof,
+    createWithdrawalSecrets,
     createDepositSecrets,
     setSelectedPoolAccount,
-    generateRagequitProof
+    generateRagequitProof,
+    generateWithdrawalProof,
+    verifyWithdrawalProof
   } = usePrivacyPoolsControllerState()
+
+  const { account: userAccount } = useSelectedAccountControllerState()
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isLoadingAccount, setIsLoadingAccount] = useState(false)
-  const [displayAmountValue, setDisplayAmountValue] = useState('')
-
   const [ragequitLoading, setRagequitLoading] = useState<Record<string, boolean>>({})
 
   const poolInfo = chainData?.[11155111]?.poolInfo?.[0]
@@ -95,7 +115,7 @@ const usePrivacyPoolsForm = () => {
   }
 
   const handleDeposit = async () => {
-    if (!amount || !poolInfo) return
+    if (!depositAmount || !poolInfo) return
 
     const secrets = createDepositSecrets(poolInfo.scope as Hash)
 
@@ -108,7 +128,7 @@ const usePrivacyPoolsForm = () => {
     const result = {
       to: getAddress(poolInfo.entryPointAddress),
       data,
-      value: BigInt(amount)
+      value: BigInt(depositAmount)
     }
 
     // eslint-disable-next-line no-console
@@ -164,83 +184,200 @@ const usePrivacyPoolsForm = () => {
     setRagequitLoading((prev) => ({ ...prev, [accountKey]: false }))
   }
 
-  const handleWithdrawal = async () => {
-    // eslint-disable-next-line no-console
-    console.log('handleWithdrawal')
-  }
-
-  const handleAmountChange = (inputValue: string) => {
-    setDisplayAmountValue(inputValue)
-
+  /**
+   * Generates withdrawal proof and prepares transaction data
+   */
+  const generateWithdrawalData = async ({
+    commitment,
+    amount,
+    decimals,
+    target,
+    relayerAddress,
+    feeBPSForWithdraw,
+    poolScope,
+    stateLeaves,
+    aspLeaves,
+    entrypointAddress
+  }: Omit<WithdrawalParams, 'poolAddress'>): Promise<{
+    withdrawal: Withdrawal
+    proof: WithdrawalProof
+    transformedArgs: ReturnType<typeof transformProofForContract>
+    error?: string
+  }> => {
     try {
-      if (inputValue === '') {
-        handleUpdateForm({ amount: '0' })
-        return
-      }
+      // Prepare withdrawal request
+      const withdrawal = prepareWithdrawRequest(
+        getAddress(target),
+        getAddress(entrypointAddress),
+        getAddress(relayerAddress),
+        feeBPSForWithdraw.toString()
+      )
+      // Generate merkle proofs
+      const stateMerkleProof = getMerkleProof(stateLeaves?.map(BigInt) as bigint[], commitment.hash)
+      const aspMerkleProof = getMerkleProof(aspLeaves?.map(BigInt), commitment.label)
+      // Calculate context
+      const context = getContext(withdrawal, poolScope)
+      // Create withdrawal secrets
+      const { secret, nullifier } = createWithdrawalSecrets(commitment)
+      // Workaround for NaN index, SDK issue
+      aspMerkleProof.index = Object.is(aspMerkleProof.index, NaN) ? 0 : aspMerkleProof.index
+      // Prepare withdrawal proof input
+      const withdrawalProofInput = prepareWithdrawalProofInput(
+        commitment,
+        parseUnits(amount, decimals),
+        stateMerkleProof,
+        aspMerkleProof,
+        BigInt(context),
+        secret,
+        nullifier
+      )
+      // Generate withdrawal proof
+      const proof = await generateWithdrawalProof(commitment, withdrawalProofInput)
+      // Verify the proof
+      await verifyWithdrawalProof(proof)
+      // Transform proof for contract interaction
+      const transformedArgs = transformProofForContract(proof)
 
-      if (inputValue.endsWith('.') || inputValue === '0.' || /^\d*\.0*$/.test(inputValue)) {
-        return
-      }
-
-      const numValue = parseFloat(inputValue)
-      if (Number.isNaN(numValue) || numValue < 0) {
-        return
-      }
-
-      const weiAmount = parseEther(inputValue)
-      handleUpdateForm({ amount: weiAmount.toString() })
+      return { withdrawal, proof, transformedArgs }
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.warn('Invalid ETH amount entered:', inputValue)
-    }
-  }
-
-  const handleSetMaxAmount = (balance: bigint) => {
-    if (balance && balance > 0n) {
-      const formattedAmount = formatEther(balance)
-      setDisplayAmountValue(formattedAmount)
-      handleUpdateForm({ amount: parseEther(formattedAmount).toString() })
-    } else {
-      setDisplayAmountValue('')
-      handleUpdateForm({ amount: '0' })
-    }
-  }
-
-  useEffect(() => {
-    if (amount && amount !== '0') {
-      try {
-        setDisplayAmountValue(formatEther(BigInt(amount)))
-      } catch {
-        setDisplayAmountValue('')
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to generate withdrawal data'
+      return {
+        withdrawal: {} as Withdrawal,
+        proof: {} as WithdrawalProof,
+        transformedArgs: {} as ReturnType<typeof transformProofForContract>,
+        error: errorMessage
       }
-    } else {
-      setDisplayAmountValue('')
     }
-  }, [amount])
+  }
+
+  const executeWithdrawalTransaction = async ({
+    commitment,
+    amount,
+    decimals,
+    target,
+    relayerAddress,
+    feeBPSForWithdraw,
+    poolScope,
+    stateLeaves,
+    aspLeaves,
+    userAddress,
+    entrypointAddress
+  }: WithdrawalParams): Promise<WithdrawalResult> => {
+    const { withdrawal, proof, transformedArgs, error } = await generateWithdrawalData({
+      commitment,
+      amount,
+      decimals,
+      target,
+      relayerAddress,
+      feeBPSForWithdraw,
+      poolScope,
+      stateLeaves,
+      aspLeaves,
+      userAddress,
+      entrypointAddress
+    })
+
+    if (error || !withdrawal || !proof || !transformedArgs) {
+      return {
+        to: getAddress(entrypointAddress),
+        data: '0x',
+        value: 0n
+      }
+    }
+
+    const result = encodeFunctionData({
+      abi: entrypointAbi,
+      functionName: 'relay',
+      args: [
+        {
+          processooor: getAddress(entrypointAddress),
+          data: withdrawal.data
+        },
+        {
+          pA: transformedArgs.pA,
+          pB: transformedArgs.pB,
+          pC: transformedArgs.pC,
+          pubSignals: transformedArgs.pubSignals
+        },
+        poolScope
+      ]
+    })
+
+    return {
+      to: getAddress(entrypointAddress),
+      data: result,
+      value: 0n
+    }
+  }
+
+  const handleWithdrawal = async (poolAccount: PoolAccount) => {
+    const { error, isValid } = validateWithdrawal(poolAccount, withdrawalAmount, targetAddress)
+
+    if (
+      !isValid ||
+      !poolInfo ||
+      !mtLeaves ||
+      !mtRoots ||
+      !accountService ||
+      !targetAddress ||
+      !withdrawalAmount ||
+      !userAccount
+    ) {
+      setMessage(error)
+      return
+    }
+
+    const target = getAddress(targetAddress)
+    const selectedPoolInfo = poolInfo
+    const relayerAddress = userAccount.addr as Address
+    const decimals = selectedPoolInfo?.assetDecimals || 18
+    const feeBPSForWithdraw = 0
+
+    const aspLeaves = mtLeaves?.aspLeaves
+    const stateLeaves = mtLeaves?.stateTreeLeaves
+    const commitment = poolAccount.lastCommitment
+
+    const withdrawalParams: WithdrawalParams = {
+      commitment,
+      amount: formatEther(BigInt(withdrawalAmount)),
+      decimals,
+      target,
+      relayerAddress,
+      feeBPSForWithdraw,
+      poolScope: selectedPoolInfo.scope as Hash,
+      stateLeaves,
+      aspLeaves,
+      userAddress: userAccount.addr as Address,
+      entrypointAddress: poolInfo.entryPointAddress
+    }
+
+    const result = await executeWithdrawalTransaction(withdrawalParams)
+
+    handlePrivateRequest('privateWithdrawRequest', [result])
+  }
 
   return {
-    amount,
     message,
     poolInfo,
     chainData,
     seedPhrase,
     poolAccounts,
     isGenerating,
+    depositAmount,
     targetAddress,
     accountService,
+    withdrawalAmount,
     isLoadingAccount,
-    displayAmountValue,
     selectedPoolAccount,
     isRagequitLoading,
     handleDeposit,
     handleRagequit,
+    handleWithdrawal,
     handleUpdateForm,
     handleLoadAccount,
-    handleSetMaxAmount,
-    handleAmountChange,
     handleSelectedAccount,
-    handleGenerateSeedPhrase,
-    handleWithdrawal
+    handleGenerateSeedPhrase
   }
 }
 

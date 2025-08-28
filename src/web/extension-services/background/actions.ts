@@ -755,7 +755,8 @@ type PrivacyControllerInitializeSdkAction = {
 type PrivacyControllerUpdateFormAction = {
   type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM'
   params: {
-    amount?: string
+    depositAmount?: string
+    withdrawalAmount?: string
     seedPhrase?: string
     targetAddress?: string
   }

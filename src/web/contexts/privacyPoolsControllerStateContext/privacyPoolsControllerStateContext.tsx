@@ -65,6 +65,8 @@ export type PoolAccount = SDKPoolAccount & {
 }
 
 type EnhancedPrivacyPoolsControllerState = {
+  mtRoots: MtRootResponse | undefined
+  mtLeaves: MtLeavesResponse | undefined
   accountService: AccountService | undefined
   selectedPoolAccount: PoolAccount | null
   poolAccounts: PoolAccount[]
@@ -81,10 +83,7 @@ type EnhancedPrivacyPoolsControllerState = {
     secret: Secret
     precommitment: Hash
   }
-  createWithdrawalSecrets: (
-    commitment: AccountCommitment,
-    input: WithdrawalProofInput
-  ) => {
+  createWithdrawalSecrets: (commitment: AccountCommitment) => {
     nullifier: Secret
     secret: Secret
   }
@@ -342,6 +341,8 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   const value = useMemo(
     () => ({
       ...memoizedState,
+      mtRoots,
+      mtLeaves,
       accountService,
       poolAccounts,
       selectedPoolAccount,
@@ -358,6 +359,8 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
     }),
     [
       memoizedState,
+      mtRoots,
+      mtLeaves,
       accountService,
       poolAccounts,
       selectedPoolAccount,
