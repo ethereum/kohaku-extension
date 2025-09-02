@@ -267,6 +267,18 @@ const useSign = ({
     !signAccountOpState?.readyToSign && signAccountOpState?.status?.type !== SigningStatus.Done
 
   const isSignDisabled = useMemo(() => {
+    const conditions = {
+      isViewOnly,
+      isSignLoading,
+      notReadyToSignButAlsoNotDone,
+      readyToSign: signAccountOpState?.readyToSign,
+      estimationLoading: signAccountOpState && signAccountOpState.estimation.status === EstimationStatus.Loading,
+      estimationStatus: signAccountOpState?.estimation?.status,
+      hasSignAccountOpState: !!signAccountOpState
+    }
+
+    console.log('DEBUG: isSignDisabled conditions', conditions)
+
     return (
       isViewOnly ||
       isSignLoading ||
