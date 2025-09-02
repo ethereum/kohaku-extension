@@ -31,7 +31,7 @@ type Props = {
   errors?: SignAccountOpError[]
   signAccountOpController: SignAccountOpController | null
   hasProceeded: boolean
-  updateType: 'Swap&Bridge' | 'Transfer&TopUp'
+  updateType: 'Swap&Bridge' | 'Transfer&TopUp' | 'PrivacyPools'
 }
 
 const { isActionWindow, isTab } = getUiType()

@@ -41,6 +41,7 @@ import { LOG_LEVELS } from '@web/utils/logger'
 
 import { AUTO_LOCK_TIMES } from './controllers/auto-lock'
 import { controllersMapping } from './types'
+import { Call } from '@ambire-common/libs/accountOp/types'
 
 type UpdateNavigationUrl = {
   type: 'UPDATE_PORT_URL'
@@ -378,7 +379,7 @@ type MainControllerSignAccountOpUpdateAction = {
 type SignAccountOpUpdateAction = {
   type: 'SIGN_ACCOUNT_OP_UPDATE'
   params: {
-    updateType: 'Main' | 'Swap&Bridge' | 'Transfer&TopUp'
+    updateType: 'Main' | 'Swap&Bridge' | 'Transfer&TopUp' | 'PrivacyPools'
     accountOp?: AccountOp
     gasPrices?: GasRecommendation[]
     estimation?: FullEstimation
@@ -395,6 +396,7 @@ type MainControllerSignAccountOpUpdateStatus = {
     | 'MAIN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
     | 'SWAP_AND_BRIDGE_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
     | 'TRANSFER_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
+    | 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
   params: {
     status: SigningStatus
   }
@@ -402,7 +404,7 @@ type MainControllerSignAccountOpUpdateStatus = {
 type MainControllerHandleSignAndBroadcastAccountOp = {
   type: 'MAIN_CONTROLLER_HANDLE_SIGN_AND_BROADCAST_ACCOUNT_OP'
   params: {
-    updateType: 'Main' | 'Swap&Bridge' | 'Transfer&TopUp'
+    updateType: 'Main' | 'Swap&Bridge' | 'Transfer&TopUp' | 'PrivacyPools'
   }
 }
 
@@ -766,6 +768,35 @@ type PrivacyControllerUnloadScreenAction = {
   type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN'
 }
 
+type PrivacyControllerSignAccountOpUpdateAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
+  params: {
+    status: SigningStatus
+  }
+}
+
+type PrivacyControllerHasUserProceededAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED'
+  params: {
+    proceeded: boolean
+  }
+}
+
+type PrivacyControllerDestroySignAccountOpAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_SIGN_ACCOUNT_OP'
+}
+
+type PrivacyControllerDestroyLatestBroadcastedAccountOpAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+}
+
+type PrivacyControllerSyncSignAccountOp = {
+  type: 'PRIVACY_POOLS_CONTROLLER_SYNC_SIGN_ACCOUNT_OP'
+  params: {
+    calls: Call[]
+  }
+}
+
 export type Action =
   | UpdateNavigationUrl
   | InitControllerStateAction
@@ -908,3 +939,8 @@ export type Action =
   | PrivacyControllerInitializeSdkAction
   | PrivacyControllerUpdateFormAction
   | PrivacyControllerUnloadScreenAction
+  | PrivacyControllerSignAccountOpUpdateAction
+  | PrivacyControllerHasUserProceededAction
+  | PrivacyControllerDestroySignAccountOpAction
+  | PrivacyControllerDestroyLatestBroadcastedAccountOpAction
+  | PrivacyControllerSyncSignAccountOp
