@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
+import { useModalize } from 'react-native-modalize'
 import { Address, encodeFunctionData, formatEther, getAddress, parseUnits } from 'viem'
 import { english, generateMnemonic } from 'viem/accounts'
 import { Hash, Withdrawal, WithdrawalProof } from '@0xbow/privacy-pools-core-sdk'
+import { Call } from '@ambire-common/libs/accountOp/types'
 import { PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
@@ -31,20 +33,23 @@ const usePrivacyPoolsForm = () => {
     chainData,
     seedPhrase,
     poolAccounts,
+    hasProceeded,
     depositAmount,
     targetAddress,
     accountService,
     withdrawalAmount,
     selectedPoolAccount,
-    loadAccount,
+    signAccountOpController,
+    latestBroadcastedAccountOp,
     getContext,
+    loadAccount,
     getMerkleProof,
-    createWithdrawalSecrets,
     createDepositSecrets,
-    setSelectedPoolAccount,
     generateRagequitProof,
+    verifyWithdrawalProof,
+    setSelectedPoolAccount,
     generateWithdrawalProof,
-    verifyWithdrawalProof
+    createWithdrawalSecrets
   } = usePrivacyPoolsControllerState()
 
   const { account: userAccount } = useSelectedAccountControllerState()
@@ -53,8 +58,15 @@ const usePrivacyPoolsForm = () => {
   const [isGenerating, setIsGenerating] = useState(false)
   const [isLoadingAccount, setIsLoadingAccount] = useState(false)
   const [ragequitLoading, setRagequitLoading] = useState<Record<string, boolean>>({})
+  const [showAddedToBatch, setShowAddedToBatch] = useState(false)
 
   const poolInfo = chainData?.[11155111]?.poolInfo?.[0]
+
+  const {
+    ref: estimationModalRef,
+    open: openEstimationModal,
+    close: closeEstimationModal
+  } = useModalize()
 
   const handleUpdateForm = (params: { [key: string]: any }) => {
     dispatch({
@@ -114,6 +126,25 @@ const usePrivacyPoolsForm = () => {
     })
   }
 
+  const openEstimationModalAndDispatch = useCallback(() => {
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
+      params: {
+        proceeded: true
+      }
+    })
+    openEstimationModal()
+  }, [openEstimationModal, dispatch])
+
+  const syncSignAccountOp = async (calls: Call[]) => {
+    console.log('DEBUG: Dispatching PRIVACY_POOLS_CONTROLLER_SYNC_SIGN_ACCOUNT_OP', calls)
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_SYNC_SIGN_ACCOUNT_OP',
+      params: { calls }
+    })
+    console.log('DEBUG: Dispatch completed')
+  }
+
   const handleDeposit = async () => {
     if (!depositAmount || !poolInfo) return
 
@@ -132,9 +163,12 @@ const usePrivacyPoolsForm = () => {
     }
 
     // eslint-disable-next-line no-console
-    console.log('result', result)
+    console.log('DEBUG: result', result)
 
-    handlePrivateRequest('privateDepositRequest', [result])
+    // Instead of calling handlePrivateRequest directly,
+    // sync SignAccountOp with transaction data and open estimation modal
+    await syncSignAccountOp([result])
+    openEstimationModalAndDispatch()
   }
 
   const isRagequitLoading = (poolAccount: PoolAccount) => {
@@ -178,7 +212,7 @@ const usePrivacyPoolsForm = () => {
     }
 
     // eslint-disable-next-line no-console
-    console.log('result', result)
+    console.log('DEUBG: result', result)
 
     handlePrivateRequest('privateRagequitRequest', [result])
     setRagequitLoading((prev) => ({ ...prev, [accountKey]: false }))
@@ -363,19 +397,25 @@ const usePrivacyPoolsForm = () => {
     chainData,
     seedPhrase,
     poolAccounts,
+    hasProceeded,
     isGenerating,
     depositAmount,
     targetAddress,
     accountService,
     withdrawalAmount,
     isLoadingAccount,
+    showAddedToBatch,
+    estimationModalRef,
     selectedPoolAccount,
-    isRagequitLoading,
+    signAccountOpController,
+    latestBroadcastedAccountOp,
     handleDeposit,
     handleRagequit,
     handleWithdrawal,
     handleUpdateForm,
     handleLoadAccount,
+    isRagequitLoading,
+    closeEstimationModal,
     handleSelectedAccount,
     handleGenerateSeedPhrase
   }
