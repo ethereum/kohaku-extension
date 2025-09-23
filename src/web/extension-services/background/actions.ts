@@ -766,6 +766,10 @@ type PrivacyControllerUnloadScreenAction = {
   type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN'
 }
 
+type PrivacyControllerSignTypedDataAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_SIGN_TYPED_DATA'
+}
+
 export type Action =
   | UpdateNavigationUrl
   | InitControllerStateAction
@@ -908,3 +912,4 @@ export type Action =
   | PrivacyControllerInitializeSdkAction
   | PrivacyControllerUpdateFormAction
   | PrivacyControllerUnloadScreenAction
+  | PrivacyControllerSignTypedDataAction

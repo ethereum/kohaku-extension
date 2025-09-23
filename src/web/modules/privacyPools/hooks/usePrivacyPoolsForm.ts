@@ -36,6 +36,7 @@ const usePrivacyPoolsForm = () => {
     accountService,
     withdrawalAmount,
     selectedPoolAccount,
+    signedTypedData,
     loadAccount,
     getContext,
     getMerkleProof,
@@ -73,6 +74,14 @@ const usePrivacyPoolsForm = () => {
       type: 'REQUESTS_CONTROLLER_BUILD_REQUEST',
       params: { type, params: { txList, actionExecutionType: 'open-action-window' } }
     })
+  }
+
+  const handleSignTypedData = async () => {
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_SIGN_TYPED_DATA',
+      params: {}
+    })
+    console.log('signedTypedData', signedTypedData)
   }
 
   const handleGenerateSeedPhrase = async () => {
@@ -377,7 +386,8 @@ const usePrivacyPoolsForm = () => {
     handleUpdateForm,
     handleLoadAccount,
     handleSelectedAccount,
-    handleGenerateSeedPhrase
+    handleGenerateSeedPhrase,
+    handleSignTypedData
   }
 }
 

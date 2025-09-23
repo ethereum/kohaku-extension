@@ -674,6 +674,10 @@ export const handleActions = async (
       break
     }
 
+    case 'PRIVACY_POOLS_CONTROLLER_SIGN_TYPED_DATA': {
+      return await mainCtrl.privacyPools.signTypedData()
+    }
+
     default:
       // eslint-disable-next-line no-console
       return console.error(
