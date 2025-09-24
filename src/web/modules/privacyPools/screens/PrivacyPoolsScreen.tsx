@@ -29,6 +29,7 @@ const PrivacyPoolsScreen = () => {
     withdrawalAmount,
     isLoadingAccount,
     selectedPoolAccount,
+    isLoading,
     isRagequitLoading,
     handleDeposit,
     handleRagequit,
@@ -65,6 +66,7 @@ const PrivacyPoolsScreen = () => {
             onUpdateForm={handleUpdateForm}
             onLoadAccount={handleLoadAccount}
             onGenerateSeedPhrase={handleGenerateSeedPhrase}
+            isLoading={isLoading}
           />
 
           <DepositManager

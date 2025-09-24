@@ -13,6 +13,7 @@ interface SeedPhraseManagerProps {
   seedPhrase?: string
   isGenerating?: boolean
   isLoadingAccount?: boolean
+  isLoading?: boolean
   onLoadAccount?: () => void
   onGenerateSeedPhrase?: () => void
   onUpdateForm: (params: { [key: string]: any }) => void
@@ -23,6 +24,7 @@ const SeedPhraseManager = ({
   seedPhrase,
   isGenerating,
   isLoadingAccount,
+  isLoading,
   onLoadAccount,
   onGenerateSeedPhrase,
   onUpdateForm
@@ -51,14 +53,14 @@ const SeedPhraseManager = ({
         <Button
           type="primary"
           onPress={onGenerateSeedPhrase}
-          disabled={isGenerating || isLoadingAccount}
+          disabled={isGenerating || isLoadingAccount || isLoading}
           text={isGenerating ? 'Generating...' : 'Generate New Seed Phrase'}
         />
 
         <Button
           type="secondary"
           onPress={onLoadAccount}
-          disabled={!seedPhrase?.trim() || isGenerating || isLoadingAccount}
+          disabled={!seedPhrase?.trim() || isGenerating || isLoadingAccount || isLoading}
           text={isLoadingAccount ? 'Loading Account...' : 'Load Existing Account'}
         />
       </View>
