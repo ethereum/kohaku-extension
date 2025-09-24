@@ -293,12 +293,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   }, [dispatch, state])
 
   useEffect(() => {
-    // TODO: initialPromiseLoaded is probably not needed
-    if (
-      !memoizedState.isInitialized &&
-      memoizedState.initialPromiseLoaded &&
-      memoizedState.chainData
-    ) {
+    if (memoizedState.initialPromiseLoaded && memoizedState.chainData && !sdk) {
       const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
 
       const circuits = new Circuits({ baseUrl })
@@ -320,7 +315,6 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       setSdk(sdkModule)
 
       // eslint-disable-next-line no-console
-      console.log('DEBUG: Privacy controller SDK initialized')
 
       fetchMtData().catch(console.error)
 
