@@ -37,7 +37,7 @@ const PrivacyPoolsScreen = () => {
     handleLoadAccount,
     handleSelectedAccount,
     handleGenerateSeedPhrase,
-    handleSignTypedData
+    handleGenerateAppSecret
   } = usePrivacyPoolsForm()
 
   const onBack = useCallback(() => {
@@ -54,8 +54,8 @@ const PrivacyPoolsScreen = () => {
     <Wrapper title="Privacy Pools" handleGoBack={onBack} buttons={[]}>
       <View style={[spacings.p16, flexbox.flex1, { overflow: 'scroll', padding: '16px' }]}>
         <View style={[flexbox.flex1, spacings.mt16]}>
-          <button type="button" onClick={handleSignTypedData}>
-            <span>Sign Typed Data</span>
+          <button type="button" onClick={handleGenerateAppSecret}>
+            <span>Generate App Secret</span>
           </button>
           <SeedPhraseManager
             message={message}

@@ -36,7 +36,6 @@ const usePrivacyPoolsForm = () => {
     accountService,
     withdrawalAmount,
     selectedPoolAccount,
-    signedTypedData,
     loadAccount,
     getContext,
     getMerkleProof,
@@ -76,12 +75,11 @@ const usePrivacyPoolsForm = () => {
     })
   }
 
-  const handleSignTypedData = async () => {
+  const handleGenerateAppSecret = async () => {
     dispatch({
-      type: 'PRIVACY_POOLS_CONTROLLER_SIGN_TYPED_DATA',
+      type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_APP_SECRET',
       params: {}
     })
-    console.log('signedTypedData', signedTypedData)
   }
 
   const handleGenerateSeedPhrase = async () => {
@@ -387,7 +385,7 @@ const usePrivacyPoolsForm = () => {
     handleLoadAccount,
     handleSelectedAccount,
     handleGenerateSeedPhrase,
-    handleSignTypedData
+    handleGenerateAppSecret
   }
 }
 
