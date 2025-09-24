@@ -66,7 +66,6 @@ const PrivacyPoolsScreen = () => {
             onUpdateForm={handleUpdateForm}
             onLoadAccount={handleLoadAccount}
             onGenerateSeedPhrase={handleGenerateSeedPhrase}
-            onUpdateForm={handleUpdateForm}
             isLoading={isLoading}
           />
 
