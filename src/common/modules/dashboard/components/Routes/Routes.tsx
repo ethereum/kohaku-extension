@@ -19,7 +19,7 @@ const Routes = ({ openReceiveModal }: { openReceiveModal: () => void }) => {
       testID: 'dashboard-button-privacy-pools',
       icon: SendIcon,
       label: t('Privacy Pools'),
-      route: WEB_ROUTES.privacyPools,
+      route: WEB_ROUTES.pp2Home,
       isExternal: false,
       scale: 1.08,
       scaleOnHover: 1.18
