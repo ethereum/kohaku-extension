@@ -75,6 +75,13 @@ const usePrivacyPoolsForm = () => {
     })
   }
 
+  const handleGenerateAppSecret = async () => {
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_APP_SECRET',
+      params: {}
+    })
+  }
+
   const handleGenerateSeedPhrase = async () => {
     setIsGenerating(true)
     setMessage(null)
@@ -377,7 +384,8 @@ const usePrivacyPoolsForm = () => {
     handleUpdateForm,
     handleLoadAccount,
     handleSelectedAccount,
-    handleGenerateSeedPhrase
+    handleGenerateSeedPhrase,
+    handleGenerateAppSecret
   }
 }
 

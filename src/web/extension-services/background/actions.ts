@@ -766,6 +766,10 @@ type PrivacyControllerUnloadScreenAction = {
   type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN'
 }
 
+type PrivacyControllerGenerateAppSecretAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_APP_SECRET'
+}
+
 export type Action =
   | UpdateNavigationUrl
   | InitControllerStateAction
@@ -908,3 +912,4 @@ export type Action =
   | PrivacyControllerInitializeSdkAction
   | PrivacyControllerUpdateFormAction
   | PrivacyControllerUnloadScreenAction
+  | PrivacyControllerGenerateAppSecretAction
