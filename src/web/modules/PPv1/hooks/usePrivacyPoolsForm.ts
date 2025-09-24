@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Address, encodeFunctionData, formatEther, getAddress, parseUnits } from 'viem'
 import { english, generateMnemonic } from 'viem/accounts'
 import { Hash, Withdrawal, WithdrawalProof } from '@0xbow/privacy-pools-core-sdk'
@@ -16,6 +16,7 @@ import {
 } from '../utils/withdrawal'
 import { transformRagequitProofForContract } from '../utils/ragequit'
 import { entrypointAbi, privacyPoolAbi } from '../utils/abi'
+import { usePOC } from './usePOC'
 
 type PrivateRequestType =
   | 'privateDepositRequest'
@@ -46,24 +47,29 @@ const usePrivacyPoolsForm = () => {
     generateWithdrawalProof,
     verifyWithdrawalProof
   } = usePrivacyPoolsControllerState()
+  const { getData, storeData, decrypt, encrypt } = usePOC()
 
   const { account: userAccount } = useSelectedAccountControllerState()
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isLoadingSeedPhrase, setIsLoadingSeedPhrase] = useState(false)
   const [isLoadingAccount, setIsLoadingAccount] = useState(false)
   const [ragequitLoading, setRagequitLoading] = useState<Record<string, boolean>>({})
 
   const poolInfo = chainData?.[11155111]?.poolInfo?.[0]
 
-  const handleUpdateForm = (params: { [key: string]: any }) => {
-    dispatch({
-      type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM',
-      params: { ...params }
-    })
+  const handleUpdateForm = useCallback(
+    (params: { [key: string]: any }) => {
+      dispatch({
+        type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM',
+        params: { ...params }
+      })
 
-    setMessage(null)
-  }
+      setMessage(null)
+    },
+    [dispatch]
+  )
 
   const handlePrivateRequest = (
     type: PrivateRequestType,
@@ -109,6 +115,10 @@ const usePrivacyPoolsForm = () => {
       setMessage({ type: 'error', text: errorMessage })
     }
     setIsLoadingAccount(false)
+    if (seedPhrase) {
+      const encrypted = await encrypt(seedPhrase)
+      await storeData(encrypted)
+    }
   }
 
   const handleSelectedAccount = (poolAccount: PoolAccount) => {
@@ -258,6 +268,18 @@ const usePrivacyPoolsForm = () => {
     }
   }
 
+  const loadSeedPhrase = useCallback(async () => {
+    const data = await getData()
+    if (data) {
+      setIsLoadingSeedPhrase(true)
+      const decrypted = await decrypt(data)
+      handleUpdateForm({ seedPhrase: decrypted || '' })
+      setIsLoadingSeedPhrase(false)
+    }
+  }, [getData, decrypt, handleUpdateForm])
+
+  const isLoading = isLoadingSeedPhrase || isLoadingAccount
+
   const executeWithdrawalTransaction = async ({
     commitment,
     amount,
@@ -377,6 +399,7 @@ const usePrivacyPoolsForm = () => {
     withdrawalAmount,
     isLoadingAccount,
     selectedPoolAccount,
+    isLoading,
     isRagequitLoading,
     handleDeposit,
     handleRagequit,
@@ -385,6 +408,7 @@ const usePrivacyPoolsForm = () => {
     handleLoadAccount,
     handleSelectedAccount,
     handleGenerateSeedPhrase,
+    loadSeedPhrase,
     handleGenerateAppSecret
   }
 }
