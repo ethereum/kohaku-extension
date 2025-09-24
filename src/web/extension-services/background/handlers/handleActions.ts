@@ -674,6 +674,10 @@ export const handleActions = async (
       break
     }
 
+    case 'PRIVACY_POOLS_CONTROLLER_GENERATE_APP_SECRET': {
+      return await mainCtrl.privacyPools.generateAppSecret(params.appInfo)
+    }
+
     default:
       // eslint-disable-next-line no-console
       return console.error(

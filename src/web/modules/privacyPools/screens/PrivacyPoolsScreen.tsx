@@ -23,21 +23,22 @@ const PrivacyPoolsScreen = () => {
     seedPhrase,
     poolAccounts,
     isGenerating,
+    depositAmount,
+    targetAddress,
     accountService,
+    withdrawalAmount,
     isLoadingAccount,
-    displayAmountValue,
     selectedPoolAccount,
     isLoading,
     isRagequitLoading,
     handleDeposit,
     handleRagequit,
+    handleWithdrawal,
     handleUpdateForm,
     handleLoadAccount,
-    handleSetMaxAmount,
-    handleAmountChange,
     handleSelectedAccount,
     handleGenerateSeedPhrase,
-    handleWithdrawal
+    handleGenerateAppSecret
   } = usePrivacyPoolsForm()
 
   const onBack = useCallback(() => {
@@ -54,11 +55,15 @@ const PrivacyPoolsScreen = () => {
     <Wrapper title="Privacy Pools" handleGoBack={onBack} buttons={[]}>
       <View style={[spacings.p16, flexbox.flex1, { overflow: 'scroll', padding: '16px' }]}>
         <View style={[flexbox.flex1, spacings.mt16]}>
+          <button type="button" onClick={handleGenerateAppSecret}>
+            <span>Generate App Secret</span>
+          </button>
           <SeedPhraseManager
             message={message}
             seedPhrase={seedPhrase}
             isGenerating={isGenerating}
             isLoadingAccount={isLoadingAccount}
+            onUpdateForm={handleUpdateForm}
             onLoadAccount={handleLoadAccount}
             onGenerateSeedPhrase={handleGenerateSeedPhrase}
             onUpdateForm={handleUpdateForm}
@@ -67,15 +72,17 @@ const PrivacyPoolsScreen = () => {
 
           <DepositManager
             poolInfo={poolInfo}
-            displayValue={displayAmountValue}
-            onAmountChange={handleAmountChange}
-            onSetMaxAmount={handleSetMaxAmount}
+            amount={depositAmount}
+            onValueChange={handleUpdateForm}
             onDeposit={handleDeposit}
           />
 
           <WithdrawalManager
             poolInfo={poolInfo}
+            amount={withdrawalAmount}
             poolAccounts={poolAccounts}
+            targetAddress={targetAddress}
+            onValueChange={handleUpdateForm}
             onWithdrawal={handleWithdrawal}
           />
 
@@ -83,10 +90,10 @@ const PrivacyPoolsScreen = () => {
             poolAccounts={poolAccounts}
             accountService={accountService}
             selectedAccount={selectedPoolAccount}
-            onSelectAccount={handleSelectedAccount}
+            isLoadingAccount={isLoadingAccount}
             onRagequit={handleRagequit}
             isRagequitLoading={isRagequitLoading}
-            isLoadingAccount={isLoadingAccount}
+            onSelectAccount={handleSelectedAccount}
           />
         </View>
       </View>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { View } from 'react-native'
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
@@ -10,22 +10,31 @@ import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { PoolInfo } from '@ambire-common/controllers/privacyPools/config'
 import { PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
-import { formatEther } from 'viem'
+import { formatEther, parseEther } from 'viem'
+import { SelectValue } from '@common/components/Select/types'
 
 interface WithdrawalManagerProps {
+  amount?: string
+  message?: { type: 'success' | 'error'; text: string } | null
   poolInfo?: PoolInfo
+  targetAddress?: string
   poolAccounts: PoolAccount[]
-  onWithdrawal: () => void
+  onWithdrawal: (poolAccount: PoolAccount) => void
+  onValueChange: (params: { [key: string]: any }) => void
 }
 
-const WithdrawalManager = ({ poolInfo, poolAccounts, onWithdrawal }: WithdrawalManagerProps) => {
-  const [selectedPoolAccount, setSelectedPoolAccount] = useState<any>(null)
-  const [amount, setAmount] = useState('')
-  const [targetAddress, setTargetAddress] = useState('')
-  const [message, setMessage] = useState<{
-    type: 'success' | 'error' | 'info'
-    text: string
-  } | null>(null)
+const WithdrawalManager = ({
+  amount,
+  message,
+  poolInfo,
+  poolAccounts,
+  targetAddress,
+  onWithdrawal,
+  onValueChange
+}: WithdrawalManagerProps) => {
+  const [displayAmount, setDisplayAmount] = useState('')
+  const [selectedPoolAccount, setSelectedPoolAccount] = useState<SelectValue>()
+
   const isSending = false
 
   // Get available pool accounts for withdrawal (approved deposits with balance > 0)
@@ -35,31 +44,82 @@ const WithdrawalManager = ({ poolInfo, poolAccounts, onWithdrawal }: WithdrawalM
         poolAccount.reviewStatus === 'approved' && poolAccount.balance > 0n && poolAccount.isValid
     ) || []
 
-  // const handlePoolAccountChange = (selectedValue: any) => {
-  //   setSelectedPoolAccount(selectedValue)
-  //   setShowReview(false)
-  //   if (message) setMessage(null)
+  // eslint-disable-next-line no-console
+  const handleWithdrawalAmountChange = (event: any) => {
+    const inputValue = event.target.value
 
-  //   // Auto-fill the amount based on the selected pool account
-  //   const poolAccount = availablePoolAccounts.find(
-  //     (pa) => pa.label.toString() === selectedValue?.value
-  //   )
-  //   if (poolAccount) {
-  //     setAmount(/* formatEther(poolAccount.balance) */ '1')
-  //   }
-  // }
+    setDisplayAmount(inputValue)
 
-  const handleAmountChange = (event: any) => {
-    const value = event.target.value
-    setAmount(value)
-    if (message) setMessage(null)
+    try {
+      if (inputValue === '') {
+        onValueChange({ withdrawalAmount: '0' })
+        return
+      }
+
+      if (inputValue.endsWith('.') || inputValue === '0.' || /^\d*\.0*$/.test(inputValue)) {
+        return
+      }
+
+      const numValue = parseFloat(inputValue)
+      if (Number.isNaN(numValue) || numValue < 0) {
+        return
+      }
+
+      const weiAmount = parseEther(inputValue)
+      onValueChange({ withdrawalAmount: weiAmount.toString() })
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.warn('Invalid ETH amount entered:', inputValue)
+    }
   }
 
   const handleTargetAddressChange = (event: any) => {
     const value = event.target.value
-    setTargetAddress(value)
-    if (message) setMessage(null)
+    onValueChange({ targetAddress: value })
   }
+
+  const handleSetMaxAmount = () => {
+    if (!selectedPoolAccount) return
+
+    const selectedPA = availablePoolAccounts.find(
+      (pa) => pa.label && pa.label.toString() === selectedPoolAccount.value
+    )
+
+    if (selectedPA && selectedPA?.balance > 0n) {
+      const formattedAmount = formatEther(selectedPA.balance)
+      setDisplayAmount(formattedAmount)
+      onValueChange({ withdrawalAmount: parseEther(formattedAmount).toString() })
+    } else {
+      setDisplayAmount('')
+      onValueChange({ withdrawalAmount: '0' })
+    }
+  }
+
+  const handleWithdrawal = () => {
+    if (!selectedPoolAccount) return
+
+    const selectedPA = availablePoolAccounts.find(
+      (pa) => pa.label && pa.label.toString() === selectedPoolAccount.value
+    )
+
+    if (selectedPA) {
+      onWithdrawal(selectedPA)
+    }
+  }
+
+  // This is not 100% needed but prevents the displayAmount to not be
+  // synchronized with the amount prop
+  useEffect(() => {
+    if (amount && amount !== '0') {
+      try {
+        setDisplayAmount(formatEther(BigInt(amount)))
+      } catch {
+        setDisplayAmount('')
+      }
+    } else {
+      setDisplayAmount('')
+    }
+  }, [amount])
 
   if (!poolInfo) {
     return (
@@ -116,9 +176,12 @@ const WithdrawalManager = ({ poolInfo, poolAccounts, onWithdrawal }: WithdrawalM
           Withdrawal Amount
         </Text>
         <Input
-          value={amount}
-          onChange={handleAmountChange}
+          value={displayAmount}
+          onChange={handleWithdrawalAmountChange}
           placeholder="0.1"
+          button="MAX"
+          onButtonPress={handleSetMaxAmount}
+          buttonProps={{ disabled: !selectedPoolAccount || selectedPoolAccount?.balance === 0n }}
           disabled={!selectedPoolAccount}
         />
         <Text appearance="secondaryText" fontSize={12} style={[spacings.mt4]}>
@@ -150,7 +213,7 @@ const WithdrawalManager = ({ poolInfo, poolAccounts, onWithdrawal }: WithdrawalM
       <View style={[flexbox.directionRow, spacings.mb16]}>
         <Button
           type="primary"
-          onPress={onWithdrawal}
+          onPress={handleWithdrawal}
           disabled={isSending}
           text={isSending ? 'Processing...' : 'Confirm Withdrawal'}
         />

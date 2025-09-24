@@ -755,7 +755,8 @@ type PrivacyControllerInitializeSdkAction = {
 type PrivacyControllerUpdateFormAction = {
   type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM'
   params: {
-    amount?: string
+    depositAmount?: string
+    withdrawalAmount?: string
     seedPhrase?: string
     targetAddress?: string
   }
@@ -763,6 +764,10 @@ type PrivacyControllerUpdateFormAction = {
 
 type PrivacyControllerUnloadScreenAction = {
   type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN'
+}
+
+type PrivacyControllerGenerateAppSecretAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_APP_SECRET'
 }
 
 export type Action =
@@ -907,3 +912,4 @@ export type Action =
   | PrivacyControllerInitializeSdkAction
   | PrivacyControllerUpdateFormAction
   | PrivacyControllerUnloadScreenAction
+  | PrivacyControllerGenerateAppSecretAction
