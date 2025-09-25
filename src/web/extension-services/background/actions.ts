@@ -35,6 +35,7 @@ import { AccountOp } from '@ambire-common/libs/accountOp/accountOp'
 import { FullEstimation } from '@ambire-common/libs/estimate/interfaces'
 import { GasRecommendation } from '@ambire-common/libs/gasPrice/gasPrice'
 import { TokenResult } from '@ambire-common/libs/portfolio'
+import { Call } from '@ambire-common/libs/accountOp/types'
 import { CustomToken, TokenPreference } from '@ambire-common/libs/portfolio/customToken'
 import { THEME_TYPES } from '@common/styles/themeConfig'
 import { LOG_LEVELS } from '@web/utils/logger'
@@ -378,7 +379,7 @@ type MainControllerSignAccountOpUpdateAction = {
 type SignAccountOpUpdateAction = {
   type: 'SIGN_ACCOUNT_OP_UPDATE'
   params: {
-    updateType: 'Main' | 'Swap&Bridge' | 'Transfer&TopUp'
+    updateType: 'Main' | 'Swap&Bridge' | 'Transfer&TopUp' | 'PrivacyPools'
     accountOp?: AccountOp
     gasPrices?: GasRecommendation[]
     estimation?: FullEstimation
@@ -395,6 +396,7 @@ type MainControllerSignAccountOpUpdateStatus = {
     | 'MAIN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
     | 'SWAP_AND_BRIDGE_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
     | 'TRANSFER_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
+    | 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
   params: {
     status: SigningStatus
   }
@@ -402,7 +404,7 @@ type MainControllerSignAccountOpUpdateStatus = {
 type MainControllerHandleSignAndBroadcastAccountOp = {
   type: 'MAIN_CONTROLLER_HANDLE_SIGN_AND_BROADCAST_ACCOUNT_OP'
   params: {
-    updateType: 'Main' | 'Swap&Bridge' | 'Transfer&TopUp'
+    updateType: 'Main' | 'Swap&Bridge' | 'Transfer&TopUp' | 'PrivacyPools'
   }
 }
 
@@ -766,8 +768,33 @@ type PrivacyControllerUnloadScreenAction = {
   type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN'
 }
 
-type PrivacyControllerGenerateAppSecretAction = {
-  type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_APP_SECRET'
+type PrivacyControllerSignAccountOpUpdateAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
+  params: {
+    status: SigningStatus
+  }
+}
+
+type PrivacyControllerHasUserProceededAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED'
+  params: {
+    proceeded: boolean
+  }
+}
+
+type PrivacyControllerDestroySignAccountOpAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_SIGN_ACCOUNT_OP'
+}
+
+type PrivacyControllerDestroyLatestBroadcastedAccountOpAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+}
+
+type PrivacyControllerSyncSignAccountOp = {
+  type: 'PRIVACY_POOLS_CONTROLLER_SYNC_SIGN_ACCOUNT_OP'
+  params: {
+    calls: Call[]
+  }
 }
 
 export type Action =
@@ -912,4 +939,8 @@ export type Action =
   | PrivacyControllerInitializeSdkAction
   | PrivacyControllerUpdateFormAction
   | PrivacyControllerUnloadScreenAction
-  | PrivacyControllerGenerateAppSecretAction
+  | PrivacyControllerSignAccountOpUpdateAction
+  | PrivacyControllerHasUserProceededAction
+  | PrivacyControllerDestroySignAccountOpAction
+  | PrivacyControllerDestroyLatestBroadcastedAccountOpAction
+  | PrivacyControllerSyncSignAccountOp
