@@ -1,11 +1,8 @@
 import React, { useCallback, useEffect } from 'react'
 import { ROUTES } from '@common/modules/router/constants/common'
-import { View } from 'react-native'
-import { Wrapper } from '@web/components/TransactionsScreen'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useNavigation from '@common/hooks/useNavigation'
-import spacings from '@common/styles/spacings'
-import flexbox from '@common/styles/utils/flexbox'
+import DashboardScreen from './dashboard/screens/DashboardScreen'
 
 const HomeScreen = () => {
   const { navigate } = useNavigation()
@@ -22,11 +19,18 @@ const HomeScreen = () => {
   }, [dispatch])
 
   return (
-    <Wrapper title="Privacy Pools" handleGoBack={onBack} buttons={[]}>
-      <View style={[spacings.p16, flexbox.flex1, { overflow: 'scroll', padding: '16px' }]}>
-        <h1> PPv2 Home</h1>
-      </View>
-    </Wrapper>
+    // <Wrapper title="Privacy Pools" handleGoBack={onBack} buttons={[]}>
+    // <View style={[spacings.p16, flexbox.flex1, { overflow: 'scroll', padding: '16px' }]}>
+    // <h1> PPv2 Home</h1>
+
+    <div>
+      <button type="button" onClick={onBack}>
+        Back
+      </button>
+      <DashboardScreen />
+    </div>
+    // </View>
+    // </Wrapper>
   )
 }
 
