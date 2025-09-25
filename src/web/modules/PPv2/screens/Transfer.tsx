@@ -12,7 +12,7 @@ const TransferScreen = () => {
   const { dispatch } = useBackgroundService()
 
   const onBack = useCallback(() => {
-    navigate(ROUTES.dashboard)
+    navigate(ROUTES.pp2Home)
   }, [navigate])
 
   useEffect(() => {
