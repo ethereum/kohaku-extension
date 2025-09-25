@@ -6,7 +6,7 @@ Current privacy systems require users to leave their wallet, navigate complex dA
 
 Kohaku solves this by embedding privacy preserving protocols directly into the wallet interface, making private transfers as simple as public ones.
 
-## Privacy Pools v2: Beyond Sender Privacy
+## Privacy Pools v2 by ![Wonderland](assets/wonderland.svg): Beyond Sender Privacy
 
 Privacy Pools v2 evolves from sender-only privacy into a fully private payment system, where both sender and recipient remain hidden and in-pool transfers leave no exposed data.
 
@@ -23,11 +23,14 @@ Privacy Pools v2 evolves from sender-only privacy into a fully private payment s
 All Privacy Pools v1 functionality remains intact while adding these privacy-preserving capabilities.
 
 **Technical Documentation:**
-- [Wallet Integration Design](WalletTechDesign.md) - Complete implementation details
+- [Wallet Integration Design](WalletTechDesign.md) - Complete wallet integration architecture and user flows
 - [Secret Generation Guide](SecretGeneration.md) - Deterministic key derivation system  
 - [Protocol Invariants](Invariants.md) - Security guarantees and protocol constraints
 - [Smart Contracts Design](ContractsTechDesign.md) - On-chain architecture and interfaces
 - [ZK Circuits Design](CircuitsTechDesign.md) - Zero-knowledge proof implementation
+
+**Design Resources:**
+- [Kohaku Wallet UI Design](https://www.figma.com/design/3KKnxqwyclua6k4DPS5EGb/Kohaku-by-Wonderland?node-id=1-2&p=f&t=AkKPth3YO2wyYdrm-0) - Main wallet interface screens and user flows
 
 ## The Privacy Problem
 
@@ -82,6 +85,6 @@ This approach provides deterministic key generation while maintaining signature 
 
 ## The Path Forward
 
-Kohaku represents the first step toward privacy-by-default Ethereum. By making private transfers as easy as public ones, removing usability barriers that have prevented mainstream privacy adoption. When privacy becomes as simple as clicking "send," it stops being a feature and becomes infrastructure.
+Kohaku represents the first step toward privacy-by-default Ethereum. By making private transfers as easy as public ones, removing usability barriers that have prevented mainstream privacy adoption. When privacy becomes as simple as clicking "send" it stops being a feature and becomes infrastructure.
 
 The privacy transition isn't optional. It's essential for Ethereum's evolution from experimental technology to global financial rails. Kohaku makes that transition possible, one private transaction at a time.
