@@ -55,7 +55,11 @@ import SignMessageScreen from '@web/modules/sign-message/screens/SignMessageScre
 import SwapAndBridgeScreen from '@web/modules/swap-and-bridge/screens/SwapAndBridgeScreen'
 import TransferScreen from '@web/modules/transfer/screens/TransferScreen'
 import ViewOnlyAccountAdderScreen from '@web/modules/view-only-account-adder/ViewOnlyAccountAdderScreen'
-import PrivacyPoolsScreen from '@web/modules/privacyPools/screens/PrivacyPoolsScreen'
+import PrivacyPoolsScreen from '@web/modules/PPv1/screens/PrivacyPoolsScreen'
+
+import PPv2HomeScreen from '@web/modules/PPv2/screens/Home'
+import PPv2DepositScreen from '@web/modules/PPv2/screens/Deposit'
+import PPv2TransferScreen from '@web/modules/PPv2/screens/Transfer'
 
 const MainRoutes = () => {
   const location = useLocation()
@@ -153,7 +157,15 @@ const MainRoutes = () => {
       <Route element={<KeystoreUnlockedRoute />}>
         <Route element={<AuthenticatedRoute />}>
           <Route path={WEB_ROUTES.transfer} element={<TransferScreen />} />
-          <Route path={WEB_ROUTES.privacyPools} element={<PrivacyPoolsScreen />} />
+
+          {/* Privacy Pools V1 */}
+          <Route path={WEB_ROUTES.pp1} element={<PrivacyPoolsScreen />} />
+
+          {/* Privacy Pools V2 */}
+          <Route path={WEB_ROUTES.pp2Home} element={<PPv2HomeScreen />} />
+          <Route path={WEB_ROUTES.pp2Deposit} element={<PPv2DepositScreen />} />
+          <Route path={WEB_ROUTES.pp2Transfer} element={<PPv2TransferScreen />} />
+
           <Route path={WEB_ROUTES.topUpGasTank} element={<TransferScreen isTopUpScreen />} />
           <Route
             path={WEB_ROUTES.signAccountOp}
