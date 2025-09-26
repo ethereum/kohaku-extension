@@ -27,7 +27,7 @@ import styles from './styles'
 
 const ONE_MINUTE = 60 * 1000
 
-const SendForm = ({
+const DepositForm = ({
   isSmartAccount = false,
   hasGasTank,
   amountErrorMessage,
@@ -273,4 +273,4 @@ const SendForm = ({
   )
 }
 
-export default React.memo(SendForm)
+export default React.memo(DepositForm)

@@ -41,7 +41,7 @@ import Completed from '@web/modules/sign-account-op/components/OneClick/TrackPro
 import Failed from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/Failed'
 import InProgress from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/InProgress'
 import useTrackAccountOp from '@web/modules/sign-account-op/hooks/OneClick/useTrackAccountOp'
-import SendForm from '@web/modules/PPv2/deposit/components/DepositForm/SendForm'
+import DepositForm from '@web/modules/PPv2/deposit/components/DepositForm/DepositForm'
 import { getUiType } from '@web/utils/uiType'
 
 const { isTab, isActionWindow } = getUiType()
@@ -548,7 +548,7 @@ const TransferScreen = ({ isTopUpScreen }: { isTopUpScreen?: boolean }) => {
       <Content buttons={buttons}>
         {state?.isInitialized ? (
           <Form>
-            <SendForm
+            <DepositForm
               isSmartAccount={isSmartAccount}
               hasGasTank={hasGasTank}
               amountErrorMessage={validationFormMsgs.amount.message || ''}
