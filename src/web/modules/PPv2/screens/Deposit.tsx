@@ -21,9 +21,25 @@ const DepositScreen = () => {
     }
   }, [dispatch])
 
+  const handleGenerateSecrets = () => {
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_SECRET',
+      params: {
+        appInfo: 'noteSecre1'
+      }
+    })
+
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_KEYS'
+    })
+  }
+
   return (
     <Wrapper title="Privacy Pools" handleGoBack={onBack} buttons={[]}>
       <View style={[spacings.p16, flexbox.flex1, { overflow: 'scroll', padding: '16px' }]}>
+        <button type="button" onClick={handleGenerateSecrets}>
+          Generate Secrets
+        </button>
         <h1> PPv2 Deposit</h1>
       </View>
     </Wrapper>

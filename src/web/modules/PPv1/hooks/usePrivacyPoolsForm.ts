@@ -91,11 +91,16 @@ const usePrivacyPoolsForm = () => {
   }
 
   const handleGenerateAppSecret = async () => {
-    // TODO: fix this
-    // dispatch({
-    //   type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_APP_SECRET',
-    //   params: {}
-    // })
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_SECRET',
+      params: {
+        appInfo: 'noteSecre1'
+      }
+    })
+
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_KEYS'
+    })
   }
 
   const handleGenerateSeedPhrase = async () => {
