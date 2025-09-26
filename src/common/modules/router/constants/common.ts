@@ -61,7 +61,15 @@ const WEB_ROUTES = {
   swapAndBridge: 'swap-and-bridge',
   recoveryPhrasesSettings: 'settings/recovery-phrases',
   securityAndPrivacy: 'settings/security-and-privacy',
-  onboardingCompleted: 'wallet-setup-completed'
+  onboardingCompleted: 'wallet-setup-completed',
+
+  // Privacy Pools V1 routes
+  pp1: 'PPv1',
+
+  // Privacy Pools V2 routes
+  pp2Home: 'PPv2Home',
+  pp2Deposit: 'PPv2Deposit',
+  pp2Transfer: 'PPv2Transfer'
 }
 
 const ROUTES = { ...MOBILE_ROUTES, ...WEB_ROUTES }
