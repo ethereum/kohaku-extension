@@ -58,7 +58,7 @@ import ViewOnlyAccountAdderScreen from '@web/modules/view-only-account-adder/Vie
 import PrivacyPoolsScreen from '@web/modules/PPv1/screens/PrivacyPoolsScreen'
 
 import PPv2HomeScreen from '@web/modules/PPv2/screens/Home'
-import PPv2DepositScreen from '@web/modules/PPv2/screens/Deposit'
+import PPv2DepositScreen from '@web/modules/PPv2/deposit/screens/DepositScreen'
 import PPv2TransferScreen from '@web/modules/PPv2/screens/Transfer'
 
 const MainRoutes = () => {
