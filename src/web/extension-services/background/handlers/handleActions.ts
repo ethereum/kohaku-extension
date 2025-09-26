@@ -432,6 +432,10 @@ export const handleActions = async (
       return mainCtrl?.privacyPools.destroyLatestBroadcastedAccountOp()
     case 'PRIVACY_POOLS_CONTROLLER_SYNC_SIGN_ACCOUNT_OP':
       return mainCtrl.privacyPools.syncSignAccountOp(params.calls)
+    case 'PRIVACY_POOLS_CONTROLLER_GENERATE_KEYS':
+      return mainCtrl.privacyPools.generateKeys()
+    case 'PRIVACY_POOLS_CONTROLLER_GENERATE_SECRET':
+      return mainCtrl.privacyPools.generateSecret(params.appIndo)
     case 'ACTIONS_CONTROLLER_REMOVE_FROM_ACTIONS_QUEUE':
       return mainCtrl.requests.actions.removeActions([params.id], params.shouldOpenNextAction)
     case 'ACTIONS_CONTROLLER_FOCUS_ACTION_WINDOW':
