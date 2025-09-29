@@ -26,9 +26,11 @@ import {
   handleTokenIsInPortfolio
 } from '@web/modules/action-requests/screens/WatchTokenRequestScreen/utils'
 
-type Props = {}
+type Props = {
+  handleImportSecretNote: () => void
+}
 
-const AddTokenBottomSheet: FC<Props> = () => {
+const AddTokenBottomSheet: FC<Props> = ({ handleImportSecretNote }) => {
   const { t } = useTranslation()
   const { dispatch } = useBackgroundService()
   const { networks } = useNetworksControllerState()
@@ -77,11 +79,6 @@ const AddTokenBottomSheet: FC<Props> = () => {
     () => getTokenFromPortfolio({ address }, network, selectedAccountPortfolio),
     [selectedAccountPortfolio, network, address]
   )
-
-  const handleImportSecretNote = useCallback(async () => {
-    // eslint-disable-next-line no-console
-    console.log('handleImportSecretNote', address)
-  }, [address])
 
   const handleTokenType = useCallback(() => {
     dispatch({
@@ -228,13 +225,7 @@ const AddTokenBottomSheet: FC<Props> = () => {
         ) : null}
       </View>
       <Button
-        disabled={
-          showAlreadyInPortfolioMessage ||
-          (!temporaryToken && !tokenTypeEligibility) ||
-          !isValidAddress(address) ||
-          !network ||
-          isSubmitting
-        }
+        disabled={!address || isSubmitting}
         text={t('Import Secret Note')}
         hasBottomSpacing={false}
         onPress={handleImportSecretNote}
