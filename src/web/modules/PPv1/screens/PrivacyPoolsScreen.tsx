@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo } from 'react'
 import { View } from 'react-native'
-import { useModalize } from 'react-native-modalize'
 import { useTranslation } from 'react-i18next'
 
 import { getUiType } from '@web/utils/uiType'
@@ -24,7 +23,6 @@ import InProgress from '@web/modules/sign-account-op/components/OneClick/TrackPr
 import Completed from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/Completed'
 import Failed from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/Failed'
 import Estimation from '@web/modules/sign-account-op/components/OneClick/Estimation'
-import Buttons from '@web/modules/sign-account-op/components/OneClick/Buttons'
 
 import DepositManager from '../components/DepositManager'
 import SeedPhraseManager from '../components/SeedPhraseManager'
@@ -65,8 +63,7 @@ const PrivacyPoolsScreen = () => {
     isRagequitLoading,
     closeEstimationModal,
     handleSelectedAccount,
-    handleGenerateSeedPhrase,
-    handleGenerateAppSecret
+    handleGenerateSeedPhrase
   } = usePrivacyPoolsForm()
 
   const isTopUp = false
@@ -238,9 +235,6 @@ const PrivacyPoolsScreen = () => {
     <Wrapper title="Privacy Pools" handleGoBack={onBack} buttons={[]}>
       <View style={[spacings.p16, flexbox.flex1, { overflow: 'scroll', padding: '16px' }]}>
         <View style={[flexbox.flex1, spacings.mt16]}>
-          <button type="button" onClick={handleGenerateAppSecret}>
-            <span>Generate App Secret</span>
-          </button>
           <SeedPhraseManager
             message={message}
             seedPhrase={seedPhrase}

@@ -797,6 +797,17 @@ type PrivacyControllerSyncSignAccountOp = {
   }
 }
 
+type PrivacyControllerGenerateKeys = {
+  type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_KEYS'
+}
+
+type PrivacyControllerGenerateSecret = {
+  type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_SECRET'
+  params: {
+    appInfo: string
+  }
+}
+
 export type Action =
   | UpdateNavigationUrl
   | InitControllerStateAction
@@ -944,3 +955,5 @@ export type Action =
   | PrivacyControllerDestroySignAccountOpAction
   | PrivacyControllerDestroyLatestBroadcastedAccountOpAction
   | PrivacyControllerSyncSignAccountOp
+  | PrivacyControllerGenerateKeys
+  | PrivacyControllerGenerateSecret
