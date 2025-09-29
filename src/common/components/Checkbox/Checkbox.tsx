@@ -19,6 +19,7 @@ interface Props {
   checkedColor?: ColorValue
   isDisabled?: boolean
   testID?: string
+  invertRowDirection?: boolean
 }
 
 const Checkbox = ({
@@ -31,7 +32,8 @@ const Checkbox = ({
   uncheckedBorderColor,
   checkedColor,
   isDisabled,
-  testID = 'checkbox'
+  testID = 'checkbox',
+  invertRowDirection
 }: Props) => {
   const { theme } = useTheme()
   const onChange = () => {
@@ -39,8 +41,22 @@ const Checkbox = ({
   }
 
   return (
-    <View style={[styles.container, style, isDisabled && { opacity: 0.6 }]}>
-      <View style={styles.checkboxWrapper}>
+    <View
+      style={[
+        styles.container,
+        style,
+        isDisabled && { opacity: 0.6 },
+        invertRowDirection && flexboxStyles.directionRowReverse
+      ]}
+    >
+      <View
+        style={[
+          styles.checkboxWrapper,
+          invertRowDirection && {
+            marginRight: 0
+          }
+        ]}
+      >
         <TouchableOpacity
           style={[
             styles.webCheckbox,
