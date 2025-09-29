@@ -2,11 +2,17 @@ import React, { useCallback, useEffect } from 'react'
 import { ROUTES } from '@common/modules/router/constants/common'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useNavigation from '@common/hooks/useNavigation'
+import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
 import DashboardScreen from './dashboard/screens/DashboardScreen'
 
 const HomeScreen = () => {
   const { navigate } = useNavigation()
   const { dispatch } = useBackgroundService()
+  const state = usePrivacyPoolsControllerState()
+
+  // DEBUG: temporary log
+  // eslint-disable-next-line no-console
+  console.log('PPv2 state: ', { state })
 
   const onBack = useCallback(() => {
     navigate(ROUTES.dashboard)

@@ -761,6 +761,7 @@ type PrivacyControllerUpdateFormAction = {
     withdrawalAmount?: string
     seedPhrase?: string
     targetAddress?: string
+    importedSecretNote?: string
   }
 }
 
