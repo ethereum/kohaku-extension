@@ -69,7 +69,8 @@ const WEB_ROUTES = {
   // Privacy Pools V2 routes
   pp2Home: 'PPv2Home',
   pp2Deposit: 'PPv2Deposit',
-  pp2Transfer: 'PPv2Transfer'
+  pp2Transfer: 'PPv2Transfer',
+  pp2Import: 'PPv2Import'
 }
 
 const ROUTES = { ...MOBILE_ROUTES, ...WEB_ROUTES }
