@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
-import { Address, encodeFunctionData, formatEther, getAddress, parseUnits } from 'viem'
+import { Address, encodeFunctionData, formatEther, getAddress, parseUnits, zeroAddress } from 'viem'
 import { english, generateMnemonic } from 'viem/accounts'
 import { Hash, Withdrawal, WithdrawalProof } from '@0xbow/privacy-pools-core-sdk'
 import { Call } from '@ambire-common/libs/accountOp/types'
@@ -45,7 +45,7 @@ const usePrivacyPoolsForm = () => {
     getContext,
     loadAccount,
     getMerkleProof,
-    createDepositSecrets,
+    // createDepositSecrets,
     generateRagequitProof,
     verifyWithdrawalProof,
     setSelectedPoolAccount,
@@ -158,18 +158,10 @@ const usePrivacyPoolsForm = () => {
   const handleDeposit = async () => {
     if (!depositAmount || !poolInfo) return
 
-    const secrets = createDepositSecrets(poolInfo.scope as Hash)
-
-    const data = encodeFunctionData({
-      abi: entrypointAbi,
-      functionName: 'deposit',
-      args: [secrets.precommitment]
-    })
-
     const result = {
-      to: getAddress(poolInfo.entryPointAddress),
-      data,
-      value: BigInt(depositAmount)
+      to: getAddress(zeroAddress),
+      data: '0xffffffff',
+      value: 0n
     }
 
     // eslint-disable-next-line no-console

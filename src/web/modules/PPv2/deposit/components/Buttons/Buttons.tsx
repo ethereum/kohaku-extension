@@ -9,13 +9,11 @@ import Tooltip from '@common/components/Tooltip'
 import flexbox from '@common/styles/utils/flexbox'
 
 type Props = {
-  handleSubmitForm: (isOneClickMode: boolean) => void
+  handleSubmitForm: () => void
   proceedBtnText?: string
   signAccountOpErrors: SignAccountOpError[]
   isNotReadyToProceed: boolean
-  isBridge?: boolean
   isLoading?: boolean
-  isLocalStateOutOfSync?: boolean
   networkUserRequests: UserRequest[]
 }
 
@@ -25,13 +23,7 @@ const Buttons: FC<Props> = ({
   handleSubmitForm,
   isNotReadyToProceed,
   isLoading,
-  isBridge,
-  networkUserRequests = [],
-  // Used to disable the actions of the buttons when the local state is out of sync.
-  // To prevent button flickering when the user is typing we just do nothing when the button is clicked.
-  // As it would be a rare case for a user to manage to click it in the 300-400ms that it takes to sync the state,
-  // but we still want to guard against it.
-  isLocalStateOutOfSync
+  networkUserRequests = []
 }) => {
   const { t } = useTranslation()
 
@@ -42,12 +34,6 @@ const Buttons: FC<Props> = ({
 
     return ''
   }, [signAccountOpErrors])
-
-  const batchDisabledReason = useMemo(() => {
-    if (isBridge) return t('Batching is not available for bridges.')
-
-    return ''
-  }, [isBridge, t])
 
   const primaryButtonText = useMemo(() => {
     if (proceedBtnText !== 'Proceed') {
@@ -69,16 +55,11 @@ const Buttons: FC<Props> = ({
           text={primaryButtonText}
           disabled={isNotReadyToProceed || isLoading || !!oneClickDisabledReason}
           isLoading={isLoading}
-          onPress={() => {
-            if (isLocalStateOutOfSync) return
-
-            handleSubmitForm(true)
-          }}
+          onPress={handleSubmitForm}
           testID="proceed-btn"
         />
       </View>
       <Tooltip content={oneClickDisabledReason} id="proceed-btn-tooltip" />
-      <Tooltip content={batchDisabledReason} id="batch-btn-tooltip" />
     </View>
   )
 }
