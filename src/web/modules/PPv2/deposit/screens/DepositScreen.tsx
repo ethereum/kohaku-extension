@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { View } from 'react-native'
 import { useModalize } from 'react-native-modalize'
 
 import { FEE_COLLECTOR } from '@ambire-common/consts/addresses'
@@ -13,17 +12,12 @@ import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
 import { getBenzinUrlParams } from '@ambire-common/utils/benzin'
 import { getAddressFromAddressState } from '@ambire-common/utils/domains'
 import BackButton from '@common/components/BackButton'
-import BottomSheet from '@common/components/BottomSheet'
-import Checkbox from '@common/components/Checkbox'
-import DualChoiceModal from '@common/components/DualChoiceModal'
 import SkeletonLoader from '@common/components/SkeletonLoader'
 import Text from '@common/components/Text'
 import useAddressInput from '@common/hooks/useAddressInput'
 import useNavigation from '@common/hooks/useNavigation'
-import useTheme from '@common/hooks/useTheme'
 import useToast from '@common/hooks/useToast'
 import { ROUTES, WEB_ROUTES } from '@common/modules/router/constants/common'
-import spacings from '@common/styles/spacings'
 import { Content, Form, Wrapper } from '@web/components/TransactionsScreen'
 import useActionsControllerState from '@web/hooks/useActionsControllerState'
 import useActivityControllerState from '@web/hooks/useActivityControllerState'
@@ -33,7 +27,6 @@ import useRequestsControllerState from '@web/hooks/useRequestsControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import useSyncedState from '@web/hooks/useSyncedState'
 import useTransferControllerState from '@web/hooks/useTransferControllerState'
-import BatchAdded from '@web/modules/sign-account-op/components/OneClick/BatchModal/BatchAdded'
 import Buttons from '@web/modules/sign-account-op/components/OneClick/Buttons'
 import Estimation from '@web/modules/sign-account-op/components/OneClick/Estimation'
 import TrackProgress from '@web/modules/sign-account-op/components/OneClick/TrackProgress'
@@ -67,11 +60,9 @@ const TransferScreen = ({ isTopUpScreen }: { isTopUpScreen?: boolean }) => {
 
   const { navigate } = useNavigation()
   const { t } = useTranslation()
-  const { theme } = useTheme()
   const { visibleActionsQueue } = useActionsControllerState()
   const { account } = useSelectedAccountControllerState()
   const isSmartAccount = account ? getIsSmartAccount(account) : false
-  const { ref: sheetRef, open: openBottomSheet, close: closeBottomSheet } = useModalize()
   const { userRequests } = useRequestsControllerState()
 
   const { accountsOps } = useActivityControllerState()
@@ -81,6 +72,7 @@ const TransferScreen = ({ isTopUpScreen }: { isTopUpScreen?: boolean }) => {
   const [showAddedToBatch, setShowAddedToBatch] = useState(false)
 
   const controllerAmountFieldValue = amountFieldMode === 'token' ? controllerAmount : amountInFiat
+
   const [amountFieldValue, setAmountFieldValue] = useSyncedState<string>({
     backgroundState: controllerAmountFieldValue,
     updateBackgroundState: (newAmount) => {
@@ -91,6 +83,7 @@ const TransferScreen = ({ isTopUpScreen }: { isTopUpScreen?: boolean }) => {
     },
     forceUpdateOnChangeList: [state.programmaticUpdateCounter, state.amountFieldMode]
   })
+
   const [addressStateFieldValue] = useSyncedState<string>({
     backgroundState: addressState.fieldValue,
     updateBackgroundState: (newAddress: string) => {
@@ -349,12 +342,6 @@ const TransferScreen = ({ isTopUpScreen }: { isTopUpScreen?: boolean }) => {
       }
 
       if (isFormValid && state.selectedToken) {
-        // In the case of a Batch, we show an info modal explaining what Batching is.
-        // We provide an option to skip this modal next time.
-        if (actionExecutionType === 'queue' && !state.shouldSkipTransactionQueuedModal) {
-          openBottomSheet()
-        }
-
         // Proceed in OneClick txn
         if (actionExecutionType === 'open-action-window') {
           // one click mode opens signAccountOp if more than 1 req in batch
@@ -415,7 +402,6 @@ const TransferScreen = ({ isTopUpScreen }: { isTopUpScreen?: boolean }) => {
       isTopUp,
       addressState,
       resetTransferForm,
-      openBottomSheet,
       networkUserRequests.length,
       openEstimationModalAndDispatch
     ]
@@ -460,19 +446,6 @@ const TransferScreen = ({ isTopUpScreen }: { isTopUpScreen?: boolean }) => {
     })
     navigate(ROUTES.pp2Home)
   }, [navigate, dispatch])
-
-  const onBatchAddedPrimaryButtonPress = useCallback(() => {
-    dispatch({
-      type: 'TRANSFER_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-    })
-    navigate(WEB_ROUTES.dashboard)
-  }, [dispatch, navigate])
-  const onBatchAddedSecondaryButtonPress = useCallback(() => {
-    dispatch({
-      type: 'TRANSFER_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-    })
-    setShowAddedToBatch(false)
-  }, [dispatch, setShowAddedToBatch])
 
   if (displayedView === 'track') {
     return (
@@ -531,18 +504,6 @@ const TransferScreen = ({ isTopUpScreen }: { isTopUpScreen?: boolean }) => {
     )
   }
 
-  if (displayedView === 'batch') {
-    return (
-      <BatchAdded
-        title={isTopUp ? t('Top Up Gas Tank') : t('Send')}
-        primaryButtonText={t('Open dashboard')}
-        secondaryButtonText={t('Add more')}
-        onPrimaryButtonPress={onBatchAddedPrimaryButtonPress}
-        onSecondaryButtonPress={onBatchAddedSecondaryButtonPress}
-      />
-    )
-  }
-
   return (
     <Wrapper title={headerTitle} handleGoBack={handleGoBackPress} buttons={buttons}>
       <Content buttons={buttons}>
@@ -566,57 +527,6 @@ const TransferScreen = ({ isTopUpScreen }: { isTopUpScreen?: boolean }) => {
           />
         )}
       </Content>
-      <BottomSheet
-        id="import-seed-phrase"
-        sheetRef={sheetRef}
-        closeBottomSheet={closeBottomSheet}
-        backgroundColor="secondaryBackground"
-        style={{ overflow: 'hidden', width: 496, ...spacings.ph0, ...spacings.pv0 }}
-        type="modal"
-      >
-        <DualChoiceModal
-          title={t('Transaction added to batch')}
-          description={
-            <View>
-              <Text style={spacings.mbTy} appearance="secondaryText">
-                {t(
-                  'You can now add more transactions on this network and send them batched all together for signing.'
-                )}
-              </Text>
-              <Text appearance="secondaryText" style={spacings.mbLg}>
-                {t('All pending batch transactions are available on your Dashboard.')}
-              </Text>
-              <Checkbox
-                value={state.shouldSkipTransactionQueuedModal}
-                onValueChange={() => {
-                  dispatch({
-                    type: 'TRANSFER_CONTROLLER_SHOULD_SKIP_TRANSACTION_QUEUED_MODAL',
-                    params: {
-                      shouldSkip: true
-                    }
-                  })
-                }}
-                uncheckedBorderColor={theme.secondaryText}
-                label={t("Don't show this modal again")}
-                labelProps={{
-                  style: {
-                    color: theme.secondaryText
-                  },
-                  weight: 'medium'
-                }}
-                style={spacings.mb0}
-              />
-            </View>
-          }
-          primaryButtonText={t('Got it')}
-          primaryButtonTestID="queue-modal-got-it-button"
-          onPrimaryButtonPress={() => {
-            closeBottomSheet()
-            setShowAddedToBatch(true)
-          }}
-          onCloseIconPress={() => setShowAddedToBatch(true)}
-        />
-      </BottomSheet>
 
       <Estimation
         updateType="Transfer&TopUp"

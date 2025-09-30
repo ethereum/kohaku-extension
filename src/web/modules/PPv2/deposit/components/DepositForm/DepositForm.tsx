@@ -8,7 +8,6 @@ import { TokenResult } from '@ambire-common/libs/portfolio'
 import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
 import { getRpcProvider } from '@ambire-common/services/provider'
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
-import SendToken from '@common/components/SendToken'
 import SkeletonLoader from '@common/components/SkeletonLoader'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
@@ -22,6 +21,7 @@ import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import useTransferControllerState from '@web/hooks/useTransferControllerState'
 import { getTokenId } from '@web/utils/token'
+import SendToken from '../SendToken'
 
 import styles from './styles'
 
@@ -98,15 +98,6 @@ const DepositForm = ({
       }
     })
   }, [dispatch])
-
-  const switchAmountFieldMode = useCallback(() => {
-    dispatch({
-      type: 'TRANSFER_CONTROLLER_UPDATE_FORM',
-      params: {
-        formValues: { amountFieldMode: amountFieldMode === 'token' ? 'fiat' : 'token' }
-      }
-    })
-  }, [amountFieldMode, dispatch])
 
   const isMaxAmountEnabled = useMemo(() => {
     if (!maxAmount) return false
@@ -261,7 +252,6 @@ const DepositForm = ({
           maxFromAmount={maxAmount}
           validateFromAmount={{ success: !amountErrorMessage, message: amountErrorMessage }}
           onFromAmountChange={setAmountFieldValue}
-          handleSwitchFromAmountFieldMode={switchAmountFieldMode}
           handleSetMaxFromAmount={setMaxAmount}
           inputTestId="amount-field"
           selectTestId="tokens-select"
