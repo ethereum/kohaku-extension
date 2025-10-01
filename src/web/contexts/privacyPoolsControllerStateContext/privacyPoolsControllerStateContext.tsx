@@ -33,9 +33,9 @@ import {
 import useDeepMemo from '@common/hooks/useDeepMemo'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useControllerState from '@web/hooks/useControllerState'
-import { getPoolAccountsFromAccount, processDeposits } from '@web/modules/PPv1/utils/sdk'
+import { getPoolAccountsFromAccount, processDeposits } from '@web/modules/PPv1-old/utils/sdk'
 import type { PrivacyPoolsController } from '@ambire-common/controllers/privacyPools/privacyPools'
-import { aspClient, MtLeavesResponse, MtRootResponse } from '@web/modules/PPv1/utils/aspClient'
+import { aspClient, MtLeavesResponse, MtRootResponse } from '@web/modules/PPv1-old/utils/aspClient'
 
 export enum ReviewStatus {
   PENDING = 'pending',

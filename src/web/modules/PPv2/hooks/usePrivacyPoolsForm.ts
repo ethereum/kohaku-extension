@@ -15,10 +15,10 @@ import {
   validateWithdrawal,
   WithdrawalParams,
   WithdrawalResult
-} from '../../PPv1/utils/withdrawal'
-import { transformRagequitProofForContract } from '../../PPv1/utils/ragequit'
-import { entrypointAbi, privacyPoolAbi } from '../../PPv1/utils/abi'
-import { usePOC } from '../../PPv1/hooks/usePOC'
+} from '../../PPv1-old/utils/withdrawal'
+import { transformRagequitProofForContract } from '../../PPv1-old/utils/ragequit'
+import { entrypointAbi, privacyPoolAbi } from '../../PPv1-old/utils/abi'
+import { usePOC } from '../../PPv1-old/hooks/usePOC'
 
 type PrivateRequestType =
   | 'privateDepositRequest'
