@@ -55,7 +55,11 @@ import SignMessageScreen from '@web/modules/sign-message/screens/SignMessageScre
 import SwapAndBridgeScreen from '@web/modules/swap-and-bridge/screens/SwapAndBridgeScreen'
 import TransferScreen from '@web/modules/transfer/screens/TransferScreen'
 import ViewOnlyAccountAdderScreen from '@web/modules/view-only-account-adder/ViewOnlyAccountAdderScreen'
-import PrivacyPoolsScreen from '@web/modules/PPv1/screens/PrivacyPoolsScreen'
+
+import PPv1HomeScreen from '@web/modules/PPv1/screens/Home'
+import PPv1DepositScreen from '@web/modules/PPv1/deposit/screens/DepositScreen'
+import PPv1TransferScreen from '@web/modules/PPv1/transfer/screens/TransferScreen'
+import PPv1ImportScreen from '@web/modules/PPv1/importNote/screens/ImportScreen'
 
 import PPv2HomeScreen from '@web/modules/PPv2/screens/Home'
 import PPv2DepositScreen from '@web/modules/PPv2/deposit/screens/DepositScreen'
@@ -160,7 +164,10 @@ const MainRoutes = () => {
           <Route path={WEB_ROUTES.transfer} element={<TransferScreen />} />
 
           {/* Privacy Pools V1 */}
-          <Route path={WEB_ROUTES.pp1} element={<PrivacyPoolsScreen />} />
+          <Route path={WEB_ROUTES.pp1Home} element={<PPv1HomeScreen />} />
+          <Route path={WEB_ROUTES.pp1Deposit} element={<PPv1DepositScreen />} />
+          <Route path={WEB_ROUTES.pp1Transfer} element={<PPv1TransferScreen />} />
+          <Route path={WEB_ROUTES.pp1Import} element={<PPv1ImportScreen />} />
 
           {/* Privacy Pools V2 */}
           <Route path={WEB_ROUTES.pp2Home} element={<PPv2HomeScreen />} />

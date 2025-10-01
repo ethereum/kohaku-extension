@@ -64,7 +64,10 @@ const WEB_ROUTES = {
   onboardingCompleted: 'wallet-setup-completed',
 
   // Privacy Pools V1 routes
-  pp1: 'PPv1',
+  pp1Home: 'PPv1Home',
+  pp1Deposit: 'PPv1Deposit',
+  pp1Transfer: 'PPv1Transfer',
+  pp1Import: 'PPv1Import',
 
   // Privacy Pools V2 routes
   pp2Home: 'PPv2Home',

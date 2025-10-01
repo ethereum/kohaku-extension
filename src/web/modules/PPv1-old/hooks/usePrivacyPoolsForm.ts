@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
-import { Address, encodeFunctionData, formatEther, getAddress, parseUnits, zeroAddress } from 'viem'
+import { Address, encodeFunctionData, formatEther, getAddress, parseUnits } from 'viem'
 import { english, generateMnemonic } from 'viem/accounts'
 import { Hash, Withdrawal, WithdrawalProof } from '@0xbow/privacy-pools-core-sdk'
 import { Call } from '@ambire-common/libs/accountOp/types'
@@ -15,10 +15,10 @@ import {
   validateWithdrawal,
   WithdrawalParams,
   WithdrawalResult
-} from '../../PPv1-old/utils/withdrawal'
-import { transformRagequitProofForContract } from '../../PPv1-old/utils/ragequit'
-import { entrypointAbi, privacyPoolAbi } from '../../PPv1-old/utils/abi'
-import { usePOC } from '../../PPv1-old/hooks/usePOC'
+} from '../utils/withdrawal'
+import { transformRagequitProofForContract } from '../utils/ragequit'
+import { entrypointAbi, privacyPoolAbi } from '../utils/abi'
+import { usePOC } from './usePOC'
 
 type PrivateRequestType =
   | 'privateDepositRequest'
@@ -45,7 +45,7 @@ const usePrivacyPoolsForm = () => {
     getContext,
     loadAccount,
     getMerkleProof,
-    // createDepositSecrets,
+    createDepositSecrets,
     generateRagequitProof,
     verifyWithdrawalProof,
     setSelectedPoolAccount,
@@ -61,7 +61,7 @@ const usePrivacyPoolsForm = () => {
   const [isLoadingSeedPhrase, setIsLoadingSeedPhrase] = useState(false)
   const [isLoadingAccount, setIsLoadingAccount] = useState(false)
   const [ragequitLoading, setRagequitLoading] = useState<Record<string, boolean>>({})
-  const [showAddedToBatch] = useState(false)
+  const [showAddedToBatch, setShowAddedToBatch] = useState(false)
 
   const poolInfo = chainData?.[11155111]?.poolInfo?.[0]
 
@@ -71,17 +71,14 @@ const usePrivacyPoolsForm = () => {
     close: closeEstimationModal
   } = useModalize()
 
-  const handleUpdateForm = useCallback(
-    (params: { [key: string]: any }) => {
-      dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM',
-        params: { ...params }
-      })
+  const handleUpdateForm = (params: { [key: string]: any }) => {
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM',
+      params: { ...params }
+    })
 
-      setMessage(null)
-    },
-    [dispatch]
-  )
+    setMessage(null)
+  }
 
   const handlePrivateRequest = (
     type: PrivateRequestType,
@@ -158,10 +155,18 @@ const usePrivacyPoolsForm = () => {
   const handleDeposit = async () => {
     if (!depositAmount || !poolInfo) return
 
+    const secrets = createDepositSecrets(poolInfo.scope as Hash)
+
+    const data = encodeFunctionData({
+      abi: entrypointAbi,
+      functionName: 'deposit',
+      args: [secrets.precommitment]
+    })
+
     const result = {
-      to: getAddress(zeroAddress),
-      data: '0xffffffff',
-      value: 0n
+      to: getAddress(poolInfo.entryPointAddress),
+      data,
+      value: BigInt(depositAmount)
     }
 
     // eslint-disable-next-line no-console
