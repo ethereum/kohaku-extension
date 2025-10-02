@@ -1,10 +1,10 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
 import { Address, encodeFunctionData, formatEther, getAddress, parseUnits } from 'viem'
 import { english, generateMnemonic } from 'viem/accounts'
 import { Hash, Withdrawal, WithdrawalProof } from '@0xbow/privacy-pools-core-sdk'
 import { Call } from '@ambire-common/libs/accountOp/types'
-import { PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
+import { PoolAccount, ReviewStatus } from '@web/contexts/privacyPoolsControllerStateContext'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
@@ -104,7 +104,7 @@ const usePrivacyPoolsForm = () => {
     setIsGenerating(false)
   }
 
-  const handleLoadAccount = async () => {
+  const handleLoadAccount = useCallback(async () => {
     if (!seedPhrase?.trim()) {
       setMessage({ type: 'error', text: 'Please enter a seed phrase to load an existing account.' })
       return
@@ -125,7 +125,7 @@ const usePrivacyPoolsForm = () => {
       const encrypted = await encrypt(seedPhrase)
       await storeData(encrypted)
     }
-  }
+  }, [seedPhrase, loadAccount, encrypt, storeData])
 
   const handleSelectedAccount = (poolAccount: PoolAccount) => {
     setSelectedPoolAccount((prevState) => {
@@ -148,12 +148,10 @@ const usePrivacyPoolsForm = () => {
   }, [openEstimationModal, dispatch])
 
   const syncSignAccountOp = async (calls: Call[]) => {
-    console.log('DEBUG: Dispatching PRIVACY_POOLS_CONTROLLER_SYNC_SIGN_ACCOUNT_OP', calls)
     dispatch({
       type: 'PRIVACY_POOLS_CONTROLLER_SYNC_SIGN_ACCOUNT_OP',
       params: { calls }
     })
-    console.log('DEBUG: Dispatch completed')
   }
 
   const handleDeposit = async () => {
@@ -308,6 +306,28 @@ const usePrivacyPoolsForm = () => {
 
   const isLoading = isLoadingSeedPhrase || isLoadingAccount
 
+  const totalApprovedBalance = useMemo(() => {
+    const accounts = poolAccounts.filter(
+      (account) => account.reviewStatus === ReviewStatus.APPROVED
+    )
+    const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
+    return { total, accounts }
+  }, [poolAccounts])
+
+  const totalPendingBalance = useMemo(() => {
+    const accounts = poolAccounts.filter((account) => account.reviewStatus === ReviewStatus.PENDING)
+    const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
+    return { total, accounts }
+  }, [poolAccounts])
+
+  const totalDeclinedBalance = useMemo(() => {
+    const accounts = poolAccounts.filter(
+      (account) => account.reviewStatus === ReviewStatus.DECLINED
+    )
+    const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
+    return { total, accounts }
+  }, [poolAccounts])
+
   const executeWithdrawalTransaction = async ({
     commitment,
     amount,
@@ -434,6 +454,9 @@ const usePrivacyPoolsForm = () => {
     latestBroadcastedAccountOp,
     isLoading,
     isAccountLoaded,
+    totalApprovedBalance,
+    totalPendingBalance,
+    totalDeclinedBalance,
     handleDeposit,
     handleRagequit,
     handleWithdrawal,

@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import React, { useCallback, useEffect, useRef } from 'react'
 import { ROUTES } from '@common/modules/router/constants/common'
 import useBackgroundService from '@web/hooks/useBackgroundService'
@@ -8,8 +9,20 @@ import usePrivacyPoolsForm from '../hooks/usePrivacyPoolsForm'
 const HomeScreen = () => {
   const { navigate } = useNavigation()
   const { dispatch } = useBackgroundService()
-  const { handleLoadAccount, isAccountLoaded } = usePrivacyPoolsForm()
+  const {
+    handleLoadAccount,
+    isAccountLoaded,
+    poolAccounts,
+    totalApprovedBalance,
+    totalPendingBalance,
+    totalDeclinedBalance
+  } = usePrivacyPoolsForm()
   const hasLoadedRef = useRef(false)
+
+  console.log('DEBUG: totalApprovedBalance', totalApprovedBalance)
+  console.log('DEBUG: totalPendingBalance', totalPendingBalance)
+  console.log('DEBUG: totalDeclinedBalance', totalDeclinedBalance)
+  console.log({ isAccountLoaded, poolAccounts })
 
   const onBack = useCallback(() => {
     navigate(ROUTES.dashboard)
@@ -30,18 +43,12 @@ const HomeScreen = () => {
   }, [dispatch])
 
   return (
-    // <Wrapper title="Privacy Pools" handleGoBack={onBack} buttons={[]}>
-    // <View style={[spacings.p16, flexbox.flex1, { overflow: 'scroll', padding: '16px' }]}>
-    // <h1> PPv2 Home</h1>
-
     <div>
       <button type="button" onClick={onBack}>
         Back
       </button>
       <DashboardScreen />
     </div>
-    // </View>
-    // </Wrapper>
   )
 }
 
