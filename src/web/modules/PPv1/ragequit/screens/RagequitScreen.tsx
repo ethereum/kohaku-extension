@@ -18,8 +18,8 @@ import Completed from '@web/modules/sign-account-op/components/OneClick/TrackPro
 import Failed from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/Failed'
 import InProgress from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/InProgress'
 import useTrackAccountOp from '@web/modules/sign-account-op/hooks/OneClick/useTrackAccountOp'
-import DepositForm from '@web/modules/PPv1/deposit/components/DepositForm/DepositForm'
-import Buttons from '@web/modules/PPv1/deposit/components/Buttons'
+import RagequitForm from '@web/modules/PPv1/ragequit/components/RagequitForm'
+import Buttons from '@web/modules/PPv1/ragequit/components/Buttons'
 import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import { getUiType } from '@web/utils/uiType'
 
@@ -34,21 +34,22 @@ function RagequitScreen() {
 
   const {
     poolInfo,
-    depositAmount,
     hasProceeded,
     estimationModalRef,
     signAccountOpController,
     latestBroadcastedAccountOp,
     isLoading,
-    handleDeposit,
-    handleUpdateForm,
+    totalPendingBalance,
+    totalDeclinedBalance,
+    handleMultipleRagequit,
     closeEstimationModal
   } = usePrivacyPoolsForm()
 
-  const amountErrorMessage = useMemo(() => {
-    if (!depositAmount || depositAmount === '0') return ''
-    return ''
-  }, [depositAmount])
+  const ragequitableAccounts = useMemo(() => {
+    return [...totalPendingBalance.accounts, ...totalDeclinedBalance.accounts].filter(
+      (account) => !account.ragequit
+    )
+  }, [totalPendingBalance.accounts, totalDeclinedBalance.accounts])
 
   const submittedAccountOp = useMemo(() => {
     if (!accountsOps.privacyPools || !latestBroadcastedAccountOp?.signature) return
@@ -147,31 +148,43 @@ function RagequitScreen() {
     [dispatch]
   )
 
-  const isTransferFormValid = useMemo(() => {
-    return !!(depositAmount && depositAmount !== '0' && poolInfo) || isLoading
-  }, [depositAmount, poolInfo, isLoading])
+  const isRagequitFormValid = useMemo(() => {
+    return !!(ragequitableAccounts.length > 0 && poolInfo) && !isLoading
+  }, [ragequitableAccounts.length, poolInfo, isLoading])
 
   const onBack = useCallback(() => {
     navigate(ROUTES.pp1Home)
   }, [navigate])
 
   const headerTitle = t('Ragequit')
-  const formTitle = t('Ragequit')
+  const formTitle = t('Exit Pool')
 
   const buttons = useMemo(() => {
     return (
       <>
         {isTab && <BackButton onPress={onBack} />}
         <Buttons
-          handleSubmitForm={handleDeposit}
-          proceedBtnText={t('Ragequit')}
-          isNotReadyToProceed={!isTransferFormValid}
+          handleSubmitForm={handleMultipleRagequit}
+          proceedBtnText={
+            ragequitableAccounts.length > 1
+              ? t('Ragequit ({{count}})', { count: ragequitableAccounts.length })
+              : t('Ragequit')
+          }
+          isNotReadyToProceed={!isRagequitFormValid}
+          isLoading={isLoading}
           signAccountOpErrors={[]}
           networkUserRequests={[]}
         />
       </>
     )
-  }, [onBack, handleDeposit, isTransferFormValid, t])
+  }, [
+    onBack,
+    handleMultipleRagequit,
+    isRagequitFormValid,
+    isLoading,
+    ragequitableAccounts.length,
+    t
+  ])
 
   const handleGoBackPress = useCallback(() => {
     navigate(ROUTES.pp1Home)
@@ -189,7 +202,7 @@ function RagequitScreen() {
         }}
       >
         {submittedAccountOp?.status === AccountOpStatus.BroadcastedButNotConfirmed && (
-          <InProgress title={t('Confirming your deposit')}>
+          <InProgress title={t('Confirming your ragequit')}>
             <Text fontSize={16} weight="medium" appearance="secondaryText">
               {t('Almost there!')}
             </Text>
@@ -198,10 +211,10 @@ function RagequitScreen() {
         {(submittedAccountOp?.status === AccountOpStatus.Success ||
           submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce) && (
           <Completed
-            title={t('Deposit complete!')}
-            titleSecondary={t('ETH deposited to privacy pool!')}
+            title={t('Ragequit complete!')}
+            titleSecondary={t('You have successfully exited the pool!')}
             explorerLink={explorerLink}
-            openExplorerText="View Deposit"
+            openExplorerText="View Transaction"
           />
         )}
         {(submittedAccountOp?.status === AccountOpStatus.Failure ||
@@ -210,7 +223,7 @@ function RagequitScreen() {
           <Failed
             title={t('Something went wrong!')}
             errorMessage={t(
-              "We couldn't complete your deposit. Please try again later or contact Ambire support."
+              "We couldn't complete your ragequit. Please try again later or contact Ambire support."
             )}
           />
         )}
@@ -222,12 +235,11 @@ function RagequitScreen() {
     <Wrapper title={headerTitle} handleGoBack={handleGoBackPress} buttons={buttons}>
       <Content buttons={buttons}>
         <Form>
-          <DepositForm
+          <RagequitForm
             poolInfo={poolInfo}
-            depositAmount={depositAmount}
-            amountErrorMessage={amountErrorMessage}
+            totalPendingBalance={totalPendingBalance}
+            totalDeclinedBalance={totalDeclinedBalance}
             formTitle={formTitle}
-            handleUpdateForm={handleUpdateForm}
           />
         </Form>
       </Content>
