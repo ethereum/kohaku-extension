@@ -4,7 +4,7 @@ import { Pressable } from 'react-native'
 
 import Text from '@common/components/Text'
 import useTheme from '@common/hooks/useTheme'
-import { DASHBOARD_OVERVIEW_BACKGROUND } from '@web/modules/PPv2/screens/dashboard/screens/styles'
+import { DASHBOARD_OVERVIEW_BACKGROUND } from '@web/modules/PPv1/screens/dashboard/screens/styles'
 import spacings from '@common/styles/spacings'
 import { THEME_TYPES } from '@common/styles/themeConfig'
 import { getAvatarColors } from '@common/utils/avatars'

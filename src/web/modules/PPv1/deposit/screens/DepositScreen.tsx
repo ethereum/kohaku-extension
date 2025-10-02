@@ -18,9 +18,9 @@ import Completed from '@web/modules/sign-account-op/components/OneClick/TrackPro
 import Failed from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/Failed'
 import InProgress from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/InProgress'
 import useTrackAccountOp from '@web/modules/sign-account-op/hooks/OneClick/useTrackAccountOp'
-import DepositForm from '@web/modules/PPv2/deposit/components/DepositForm/DepositForm'
-import Buttons from '@web/modules/PPv2/deposit/components/Buttons'
-import usePrivacyPoolsForm from '@web/modules/PPv2/hooks/usePrivacyPoolsForm'
+import DepositForm from '@web/modules/PPv1/deposit/components/DepositForm/DepositForm'
+import Buttons from '@web/modules/PPv1/deposit/components/Buttons'
+import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import { getUiType } from '@web/utils/uiType'
 
 const { isTab, isActionWindow } = getUiType()
@@ -39,6 +39,7 @@ function TransferScreen() {
     estimationModalRef,
     signAccountOpController,
     latestBroadcastedAccountOp,
+    isLoading,
     handleDeposit,
     handleUpdateForm,
     closeEstimationModal
@@ -66,7 +67,7 @@ function TransferScreen() {
         }
       })
     } else {
-      navigate(ROUTES.pp2Home)
+      navigate(ROUTES.pp1Home)
     }
 
     dispatch({
@@ -147,11 +148,11 @@ function TransferScreen() {
   )
 
   const isTransferFormValid = useMemo(() => {
-    return !!(depositAmount && depositAmount !== '0' && poolInfo)
-  }, [depositAmount, poolInfo])
+    return !!(depositAmount && depositAmount !== '0' && poolInfo) || isLoading
+  }, [depositAmount, poolInfo, isLoading])
 
   const onBack = useCallback(() => {
-    navigate(ROUTES.pp2Home)
+    navigate(ROUTES.pp1Home)
   }, [navigate])
 
   const headerTitle = t('Deposit')
@@ -173,7 +174,7 @@ function TransferScreen() {
   }, [onBack, handleDeposit, isTransferFormValid, t])
 
   const handleGoBackPress = useCallback(() => {
-    navigate(ROUTES.pp2Home)
+    navigate(ROUTES.pp1Home)
   }, [navigate])
 
   if (displayedView === 'track') {

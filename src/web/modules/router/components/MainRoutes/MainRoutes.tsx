@@ -59,7 +59,7 @@ import ViewOnlyAccountAdderScreen from '@web/modules/view-only-account-adder/Vie
 import PPv1HomeScreen from '@web/modules/PPv1/screens/Home'
 import PPv1DepositScreen from '@web/modules/PPv1/deposit/screens/DepositScreen'
 import PPv1TransferScreen from '@web/modules/PPv1/transfer/screens/TransferScreen'
-import PPv1ImportScreen from '@web/modules/PPv1/importNote/screens/ImportScreen'
+import PPv1ImportScreen from '@web/modules/PPv1/importAccount/screens/ImportScreen'
 
 import PPv2HomeScreen from '@web/modules/PPv2/screens/Home'
 import PPv2DepositScreen from '@web/modules/PPv2/deposit/screens/DepositScreen'

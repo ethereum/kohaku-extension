@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 
-import { encrypt, decrypt } from '@web/modules/PPv2/utils/encryption'
-import { storeData, getData } from '@web/modules/PPv2/utils/extensionStorage'
+import { encrypt, decrypt } from '@web/modules/PPv1/utils/encryption'
+import { storeData, getData } from '@web/modules/PPv1/utils/extensionStorage'
 
 // TODO: use user's password
 export const useStorage = ({ password }: { password: string } = { password: '12345678' }) => {

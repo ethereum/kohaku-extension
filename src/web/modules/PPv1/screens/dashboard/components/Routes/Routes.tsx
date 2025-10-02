@@ -17,7 +17,7 @@ const Routes = ({ openReceiveModal }: { openReceiveModal: () => void }) => {
       testID: 'dashboard-button-privacy-pools',
       icon: SendIcon,
       label: t('Deposit'),
-      route: WEB_ROUTES.pp2Deposit,
+      route: WEB_ROUTES.pp1Deposit,
       isExternal: false,
       scale: 1.08,
       scaleOnHover: 1.18
@@ -26,7 +26,7 @@ const Routes = ({ openReceiveModal }: { openReceiveModal: () => void }) => {
       testID: 'dashboard-button-send',
       icon: SendIcon,
       label: t('Transfer'),
-      route: WEB_ROUTES.pp2Transfer,
+      route: WEB_ROUTES.pp1Transfer,
       isExternal: false,
       scale: 1.08,
       scaleOnHover: 1.18
