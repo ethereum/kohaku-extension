@@ -2,7 +2,6 @@ import React, { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
-import { getBenzinUrlParams } from '@ambire-common/utils/benzin'
 import Text from '@common/components/Text'
 import useNavigation from '@common/hooks/useNavigation'
 import { ROUTES, WEB_ROUTES } from '@common/modules/router/constants/common'
@@ -49,7 +48,7 @@ const ImportScreen = () => {
         }
       })
     } else {
-      navigate(WEB_ROUTES.dashboard)
+      navigate(WEB_ROUTES.pp1Home)
     }
 
     dispatch({
@@ -65,16 +64,6 @@ const ImportScreen = () => {
     navigateOut
   })
 
-  const explorerLink = useMemo(() => {
-    if (!submittedAccountOp) return
-
-    const { chainId, identifiedBy, txnId } = submittedAccountOp
-
-    if (!chainId || !identifiedBy || !txnId) return
-
-    return `https://explorer.ambire.com/${getBenzinUrlParams({ chainId, txnId, identifiedBy })}`
-  }, [submittedAccountOp])
-
   const [displayedView, setDisplayedView] = useState<'transfer' | 'track'>('transfer')
   const [trackProgress, setTrackProgress] = useState<AccountOpStatus>(AccountOpStatus.Pending)
 
@@ -85,7 +74,7 @@ const ImportScreen = () => {
     setTrackProgress(AccountOpStatus.Success)
   }, [handleLoadAccount])
 
-  const headerTitle = 'Import Mnemonic'
+  const headerTitle = 'Import new account'
 
   const handleGoBackPress = useCallback(() => {
     navigate(ROUTES.pp1Home)
@@ -102,18 +91,17 @@ const ImportScreen = () => {
         }}
       >
         {trackProgress === AccountOpStatus.Pending && (
-          <InProgress title={t('Importing your secret note')}>
+          <InProgress title={t('Generating your Privacy Pool account')}>
             <Text fontSize={16} weight="medium" appearance="secondaryText">
-              {t('Almost there!')}
+              {t('Deriving keys from your mnemonic...')}
             </Text>
           </InProgress>
         )}
         {(trackProgress === AccountOpStatus.Success ||
           trackProgress === AccountOpStatus.UnknownButPastNonce) && (
           <Completed
-            title={t('Secret note imported!')}
-            titleSecondary={t('Your balance has been updated')}
-            explorerLink={explorerLink}
+            title={t('Account imported successfully!')}
+            titleSecondary={t('Your Privacy Pool account is ready to use')}
             openExplorerText="View Transaction"
           />
         )}
@@ -122,9 +110,9 @@ const ImportScreen = () => {
           trackProgress === AccountOpStatus.Rejected ||
           trackProgress === AccountOpStatus.BroadcastButStuck) && (
           <Failed
-            title={t('Something went wrong!')}
+            title={t('Import failed')}
             errorMessage={t(
-              "We couldn't import your secret note. Please try again later or contact Ambire support."
+              "We couldn't import your Privacy Pool account. Please verify your mnemonic and try again, or contact Kohaku support."
             )}
           />
         )}

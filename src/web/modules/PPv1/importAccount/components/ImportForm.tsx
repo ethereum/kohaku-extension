@@ -26,15 +26,15 @@ const ImportForm: FC<Props> = ({ handleImportSecretNote }) => {
     <View>
       <Input
         onChangeText={onInputChange}
-        label={t('PPv1 Account')}
-        placeholder={t('Enter your mnemonic')}
+        label={t('Privacy Pool Account Mnemonic')}
+        placeholder={t('Enter your 12 mnemonic phrase')}
         value={seedPhrase}
         inputStyle={spacings.mbSm}
         containerStyle={spacings.mbXl}
       />
       <Button
         disabled={!seedPhrase}
-        text={t('Import PPv1 Account')}
+        text={t('Import Account')}
         hasBottomSpacing={false}
         onPress={handleImportSecretNote}
       />
