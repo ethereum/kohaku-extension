@@ -311,7 +311,6 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       setSdk(sdkModule)
 
       // eslint-disable-next-line no-console
-
       fetchMtData().catch(console.error)
 
       dispatch({
@@ -325,7 +324,8 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
     memoizedState.poolsByChain,
     memoizedState,
     fetchMtData,
-    dispatch
+    dispatch,
+    sdk
   ])
 
   const value = useMemo(

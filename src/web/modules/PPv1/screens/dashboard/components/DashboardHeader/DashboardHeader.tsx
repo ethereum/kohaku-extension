@@ -34,7 +34,7 @@ const DashboardHeader = () => {
         <Pressable
           testID="dashboard-hamburger-btn"
           style={[spacings.ml, spacings.phTy, spacings.pvTy, flexboxStyles.alignSelfCenter]}
-          onPress={() => navigate(WEB_ROUTES.pp2Import)}
+          onPress={() => navigate(WEB_ROUTES.pp1Import)}
           {...bindBurgerAnim}
         >
           <Animated.View style={burgerAnimStyle}>

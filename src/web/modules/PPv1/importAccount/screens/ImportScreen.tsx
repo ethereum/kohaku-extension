@@ -17,10 +17,12 @@ import InProgress from '@web/modules/sign-account-op/components/OneClick/TrackPr
 import useTrackAccountOp from '@web/modules/sign-account-op/hooks/OneClick/useTrackAccountOp'
 import { getUiType } from '@web/utils/uiType'
 import AddChainScreen from '../components/ImportForm'
+import usePrivacyPoolsForm from '../../hooks/usePrivacyPoolsForm'
 
 const { isActionWindow } = getUiType()
 
 const ImportScreen = () => {
+  const { handleLoadAccount } = usePrivacyPoolsForm()
   const { dispatch } = useBackgroundService()
   const { state } = useTransferControllerState()
   const { latestBroadcastedAccountOp } = state
@@ -76,18 +78,17 @@ const ImportScreen = () => {
   const [displayedView, setDisplayedView] = useState<'transfer' | 'track'>('transfer')
   const [trackProgress, setTrackProgress] = useState<AccountOpStatus>(AccountOpStatus.Pending)
 
-  const handleImportSecretNote = useCallback(() => {
+  const handleImportSecretNote = useCallback(async () => {
     setDisplayedView('track')
+    await handleLoadAccount()
 
-    setTimeout(() => {
-      setTrackProgress(AccountOpStatus.Success)
-    }, 3000)
-  }, [setDisplayedView, setTrackProgress])
+    setTrackProgress(AccountOpStatus.Success)
+  }, [handleLoadAccount])
 
-  const headerTitle = 'Import Secret Note'
+  const headerTitle = 'Import Mnemonic'
 
   const handleGoBackPress = useCallback(() => {
-    navigate(ROUTES.pp2Home)
+    navigate(ROUTES.pp1Home)
   }, [navigate])
 
   if (displayedView === 'track') {
