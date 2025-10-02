@@ -39,6 +39,7 @@ function TransferScreen() {
     estimationModalRef,
     signAccountOpController,
     latestBroadcastedAccountOp,
+    isLoading,
     handleDeposit,
     handleUpdateForm,
     closeEstimationModal
@@ -147,8 +148,8 @@ function TransferScreen() {
   )
 
   const isTransferFormValid = useMemo(() => {
-    return !!(depositAmount && depositAmount !== '0' && poolInfo)
-  }, [depositAmount, poolInfo])
+    return !!(depositAmount && depositAmount !== '0' && poolInfo) || isLoading
+  }, [depositAmount, poolInfo, isLoading])
 
   const onBack = useCallback(() => {
     navigate(ROUTES.pp1Home)

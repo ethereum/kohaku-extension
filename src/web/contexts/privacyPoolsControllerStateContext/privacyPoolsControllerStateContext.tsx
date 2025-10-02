@@ -66,6 +66,7 @@ type EnhancedPrivacyPoolsControllerState = {
   accountService: AccountService | undefined
   selectedPoolAccount: PoolAccount | null
   poolAccounts: PoolAccount[]
+  isAccountLoaded: boolean
   loadAccount: () => Promise<void>
   generateRagequitProof: (commitment: AccountCommitment) => Promise<CommitmentProof>
   verifyRagequitProof: (commitment: CommitmentProof) => Promise<boolean>
@@ -104,6 +105,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   const [selectedPoolAccount, setSelectedPoolAccount] = useState<PoolAccount | null>(null)
   const [mtRoots, setMtRoots] = useState<MtRootResponse | undefined>(undefined)
   const [mtLeaves, setMtLeaves] = useState<MtLeavesResponse | undefined>(undefined)
+  const [isAccountLoaded, setIsAccountLoaded] = useState(false)
 
   const memoizedState = useDeepMemo(state, controller)
 
@@ -182,6 +184,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
     )
 
     setPoolAccounts(newPoolAccounts)
+    setIsAccountLoaded(true)
   }, [
     mtLeaves,
     dataService,
@@ -336,6 +339,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       accountService,
       poolAccounts,
       selectedPoolAccount,
+      isAccountLoaded,
       loadAccount,
       generateRagequitProof,
       verifyRagequitProof,
@@ -354,6 +358,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       accountService,
       poolAccounts,
       selectedPoolAccount,
+      isAccountLoaded,
       loadAccount,
       generateRagequitProof,
       verifyRagequitProof,
