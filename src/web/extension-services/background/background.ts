@@ -39,7 +39,9 @@ import {
   BROWSER_EXTENSION_LOG_UPDATED_CONTROLLER_STATE_ONLY,
   LI_FI_API_KEY,
   RELAYER_URL,
-  VELCRO_URL
+  VELCRO_URL,
+  PRIVACY_POOLS_ASP_URL,
+  ALCHEMY_API_KEY
 } from '@env'
 import * as Sentry from '@sentry/browser'
 import { browser, platform } from '@web/constants/browserapi'
@@ -363,6 +365,8 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
     fetch: fetchWithAnalytics,
     relayerUrl: RELAYER_URL,
     velcroUrl: VELCRO_URL,
+    privacyPoolsAspUrl: PRIVACY_POOLS_ASP_URL,
+    alchemyApiKey: ALCHEMY_API_KEY,
     swapApiKey: LI_FI_API_KEY,
     featureFlags: {},
     keystoreSigners: {

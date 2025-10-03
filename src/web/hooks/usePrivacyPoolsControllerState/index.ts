@@ -1,0 +1,3 @@
+import usePrivacyPoolsControllerState from './usePrivacyPoolsControllerState'
+
+export default usePrivacyPoolsControllerState

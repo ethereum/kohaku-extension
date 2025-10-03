@@ -28,6 +28,7 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
 import { getUiType } from '@web/utils/uiType'
 
+import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import getStyles from './styles'
 
 const FOOTER_BUTTON_HIT_SLOP = { top: 10, bottom: 15 }
@@ -57,6 +58,7 @@ const KeyStoreUnlockScreen = () => {
       password: isDev && !isTesting ? DEFAULT_KEYSTORE_PASSWORD_DEV ?? '' : ''
     }
   })
+  const { loadSeedPhrase } = usePrivacyPoolsForm()
 
   useDisableNavigatingBack()
 
@@ -93,8 +95,11 @@ const KeyStoreUnlockScreen = () => {
         type: 'KEYSTORE_CONTROLLER_UNLOCK_WITH_SECRET',
         params: { secretId: 'password', secret: password }
       })
+
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      loadSeedPhrase()
     },
-    [disableSubmit, dispatch]
+    [disableSubmit, dispatch, loadSeedPhrase]
   )
 
   const panelSize = useMemo(() => {
