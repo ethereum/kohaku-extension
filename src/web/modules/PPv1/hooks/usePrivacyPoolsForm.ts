@@ -1,10 +1,10 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
 import { Address, encodeFunctionData, formatEther, getAddress, parseUnits } from 'viem'
 import { english, generateMnemonic } from 'viem/accounts'
 import { Hash, Withdrawal, WithdrawalProof } from '@0xbow/privacy-pools-core-sdk'
 import { Call } from '@ambire-common/libs/accountOp/types'
-import { PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
+import { PoolAccount, ReviewStatus } from '@web/contexts/privacyPoolsControllerStateContext'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
@@ -66,6 +66,28 @@ const usePrivacyPoolsForm = () => {
 
   const poolInfo = chainData?.[11155111]?.poolInfo?.[0]
 
+  const totalApprovedBalance = useMemo(() => {
+    const accounts = poolAccounts.filter(
+      (account) => account.reviewStatus === ReviewStatus.APPROVED
+    )
+    const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
+    return { total, accounts }
+  }, [poolAccounts])
+
+  const totalPendingBalance = useMemo(() => {
+    const accounts = poolAccounts.filter((account) => account.reviewStatus === ReviewStatus.PENDING)
+    const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
+    return { total, accounts }
+  }, [poolAccounts])
+
+  const totalDeclinedBalance = useMemo(() => {
+    const accounts = poolAccounts.filter(
+      (account) => account.reviewStatus === ReviewStatus.DECLINED
+    )
+    const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
+    return { total, accounts }
+  }, [poolAccounts])
+
   const {
     ref: estimationModalRef,
     open: openEstimationModal,
@@ -104,7 +126,7 @@ const usePrivacyPoolsForm = () => {
     setIsGenerating(false)
   }
 
-  const handleLoadAccount = async () => {
+  const handleLoadAccount = useCallback(async () => {
     if (!seedPhrase?.trim()) {
       setMessage({ type: 'error', text: 'Please enter a seed phrase to load an existing account.' })
       return
@@ -125,7 +147,7 @@ const usePrivacyPoolsForm = () => {
       const encrypted = await encrypt(seedPhrase)
       await storeData(encrypted)
     }
-  }
+  }, [seedPhrase, loadAccount, encrypt, storeData])
 
   const handleSelectedAccount = (poolAccount: PoolAccount) => {
     setSelectedPoolAccount((prevState) => {
@@ -147,14 +169,15 @@ const usePrivacyPoolsForm = () => {
     openEstimationModal()
   }, [openEstimationModal, dispatch])
 
-  const syncSignAccountOp = async (calls: Call[]) => {
-    console.log('DEBUG: Dispatching PRIVACY_POOLS_CONTROLLER_SYNC_SIGN_ACCOUNT_OP', calls)
-    dispatch({
-      type: 'PRIVACY_POOLS_CONTROLLER_SYNC_SIGN_ACCOUNT_OP',
-      params: { calls }
-    })
-    console.log('DEBUG: Dispatch completed')
-  }
+  const syncSignAccountOp = useCallback(
+    async (calls: Call[]) => {
+      dispatch({
+        type: 'PRIVACY_POOLS_CONTROLLER_SYNC_SIGN_ACCOUNT_OP',
+        params: { calls }
+      })
+    },
+    [dispatch]
+  )
 
   const handleDeposit = async () => {
     if (!depositAmount || !poolInfo) return
@@ -222,12 +245,71 @@ const usePrivacyPoolsForm = () => {
       value: 0n
     }
 
-    // eslint-disable-next-line no-console
-    console.log('DEUBG: result', result)
-
     handlePrivateRequest('privateRagequitRequest', [result])
     setRagequitLoading((prev) => ({ ...prev, [accountKey]: false }))
   }
+
+  const handleMultipleRagequit = useCallback(async () => {
+    if (!accountService || !poolInfo) return
+
+    setRagequitLoading({})
+
+    try {
+      const ragequitableAccounts = [
+        ...totalPendingBalance.accounts,
+        ...totalDeclinedBalance.accounts
+      ].filter((account) => !account.ragequit)
+
+      if (ragequitableAccounts.length === 0) {
+        setMessage({ type: 'error', text: 'No accounts available to ragequit' })
+        return
+      }
+
+      const proofs = await Promise.all(
+        ragequitableAccounts.map(async (poolAccount) => {
+          const commitment = poolAccount.lastCommitment
+          const proof = await generateRagequitProof(commitment)
+          return { proof, poolAccount }
+        })
+      )
+
+      const txList = proofs.map(({ proof }) => {
+        const transformedArgs = transformRagequitProofForContract(proof)
+        const data = encodeFunctionData({
+          abi: privacyPoolAbi,
+          functionName: 'ragequit',
+          args: [
+            {
+              pA: transformedArgs.pA,
+              pB: transformedArgs.pB,
+              pC: transformedArgs.pC,
+              pubSignals: transformedArgs.pubSignals
+            }
+          ]
+        })
+
+        return {
+          to: getAddress(poolInfo.address),
+          data,
+          value: 0n
+        }
+      })
+
+      await syncSignAccountOp(txList)
+      openEstimationModalAndDispatch()
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to ragequit'
+      setMessage({ type: 'error', text: errorMessage })
+    }
+  }, [
+    accountService,
+    poolInfo,
+    totalPendingBalance.accounts,
+    totalDeclinedBalance.accounts,
+    generateRagequitProof,
+    syncSignAccountOp,
+    openEstimationModalAndDispatch
+  ])
 
   /**
    * Generates withdrawal proof and prepares transaction data
@@ -434,8 +516,12 @@ const usePrivacyPoolsForm = () => {
     latestBroadcastedAccountOp,
     isLoading,
     isAccountLoaded,
+    totalApprovedBalance,
+    totalPendingBalance,
+    totalDeclinedBalance,
     handleDeposit,
     handleRagequit,
+    handleMultipleRagequit,
     handleWithdrawal,
     handleUpdateForm,
     handleLoadAccount,
