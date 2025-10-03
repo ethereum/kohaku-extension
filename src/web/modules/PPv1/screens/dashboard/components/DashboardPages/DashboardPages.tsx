@@ -14,6 +14,8 @@ import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountCont
 import { getUiType } from '@web/utils/uiType'
 
 import Activity from '../Activity'
+import Transfers from '../Transfers'
+import Deposits from '../Deposits'
 import { TabType } from '../TabsAndSearch/Tabs/Tab/Tab'
 
 interface Props {
@@ -84,15 +86,39 @@ const DashboardPages = ({ onScroll, animatedOverviewHeight }: Props) => {
 
   return (
     <View style={[flexbox.flex1, isTab ? spacings.phSm : {}]}>
-      <Activity
-        openTab={openTab}
-        sessionId={sessionId}
-        setOpenTab={setOpenTab}
-        onScroll={onScroll}
-        initTab={initTab}
-        dashboardNetworkFilterName={dashboardNetworkFilterName}
-        animatedOverviewHeight={animatedOverviewHeight}
-      />
+      {openTab === 'activity' && (
+        <Activity
+          openTab={openTab}
+          sessionId={sessionId}
+          setOpenTab={setOpenTab}
+          onScroll={onScroll}
+          initTab={initTab}
+          dashboardNetworkFilterName={dashboardNetworkFilterName}
+          animatedOverviewHeight={animatedOverviewHeight}
+        />
+      )}
+      {openTab === 'transfers' && (
+        <Transfers
+          openTab={openTab}
+          sessionId={sessionId}
+          setOpenTab={setOpenTab}
+          onScroll={onScroll}
+          initTab={initTab}
+          dashboardNetworkFilterName={dashboardNetworkFilterName}
+          animatedOverviewHeight={animatedOverviewHeight}
+        />
+      )}
+      {openTab === 'deposits' && (
+        <Deposits
+          openTab={openTab}
+          sessionId={sessionId}
+          setOpenTab={setOpenTab}
+          onScroll={onScroll}
+          initTab={initTab}
+          dashboardNetworkFilterName={dashboardNetworkFilterName}
+          animatedOverviewHeight={animatedOverviewHeight}
+        />
+      )}
     </View>
   )
 }
