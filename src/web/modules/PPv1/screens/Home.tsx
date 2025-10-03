@@ -1,13 +1,10 @@
 /* eslint-disable no-console */
-import React, { useCallback, useEffect, useRef } from 'react'
-import { ROUTES } from '@common/modules/router/constants/common'
+import React, { useEffect, useRef } from 'react'
 import useBackgroundService from '@web/hooks/useBackgroundService'
-import useNavigation from '@common/hooks/useNavigation'
 import DashboardScreen from './dashboard/screens/DashboardScreen'
 import usePrivacyPoolsForm from '../hooks/usePrivacyPoolsForm'
 
 const HomeScreen = () => {
-  const { navigate } = useNavigation()
   const { dispatch } = useBackgroundService()
   const {
     handleLoadAccount,
@@ -24,10 +21,6 @@ const HomeScreen = () => {
   console.log('DEBUG: totalDeclinedBalance', totalDeclinedBalance)
   console.log({ isAccountLoaded, poolAccounts })
 
-  const onBack = useCallback(() => {
-    navigate(ROUTES.dashboard)
-  }, [navigate])
-
   useEffect(() => {
     if (!isAccountLoaded && !hasLoadedRef.current) {
       hasLoadedRef.current = true
@@ -42,14 +35,7 @@ const HomeScreen = () => {
     }
   }, [dispatch])
 
-  return (
-    <div>
-      <button type="button" onClick={onBack}>
-        Back
-      </button>
-      <DashboardScreen />
-    </div>
-  )
+  return <DashboardScreen />
 }
 
 export default React.memo(HomeScreen)
