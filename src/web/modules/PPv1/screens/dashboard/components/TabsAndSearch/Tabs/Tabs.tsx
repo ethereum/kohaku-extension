@@ -26,14 +26,14 @@ const TABS: {
     tabLabel: 'Activity'
   },
   {
-    testID: 'tab-send',
-    type: 'send',
-    tabLabel: 'Send'
+    testID: 'tab-transfers',
+    type: 'transfers',
+    tabLabel: 'Transfers'
   },
   {
-    testID: 'tab-receive',
-    type: 'receive',
-    tabLabel: 'Receive'
+    testID: 'tab-deposits',
+    type: 'deposits',
+    tabLabel: 'Deposits'
   }
 ]
 

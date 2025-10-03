@@ -13,7 +13,7 @@ import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountCont
 
 import getStyles from './styles'
 
-export type TabType = 'activity' | 'send' | 'receive' | 'tokens'
+export type TabType = 'activity' | 'transfers' | 'deposits' | 'tokens'
 
 interface Props {
   openTab: string
