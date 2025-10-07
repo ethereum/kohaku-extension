@@ -16,7 +16,7 @@ const Routes = () => {
   const routeItems = [
     {
       testID: 'dashboard-button-privacy-pools',
-      icon: SendIcon,
+      icon: (props: any) => <SendIcon style={{ rotate: '90deg' }} {...props} />,
       label: t('Deposit'),
       route: WEB_ROUTES.pp1Deposit,
       isExternal: false,
@@ -26,17 +26,8 @@ const Routes = () => {
     {
       testID: 'dashboard-button-send',
       icon: SendIcon,
-      label: t('Transfer'),
+      label: t('Send'),
       route: WEB_ROUTES.pp1Transfer,
-      isExternal: false,
-      scale: 1.08,
-      scaleOnHover: 1.18
-    },
-    {
-      testID: 'dashboard-button-ragequit',
-      icon: SendIcon,
-      label: t('Ragequit'),
-      route: WEB_ROUTES.pp1Ragequit,
       isExternal: false,
       scale: 1.08,
       scaleOnHover: 1.18
