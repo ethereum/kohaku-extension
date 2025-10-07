@@ -30,12 +30,18 @@ import {
   PoolAccount as SDKPoolAccount
 } from '@0xbow/privacy-pools-core-sdk'
 
+import { TokenResult } from '@ambire-common/libs/portfolio'
+import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
+import { sortPortfolioTokenList } from '@ambire-common/libs/swapAndBridge/swapAndBridge'
 import useDeepMemo from '@common/hooks/useDeepMemo'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useControllerState from '@web/hooks/useControllerState'
+import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
+import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import { getPoolAccountsFromAccount, processDeposits } from '@web/modules/PPv1-old/utils/sdk'
 import type { PrivacyPoolsController } from '@ambire-common/controllers/privacyPools/privacyPools'
 import { aspClient, MtLeavesResponse, MtRootResponse } from '@web/modules/PPv1-old/utils/aspClient'
+import { AddressState } from '@ambire-common/interfaces/domains'
 
 export enum ReviewStatus {
   PENDING = 'pending',
@@ -67,6 +73,7 @@ type EnhancedPrivacyPoolsControllerState = {
   selectedPoolAccount: PoolAccount | null
   poolAccounts: PoolAccount[]
   isAccountLoaded: boolean
+  tokens: any[]
   loadAccount: () => Promise<void>
   generateRagequitProof: (commitment: AccountCommitment) => Promise<CommitmentProof>
   verifyRagequitProof: (commitment: CommitmentProof) => Promise<boolean>
@@ -87,7 +94,47 @@ type EnhancedPrivacyPoolsControllerState = {
   getContext: (withdrawal: Withdrawal, scope: Hash) => string
   getMerkleProof: (leaves: bigint[], leaf: bigint) => LeanIMTMerkleProof<bigint>
   setSelectedPoolAccount: Dispatch<SetStateAction<PoolAccount | null>>
-} & Partial<PrivacyPoolsController>
+  // Required PrivacyPoolsController properties
+  validationFormMsgs: {
+    amount: { success: boolean; message: string }
+    recipientAddress: { success: boolean; message: string }
+  }
+  addressState: AddressState
+  isRecipientAddressUnknown: boolean
+  signAccountOpController: any
+  latestBroadcastedAccountOp: any
+  latestBroadcastedToken: any
+  hasProceeded: boolean
+  selectedToken: any
+  amountFieldMode: 'token' | 'fiat'
+  withdrawalAmount: string
+  amountInFiat: string
+  programmaticUpdateCounter: number
+  isRecipientAddressUnknownAgreed: boolean
+  maxAmount: string
+  depositAmount: string
+  seedPhrase: string
+  importedSecretNote: string
+} & Omit<
+  Partial<PrivacyPoolsController>,
+  | 'validationFormMsgs'
+  | 'addressState'
+  | 'isRecipientAddressUnknown'
+  | 'signAccountOpController'
+  | 'latestBroadcastedAccountOp'
+  | 'latestBroadcastedToken'
+  | 'hasProceeded'
+  | 'selectedToken'
+  | 'amountFieldMode'
+  | 'withdrawalAmount'
+  | 'amountInFiat'
+  | 'programmaticUpdateCounter'
+  | 'isRecipientAddressUnknownAgreed'
+  | 'maxAmount'
+  | 'depositAmount'
+  | 'seedPhrase'
+  | 'importedSecretNote'
+>
 
 const PrivacyPoolsControllerStateContext = createContext<EnhancedPrivacyPoolsControllerState>(
   {} as EnhancedPrivacyPoolsControllerState
@@ -97,6 +144,8 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   const controller = 'privacyPools'
   const state = useControllerState(controller)
   const { dispatch } = useBackgroundService()
+  const { portfolio } = useSelectedAccountControllerState()
+  const { networks } = useNetworksControllerState()
 
   const [sdk, setSdk] = useState<PrivacyPoolSDK>()
   const [dataService, setDataService] = useState<DataService>()
@@ -108,6 +157,43 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   const [isAccountLoaded, setIsAccountLoaded] = useState(false)
 
   const memoizedState = useDeepMemo(state, controller)
+
+  const rawTokens = useMemo(() => {
+    if (!networks || !portfolio?.tokens) return []
+
+    return sortPortfolioTokenList(
+      portfolio.tokens.filter((token) => {
+        const hasAmount = Number(getTokenAmount(token)) > 0
+        return hasAmount && !token.flags.onGasTank && !token.flags.rewardsType
+      })
+    )
+  }, [portfolio?.tokens, networks])
+
+  // This ensures that `tokens` won't trigger re-renders unless its deep content changes
+  const tokens = useDeepMemo(rawTokens, 'tokens')
+
+  const updatedSelectedToken = useMemo(() => {
+    if (!memoizedState.selectedToken) return null
+
+    return tokens.find(
+      (token) =>
+        token.address === memoizedState.selectedToken?.address &&
+        token.chainId === memoizedState.selectedToken?.chainId
+    )
+  }, [tokens, memoizedState.selectedToken?.address, memoizedState.selectedToken?.chainId])
+
+  // If a token is already selected, we should retrieve its latest value from tokens.
+  // This is important because the token amount is likely to change,
+  // especially when initiating a transfer or adding a new one to the queue.
+  // As a result, the token `amountPostSimulation` may differ, and we need to update the available token balance accordingly.
+  useEffect(() => {
+    if (!updatedSelectedToken) return
+
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM',
+      params: { selectedToken: updatedSelectedToken }
+    })
+  }, [updatedSelectedToken, dispatch])
 
   const fetchMtData = useCallback(async () => {
     try {
@@ -340,6 +426,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       poolAccounts,
       selectedPoolAccount,
       isAccountLoaded,
+      tokens,
       loadAccount,
       generateRagequitProof,
       verifyRagequitProof,
@@ -359,6 +446,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       poolAccounts,
       selectedPoolAccount,
       isAccountLoaded,
+      tokens,
       loadAccount,
       generateRagequitProof,
       verifyRagequitProof,
