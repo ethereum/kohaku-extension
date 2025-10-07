@@ -4,7 +4,7 @@ import { View } from 'react-native'
 import { isSmartAccount } from '@ambire-common/libs/account/account'
 import shortenAddress from '@ambire-common/utils/shortenAddress'
 import CopyIcon from '@common/assets/svg/CopyIcon'
-// import AmbireLogoHorizontalWithOG from '@common/components/AmbireLogoHorizontalWithOG'
+import AmbireLogoHorizontalWithOG from '@common/components/AmbireLogoHorizontalWithOG'
 import Avatar from '@common/components/Avatar'
 import Text from '@common/components/Text'
 import useTheme from '@common/hooks/useTheme'
@@ -31,7 +31,7 @@ const { isTab } = getUiType()
 
 type WrapperProps = {
   children: React.ReactNode
-  // title: string | React.ReactNode
+  title?: string | React.ReactNode
   buttons: React.ReactNode
 }
 
@@ -45,7 +45,7 @@ type FormProps = {
   children: React.ReactNode
 }
 
-const Wrapper: FC<WrapperProps> = ({ children, buttons }) => {
+const Wrapper: FC<WrapperProps> = ({ children, title, buttons }) => {
   const { t } = useTranslation()
   const { addToast } = useToast()
   const { theme, styles } = useTheme(getStyles)
@@ -109,12 +109,14 @@ const Wrapper: FC<WrapperProps> = ({ children, buttons }) => {
                 </View>
               )}
             </View>
-            {/* <Text fontSize={isTab ? 24 : 20} weight="medium">
-              {title}
-            </Text>
+            {title && (
+              <Text fontSize={isTab ? 24 : 20} weight="medium">
+                {title}
+              </Text>
+            )}
             <View style={[styles.headerSideContainer, { alignItems: 'flex-end' }]}>
               <AmbireLogoHorizontalWithOG />
-            </View> */}
+            </View>
           </View>
         </Header>
       }

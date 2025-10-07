@@ -157,7 +157,7 @@ function TransferScreen() {
     navigate(ROUTES.pp1Home)
   }, [navigate])
 
-  // const headerTitle = t('Deposit')
+  const headerTitle = t('Deposit')
   const formTitle = t('Deposit')
 
   const buttons = useMemo(() => {
@@ -217,7 +217,7 @@ function TransferScreen() {
   }
 
   return (
-    <Wrapper buttons={buttons}>
+    <Wrapper title={headerTitle} buttons={buttons}>
       <Content buttons={buttons}>
         <Form>
           <DepositForm
