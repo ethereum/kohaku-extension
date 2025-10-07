@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useEffect, useMemo, useState } from 'react'
+import React, { FC, useCallback, useEffect, useState } from 'react'
 import { Animated, Pressable, View } from 'react-native'
 
 import formatDecimals from '@ambire-common/utils/formatDecimals/formatDecimals'
@@ -20,6 +20,7 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useHover, { AnimatedPressable } from '@web/hooks/useHover'
 import useMainControllerState from '@web/hooks/useMainControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
+import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 
 import BalanceAffectingErrors from './BalanceAffectingErrors'
 import RefreshIcon from './RefreshIcon'
@@ -46,7 +47,6 @@ interface Props {
 const BALANCE_HEIGHT = 34
 
 const DashboardOverview: FC<Props> = ({
-  openReceiveModal,
   animatedOverviewHeight,
   dashboardOverviewSize,
   setDashboardOverviewSize,
@@ -57,6 +57,8 @@ const DashboardOverview: FC<Props> = ({
   const { theme, styles, themeType } = useTheme(getStyles)
   const { isOffline } = useMainControllerState()
   const { account, dashboardNetworkFilter, portfolio } = useSelectedAccountControllerState()
+  const { isLoading, isAccountLoaded, totalPrivatePortfolio, ethPrivateBalance } =
+    usePrivacyPoolsForm()
 
   const [bindRefreshButtonAnim, refreshButtonAnimStyle] = useHover({
     preset: 'opacity'
@@ -71,16 +73,8 @@ const DashboardOverview: FC<Props> = ({
     networksWithErrors
   } = useBalanceAffectingErrors()
 
-  const totalPortfolioAmount = useMemo(() => {
-    if (!dashboardNetworkFilter) return portfolio?.totalBalance || 0
-
-    if (!account) return 0
-
-    return Number(portfolio.balancePerNetwork[dashboardNetworkFilter.toString()]) || 0
-  }, [portfolio, dashboardNetworkFilter, account])
-
-  const [totalPortfolioAmountInteger, totalPortfolioAmountDecimal] = formatDecimals(
-    totalPortfolioAmount,
+  const [totalPrivatePortfolioInteger, totalPrivatePortfolioDecimal] = formatDecimals(
+    totalPrivatePortfolio,
     'value'
   ).split('.')
 
@@ -163,7 +157,7 @@ const DashboardOverview: FC<Props> = ({
             >
               <View>
                 <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mbTy]}>
-                  {!portfolio?.isAllReady ? (
+                  {isLoading || !isAccountLoaded ? (
                     <SkeletonLoader
                       lowOpacity
                       width={200}
@@ -193,9 +187,9 @@ const DashboardOverview: FC<Props> = ({
                               : theme.primaryBackground
                           }
                           selectable
-                          testID="total-portfolio-amount-integer"
+                          testID="total-portfolio-amount-eth"
                         >
-                          {totalPortfolioAmountInteger}
+                          {ethPrivateBalance} ETH
                         </Text>
                         <Text
                           fontSize={20}
@@ -210,8 +204,10 @@ const DashboardOverview: FC<Props> = ({
                           }
                           selectable
                         >
+                          {' '}
+                          ({totalPrivatePortfolioInteger}
                           {t('.')}
-                          {totalPortfolioAmountDecimal}
+                          {totalPrivatePortfolioDecimal})
                         </Text>
                       </Text>
                     </Pressable>
@@ -237,21 +233,11 @@ const DashboardOverview: FC<Props> = ({
                 </View>
 
                 <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-                  <Text
-                    fontSize={16}
-                    shouldScale={false}
-                    weight="number_bold"
-                    color={
-                      networksWithErrors.length || isOffline
-                        ? theme.warningDecorative2
-                        : themeType === THEME_TYPES.DARK
-                        ? theme.primaryBackgroundInverted
-                        : theme.primaryBackground
-                    }
-                    selectable
-                  >
-                    Privacy Pools v1
-                  </Text>
+                  <View style={styles.contentContainer}>
+                    <Text fontSize={14} shouldScale={false} weight="medium" color="white">
+                      Privacy Pools
+                    </Text>
+                  </View>
                   <BalanceAffectingErrors
                     reloadAccount={reloadAccount}
                     networksWithErrors={networksWithErrors}
@@ -264,7 +250,7 @@ const DashboardOverview: FC<Props> = ({
                   />
                 </View>
               </View>
-              <Routes openReceiveModal={openReceiveModal} />
+              <Routes />
             </Animated.View>
           </View>
         </Animated.View>
