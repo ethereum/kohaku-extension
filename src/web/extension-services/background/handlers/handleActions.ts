@@ -421,15 +421,17 @@ export const handleActions = async (
     case 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN':
       return mainCtrl.privacyPools.unloadScreen()
     case 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE':
-      return mainCtrl?.privacyPools?.signAccountOpController?.update(params)
+      return mainCtrl.privacyPools?.signAccountOpController?.update(params)
     case 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS':
-      return mainCtrl?.privacyPools?.signAccountOpController?.updateStatus(params.status)
+      return mainCtrl.privacyPools?.signAccountOpController?.updateStatus(params.status)
     case 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED':
-      return mainCtrl?.privacyPools.setUserProceeded(params.proceeded)
+      return mainCtrl.privacyPools.setUserProceeded(params.proceeded)
+    case 'PRIVACY_POOLS_CONTROLLER_RESET_FORM':
+      return mainCtrl.privacyPools.resetForm()
     case 'PRIVACY_POOLS_CONTROLLER_DESTROY_SIGN_ACCOUNT_OP':
-      return mainCtrl?.privacyPools.destroySignAccountOp()
+      return mainCtrl.privacyPools.destroySignAccountOp()
     case 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP':
-      return mainCtrl?.privacyPools.destroyLatestBroadcastedAccountOp()
+      return mainCtrl.privacyPools.destroyLatestBroadcastedAccountOp()
     case 'PRIVACY_POOLS_CONTROLLER_SYNC_SIGN_ACCOUNT_OP':
       return mainCtrl.privacyPools.syncSignAccountOp(params.calls)
     case 'PRIVACY_POOLS_CONTROLLER_GENERATE_KEYS':

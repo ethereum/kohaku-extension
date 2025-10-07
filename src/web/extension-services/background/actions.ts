@@ -791,22 +791,26 @@ type PrivacyControllerDestroyLatestBroadcastedAccountOpAction = {
   type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
 }
 
-type PrivacyControllerSyncSignAccountOp = {
+type PrivacyControllerSyncSignAccountOpAction = {
   type: 'PRIVACY_POOLS_CONTROLLER_SYNC_SIGN_ACCOUNT_OP'
   params: {
     calls: Call[]
   }
 }
 
-type PrivacyControllerGenerateKeys = {
+type PrivacyControllerGenerateKeysAction = {
   type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_KEYS'
 }
 
-type PrivacyControllerGenerateSecret = {
+type PrivacyControllerGenerateSecretAction = {
   type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_SECRET'
   params: {
     appInfo: string
   }
+}
+
+type PrivacyControllerResetFormAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
 }
 
 export type Action =
@@ -955,6 +959,7 @@ export type Action =
   | PrivacyControllerHasUserProceededAction
   | PrivacyControllerDestroySignAccountOpAction
   | PrivacyControllerDestroyLatestBroadcastedAccountOpAction
-  | PrivacyControllerSyncSignAccountOp
-  | PrivacyControllerGenerateKeys
-  | PrivacyControllerGenerateSecret
+  | PrivacyControllerSyncSignAccountOpAction
+  | PrivacyControllerGenerateKeysAction
+  | PrivacyControllerGenerateSecretAction
+  | PrivacyControllerResetFormAction
