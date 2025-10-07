@@ -36,13 +36,14 @@ const usePrivacyPoolsForm = () => {
     poolAccounts,
     hasProceeded,
     depositAmount,
-    targetAddress,
     accountService,
     withdrawalAmount,
     selectedPoolAccount,
     signAccountOpController,
     latestBroadcastedAccountOp,
     isAccountLoaded,
+    recipientAddress,
+    addressState,
     getContext,
     loadAccount,
     getMerkleProof,
@@ -450,7 +451,14 @@ const usePrivacyPoolsForm = () => {
     }
   }
 
-  const handleWithdrawal = async (poolAccount: PoolAccount) => {
+  const handleWithdrawal = async (/* poolAccount: PoolAccount, targetAddress: string */) => {
+    // TODO: fix this later, just a mock
+    const poolAccount = poolAccounts?.find((account) => account.reviewStatus === 'approved')
+
+    if (!poolAccount) return
+
+    const targetAddress = recipientAddress
+
     const { error, isValid } = validateWithdrawal(poolAccount, withdrawalAmount, targetAddress)
 
     if (
@@ -479,7 +487,7 @@ const usePrivacyPoolsForm = () => {
 
     const withdrawalParams: WithdrawalParams = {
       commitment,
-      amount: formatEther(BigInt(withdrawalAmount)),
+      amount: withdrawalAmount,
       decimals,
       target,
       relayerAddress,
@@ -493,7 +501,8 @@ const usePrivacyPoolsForm = () => {
 
     const result = await executeWithdrawalTransaction(withdrawalParams)
 
-    handlePrivateRequest('privateWithdrawRequest', [result])
+    await syncSignAccountOp([result])
+    openEstimationModalAndDispatch()
   }
 
   return {
@@ -505,7 +514,6 @@ const usePrivacyPoolsForm = () => {
     hasProceeded,
     isGenerating,
     depositAmount,
-    targetAddress,
     accountService,
     withdrawalAmount,
     isLoadingAccount,
