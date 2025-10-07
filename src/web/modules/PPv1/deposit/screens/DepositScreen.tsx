@@ -9,7 +9,6 @@ import BackButton from '@common/components/BackButton'
 import Text from '@common/components/Text'
 import useNavigation from '@common/hooks/useNavigation'
 import { ROUTES } from '@common/modules/router/constants/common'
-import { Content, Form, Wrapper } from '@web/components/TransactionsScreen'
 import useActivityControllerState from '@web/hooks/useActivityControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import Estimation from '@web/modules/sign-account-op/components/OneClick/Estimation'
@@ -22,8 +21,11 @@ import DepositForm from '@web/modules/PPv1/deposit/components/DepositForm/Deposi
 import Buttons from '@web/modules/PPv1/deposit/components/Buttons'
 import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import { getUiType } from '@web/utils/uiType'
+import flexbox from '@common/styles/utils/flexbox'
+import { View } from 'react-native'
+import { Content, Form, Wrapper } from '../components/TransactionsScreen'
 
-const { isTab, isActionWindow } = getUiType()
+const { isActionWindow } = getUiType()
 
 function TransferScreen() {
   const { dispatch } = useBackgroundService()
@@ -155,13 +157,13 @@ function TransferScreen() {
     navigate(ROUTES.pp1Home)
   }, [navigate])
 
-  const headerTitle = t('Deposit')
+  // const headerTitle = t('Deposit')
   const formTitle = t('Deposit')
 
   const buttons = useMemo(() => {
     return (
-      <>
-        {isTab && <BackButton onPress={onBack} />}
+      <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
+        <BackButton onPress={onBack} />
         <Buttons
           handleSubmitForm={handleDeposit}
           proceedBtnText={t('Deposit')}
@@ -169,13 +171,9 @@ function TransferScreen() {
           signAccountOpErrors={[]}
           networkUserRequests={[]}
         />
-      </>
+      </View>
     )
   }, [onBack, handleDeposit, isTransferFormValid, t])
-
-  const handleGoBackPress = useCallback(() => {
-    navigate(ROUTES.pp1Home)
-  }, [navigate])
 
   if (displayedView === 'track') {
     return (
@@ -219,7 +217,7 @@ function TransferScreen() {
   }
 
   return (
-    <Wrapper title={headerTitle} handleGoBack={handleGoBackPress} buttons={buttons}>
+    <Wrapper buttons={buttons}>
       <Content buttons={buttons}>
         <Form>
           <DepositForm
