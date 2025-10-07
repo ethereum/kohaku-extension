@@ -3,12 +3,15 @@ import { View } from 'react-native'
 
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
 import Text from '@common/components/Text'
+import TokenIcon from '@common/components/TokenIcon'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
+import flexbox from '@common/styles/utils/flexbox'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import { formatEther, parseEther, zeroAddress } from 'viem'
 import { PoolInfo } from '@ambire-common/controllers/privacyPools/config'
 import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
+import PrivacyIcon from '@common/assets/svg/PrivacyIcon'
 import SendToken from '../SendToken'
 import styles from './styles'
 
@@ -96,6 +99,19 @@ const DepositForm = ({
     )
   }
 
+  const ethTokenIcon = (
+    <TokenIcon
+      key="eth-sepolia"
+      containerHeight={30}
+      containerWidth={30}
+      networkSize={12}
+      withContainer
+      withNetworkIcon
+      address={zeroAddress}
+      chainId={11155111n}
+    />
+  )
+
   return (
     <ScrollableWrapper contentContainerStyle={styles.container}>
       <SendToken
@@ -103,13 +119,13 @@ const DepositForm = ({
           {
             label: `ETH (${ethBalance ? formatEther(ethBalance) : '0'})`,
             value: 'eth',
-            leftIcon: 'ETH'
+            icon: ethTokenIcon
           }
         ]}
         fromTokenValue={{
           label: `ETH (${ethBalance ? formatEther(ethBalance) : '0'})`,
           value: 'eth',
-          leftIcon: 'ETH'
+          icon: ethTokenIcon
         }}
         fromAmountValue={displayAmount}
         fromTokenAmountSelectDisabled={false}
@@ -127,6 +143,40 @@ const DepositForm = ({
         title={formTitle}
         maxAmountDisabled={!ethBalance || ethBalance === 0n}
       />
+
+      <View style={spacings.mbLg}>
+        <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
+          <Text appearance="secondaryText" fontSize={14} weight="light">
+            {t('Provider')}
+          </Text>
+          <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+            <PrivacyIcon width={20} height={20} />
+            <Text fontSize={14} weight="light" style={spacings.mlMi}>
+              {t('Privacy Pools')}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={spacings.mbLg}>
+        <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
+          <Text appearance="secondaryText" fontSize={14} weight="light">
+            {t('Vetting fee')}
+          </Text>
+          <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+            <TokenIcon
+              chainId={11155111n}
+              address={zeroAddress}
+              width={20}
+              height={20}
+              withNetworkIcon={false}
+            />
+            <Text fontSize={14} weight="light" style={spacings.mlMi}>
+              0.001 ETH
+            </Text>
+          </View>
+        </View>
+      </View>
     </ScrollableWrapper>
   )
 }
