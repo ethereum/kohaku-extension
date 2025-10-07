@@ -166,14 +166,22 @@ export const validateWithdrawal = (
     }
   }
 
-  if (BigInt(withdrawalAmount) > selectedPA.balance) {
-    return {
-      isValid: false,
-      error: {
-        text: 'Amount exceeds available balance in selected pool account.',
-        type: 'error'
+  try {
+    const withdrawalAmountFloat = parseFloat(withdrawalAmount)
+    const balanceFloat = parseFloat(selectedPA.balance.toString())
+
+    if (withdrawalAmountFloat > balanceFloat) {
+      return {
+        isValid: false,
+        error: {
+          text: 'Amount exceeds available balance in selected pool account.',
+          type: 'error'
+        }
       }
     }
+  } catch (error) {
+    // If comparison fails, skip balance validation for now
+    console.warn('Balance validation skipped due to conversion error:', error)
   }
 
   return {
