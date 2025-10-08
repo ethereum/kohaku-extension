@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
-import { Address, encodeFunctionData, getAddress, parseUnits } from 'viem'
+import { Address, encodeFunctionData, formatEther, getAddress, parseUnits } from 'viem'
 import { english, generateMnemonic } from 'viem/accounts'
 import { Hash, Withdrawal, WithdrawalProof } from '@0xbow/privacy-pools-core-sdk'
 import { Call } from '@ambire-common/libs/accountOp/types'
