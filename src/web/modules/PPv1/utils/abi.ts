@@ -411,6 +411,75 @@ export const privacyPoolAbi = [
   { type: 'error', name: 'ZeroAddress', inputs: [] }
 ] as const
 
+export const entrypointAbiBatch = [
+  {
+    inputs: [{ internalType: 'uint256', name: '_maxRelayFeeBPS', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+    type: 'constructor'
+  },
+  { inputs: [], name: 'EmptyProofs', type: 'error' },
+  { inputs: [], name: 'InvalidBatchSize', type: 'error' },
+  { inputs: [], name: 'InvalidRelayFeeBPS', type: 'error' },
+  { inputs: [], name: 'InvalidTotalValue', type: 'error' },
+  { inputs: [], name: 'NativeAssetTransferFailed', type: 'error' },
+  { inputs: [], name: 'ReentrancyGuardReentrantCall', type: 'error' },
+  {
+    inputs: [{ internalType: 'address', name: 'token', type: 'address' }],
+    name: 'SafeERC20FailedOperation',
+    type: 'error'
+  },
+  { inputs: [], name: 'ZeroAddress', type: 'error' },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'contract IPrivacyPool', name: '_pool', type: 'address' },
+      { indexed: true, internalType: 'address', name: '_recipient', type: 'address' },
+      { indexed: true, internalType: 'address', name: '_feeRecipient', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: '_amountAfterFees', type: 'uint256' },
+      { indexed: false, internalType: 'uint256', name: '_fee', type: 'uint256' }
+    ],
+    name: 'BatchRelayed',
+    type: 'event'
+  },
+  {
+    inputs: [],
+    name: 'MAX_RELAY_FEE_BPS',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function'
+  },
+  {
+    inputs: [
+      { internalType: 'contract IPrivacyPool', name: '_pool', type: 'address' },
+      {
+        components: [
+          { internalType: 'address', name: 'processooor', type: 'address' },
+          { internalType: 'bytes', name: 'data', type: 'bytes' }
+        ],
+        internalType: 'struct IPrivacyPool.Withdrawal',
+        name: '_withdrawal',
+        type: 'tuple'
+      },
+      {
+        components: [
+          { internalType: 'uint256[2]', name: 'pA', type: 'uint256[2]' },
+          { internalType: 'uint256[2][2]', name: 'pB', type: 'uint256[2][2]' },
+          { internalType: 'uint256[2]', name: 'pC', type: 'uint256[2]' },
+          { internalType: 'uint256[8]', name: 'pubSignals', type: 'uint256[8]' }
+        ],
+        internalType: 'struct ProofLib.WithdrawProof[]',
+        name: '_proofs',
+        type: 'tuple[]'
+      }
+    ],
+    name: 'batchRelay',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  { stateMutability: 'payable', type: 'receive' }
+]
+
 export const entrypointAbi = [
   { type: 'constructor', inputs: [], stateMutability: 'nonpayable' },
   { type: 'receive', stateMutability: 'payable' },
