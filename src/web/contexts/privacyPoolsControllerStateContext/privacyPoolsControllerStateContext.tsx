@@ -30,18 +30,17 @@ import {
   PoolAccount as SDKPoolAccount
 } from '@0xbow/privacy-pools-core-sdk'
 
-import { TokenResult } from '@ambire-common/libs/portfolio'
 import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
 import { sortPortfolioTokenList } from '@ambire-common/libs/swapAndBridge/swapAndBridge'
+import { AddressState } from '@ambire-common/interfaces/domains'
 import useDeepMemo from '@common/hooks/useDeepMemo'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useControllerState from '@web/hooks/useControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
-import { getPoolAccountsFromAccount, processDeposits } from '@web/modules/PPv1-old/utils/sdk'
+import { getPoolAccountsFromAccount, processDeposits } from '@web/modules/PPv1/utils/sdk'
 import type { PrivacyPoolsController } from '@ambire-common/controllers/privacyPools/privacyPools'
-import { aspClient, MtLeavesResponse, MtRootResponse } from '@web/modules/PPv1-old/utils/aspClient'
-import { AddressState } from '@ambire-common/interfaces/domains'
+import { aspClient, MtLeavesResponse, MtRootResponse } from '@web/modules/PPv1/utils/aspClient'
 
 export enum ReviewStatus {
   PENDING = 'pending',
