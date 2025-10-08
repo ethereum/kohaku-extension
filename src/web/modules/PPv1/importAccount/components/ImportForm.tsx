@@ -2,9 +2,9 @@ import React, { FC, useCallback } from 'react'
 import { View } from 'react-native'
 
 import Button from '@common/components/Button'
-import Input from '@common/components/Input'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
+import TextArea from '@common/components/TextArea'
 import usePrivacyPoolsForm from '../../hooks/usePrivacyPoolsForm'
 
 type Props = {
@@ -24,10 +24,13 @@ const ImportForm: FC<Props> = ({ handleImportSecretNote }) => {
 
   return (
     <View>
-      <Input
+      <TextArea
         onChangeText={onInputChange}
-        label={t('Privacy Pool Account Mnemonic')}
-        placeholder={t('Enter your 12 mnemonic phrase')}
+        label={t('')}
+        placeholder={t('Write or paste your Privacy Pool recovery phrase')}
+        multiline
+        numberOfLines={4}
+        style={{ minHeight: 80 }}
         value={seedPhrase}
         inputStyle={spacings.mbSm}
         containerStyle={spacings.mbXl}

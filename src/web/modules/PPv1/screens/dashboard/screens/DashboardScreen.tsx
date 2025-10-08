@@ -14,6 +14,7 @@ import { getUiType } from '@web/utils/uiType'
 import DAppFooter from '../components/DAppFooter'
 import DashboardOverview from '../components/DashboardOverview'
 import DashboardPages from '../components/DashboardPages'
+import PendingBanner from '../components/PendingBanner'
 import getStyles from './styles'
 
 const { isPopup } = getUiType()
@@ -84,6 +85,7 @@ const DashboardScreen = () => {
             onGasTankButtonPosition={() => {}}
           />
           <DashboardPages onScroll={onScroll} animatedOverviewHeight={animatedOverviewHeight} />
+          <PendingBanner />
         </View>
         <DAppFooter />
       </View>
