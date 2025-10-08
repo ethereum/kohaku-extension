@@ -64,7 +64,7 @@ const SendToken: FC<Props> = ({
 
   return (
     <View style={spacings.mbLg}>
-      <Text appearance="secondaryText" fontSize={16} weight="medium" style={spacings.mbTy}>
+      <Text appearance="secondaryText" fontSize={14} weight="light" style={spacings.mbTy}>
         {heading}
       </Text>
       <View

@@ -9,7 +9,6 @@ import BackButton from '@common/components/BackButton'
 import Text from '@common/components/Text'
 import useNavigation from '@common/hooks/useNavigation'
 import { ROUTES } from '@common/modules/router/constants/common'
-import { Content, Form, Wrapper } from '@web/components/TransactionsScreen'
 import useActivityControllerState from '@web/hooks/useActivityControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import Estimation from '@web/modules/sign-account-op/components/OneClick/Estimation'
@@ -22,8 +21,11 @@ import RagequitForm from '@web/modules/PPv1/ragequit/components/RagequitForm'
 import Buttons from '@web/modules/PPv1/ragequit/components/Buttons'
 import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import { getUiType } from '@web/utils/uiType'
+import { View } from 'react-native'
+import flexbox from '@common/styles/utils/flexbox'
+import { Content, Form, Wrapper } from '../../deposit/components/TransactionsScreen'
 
-const { isTab, isActionWindow } = getUiType()
+const { isActionWindow } = getUiType()
 
 function RagequitScreen() {
   const { dispatch } = useBackgroundService()
@@ -156,39 +158,23 @@ function RagequitScreen() {
     navigate(ROUTES.pp1Home)
   }, [navigate])
 
-  const headerTitle = t('Ragequit')
-  const formTitle = t('Exit Pool')
+  const headerTitle = t('Withdraw')
 
   const buttons = useMemo(() => {
     return (
-      <>
-        {isTab && <BackButton onPress={onBack} />}
+      <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
+        <BackButton onPress={onBack} />
         <Buttons
           handleSubmitForm={handleMultipleRagequit}
-          proceedBtnText={
-            ragequitableAccounts.length > 1
-              ? t('Ragequit ({{count}})', { count: ragequitableAccounts.length })
-              : t('Ragequit')
-          }
+          proceedBtnText={t('Withdraw All')}
           isNotReadyToProceed={!isRagequitFormValid}
           isLoading={isLoading}
           signAccountOpErrors={[]}
           networkUserRequests={[]}
         />
-      </>
+      </View>
     )
-  }, [
-    onBack,
-    handleMultipleRagequit,
-    isRagequitFormValid,
-    isLoading,
-    ragequitableAccounts.length,
-    t
-  ])
-
-  const handleGoBackPress = useCallback(() => {
-    navigate(ROUTES.pp1Home)
-  }, [navigate])
+  }, [onBack, handleMultipleRagequit, isRagequitFormValid, isLoading, t])
 
   if (displayedView === 'track') {
     return (
@@ -232,14 +218,13 @@ function RagequitScreen() {
   }
 
   return (
-    <Wrapper title={headerTitle} handleGoBack={handleGoBackPress} buttons={buttons}>
+    <Wrapper title={headerTitle} buttons={buttons}>
       <Content buttons={buttons}>
         <Form>
           <RagequitForm
             poolInfo={poolInfo}
             totalPendingBalance={totalPendingBalance}
             totalDeclinedBalance={totalDeclinedBalance}
-            formTitle={formTitle}
           />
         </Form>
       </Content>

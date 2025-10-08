@@ -55,14 +55,16 @@ const usePrivacyPoolsForm = () => {
   } = usePrivacyPoolsControllerState()
   const { getData, storeData, decrypt, encrypt } = usePOC()
 
-  const { account: userAccount } = useSelectedAccountControllerState()
-
+  const { account: userAccount, portfolio } = useSelectedAccountControllerState()
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isLoadingSeedPhrase, setIsLoadingSeedPhrase] = useState(false)
   const [isLoadingAccount, setIsLoadingAccount] = useState(false)
   const [ragequitLoading, setRagequitLoading] = useState<Record<string, boolean>>({})
   const [showAddedToBatch] = useState(false)
+  const ethPrice = portfolio.tokens
+    .find((token) => token.chainId === 11155111n && token.name === 'Ether')
+    ?.priceIn.find((price) => price.baseCurrency === 'usd')?.price
 
   const poolInfo = chainData?.[11155111]?.poolInfo?.[0]
 
@@ -87,6 +89,16 @@ const usePrivacyPoolsForm = () => {
     const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
     return { total, accounts }
   }, [poolAccounts])
+
+  const totalPrivatePortfolio = useMemo(() => {
+    // Use totalApprovedBalance from Privacy Pools
+    const ethAmount = Number(formatEther(totalApprovedBalance.total))
+    return ethAmount * (ethPrice || 0)
+  }, [totalApprovedBalance, ethPrice])
+
+  const ethPrivateBalance = useMemo(() => {
+    return formatEther(totalApprovedBalance.total)
+  }, [totalApprovedBalance])
 
   const {
     ref: estimationModalRef,
@@ -505,6 +517,7 @@ const usePrivacyPoolsForm = () => {
   }
 
   return {
+    ethPrice,
     message,
     poolInfo,
     chainData,
@@ -526,6 +539,8 @@ const usePrivacyPoolsForm = () => {
     totalApprovedBalance,
     totalPendingBalance,
     totalDeclinedBalance,
+    totalPrivatePortfolio,
+    ethPrivateBalance,
     handleDeposit,
     handleRagequit,
     handleMultipleRagequit,

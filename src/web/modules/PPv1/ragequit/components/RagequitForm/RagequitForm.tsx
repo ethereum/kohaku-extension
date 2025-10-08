@@ -1,42 +1,27 @@
-import React, { ReactNode } from 'react'
+import React from 'react'
 import { View } from 'react-native'
 
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
 import Text from '@common/components/Text'
 import Panel from '@common/components/Panel'
+import TokenIcon from '@common/components/TokenIcon'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
-import { formatEther } from 'viem'
+import { formatEther, zeroAddress } from 'viem'
 import { PoolInfo } from '@ambire-common/controllers/privacyPools/config'
 import { PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
+import ErrorIcon from '@common/assets/svg/ErrorIcon'
 import styles from './styles'
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'approved':
-      return '#28a745'
-    case 'declined':
-      return '#dc3545'
-    case 'exited':
-      return '#ffc107'
-    case 'spent':
-      return '#6c757d'
-    default:
-      return '#007bff'
-  }
-}
 
 function RagequitForm({
   poolInfo,
   totalPendingBalance,
-  totalDeclinedBalance,
-  formTitle
+  totalDeclinedBalance
 }: {
   poolInfo?: PoolInfo
   totalPendingBalance: { total: bigint; accounts: PoolAccount[] }
   totalDeclinedBalance: { total: bigint; accounts: PoolAccount[] }
-  formTitle: string | ReactNode
 }) {
   const { t } = useTranslation()
 
@@ -63,9 +48,6 @@ function RagequitForm({
     return (
       <ScrollableWrapper contentContainerStyle={styles.container}>
         <View style={spacings.mbLg}>
-          <Text appearance="secondaryText" fontSize={16} weight="medium" style={spacings.mbTy}>
-            {formTitle}
-          </Text>
           <Panel style={spacings.mtLg}>
             <Text appearance="secondaryText" fontSize={14} weight="regular">
               {t(
@@ -78,90 +60,123 @@ function RagequitForm({
     )
   }
 
+  // TODO: Mock price data - in production this should come from API
+  const ethPrice = 4700
+  const totalUsdValue = Number(formatEther(totalAmount)) * ethPrice
+
   return (
     <ScrollableWrapper contentContainerStyle={styles.container}>
-      <View style={spacings.mbLg}>
-        <Text appearance="secondaryText" fontSize={16} weight="medium" style={spacings.mbTy}>
-          {formTitle}
-        </Text>
-
-        <Panel style={spacings.mtLg}>
-          <View style={[flexbox.directionRow, flexbox.justifySpaceBetween, spacings.mbLg]}>
-            <Text weight="semiBold" fontSize={16}>
-              {t('Total to Ragequit')}
-            </Text>
-            <Text weight="semiBold" fontSize={16} appearance="successText">
-              {formatEther(totalAmount)} ETH
-            </Text>
+      {/* Rejected Status Banner */}
+      <View
+        style={[
+          spacings.mbLg,
+          spacings.pMd,
+          {
+            backgroundColor: '#fee',
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: '#fcc',
+            padding: 8
+          }
+        ]}
+      >
+        <View style={[flexbox.directionRow, flexbox.alignStart]}>
+          <View
+            style={[
+              {
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                backgroundColor: '#fdd',
+                marginRight: 12
+              },
+              flexbox.alignCenter,
+              flexbox.justifyCenter
+            ]}
+          >
+            <ErrorIcon width={24} height={24} color="#c33" />
           </View>
-
-          <View style={spacings.mtLg}>
-            <Text weight="medium" fontSize={14} style={spacings.mbMi}>
-              {t('Accounts to Exit')} ({ragequitableAccounts.length})
+          <View style={flexbox.flex1}>
+            <Text weight="semiBold" fontSize={16} style={spacings.mbMi}>
+              {t('Rejected')}
             </Text>
-
-            {ragequitableAccounts.map((account, index) => (
-              <Panel
-                // eslint-disable-next-line react/no-array-index-key
-                key={`${account.chainId}-${account.name}-${index}`}
-                style={[
-                  spacings.mbSm,
-                  {
-                    borderLeftWidth: 3,
-                    borderLeftColor: getStatusColor(account.reviewStatus)
-                  }
-                ]}
-              >
-                <View
-                  style={[
-                    flexbox.directionRow,
-                    flexbox.justifySpaceBetween,
-                    flexbox.alignCenter,
-                    spacings.mbSm
-                  ]}
-                >
-                  <Text weight="medium" fontSize={14}>
-                    Account #{account.name}
-                  </Text>
-                  <Text weight="medium" fontSize={14}>
-                    {formatEther(account.balance)} ETH
-                  </Text>
-                </View>
-
-                <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-                  <Text appearance="secondaryText" fontSize={12} weight="medium">
-                    Status:
-                  </Text>
-                  <Text
-                    style={{
-                      backgroundColor: getStatusColor(account.reviewStatus),
-                      color: 'white',
-                      paddingHorizontal: 6,
-                      paddingVertical: 2,
-                      borderRadius: 4,
-                      fontSize: 10,
-                      fontWeight: '500',
-                      textTransform: 'uppercase',
-                      marginLeft: 4
-                    }}
-                  >
-                    {account.reviewStatus}
-                  </Text>
-                </View>
-              </Panel>
-            ))}
-          </View>
-
-          <Panel style={[spacings.mtLg, { backgroundColor: '#fff3cd' }]}>
-            <Text fontSize={12} appearance="secondaryText">
-              ⚠️{' '}
+            <Text appearance="secondaryText" fontSize={14} weight="regular">
               {t(
-                'Ragequitting will exit these accounts from the pool and make your funds withdrawable. This action creates {{count}} transaction(s).',
-                { count: ragequitableAccounts.length }
+                'Funds have been declined. By withdrawing back, funds will be publicly send back to your account.'
               )}
             </Text>
-          </Panel>
-        </Panel>
+          </View>
+        </View>
+      </View>
+
+      {/* Table Header */}
+      <View
+        style={[
+          flexbox.directionRow,
+          flexbox.justifySpaceBetween,
+          flexbox.alignCenter,
+          spacings.mbMd,
+          spacings.phMi
+        ]}
+      >
+        <View style={{ flex: 2 }}>
+          <Text appearance="secondaryText" fontSize={12} weight="semiBold">
+            {t('ASSET/AMOUNT')}
+          </Text>
+        </View>
+        <View style={{ flex: 1, alignItems: 'flex-end' }}>
+          <Text appearance="secondaryText" fontSize={12} weight="semiBold">
+            {t('PRICE')}
+          </Text>
+        </View>
+        <View style={{ flex: 1, alignItems: 'flex-end' }}>
+          <Text appearance="secondaryText" fontSize={12} weight="semiBold">
+            {t('USD VALUE')}
+          </Text>
+        </View>
+      </View>
+
+      {/* Asset Row */}
+      <View
+        style={[
+          flexbox.directionRow,
+          flexbox.justifySpaceBetween,
+          flexbox.alignCenter,
+          spacings.pMi,
+          spacings.mbLg
+        ]}
+      >
+        <View style={[flexbox.directionRow, flexbox.alignCenter, { flex: 2 }]}>
+          <TokenIcon
+            chainId={11155111n}
+            address={zeroAddress}
+            width={40}
+            height={40}
+            containerWidth={40}
+            containerHeight={40}
+            withContainer
+            withNetworkIcon
+            networkSize={14}
+          />
+          <View style={spacings.mlMi}>
+            <Text weight="medium" fontSize={16}>
+              ETH
+            </Text>
+            <Text appearance="secondaryText" fontSize={14} weight="light">
+              {formatEther(totalAmount)}
+            </Text>
+          </View>
+        </View>
+        <View style={{ flex: 1, alignItems: 'flex-end' }}>
+          <Text weight="medium" fontSize={16}>
+            ${ethPrice.toLocaleString()}
+          </Text>
+        </View>
+        <View style={{ flex: 1, alignItems: 'flex-end' }}>
+          <Text weight="medium" fontSize={16}>
+            ${totalUsdValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          </Text>
+        </View>
       </View>
     </ScrollableWrapper>
   )
