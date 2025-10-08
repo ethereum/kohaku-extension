@@ -295,8 +295,6 @@ const TransferScreen = () => {
     )
   }
 
-  console.log('DEBUG:, transfer screen SignAccountOp', signAccountOpController)
-
   return (
     <Wrapper title={headerTitle} handleGoBack={handleGoBackPress} buttons={buttons}>
       <Content buttons={buttons}>

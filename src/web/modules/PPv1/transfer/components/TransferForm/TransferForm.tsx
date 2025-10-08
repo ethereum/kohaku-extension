@@ -1,6 +1,6 @@
-import React, { ReactNode, useCallback, useMemo, useState } from 'react'
+import React, { ReactNode, useCallback, useMemo } from 'react'
 import { View } from 'react-native'
-import { formatEther, zeroAddress } from 'viem'
+import { zeroAddress } from 'viem'
 
 // import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
 import { TokenResult } from '@ambire-common/libs/portfolio'

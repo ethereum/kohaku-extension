@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
-import { Address, encodeFunctionData, formatEther, getAddress, parseUnits } from 'viem'
+import { Address, encodeFunctionData, getAddress, parseUnits } from 'viem'
 import { english, generateMnemonic } from 'viem/accounts'
 import { Hash, Withdrawal, WithdrawalProof } from '@0xbow/privacy-pools-core-sdk'
 import { Call } from '@ambire-common/libs/accountOp/types'
@@ -15,10 +15,10 @@ import {
   validateWithdrawal,
   WithdrawalParams,
   WithdrawalResult
-} from '../../PPv1-old/utils/withdrawal'
-import { transformRagequitProofForContract } from '../../PPv1-old/utils/ragequit'
-import { entrypointAbi, privacyPoolAbi } from '../../PPv1-old/utils/abi'
-import { usePOC } from '../../PPv1-old/hooks/usePOC'
+} from '../utils/withdrawal'
+import { transformRagequitProofForContract } from '../utils/ragequit'
+import { entrypointAbi, privacyPoolAbi } from '../utils/abi'
+import { usePOC } from './usePOC'
 
 type PrivateRequestType =
   | 'privateDepositRequest'
@@ -43,7 +43,6 @@ const usePrivacyPoolsForm = () => {
     latestBroadcastedAccountOp,
     isAccountLoaded,
     recipientAddress,
-    addressState,
     getContext,
     loadAccount,
     getMerkleProof,
