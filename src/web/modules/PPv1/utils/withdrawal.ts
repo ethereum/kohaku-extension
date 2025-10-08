@@ -59,6 +59,38 @@ export const prepareWithdrawRequest = (
   }
 }
 
+export const prepareMultipleWithdrawRequest = (
+  recipient: Address,
+  processooor: Address,
+  relayer: Address,
+  feeBPS: string,
+  batchSize: number,
+  totalValue: bigint
+): Withdrawal => {
+  if (
+    !isAddress(recipient) ||
+    !isAddress(processooor) ||
+    !isAddress(relayer) ||
+    isNaN(Number(feeBPS)) ||
+    isNaN(batchSize) ||
+    batchSize <= 0
+  ) {
+    throw new Error('Invalid input for prepareMultipleWithdrawRequest')
+  }
+
+  const data = encodeAbiParameters(
+    parseAbiParameters(
+      'address recipient, address feeRecipient, uint256 relayFeeBPS, uint8 batchSize, uint256 totalValue'
+    ),
+    [recipient, relayer, BigInt(feeBPS), batchSize, totalValue]
+  )
+
+  return {
+    processooor,
+    data
+  }
+}
+
 export const prepareWithdrawalProofInput = (
   commitment: AccountCommitment,
   amount: bigint,
