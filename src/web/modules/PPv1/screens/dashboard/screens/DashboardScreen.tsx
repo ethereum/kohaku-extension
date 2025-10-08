@@ -11,9 +11,13 @@ import flexbox from '@common/styles/utils/flexbox'
 import ReceiveModal from '@web/components/ReceiveModal'
 import { getUiType } from '@web/utils/uiType'
 
+import { WEB_ROUTES } from '@common/modules/router/constants/common'
+import useNavigation from '@common/hooks/useNavigation'
 import DAppFooter from '../components/DAppFooter'
 import DashboardOverview from '../components/DashboardOverview'
 import DashboardPages from '../components/DashboardPages'
+import PendingBanner from '../components/PendingBanner'
+import RejectedBanner from '../components/RejectedBanner'
 import getStyles from './styles'
 
 const { isPopup } = getUiType()
@@ -22,6 +26,7 @@ export const OVERVIEW_CONTENT_MAX_HEIGHT = 120
 
 const DashboardScreen = () => {
   const { styles } = useTheme(getStyles)
+  const { navigate } = useNavigation()
   const { ref: receiveModalRef, open: openReceiveModal, close: closeReceiveModal } = useModalize()
   const lastOffsetY = useRef(0)
   const scrollUpStartedAt = useRef(0)
@@ -31,6 +36,10 @@ const DashboardScreen = () => {
   })
   const debouncedDashboardOverviewSize = useDebounce({ value: dashboardOverviewSize, delay: 100 })
   const animatedOverviewHeight = useRef(new Animated.Value(OVERVIEW_CONTENT_MAX_HEIGHT)).current
+
+  const onWithdrawBack = useCallback(() => {
+    navigate(WEB_ROUTES.pp1Ragequit)
+  }, [navigate])
 
   const onScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -84,6 +93,8 @@ const DashboardScreen = () => {
             onGasTankButtonPosition={() => {}}
           />
           <DashboardPages onScroll={onScroll} animatedOverviewHeight={animatedOverviewHeight} />
+          <RejectedBanner onWithdrawBack={onWithdrawBack} />
+          <PendingBanner />
         </View>
         <DAppFooter />
       </View>

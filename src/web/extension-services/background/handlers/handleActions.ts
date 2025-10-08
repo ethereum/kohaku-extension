@@ -435,7 +435,7 @@ export const handleActions = async (
     case 'PRIVACY_POOLS_CONTROLLER_GENERATE_KEYS':
       return mainCtrl.privacyPools.generateKeys()
     case 'PRIVACY_POOLS_CONTROLLER_GENERATE_SECRET':
-      return mainCtrl.privacyPools.generateSecret(params.appIndo)
+      return mainCtrl.privacyPools.generateSecret(params.appInfo)
     case 'ACTIONS_CONTROLLER_REMOVE_FROM_ACTIONS_QUEUE':
       return mainCtrl.requests.actions.removeActions([params.id], params.shouldOpenNextAction)
     case 'ACTIONS_CONTROLLER_FOCUS_ACTION_WINDOW':
