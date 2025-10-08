@@ -34,7 +34,7 @@ const { isTab, isActionWindow } = getUiType()
 
 const TransferScreen = () => {
   const { dispatch } = useBackgroundService()
-  const { handleUpdateForm, handleWithdrawal } = usePrivacyPoolsForm()
+  const { totalApprovedBalance, handleUpdateForm, handleMultipleWithdrawal } = usePrivacyPoolsForm()
   const {
     validationFormMsgs,
     addressState,
@@ -49,8 +49,7 @@ const TransferScreen = () => {
     programmaticUpdateCounter,
     isRecipientAddressUnknownAgreed,
     signAccountOpController,
-    maxAmount,
-    tokens
+    maxAmount
   } = usePrivacyPoolsControllerState()
 
   const { navigate } = useNavigation()
@@ -238,7 +237,7 @@ const TransferScreen = () => {
       <>
         {isTab && <BackButton onPress={onBack} />}
         <Buttons
-          handleSubmitForm={handleWithdrawal}
+          handleSubmitForm={handleMultipleWithdrawal}
           proceedBtnText={t('Send')}
           isNotReadyToProceed={!isTransferFormValid}
           signAccountOpErrors={[]}
@@ -246,7 +245,7 @@ const TransferScreen = () => {
         />
       </>
     )
-  }, [onBack, handleWithdrawal, isTransferFormValid, t])
+  }, [onBack, handleMultipleWithdrawal, isTransferFormValid, t])
 
   const handleGoBackPress = useCallback(() => {
     navigate(ROUTES.pp1Home)
@@ -309,7 +308,6 @@ const TransferScreen = () => {
             addressStateFieldValue={addressStateFieldValue}
             setAddressStateFieldValue={setAddressStateFieldValue}
             handleUpdateForm={handleUpdateForm}
-            tokens={tokens || []}
             selectedToken={selectedToken}
             maxAmount={maxAmount || '0'}
             amountFieldMode={amountFieldMode}
@@ -317,6 +315,7 @@ const TransferScreen = () => {
             isRecipientAddressUnknownAgreed={isRecipientAddressUnknownAgreed || false}
             addressState={addressState}
             controllerAmount={withdrawalAmount}
+            totalApprovedBalance={totalApprovedBalance}
           />
         </Form>
       </Content>

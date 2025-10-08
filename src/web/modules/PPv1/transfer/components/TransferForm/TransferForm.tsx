@@ -1,9 +1,10 @@
-import React, { ReactNode, useCallback, useMemo } from 'react'
+import React, { ReactNode, useCallback, useEffect, useMemo } from 'react'
 import { View } from 'react-native'
-import { zeroAddress } from 'viem'
+import { formatEther, parseEther, zeroAddress } from 'viem'
 
 // import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
 import { TokenResult } from '@ambire-common/libs/portfolio'
+import TokenIcon from '@common/components/TokenIcon'
 import Recipient from '@common/components/Recipient'
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
 import SkeletonLoader from '@common/components/SkeletonLoader'
@@ -15,7 +16,8 @@ import spacings from '@common/styles/spacings'
 
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
-import { getTokenId } from '@web/utils/token'
+import { PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
+// import { getTokenId } from '@web/utils/token'
 
 import SendToken from '../SendToken'
 import styles from './styles'
@@ -30,14 +32,14 @@ const TransferForm = ({
   addressStateFieldValue,
   setAddressStateFieldValue,
   handleUpdateForm,
-  tokens,
   selectedToken,
   maxAmount,
   amountFieldMode,
   amountInFiat,
   isRecipientAddressUnknownAgreed,
   addressState,
-  controllerAmount
+  controllerAmount,
+  totalApprovedBalance
 }: {
   addressInputState: ReturnType<typeof useAddressInput>
   amountErrorMessage: string
@@ -48,7 +50,6 @@ const TransferForm = ({
   addressStateFieldValue: string
   setAddressStateFieldValue: (value: string) => void
   handleUpdateForm: (formValues: any) => void
-  tokens: any[]
   selectedToken: any
   maxAmount: string
   amountFieldMode: 'token' | 'fiat'
@@ -56,37 +57,35 @@ const TransferForm = ({
   isRecipientAddressUnknownAgreed: boolean
   addressState: any
   controllerAmount: string
+  totalApprovedBalance: { total: bigint; accounts: PoolAccount[] }
 }) => {
   const { validation } = addressInputState
   const { account, portfolio } = useSelectedAccountControllerState()
   const { t } = useTranslation()
-  const { networks } = useNetworksControllerState()
+  // const { networks } = useNetworksControllerState()
 
-  const {
-    value: tokenSelectValue,
-    options,
-    amountSelectDisabled
-  } = useGetTokenSelectProps({
-    tokens,
-    token: selectedToken ? getTokenId(selectedToken) : '',
-    networks,
-    isToToken: false
-  })
+  // const {
+  //   value: tokenSelectValue,
+  //   options,
+  //   amountSelectDisabled
+  // } = useGetTokenSelectProps({
+  //   tokens,
+  //   token: selectedToken ? getTokenId(selectedToken) : '',
+  //   networks,
+  //   isToToken: false
+  // })
 
-  const disableForm = !tokens.length
+  // const disableForm = !tokens.length
 
-  // const sepoliaEth = portfolio.tokens.find(
-  //   (token) => token.chainId === 11155111n && token.address === zeroAddress
-  // )
-
-  // const ethBalance = sepoliaEth ? getTokenAmount(sepoliaEth) : 0n
+  // totalApprovedBalance.total is already in wei (bigint), no need to parse
+  const ethBalance = totalApprovedBalance.total || 0n
 
   const handleChangeToken = useCallback(
     (value: string) => {
-      const tokenToSelect = tokens.find((tokenRes: TokenResult) => getTokenId(tokenRes) === value)
-      handleUpdateForm({ selectedToken: tokenToSelect, withdrawalAmount: '' })
+      // const tokenToSelect = tokens.find((tokenRes: TokenResult) => getTokenId(tokenRes) === value)
+      handleUpdateForm({ selectedToken: value })
     },
-    [tokens, handleUpdateForm]
+    [handleUpdateForm]
   )
 
   const setMaxAmount = useCallback(() => {
@@ -108,9 +107,33 @@ const TransferForm = ({
     return true
   }, [account, maxAmount, selectedToken?.address])
 
+  const ethTokenIcon = (
+    <TokenIcon
+      key="eth-sepolia"
+      containerHeight={30}
+      containerWidth={30}
+      networkSize={12}
+      withContainer
+      withNetworkIcon
+      address={zeroAddress}
+      chainId={11155111n}
+    />
+  )
+
+  // Initialize selectedToken with default ETH token if not set
+  useEffect(() => {
+    if (!selectedToken && portfolio?.isReadyToVisualize && ethBalance !== undefined) {
+      const defaultToken = portfolio?.tokens.find(
+        (token) => token.chainId === 11155111n && token.address === zeroAddress
+      )
+      console.log('DEBUG: loading default token')
+      handleUpdateForm({ selectedToken: defaultToken })
+    }
+  }, [selectedToken, portfolio?.isReadyToVisualize, ethBalance, handleUpdateForm])
+
   return (
     <ScrollableWrapper contentContainerStyle={styles.container}>
-      {!portfolio?.isReadyToVisualize || !tokens.length ? (
+      {!portfolio?.isReadyToVisualize ? (
         <View>
           <Text appearance="secondaryText" fontSize={14} weight="regular" style={spacings.mbMi}>
             {t('Loading tokens...')}
@@ -119,22 +142,22 @@ const TransferForm = ({
         </View>
       ) : (
         <SendToken
-          // fromTokenOptions={[
-          //   {
-          //     label: `ETH (${ethBalance ? formatEther(ethBalance) : '0'})`,
-          //     value: 'eth',
-          //     leftIcon: 'ETH'
-          //   }
-          // ]}
-          // fromTokenValue={{
-          //   label: `ETH (${ethBalance ? formatEther(ethBalance) : '0'})`,
-          //   value: 'eth',
-          //   leftIcon: 'ETH'
-          // }}
-          fromTokenOptions={options}
-          fromTokenValue={tokenSelectValue}
+          fromTokenOptions={[
+            {
+              label: `ETH (${ethBalance ? formatEther(ethBalance) : '0'})`,
+              value: 'eth',
+              icon: ethTokenIcon
+            }
+          ]}
+          fromTokenValue={{
+            label: `ETH (${ethBalance ? formatEther(ethBalance) : '0'})`,
+            value: 'eth',
+            icon: ethTokenIcon
+          }}
+          // fromTokenOptions={options}
+          // fromTokenValue={tokenSelectValue}
           fromAmountValue={amountFieldValue}
-          fromTokenAmountSelectDisabled={disableForm || amountSelectDisabled}
+          fromTokenAmountSelectDisabled={ethBalance === 0n}
           handleChangeFromToken={({ value }) => handleChangeToken(value as string)}
           fromSelectedToken={selectedToken}
           fromAmount={controllerAmount}
@@ -152,7 +175,7 @@ const TransferForm = ({
       )}
       <View>
         <Recipient
-          disabled={disableForm}
+          disabled={ethBalance === 0n}
           address={addressStateFieldValue}
           setAddress={setAddressStateFieldValue}
           validation={validation}
