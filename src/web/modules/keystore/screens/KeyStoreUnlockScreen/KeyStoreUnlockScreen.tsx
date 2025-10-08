@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { TouchableOpacity, View } from 'react-native'
 
@@ -46,6 +46,7 @@ const KeyStoreUnlockScreen = () => {
   const { dispatch } = useBackgroundService()
   const keystoreState = useKeystoreControllerState()
   const { height } = useElementSize(contentContainerRef)
+  const [isLoadingPrivateAccount, setIsLoadingPrivateAccount] = useState(false)
   const {
     control,
     handleSubmit,
@@ -58,7 +59,7 @@ const KeyStoreUnlockScreen = () => {
       password: isDev && !isTesting ? DEFAULT_KEYSTORE_PASSWORD_DEV ?? '' : ''
     }
   })
-  const { loadSeedPhrase } = usePrivacyPoolsForm()
+  const { loadSeedPhrase, handleLoadAccount, isAccountLoaded } = usePrivacyPoolsForm()
 
   useDisableNavigatingBack()
 
@@ -68,9 +69,25 @@ const KeyStoreUnlockScreen = () => {
     if (keystoreState.errorMessage) setError('password', { message: keystoreState.errorMessage })
   }, [keystoreState.errorMessage, setError])
 
+  const handlePrivateAccount = useCallback(async () => {
+    await loadSeedPhrase()
+    await handleLoadAccount()
+  }, [loadSeedPhrase, handleLoadAccount])
+
   useEffect(() => {
-    if (keystoreState.isUnlocked) navigate('/')
-  }, [navigate, keystoreState])
+    if (keystoreState.isUnlocked) {
+      handlePrivateAccount()
+        // eslint-disable-next-line no-console
+        .catch(console.error)
+    }
+  }, [handlePrivateAccount, keystoreState.isUnlocked, navigate])
+
+  useEffect(() => {
+    if (isAccountLoaded) {
+      setIsLoadingPrivateAccount(false)
+      navigate('/')
+    }
+  }, [isAccountLoaded, navigate])
 
   const disableSubmit = useMemo(
     () => keystoreState.statuses.unlockWithSecret !== 'INITIAL' || !!keystoreState.errorMessage,
@@ -90,16 +107,14 @@ const KeyStoreUnlockScreen = () => {
   const handleUnlock = useCallback(
     ({ password }: { password: string }) => {
       if (disableSubmit) return
+      setIsLoadingPrivateAccount(true)
 
       dispatch({
         type: 'KEYSTORE_CONTROLLER_UNLOCK_WITH_SECRET',
         params: { secretId: 'password', secret: password }
       })
-
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      loadSeedPhrase()
     },
-    [disableSubmit, dispatch, loadSeedPhrase]
+    [disableSubmit, dispatch]
   )
 
   const panelSize = useMemo(() => {
@@ -223,10 +238,10 @@ const KeyStoreUnlockScreen = () => {
             <Button
               testID="button-unlock"
               style={{ width: 342, ...spacings.mbLg }}
-              disabled={disableSubmit}
+              disabled={disableSubmit || isLoadingPrivateAccount}
               text={
-                keystoreState.statuses.unlockWithSecret === 'LOADING'
-                  ? t('Unlocking...')
+                keystoreState.statuses.unlockWithSecret === 'LOADING' || isLoadingPrivateAccount
+                  ? t('Loading Private Account...')
                   : t('Unlock')
               }
               onPress={handleSubmit((data) => handleUnlock(data))}

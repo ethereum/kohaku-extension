@@ -349,7 +349,8 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       createWithdrawalSecrets,
       getContext,
       getMerkleProof,
-      setSelectedPoolAccount
+      setSelectedPoolAccount,
+      setIsAccountLoaded
     }),
     [
       memoizedState,
@@ -368,7 +369,8 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       createWithdrawalSecrets,
       getContext,
       getMerkleProof,
-      setSelectedPoolAccount
+      setSelectedPoolAccount,
+      setIsAccountLoaded
     ]
   )
 
