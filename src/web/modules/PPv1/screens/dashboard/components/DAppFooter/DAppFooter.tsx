@@ -1,46 +1,26 @@
-import React, { useState } from 'react'
+import React, { useCallback } from 'react'
 import { View } from 'react-native'
-import { useModalize } from 'react-native-modalize'
 
 import useTheme from '@common/hooks/useTheme'
-import useDappsControllerState from '@web/hooks/useDappsControllerState'
-import DappControl from '@web/modules/dapp-catalog/components/DappControl'
-import ManageDapp from '@web/modules/dapp-catalog/components/ManageDapp'
-import { getUiType } from '@web/utils/uiType'
 
+import useNavigation from '@common/hooks/useNavigation'
+import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import getStyles from './styles'
-
-const { isPopup } = getUiType()
+import PendingBanner from '../PendingBanner'
+import RejectedBanner from '../RejectedBanner'
 
 const DAppFooter = () => {
   const { styles } = useTheme(getStyles)
-  const { currentDapp } = useDappsControllerState()
-  const { ref: sheetRef, open: openBottomSheet, close: closeBottomSheet } = useModalize()
-  const [hovered, setHovered] = useState(false)
+  const { navigate } = useNavigation()
 
-  if (!currentDapp || !isPopup) return null
+  const onWithdrawBack = useCallback(() => {
+    navigate(WEB_ROUTES.pp1Ragequit)
+  }, [navigate])
 
   return (
     <View style={styles.footerContainer}>
-      <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
-        <View style={styles.container}>
-          <DappControl
-            dapp={currentDapp}
-            isHovered={hovered}
-            inModal={false}
-            isCurrentDapp
-            openBottomSheet={openBottomSheet}
-            closeBottomSheet={closeBottomSheet}
-          />
-        </View>
-      </div>
-      <ManageDapp
-        dapp={currentDapp}
-        isCurrentDapp
-        sheetRef={sheetRef}
-        openBottomSheet={openBottomSheet}
-        closeBottomSheet={closeBottomSheet}
-      />
+      <RejectedBanner onWithdrawBack={onWithdrawBack} />
+      <PendingBanner />
     </View>
   )
 }
