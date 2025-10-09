@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
 import { Address, encodeFunctionData, formatEther, getAddress, parseUnits } from 'viem'
 import { english, generateMnemonic } from 'viem/accounts'
-import { Hash, Withdrawal, WithdrawalProof } from '@0xbow/privacy-pools-core-sdk'
+import { Hash } from '@0xbow/privacy-pools-core-sdk'
 import { Call } from '@ambire-common/libs/accountOp/types'
 import { PoolAccount, ReviewStatus } from '@web/contexts/privacyPoolsControllerStateContext'
 import useBackgroundService from '@web/hooks/useBackgroundService'
@@ -10,15 +10,13 @@ import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsController
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import {
   prepareWithdrawalProofInput,
-  prepareWithdrawRequest,
+  prepareMultipleWithdrawRequest,
   transformProofForContract,
-  validateWithdrawal,
-  WithdrawalParams,
   WithdrawalResult
-} from '../../PPv1-old/utils/withdrawal'
-import { transformRagequitProofForContract } from '../../PPv1-old/utils/ragequit'
-import { entrypointAbi, privacyPoolAbi } from '../../PPv1-old/utils/abi'
-import { usePOC } from '../../PPv1-old/hooks/usePOC'
+} from '../utils/withdrawal'
+import { transformRagequitProofForContract } from '../utils/ragequit'
+import { entrypointAbiBatch, entrypointAbi, privacyPoolAbi } from '../utils/abi'
+import { usePOC } from './usePOC'
 
 type PrivateRequestType =
   | 'privateDepositRequest'
@@ -36,13 +34,13 @@ const usePrivacyPoolsForm = () => {
     poolAccounts,
     hasProceeded,
     depositAmount,
-    targetAddress,
     accountService,
     withdrawalAmount,
     selectedPoolAccount,
     signAccountOpController,
     latestBroadcastedAccountOp,
     isAccountLoaded,
+    recipientAddress,
     getContext,
     loadAccount,
     getMerkleProof,
@@ -62,6 +60,7 @@ const usePrivacyPoolsForm = () => {
   const [isLoadingAccount, setIsLoadingAccount] = useState(false)
   const [ragequitLoading, setRagequitLoading] = useState<Record<string, boolean>>({})
   const [showAddedToBatch] = useState(false)
+
   const ethPrice = portfolio.tokens
     .find((token) => token.chainId === 11155111n && token.name === 'Ether')
     ?.priceIn.find((price) => price.baseCurrency === 'usd')?.price
@@ -329,73 +328,6 @@ const usePrivacyPoolsForm = () => {
     openEstimationModalAndDispatch
   ])
 
-  /**
-   * Generates withdrawal proof and prepares transaction data
-   */
-  const generateWithdrawalData = async ({
-    commitment,
-    amount,
-    decimals,
-    target,
-    relayerAddress,
-    feeBPSForWithdraw,
-    poolScope,
-    stateLeaves,
-    aspLeaves,
-    entrypointAddress
-  }: Omit<WithdrawalParams, 'poolAddress'>): Promise<{
-    withdrawal: Withdrawal
-    proof: WithdrawalProof
-    transformedArgs: ReturnType<typeof transformProofForContract>
-    error?: string
-  }> => {
-    try {
-      // Prepare withdrawal request
-      const withdrawal = prepareWithdrawRequest(
-        getAddress(target),
-        getAddress(entrypointAddress),
-        getAddress(relayerAddress),
-        feeBPSForWithdraw.toString()
-      )
-      // Generate merkle proofs
-      const stateMerkleProof = getMerkleProof(stateLeaves?.map(BigInt) as bigint[], commitment.hash)
-      const aspMerkleProof = getMerkleProof(aspLeaves?.map(BigInt), commitment.label)
-      // Calculate context
-      const context = getContext(withdrawal, poolScope)
-      // Create withdrawal secrets
-      const { secret, nullifier } = createWithdrawalSecrets(commitment)
-      // Workaround for NaN index, SDK issue
-      aspMerkleProof.index = Object.is(aspMerkleProof.index, NaN) ? 0 : aspMerkleProof.index
-      // Prepare withdrawal proof input
-      const withdrawalProofInput = prepareWithdrawalProofInput(
-        commitment,
-        parseUnits(amount, decimals),
-        stateMerkleProof,
-        aspMerkleProof,
-        BigInt(context),
-        secret,
-        nullifier
-      )
-      // Generate withdrawal proof
-      const proof = await generateWithdrawalProof(commitment, withdrawalProofInput)
-      // Verify the proof
-      await verifyWithdrawalProof(proof)
-      // Transform proof for contract interaction
-      const transformedArgs = transformProofForContract(proof)
-
-      return { withdrawal, proof, transformedArgs }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to generate withdrawal data'
-      return {
-        withdrawal: {} as Withdrawal,
-        proof: {} as WithdrawalProof,
-        transformedArgs: {} as ReturnType<typeof transformProofForContract>,
-        error: errorMessage
-      }
-    }
-  }
-
   const loadSeedPhrase = useCallback(async () => {
     const data = await getData()
     if (data) {
@@ -409,110 +341,153 @@ const usePrivacyPoolsForm = () => {
 
   const isLoading = isLoadingSeedPhrase || isLoadingAccount
 
-  const executeWithdrawalTransaction = async ({
-    commitment,
-    amount,
-    decimals,
-    target,
-    relayerAddress,
-    feeBPSForWithdraw,
-    poolScope,
-    stateLeaves,
-    aspLeaves,
-    userAddress,
-    entrypointAddress
-  }: WithdrawalParams): Promise<WithdrawalResult> => {
-    const { withdrawal, proof, transformedArgs, error } = await generateWithdrawalData({
-      commitment,
-      amount,
-      decimals,
-      target,
-      relayerAddress,
-      feeBPSForWithdraw,
-      poolScope,
-      stateLeaves,
-      aspLeaves,
-      userAddress,
-      entrypointAddress
-    })
-
-    if (error || !withdrawal || !proof || !transformedArgs) {
-      return {
-        to: getAddress(entrypointAddress),
-        data: '0x',
-        value: 0n
-      }
-    }
-
-    const result = encodeFunctionData({
-      abi: entrypointAbi,
-      functionName: 'relay',
-      args: [
-        {
-          processooor: getAddress(entrypointAddress),
-          data: withdrawal.data
-        },
-        {
-          pA: transformedArgs.pA,
-          pB: transformedArgs.pB,
-          pC: transformedArgs.pC,
-          pubSignals: transformedArgs.pubSignals
-        },
-        poolScope
-      ]
-    })
-
-    return {
-      to: getAddress(entrypointAddress),
-      data: result,
-      value: 0n
-    }
-  }
-
-  const handleWithdrawal = async (poolAccount: PoolAccount) => {
-    const { error, isValid } = validateWithdrawal(poolAccount, withdrawalAmount, targetAddress)
-
+  /**
+   * Handles withdrawal using multiple pool accounts
+   * This version selects at least 2 pool accounts and generates params and proofs for each
+   */
+  const handleMultipleWithdrawal = async () => {
     if (
-      !isValid ||
       !poolInfo ||
       !mtLeaves ||
       !mtRoots ||
       !accountService ||
-      !targetAddress ||
-      !withdrawalAmount ||
-      !userAccount
+      !userAccount ||
+      !recipientAddress
     ) {
-      setMessage(error)
+      setMessage({ type: 'error', text: 'Missing required data for withdrawal.' })
       return
     }
 
-    const target = getAddress(targetAddress)
+    // Select at least 2 approved pool accounts for testing
+    const approvedAccounts =
+      poolAccounts?.filter((account) => account.reviewStatus === 'approved') || []
+
+    if (approvedAccounts.length < 2) {
+      setMessage({
+        type: 'error',
+        text: 'Need at least 2 approved pool accounts for multiple withdrawal.'
+      })
+      return
+    }
+
+    const selectedPoolAccounts: PoolAccount[] = []
+    let remainingAmount = parseUnits(withdrawalAmount, 18)
+
+    approvedAccounts.forEach((account) => {
+      if (remainingAmount > 0n) {
+        selectedPoolAccounts.push(account)
+        remainingAmount -= account.balance
+      }
+    })
+
+    const target = getAddress(recipientAddress)
     const selectedPoolInfo = poolInfo
     const relayerAddress = userAccount.addr as Address
-    const decimals = selectedPoolInfo?.assetDecimals || 18
     const feeBPSForWithdraw = 0
 
     const aspLeaves = mtLeaves?.aspLeaves
     const stateLeaves = mtLeaves?.stateTreeLeaves
-    const commitment = poolAccount.lastCommitment
 
-    const withdrawalParams: WithdrawalParams = {
-      commitment,
-      amount: formatEther(BigInt(withdrawalAmount)),
-      decimals,
-      target,
-      relayerAddress,
-      feeBPSForWithdraw,
-      poolScope: selectedPoolInfo.scope as Hash,
-      stateLeaves,
-      aspLeaves,
-      userAddress: userAccount.addr as Address,
-      entrypointAddress: poolInfo.entryPointAddress
+    try {
+      // IMPORTANT: Prepare batch withdrawal request FIRST (before generating proofs)
+      // This ensures all proofs use the SAME context from the BatchRelayData
+
+      // Prepare the batch withdrawal request with batchSize and totalValue
+      const batchWithdrawal = prepareMultipleWithdrawRequest(
+        target,
+        getAddress('0x7EF84c5660bB5130815099861c613BF935F4DA52'), // processooor should be BatchRelayer for batch withdrawals
+        relayerAddress,
+        feeBPSForWithdraw.toString(),
+        selectedPoolAccounts.length,
+        parseUnits(withdrawalAmount, 18)
+      )
+
+      // Calculate context from the batch withdrawal data
+      // IMPORTANT: All proofs MUST use the SAME context
+      const context = getContext(batchWithdrawal, selectedPoolInfo.scope as Hash)
+
+      let partialAmount = parseUnits(withdrawalAmount, 18)
+
+      // Generate proofs for each account with the SAME context
+      const proofs = await Promise.all(
+        selectedPoolAccounts.map(async (poolAccount) => {
+          let amount
+
+          if (partialAmount - poolAccount.balance >= 0) {
+            partialAmount -= poolAccount.balance
+            amount = poolAccount.balance
+          } else {
+            amount = partialAmount
+          }
+
+          const commitment = poolAccount.lastCommitment
+
+          // Generate merkle proofs
+          const stateMerkleProof = getMerkleProof(
+            stateLeaves?.map(BigInt) as bigint[],
+            commitment.hash
+          )
+          const aspMerkleProof = getMerkleProof(aspLeaves?.map(BigInt), commitment.label)
+
+          // Create withdrawal secrets
+          const { secret, nullifier } = createWithdrawalSecrets(commitment)
+
+          // Workaround for NaN index, SDK issue
+          aspMerkleProof.index = Object.is(aspMerkleProof.index, NaN) ? 0 : aspMerkleProof.index
+
+          // Prepare withdrawal proof input with the shared context
+          const withdrawalProofInput = prepareWithdrawalProofInput(
+            commitment,
+            amount,
+            stateMerkleProof,
+            aspMerkleProof,
+            BigInt(context),
+            secret,
+            nullifier
+          )
+
+          // Generate withdrawal proof
+          const proof = await generateWithdrawalProof(commitment, withdrawalProofInput)
+
+          // Verify the proof
+          await verifyWithdrawalProof(proof)
+
+          return proof
+        })
+      )
+
+      // Transform all proofs for contract interaction
+      const transformedProofs = proofs.map((proof) => transformProofForContract(proof))
+
+      // Build the batch transaction data
+      const batchTransactionData = encodeFunctionData({
+        abi: entrypointAbiBatch,
+        functionName: 'batchRelay',
+        args: [
+          getAddress(poolInfo.address),
+          batchWithdrawal,
+          transformedProofs.map((proof) => ({
+            pA: proof.pA,
+            pB: proof.pB,
+            pC: proof.pC,
+            pubSignals: proof.pubSignals
+          }))
+        ]
+      })
+
+      const result: WithdrawalResult = {
+        to: getAddress('0x7EF84c5660bB5130815099861c613BF935F4DA52'), // BatchRelayer contract
+        data: batchTransactionData,
+        value: 0n
+      }
+
+      await syncSignAccountOp([result])
+      openEstimationModalAndDispatch()
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to process multiple withdrawal'
+      setMessage({ type: 'error', text: errorMessage })
     }
-
-    const result = await executeWithdrawalTransaction(withdrawalParams)
-
-    handlePrivateRequest('privateWithdrawRequest', [result])
   }
 
   return {
@@ -525,7 +500,6 @@ const usePrivacyPoolsForm = () => {
     hasProceeded,
     isGenerating,
     depositAmount,
-    targetAddress,
     accountService,
     withdrawalAmount,
     isLoadingAccount,
@@ -544,7 +518,7 @@ const usePrivacyPoolsForm = () => {
     handleDeposit,
     handleRagequit,
     handleMultipleRagequit,
-    handleWithdrawal,
+    handleMultipleWithdrawal,
     handleUpdateForm,
     handleLoadAccount,
     isRagequitLoading,

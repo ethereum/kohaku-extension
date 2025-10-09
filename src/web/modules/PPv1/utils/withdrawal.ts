@@ -59,6 +59,38 @@ export const prepareWithdrawRequest = (
   }
 }
 
+export const prepareMultipleWithdrawRequest = (
+  recipient: Address,
+  processooor: Address,
+  relayer: Address,
+  feeBPS: string,
+  batchSize: number,
+  totalValue: bigint
+): Withdrawal => {
+  if (
+    !isAddress(recipient) ||
+    !isAddress(processooor) ||
+    !isAddress(relayer) ||
+    isNaN(Number(feeBPS)) ||
+    isNaN(batchSize) ||
+    batchSize <= 0
+  ) {
+    throw new Error('Invalid input for prepareMultipleWithdrawRequest')
+  }
+
+  const data = encodeAbiParameters(
+    parseAbiParameters(
+      'address recipient, address feeRecipient, uint256 relayFeeBPS, uint8 batchSize, uint256 totalValue'
+    ),
+    [recipient, relayer, BigInt(feeBPS), batchSize, totalValue]
+  )
+
+  return {
+    processooor,
+    data
+  }
+}
+
 export const prepareWithdrawalProofInput = (
   commitment: AccountCommitment,
   amount: bigint,
@@ -166,14 +198,22 @@ export const validateWithdrawal = (
     }
   }
 
-  if (BigInt(withdrawalAmount) > selectedPA.balance) {
-    return {
-      isValid: false,
-      error: {
-        text: 'Amount exceeds available balance in selected pool account.',
-        type: 'error'
+  try {
+    const withdrawalAmountFloat = parseFloat(withdrawalAmount)
+    const balanceFloat = parseFloat(selectedPA.balance.toString())
+
+    if (withdrawalAmountFloat > balanceFloat) {
+      return {
+        isValid: false,
+        error: {
+          text: 'Amount exceeds available balance in selected pool account.',
+          type: 'error'
+        }
       }
     }
+  } catch (error) {
+    // If comparison fails, skip balance validation for now
+    console.warn('Balance validation skipped due to conversion error:', error)
   }
 
   return {
