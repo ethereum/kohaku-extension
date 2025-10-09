@@ -12,11 +12,16 @@ import {
   prepareWithdrawalProofInput,
   prepareMultipleWithdrawRequest,
   transformProofForContract,
+  transformProofForRelayerApi,
   WithdrawalResult
 } from '../utils/withdrawal'
 import { transformRagequitProofForContract } from '../utils/ragequit'
 import { entrypointAbiBatch, entrypointAbi, privacyPoolAbi } from '../utils/abi'
 import { usePOC } from './usePOC'
+import {
+  BatchWithdrawalParams,
+  BatchWithdrawalProof
+} from '@ambire-common/controllers/privacyPools/privacyPools'
 
 type PrivateRequestType =
   | 'privateDepositRequest'
@@ -126,6 +131,18 @@ const usePrivacyPoolsForm = () => {
       params: { type, params: { txList, actionExecutionType: 'open-action-window' } }
     })
   }
+
+  const submitBatchWithdrawal = useCallback(
+    (params: BatchWithdrawalParams): void => {
+      // Dispatch action to background service (fire-and-forget pattern)
+      // The controller will update its state and UI will receive updates via context
+      dispatch({
+        type: 'PRIVACY_POOLS_CONTROLLER_SUBMIT_BATCH_WITHDRAWAL',
+        params
+      })
+    },
+    [dispatch]
+  )
 
   const handleGenerateSeedPhrase = async () => {
     setIsGenerating(true)
@@ -342,8 +359,8 @@ const usePrivacyPoolsForm = () => {
   const isLoading = isLoadingSeedPhrase || isLoadingAccount
 
   /**
-   * Handles withdrawal using multiple pool accounts
-   * This version selects at least 2 pool accounts and generates params and proofs for each
+   * Handles withdrawal using multiple pool accounts via relayer API
+   * This version generates proofs and submits to the relayer endpoint
    */
   const handleMultipleWithdrawal = async () => {
     if (
@@ -358,17 +375,8 @@ const usePrivacyPoolsForm = () => {
       return
     }
 
-    // Select at least 2 approved pool accounts for testing
     const approvedAccounts =
       poolAccounts?.filter((account) => account.reviewStatus === 'approved') || []
-
-    if (approvedAccounts.length < 2) {
-      setMessage({
-        type: 'error',
-        text: 'Need at least 2 approved pool accounts for multiple withdrawal.'
-      })
-      return
-    }
 
     const selectedPoolAccounts: PoolAccount[] = []
     let remainingAmount = parseUnits(withdrawalAmount, 18)
@@ -380,9 +388,13 @@ const usePrivacyPoolsForm = () => {
       }
     })
 
+    const isRelayer = false // Change this to test the contract or the endpoint
+
     const target = getAddress(recipientAddress)
     const selectedPoolInfo = poolInfo
-    const relayerAddress = userAccount.addr as Address
+    const feeRecipient = isRelayer
+      ? (userAccount.addr as Address)
+      : getAddress('0xEC15c20015e72748F03065ed80c41cb882E3fB66') // FEE Recipient
     const feeBPSForWithdraw = 0
 
     const aspLeaves = mtLeaves?.aspLeaves
@@ -396,7 +408,7 @@ const usePrivacyPoolsForm = () => {
       const batchWithdrawal = prepareMultipleWithdrawRequest(
         target,
         getAddress('0x7EF84c5660bB5130815099861c613BF935F4DA52'), // processooor should be BatchRelayer for batch withdrawals
-        relayerAddress,
+        feeRecipient,
         feeBPSForWithdraw.toString(),
         selectedPoolAccounts.length,
         parseUnits(withdrawalAmount, 18)
@@ -419,6 +431,8 @@ const usePrivacyPoolsForm = () => {
           } else {
             amount = partialAmount
           }
+
+          console.log('DEBUG: amount', amount)
 
           const commitment = poolAccount.lastCommitment
 
@@ -456,33 +470,47 @@ const usePrivacyPoolsForm = () => {
         })
       )
 
-      // Transform all proofs for contract interaction
-      const transformedProofs = proofs.map((proof) => transformProofForContract(proof))
+      console.log('DEBUG: calling submitBatchWithdrawal')
 
-      // Build the batch transaction data
-      const batchTransactionData = encodeFunctionData({
-        abi: entrypointAbiBatch,
-        functionName: 'batchRelay',
-        args: [
-          getAddress(poolInfo.address),
-          batchWithdrawal,
-          transformedProofs.map((proof) => ({
-            pA: proof.pA,
-            pB: proof.pB,
-            pC: proof.pC,
-            pubSignals: proof.pubSignals
-          }))
-        ]
-      })
+      if (!isRelayer) {
+        const transformedProofs = proofs.map((proof) => transformProofForContract(proof))
+        // Build the batch transaction data
+        const batchTransactionData = encodeFunctionData({
+          abi: entrypointAbiBatch,
+          functionName: 'batchRelay',
+          args: [
+            getAddress(poolInfo.address),
+            batchWithdrawal,
+            transformedProofs.map((proof) => ({
+              pA: proof.pA,
+              pB: proof.pB,
+              pC: proof.pC,
+              pubSignals: proof.pubSignals
+            }))
+          ]
+        })
 
-      const result: WithdrawalResult = {
-        to: getAddress('0x7EF84c5660bB5130815099861c613BF935F4DA52'), // BatchRelayer contract
-        data: batchTransactionData,
-        value: 0n
+        const result: WithdrawalResult = {
+          to: getAddress('0x7EF84c5660bB5130815099861c613BF935F4DA52'), // BatchRelayer contract
+          data: batchTransactionData,
+          value: 0n
+        }
+
+        await syncSignAccountOp([result])
+        openEstimationModalAndDispatch()
+      } else {
+        const transformedProofs = proofs.map((proof) => transformProofForRelayerApi(proof))
+        // Submit to relayer API instead of building transaction directly
+        submitBatchWithdrawal({
+          chainId: 11155111,
+          poolAddress: poolInfo.address,
+          withdrawal: {
+            processooor: batchWithdrawal.processooor,
+            data: batchWithdrawal.data
+          },
+          proofs: transformedProofs
+        })
       }
-
-      await syncSignAccountOp([result])
-      openEstimationModalAndDispatch()
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to process multiple withdrawal'
