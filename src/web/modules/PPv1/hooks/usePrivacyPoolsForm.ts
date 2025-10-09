@@ -1,15 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
-import {
-  Address,
-  createPublicClient,
-  encodeFunctionData,
-  formatEther,
-  getAddress,
-  http,
-  parseUnits
-} from 'viem'
-import { sepolia } from 'viem/chains'
+import { Address, encodeFunctionData, formatEther, getAddress, parseUnits } from 'viem'
 import { english, generateMnemonic } from 'viem/accounts'
 import { Hash } from '@0xbow/privacy-pools-core-sdk'
 import { Call } from '@ambire-common/libs/accountOp/types'
@@ -331,77 +322,6 @@ const usePrivacyPoolsForm = () => {
     openEstimationModalAndDispatch
   ])
 
-  /**
-   * Generates withdrawal proof and prepares transaction data
-   */
-  // const generateWithdrawalData = async ({
-  //   commitment,
-  //   amount,
-  //   decimals,
-  //   target,
-  //   relayerAddress,
-  //   feeBPSForWithdraw,
-  //   poolScope,
-  //   stateLeaves,
-  //   aspLeaves,
-  //   entrypointAddress
-  // }: Omit<WithdrawalParams, 'poolAddress'>): Promise<{
-  //   withdrawal: Withdrawal
-  //   proof: WithdrawalProof
-  //   formattedProofs: ReturnType<typeof transformProofForContract>
-  //   error?: string
-  // }> => {
-  //   try {
-  //     // Prepare withdrawal request
-  //     const withdrawal = prepareWithdrawRequest(
-  //       getAddress(target),
-  //       getAddress(entrypointAddress),
-  //       getAddress(relayerAddress),
-  //       feeBPSForWithdraw.toString()
-  //     )
-  //     // Generate merkle proofs
-  //     const stateMerkleProof = getMerkleProof(stateLeaves?.map(BigInt) as bigint[], commitment.hash)
-  //     const aspMerkleProof = getMerkleProof(aspLeaves?.map(BigInt), commitment.label)
-  //     // Calculate context
-  //     const context = getContext(withdrawal, poolScope)
-  //     // Create withdrawal secrets
-  //     const { secret, nullifier } = createWithdrawalSecrets(commitment)
-  //     // Workaround for NaN index, SDK issue
-  //     aspMerkleProof.index = Object.is(aspMerkleProof.index, NaN) ? 0 : aspMerkleProof.index
-  //     // Prepare withdrawal proof input
-  //     const withdrawalProofInput = prepareWithdrawalProofInput(
-  //       commitment,
-  //       parseUnits(amount, decimals),
-  //       stateMerkleProof,
-  //       aspMerkleProof,
-  //       BigInt(context),
-  //       secret,
-  //       nullifier
-  //     )
-  //     // Generate withdrawal proof
-  //     const proof = await generateWithdrawalProof(commitment, withdrawalProofInput)
-  //     // Verify the proof
-  //     await verifyWithdrawalProof(proof)
-  //     // Transform proof for contract interaction
-  //     const formattedProofs = transformProofForContract(proof)
-  //
-  //     return {
-  //       withdrawal,
-  //       proof /* No es necesario devolver proofs */,
-  //       formattedProofs /* Esto debería ser una lista */
-  //     }
-  //   } catch (error) {
-  //     const errorMessage =
-  //       error instanceof Error ? error.message : 'Failed to generate withdrawal data'
-  //     return {
-  //       withdrawal: {} as Withdrawal,
-  //       proof: {} as WithdrawalProof,
-  //       formattedProofs: {} as ReturnType<typeof transformProofForContract>,
-  //       error: errorMessage
-  //     }
-  //   }
-  // }
-
   const loadSeedPhrase = useCallback(async () => {
     const data = await getData()
     if (data) {
@@ -414,134 +334,19 @@ const usePrivacyPoolsForm = () => {
 
   const isLoading = isLoadingSeedPhrase || isLoadingAccount
 
-  // const executeWithdrawalTransaction = async ({
-  //   commitment,
-  //   amount,
-  //   decimals,
-  //   target,
-  //   relayerAddress,
-  //   feeBPSForWithdraw,
-  //   poolScope,
-  //   stateLeaves,
-  //   aspLeaves,
-  //   userAddress,
-  //   entrypointAddress
-  // }: WithdrawalParams): Promise<WithdrawalResult> => {
-  //   const { withdrawal, proof, formattedProofs, error } = await generateWithdrawalData({
-  //     commitment,
-  //     amount,
-  //     decimals,
-  //     target,
-  //     relayerAddress,
-  //     feeBPSForWithdraw,
-  //     poolScope,
-  //     stateLeaves,
-  //     aspLeaves,
-  //     userAddress,
-  //     entrypointAddress
-  //   })
-  //
-  //   if (error || !withdrawal || !proof || !formattedProofs) {
-  //     return {
-  //       to: getAddress(entrypointAddress),
-  //       data: '0x',
-  //       value: 0n
-  //     }
-  //   }
-  //
-  //   const result = encodeFunctionData({
-  //     abi: entrypointAbiBatch,
-  //     functionName: 'batchRelay',
-  //     args: [
-  //       '0x644d5A2554d36e27509254F32ccfeBe8cd58861f', // Address de la poolInfo
-  //       {
-  //         processooor:
-  //           /* getAddress(entrypointAddress) */ '0x7EF84c5660bB5130815099861c613BF935F4DA52',
-  //         data: withdrawal.data
-  //       },
-  //       [
-  //         // Array de proofs (transformedArgs)
-  //         {
-  //           pA: formattedProofs.pA,
-  //           pB: formattedProofs.pB,
-  //           pC: formattedProofs.pC,
-  //           pubSignals: formattedProofs.pubSignals
-  //         }
-  //       ]
-  //
-  //       // poolScope // NO VA MAS
-  //     ]
-  //   })
-  //
-  //   return {
-  //     to: getAddress(entrypointAddress),
-  //     data: result,
-  //     value: 0n
-  //   }
-  // }
-
-  // const handleWithdrawal = async (/* poolAccount: PoolAccount, targetAddress: string */) => {
-  //   // TODO: fix this later, just a mock
-  //   const poolAccount = poolAccounts?.find((account) => account.reviewStatus === 'approved')
-  //
-  //   if (!poolAccount) return
-  //
-  //   const targetAddress = recipientAddress
-  //
-  //   const { error, isValid } = validateWithdrawal(poolAccount, withdrawalAmount, targetAddress)
-  //
-  //   if (
-  //     !isValid ||
-  //     !poolInfo ||
-  //     !mtLeaves ||
-  //     !mtRoots ||
-  //     !accountService ||
-  //     !targetAddress ||
-  //     !withdrawalAmount ||
-  //     !userAccount
-  //   ) {
-  //     setMessage(error)
-  //     return
-  //   }
-  //
-  //   const target = getAddress(targetAddress)
-  //   const selectedPoolInfo = poolInfo
-  //   const relayerAddress = userAccount.addr as Address
-  //   const decimals = selectedPoolInfo?.assetDecimals || 18
-  //   const feeBPSForWithdraw = 0
-  //
-  //   const aspLeaves = mtLeaves?.aspLeaves
-  //   const stateLeaves = mtLeaves?.stateTreeLeaves
-  //   const commitment = poolAccount.lastCommitment
-  //
-  //   const withdrawalParams: WithdrawalParams = {
-  //     commitment,
-  //     amount: withdrawalAmount,
-  //     decimals,
-  //     target,
-  //     relayerAddress,
-  //     feeBPSForWithdraw,
-  //     poolScope: selectedPoolInfo.scope as Hash,
-  //     stateLeaves,
-  //     aspLeaves,
-  //     userAddress: userAccount.addr as Address,
-  //     entrypointAddress: poolInfo.entryPointAddress
-  //   }
-  //
-  //   const result = await executeWithdrawalTransaction(withdrawalParams) // Esto debería ser un array de withdrawalParams
-  //
-  //   await syncSignAccountOp([result])
-  //   openEstimationModalAndDispatch()
-  // }
-
   /**
    * Handles withdrawal using multiple pool accounts
    * This version selects at least 2 pool accounts and generates params and proofs for each
    */
   const handleMultipleWithdrawal = async () => {
-    const targetAddress = recipientAddress
-
-    if (!poolInfo || !mtLeaves || !mtRoots || !accountService || !userAccount || !targetAddress) {
+    if (
+      !poolInfo ||
+      !mtLeaves ||
+      !mtRoots ||
+      !accountService ||
+      !userAccount ||
+      !recipientAddress
+    ) {
       setMessage({ type: 'error', text: 'Missing required data for withdrawal.' })
       return
     }
@@ -558,10 +363,17 @@ const usePrivacyPoolsForm = () => {
       return
     }
 
-    // For now, just take the first 2 accounts
-    const selectedPoolAccounts = approvedAccounts.slice(0, 2)
+    const selectedPoolAccounts: PoolAccount[] = []
+    let remainingAmount = parseUnits(withdrawalAmount, 18)
 
-    const target = getAddress(targetAddress)
+    approvedAccounts.forEach((account) => {
+      if (remainingAmount > 0n) {
+        selectedPoolAccounts.push(account)
+        remainingAmount -= account.balance
+      }
+    })
+
+    const target = getAddress(recipientAddress)
     const selectedPoolInfo = poolInfo
     const relayerAddress = userAccount.addr as Address
     const feeBPSForWithdraw = 0
@@ -570,11 +382,6 @@ const usePrivacyPoolsForm = () => {
     const stateLeaves = mtLeaves?.stateTreeLeaves
 
     try {
-      // Calculate total value from all account balances
-      // const totalValue = selectedPoolAccounts.reduce((sum, poolAccount) => {
-      //   return sum + poolAccount.balance
-      // }, 0n)
-
       // IMPORTANT: Prepare batch withdrawal request FIRST (before generating proofs)
       // This ensures all proofs use the SAME context from the BatchRelayData
 
@@ -585,22 +392,28 @@ const usePrivacyPoolsForm = () => {
         relayerAddress,
         feeBPSForWithdraw.toString(),
         selectedPoolAccounts.length,
-        parseUnits(withdrawalAmount, 18) // TODO: Check if this is working
+        parseUnits(withdrawalAmount, 18)
       )
-
-      console.log('DEBUG: batchWithdrawal', batchWithdrawal)
 
       // Calculate context from the batch withdrawal data
       // IMPORTANT: All proofs MUST use the SAME context
       const context = getContext(batchWithdrawal, selectedPoolInfo.scope as Hash)
 
-      console.log('DEBUG: Shared context for all proofs:', context)
+      let partialAmount = parseUnits(withdrawalAmount, 18)
 
       // Generate proofs for each account with the SAME context
       const proofs = await Promise.all(
         selectedPoolAccounts.map(async (poolAccount) => {
+          let amount
+
+          if (partialAmount - poolAccount.balance >= 0) {
+            partialAmount -= poolAccount.balance
+            amount = poolAccount.balance
+          } else {
+            amount = partialAmount
+          }
+
           const commitment = poolAccount.lastCommitment
-          const amount = poolAccount.balance
 
           // Generate merkle proofs
           const stateMerkleProof = getMerkleProof(
@@ -636,46 +449,8 @@ const usePrivacyPoolsForm = () => {
         })
       )
 
-      console.log('DEBUG: Generated', proofs.length, 'proofs with shared context')
-
       // Transform all proofs for contract interaction
       const transformedProofs = proofs.map((proof) => transformProofForContract(proof))
-
-      console.log('DEBUG: transformedProofs', transformedProofs)
-
-      // Create a public client for simulation
-      const publicClient = createPublicClient({
-        chain: sepolia,
-        transport: http()
-      })
-
-      // Simulate the contract call to catch errors before sending
-      try {
-        const { request } = await publicClient.simulateContract({
-          address: '0x7EF84c5660bB5130815099861c613BF935F4DA52', // BatchRelayer contract
-          abi: entrypointAbiBatch,
-          functionName: 'batchRelay',
-          args: [
-            getAddress(poolInfo.address),
-            batchWithdrawal,
-            transformedProofs.map((proof) => ({
-              pA: proof.pA,
-              pB: proof.pB,
-              pC: proof.pC,
-              pubSignals: proof.pubSignals
-            }))
-          ],
-          account: userAccount.addr as Address
-        })
-
-        console.log('DEBUG: Multiple withdrawal simulation successful', request)
-      } catch (simulationError) {
-        console.error('DEBUG: Multiple withdrawal simulation failed', simulationError)
-        const errorMsg =
-          simulationError instanceof Error ? simulationError.message : 'Simulation failed'
-        setMessage({ type: 'error', text: `Contract simulation failed: ${errorMsg}` })
-        return
-      }
 
       // Build the batch transaction data
       const batchTransactionData = encodeFunctionData({
@@ -692,8 +467,6 @@ const usePrivacyPoolsForm = () => {
           }))
         ]
       })
-
-      console.log('DEBUG: batchTransactionData', batchTransactionData)
 
       const result: WithdrawalResult = {
         to: getAddress('0x7EF84c5660bB5130815099861c613BF935F4DA52'), // BatchRelayer contract
