@@ -1,9 +1,7 @@
 import React, { ReactNode, useCallback, useEffect, useMemo } from 'react'
 import { View } from 'react-native'
-import { formatEther, parseEther, zeroAddress } from 'viem'
+import { formatEther, zeroAddress } from 'viem'
 
-// import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
-import { TokenResult } from '@ambire-common/libs/portfolio'
 import TokenIcon from '@common/components/TokenIcon'
 import Recipient from '@common/components/Recipient'
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
@@ -11,10 +9,9 @@ import SkeletonLoader from '@common/components/SkeletonLoader'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import useAddressInput from '@common/hooks/useAddressInput'
-import useGetTokenSelectProps from '@common/hooks/useGetTokenSelectProps'
 import spacings from '@common/styles/spacings'
+import flexbox from '@common/styles/utils/flexbox'
 
-import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import { PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
 // import { getTokenId } from '@web/utils/token'
@@ -62,22 +59,10 @@ const TransferForm = ({
   const { validation } = addressInputState
   const { account, portfolio } = useSelectedAccountControllerState()
   const { t } = useTranslation()
-  // const { networks } = useNetworksControllerState()
 
-  // const {
-  //   value: tokenSelectValue,
-  //   options,
-  //   amountSelectDisabled
-  // } = useGetTokenSelectProps({
-  //   tokens,
-  //   token: selectedToken ? getTokenId(selectedToken) : '',
-  //   networks,
-  //   isToToken: false
-  // })
+  const FEE = 0.01
+  const RECIPIENT_GETS = parseFloat(amountFieldValue) - FEE
 
-  // const disableForm = !tokens.length
-
-  // totalApprovedBalance.total is already in wei (bigint), no need to parse
   const ethBalance = totalApprovedBalance.total || 0n
 
   const handleChangeToken = useCallback(
@@ -173,6 +158,20 @@ const TransferForm = ({
           maxAmountDisabled={!isMaxAmountEnabled}
         />
       )}
+
+      <View style={[spacings.mbLg, styles.disclaimer]}>
+        <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifyCenter]}>
+          <Text
+            style={styles.disclaimerText}
+            appearance="secondaryText"
+            fontSize={14}
+            weight="light"
+          >
+            {t('Funds being send through your private account')}
+          </Text>
+        </View>
+      </View>
+
       <View>
         <Recipient
           disabled={ethBalance === 0n}
@@ -191,6 +190,46 @@ const TransferForm = ({
           recipientMenuClosedAutomaticallyRef={{ current: false }}
           selectedTokenSymbol={selectedToken?.symbol}
         />
+      </View>
+
+      <View style={spacings.mbLg}>
+        <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
+          <Text appearance="secondaryText" fontSize={14} weight="light">
+            {t('Fee')}
+          </Text>
+          <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+            <TokenIcon
+              chainId={11155111n}
+              address={zeroAddress}
+              width={20}
+              height={20}
+              withNetworkIcon={false}
+            />
+            <Text fontSize={14} weight="light" style={spacings.mlMi}>
+              {FEE} ETH
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={spacings.mbLg}>
+        <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
+          <Text appearance="secondaryText" fontSize={14} weight="light">
+            {t('Recipient gets')}
+          </Text>
+          <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+            <TokenIcon
+              chainId={11155111n}
+              address={zeroAddress}
+              width={20}
+              height={20}
+              withNetworkIcon={false}
+            />
+            <Text fontSize={14} weight="light" style={spacings.mlMi}>
+              {RECIPIENT_GETS || 0} ETH
+            </Text>
+          </View>
+        </View>
       </View>
     </ScrollableWrapper>
   )
