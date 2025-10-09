@@ -813,6 +813,30 @@ type PrivacyControllerResetFormAction = {
   type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
 }
 
+type PrivacyControllerSubmitBatchWithdrawalAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_SUBMIT_BATCH_WITHDRAWAL'
+  params: {
+    chainId: number
+    poolAddress: string
+    poolScope: string
+    recipient: string
+    feeRecipient: string
+    relayFeeBPS: number
+    batchSize: number
+    totalValue: string
+    proofs: {
+      pA: [bigint, bigint]
+      pB: [[bigint, bigint], [bigint, bigint]]
+      pC: [bigint, bigint]
+      pubSignals: bigint[]
+    }[]
+    withdrawal: {
+      processooor: string
+      data: string
+    }
+  }
+}
+
 export type Action =
   | UpdateNavigationUrl
   | InitControllerStateAction
@@ -963,3 +987,4 @@ export type Action =
   | PrivacyControllerGenerateKeysAction
   | PrivacyControllerGenerateSecretAction
   | PrivacyControllerResetFormAction
+  | PrivacyControllerSubmitBatchWithdrawalAction
