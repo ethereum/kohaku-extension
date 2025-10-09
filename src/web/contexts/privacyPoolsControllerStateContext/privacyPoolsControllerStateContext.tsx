@@ -65,6 +65,39 @@ export type PoolAccount = SDKPoolAccount & {
   ragequit?: RagequitEventWithTimestamp
 }
 
+type BatchWithdrawalProof = {
+  pA: [bigint, bigint]
+  pB: [readonly [bigint, bigint], readonly [bigint, bigint]]
+  pC: [bigint, bigint]
+  pubSignals: bigint[]
+}
+
+type BatchWithdrawalParams = {
+  chainId: number
+  poolAddress: string
+  poolScope: string
+  recipient: string
+  feeRecipient: string
+  relayFeeBPS: number
+  batchSize: number
+  totalValue: string
+  proofs: BatchWithdrawalProof[]
+  withdrawal: {
+    processooor: string
+    data: string
+  }
+}
+
+type BatchWithdrawalResponse = {
+  success: boolean
+  data?: {
+    txId: string
+    relayerId: string
+    estimatedConfirmation?: number
+  }
+  message?: string
+}
+
 type EnhancedPrivacyPoolsControllerState = {
   mtRoots: MtRootResponse | undefined
   mtLeaves: MtLeavesResponse | undefined
@@ -92,6 +125,7 @@ type EnhancedPrivacyPoolsControllerState = {
   getContext: (withdrawal: Withdrawal, scope: Hash) => string
   getMerkleProof: (leaves: bigint[], leaf: bigint) => LeanIMTMerkleProof<bigint>
   setSelectedPoolAccount: Dispatch<SetStateAction<PoolAccount | null>>
+  submitBatchWithdrawal: (params: BatchWithdrawalParams) => void
   // Required PrivacyPoolsController properties
   validationFormMsgs: {
     amount: { success: boolean; message: string }
