@@ -138,28 +138,34 @@ const usePrivacyPoolsForm = () => {
     setIsGenerating(false)
   }
 
-  const handleLoadAccount = useCallback(async () => {
-    if (!seedPhrase?.trim()) {
-      setMessage({ type: 'error', text: 'Please enter a seed phrase to load an existing account.' })
-      return
-    }
-    try {
-      setMessage(null)
-      setIsLoadingAccount(true)
+  const handleLoadAccount = useCallback(
+    async (seedPhraseToLoad?: string) => {
+      if (!seedPhraseToLoad?.trim()) {
+        setMessage({
+          type: 'error',
+          text: 'Please enter a seed phrase to load an existing account.'
+        })
+        return
+      }
+      try {
+        setMessage(null)
+        setIsLoadingAccount(true)
 
-      await loadAccount()
-      setMessage({ type: 'success', text: 'Account loaded successfully!' })
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to load account. Please try again.'
-      setMessage({ type: 'error', text: errorMessage })
-    }
-    setIsLoadingAccount(false)
-    if (seedPhrase) {
-      const encrypted = await encrypt(seedPhrase)
-      await storeData(encrypted)
-    }
-  }, [seedPhrase, loadAccount, encrypt, storeData])
+        await loadAccount()
+        setMessage({ type: 'success', text: 'Account loaded successfully!' })
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Failed to load account. Please try again.'
+        setMessage({ type: 'error', text: errorMessage })
+      }
+      setIsLoadingAccount(false)
+      if (seedPhrase) {
+        const encrypted = await encrypt(seedPhrase)
+        await storeData(encrypted)
+      }
+    },
+    [seedPhrase, loadAccount, encrypt, storeData]
+  )
 
   const handleSelectedAccount = (poolAccount: PoolAccount) => {
     setSelectedPoolAccount((prevState) => {
@@ -395,10 +401,11 @@ const usePrivacyPoolsForm = () => {
     if (data) {
       setIsLoadingSeedPhrase(true)
       const decrypted = await decrypt(data)
+      await handleLoadAccount(decrypted)
       handleUpdateForm({ seedPhrase: decrypted || '' })
       setIsLoadingSeedPhrase(false)
     }
-  }, [getData, decrypt, handleUpdateForm])
+  }, [getData, decrypt, handleUpdateForm, handleLoadAccount])
 
   const isLoading = isLoadingSeedPhrase || isLoadingAccount
 

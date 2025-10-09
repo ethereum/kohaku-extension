@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, NativeScrollEvent, NativeSyntheticEvent, View } from 'react-native'
 import { useModalize } from 'react-native-modalize'
 
@@ -14,6 +14,7 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import { getUiType } from '@web/utils/uiType'
 
+import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import DAppFooter from '../components/DAppFooter'
 import DashboardOverview from '../components/DashboardOverview'
 import CongratsFirstCashbackModal from '../components/DashboardOverview/CongratsFirstCashbackModal'
@@ -39,6 +40,22 @@ const DashboardScreen = () => {
   const animatedOverviewHeight = useRef(new Animated.Value(OVERVIEW_CONTENT_MAX_HEIGHT)).current
 
   const { account, portfolio, cashbackStatus } = useSelectedAccountControllerState()
+
+  const { handleLoadAccount, isAccountLoaded, loadSeedPhrase } = usePrivacyPoolsForm()
+  const hasLoadedRef = useRef(false)
+
+  const handleLoadAccountWrapped = useCallback(async () => {
+    await loadSeedPhrase()
+    await handleLoadAccount()
+  }, [loadSeedPhrase, handleLoadAccount])
+
+  useEffect(() => {
+    if (!isAccountLoaded && !hasLoadedRef.current) {
+      hasLoadedRef.current = true
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      handleLoadAccountWrapped()
+    }
+  }, [handleLoadAccountWrapped, isAccountLoaded, hasLoadedRef])
 
   const hasUnseenFirstCashback = useMemo(
     () => cashbackStatus === 'cashback-modal',
