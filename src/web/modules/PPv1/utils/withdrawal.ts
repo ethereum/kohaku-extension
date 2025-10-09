@@ -129,7 +129,31 @@ export const prepareWithdrawalProofInput = (
   }
 }
 
+export function transformProofForRelayerApi(proof: WithdrawalProof) {
+  return {
+    publicSignals: proof.publicSignals.map((signal) => BigInt(signal)) as [
+      bigint,
+      bigint,
+      bigint,
+      bigint,
+      bigint,
+      bigint,
+      bigint,
+      bigint
+    ],
+    proof: {
+      pi_a: [BigInt(proof.proof.pi_a[0]), BigInt(proof.proof.pi_a[1])] as [bigint, bigint],
+      pi_b: [
+        [BigInt(proof.proof.pi_b[0][1]), BigInt(proof.proof.pi_b[0][0])],
+        [BigInt(proof.proof.pi_b[1][1]), BigInt(proof.proof.pi_b[1][0])]
+      ] as [readonly [bigint, bigint], readonly [bigint, bigint]],
+      pi_c: [BigInt(proof.proof.pi_c[0]), BigInt(proof.proof.pi_c[1])] as [bigint, bigint]
+    }
+  }
+}
+
 /**
+ * DEPRECATED
  * Transforms proof for contract interaction
  */
 export function transformProofForContract(proof: WithdrawalProof) {
