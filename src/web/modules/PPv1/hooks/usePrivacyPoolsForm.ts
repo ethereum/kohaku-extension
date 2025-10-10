@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
 import { Address, encodeFunctionData, formatEther, getAddress, parseUnits } from 'viem'
 import { english, generateMnemonic } from 'viem/accounts'
-import { Hash } from '@0xbow/privacy-pools-core-sdk'
+import { Hash, type Withdrawal } from '@0xbow/privacy-pools-core-sdk'
 import { Call } from '@ambire-common/libs/accountOp/types'
 import { PoolAccount, ReviewStatus } from '@web/contexts/privacyPoolsControllerStateContext'
 import useBackgroundService from '@web/hooks/useBackgroundService'
@@ -400,6 +400,8 @@ const usePrivacyPoolsForm = () => {
     let feeBPSForWithdraw = 0
     let totalAmountWithFee = withdrawalAmount
 
+    let batchWithdrawal
+
     if (isRelayer) {
       // Fetch relayer details to get the fee recipient address
       const detailsResponse = await fetch(
@@ -421,7 +423,8 @@ const usePrivacyPoolsForm = () => {
           {
             chainId: selectedPoolInfo.chainId,
             batchSize: selectedPoolAccounts.length,
-            totalAmount: parseUnits(withdrawalAmount, 18)
+            totalAmount: parseUnits(withdrawalAmount, 18),
+            recipient: target
           },
           (_, value) => (typeof value === 'bigint' ? value.toString() : value)
         )
@@ -436,6 +439,11 @@ const usePrivacyPoolsForm = () => {
         (1 + feeBPSForWithdraw / 10000)
       ).toString()
 
+      batchWithdrawal = {
+        processooor: getAddress('0x7EF84c5660bB5130815099861c613BF935F4DA52'),
+        data: quote.batchFeeCommitment.batchRelayData
+      } as Withdrawal
+
       console.log('DEBUG: quote', quote, 'feeBPSForWithdraw', feeBPSForWithdraw, totalAmountWithFee)
     }
 
@@ -446,19 +454,23 @@ const usePrivacyPoolsForm = () => {
       // IMPORTANT: Prepare batch withdrawal request FIRST (before generating proofs)
       // This ensures all proofs use the SAME context from the BatchRelayData
 
-      // Prepare the batch withdrawal request with batchSize and totalValue
-      const batchWithdrawal = prepareMultipleWithdrawRequest(
-        target,
-        getAddress('0x7EF84c5660bB5130815099861c613BF935F4DA52'), // processooor should be BatchRelayer for batch withdrawals
-        feeRecipient,
-        feeBPSForWithdraw.toString(), // Fee in basis points (e.g., 101 = 1.01%)
-        selectedPoolAccounts.length,
-        parseUnits(totalAmountWithFee, 18)
-      )
+      if (!isRelayer) {
+        // Prepare the batch withdrawal request with batchSize and totalValue
+        batchWithdrawal = prepareMultipleWithdrawRequest(
+          target,
+          getAddress('0x7EF84c5660bB5130815099861c613BF935F4DA52'), // processooor should be BatchRelayer for batch withdrawals
+          feeRecipient,
+          feeBPSForWithdraw.toString(), // Fee in basis points (e.g., 101 = 1.01%)
+          selectedPoolAccounts.length,
+          parseUnits(totalAmountWithFee, 18)
+        )
+      }
+
+      console.log('DEBUG: batchWithdrawal', batchWithdrawal)
 
       // Calculate context from the batch withdrawal data
       // IMPORTANT: All proofs MUST use the SAME context
-      const context = getContext(batchWithdrawal, selectedPoolInfo.scope as Hash)
+      const context = getContext(batchWithdrawal!, selectedPoolInfo.scope as Hash)
 
       let partialAmount = parseUnits(totalAmountWithFee, 18)
 
