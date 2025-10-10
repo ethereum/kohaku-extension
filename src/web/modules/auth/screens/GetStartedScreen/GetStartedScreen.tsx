@@ -88,7 +88,7 @@ const GetStartedScreen = () => {
                 {t('The Web3 wallet that makes self-custody easy and secure.')}
               </Text>
             </View>
-            <ScrollableWrapper contentContainerStyle={[flexbox.justifySpaceBetween]}>
+            <ScrollableWrapper contentContainerStyle={[flexbox.justifyStart]}>
               <Button
                 testID="create-new-account-btn"
                 type="primary"
@@ -101,7 +101,6 @@ const GetStartedScreen = () => {
                 text={t('Import existing account')}
                 onPress={() => handleAuthButtonPress('import-existing-account')}
               />
-              <View />
               {/* <Button
                 testID="view-only-address-btn"
                 type="ghost"
