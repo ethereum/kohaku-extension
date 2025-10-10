@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { TouchableOpacity, View } from 'react-native'
 
@@ -28,7 +28,6 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
 import { getUiType } from '@web/utils/uiType'
 
-import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import getStyles from './styles'
 
 const FOOTER_BUTTON_HIT_SLOP = { top: 10, bottom: 15 }
@@ -46,7 +45,6 @@ const KeyStoreUnlockScreen = () => {
   const { dispatch } = useBackgroundService()
   const keystoreState = useKeystoreControllerState()
   const { height } = useElementSize(contentContainerRef)
-  const [isLoadingPrivateAccount, setIsLoadingPrivateAccount] = useState(false)
   const {
     control,
     handleSubmit,
@@ -59,7 +57,6 @@ const KeyStoreUnlockScreen = () => {
       password: isDev && !isTesting ? DEFAULT_KEYSTORE_PASSWORD_DEV ?? '' : ''
     }
   })
-  const { loadSeedPhrase, handleLoadAccount, isAccountLoaded } = usePrivacyPoolsForm()
 
   useDisableNavigatingBack()
 
@@ -69,25 +66,9 @@ const KeyStoreUnlockScreen = () => {
     if (keystoreState.errorMessage) setError('password', { message: keystoreState.errorMessage })
   }, [keystoreState.errorMessage, setError])
 
-  const handlePrivateAccount = useCallback(async () => {
-    await loadSeedPhrase()
-    await handleLoadAccount()
-  }, [loadSeedPhrase, handleLoadAccount])
-
   useEffect(() => {
-    if (keystoreState.isUnlocked) {
-      handlePrivateAccount()
-        // eslint-disable-next-line no-console
-        .catch(console.error)
-    }
-  }, [handlePrivateAccount, keystoreState.isUnlocked, navigate])
-
-  useEffect(() => {
-    if (isAccountLoaded) {
-      setIsLoadingPrivateAccount(false)
-      navigate('/')
-    }
-  }, [isAccountLoaded, navigate])
+    if (keystoreState.isUnlocked) navigate('/')
+  }, [navigate, keystoreState])
 
   const disableSubmit = useMemo(
     () => keystoreState.statuses.unlockWithSecret !== 'INITIAL' || !!keystoreState.errorMessage,
@@ -107,7 +88,6 @@ const KeyStoreUnlockScreen = () => {
   const handleUnlock = useCallback(
     ({ password }: { password: string }) => {
       if (disableSubmit) return
-      setIsLoadingPrivateAccount(true)
 
       dispatch({
         type: 'KEYSTORE_CONTROLLER_UNLOCK_WITH_SECRET',
@@ -238,10 +218,10 @@ const KeyStoreUnlockScreen = () => {
             <Button
               testID="button-unlock"
               style={{ width: 342, ...spacings.mbLg }}
-              disabled={disableSubmit || isLoadingPrivateAccount}
+              disabled={disableSubmit}
               text={
-                keystoreState.statuses.unlockWithSecret === 'LOADING' || isLoadingPrivateAccount
-                  ? t('Loading Private Account...')
+                keystoreState.statuses.unlockWithSecret === 'LOADING'
+                  ? t('Unlocking...')
                   : t('Unlock')
               }
               onPress={handleSubmit((data) => handleUnlock(data))}
