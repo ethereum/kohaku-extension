@@ -8,6 +8,7 @@ import { PoolAccount, ReviewStatus } from '@web/contexts/privacyPoolsControllerS
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
+import { useStorage } from './useStorage'
 import {
   prepareWithdrawalProofInput,
   prepareMultipleWithdrawRequest,
@@ -16,7 +17,6 @@ import {
 } from '../utils/withdrawal'
 import { transformRagequitProofForContract } from '../utils/ragequit'
 import { entrypointAbiBatch, entrypointAbi, privacyPoolAbi } from '../utils/abi'
-import { usePOC } from './usePOC'
 
 type PrivateRequestType =
   | 'privateDepositRequest'
@@ -51,7 +51,7 @@ const usePrivacyPoolsForm = () => {
     generateWithdrawalProof,
     createWithdrawalSecrets
   } = usePrivacyPoolsControllerState()
-  const { getData, storeData, decrypt, encrypt } = usePOC()
+  const { getData, storeData, decrypt, encrypt } = useStorage({ password: 'test' })
 
   const { account: userAccount, portfolio } = useSelectedAccountControllerState()
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -160,7 +160,7 @@ const usePrivacyPoolsForm = () => {
       setIsLoadingAccount(false)
       if (seedPhrase) {
         const encrypted = await encrypt(seedPhrase)
-        await storeData(encrypted)
+        await storeData({ key: 'TEST-private-account', data: encrypted })
       }
     },
     [seedPhrase, loadAccount, encrypt, storeData]
@@ -329,7 +329,7 @@ const usePrivacyPoolsForm = () => {
   ])
 
   const loadSeedPhrase = useCallback(async () => {
-    const data = await getData()
+    const data = await getData({ key: 'TEST-private-account' })
     if (data) {
       setIsLoadingSeedPhrase(true)
       const decrypted = await decrypt(data)

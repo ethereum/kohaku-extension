@@ -179,7 +179,6 @@ function TransferScreen() {
     return (
       <TrackProgress
         onPrimaryButtonPress={onPrimaryButtonPress}
-        secondaryButtonText={t('Add more')}
         handleClose={() => {
           dispatch({
             type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'

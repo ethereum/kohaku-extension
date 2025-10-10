@@ -2,7 +2,7 @@ import React, { useCallback, useEffect } from 'react'
 import { View } from 'react-native'
 
 import AmbireLogo from '@common/assets/svg/AmbireLogo'
-import ViewModeIcon from '@common/assets/svg/ViewModeIcon'
+// import ViewModeIcon from '@common/assets/svg/ViewModeIcon'
 import Button from '@common/components/Button'
 import Panel from '@common/components/Panel'
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
@@ -101,7 +101,8 @@ const GetStartedScreen = () => {
                 text={t('Import existing account')}
                 onPress={() => handleAuthButtonPress('import-existing-account')}
               />
-              <Button
+              <View />
+              {/* <Button
                 testID="view-only-address-btn"
                 type="ghost"
                 hasBottomSpacing={false}
@@ -109,7 +110,7 @@ const GetStartedScreen = () => {
                 text={t('Watch an address')}
               >
                 <ViewModeIcon color={theme.primary} width={24} style={spacings.mlTy} />
-              </Button>
+              </Button> */}
             </ScrollableWrapper>
           </View>
         </Panel>
