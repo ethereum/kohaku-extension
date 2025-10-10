@@ -132,17 +132,17 @@ const usePrivacyPoolsForm = () => {
     })
   }
 
-  const submitBatchWithdrawal = useCallback(
-    (params: BatchWithdrawalParams): void => {
-      // Dispatch action to background service (fire-and-forget pattern)
-      // The controller will update its state and UI will receive updates via context
-      dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_SUBMIT_BATCH_WITHDRAWAL',
-        params
-      })
-    },
-    [dispatch]
-  )
+  // const submitBatchWithdrawal = useCallback(
+  //   (params: BatchWithdrawalParams): void => {
+  //     // Dispatch action to background service (fire-and-forget pattern)
+  //     // The controller will update its state and UI will receive updates via context
+  //     dispatch({
+  //       type: 'PRIVACY_POOLS_CONTROLLER_SUBMIT_BATCH_WITHDRAWAL',
+  //       params
+  //     })
+  //   },
+  //   [dispatch]
+  // )
 
   const handleGenerateSeedPhrase = async () => {
     setIsGenerating(true)
@@ -388,14 +388,56 @@ const usePrivacyPoolsForm = () => {
       }
     })
 
-    const isRelayer = false // Change this to test the contract or the endpoint
+    const isRelayer = true // Change this to test the contract or the endpoint
+    const relayerUrl = 'https://relayer-staging-149184580131.us-east1.run.app'
+
+    console.log('DEBUG: recipientAddress', recipientAddress)
 
     const target = getAddress(recipientAddress)
     const selectedPoolInfo = poolInfo
-    const feeRecipient = isRelayer
-      ? (userAccount.addr as Address)
-      : getAddress('0xEC15c20015e72748F03065ed80c41cb882E3fB66') // FEE Recipient
-    const feeBPSForWithdraw = 0
+
+    let feeRecipient = userAccount.addr as Address
+    let feeBPSForWithdraw = 0
+    let totalAmountWithFee = withdrawalAmount
+
+    if (isRelayer) {
+      // Fetch relayer details to get the fee recipient address
+      const detailsResponse = await fetch(
+        `${relayerUrl}/relayer/details?chainId=${selectedPoolInfo.chainId}&assetAddress=0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE`
+      )
+
+      const relayerDetails = await detailsResponse.json()
+      feeRecipient = getAddress(relayerDetails.feeReceiverAddress)
+
+      console.log('DEBUG: relayer details', relayerDetails, 'feeRecipient', feeRecipient)
+
+      // Fetch quote to get the relay fee
+      const quoteResonse = await fetch(`${relayerUrl}/relayer/batch/quote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(
+          {
+            chainId: selectedPoolInfo.chainId,
+            batchSize: selectedPoolAccounts.length,
+            totalAmount: parseUnits(withdrawalAmount, 18)
+          },
+          (_, value) => (typeof value === 'bigint' ? value.toString() : value)
+        )
+      })
+
+      const quote = await quoteResonse.json()
+
+      feeBPSForWithdraw = quote.relayFeeBPS
+
+      totalAmountWithFee = (
+        parseFloat(withdrawalAmount) *
+        (1 + feeBPSForWithdraw / 10000)
+      ).toString()
+
+      console.log('DEBUG: quote', quote, 'feeBPSForWithdraw', feeBPSForWithdraw, totalAmountWithFee)
+    }
 
     const aspLeaves = mtLeaves?.aspLeaves
     const stateLeaves = mtLeaves?.stateTreeLeaves
@@ -409,16 +451,16 @@ const usePrivacyPoolsForm = () => {
         target,
         getAddress('0x7EF84c5660bB5130815099861c613BF935F4DA52'), // processooor should be BatchRelayer for batch withdrawals
         feeRecipient,
-        feeBPSForWithdraw.toString(),
+        feeBPSForWithdraw.toString(), // Fee in basis points (e.g., 101 = 1.01%)
         selectedPoolAccounts.length,
-        parseUnits(withdrawalAmount, 18)
+        parseUnits(totalAmountWithFee, 18)
       )
 
       // Calculate context from the batch withdrawal data
       // IMPORTANT: All proofs MUST use the SAME context
       const context = getContext(batchWithdrawal, selectedPoolInfo.scope as Hash)
 
-      let partialAmount = parseUnits(withdrawalAmount, 18)
+      let partialAmount = parseUnits(totalAmountWithFee, 18)
 
       // Generate proofs for each account with the SAME context
       const proofs = await Promise.all(
@@ -431,8 +473,6 @@ const usePrivacyPoolsForm = () => {
           } else {
             amount = partialAmount
           }
-
-          console.log('DEBUG: amount', amount)
 
           const commitment = poolAccount.lastCommitment
 
@@ -470,9 +510,8 @@ const usePrivacyPoolsForm = () => {
         })
       )
 
-      console.log('DEBUG: calling submitBatchWithdrawal')
-
       if (!isRelayer) {
+        console.log('DEBUG: calling contract')
         const transformedProofs = proofs.map((proof) => transformProofForContract(proof))
         // Build the batch transaction data
         const batchTransactionData = encodeFunctionData({
@@ -499,9 +538,22 @@ const usePrivacyPoolsForm = () => {
         await syncSignAccountOp([result])
         openEstimationModalAndDispatch()
       } else {
+        console.log('DEBUG: calling relayer endpoint')
         const transformedProofs = proofs.map((proof) => transformProofForRelayerApi(proof))
-        // Submit to relayer API instead of building transaction directly
-        submitBatchWithdrawal({
+
+        // submitBatchWithdrawal({
+        //          chainId: 11155111,
+        //          poolAddress: poolInfo.address,
+        //          withdrawal: {
+        //            processooor: batchWithdrawal.processooor,
+        //            data: batchWithdrawal.data
+        //          },
+        //          proofs: transformedProofs
+        //        })
+
+        // Direct relayer API call for testing
+
+        const params = {
           chainId: 11155111,
           poolAddress: poolInfo.address,
           withdrawal: {
@@ -509,7 +561,36 @@ const usePrivacyPoolsForm = () => {
             data: batchWithdrawal.data
           },
           proofs: transformedProofs
-        })
+        }
+
+        console.log('DEBUG: Direct relayer call with params:', params)
+
+        try {
+          const response = await fetch(`${relayerUrl}/relayer/batch/request`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(params, (_, value) =>
+              typeof value === 'bigint' ? value.toString() : value
+            )
+          })
+
+          const result = await response.json()
+          console.log('DEBUG: Relayer response:', result)
+
+          if (!result.success) {
+            setMessage({ type: 'error', text: result.message || 'Batch withdrawal failed' })
+          } else {
+            setMessage({ type: 'success', text: 'Batch withdrawal submitted successfully!' })
+          }
+        } catch (error) {
+          console.error('DEBUG: Relayer call error:', error)
+          setMessage({
+            type: 'error',
+            text: error instanceof Error ? error.message : 'Failed to submit batch withdrawal'
+          })
+        }
       }
     } catch (error) {
       const errorMessage =
