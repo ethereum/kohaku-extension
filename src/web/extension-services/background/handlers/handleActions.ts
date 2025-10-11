@@ -438,8 +438,10 @@ export const handleActions = async (
       return mainCtrl.privacyPools.generateKeys()
     case 'PRIVACY_POOLS_CONTROLLER_GENERATE_SECRET':
       return mainCtrl.privacyPools.generateSecret(params.appInfo)
-    case 'PRIVACY_POOLS_CONTROLLER_SUBMIT_BATCH_WITHDRAWAL':
-      return mainCtrl.privacyPools.submitBatchWithdrawal(params)
+    case 'PRIVACY_POOLS_CONTROLLER_PREPARE_WITHDRAWAL':
+      return mainCtrl.privacyPools.prepareWithdrawal(params)
+    case 'PRIVACY_POOLS_CONTROLLER_BROADCAST_WITHDRAWAL':
+      return mainCtrl.privacyPools.broadcastWithdrawal()
     case 'ACTIONS_CONTROLLER_REMOVE_FROM_ACTIONS_QUEUE':
       return mainCtrl.requests.actions.removeActions([params.id], params.shouldOpenNextAction)
     case 'ACTIONS_CONTROLLER_FOCUS_ACTION_WINDOW':

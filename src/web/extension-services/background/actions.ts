@@ -813,28 +813,28 @@ type PrivacyControllerResetFormAction = {
   type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
 }
 
-type PrivacyControllerSubmitBatchWithdrawalAction = {
-  type: 'PRIVACY_POOLS_CONTROLLER_SUBMIT_BATCH_WITHDRAWAL'
+type PrivacyControllerPrepareWithdrawalAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_PREPARE_WITHDRAWAL'
   params: {
     chainId: number
     poolAddress: string
-    poolScope: string
-    recipient: string
-    feeRecipient: string
-    relayFeeBPS: number
-    batchSize: number
-    totalValue: string
-    proofs: {
-      pA: [bigint, bigint]
-      pB: [[bigint, bigint], [bigint, bigint]]
-      pC: [bigint, bigint]
-      pubSignals: bigint[]
-    }[]
     withdrawal: {
       processooor: string
       data: string
     }
+    proofs: {
+      publicSignals: bigint[]
+      proof: {
+        pi_a: [bigint, bigint]
+        pi_b: [readonly [bigint, bigint], readonly [bigint, bigint]]
+        pi_c: [bigint, bigint]
+      }
+    }[]
   }
+}
+
+type PrivacyControllerBroadcastWithdrawalAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_BROADCAST_WITHDRAWAL'
 }
 
 export type Action =
@@ -987,4 +987,5 @@ export type Action =
   | PrivacyControllerGenerateKeysAction
   | PrivacyControllerGenerateSecretAction
   | PrivacyControllerResetFormAction
-  | PrivacyControllerSubmitBatchWithdrawalAction
+  | PrivacyControllerPrepareWithdrawalAction
+  | PrivacyControllerBroadcastWithdrawalAction
