@@ -49,7 +49,8 @@ const TransferScreen = () => {
     programmaticUpdateCounter,
     isRecipientAddressUnknownAgreed,
     signAccountOpController,
-    maxAmount
+    maxAmount,
+    shouldTrackLatestBroadcastedAccountOp
   } = usePrivacyPoolsControllerState()
 
   const { navigate } = useNavigation()
@@ -72,17 +73,16 @@ const TransferScreen = () => {
     forceUpdateOnChangeList: [programmaticUpdateCounter]
   })
 
+  // For privacy pools withdrawals via relayer, we use latestBroadcastedAccountOp directly
+  // because these transactions don't go through the normal AccountOp flow and aren't added to ActivityController
   const submittedAccountOp = useMemo(() => {
-    if (!latestBroadcastedAccountOp?.signature) return
-
-    // For Privacy Pools relayer withdrawals, use latestBroadcastedAccountOp directly
-    // since these transactions are not tracked in ActivityController
-    if (latestBroadcastedAccountOp.meta?.isPrivacyPoolsWithdrawal) {
-      return latestBroadcastedAccountOp
+    // If latestBroadcastedAccountOp exists and has the privacy pools withdrawal flag, use it directly
+    if (latestBroadcastedAccountOp?.meta?.isPrivacyPoolsWithdrawal) {
+      return latestBroadcastedAccountOp as any
     }
 
-    // For normal transactions, look up in accountsOps
-    if (!accountsOps.privacyPools) return
+    // Otherwise, look for it in the activity controller (for normal transactions)
+    if (!accountsOps.privacyPools || !latestBroadcastedAccountOp?.signature) return
 
     return accountsOps.privacyPools.result.items.find(
       (accOp) => accOp.signature === latestBroadcastedAccountOp.signature
@@ -136,10 +136,15 @@ const TransferScreen = () => {
   }, [latestBroadcastedAccountOp?.accountAddr, latestBroadcastedAccountOp?.chainId, sessionHandler])
 
   const displayedView: 'transfer' | 'track' = useMemo(() => {
-    if (latestBroadcastedAccountOp) return 'track'
+    // Show tracking screen only if both conditions are met:
+    // 1. latestBroadcastedAccountOp is set (transaction was broadcasted)
+    // 2. shouldTrackLatestBroadcastedAccountOp is true (controller wants us to show tracking)
+    if (latestBroadcastedAccountOp && shouldTrackLatestBroadcastedAccountOp) return 'track'
 
     return 'transfer'
-  }, [latestBroadcastedAccountOp])
+  }, [latestBroadcastedAccountOp, shouldTrackLatestBroadcastedAccountOp])
+
+  console.log('DEBUG: displayedView', displayedView, latestBroadcastedAccountOp)
 
   // When navigating to another screen internally in the extension, we unload the TransferController
   // to ensure that no estimation or SignAccountOp logic is still running.
@@ -217,6 +222,13 @@ const TransferScreen = () => {
   })
 
   const { estimationModalRef, closeEstimationModal } = usePrivacyPoolsForm()
+
+  // Close the Estimation modal when transitioning to track view
+  useEffect(() => {
+    if (displayedView === 'track') {
+      closeEstimationModal()
+    }
+  }, [displayedView, closeEstimationModal])
 
   const amountErrorMessage = useMemo(() => {
     return validationFormMsgs.amount.message || ''
