@@ -1,9 +1,10 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
 import { Address, encodeFunctionData, formatEther, getAddress, parseUnits } from 'viem'
 import { english, generateMnemonic } from 'viem/accounts'
 import { Hash, type Withdrawal } from '@0xbow/privacy-pools-core-sdk'
 import { Call } from '@ambire-common/libs/accountOp/types'
+import { BatchWithdrawalParams } from '@ambire-common/controllers/privacyPools/privacyPools'
 import { PoolAccount, ReviewStatus } from '@web/contexts/privacyPoolsControllerStateContext'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
@@ -18,10 +19,6 @@ import {
 import { transformRagequitProofForContract } from '../utils/ragequit'
 import { entrypointAbiBatch, entrypointAbi, privacyPoolAbi } from '../utils/abi'
 import { usePOC } from './usePOC'
-import {
-  BatchWithdrawalParams,
-  BatchWithdrawalProof
-} from '@ambire-common/controllers/privacyPools/privacyPools'
 
 type PrivateRequestType =
   | 'privateDepositRequest'
@@ -104,6 +101,33 @@ const usePrivacyPoolsForm = () => {
     return formatEther(totalApprovedBalance.total)
   }, [totalApprovedBalance])
 
+  // Calculate batchSize based on withdrawal amount and pool accounts
+  const calculatedBatchSize = useMemo(() => {
+    if (!withdrawalAmount || !poolAccounts) return 1
+
+    try {
+      const approvedAccounts =
+        poolAccounts?.filter((account) => account.reviewStatus === 'approved') || []
+
+      if (approvedAccounts.length === 0) return 1
+
+      const selectedPoolAccounts: PoolAccount[] = []
+      let remainingAmount = parseUnits(withdrawalAmount, 18)
+
+      approvedAccounts.forEach((account) => {
+        if (remainingAmount > 0n) {
+          selectedPoolAccounts.push(account)
+          remainingAmount -= account.balance
+        }
+      })
+
+      return selectedPoolAccounts.length || 1
+    } catch (error) {
+      // If there's an error parsing the withdrawal amount, default to 1
+      return 1
+    }
+  }, [withdrawalAmount, poolAccounts])
+
   const {
     ref: estimationModalRef,
     open: openEstimationModal,
@@ -132,17 +156,15 @@ const usePrivacyPoolsForm = () => {
     })
   }
 
-  // const submitBatchWithdrawal = useCallback(
-  //   (params: BatchWithdrawalParams): void => {
-  //     // Dispatch action to background service (fire-and-forget pattern)
-  //     // The controller will update its state and UI will receive updates via context
-  //     dispatch({
-  //       type: 'PRIVACY_POOLS_CONTROLLER_SUBMIT_BATCH_WITHDRAWAL',
-  //       params
-  //     })
-  //   },
-  //   [dispatch]
-  // )
+  const prepareBatchWithdrawal = useCallback(
+    (params: BatchWithdrawalParams): void => {
+      dispatch({
+        type: 'PRIVACY_POOLS_CONTROLLER_PREPARE_WITHDRAWAL',
+        params
+      })
+    },
+    [dispatch]
+  )
 
   const handleGenerateSeedPhrase = async () => {
     setIsGenerating(true)
@@ -358,6 +380,12 @@ const usePrivacyPoolsForm = () => {
 
   const isLoading = isLoadingSeedPhrase || isLoadingAccount
 
+  // Update controller with calculated batchSize whenever it changes
+  useEffect(() => {
+    handleUpdateForm({ batchSize: calculatedBatchSize })
+    console.log('DEBUG: batchSize update', calculatedBatchSize)
+  }, [calculatedBatchSize, handleUpdateForm])
+
   /**
    * Handles withdrawal using multiple pool accounts via relayer API
    * This version generates proofs and submits to the relayer endpoint
@@ -437,7 +465,7 @@ const usePrivacyPoolsForm = () => {
       totalAmountWithFee = (
         parseFloat(withdrawalAmount) *
         (1 + feeBPSForWithdraw / 10000)
-      ).toString()
+      ).toString() // TODO: Use this for custom encoding
 
       batchWithdrawal = {
         processooor: getAddress('0x7EF84c5660bB5130815099861c613BF935F4DA52'),
@@ -472,7 +500,7 @@ const usePrivacyPoolsForm = () => {
       // IMPORTANT: All proofs MUST use the SAME context
       const context = getContext(batchWithdrawal!, selectedPoolInfo.scope as Hash)
 
-      let partialAmount = parseUnits(totalAmountWithFee, 18)
+      let partialAmount = parseUnits(withdrawalAmount, 18)
 
       // Generate proofs for each account with the SAME context
       const proofs = await Promise.all(
@@ -553,19 +581,9 @@ const usePrivacyPoolsForm = () => {
         console.log('DEBUG: calling relayer endpoint')
         const transformedProofs = proofs.map((proof) => transformProofForRelayerApi(proof))
 
-        // submitBatchWithdrawal({
-        //          chainId: 11155111,
-        //          poolAddress: poolInfo.address,
-        //          withdrawal: {
-        //            processooor: batchWithdrawal.processooor,
-        //            data: batchWithdrawal.data
-        //          },
-        //          proofs: transformedProofs
-        //        })
+        if (!batchWithdrawal) return
 
-        // Direct relayer API call for testing
-
-        const params = {
+        prepareBatchWithdrawal({
           chainId: 11155111,
           poolAddress: poolInfo.address,
           withdrawal: {
@@ -573,36 +591,50 @@ const usePrivacyPoolsForm = () => {
             data: batchWithdrawal.data
           },
           proofs: transformedProofs
-        }
+        })
 
-        console.log('DEBUG: Direct relayer call with params:', params)
+        openEstimationModalAndDispatch()
 
-        try {
-          const response = await fetch(`${relayerUrl}/relayer/batch/request`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(params, (_, value) =>
-              typeof value === 'bigint' ? value.toString() : value
-            )
-          })
+        // Direct relayer API call for testing
 
-          const result = await response.json()
-          console.log('DEBUG: Relayer response:', result)
-
-          if (!result.success) {
-            setMessage({ type: 'error', text: result.message || 'Batch withdrawal failed' })
-          } else {
-            setMessage({ type: 'success', text: 'Batch withdrawal submitted successfully!' })
-          }
-        } catch (error) {
-          console.error('DEBUG: Relayer call error:', error)
-          setMessage({
-            type: 'error',
-            text: error instanceof Error ? error.message : 'Failed to submit batch withdrawal'
-          })
-        }
+        // const params = {
+        //   chainId: 11155111,
+        //   poolAddress: poolInfo.address,
+        //   withdrawal: {
+        //     processooor: batchWithdrawal!.processooor,
+        //     data: batchWithdrawal!.data
+        //   },
+        //   proofs: transformedProofs
+        // }
+        //
+        // console.log('DEBUG: Direct relayer call with params:', params)
+        //
+        // try {
+        //   const response = await fetch(`${relayerUrl}/relayer/batch/request`, {
+        //     method: 'POST',
+        //     headers: {
+        //       'Content-Type': 'application/json'
+        //     },
+        //     body: JSON.stringify(params, (_, value) =>
+        //       typeof value === 'bigint' ? value.toString() : value
+        //     )
+        //   })
+        //
+        //   const result = await response.json()
+        //   console.log('DEBUG: Relayer response:', result)
+        //
+        //   if (!result.success) {
+        //     setMessage({ type: 'error', text: result.message || 'Batch withdrawal failed' })
+        //   } else {
+        //     setMessage({ type: 'success', text: 'Batch withdrawal submitted successfully!' })
+        //   }
+        // } catch (error) {
+        //   console.error('DEBUG: Relayer call error:', error)
+        //   setMessage({
+        //     type: 'error',
+        //     text: error instanceof Error ? error.message : 'Failed to submit batch withdrawal'
+        //   })
+        // }
       }
     } catch (error) {
       const errorMessage =
