@@ -50,6 +50,7 @@ const TransferScreen = () => {
     isRecipientAddressUnknownAgreed,
     signAccountOpController,
     maxAmount,
+    relayerQuote,
     shouldTrackLatestBroadcastedAccountOp
   } = usePrivacyPoolsControllerState()
 
@@ -239,6 +240,7 @@ const TransferScreen = () => {
       amountFieldValue &&
       amountFieldValue !== '0' &&
       selectedToken &&
+      relayerQuote &&
       !addressInputState.validation.isError
     )
   }, [amountFieldValue, selectedToken, addressInputState.validation.isError])
