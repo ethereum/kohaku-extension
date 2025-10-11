@@ -73,12 +73,21 @@ const TransferScreen = () => {
   })
 
   const submittedAccountOp = useMemo(() => {
-    if (!accountsOps.privacyPools || !latestBroadcastedAccountOp?.signature) return
+    if (!latestBroadcastedAccountOp?.signature) return
+
+    // For Privacy Pools relayer withdrawals, use latestBroadcastedAccountOp directly
+    // since these transactions are not tracked in ActivityController
+    if (latestBroadcastedAccountOp.meta?.isPrivacyPoolsWithdrawal) {
+      return latestBroadcastedAccountOp
+    }
+
+    // For normal transactions, look up in accountsOps
+    if (!accountsOps.privacyPools) return
 
     return accountsOps.privacyPools.result.items.find(
       (accOp) => accOp.signature === latestBroadcastedAccountOp.signature
     )
-  }, [accountsOps.privacyPools, latestBroadcastedAccountOp?.signature])
+  }, [accountsOps.privacyPools, latestBroadcastedAccountOp])
 
   const navigateOut = useCallback(() => {
     if (isActionWindow) {
@@ -93,7 +102,7 @@ const TransferScreen = () => {
     }
 
     dispatch({
-      type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN'
+      type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
     })
   }, [dispatch, navigate])
 
@@ -145,10 +154,7 @@ const TransferScreen = () => {
 
   const handleBroadcastAccountOp = useCallback(() => {
     dispatch({
-      type: 'MAIN_CONTROLLER_HANDLE_SIGN_AND_BROADCAST_ACCOUNT_OP',
-      params: {
-        updateType: 'PrivacyPools'
-      }
+      type: 'PRIVACY_POOLS_CONTROLLER_BROADCAST_WITHDRAWAL'
     })
   }, [dispatch])
 
@@ -226,6 +232,9 @@ const TransferScreen = () => {
   }, [amountFieldValue, selectedToken, addressInputState.validation.isError])
 
   const onBack = useCallback(() => {
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
+    })
     navigate(ROUTES.pp1Home)
   }, [navigate])
 
@@ -248,6 +257,9 @@ const TransferScreen = () => {
   }, [onBack, handleMultipleWithdrawal, isTransferFormValid, t])
 
   const handleGoBackPress = useCallback(() => {
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
+    })
     navigate(ROUTES.pp1Home)
   }, [navigate])
 
