@@ -1,25 +1,15 @@
-# Ambire Wallet
+# Kohaku Wallet
 
 <div align="center">
-  <a href="https://chromewebstore.google.com/detail/ambire-wallet/ehgjhhccekdedpbkifaojjaefeohnoea" target="_blank">
-    <img src="./mockups/mockup-dashboard.png" alt="Ambire Wallet Dashboard" />
+  <a href="https://notes.ethereum.org/@niard/KohakuRoadmap" target="_blank">
+    <img src="./mockups/mockup-dashboard.png" alt="Kohaku Wallet Dashboard" />
   </a>
 
   <p>
     The secure & easy-to-use Web3 wallet. EIP-7702 ready.<br />
-    <a href="https://chromewebstore.google.com/detail/ambire-wallet/ehgjhhccekdedpbkifaojjaefeohnoea" target="_blank">
-      <strong>Download Extension for Webkit Browsers 🔥</strong>
-    </a>
-    <br />
-    <em>(Chrome, Brave, Opera, Edge, Arc)</em>
-    <br /><br />
-    💌 Request Invite Code:
-    <a href="https://discord.com/invite/Ambire" target="_blank">Discord</a> |
-    <a href="https://t.me/AmbireOfficial" target="_blank">Telegram</a>
-    <br />
-    🐞
-    <a href="https://github.com/AmbireTech/extension/issues">Report a Bug</a> ·
-    <a href="https://forum.ambire.com/" target="_blank">Request Features</a>
+
+    <a href="https://github.com/ethereum/kohaku-extension/issues">Report a Bug</a> ·
+    
   </p>
 </div>
 
