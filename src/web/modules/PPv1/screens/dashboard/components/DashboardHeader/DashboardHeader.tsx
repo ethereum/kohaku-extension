@@ -8,13 +8,20 @@ import flexboxStyles from '@common/styles/utils/flexbox'
 import useHover from '@web/hooks/useHover'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import commonWebStyles from '@web/styles/utils/common'
-import SettingsIcon from '@common/assets/svg/SettingsIcon'
+import BurgerIcon from '@common/assets/svg/BurgerIcon'
+import { THEME_TYPES } from '@common/styles/themeConfig'
+import { getUiType } from '@web/utils/uiType'
+import useTheme from '@common/hooks/useTheme'
 import AccountButton from './AccountButton'
+import getStyles from './styles'
+
+const { isPopup } = getUiType()
 
 const DashboardHeader = () => {
   const { account } = useSelectedAccountControllerState()
-  const [bindSettingsAnim, settingsAnimStyle] = useHover({ preset: 'opacity' })
+  const [bindBurgerAnim, burgerAnimStyle] = useHover({ preset: 'opacity' })
   const { navigate } = useNavigation()
+  const { theme, themeType } = useTheme(getStyles)
 
   if (!account) return null
 
@@ -34,25 +41,23 @@ const DashboardHeader = () => {
           <AccountButton />
         </View>
         <Pressable
-          testID="dashboard-settings-btn"
-          style={[
-            spacings.ml,
-            spacings.phTy,
-            spacings.pvTy,
-            flexboxStyles.alignSelfCenter,
-            flexboxStyles.alignCenter,
-            flexboxStyles.justifyCenter,
-            {
-              width: 40,
-              height: 40,
-              borderRadius: 8
-            }
-          ]}
-          onPress={() => navigate(WEB_ROUTES.pp1Settings)}
-          {...bindSettingsAnim}
+          testID="dashboard-hamburger-btn"
+          style={[spacings.ml, spacings.phTy, spacings.pvTy, flexboxStyles.alignSelfCenter]}
+          onPress={() =>
+            isPopup ? navigate(WEB_ROUTES.menu) : navigate(WEB_ROUTES.generalSettings)
+          }
+          {...bindBurgerAnim}
         >
-          <Animated.View style={settingsAnimStyle}>
-            <SettingsIcon width={20} height={20} color="white" />
+          <Animated.View style={burgerAnimStyle}>
+            <BurgerIcon
+              color={
+                themeType === THEME_TYPES.DARK
+                  ? theme.primaryBackgroundInverted
+                  : theme.primaryBackground
+              }
+              width={20}
+              height={20}
+            />
           </Animated.View>
         </Pressable>
       </View>

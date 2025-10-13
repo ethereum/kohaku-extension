@@ -17,9 +17,9 @@ import {
   AccountCommitment,
   RagequitEvent
 } from '@0xbow/privacy-pools-core-sdk'
-import { Chain, createPublicClient, Hex, http, HttpTransport, PublicClient } from 'viem'
+import { Hex, http, HttpTransport } from 'viem'
 import { sepolia } from 'viem/chains'
-import { chainData, whitelistedChains } from '@ambire-common/controllers/privacyPools/config'
+import { chainData } from '@ambire-common/controllers/privacyPools/config'
 import { MtLeavesResponse, aspClient } from './aspClient'
 
 export const transports = {
@@ -47,21 +47,6 @@ export enum ReviewStatus {
   DECLINED = 'declined',
   EXITED = 'exited',
   SPENT = 'spent'
-}
-
-export const getTimestampFromBlockNumber = async (
-  blockNumber: bigint,
-  publicClient: PublicClient
-) => {
-  if (!publicClient) throw new Error('Public client not found')
-
-  const block = await publicClient.getBlock({
-    blockNumber
-  })
-
-  if (!block) throw new Error('Block required to get timestamp')
-
-  return block.timestamp
 }
 
 // Lazy load circuits only when needed
@@ -182,20 +167,12 @@ export const getPoolAccountsFromAccount = async (account: PrivacyPoolAccount, ch
         chainId: Number(paChainId)
       }
 
-      const publicClient = createPublicClient({
-        chain: whitelistedChains.find((chain: Chain) => chain.id === Number(paChainId))!,
-        transport: transports[Number(paChainId)]
-      })
-
-      updatedPoolAccount.deposit.timestamp = await getTimestampFromBlockNumber(
-        poolAccount.deposit.blockNumber,
-        publicClient
-      )
+      updatedPoolAccount.deposit.timestamp = poolAccount.deposit.blockNumber
 
       if (updatedPoolAccount.children.length > 0) {
         updatedPoolAccount.children.forEach(async (child) => {
           // eslint-disable-next-line no-param-reassign
-          child.timestamp = await getTimestampFromBlockNumber(child.blockNumber, publicClient)
+          child.timestamp = child.blockNumber
         })
       }
 
@@ -205,10 +182,7 @@ export const getPoolAccountsFromAccount = async (account: PrivacyPoolAccount, ch
       }
 
       if (updatedPoolAccount.ragequit) {
-        updatedPoolAccount.ragequit.timestamp = await getTimestampFromBlockNumber(
-          updatedPoolAccount.ragequit.blockNumber,
-          publicClient!
-        )
+        updatedPoolAccount.ragequit.timestamp = updatedPoolAccount.ragequit.blockNumber
       }
 
       poolAccounts.push(updatedPoolAccount)
