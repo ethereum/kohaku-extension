@@ -357,16 +357,29 @@ const usePrivacyPoolsForm = () => {
     openEstimationModalAndDispatch
   ])
 
-  const loadSeedPhrase = useCallback(async () => {
-    const data = await getData({ key: 'TEST-private-account' })
-    if (data) {
+  const loadPrivateAccount = useCallback(async () => {
+    if (isAccountLoaded) return
+
+    try {
+      const data = await getData({ key: 'TEST-private-account' })
+      if (!data) {
+        setMessage({ type: 'error', text: 'No stored private account found.' })
+        return
+      }
+
       setIsLoadingSeedPhrase(true)
       const decrypted = await decrypt(data)
-      await handleLoadAccount(decrypted)
       handleUpdateForm({ seedPhrase: decrypted || '' })
+      await handleLoadAccount(decrypted)
+      setMessage({ type: 'success', text: 'Private account loaded successfully!' })
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to load private account. Please try again.'
+      setMessage({ type: 'error', text: errorMessage })
+    } finally {
       setIsLoadingSeedPhrase(false)
     }
-  }, [getData, decrypt, handleUpdateForm, handleLoadAccount])
+  }, [isAccountLoaded, getData, decrypt, handleUpdateForm, handleLoadAccount])
 
   const isLoading = isLoadingSeedPhrase || isLoadingAccount
 
@@ -555,7 +568,7 @@ const usePrivacyPoolsForm = () => {
     closeEstimationModal,
     handleSelectedAccount,
     handleGenerateSeedPhrase,
-    loadSeedPhrase,
+    loadPrivateAccount,
     refreshPrivateAccount
   }
 }
