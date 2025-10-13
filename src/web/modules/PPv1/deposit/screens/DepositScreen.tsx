@@ -154,7 +154,7 @@ function TransferScreen() {
   }, [depositAmount, poolInfo, isLoading])
 
   const onBack = useCallback(() => {
-    navigate(ROUTES.pp1Home)
+    navigate(ROUTES.dashboard)
   }, [navigate])
 
   const headerTitle = t('Deposit')

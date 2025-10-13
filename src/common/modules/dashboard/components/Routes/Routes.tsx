@@ -18,8 +18,8 @@ const Routes = ({ openReceiveModal }: { openReceiveModal: () => void }) => {
     {
       testID: 'dashboard-button-privacy-pools',
       icon: SendIcon,
-      label: t('Private Account'),
-      route: WEB_ROUTES.pp1Home,
+      label: t('Deposit to Private'),
+      route: WEB_ROUTES.pp1Deposit,
       isExternal: false,
       scale: 1.08,
       scaleOnHover: 1.18

@@ -14,15 +14,15 @@ const Routes = () => {
   const { t } = useTranslation()
 
   const routeItems = [
-    {
-      testID: 'dashboard-button-privacy-pools',
-      icon: (props: any) => <SendIcon style={{ rotate: '90deg' }} {...props} />,
-      label: t('Deposit'),
-      route: WEB_ROUTES.pp1Deposit,
-      isExternal: false,
-      scale: 1.08,
-      scaleOnHover: 1.18
-    },
+    // {
+    //   testID: 'dashboard-button-privacy-pools',
+    //   icon: (props: any) => <SendIcon style={{ rotate: '90deg' }} {...props} />,
+    //   label: t('Deposit'),
+    //   route: WEB_ROUTES.pp1Deposit,
+    //   isExternal: false,
+    //   scale: 1.08,
+    //   scaleOnHover: 1.18
+    // },
     {
       testID: 'dashboard-button-send',
       icon: SendIcon,
