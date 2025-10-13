@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import React, { useCallback, useEffect, useRef } from 'react'
+import React, { useEffect, useRef } from 'react'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import DashboardScreen from './dashboard/screens/DashboardScreen'
 import usePrivacyPoolsForm from '../hooks/usePrivacyPoolsForm'
@@ -7,13 +7,12 @@ import usePrivacyPoolsForm from '../hooks/usePrivacyPoolsForm'
 const HomeScreen = () => {
   const { dispatch } = useBackgroundService()
   const {
-    loadSeedPhrase,
-    handleLoadAccount,
     isAccountLoaded,
     poolAccounts,
     totalApprovedBalance,
     totalPendingBalance,
-    totalDeclinedBalance
+    totalDeclinedBalance,
+    loadPrivateAccount
   } = usePrivacyPoolsForm()
   const hasLoadedRef = useRef(false)
 
@@ -22,18 +21,13 @@ const HomeScreen = () => {
   console.log('DEBUG: totalDeclinedBalance', totalDeclinedBalance)
   console.log({ isAccountLoaded, poolAccounts })
 
-  const handleLoadAccountWrapped = useCallback(async () => {
-    await loadSeedPhrase()
-    await handleLoadAccount()
-  }, [loadSeedPhrase, handleLoadAccount])
-
   useEffect(() => {
     if (!isAccountLoaded && !hasLoadedRef.current) {
       hasLoadedRef.current = true
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      handleLoadAccountWrapped()
+      loadPrivateAccount()
     }
-  }, [handleLoadAccountWrapped, isAccountLoaded, hasLoadedRef])
+  }, [loadPrivateAccount, isAccountLoaded, hasLoadedRef])
 
   useEffect(() => {
     return () => {

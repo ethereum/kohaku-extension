@@ -15,11 +15,15 @@ import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountCont
 import { getUiType } from '@web/utils/uiType'
 
 import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
+import { WEB_ROUTES } from '@common/modules/router/constants/common'
+import useNavigation from '@common/hooks/useNavigation'
 import DAppFooter from '../components/DAppFooter'
 import DashboardOverview from '../components/DashboardOverview'
 import CongratsFirstCashbackModal from '../components/DashboardOverview/CongratsFirstCashbackModal'
 import DashboardPages from '../components/DashboardPages'
 import getStyles from './styles'
+import PendingBanner from '../components/PendingBanner'
+import RejectedBanner from '../components/RejectedBanner'
 
 const { isPopup } = getUiType()
 
@@ -28,6 +32,7 @@ export const OVERVIEW_CONTENT_MAX_HEIGHT = 120
 const DashboardScreen = () => {
   const { styles } = useTheme(getStyles)
   const { dispatch } = useBackgroundService()
+  const { navigate } = useNavigation()
   const { ref: receiveModalRef, open: openReceiveModal, close: closeReceiveModal } = useModalize()
   const { ref: gasTankModalRef, open: openGasTankModal, close: closeGasTankModal } = useModalize()
   const lastOffsetY = useRef(0)
@@ -41,21 +46,22 @@ const DashboardScreen = () => {
 
   const { account, portfolio, cashbackStatus } = useSelectedAccountControllerState()
 
-  const { handleLoadAccount, isAccountLoaded, loadSeedPhrase } = usePrivacyPoolsForm()
+  const { loadPrivateAccount, isAccountLoaded } = usePrivacyPoolsForm()
   const hasLoadedRef = useRef(false)
 
-  const handleLoadAccountWrapped = useCallback(async () => {
-    await loadSeedPhrase()
-    await handleLoadAccount()
-  }, [loadSeedPhrase, handleLoadAccount])
+  const onWithdrawBack = useCallback(() => {
+    navigate(WEB_ROUTES.pp1Ragequit)
+  }, [navigate])
 
   useEffect(() => {
     if (!isAccountLoaded && !hasLoadedRef.current) {
       hasLoadedRef.current = true
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      handleLoadAccountWrapped()
+      loadPrivateAccount().catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error('Failed to load private account:', error)
+      })
     }
-  }, [handleLoadAccountWrapped, isAccountLoaded, hasLoadedRef])
+  }, [loadPrivateAccount, isAccountLoaded, hasLoadedRef])
 
   const hasUnseenFirstCashback = useMemo(
     () => cashbackStatus === 'cashback-modal',
@@ -145,6 +151,8 @@ const DashboardScreen = () => {
           />
           <DashboardPages onScroll={onScroll} animatedOverviewHeight={animatedOverviewHeight} />
         </View>
+        <PendingBanner />
+        <RejectedBanner onWithdrawBack={onWithdrawBack} />
         <DAppFooter />
       </View>
       {hasUnseenFirstCashback && (

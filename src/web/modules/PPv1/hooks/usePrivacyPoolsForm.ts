@@ -43,6 +43,7 @@ const usePrivacyPoolsForm = () => {
     latestBroadcastedAccountOp,
     isAccountLoaded,
     recipientAddress,
+    setIsAccountLoaded,
     relayerQuote,
     getContext,
     loadAccount,
@@ -134,6 +135,34 @@ const usePrivacyPoolsForm = () => {
     open: openEstimationModal,
     close: closeEstimationModal
   } = useModalize()
+
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const refreshPrivateAccount = useCallback(async () => {
+    if (!seedPhrase) {
+      setMessage({ type: 'error', text: 'No seed phrase available to refresh account.' })
+      return
+    }
+
+    try {
+      setIsRefreshing(true)
+      setIsAccountLoaded(false)
+      setMessage(null)
+      setIsLoadingAccount(true)
+      setRagequitLoading({})
+
+      await loadAccount()
+      setMessage({ type: 'success', text: 'Account refreshed successfully!' })
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to refresh account. Please try again.'
+      setMessage({ type: 'error', text: errorMessage })
+    } finally {
+      setIsLoadingAccount(false)
+      setIsAccountLoaded(true)
+      setIsRefreshing(false)
+    }
+  }, [seedPhrase, loadAccount, setIsAccountLoaded])
 
   const handleUpdateForm = useCallback(
     (params: { [key: string]: any }) => {
@@ -368,16 +397,29 @@ const usePrivacyPoolsForm = () => {
     openEstimationModalAndDispatch
   ])
 
-  const loadSeedPhrase = useCallback(async () => {
-    const data = await getData({ key: 'TEST-private-account' })
-    if (data) {
+  const loadPrivateAccount = useCallback(async () => {
+    if (isAccountLoaded) return
+
+    try {
+      const data = await getData({ key: 'TEST-private-account' })
+      if (!data) {
+        setMessage({ type: 'error', text: 'No stored private account found.' })
+        return
+      }
+
       setIsLoadingSeedPhrase(true)
       const decrypted = await decrypt(data)
-      await handleLoadAccount(decrypted)
       handleUpdateForm({ seedPhrase: decrypted || '' })
+      await handleLoadAccount(decrypted)
+      setMessage({ type: 'success', text: 'Private account loaded successfully!' })
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to load private account. Please try again.'
+      setMessage({ type: 'error', text: errorMessage })
+    } finally {
       setIsLoadingSeedPhrase(false)
     }
-  }, [getData, decrypt, handleUpdateForm, handleLoadAccount])
+  }, [isAccountLoaded, getData, decrypt, handleUpdateForm, handleLoadAccount])
 
   const isLoading = isLoadingSeedPhrase || isLoadingAccount
 
@@ -544,6 +586,7 @@ const usePrivacyPoolsForm = () => {
     signAccountOpController,
     latestBroadcastedAccountOp,
     isLoading,
+    isRefreshing,
     isAccountLoaded,
     totalApprovedBalance,
     totalPendingBalance,
@@ -560,7 +603,8 @@ const usePrivacyPoolsForm = () => {
     closeEstimationModal,
     handleSelectedAccount,
     handleGenerateSeedPhrase,
-    loadSeedPhrase
+    loadPrivateAccount,
+    refreshPrivateAccount
   }
 }
 

@@ -42,9 +42,12 @@ function TransferScreen() {
     signAccountOpController,
     latestBroadcastedAccountOp,
     isLoading,
+    isAccountLoaded,
     handleDeposit,
     handleUpdateForm,
-    closeEstimationModal
+    closeEstimationModal,
+    refreshPrivateAccount,
+    loadPrivateAccount
   } = usePrivacyPoolsForm()
 
   const amountErrorMessage = useMemo(() => {
@@ -60,7 +63,7 @@ function TransferScreen() {
     )
   }, [accountsOps.privacyPools, latestBroadcastedAccountOp?.signature])
 
-  const navigateOut = useCallback(() => {
+  const navigateOut = useCallback(async () => {
     if (isActionWindow) {
       dispatch({
         type: 'CLOSE_SIGNING_ACTION_WINDOW',
@@ -69,13 +72,16 @@ function TransferScreen() {
         }
       })
     } else {
-      navigate(ROUTES.pp1Home)
+      navigate(ROUTES.dashboard)
     }
 
     dispatch({
       type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN'
     })
-  }, [dispatch, navigate])
+
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    refreshPrivateAccount()
+  }, [dispatch, navigate, refreshPrivateAccount])
 
   const { sessionHandler, onPrimaryButtonPress } = useTrackAccountOp({
     address: latestBroadcastedAccountOp?.accountAddr,
@@ -111,6 +117,15 @@ function TransferScreen() {
 
     return 'transfer'
   }, [latestBroadcastedAccountOp])
+
+  useEffect(() => {
+    if (!isAccountLoaded) {
+      loadPrivateAccount().catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error('Failed to load private account:', error)
+      })
+    }
+  }, [isAccountLoaded, loadPrivateAccount])
 
   useEffect(() => {
     return () => {
@@ -150,8 +165,9 @@ function TransferScreen() {
   )
 
   const isTransferFormValid = useMemo(() => {
-    return !!(depositAmount && depositAmount !== '0' && poolInfo) || isLoading
-  }, [depositAmount, poolInfo, isLoading])
+    if (isLoading || !isAccountLoaded) return false
+    return !!(depositAmount && depositAmount !== '0' && poolInfo)
+  }, [depositAmount, poolInfo, isLoading, isAccountLoaded])
 
   const onBack = useCallback(() => {
     navigate(ROUTES.dashboard)
@@ -160,20 +176,26 @@ function TransferScreen() {
   const headerTitle = t('Deposit')
   const formTitle = t('Deposit')
 
+  const proceedBtnText = useMemo(() => {
+    if (isLoading && !isAccountLoaded) return t('Loading account...')
+    return t('Deposit')
+  }, [isLoading, isAccountLoaded, t])
+
   const buttons = useMemo(() => {
     return (
       <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
         <BackButton onPress={onBack} />
         <Buttons
           handleSubmitForm={handleDeposit}
-          proceedBtnText={t('Deposit')}
+          proceedBtnText={proceedBtnText}
           isNotReadyToProceed={!isTransferFormValid}
+          isLoading={isLoading}
           signAccountOpErrors={[]}
           networkUserRequests={[]}
         />
       </View>
     )
-  }, [onBack, handleDeposit, isTransferFormValid, t])
+  }, [onBack, handleDeposit, proceedBtnText, isTransferFormValid, isLoading])
 
   if (displayedView === 'track') {
     return (
