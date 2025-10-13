@@ -111,10 +111,15 @@ const TransferForm = ({
       const defaultToken = portfolio?.tokens.find(
         (token) => token.chainId === 11155111n && token.address === zeroAddress
       )
-      console.log('DEBUG: loading default token')
-      handleUpdateForm({ selectedToken: defaultToken })
+      handleUpdateForm({ selectedToken: defaultToken, maxAmount: formatEther(ethBalance) })
     }
-  }, [selectedToken, portfolio?.isReadyToVisualize, ethBalance, handleUpdateForm])
+  }, [
+    selectedToken,
+    portfolio?.isReadyToVisualize,
+    portfolio?.tokens,
+    ethBalance,
+    handleUpdateForm
+  ])
 
   return (
     <ScrollableWrapper contentContainerStyle={styles.container}>
@@ -139,8 +144,6 @@ const TransferForm = ({
             value: 'eth',
             icon: ethTokenIcon
           }}
-          // fromTokenOptions={options}
-          // fromTokenValue={tokenSelectValue}
           fromAmountValue={amountFieldValue}
           fromTokenAmountSelectDisabled={ethBalance === 0n}
           handleChangeFromToken={({ value }) => handleChangeToken(value as string)}
