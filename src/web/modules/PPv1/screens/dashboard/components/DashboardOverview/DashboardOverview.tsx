@@ -233,11 +233,11 @@ const DashboardOverview: FC<Props> = ({
                 </View>
 
                 <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-                  <View style={styles.contentContainer}>
+                  {/* <View style={styles.contentContainer}>
                     <Text fontSize={14} shouldScale={false} weight="medium" color="white">
                       Privacy Pools
                     </Text>
-                  </View>
+                  </View> */}
                   <BalanceAffectingErrors
                     reloadAccount={reloadAccount}
                     networksWithErrors={networksWithErrors}

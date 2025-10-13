@@ -154,7 +154,7 @@ function TransferScreen() {
   }, [depositAmount, poolInfo, isLoading])
 
   const onBack = useCallback(() => {
-    navigate(ROUTES.pp1Home)
+    navigate(ROUTES.dashboard)
   }, [navigate])
 
   const headerTitle = t('Deposit')
@@ -179,7 +179,6 @@ function TransferScreen() {
     return (
       <TrackProgress
         onPrimaryButtonPress={onPrimaryButtonPress}
-        secondaryButtonText={t('Add more')}
         handleClose={() => {
           dispatch({
             type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-shadow */
+/* eslint-disable no-console */
 import React, {
   createContext,
   Dispatch,
@@ -41,6 +41,8 @@ import useControllerState from '@web/hooks/useControllerState'
 import { getPoolAccountsFromAccount, processDeposits } from '@web/modules/PPv1/utils/sdk'
 import type { PrivacyPoolsController } from '@ambire-common/controllers/privacyPools/privacyPools'
 import { aspClient, MtLeavesResponse, MtRootResponse } from '@web/modules/PPv1/utils/aspClient'
+import { storeData } from '@web/modules/PPv1/utils/extensionStorage'
+import { encrypt } from '@web/modules/PPv1/utils/encryption'
 
 export enum ReviewStatus {
   PENDING = 'pending',
@@ -190,42 +192,28 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
 
   const memoizedState = useDeepMemo(state, controller)
 
-  // const rawTokens = useMemo(() => {
-  //   if (!networks || !portfolio?.tokens) return []
-  //
-  //   return sortPortfolioTokenList(
-  //     portfolio.tokens.filter((token) => {
-  //       const hasAmount = Number(getTokenAmount(token)) > 0
-  //       return hasAmount && !token.flags.onGasTank && !token.flags.rewardsType
-  //     })
-  //   )
-  // }, [portfolio?.tokens, networks])
-  //
-  // // This ensures that `tokens` won't trigger re-renders unless its deep content changes
-  // const tokens = useDeepMemo(rawTokens, 'tokens')
-  //
-  // const updatedSelectedToken = useMemo(() => {
-  //   if (!memoizedState.selectedToken) return null
-  //
-  //   return tokens.find(
-  //     (token) =>
-  //       token.address === memoizedState.selectedToken?.address &&
-  //       token.chainId === memoizedState.selectedToken?.chainId
-  //   )
-  // }, [tokens, memoizedState.selectedToken?.address, memoizedState.selectedToken?.chainId])
-  //
-  // // If a token is already selected, we should retrieve its latest value from tokens.
-  // // This is important because the token amount is likely to change,
-  // // especially when initiating a transfer or adding a new one to the queue.
-  // // As a result, the token `amountPostSimulation` may differ, and we need to update the available token balance accordingly.
-  // useEffect(() => {
-  //   if (!updatedSelectedToken) return
-  //
-  //   dispatch({
-  //     type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM',
-  //     params: { selectedToken: updatedSelectedToken }
-  //   })
-  // }, [updatedSelectedToken, dispatch])
+  console.log('DEBUG:', { state })
+
+  const { secret } = memoizedState
+
+  useEffect(() => {
+    if (secret) {
+      console.log('Signed typed data:', secret)
+      encrypt(secret, 'test')
+        .then((encrypted) => {
+          storeData({ key: 'TEST-private-account', data: encrypted })
+            .then(() => {
+              dispatch({ type: 'PRIVACY_POOLS_CONTROLLER_RESET_SECRET' })
+            })
+            .catch((error) => {
+              console.error('Error storing signed typed data:', error)
+            })
+        })
+        .catch((error) => {
+          console.error('Error encrypting signed typed data:', error)
+        })
+    }
+  }, [secret, dispatch])
 
   const fetchMtData = useCallback(async () => {
     try {
@@ -452,6 +440,8 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   const value = useMemo(
     () => ({
       ...memoizedState,
+      selectedToken: memoizedState.selectedToken,
+      maxAmount: memoizedState.maxAmount,
       mtRoots,
       mtLeaves,
       accountService,
@@ -467,8 +457,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       createWithdrawalSecrets,
       getContext,
       getMerkleProof,
-      setSelectedPoolAccount,
-      setIsAccountLoaded
+      setSelectedPoolAccount
     }),
     [
       memoizedState,
@@ -486,9 +475,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       createDepositSecrets,
       createWithdrawalSecrets,
       getContext,
-      getMerkleProof,
-      setSelectedPoolAccount,
-      setIsAccountLoaded
+      getMerkleProof
     ]
   )
 

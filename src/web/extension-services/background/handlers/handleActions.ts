@@ -442,6 +442,8 @@ export const handleActions = async (
       return mainCtrl.privacyPools.prepareWithdrawal(params)
     case 'PRIVACY_POOLS_CONTROLLER_BROADCAST_WITHDRAWAL':
       return mainCtrl.privacyPools.broadcastWithdrawal()
+    case 'PRIVACY_POOLS_CONTROLLER_RESET_SECRET':
+      return mainCtrl.privacyPools.resetSecret()
     case 'ACTIONS_CONTROLLER_REMOVE_FROM_ACTIONS_QUEUE':
       return mainCtrl.requests.actions.removeActions([params.id], params.shouldOpenNextAction)
     case 'ACTIONS_CONTROLLER_FOCUS_ACTION_WINDOW':

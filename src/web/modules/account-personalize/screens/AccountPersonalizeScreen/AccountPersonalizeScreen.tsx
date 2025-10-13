@@ -222,6 +222,8 @@ const AccountPersonalizeScreen = () => {
     } else {
       setCompleted(true)
     }
+
+    dispatch({ type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_SECRET', params: { appInfo: 'test' } })
   }, [isSetupComplete, dispatch, handleSave, handleSubmit])
 
   const handleContactSupport = useCallback(async () => {

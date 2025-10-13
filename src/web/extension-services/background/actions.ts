@@ -812,6 +812,9 @@ type PrivacyControllerGenerateSecretAction = {
 type PrivacyControllerResetFormAction = {
   type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
 }
+type PrivacyControllerResetSecretAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_RESET_SECRET'
+}
 
 type PrivacyControllerPrepareWithdrawalAction = {
   type: 'PRIVACY_POOLS_CONTROLLER_PREPARE_WITHDRAWAL'
@@ -989,3 +992,4 @@ export type Action =
   | PrivacyControllerResetFormAction
   | PrivacyControllerPrepareWithdrawalAction
   | PrivacyControllerBroadcastWithdrawalAction
+  | PrivacyControllerResetSecretAction
