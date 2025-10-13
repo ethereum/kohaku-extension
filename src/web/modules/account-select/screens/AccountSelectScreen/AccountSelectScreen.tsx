@@ -26,6 +26,7 @@ import Account from '@web/modules/account-select/components/Account'
 import AddAccount from '@web/modules/account-select/components/AddAccount'
 import { getUiType } from '@web/utils/uiType'
 
+import { zeroAddress } from 'viem'
 import getStyles from './styles'
 
 const extractTriggerAddAccountSheetParam = (search: string | undefined): boolean | null => {
@@ -89,6 +90,11 @@ const AccountSelectScreen = () => {
     // Navigate to the dashboard after the account is selected to avoid showing the dashboard
     // of the previously selected account.
     if (!account || !pendingToBeSetSelectedAccount) return
+
+    if (pendingToBeSetSelectedAccount === zeroAddress) {
+      navigate(ROUTES.pp1Home)
+      return
+    }
 
     if (account.addr === pendingToBeSetSelectedAccount) {
       navigate(ROUTES.dashboard)

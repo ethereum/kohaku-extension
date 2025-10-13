@@ -7,6 +7,7 @@ import { findAccountDomainFromPartialDomain } from '@ambire-common/utils/domains
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useDomainsControllerState from '@web/hooks/useDomainsController/useDomainsController'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
+import { zeroAddress } from 'viem'
 
 const useAccountsList = ({
   flatlistRef
@@ -104,12 +105,28 @@ const useAccountsList = ({
     [accounts.length, flatlistRef, shouldDisplayAccounts, selectedAccountIndex]
   )
 
+  const privateAccount = {
+    addr: zeroAddress,
+    associatedKeys: [zeroAddress],
+    initialPrivileges: [],
+    creation: null,
+    newlyCreated: false,
+    newlyAdded: false,
+    preferences: {
+      label: 'Private Account',
+      pfp: ''
+    },
+    usedOnNetworks: []
+  }
+
+  const allAccounts = [...filteredAccounts, privateAccount]
+
   useEffect(() => {
     scrollToSelectedAccount()
   }, [scrollToSelectedAccount])
 
   return {
-    accounts: filteredAccounts,
+    accounts: allAccounts,
     selectedAccountIndex,
     control,
     search,
