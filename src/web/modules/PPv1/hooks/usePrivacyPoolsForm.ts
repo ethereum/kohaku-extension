@@ -41,6 +41,7 @@ const usePrivacyPoolsForm = () => {
     latestBroadcastedAccountOp,
     isAccountLoaded,
     recipientAddress,
+    setIsAccountLoaded,
     getContext,
     loadAccount,
     getMerkleProof,
@@ -104,6 +105,34 @@ const usePrivacyPoolsForm = () => {
     open: openEstimationModal,
     close: closeEstimationModal
   } = useModalize()
+
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const refreshPrivateAccount = useCallback(async () => {
+    if (!seedPhrase) {
+      setMessage({ type: 'error', text: 'No seed phrase available to refresh account.' })
+      return
+    }
+
+    try {
+      setIsRefreshing(true)
+      setIsAccountLoaded(false)
+      setMessage(null)
+      setIsLoadingAccount(true)
+      setRagequitLoading({})
+
+      await loadAccount()
+      setMessage({ type: 'success', text: 'Account refreshed successfully!' })
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to refresh account. Please try again.'
+      setMessage({ type: 'error', text: errorMessage })
+    } finally {
+      setIsLoadingAccount(false)
+      setIsAccountLoaded(true)
+      setIsRefreshing(false)
+    }
+  }, [seedPhrase, loadAccount, setIsAccountLoaded])
 
   const handleUpdateForm = useCallback(
     (params: { [key: string]: any }) => {
@@ -509,6 +538,7 @@ const usePrivacyPoolsForm = () => {
     signAccountOpController,
     latestBroadcastedAccountOp,
     isLoading,
+    isRefreshing,
     isAccountLoaded,
     totalApprovedBalance,
     totalPendingBalance,
@@ -525,7 +555,8 @@ const usePrivacyPoolsForm = () => {
     closeEstimationModal,
     handleSelectedAccount,
     handleGenerateSeedPhrase,
-    loadSeedPhrase
+    loadSeedPhrase,
+    refreshPrivateAccount
   }
 }
 

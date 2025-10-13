@@ -44,7 +44,8 @@ function RagequitScreen() {
     totalPendingBalance,
     totalDeclinedBalance,
     handleMultipleRagequit,
-    closeEstimationModal
+    closeEstimationModal,
+    refreshPrivateAccount
   } = usePrivacyPoolsForm()
 
   const ragequitableAccounts = useMemo(() => {
@@ -61,7 +62,7 @@ function RagequitScreen() {
     )
   }, [accountsOps.privacyPools, latestBroadcastedAccountOp?.signature])
 
-  const navigateOut = useCallback(() => {
+  const navigateOut = useCallback(async () => {
     if (isActionWindow) {
       dispatch({
         type: 'CLOSE_SIGNING_ACTION_WINDOW',
@@ -76,7 +77,10 @@ function RagequitScreen() {
     dispatch({
       type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN'
     })
-  }, [dispatch, navigate])
+
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    refreshPrivateAccount()
+  }, [dispatch, navigate, refreshPrivateAccount])
 
   const { sessionHandler, onPrimaryButtonPress } = useTrackAccountOp({
     address: latestBroadcastedAccountOp?.accountAddr,

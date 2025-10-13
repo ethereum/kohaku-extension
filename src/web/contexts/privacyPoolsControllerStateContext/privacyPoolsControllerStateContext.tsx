@@ -74,6 +74,7 @@ type EnhancedPrivacyPoolsControllerState = {
   selectedPoolAccount: PoolAccount | null
   poolAccounts: PoolAccount[]
   isAccountLoaded: boolean
+  setIsAccountLoaded: Dispatch<SetStateAction<boolean>>
   loadAccount: () => Promise<void>
   generateRagequitProof: (commitment: AccountCommitment) => Promise<CommitmentProof>
   verifyRagequitProof: (commitment: CommitmentProof) => Promise<boolean>
@@ -415,6 +416,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       selectedPoolAccount,
       isAccountLoaded,
       loadAccount,
+      setIsAccountLoaded,
       generateRagequitProof,
       verifyRagequitProof,
       generateWithdrawalProof,
@@ -434,6 +436,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       selectedPoolAccount,
       isAccountLoaded,
       loadAccount,
+      setIsAccountLoaded,
       generateRagequitProof,
       verifyRagequitProof,
       generateWithdrawalProof,
