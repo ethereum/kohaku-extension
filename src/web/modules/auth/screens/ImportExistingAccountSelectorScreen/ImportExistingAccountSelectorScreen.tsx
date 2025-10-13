@@ -3,13 +3,13 @@ import { Animated, ScrollView, View } from 'react-native'
 import { SvgProps } from 'react-native-svg'
 
 import DiagonalRightArrowIcon from '@common/assets/svg/DiagonalRightArrowIcon'
-import ImportJsonIcon from '@common/assets/svg/ImportJsonIcon'
-import LatticeWithBorderIcon from '@common/assets/svg/LatticeWithBorderIcon'
-import LedgerIcon from '@common/assets/svg/LedgerIcon'
-import PrivateKeyIcon from '@common/assets/svg/PrivateKeyIcon'
+// import ImportJsonIcon from '@common/assets/svg/ImportJsonIcon'
+// import LatticeWithBorderIcon from '@common/assets/svg/LatticeWithBorderIcon'
+// import LedgerIcon from '@common/assets/svg/LedgerIcon'
+// import PrivateKeyIcon from '@common/assets/svg/PrivateKeyIcon'
 import RightArrowIcon from '@common/assets/svg/RightArrowIcon'
 import SeedPhraseIcon from '@common/assets/svg/SeedPhraseIcon'
-import TrezorIcon from '@common/assets/svg/TrezorIcon'
+// import TrezorIcon from '@common/assets/svg/TrezorIcon'
 import Button from '@common/components/Button'
 import Panel from '@common/components/Panel'
 import Text from '@common/components/Text'
@@ -26,7 +26,7 @@ import {
   TabLayoutContainer,
   TabLayoutWrapperMainContent
 } from '@web/components/TabLayoutWrapper/TabLayoutWrapper'
-import { isSafari } from '@web/constants/browserapi'
+// import { isSafari } from '@web/constants/browserapi'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 
 import getStyles from './styles'
@@ -55,59 +55,59 @@ const ImportExistingAccountSelectorScreen = () => {
 
   const buttons: ButtonType[] = useMemo(
     () => [
-      {
-        title: 'Private key',
-        onPress: () => {
-          goToNextRoute(WEB_ROUTES.importPrivateKey)
-        },
-        icon: PrivateKeyIcon
-      },
+      // {
+      //   title: 'Private key',
+      //   onPress: () => {
+      //     goToNextRoute(WEB_ROUTES.importPrivateKey)
+      //   },
+      //   icon: PrivateKeyIcon
+      // },
       {
         title: 'Recovery phrase',
         onPress: () => {
           goToNextRoute(WEB_ROUTES.importSeedPhrase)
         },
         icon: SeedPhraseIcon
-      },
-      {
-        title: 'Trezor',
-        onPress: () => {
-          if (isSafari()) {
-            addToast(
-              t(
-                "Your browser doesn't support WebUSB, which is required for the Trezor device. Please try using a different browser."
-              ),
-              { type: 'error' }
-            )
-          } else {
-            setTriggeredHwWalletFlow('trezor')
-            dispatch({ type: 'MAIN_CONTROLLER_ACCOUNT_PICKER_INIT_TREZOR' })
-          }
-        },
-        icon: TrezorIcon
-      },
-      {
-        title: 'Ledger',
-        onPress: () => {
-          goToNextRoute(WEB_ROUTES.ledgerConnect)
-        },
-        icon: LedgerIcon
-      },
-      {
-        title: 'Grid Plus',
-        onPress: () => {
-          setTriggeredHwWalletFlow('lattice')
-          dispatch({ type: 'MAIN_CONTROLLER_ACCOUNT_PICKER_INIT_LATTICE' })
-        },
-        icon: LatticeWithBorderIcon
-      },
-      {
-        title: 'JSON backup file',
-        onPress: () => {
-          goToNextRoute(WEB_ROUTES.importSmartAccountJson)
-        },
-        icon: ImportJsonIcon
       }
+      // {
+      //   title: 'Trezor',
+      //   onPress: () => {
+      //     if (isSafari()) {
+      //       addToast(
+      //         t(
+      //           "Your browser doesn't support WebUSB, which is required for the Trezor device. Please try using a different browser."
+      //         ),
+      //         { type: 'error' }
+      //       )
+      //     } else {
+      //       setTriggeredHwWalletFlow('trezor')
+      //       dispatch({ type: 'MAIN_CONTROLLER_ACCOUNT_PICKER_INIT_TREZOR' })
+      //     }
+      //   },
+      //   icon: TrezorIcon
+      // },
+      // {
+      //   title: 'Ledger',
+      //   onPress: () => {
+      //     goToNextRoute(WEB_ROUTES.ledgerConnect)
+      //   },
+      //   icon: LedgerIcon
+      // },
+      // {
+      //   title: 'Grid Plus',
+      //   onPress: () => {
+      //     setTriggeredHwWalletFlow('lattice')
+      //     dispatch({ type: 'MAIN_CONTROLLER_ACCOUNT_PICKER_INIT_LATTICE' })
+      //   },
+      //   icon: LatticeWithBorderIcon
+      // },
+      // {
+      //   title: 'JSON backup file',
+      //   onPress: () => {
+      //     goToNextRoute(WEB_ROUTES.importSmartAccountJson)
+      //   },
+      //   icon: ImportJsonIcon
+      // }
     ],
     [goToNextRoute, addToast, dispatch, t, setTriggeredHwWalletFlow]
   )
