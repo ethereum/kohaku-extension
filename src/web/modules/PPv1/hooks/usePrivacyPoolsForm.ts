@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
-import { Address, encodeFunctionData, formatEther, getAddress, parseUnits } from 'viem'
+import { encodeFunctionData, formatEther, getAddress, parseUnits } from 'viem'
 import { english, generateMnemonic } from 'viem/accounts'
 import { Hash, type Withdrawal } from '@0xbow/privacy-pools-core-sdk'
 import { Call } from '@ambire-common/libs/accountOp/types'
@@ -10,15 +10,9 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import { useStorage } from './useStorage'
-import {
-  prepareWithdrawalProofInput,
-  prepareMultipleWithdrawRequest,
-  transformProofForContract,
-  transformProofForRelayerApi,
-  WithdrawalResult
-} from '../utils/withdrawal'
+import { prepareWithdrawalProofInput, transformProofForRelayerApi } from '../utils/withdrawal'
 import { transformRagequitProofForContract } from '../utils/ragequit'
-import { entrypointAbiBatch, entrypointAbi, privacyPoolAbi } from '../utils/abi'
+import { entrypointAbi, privacyPoolAbi } from '../utils/abi'
 
 type PrivateRequestType =
   | 'privateDepositRequest'
