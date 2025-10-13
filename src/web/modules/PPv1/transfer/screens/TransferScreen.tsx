@@ -13,7 +13,7 @@ import useAddressInput from '@common/hooks/useAddressInput'
 import useNavigation from '@common/hooks/useNavigation'
 import { ROUTES } from '@common/modules/router/constants/common'
 
-import { Content, Form, Wrapper } from '@web/components/TransactionsScreen'
+import { Content, Form } from '@web/components/TransactionsScreen'
 import useActivityControllerState from '@web/hooks/useActivityControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useSyncedState from '@web/hooks/useSyncedState'
@@ -27,10 +27,13 @@ import InProgress from '@web/modules/sign-account-op/components/OneClick/TrackPr
 import useTrackAccountOp from '@web/modules/sign-account-op/hooks/OneClick/useTrackAccountOp'
 import { getUiType } from '@web/utils/uiType'
 
+import { View } from 'react-native'
+import flexbox from '@common/styles/utils/flexbox'
 import TransferForm from '../components/TransferForm/TransferForm'
 import usePrivacyPoolsForm from '../../hooks/usePrivacyPoolsForm'
+import { Wrapper } from '../../deposit/components/TransactionsScreen'
 
-const { isTab, isActionWindow } = getUiType()
+const { isActionWindow } = getUiType()
 
 const TransferScreen = () => {
   const { dispatch } = useBackgroundService()
@@ -254,15 +257,15 @@ const TransferScreen = () => {
       type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
     })
     navigate(ROUTES.pp1Home)
-  }, [navigate])
+  }, [navigate, dispatch])
 
   const headerTitle = t('Private Transfer')
   const formTitle = t('Send')
 
   const buttons = useMemo(() => {
     return (
-      <>
-        {isTab && <BackButton onPress={onBack} />}
+      <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
+        <BackButton onPress={onBack} />
         <Buttons
           handleSubmitForm={handleMultipleWithdrawal}
           proceedBtnText={t('Send')}
@@ -270,16 +273,9 @@ const TransferScreen = () => {
           signAccountOpErrors={[]}
           networkUserRequests={[]}
         />
-      </>
+      </View>
     )
   }, [onBack, handleMultipleWithdrawal, isTransferFormValid, t])
-
-  const handleGoBackPress = useCallback(() => {
-    dispatch({
-      type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
-    })
-    navigate(ROUTES.pp1Home)
-  }, [navigate])
 
   if (displayedView === 'track') {
     return (
@@ -325,7 +321,7 @@ const TransferScreen = () => {
   }
 
   return (
-    <Wrapper title={headerTitle} handleGoBack={handleGoBackPress} buttons={buttons}>
+    <Wrapper title={headerTitle} buttons={buttons}>
       <Content buttons={buttons}>
         <Form>
           <TransferForm
