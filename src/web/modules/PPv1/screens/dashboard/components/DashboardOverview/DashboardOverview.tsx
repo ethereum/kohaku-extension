@@ -16,7 +16,6 @@ import spacings, { SPACING, SPACING_TY, SPACING_XL } from '@common/styles/spacin
 import { THEME_TYPES } from '@common/styles/themeConfig'
 import common from '@common/styles/utils/common'
 import flexbox from '@common/styles/utils/flexbox'
-import useBackgroundService from '@web/hooks/useBackgroundService'
 import useHover, { AnimatedPressable } from '@web/hooks/useHover'
 import useMainControllerState from '@web/hooks/useMainControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
@@ -52,13 +51,17 @@ const DashboardOverview: FC<Props> = ({
   setDashboardOverviewSize,
   onGasTankButtonPosition
 }) => {
-  const { dispatch } = useBackgroundService()
   const { t } = useTranslation()
   const { theme, styles, themeType } = useTheme(getStyles)
   const { isOffline } = useMainControllerState()
-  const { account, dashboardNetworkFilter, portfolio } = useSelectedAccountControllerState()
-  const { isLoading, isAccountLoaded, totalPrivatePortfolio, ethPrivateBalance } =
-    usePrivacyPoolsForm()
+  const { account, portfolio } = useSelectedAccountControllerState()
+  const {
+    isLoading,
+    isAccountLoaded,
+    totalPrivatePortfolio,
+    ethPrivateBalance,
+    refreshPrivateAccount
+  } = usePrivacyPoolsForm()
 
   const [bindRefreshButtonAnim, refreshButtonAnimStyle] = useHover({
     preset: 'opacity'
@@ -77,15 +80,6 @@ const DashboardOverview: FC<Props> = ({
     totalPrivatePortfolio,
     'value'
   ).split('.')
-
-  const reloadAccount = useCallback(() => {
-    dispatch({
-      type: 'MAIN_CONTROLLER_RELOAD_SELECTED_ACCOUNT',
-      params: {
-        chainId: dashboardNetworkFilter ?? undefined
-      }
-    })
-  }, [dashboardNetworkFilter, dispatch])
 
   const [buttonPosition, setButtonPosition] = useState<{
     x: number
@@ -214,7 +208,7 @@ const DashboardOverview: FC<Props> = ({
                   )}
                   <AnimatedPressable
                     style={[spacings.mlTy, refreshButtonAnimStyle]}
-                    onPress={reloadAccount}
+                    onPress={refreshPrivateAccount}
                     {...bindRefreshButtonAnim}
                     disabled={!portfolio?.isAllReady}
                     testID="refresh-button"
@@ -239,7 +233,7 @@ const DashboardOverview: FC<Props> = ({
                     </Text>
                   </View> */}
                   <BalanceAffectingErrors
-                    reloadAccount={reloadAccount}
+                    reloadAccount={refreshPrivateAccount}
                     networksWithErrors={networksWithErrors}
                     sheetRef={sheetRef}
                     balanceAffectingErrorsSnapshot={balanceAffectingErrorsSnapshot}

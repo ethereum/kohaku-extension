@@ -132,32 +132,6 @@ const usePrivacyPoolsForm = () => {
 
   const [isRefreshing, setIsRefreshing] = useState(false)
 
-  const refreshPrivateAccount = useCallback(async () => {
-    if (!seedPhrase) {
-      setMessage({ type: 'error', text: 'No seed phrase available to refresh account.' })
-      return
-    }
-
-    try {
-      setIsRefreshing(true)
-      setIsAccountLoaded(false)
-      setMessage(null)
-      setIsLoadingAccount(true)
-      setRagequitLoading({})
-
-      await loadAccount()
-      setMessage({ type: 'success', text: 'Account refreshed successfully!' })
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to refresh account. Please try again.'
-      setMessage({ type: 'error', text: errorMessage })
-    } finally {
-      setIsLoadingAccount(false)
-      setIsAccountLoaded(true)
-      setIsRefreshing(false)
-    }
-  }, [seedPhrase, loadAccount, setIsAccountLoaded])
-
   const handleUpdateForm = useCallback(
     (params: { [key: string]: any }) => {
       dispatch({
@@ -200,34 +174,70 @@ const usePrivacyPoolsForm = () => {
     setIsGenerating(false)
   }
 
+  const loadAccountWithSeedPhrase = useCallback(
+    async (seedPhraseToLoad: string, shouldStore: boolean = false) => {
+      if (!seedPhraseToLoad?.trim()) {
+        throw new Error('Please enter a seed phrase to load an existing account.')
+      }
+
+      await loadAccount(seedPhraseToLoad)
+      handleUpdateForm({ seedPhrase: seedPhraseToLoad })
+
+      if (shouldStore) {
+        const encrypted = await encrypt(seedPhraseToLoad)
+        await storeData({ key: 'TEST-private-account', data: encrypted })
+      }
+    },
+    [loadAccount, encrypt, storeData, handleUpdateForm]
+  )
+
   const handleLoadAccount = useCallback(
     async (seedPhraseToLoad?: string) => {
-      if (!seedPhraseToLoad?.trim()) {
-        setMessage({
-          type: 'error',
-          text: 'Please enter a seed phrase to load an existing account.'
-        })
-        return
-      }
       try {
         setMessage(null)
         setIsLoadingAccount(true)
 
-        await loadAccount()
+        const phraseToUse = seedPhraseToLoad || seedPhrase
+        await loadAccountWithSeedPhrase(phraseToUse, !seedPhraseToLoad)
+
         setMessage({ type: 'success', text: 'Account loaded successfully!' })
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : 'Failed to load account. Please try again.'
         setMessage({ type: 'error', text: errorMessage })
-      }
-      setIsLoadingAccount(false)
-      if (seedPhrase) {
-        const encrypted = await encrypt(seedPhrase)
-        await storeData({ key: 'TEST-private-account', data: encrypted })
+        throw error
+      } finally {
+        setIsLoadingAccount(false)
       }
     },
-    [seedPhrase, loadAccount, encrypt, storeData]
+    [seedPhrase, loadAccountWithSeedPhrase]
   )
+
+  const refreshPrivateAccount = useCallback(async () => {
+    try {
+      setIsRefreshing(true)
+      setIsAccountLoaded(false)
+      setMessage(null)
+      setIsLoadingAccount(true)
+
+      const data = await getData({ key: 'TEST-private-account' })
+      if (!data) throw new Error('No stored private account found.')
+
+      const decrypted = await decrypt(data)
+      await loadAccountWithSeedPhrase(decrypted)
+
+      setRagequitLoading({})
+      setMessage({ type: 'success', text: 'Account refreshed successfully!' })
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to refresh account. Please try again.'
+      setMessage({ type: 'error', text: errorMessage })
+    } finally {
+      setIsLoadingAccount(false)
+      setIsAccountLoaded(true)
+      setIsRefreshing(false)
+    }
+  }, [setIsAccountLoaded, getData, decrypt, loadAccountWithSeedPhrase])
 
   const handleSelectedAccount = (poolAccount: PoolAccount) => {
     setSelectedPoolAccount((prevState) => {
@@ -395,16 +405,16 @@ const usePrivacyPoolsForm = () => {
     if (isAccountLoaded) return
 
     try {
-      const data = await getData({ key: 'TEST-private-account' })
-      if (!data) {
-        setMessage({ type: 'error', text: 'No stored private account found.' })
-        return
-      }
-
       setIsLoadingSeedPhrase(true)
+      setMessage(null)
+
+      const data = await getData({ key: 'TEST-private-account' })
+      if (!data) throw new Error('No stored private account found.')
+
       const decrypted = await decrypt(data)
-      handleUpdateForm({ seedPhrase: decrypted || '' })
-      await handleLoadAccount(decrypted)
+      handleUpdateForm({ seedPhrase: decrypted })
+      await loadAccountWithSeedPhrase(decrypted)
+
       setMessage({ type: 'success', text: 'Private account loaded successfully!' })
     } catch (error) {
       const errorMessage =
@@ -413,7 +423,7 @@ const usePrivacyPoolsForm = () => {
     } finally {
       setIsLoadingSeedPhrase(false)
     }
-  }, [isAccountLoaded, getData, decrypt, handleUpdateForm, handleLoadAccount])
+  }, [isAccountLoaded, getData, decrypt, handleUpdateForm, loadAccountWithSeedPhrase])
 
   const isLoading = isLoadingSeedPhrase || isLoadingAccount
 

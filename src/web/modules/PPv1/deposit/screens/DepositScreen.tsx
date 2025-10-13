@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { SigningStatus } from '@ambire-common/controllers/signAccountOp/signAccountOp'
@@ -28,6 +28,7 @@ import { Content, Form, Wrapper } from '../components/TransactionsScreen'
 const { isActionWindow } = getUiType()
 
 function TransferScreen() {
+  const hasRefreshedAccountRef = useRef(false)
   const { dispatch } = useBackgroundService()
   const { navigate } = useNavigation()
   const { t } = useTranslation()
@@ -78,10 +79,7 @@ function TransferScreen() {
     dispatch({
       type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN'
     })
-
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    refreshPrivateAccount()
-  }, [dispatch, navigate, refreshPrivateAccount])
+  }, [dispatch, navigate])
 
   const { sessionHandler, onPrimaryButtonPress } = useTrackAccountOp({
     address: latestBroadcastedAccountOp?.accountAddr,
@@ -111,6 +109,27 @@ function TransferScreen() {
       sessionHandler.killSession()
     }
   }, [latestBroadcastedAccountOp?.accountAddr, latestBroadcastedAccountOp?.chainId, sessionHandler])
+
+  // Refresh private account after deposit success or unknown but past nonce
+  useEffect(() => {
+    if (
+      !hasRefreshedAccountRef.current &&
+      (submittedAccountOp?.status === AccountOpStatus.Success ||
+        submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce)
+    ) {
+      hasRefreshedAccountRef.current = true
+      refreshPrivateAccount().catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error('Failed to refresh private account after deposit:', error)
+      })
+    }
+  }, [submittedAccountOp?.status, refreshPrivateAccount])
+
+  useEffect(() => {
+    return () => {
+      hasRefreshedAccountRef.current = false
+    }
+  }, [])
 
   const displayedView: 'transfer' | 'track' = useMemo(() => {
     if (latestBroadcastedAccountOp) return 'track'
