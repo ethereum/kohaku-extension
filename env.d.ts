@@ -18,6 +18,7 @@ declare module '@env' {
     SENTRY_DSN_BROWSER_EXTENSION?: string
     ALCHEMY_API_KEY: string
     PRIVACY_POOLS_ASP_URL: string
+    PRIVACY_POOLS_RELAYER_URL: string
   }
 
   /**
@@ -115,4 +116,9 @@ declare module '@env' {
    * The PrivacyPools ASP API endpoint
    */
   export const PRIVACY_POOLS_ASP_URL: EnvTypes['PRIVACY_POOLS_ASP_URL']
+
+  /**
+   * The API key for Alchemy
+   */
+  export const PRIVACY_POOLS_RELAYER_URL: EnvTypes['PRIVACY_POOLS_RELAYER_URL']
 }

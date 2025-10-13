@@ -1,9 +1,10 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
 import { Address, encodeFunctionData, formatEther, getAddress, parseUnits } from 'viem'
 import { english, generateMnemonic } from 'viem/accounts'
-import { Hash } from '@0xbow/privacy-pools-core-sdk'
+import { Hash, type Withdrawal } from '@0xbow/privacy-pools-core-sdk'
 import { Call } from '@ambire-common/libs/accountOp/types'
+import { BatchWithdrawalParams } from '@ambire-common/controllers/privacyPools/privacyPools'
 import { PoolAccount, ReviewStatus } from '@web/contexts/privacyPoolsControllerStateContext'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
@@ -13,6 +14,7 @@ import {
   prepareWithdrawalProofInput,
   prepareMultipleWithdrawRequest,
   transformProofForContract,
+  transformProofForRelayerApi,
   WithdrawalResult
 } from '../utils/withdrawal'
 import { transformRagequitProofForContract } from '../utils/ragequit'
@@ -41,6 +43,7 @@ const usePrivacyPoolsForm = () => {
     latestBroadcastedAccountOp,
     isAccountLoaded,
     recipientAddress,
+    relayerQuote,
     getContext,
     loadAccount,
     getMerkleProof,
@@ -99,6 +102,33 @@ const usePrivacyPoolsForm = () => {
     return formatEther(totalApprovedBalance.total)
   }, [totalApprovedBalance])
 
+  // Calculate batchSize based on withdrawal amount and pool accounts
+  const calculatedBatchSize = useMemo(() => {
+    if (!withdrawalAmount || !poolAccounts) return 1
+
+    try {
+      const approvedAccounts =
+        poolAccounts?.filter((account) => account.reviewStatus === 'approved') || []
+
+      if (approvedAccounts.length === 0) return 1
+
+      const selectedPoolAccounts: PoolAccount[] = []
+      let remainingAmount = parseUnits(withdrawalAmount, 18)
+
+      approvedAccounts.forEach((account) => {
+        if (remainingAmount > 0n) {
+          selectedPoolAccounts.push(account)
+          remainingAmount -= account.balance
+        }
+      })
+
+      return selectedPoolAccounts.length || 1
+    } catch (error) {
+      // If there's an error parsing the withdrawal amount, default to 1
+      return 1
+    }
+  }, [withdrawalAmount, poolAccounts])
+
   const {
     ref: estimationModalRef,
     open: openEstimationModal,
@@ -126,6 +156,16 @@ const usePrivacyPoolsForm = () => {
       params: { type, params: { txList, actionExecutionType: 'open-action-window' } }
     })
   }
+
+  const prepareBatchWithdrawal = useCallback(
+    (params: BatchWithdrawalParams): void => {
+      dispatch({
+        type: 'PRIVACY_POOLS_CONTROLLER_PREPARE_WITHDRAWAL',
+        params
+      })
+    },
+    [dispatch]
+  )
 
   const handleGenerateSeedPhrase = async () => {
     setIsGenerating(true)
@@ -341,11 +381,17 @@ const usePrivacyPoolsForm = () => {
 
   const isLoading = isLoadingSeedPhrase || isLoadingAccount
 
+  // Update controller with calculated batchSize whenever it changes
+  useEffect(() => {
+    handleUpdateForm({ batchSize: calculatedBatchSize })
+    console.log('DEBUG: batchSize update', calculatedBatchSize)
+  }, [calculatedBatchSize, handleUpdateForm])
+
   /**
-   * Handles withdrawal using multiple pool accounts
-   * This version selects at least 2 pool accounts and generates params and proofs for each
+   * Handles withdrawal using multiple pool accounts via relayer API
+   * This version generates proofs and submits to the relayer endpoint
    */
-  const handleMultipleWithdrawal = async () => {
+  const handleMultipleWithdrawal = useCallback(async () => {
     if (
       !poolInfo ||
       !mtLeaves ||
@@ -358,17 +404,8 @@ const usePrivacyPoolsForm = () => {
       return
     }
 
-    // Select at least 2 approved pool accounts for testing
     const approvedAccounts =
       poolAccounts?.filter((account) => account.reviewStatus === 'approved') || []
-
-    if (approvedAccounts.length < 2) {
-      setMessage({
-        type: 'error',
-        text: 'Need at least 2 approved pool accounts for multiple withdrawal.'
-      })
-      return
-    }
 
     const selectedPoolAccounts: PoolAccount[] = []
     let remainingAmount = parseUnits(withdrawalAmount, 18)
@@ -380,27 +417,22 @@ const usePrivacyPoolsForm = () => {
       }
     })
 
-    const target = getAddress(recipientAddress)
+    console.log('DEBUG: recipientAddress', recipientAddress)
+
     const selectedPoolInfo = poolInfo
-    const relayerAddress = userAccount.addr as Address
-    const feeBPSForWithdraw = 0
+
+    console.log('DEBUG: RELAYER QUOTE', relayerQuote)
+
+    const batchWithdrawal = {
+      processooor: getAddress('0x7EF84c5660bB5130815099861c613BF935F4DA52'),
+      data: relayerQuote?.data || '0x'
+    } as Withdrawal
 
     const aspLeaves = mtLeaves?.aspLeaves
     const stateLeaves = mtLeaves?.stateTreeLeaves
 
     try {
-      // IMPORTANT: Prepare batch withdrawal request FIRST (before generating proofs)
-      // This ensures all proofs use the SAME context from the BatchRelayData
-
-      // Prepare the batch withdrawal request with batchSize and totalValue
-      const batchWithdrawal = prepareMultipleWithdrawRequest(
-        target,
-        getAddress('0x7EF84c5660bB5130815099861c613BF935F4DA52'), // processooor should be BatchRelayer for batch withdrawals
-        relayerAddress,
-        feeBPSForWithdraw.toString(),
-        selectedPoolAccounts.length,
-        parseUnits(withdrawalAmount, 18)
-      )
+      console.log('DEBUG: batchWithdrawal', batchWithdrawal)
 
       // Calculate context from the batch withdrawal data
       // IMPORTANT: All proofs MUST use the SAME context
@@ -446,49 +478,52 @@ const usePrivacyPoolsForm = () => {
             nullifier
           )
 
-          // Generate withdrawal proof
           const proof = await generateWithdrawalProof(commitment, withdrawalProofInput)
 
-          // Verify the proof
           await verifyWithdrawalProof(proof)
 
           return proof
         })
       )
+      console.log('DEBUG: calling relayer endpoint')
+      const transformedProofs = proofs.map((proof) => transformProofForRelayerApi(proof))
 
-      // Transform all proofs for contract interaction
-      const transformedProofs = proofs.map((proof) => transformProofForContract(proof))
+      if (!batchWithdrawal) return
 
-      // Build the batch transaction data
-      const batchTransactionData = encodeFunctionData({
-        abi: entrypointAbiBatch,
-        functionName: 'batchRelay',
-        args: [
-          getAddress(poolInfo.address),
-          batchWithdrawal,
-          transformedProofs.map((proof) => ({
-            pA: proof.pA,
-            pB: proof.pB,
-            pC: proof.pC,
-            pubSignals: proof.pubSignals
-          }))
-        ]
+      prepareBatchWithdrawal({
+        chainId: 11155111,
+        poolAddress: poolInfo.address,
+        withdrawal: {
+          processooor: batchWithdrawal.processooor,
+          data: batchWithdrawal.data
+        },
+        proofs: transformedProofs
       })
 
-      const result: WithdrawalResult = {
-        to: getAddress('0x7EF84c5660bB5130815099861c613BF935F4DA52'), // BatchRelayer contract
-        data: batchTransactionData,
-        value: 0n
-      }
-
-      await syncSignAccountOp([result])
       openEstimationModalAndDispatch()
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to process multiple withdrawal'
       setMessage({ type: 'error', text: errorMessage })
     }
-  }
+  }, [
+    mtRoots,
+    mtLeaves,
+    poolInfo,
+    userAccount,
+    poolAccounts,
+    relayerQuote,
+    accountService,
+    withdrawalAmount,
+    recipientAddress,
+    getContext,
+    getMerkleProof,
+    verifyWithdrawalProof,
+    createWithdrawalSecrets,
+    generateWithdrawalProof,
+    prepareBatchWithdrawal,
+    openEstimationModalAndDispatch
+  ])
 
   return {
     ethPrice,
