@@ -49,7 +49,9 @@ const TransferScreen = () => {
     programmaticUpdateCounter,
     isRecipientAddressUnknownAgreed,
     signAccountOpController,
-    maxAmount
+    maxAmount,
+    relayerQuote,
+    shouldTrackLatestBroadcastedAccountOp
   } = usePrivacyPoolsControllerState()
 
   const { navigate } = useNavigation()
@@ -72,13 +74,21 @@ const TransferScreen = () => {
     forceUpdateOnChangeList: [programmaticUpdateCounter]
   })
 
+  // For privacy pools withdrawals via relayer, we use latestBroadcastedAccountOp directly
+  // because these transactions don't go through the normal AccountOp flow and aren't added to ActivityController
   const submittedAccountOp = useMemo(() => {
+    // If latestBroadcastedAccountOp exists and has the privacy pools withdrawal flag, use it directly
+    if (latestBroadcastedAccountOp?.meta?.isPrivacyPoolsWithdrawal) {
+      return latestBroadcastedAccountOp as any
+    }
+
+    // Otherwise, look for it in the activity controller (for normal transactions)
     if (!accountsOps.privacyPools || !latestBroadcastedAccountOp?.signature) return
 
     return accountsOps.privacyPools.result.items.find(
       (accOp) => accOp.signature === latestBroadcastedAccountOp.signature
     )
-  }, [accountsOps.privacyPools, latestBroadcastedAccountOp?.signature])
+  }, [accountsOps.privacyPools, latestBroadcastedAccountOp])
 
   const navigateOut = useCallback(() => {
     if (isActionWindow) {
@@ -93,7 +103,7 @@ const TransferScreen = () => {
     }
 
     dispatch({
-      type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN'
+      type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
     })
   }, [dispatch, navigate])
 
@@ -127,10 +137,19 @@ const TransferScreen = () => {
   }, [latestBroadcastedAccountOp?.accountAddr, latestBroadcastedAccountOp?.chainId, sessionHandler])
 
   const displayedView: 'transfer' | 'track' = useMemo(() => {
-    if (latestBroadcastedAccountOp) return 'track'
+    console.log(
+      'DEBUG: shouldTrackLatestBroadcastedAccountOp',
+      shouldTrackLatestBroadcastedAccountOp,
+      'latestBroadcastedAccountOp',
+      latestBroadcastedAccountOp
+    )
+    // Show tracking screen only if both conditions are met:
+    // 1. latestBroadcastedAccountOp is set (transaction was broadcasted)
+    // 2. shouldTrackLatestBroadcastedAccountOp is true (controller wants us to show tracking)
+    if (latestBroadcastedAccountOp && shouldTrackLatestBroadcastedAccountOp) return 'track'
 
     return 'transfer'
-  }, [latestBroadcastedAccountOp])
+  }, [latestBroadcastedAccountOp, shouldTrackLatestBroadcastedAccountOp])
 
   // When navigating to another screen internally in the extension, we unload the TransferController
   // to ensure that no estimation or SignAccountOp logic is still running.
@@ -145,10 +164,7 @@ const TransferScreen = () => {
 
   const handleBroadcastAccountOp = useCallback(() => {
     dispatch({
-      type: 'MAIN_CONTROLLER_HANDLE_SIGN_AND_BROADCAST_ACCOUNT_OP',
-      params: {
-        updateType: 'PrivacyPools'
-      }
+      type: 'PRIVACY_POOLS_CONTROLLER_BROADCAST_WITHDRAWAL'
     })
   }, [dispatch])
 
@@ -212,6 +228,13 @@ const TransferScreen = () => {
 
   const { estimationModalRef, closeEstimationModal } = usePrivacyPoolsForm()
 
+  // Close the Estimation modal when transitioning to track view
+  useEffect(() => {
+    if (displayedView === 'track') {
+      closeEstimationModal()
+    }
+  }, [displayedView, closeEstimationModal])
+
   const amountErrorMessage = useMemo(() => {
     return validationFormMsgs.amount.message || ''
   }, [validationFormMsgs.amount.message])
@@ -221,11 +244,15 @@ const TransferScreen = () => {
       amountFieldValue &&
       amountFieldValue !== '0' &&
       selectedToken &&
+      relayerQuote &&
       !addressInputState.validation.isError
     )
   }, [amountFieldValue, selectedToken, addressInputState.validation.isError])
 
   const onBack = useCallback(() => {
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
+    })
     navigate(ROUTES.pp1Home)
   }, [navigate])
 
@@ -248,6 +275,9 @@ const TransferScreen = () => {
   }, [onBack, handleMultipleWithdrawal, isTransferFormValid, t])
 
   const handleGoBackPress = useCallback(() => {
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
+    })
     navigate(ROUTES.pp1Home)
   }, [navigate])
 
@@ -256,6 +286,7 @@ const TransferScreen = () => {
       <TrackProgress
         onPrimaryButtonPress={onPrimaryButtonPress}
         handleClose={() => {
+          console.log('destroy latest broadcasted account op')
           dispatch({
             type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
           })
