@@ -54,6 +54,7 @@ const TransferScreen = () => {
     signAccountOpController,
     maxAmount,
     relayerQuote,
+    updateQuoteStatus,
     shouldTrackLatestBroadcastedAccountOp
   } = usePrivacyPoolsControllerState()
 
@@ -336,12 +337,18 @@ const TransferScreen = () => {
             handleUpdateForm={handleUpdateForm}
             selectedToken={selectedToken}
             maxAmount={maxAmount || '0'}
+            quoteFee={
+              amountFieldValue && relayerQuote?.totalAmountWithFee
+                ? parseFloat(relayerQuote.totalAmountWithFee) - parseFloat(amountFieldValue)
+                : 0
+            }
             amountFieldMode={amountFieldMode}
             amountInFiat={amountInFiat}
             isRecipientAddressUnknownAgreed={isRecipientAddressUnknownAgreed || false}
             addressState={addressState}
             controllerAmount={withdrawalAmount}
             totalApprovedBalance={totalApprovedBalance}
+            updateQuoteStatus={updateQuoteStatus}
           />
         </Form>
       </Content>

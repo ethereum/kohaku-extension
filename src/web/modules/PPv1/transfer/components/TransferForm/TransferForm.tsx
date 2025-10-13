@@ -36,7 +36,9 @@ const TransferForm = ({
   isRecipientAddressUnknownAgreed,
   addressState,
   controllerAmount,
-  totalApprovedBalance
+  quoteFee,
+  totalApprovedBalance,
+  updateQuoteStatus
 }: {
   addressInputState: ReturnType<typeof useAddressInput>
   amountErrorMessage: string
@@ -54,14 +56,13 @@ const TransferForm = ({
   isRecipientAddressUnknownAgreed: boolean
   addressState: any
   controllerAmount: string
+  quoteFee: number
+  updateQuoteStatus: 'INITIAL' | 'LOADING'
   totalApprovedBalance: { total: bigint; accounts: PoolAccount[] }
 }) => {
   const { validation } = addressInputState
   const { account, portfolio } = useSelectedAccountControllerState()
   const { t } = useTranslation()
-
-  const FEE = 0.01
-  const RECIPIENT_GETS = parseFloat(amountFieldValue) - FEE
 
   const ethBalance = totalApprovedBalance.total || 0n
 
@@ -200,18 +201,27 @@ const TransferForm = ({
           <Text appearance="secondaryText" fontSize={14} weight="light">
             {t('Fee')}
           </Text>
-          <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-            <TokenIcon
-              chainId={11155111n}
-              address={zeroAddress}
-              width={20}
+          {updateQuoteStatus === 'LOADING' ? (
+            <SkeletonLoader
+              appearance="tertiaryBackground"
+              width={100}
               height={20}
-              withNetworkIcon={false}
+              style={{ marginLeft: 'auto' }}
             />
-            <Text fontSize={14} weight="light" style={spacings.mlMi}>
-              {FEE} ETH
-            </Text>
-          </View>
+          ) : (
+            <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+              <TokenIcon
+                chainId={11155111n}
+                address={zeroAddress}
+                width={20}
+                height={20}
+                withNetworkIcon={false}
+              />
+              <Text fontSize={14} weight="light" style={spacings.mlMi}>
+                {quoteFee} ETH
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -220,18 +230,27 @@ const TransferForm = ({
           <Text appearance="secondaryText" fontSize={14} weight="light">
             {t('Recipient gets')}
           </Text>
-          <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-            <TokenIcon
-              chainId={11155111n}
-              address={zeroAddress}
-              width={20}
+          {updateQuoteStatus === 'LOADING' ? (
+            <SkeletonLoader
+              appearance="tertiaryBackground"
+              width={100}
               height={20}
-              withNetworkIcon={false}
+              style={{ marginLeft: 'auto' }}
             />
-            <Text fontSize={14} weight="light" style={spacings.mlMi}>
-              {RECIPIENT_GETS || 0} ETH
-            </Text>
-          </View>
+          ) : (
+            <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+              <TokenIcon
+                chainId={11155111n}
+                address={zeroAddress}
+                width={20}
+                height={20}
+                withNetworkIcon={false}
+              />
+              <Text fontSize={14} weight="light" style={spacings.mlMi}>
+                {parseFloat(amountFieldValue) - quoteFee || 0} ETH
+              </Text>
+            </View>
+          )}
         </View>
       </View>
     </ScrollableWrapper>
