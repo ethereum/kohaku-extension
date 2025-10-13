@@ -137,6 +137,12 @@ const TransferScreen = () => {
   }, [latestBroadcastedAccountOp?.accountAddr, latestBroadcastedAccountOp?.chainId, sessionHandler])
 
   const displayedView: 'transfer' | 'track' = useMemo(() => {
+    console.log(
+      'DEBUG: shouldTrackLatestBroadcastedAccountOp',
+      shouldTrackLatestBroadcastedAccountOp,
+      'latestBroadcastedAccountOp',
+      latestBroadcastedAccountOp
+    )
     // Show tracking screen only if both conditions are met:
     // 1. latestBroadcastedAccountOp is set (transaction was broadcasted)
     // 2. shouldTrackLatestBroadcastedAccountOp is true (controller wants us to show tracking)
@@ -144,8 +150,6 @@ const TransferScreen = () => {
 
     return 'transfer'
   }, [latestBroadcastedAccountOp, shouldTrackLatestBroadcastedAccountOp])
-
-  console.log('DEBUG: displayedView', displayedView, latestBroadcastedAccountOp)
 
   // When navigating to another screen internally in the extension, we unload the TransferController
   // to ensure that no estimation or SignAccountOp logic is still running.
@@ -281,8 +285,8 @@ const TransferScreen = () => {
     return (
       <TrackProgress
         onPrimaryButtonPress={onPrimaryButtonPress}
-        secondaryButtonText={t('Add more')}
         handleClose={() => {
+          console.log('destroy latest broadcasted account op')
           dispatch({
             type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
           })
