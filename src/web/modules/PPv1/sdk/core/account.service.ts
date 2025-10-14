@@ -1,27 +1,34 @@
+/* eslint-disable no-constant-condition */
 /* eslint-disable no-continue */
 /* eslint-disable no-restricted-syntax */
-import { poseidon } from 'maci-crypto/build/ts/hashing.js'
-import { Hex, bytesToNumber } from 'viem'
+import { poseidon } from 'maci-crypto/build/ts/hashing'
+import { Hex, bytesToNumber, hexToBigInt } from 'viem'
 import { mnemonicToAccount } from 'viem/accounts'
-import { Hash, Secret } from '../types/commitment.js'
-import { DataService } from './data.service.js'
-import { AccountCommitment, PoolAccount, PoolInfo, PrivacyPoolAccount } from '../types/account.js'
+import { Hash, Secret } from '../types/commitment'
+import { DataService } from './data.service'
+import { AccountCommitment, PoolAccount, PoolInfo, PrivacyPoolAccount } from '../types/account'
 import {
   DepositEvent,
   PoolEventsError,
   PoolEventsResult,
   RagequitEvent,
   WithdrawalEvent
-} from '../types/events.js'
+} from '../types/events'
 
-import { Logger } from '../utils/logger.js'
-import { AccountError } from '../errors/account.error.js'
-import { ErrorCode } from '../errors/base.error.js'
-import { EventError } from '../errors/events.error.js'
+import { Logger } from '../utils/logger'
+import { AccountError } from '../errors/account.error'
+import { ErrorCode } from '../errors/base.error'
+import { EventError } from '../errors/events.error'
 
 type AccountServiceConfig =
   | {
       mnemonic: string
+    }
+  | {
+      secrets: {
+        masterNullifierSeed: Hex
+        masterSecretSeed: Hex
+      }
     }
   | {
       account: PrivacyPoolAccount
@@ -44,8 +51,9 @@ export class AccountService {
    * Creates a new AccountService instance.
    *
    * @param dataService - Service for fetching on-chain events
-   * @param config - Configuration for the account service (either mnemonic or existing account)
+   * @param config - Configuration for the account service (mnemonic, secrets, or existing account)
    * @param config.mnemonic - Optional mnemonic for deterministic key generation
+   * @param config.secrets - Optional object with two hex string secrets (masterNullifierSeed and masterSecretSeed)
    * @param config.account - Optional existing account to initialize with
    *
    * @throws {AccountError} If account initialization fails
@@ -54,40 +62,64 @@ export class AccountService {
     this.logger = new Logger({ prefix: 'Account' })
     if ('mnemonic' in config) {
       this.account = this._initializeAccount(config.mnemonic)
+    } else if ('secrets' in config) {
+      this.account = this._initializeAccount(config.secrets)
     } else {
       this.account = config.account
     }
   }
 
   /**
-   * Initializes a new account from a mnemonic phrase.
+   * Initializes a new account from a mnemonic phrase or seed secrets.
    *
-   * @param mnemonic - The mnemonic phrase to derive keys from
+   * @param source - Either a mnemonic string or an object with two hex string secrets
    * @returns A new PrivacyPoolAccount with derived master keys
    *
    * @remarks
-   * This method derives two master keys from the mnemonic:
-   * 1. A master nullifier key from account index 0
-   * 2. A master secret key from account index 1
+   * This method supports two initialization modes:
+   * 1. From mnemonic: Derives two master keys from the mnemonic phrase
+   *    - A master nullifier key from account index 0
+   *    - A master secret key from account index 1
+   * 2. From secrets: Uses provided hex strings directly as seeds
+   *    - masterNullifierSeed: Hex string for the nullifier seed
+   *    - masterSecretSeed: Hex string for the secret seed
+   *
    * These keys are used to deterministically generate nullifiers and secrets for deposits and withdrawals.
    *
    * @throws {AccountError} If account initialization fails
    * @private
    */
-  private _initializeAccount(mnemonic: string): PrivacyPoolAccount {
+  private _initializeAccount(
+    source:
+      | string
+      | {
+          masterNullifierSeed: Hex
+          masterSecretSeed: Hex
+        }
+  ): PrivacyPoolAccount {
     try {
-      this.logger.debug('Initializing account with mnemonic')
+      let masterNullifierSeed: bigint
+      let masterSecretSeed: bigint
 
-      const masterNullifierSeed = bytesToNumber(
-        mnemonicToAccount(mnemonic, { accountIndex: 0 }).getHdKey().privateKey!
-      )
+      if (typeof source === 'string') {
+        this.logger.debug('Initializing account with mnemonic')
 
-      const masterSecretSeed = bytesToNumber(
-        mnemonicToAccount(mnemonic, { accountIndex: 1 }).getHdKey().privateKey!
-      )
+        masterNullifierSeed = BigInt(
+          bytesToNumber(mnemonicToAccount(source, { accountIndex: 0 }).getHdKey().privateKey!)
+        )
 
-      const masterNullifier = poseidon([BigInt(masterNullifierSeed)]) as Secret
-      const masterSecret = poseidon([BigInt(masterSecretSeed)]) as Secret
+        masterSecretSeed = BigInt(
+          bytesToNumber(mnemonicToAccount(source, { accountIndex: 1 }).getHdKey().privateKey!)
+        )
+      } else {
+        this.logger.debug('Initializing account with provided secrets')
+
+        masterNullifierSeed = hexToBigInt(source.masterNullifierSeed)
+        masterSecretSeed = hexToBigInt(source.masterSecretSeed)
+      }
+
+      const masterNullifier = poseidon([masterNullifierSeed]) as Secret
+      const masterSecret = poseidon([masterSecretSeed]) as Secret
 
       return {
         masterKeys: [masterNullifier, masterSecret],
@@ -242,6 +274,7 @@ export class AccountService {
     }
 
     const accounts = this.account.poolAccounts.get(scope)
+    // eslint-disable-next-line no-param-reassign
     index = index ?? BigInt(accounts?.length || 0)
 
     const nullifier = this._genDepositNullifier(scope, index)
@@ -755,6 +788,12 @@ export class AccountService {
           mnemonic: string
         }
       | {
+          secrets: {
+            masterNullifierSeed: Hex
+            masterSecretSeed: Hex
+          }
+        }
+      | {
           service: AccountService
         },
     pools: PoolInfo[]
@@ -775,7 +814,11 @@ export class AccountService {
     const errors: PoolEventsError[] = []
     const account = new AccountService(
       dataService,
-      'mnemonic' in source ? { mnemonic: source.mnemonic } : { account: source.service.account }
+      'mnemonic' in source
+        ? { mnemonic: source.mnemonic }
+        : 'secrets' in source
+        ? { secrets: source.secrets }
+        : { account: source.service.account }
     )
 
     const events = await account.getEvents(pools)

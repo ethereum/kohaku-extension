@@ -180,10 +180,10 @@ const AccountPersonalizeScreen = () => {
     goToNextRoute
   ])
 
-  // Generate privacy pool secret when accounts are loaded
+  // Generate privacy pool v1 secrets when accounts are loaded
   useEffect(() => {
     if (!isLoading && accountsToPersonalize.length && !completed) {
-      dispatch({ type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_SECRET', params: { appInfo: 'test' } })
+      dispatch({ type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_PPV1_KEYS' })
     }
   }, [isLoading, accountsToPersonalize.length, completed, dispatch])
 

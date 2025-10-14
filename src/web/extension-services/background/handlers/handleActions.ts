@@ -434,8 +434,8 @@ export const handleActions = async (
       return mainCtrl.privacyPools.destroyLatestBroadcastedAccountOp()
     case 'PRIVACY_POOLS_CONTROLLER_SYNC_SIGN_ACCOUNT_OP':
       return mainCtrl.privacyPools.syncSignAccountOp(params.calls)
-    case 'PRIVACY_POOLS_CONTROLLER_GENERATE_KEYS':
-      return mainCtrl.privacyPools.generateKeys()
+    case 'PRIVACY_POOLS_CONTROLLER_GENERATE_PPV1_KEYS':
+      return mainCtrl.privacyPools.generatePPv1Keys()
     case 'PRIVACY_POOLS_CONTROLLER_GENERATE_SECRET':
       return mainCtrl.privacyPools.generateSecret(params.appInfo)
     case 'PRIVACY_POOLS_CONTROLLER_PREPARE_WITHDRAWAL':

@@ -11,7 +11,6 @@ import React, {
 
 import {
   type ChainConfig,
-  type PoolInfo,
   type AccountCommitment,
   type CommitmentProof,
   type WithdrawalProof,
@@ -23,13 +22,14 @@ import {
   type RagequitEvent,
   Circuits,
   PrivacyPoolSDK,
-  DataService,
-  AccountService,
   calculateContext,
   generateMerkleProof,
   PoolAccount as SDKPoolAccount
 } from '@0xbow/privacy-pools-core-sdk'
 
+import { AccountService } from '@web/modules/PPv1/sdk/core/account.service'
+import { DataService } from '@web/modules/PPv1/sdk/core/data.service'
+import { PoolInfo } from '@web/modules/PPv1/sdk/types/account'
 // import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
 // import { sortPortfolioTokenList } from '@ambire-common/libs/swapAndBridge/swapAndBridge'
 import { AddressState } from '@ambire-common/interfaces/domains'
@@ -43,6 +43,7 @@ import type { PrivacyPoolsController } from '@ambire-common/controllers/privacyP
 import { aspClient, MtLeavesResponse, MtRootResponse } from '@web/modules/PPv1/utils/aspClient'
 import { storeData } from '@web/modules/PPv1/utils/extensionStorage'
 import { encrypt } from '@web/modules/PPv1/utils/encryption'
+import { Hex } from 'viem'
 
 export enum ReviewStatus {
   PENDING = 'pending',
@@ -75,7 +76,7 @@ type EnhancedPrivacyPoolsControllerState = {
   poolAccounts: PoolAccount[]
   isAccountLoaded: boolean
   setIsAccountLoaded: Dispatch<SetStateAction<boolean>>
-  loadAccount: (seedPhrase?: string) => Promise<void>
+  loadAccount: (secrets: { masterNullifierSeed: Hex; masterSecretSeed: Hex }) => Promise<void>
   generateRagequitProof: (commitment: AccountCommitment) => Promise<CommitmentProof>
   verifyRagequitProof: (commitment: CommitmentProof) => Promise<boolean>
   generateWithdrawalProof: (
@@ -211,9 +212,10 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   }, [memoizedState.chainData])
 
   const loadAccount = useCallback(
-    async (seedPhrase?: string) => {
+    async (secrets: { masterNullifierSeed: Hex; masterSecretSeed: Hex }) => {
       if (!dataService) throw new Error('DataService not initialized.')
       if (!mtLeaves) throw new Error('Merkle tree data not loaded.')
+      if (!secrets) throw new Error('Secrets not provided.')
 
       const firstChainInfo = memoizedState.chainData?.[11155111]
       if (!firstChainInfo?.poolInfo?.[0]) throw new Error('No pool information found.')
@@ -225,7 +227,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       // Initialize account service
       const accountServiceResult = await AccountService.initializeWithEvents(
         dataService,
-        { mnemonic: seedPhrase?.trim() || memoizedState.seedPhrase.trim() },
+        { secrets },
         memoizedState.pools as PoolInfo[]
       )
 
@@ -251,7 +253,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       setPoolAccounts(newPoolAccounts)
       setIsAccountLoaded(true)
     },
-    [dataService, mtLeaves, memoizedState.chainData, memoizedState.pools, memoizedState.seedPhrase]
+    [dataService, mtLeaves, memoizedState.chainData, memoizedState.pools]
   )
 
   const generateRagequitProof = useCallback(
