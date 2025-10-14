@@ -67,39 +67,6 @@ export type PoolAccount = SDKPoolAccount & {
   ragequit?: RagequitEventWithTimestamp
 }
 
-type BatchWithdrawalProof = {
-  pA: [bigint, bigint]
-  pB: [readonly [bigint, bigint], readonly [bigint, bigint]]
-  pC: [bigint, bigint]
-  pubSignals: bigint[]
-}
-
-type BatchWithdrawalParams = {
-  chainId: number
-  poolAddress: string
-  poolScope: string
-  recipient: string
-  feeRecipient: string
-  relayFeeBPS: number
-  batchSize: number
-  totalValue: string
-  proofs: BatchWithdrawalProof[]
-  withdrawal: {
-    processooor: string
-    data: string
-  }
-}
-
-type BatchWithdrawalResponse = {
-  success: boolean
-  data?: {
-    txId: string
-    relayerId: string
-    estimatedConfirmation?: number
-  }
-  message?: string
-}
-
 type EnhancedPrivacyPoolsControllerState = {
   mtRoots: MtRootResponse | undefined
   mtLeaves: MtLeavesResponse | undefined
@@ -108,7 +75,7 @@ type EnhancedPrivacyPoolsControllerState = {
   poolAccounts: PoolAccount[]
   isAccountLoaded: boolean
   setIsAccountLoaded: Dispatch<SetStateAction<boolean>>
-  loadAccount: () => Promise<void>
+  loadAccount: (seedPhrase?: string) => Promise<void>
   generateRagequitProof: (commitment: AccountCommitment) => Promise<CommitmentProof>
   verifyRagequitProof: (commitment: CommitmentProof) => Promise<boolean>
   generateWithdrawalProof: (
@@ -128,7 +95,6 @@ type EnhancedPrivacyPoolsControllerState = {
   getContext: (withdrawal: Withdrawal, scope: Hash) => string
   getMerkleProof: (leaves: bigint[], leaf: bigint) => LeanIMTMerkleProof<bigint>
   setSelectedPoolAccount: Dispatch<SetStateAction<PoolAccount | null>>
-  submitBatchWithdrawal: (params: BatchWithdrawalParams) => void
   // Required PrivacyPoolsController properties
   validationFormMsgs: {
     amount: { success: boolean; message: string }
@@ -219,22 +185,14 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   const fetchMtData = useCallback(async () => {
     try {
       const firstChainInfo = memoizedState.chainData?.[11155111]
-
-      if (!firstChainInfo || !firstChainInfo.poolInfo.length) {
-        throw new Error('No pool information found')
-      }
+      if (!firstChainInfo?.poolInfo?.length) throw new Error('No pool information found')
 
       const firstPool = firstChainInfo.poolInfo[0]
       const { aspUrl } = firstChainInfo
       const scope = firstPool.scope.toString()
 
-      console.log('Fetching MT data for:', {
-        firstChainInfo,
-        aspUrl,
-        scope
-      })
+      console.log('Fetching MT data for:', { aspUrl, scope, chainId: 11155111 })
 
-      // Fetch MT roots and leaves in parallel
       const [rootsData, leavesData] = await Promise.all([
         aspClient.fetchMtRoots(aspUrl, 11155111, scope),
         aspClient.fetchMtLeaves(aspUrl, 11155111, scope)
@@ -244,61 +202,57 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       setMtLeaves(leavesData)
 
       console.log('MT data fetched successfully:', {
-        roots: rootsData,
-        leaves: leavesData
+        rootsCount: rootsData,
+        leavesCount: leavesData
       })
     } catch (error) {
       console.error('Error fetching MT data:', error)
     }
   }, [memoizedState.chainData])
 
-  const loadAccount = useCallback(async () => {
-    if (!dataService) {
-      throw new Error('DataService not initialized.')
-    }
+  const loadAccount = useCallback(
+    async (seedPhrase?: string) => {
+      if (!dataService) throw new Error('DataService not initialized.')
+      if (!mtLeaves) throw new Error('Merkle tree data not loaded.')
 
-    const accountServiceResult = await AccountService.initializeWithEvents(
-      dataService,
-      {
-        mnemonic: memoizedState.seedPhrase.trim()
-      },
-      memoizedState.pools as PoolInfo[]
-    )
+      const firstChainInfo = memoizedState.chainData?.[11155111]
+      if (!firstChainInfo?.poolInfo?.[0]) throw new Error('No pool information found.')
 
-    setAccountService(accountServiceResult.account)
+      const firstPool = firstChainInfo.poolInfo[0]
+      const aspUrl = firstChainInfo.aspUrl
+      const scope = firstPool.scope.toString()
 
-    const { poolAccounts: poolAccountFromAccount } = await getPoolAccountsFromAccount(
-      accountServiceResult.account.account,
-      11155111
-    )
+      // Initialize account service
+      const accountServiceResult = await AccountService.initializeWithEvents(
+        dataService,
+        { mnemonic: seedPhrase?.trim() || memoizedState.seedPhrase.trim() },
+        memoizedState.pools as PoolInfo[]
+      )
 
-    if (!poolAccountFromAccount || !mtLeaves) {
-      throw new Error('No pool information found.')
-    }
+      setAccountService(accountServiceResult.account)
 
-    const firstChainInfo = memoizedState.chainData?.[11155111]
+      // Get pool accounts
+      const { poolAccounts: poolAccountFromAccount } = await getPoolAccountsFromAccount(
+        accountServiceResult.account.account,
+        11155111
+      )
 
-    const firstPool = firstChainInfo?.poolInfo[0]
-    const aspUrl = firstChainInfo?.aspUrl ?? ''
-    const scope = firstPool?.scope?.toString() ?? ''
+      if (!poolAccountFromAccount) throw new Error('No pool accounts found.')
 
-    const newPoolAccounts = await processDeposits(
-      poolAccountFromAccount,
-      mtLeaves,
-      aspUrl,
-      11155111,
-      scope
-    )
+      // Process deposits and set pool accounts
+      const newPoolAccounts = await processDeposits(
+        poolAccountFromAccount,
+        mtLeaves,
+        aspUrl,
+        11155111,
+        scope
+      )
 
-    setPoolAccounts(newPoolAccounts)
-    setIsAccountLoaded(true)
-  }, [
-    mtLeaves,
-    dataService,
-    memoizedState.pools,
-    memoizedState.chainData,
-    memoizedState.seedPhrase
-  ])
+      setPoolAccounts(newPoolAccounts)
+      setIsAccountLoaded(true)
+    },
+    [dataService, mtLeaves, memoizedState.chainData, memoizedState.pools, memoizedState.seedPhrase]
+  )
 
   const generateRagequitProof = useCallback(
     async (commitment: AccountCommitment): Promise<CommitmentProof> => {
