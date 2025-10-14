@@ -23,13 +23,13 @@ import {
   type PoolInfo,
   Circuits,
   PrivacyPoolSDK,
+  AccountService,
+  DataService,
   calculateContext,
   generateMerkleProof,
-  PoolAccount as SDKPoolAccount,
-  DataService
+  PoolAccount as SDKPoolAccount
 } from '@0xbow/privacy-pools-core-sdk'
-
-import { AccountService } from '@web/modules/PPv1/sdk/core/account.service'
+import { initializeAccountWithEvents } from '@web/modules/PPv1/sdk/accountInitializer'
 // import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
 // import { sortPortfolioTokenList } from '@ambire-common/libs/swapAndBridge/swapAndBridge'
 import { AddressState } from '@ambire-common/interfaces/domains'
@@ -224,8 +224,8 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       const aspUrl = firstChainInfo.aspUrl
       const scope = firstPool.scope.toString()
 
-      // Initialize account service
-      const accountServiceResult = await AccountService.initializeWithEvents(
+      // Initialize account service using isolated wrapper
+      const accountServiceResult = await initializeAccountWithEvents(
         dataService,
         { secrets },
         memoizedState.pools as PoolInfo[]
