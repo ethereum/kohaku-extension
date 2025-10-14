@@ -14,12 +14,6 @@ import { prepareWithdrawalProofInput, transformProofForRelayerApi } from '../uti
 import { transformRagequitProofForContract } from '../utils/ragequit'
 import { entrypointAbi, privacyPoolAbi } from '../utils/abi'
 
-type PrivateRequestType =
-  | 'privateDepositRequest'
-  | 'privateSendRequest'
-  | 'privateRagequitRequest'
-  | 'privateWithdrawRequest'
-
 const usePrivacyPoolsForm = () => {
   const { dispatch } = useBackgroundService()
   const {
@@ -74,18 +68,24 @@ const usePrivacyPoolsForm = () => {
   }, [poolAccounts])
 
   const totalPendingBalance = useMemo(() => {
-    const accounts = poolAccounts.filter((account) => account.reviewStatus === ReviewStatus.PENDING)
-    const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
-    return { total, accounts }
-  }, [poolAccounts])
-
-  const totalDeclinedBalance = useMemo(() => {
     const accounts = poolAccounts.filter(
-      (account) => account.reviewStatus === ReviewStatus.DECLINED
+      (account) =>
+        account.reviewStatus === ReviewStatus.PENDING &&
+        account.depositorAddress?.toLowerCase() === userAccount?.addr?.toLowerCase()
     )
     const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
     return { total, accounts }
-  }, [poolAccounts])
+  }, [poolAccounts, userAccount?.addr])
+
+  const totalDeclinedBalance = useMemo(() => {
+    const accounts = poolAccounts.filter(
+      (account) =>
+        account.reviewStatus === ReviewStatus.DECLINED &&
+        account.depositorAddress?.toLowerCase() === userAccount?.addr?.toLowerCase()
+    )
+    const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
+    return { total, accounts }
+  }, [poolAccounts, userAccount?.addr])
 
   const totalPrivatePortfolio = useMemo(() => {
     // Use totalApprovedBalance from Privacy Pools
@@ -143,16 +143,6 @@ const usePrivacyPoolsForm = () => {
     },
     [dispatch]
   )
-
-  const handlePrivateRequest = (
-    type: PrivateRequestType,
-    txList: { to: string; value: bigint; data: string }[]
-  ) => {
-    dispatch({
-      type: 'REQUESTS_CONTROLLER_BUILD_REQUEST',
-      params: { type, params: { txList, actionExecutionType: 'open-action-window' } }
-    })
-  }
 
   const prepareBatchWithdrawal = useCallback(
     (params: BatchWithdrawalParams): void => {
@@ -300,45 +290,6 @@ const usePrivacyPoolsForm = () => {
     return ragequitLoading[accountKey] || false
   }
 
-  const handleRagequit = async (poolAccount: PoolAccount, event: any) => {
-    // Prevent the click from bubbling up to the parent AccountCard
-    event.stopPropagation()
-    const accountKey = `${poolAccount.chainId}-${poolAccount.name}`
-    setRagequitLoading((prev) => ({ ...prev, [accountKey]: true }))
-
-    if (!accountService || !poolInfo) return
-
-    const commitment = poolAccount.lastCommitment
-
-    // Generate ragequit proof using the last commitment (current balance)
-    const proof = await generateRagequitProof(commitment)
-
-    // Transform proof for contract interaction
-    const transformedArgs = transformRagequitProofForContract(proof)
-
-    const data = encodeFunctionData({
-      abi: privacyPoolAbi,
-      functionName: 'ragequit',
-      args: [
-        {
-          pA: transformedArgs.pA,
-          pB: transformedArgs.pB,
-          pC: transformedArgs.pC,
-          pubSignals: transformedArgs.pubSignals
-        }
-      ]
-    })
-
-    const result = {
-      to: getAddress(poolInfo.address),
-      data,
-      value: 0n
-    }
-
-    handlePrivateRequest('privateRagequitRequest', [result])
-    setRagequitLoading((prev) => ({ ...prev, [accountKey]: false }))
-  }
-
   const handleMultipleRagequit = useCallback(async () => {
     if (!accountService || !poolInfo) return
 
@@ -348,7 +299,11 @@ const usePrivacyPoolsForm = () => {
       const ragequitableAccounts = [
         ...totalPendingBalance.accounts,
         ...totalDeclinedBalance.accounts
-      ].filter((account) => !account.ragequit)
+      ].filter(
+        (account) =>
+          !account.ragequit &&
+          account.depositorAddress?.toLowerCase() === userAccount?.addr?.toLowerCase()
+      )
 
       if (ragequitableAccounts.length === 0) {
         setMessage({ type: 'error', text: 'No accounts available to ragequit' })
@@ -398,7 +353,8 @@ const usePrivacyPoolsForm = () => {
     totalDeclinedBalance.accounts,
     generateRagequitProof,
     syncSignAccountOp,
-    openEstimationModalAndDispatch
+    openEstimationModalAndDispatch,
+    userAccount?.addr
   ])
 
   const loadPrivateAccount = useCallback(async () => {
@@ -598,7 +554,6 @@ const usePrivacyPoolsForm = () => {
     totalPrivatePortfolio,
     ethPrivateBalance,
     handleDeposit,
-    handleRagequit,
     handleMultipleRagequit,
     handleMultipleWithdrawal,
     handleUpdateForm,

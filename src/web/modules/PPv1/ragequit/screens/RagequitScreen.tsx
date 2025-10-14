@@ -23,7 +23,8 @@ import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import { getUiType } from '@web/utils/uiType'
 import { View } from 'react-native'
 import flexbox from '@common/styles/utils/flexbox'
-import { Content, Form, Wrapper } from '../../deposit/components/TransactionsScreen'
+import { Content, Form } from '@web/components/TransactionsScreen'
+import { Wrapper } from '../../deposit/components/TransactionsScreen'
 
 const { isActionWindow } = getUiType()
 
@@ -43,6 +44,7 @@ function RagequitScreen() {
     isLoading,
     totalPendingBalance,
     totalDeclinedBalance,
+    ethPrice,
     handleMultipleRagequit,
     closeEstimationModal,
     refreshPrivateAccount
@@ -159,7 +161,7 @@ function RagequitScreen() {
   }, [ragequitableAccounts.length, poolInfo, isLoading])
 
   const onBack = useCallback(() => {
-    navigate(ROUTES.pp1Home)
+    navigate(ROUTES.dashboard)
   }, [navigate])
 
   const headerTitle = t('Withdraw')
@@ -228,6 +230,7 @@ function RagequitScreen() {
             poolInfo={poolInfo}
             totalPendingBalance={totalPendingBalance}
             totalDeclinedBalance={totalDeclinedBalance}
+            ethPrice={ethPrice || 0}
           />
         </Form>
       </Content>
