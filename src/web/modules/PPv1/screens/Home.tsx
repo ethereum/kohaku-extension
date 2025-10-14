@@ -8,6 +8,7 @@ const HomeScreen = () => {
   const { dispatch } = useBackgroundService()
   const {
     isAccountLoaded,
+    isReadyToLoad,
     poolAccounts,
     totalApprovedBalance,
     totalPendingBalance,
@@ -22,12 +23,12 @@ const HomeScreen = () => {
   console.log({ isAccountLoaded, poolAccounts })
 
   useEffect(() => {
-    if (!isAccountLoaded && !hasLoadedRef.current) {
+    if (!isAccountLoaded && !hasLoadedRef.current && isReadyToLoad) {
       hasLoadedRef.current = true
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       loadPrivateAccount()
     }
-  }, [loadPrivateAccount, isAccountLoaded, hasLoadedRef])
+  }, [loadPrivateAccount, isAccountLoaded, hasLoadedRef, isReadyToLoad])
 
   useEffect(() => {
     return () => {

@@ -46,22 +46,20 @@ const DashboardScreen = () => {
 
   const { account, portfolio, cashbackStatus } = useSelectedAccountControllerState()
 
-  const { loadPrivateAccount, isAccountLoaded } = usePrivacyPoolsForm()
-  const hasLoadedRef = useRef(false)
+  const { loadPrivateAccount, isAccountLoaded, isReadyToLoad } = usePrivacyPoolsForm()
 
   const onWithdrawBack = useCallback(() => {
     navigate(WEB_ROUTES.pp1Ragequit)
   }, [navigate])
 
   useEffect(() => {
-    if (!isAccountLoaded && !hasLoadedRef.current) {
-      hasLoadedRef.current = true
+    if (!isAccountLoaded && isReadyToLoad) {
       loadPrivateAccount().catch((error) => {
         // eslint-disable-next-line no-console
         console.error('Failed to load private account:', error)
       })
     }
-  }, [loadPrivateAccount, isAccountLoaded, hasLoadedRef])
+  }, [loadPrivateAccount, isAccountLoaded, isReadyToLoad])
 
   const hasUnseenFirstCashback = useMemo(
     () => cashbackStatus === 'cashback-modal',
@@ -148,6 +146,7 @@ const DashboardScreen = () => {
             dashboardOverviewSize={debouncedDashboardOverviewSize}
             setDashboardOverviewSize={setDashboardOverviewSize}
             onGasTankButtonPosition={handleGasTankButtonPosition}
+            isPrivateAccountLoading={!isAccountLoaded}
           />
           <DashboardPages onScroll={onScroll} animatedOverviewHeight={animatedOverviewHeight} />
         </View>
