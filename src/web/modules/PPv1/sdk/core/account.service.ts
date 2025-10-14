@@ -4,20 +4,23 @@
 import { poseidon } from 'maci-crypto/build/ts/hashing'
 import { Hex, bytesToNumber, hexToBigInt } from 'viem'
 import { mnemonicToAccount } from 'viem/accounts'
-import { Hash, Secret } from '../types/commitment'
-import { DataService } from './data.service'
-import { AccountCommitment, PoolAccount, PoolInfo, PrivacyPoolAccount } from '../types/account'
 import {
-  DepositEvent,
-  PoolEventsError,
-  PoolEventsResult,
-  RagequitEvent,
-  WithdrawalEvent
-} from '../types/events'
-
+  type Hash,
+  type Secret,
+  type AccountCommitment,
+  type PoolAccount,
+  type PoolInfo,
+  type PrivacyPoolAccount,
+  type DepositEvent,
+  type PoolEventsError,
+  type PoolEventsResult,
+  type RagequitEvent,
+  type WithdrawalEvent,
+  type DataService,
+  ErrorCode,
+  AccountError
+} from '@0xbow/privacy-pools-core-sdk'
 import { Logger } from '../utils/logger'
-import { AccountError } from '../errors/account.error'
-import { ErrorCode } from '../errors/base.error'
 import { EventError } from '../errors/events.error'
 
 type AccountServiceConfig =

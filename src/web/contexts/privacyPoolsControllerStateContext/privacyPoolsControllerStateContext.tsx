@@ -20,16 +20,16 @@ import {
   type Secret,
   type LeanIMTMerkleProof,
   type RagequitEvent,
+  type PoolInfo,
   Circuits,
   PrivacyPoolSDK,
   calculateContext,
   generateMerkleProof,
-  PoolAccount as SDKPoolAccount
+  PoolAccount as SDKPoolAccount,
+  DataService
 } from '@0xbow/privacy-pools-core-sdk'
 
 import { AccountService } from '@web/modules/PPv1/sdk/core/account.service'
-import { DataService } from '@web/modules/PPv1/sdk/core/data.service'
-import { PoolInfo } from '@web/modules/PPv1/sdk/types/account'
 // import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
 // import { sortPortfolioTokenList } from '@ambire-common/libs/swapAndBridge/swapAndBridge'
 import { AddressState } from '@ambire-common/interfaces/domains'

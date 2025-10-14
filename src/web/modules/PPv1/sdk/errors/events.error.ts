@@ -1,6 +1,6 @@
+import { type Hash } from '@0xbow/privacy-pools-core-sdk'
 import { ErrorCode } from './base.error'
 import { DataError } from './data.error'
-import { Hash } from '../types/commitment'
 
 export class EventError extends DataError {
   constructor(

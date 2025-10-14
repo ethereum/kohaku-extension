@@ -1,5 +1,5 @@
+import { type Hash } from '@0xbow/privacy-pools-core-sdk'
 import { ErrorCode, SDKError } from './base.error'
-import { Hash } from '../types/commitment'
 
 export class AccountError extends SDKError {
   constructor(
