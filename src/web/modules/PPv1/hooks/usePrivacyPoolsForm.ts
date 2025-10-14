@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
 import { encodeFunctionData, formatEther, getAddress, parseUnits } from 'viem'
@@ -164,31 +165,38 @@ const usePrivacyPoolsForm = () => {
     setIsGenerating(false)
   }
 
-  const loadAccountWithSeedPhrase = useCallback(
-    async (seedPhraseToLoad: string, shouldStore: boolean = false) => {
-      if (!seedPhraseToLoad?.trim()) {
-        throw new Error('Please enter a seed phrase to load an existing account.')
+  const loadAccountWithSecrets = useCallback(
+    async (
+      secrets: { masterNullifierSeed: string; masterSecretSeed: string },
+      shouldStore: boolean = false
+    ) => {
+      if (!secrets?.masterNullifierSeed || !secrets?.masterSecretSeed) {
+        throw new Error('Please provide valid secrets to load an account.')
       }
 
-      await loadAccount(seedPhraseToLoad)
-      handleUpdateForm({ seedPhrase: seedPhraseToLoad })
+      await loadAccount(
+        secrets as { masterNullifierSeed: `0x${string}`; masterSecretSeed: `0x${string}` }
+      )
 
       if (shouldStore) {
-        const encrypted = await encrypt(seedPhraseToLoad)
+        const encrypted = await encrypt(JSON.stringify(secrets))
         await storeData({ key: 'TEST-private-account', data: encrypted })
       }
     },
-    [loadAccount, encrypt, storeData, handleUpdateForm]
+    [loadAccount, encrypt, storeData]
   )
 
   const handleLoadAccount = useCallback(
-    async (seedPhraseToLoad?: string) => {
+    async (secrets?: { masterNullifierSeed: string; masterSecretSeed: string }) => {
       try {
         setMessage(null)
         setIsLoadingAccount(true)
 
-        const phraseToUse = seedPhraseToLoad || seedPhrase
-        await loadAccountWithSeedPhrase(phraseToUse, !seedPhraseToLoad)
+        if (!secrets) {
+          throw new Error('Secrets are required to load account')
+        }
+
+        await loadAccountWithSecrets(secrets, true)
 
         setMessage({ type: 'success', text: 'Account loaded successfully!' })
       } catch (error) {
@@ -200,7 +208,7 @@ const usePrivacyPoolsForm = () => {
         setIsLoadingAccount(false)
       }
     },
-    [seedPhrase, loadAccountWithSeedPhrase]
+    [loadAccountWithSecrets]
   )
 
   const refreshPrivateAccount = useCallback(async () => {
@@ -214,7 +222,8 @@ const usePrivacyPoolsForm = () => {
       if (!data) throw new Error('No stored private account found.')
 
       const decrypted = await decrypt(data)
-      await loadAccountWithSeedPhrase(decrypted)
+      const secrets = JSON.parse(decrypted)
+      await loadAccountWithSecrets(secrets)
 
       setRagequitLoading({})
       setMessage({ type: 'success', text: 'Account refreshed successfully!' })
@@ -227,7 +236,7 @@ const usePrivacyPoolsForm = () => {
       setIsAccountLoaded(true)
       setIsRefreshing(false)
     }
-  }, [setIsAccountLoaded, getData, decrypt, loadAccountWithSeedPhrase])
+  }, [setIsAccountLoaded, getData, decrypt, loadAccountWithSecrets])
 
   const handleSelectedAccount = (poolAccount: PoolAccount) => {
     setSelectedPoolAccount((prevState) => {
@@ -368,8 +377,8 @@ const usePrivacyPoolsForm = () => {
       if (!data) throw new Error('No stored private account found.')
 
       const decrypted = await decrypt(data)
-      handleUpdateForm({ seedPhrase: decrypted })
-      await loadAccountWithSeedPhrase(decrypted)
+      const secrets = JSON.parse(decrypted)
+      await loadAccountWithSecrets(secrets)
 
       setMessage({ type: 'success', text: 'Private account loaded successfully!' })
     } catch (error) {
@@ -379,7 +388,7 @@ const usePrivacyPoolsForm = () => {
     } finally {
       setIsLoadingSeedPhrase(false)
     }
-  }, [isAccountLoaded, getData, decrypt, handleUpdateForm, loadAccountWithSeedPhrase])
+  }, [isAccountLoaded, getData, decrypt, loadAccountWithSecrets])
 
   const isLoading = isLoadingSeedPhrase || isLoadingAccount
 

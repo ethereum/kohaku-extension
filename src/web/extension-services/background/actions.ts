@@ -798,8 +798,8 @@ type PrivacyControllerSyncSignAccountOpAction = {
   }
 }
 
-type PrivacyControllerGenerateKeysAction = {
-  type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_KEYS'
+type PrivacyControllerGeneratePPv1KeysAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_PPV1_KEYS'
 }
 
 type PrivacyControllerGenerateSecretAction = {
@@ -987,9 +987,9 @@ export type Action =
   | PrivacyControllerDestroySignAccountOpAction
   | PrivacyControllerDestroyLatestBroadcastedAccountOpAction
   | PrivacyControllerSyncSignAccountOpAction
-  | PrivacyControllerGenerateKeysAction
   | PrivacyControllerGenerateSecretAction
   | PrivacyControllerResetFormAction
   | PrivacyControllerPrepareWithdrawalAction
   | PrivacyControllerBroadcastWithdrawalAction
   | PrivacyControllerResetSecretAction
+  | PrivacyControllerGeneratePPv1KeysAction

@@ -168,6 +168,7 @@
     "lottie-react": "^2.3.1",
     "lottie-react-native": "^5.1.4",
     "lru-cache": "6.0.0",
+    "maci-crypto": "2.5.0",
     "mini-css-extract-plugin": "^2.7.6",
     "nanoid": "4.0.0",
     "p-queue": "^7.3.4",

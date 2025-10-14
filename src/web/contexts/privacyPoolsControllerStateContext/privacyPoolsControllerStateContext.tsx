@@ -11,7 +11,6 @@ import React, {
 
 import {
   type ChainConfig,
-  type PoolInfo,
   type AccountCommitment,
   type CommitmentProof,
   type WithdrawalProof,
@@ -21,15 +20,16 @@ import {
   type Secret,
   type LeanIMTMerkleProof,
   type RagequitEvent,
+  type PoolInfo,
   Circuits,
   PrivacyPoolSDK,
-  DataService,
   AccountService,
+  DataService,
   calculateContext,
   generateMerkleProof,
   PoolAccount as SDKPoolAccount
 } from '@0xbow/privacy-pools-core-sdk'
-
+import { initializeAccountWithEvents } from '@web/modules/PPv1/sdk/accountInitializer'
 // import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
 // import { sortPortfolioTokenList } from '@ambire-common/libs/swapAndBridge/swapAndBridge'
 import { AddressState } from '@ambire-common/interfaces/domains'
@@ -43,6 +43,7 @@ import type { PrivacyPoolsController } from '@ambire-common/controllers/privacyP
 import { aspClient, MtLeavesResponse, MtRootResponse } from '@web/modules/PPv1/utils/aspClient'
 import { storeData } from '@web/modules/PPv1/utils/extensionStorage'
 import { encrypt } from '@web/modules/PPv1/utils/encryption'
+import { Hex } from 'viem'
 
 export enum ReviewStatus {
   PENDING = 'pending',
@@ -76,7 +77,7 @@ type EnhancedPrivacyPoolsControllerState = {
   poolAccounts: PoolAccount[]
   isAccountLoaded: boolean
   setIsAccountLoaded: Dispatch<SetStateAction<boolean>>
-  loadAccount: (seedPhrase?: string) => Promise<void>
+  loadAccount: (secrets: { masterNullifierSeed: Hex; masterSecretSeed: Hex }) => Promise<void>
   generateRagequitProof: (commitment: AccountCommitment) => Promise<CommitmentProof>
   verifyRagequitProof: (commitment: CommitmentProof) => Promise<boolean>
   generateWithdrawalProof: (
@@ -212,9 +213,10 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   }, [memoizedState.chainData])
 
   const loadAccount = useCallback(
-    async (seedPhrase?: string) => {
+    async (secrets: { masterNullifierSeed: Hex; masterSecretSeed: Hex }) => {
       if (!dataService) throw new Error('DataService not initialized.')
       if (!mtLeaves) throw new Error('Merkle tree data not loaded.')
+      if (!secrets) throw new Error('Secrets not provided.')
 
       const firstChainInfo = memoizedState.chainData?.[11155111]
       if (!firstChainInfo?.poolInfo?.[0]) throw new Error('No pool information found.')
@@ -223,10 +225,10 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       const aspUrl = firstChainInfo.aspUrl
       const scope = firstPool.scope.toString()
 
-      // Initialize account service
-      const accountServiceResult = await AccountService.initializeWithEvents(
+      // Initialize account service using isolated wrapper
+      const accountServiceResult = await initializeAccountWithEvents(
         dataService,
-        { mnemonic: seedPhrase?.trim() || memoizedState.seedPhrase.trim() },
+        { secrets },
         memoizedState.pools as PoolInfo[]
       )
 
@@ -252,7 +254,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       setPoolAccounts(newPoolAccounts)
       setIsAccountLoaded(true)
     },
-    [dataService, mtLeaves, memoizedState.chainData, memoizedState.pools, memoizedState.seedPhrase]
+    [dataService, mtLeaves, memoizedState.chainData, memoizedState.pools]
   )
 
   const generateRagequitProof = useCallback(
