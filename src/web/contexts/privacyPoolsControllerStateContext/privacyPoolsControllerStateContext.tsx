@@ -66,6 +66,7 @@ export type PoolAccount = SDKPoolAccount & {
   chainId: number
   scope: Hash
   ragequit?: RagequitEventWithTimestamp
+  depositorAddress?: string
 }
 
 type EnhancedPrivacyPoolsControllerState = {

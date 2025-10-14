@@ -17,11 +17,13 @@ import styles from './styles'
 function RagequitForm({
   poolInfo,
   totalPendingBalance,
-  totalDeclinedBalance
+  totalDeclinedBalance,
+  ethPrice
 }: {
   poolInfo?: PoolInfo
   totalPendingBalance: { total: bigint; accounts: PoolAccount[] }
   totalDeclinedBalance: { total: bigint; accounts: PoolAccount[] }
+  ethPrice: number
 }) {
   const { t } = useTranslation()
 
@@ -29,8 +31,6 @@ function RagequitForm({
     ...totalPendingBalance.accounts,
     ...totalDeclinedBalance.accounts
   ].filter((account) => !account.ragequit)
-
-  const totalAmount = ragequitableAccounts.reduce((sum, account) => sum + account.balance, 0n)
 
   if (!poolInfo) {
     return (
@@ -59,10 +59,6 @@ function RagequitForm({
       </ScrollableWrapper>
     )
   }
-
-  // TODO: Mock price data - in production this should come from API
-  const ethPrice = 4700
-  const totalUsdValue = Number(formatEther(totalAmount)) * ethPrice
 
   return (
     <ScrollableWrapper contentContainerStyle={styles.container}>
@@ -126,7 +122,7 @@ function RagequitForm({
         </View>
         <View style={{ flex: 1, alignItems: 'flex-end' }}>
           <Text appearance="secondaryText" fontSize={12} weight="semiBold">
-            {t('PRICE')}
+            {t('STATUS')}
           </Text>
         </View>
         <View style={{ flex: 1, alignItems: 'flex-end' }}>
@@ -136,48 +132,66 @@ function RagequitForm({
         </View>
       </View>
 
-      {/* Asset Row */}
-      <View
-        style={[
-          flexbox.directionRow,
-          flexbox.justifySpaceBetween,
-          flexbox.alignCenter,
-          spacings.pMi,
-          spacings.mbLg
-        ]}
-      >
-        <View style={[flexbox.directionRow, flexbox.alignCenter, { flex: 2 }]}>
-          <TokenIcon
-            chainId={11155111n}
-            address={zeroAddress}
-            width={40}
-            height={40}
-            containerWidth={40}
-            containerHeight={40}
-            withContainer
-            withNetworkIcon
-            networkSize={14}
-          />
-          <View style={spacings.mlMi}>
-            <Text weight="medium" fontSize={16}>
-              ETH
-            </Text>
-            <Text appearance="secondaryText" fontSize={14} weight="light">
-              {formatEther(totalAmount)}
-            </Text>
+      {/* Asset Rows - One per account */}
+      {ragequitableAccounts.map((account) => {
+        const usdValue = Number(formatEther(account.balance)) * ethPrice
+        const statusLabel = account.reviewStatus === 'pending' ? t('Pending') : t('Declined')
+        const statusColor = account.reviewStatus === 'pending' ? '#f90' : '#c33'
+
+        return (
+          <View
+            key={`${account.chainId}-${account.name}`}
+            style={[
+              flexbox.directionRow,
+              flexbox.justifySpaceBetween,
+              flexbox.alignCenter,
+              spacings.pMi,
+              spacings.mbMd
+            ]}
+          >
+            <View style={[flexbox.directionRow, flexbox.alignCenter, { flex: 2 }]}>
+              <TokenIcon
+                chainId={11155111n}
+                address={zeroAddress}
+                width={40}
+                height={40}
+                containerWidth={40}
+                containerHeight={40}
+                withContainer
+                withNetworkIcon
+                networkSize={14}
+              />
+              <View style={spacings.mlMi}>
+                <Text weight="medium" fontSize={16}>
+                  ETH #{account.name}
+                </Text>
+                <Text appearance="secondaryText" fontSize={14} weight="light">
+                  {formatEther(account.balance)}
+                </Text>
+              </View>
+            </View>
+            <View style={{ flex: 1, alignItems: 'flex-end' }}>
+              <View
+                style={{
+                  backgroundColor: `${statusColor}20`,
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 4
+                }}
+              >
+                <Text weight="medium" fontSize={12} style={{ color: statusColor }}>
+                  {statusLabel}
+                </Text>
+              </View>
+            </View>
+            <View style={{ flex: 1, alignItems: 'flex-end', paddingRight: 8 }}>
+              <Text weight="medium" fontSize={16}>
+                ${usdValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              </Text>
+            </View>
           </View>
-        </View>
-        <View style={{ flex: 1, alignItems: 'flex-end' }}>
-          <Text weight="medium" fontSize={16}>
-            ${ethPrice.toLocaleString()}
-          </Text>
-        </View>
-        <View style={{ flex: 1, alignItems: 'flex-end' }}>
-          <Text weight="medium" fontSize={16}>
-            ${totalUsdValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-          </Text>
-        </View>
-      </View>
+        )
+      })}
     </ScrollableWrapper>
   )
 }

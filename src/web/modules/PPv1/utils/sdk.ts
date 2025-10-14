@@ -225,7 +225,8 @@ export const processDeposits = async (
         return {
           ...entry,
           reviewStatus: ReviewStatus.EXITED,
-          isValid: false
+          isValid: false,
+          depositorAddress: deposit.address
         }
       }
 
@@ -246,7 +247,8 @@ export const processDeposits = async (
         ...entry,
         reviewStatus: isWithdrawn ? ReviewStatus.SPENT : reviewStatus,
         isValid: reviewStatus === ReviewStatus.APPROVED, // Could be removed due reviewStatus is pending till leaves are updated
-        timestamp: deposit.timestamp
+        timestamp: deposit.timestamp,
+        depositorAddress: deposit.address
       }
     })
 
