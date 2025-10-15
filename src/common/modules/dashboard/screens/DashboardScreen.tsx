@@ -22,8 +22,7 @@ import DashboardOverview from '../components/DashboardOverview'
 import CongratsFirstCashbackModal from '../components/DashboardOverview/CongratsFirstCashbackModal'
 import DashboardPages from '../components/DashboardPages'
 import getStyles from './styles'
-import PendingBanner from '../components/PendingBanner'
-import RejectedBanner from '../components/RejectedBanner'
+import DepositStatusBanner from '../components/DepositStatusBanner/DepositStatusBanner'
 
 const { isPopup } = getUiType()
 
@@ -149,10 +148,9 @@ const DashboardScreen = () => {
             setDashboardOverviewSize={setDashboardOverviewSize}
             onGasTankButtonPosition={handleGasTankButtonPosition}
           />
+          <DepositStatusBanner onWithdrawBack={onWithdrawBack} />
           <DashboardPages onScroll={onScroll} animatedOverviewHeight={animatedOverviewHeight} />
         </View>
-        <PendingBanner />
-        <RejectedBanner onWithdrawBack={onWithdrawBack} />
         <DAppFooter />
       </View>
       {hasUnseenFirstCashback && (
