@@ -1,11 +1,15 @@
 import { StyleSheet, ViewStyle, TextStyle } from 'react-native'
 
 import flexbox from '@common/styles/utils/flexbox'
+import commonWebStyles from '@web/styles/utils/common'
 import { ThemeProps } from '@common/styles/themeConfig'
+import { BORDER_RADIUS_PRIMARY } from '@common/styles/utils/common'
 
 interface Style {
   container: ViewStyle
+  contentContainer: ViewStyle
   containerRejected: ViewStyle
+  containerPending: ViewStyle
   leftContent: ViewStyle
   rightContent: ViewStyle
   iconContainer: ViewStyle
@@ -22,24 +26,22 @@ interface Style {
 
 const getStyles = (theme: ThemeProps) =>
   StyleSheet.create<Style>({
+    contentContainer: commonWebStyles.contentContainer,
     container: {
       ...flexbox.directionRow,
       ...flexbox.alignCenter,
       ...flexbox.justifySpaceBetween,
       paddingHorizontal: 12,
       paddingVertical: 8,
-      backgroundColor: theme.infoBackground,
-      borderRadius: 8,
-      marginBottom: 12,
-      position: 'absolute',
-      width: '100%',
-      maxWidth: 576,
-      bottom: 0,
-      left: '50%',
-      transform: [{ translateX: '-50%' }, { translateY: 0 }]
+      borderRadius: BORDER_RADIUS_PRIMARY,
+      marginTop: 6,
+      marginBottom: 3
     },
     containerRejected: {
-      backgroundColor: theme.errorBackground
+      backgroundColor: theme.depositRejectedNotificationBackground
+    },
+    containerPending: {
+      backgroundColor: theme.depositPendingNotificationBackground
     },
     leftContent: {
       ...flexbox.directionRow,
@@ -61,7 +63,8 @@ const getStyles = (theme: ThemeProps) =>
       minWidth: 0,
       ...flexbox.directionRow,
       ...flexbox.alignCenter,
-      flexWrap: 'wrap'
+      flexWrap: 'wrap',
+      marginTop: 1
     },
     tabsContainer: {
       ...flexbox.directionRow,
@@ -73,7 +76,7 @@ const getStyles = (theme: ThemeProps) =>
       paddingHorizontal: 10,
       paddingVertical: 4,
       borderRadius: 12,
-      backgroundColor: theme.quaternaryBackground,
+      backgroundColor: theme.depositInactiveBackground,
       marginLeft: 4,
       minWidth: 32
     },
@@ -81,7 +84,7 @@ const getStyles = (theme: ThemeProps) =>
       backgroundColor: theme.depositRejectedBackground
     },
     tabPillPendingActive: {
-      backgroundColor: theme.infoBackground
+      backgroundColor: theme.depositPendingBackground
     },
     tabText: {
       marginLeft: 4,
@@ -101,8 +104,8 @@ const getStyles = (theme: ThemeProps) =>
       borderRadius: 50,
       borderWidth: 1,
       borderColor: theme.depositRejectedText,
-      width: 15,
-      height: 15,
+      width: 16,
+      height: 16,
       padding: 1
     }
   })

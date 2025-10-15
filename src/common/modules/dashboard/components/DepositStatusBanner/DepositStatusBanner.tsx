@@ -9,6 +9,7 @@ import ClockIcon from '@common/assets/svg/ClockIcon'
 import useTheme from '@common/hooks/useTheme'
 import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import Button from '@common/components/Button'
+import spacings from '@common/styles/spacings'
 
 import getStyles from './styles'
 
@@ -24,147 +25,142 @@ const DepositStatusBanner = ({ onWithdrawBack }: DepositStatusBannerProps) => {
   const { totalDeclinedBalance, totalPendingBalance, ethPrice } = usePrivacyPoolsForm()
   const [selectedTab, setSelectedTab] = useState<TabType>('rejected')
 
-  // ========== MOCK DATA - REMOVE THIS SECTION WHEN DONE TESTING ==========
-  const ENABLE_MOCK_DATA = true
-
-  const mockTotalDeclinedBalance = {
-    total: BigInt('2500000000000000000'), // 2.5 ETH
-    accounts: ['0x123...', '0x456...', '0x789...'] // 3 rejected deposits
-  }
-
-  const mockTotalPendingBalance = {
-    total: BigInt('1750000000000000000'), // 1.75 ETH
-    accounts: ['0xabc...', '0xdef...'] // 2 pending deposits
-  }
-
-  const mockEthPrice = 2500 // $2500 per ETH
-
-  // Use mock data if enabled, otherwise use real data
-  const actualDeclinedBalance = ENABLE_MOCK_DATA ? mockTotalDeclinedBalance : totalDeclinedBalance
-  const actualPendingBalance = ENABLE_MOCK_DATA ? mockTotalPendingBalance : totalPendingBalance
-  const actualEthPrice = ENABLE_MOCK_DATA ? mockEthPrice : ethPrice
-  // ========== END MOCK DATA ==========
-
-  // Don't show if both are empty
-  if (!actualDeclinedBalance.accounts.length && !actualPendingBalance.accounts.length) return null
+  if (!totalDeclinedBalance.accounts.length && !totalPendingBalance.accounts.length) return null
 
   const isRejectedSelected = selectedTab === 'rejected'
   const isPendingSelected = selectedTab === 'pending'
 
-  // Calculate amounts based on selected tab
-  const currentBalance = isRejectedSelected ? actualDeclinedBalance : actualPendingBalance
+  const currentBalance = isRejectedSelected ? totalDeclinedBalance : totalPendingBalance
   const ethAmount = formatEther(currentBalance.total)
   const formattedEthAmount = formatDecimals(Number(ethAmount), 'amount')
 
-  // USD value only for pending
-  const usdValue = isPendingSelected ? Number(ethAmount) * (actualEthPrice || 0) : null
+  const usdValue = isPendingSelected ? Number(ethAmount) * (ethPrice || 0) : null
   const formattedUsdValue = usdValue ? formatDecimals(usdValue, 'value') : null
 
-  const rejectedCount = actualDeclinedBalance.accounts.length
-  const pendingCount = actualPendingBalance.accounts.length
+  const rejectedCount = totalDeclinedBalance.accounts.length
+  const pendingCount = totalPendingBalance.accounts.length
 
   return (
-    <View style={[styles.container, isRejectedSelected && styles.containerRejected]}>
-      <View style={styles.leftContent}>
-        {/* Icon and Amount */}
-        <View style={styles.iconContainer}>
-          {isRejectedSelected ? (
-            <CloseIcon
-              width={16}
-              height={16}
-              color={theme.errorDecorative}
-              testID="deposit-status-banner-icon-rejected"
-            />
-          ) : (
-            <ClockIcon
-              width={16}
-              height={16}
-              color={theme.infoDecorative}
-              testID="deposit-status-banner-icon-pending"
-            />
-          )}
-        </View>
-        <View style={styles.amountContainer}>
-          <Text fontSize={14} weight="semiBold" color={theme.primaryText}>
-            {formattedEthAmount} ETH
-          </Text>
-          {formattedUsdValue && (
-            <Text
-              fontSize={12}
-              weight="medium"
-              color={theme.secondaryText}
-              style={{ marginLeft: 4 }}
-            >
-              {formattedUsdValue}
-            </Text>
-          )}
-        </View>
-      </View>
-
-      <View style={styles.rightContent}>
-        {/* Tab Pills */}
-        <View style={styles.tabsContainer}>
-          {/* Rejected Tab */}
-          {rejectedCount > 0 && (
-            <TouchableOpacity
-              style={[styles.tabPill, isRejectedSelected && styles.tabPillRejectedActive]}
-              onPress={() => setSelectedTab('rejected')}
-              testID="tab-rejected"
-            >
-              <View style={styles.closeIconContainer}>
-                <CloseIcon
-                  width={7}
-                  height={7}
-                  color={isRejectedSelected ? theme.depositRejectedText : theme.secondaryText}
+    <View style={spacings.phSm}>
+      <View style={[styles.contentContainer]}>
+        <View
+          style={[
+            styles.container,
+            isRejectedSelected ? styles.containerRejected : styles.containerPending
+          ]}
+        >
+          <View style={styles.leftContent}>
+            <View style={styles.iconContainer}>
+              {isRejectedSelected ? (
+                <View style={styles.closeIconContainer}>
+                  <CloseIcon
+                    width={8}
+                    height={8}
+                    color={theme.depositRejectedText}
+                    testID="deposit-status-banner-icon-rejected"
+                  />
+                </View>
+              ) : (
+                <ClockIcon
+                  width={16}
+                  height={16}
+                  color={theme.depositPendingText}
+                  testID="deposit-status-banner-icon-pending"
                 />
-              </View>
-              <Text
-                fontSize={14}
-                weight="semiBold"
-                color={isRejectedSelected ? theme.depositRejectedText : theme.secondaryText}
-                style={styles.tabText}
-              >
-                {rejectedCount}
+              )}
+            </View>
+            <View style={styles.amountContainer}>
+              <Text fontSize={14} weight="semiBold" color={theme.primaryText}>
+                {formattedEthAmount} ETH in Privacy Pools
               </Text>
-            </TouchableOpacity>
-          )}
+              {formattedUsdValue && (
+                <Text
+                  fontSize={12}
+                  weight="medium"
+                  color={theme.secondaryText}
+                  style={{ marginLeft: 4 }}
+                >
+                  ({formattedUsdValue})
+                </Text>
+              )}
+            </View>
+          </View>
 
-          {/* Pending Tab */}
-          {pendingCount > 0 && (
-            <TouchableOpacity
-              style={[styles.tabPill, isPendingSelected && styles.tabPillPendingActive]}
-              onPress={() => setSelectedTab('pending')}
-              testID="tab-pending"
-            >
-              <ClockIcon
-                width={16}
-                height={16}
-                color={isPendingSelected ? theme.infoDecorative : theme.secondaryText}
+          <View style={styles.rightContent}>
+            <View style={styles.tabsContainer}>
+              {rejectedCount > 0 && (
+                <TouchableOpacity
+                  style={[styles.tabPill, isRejectedSelected && styles.tabPillRejectedActive]}
+                  onPress={() => setSelectedTab('rejected')}
+                  testID="tab-rejected"
+                >
+                  <View
+                    style={[
+                      styles.closeIconContainer,
+                      {
+                        borderColor: isRejectedSelected
+                          ? theme.depositRejectedText
+                          : theme.depositInactiveText
+                      }
+                    ]}
+                  >
+                    <CloseIcon
+                      width={8}
+                      height={8}
+                      color={
+                        isRejectedSelected ? theme.depositRejectedText : theme.depositInactiveText
+                      }
+                    />
+                  </View>
+                  <Text
+                    fontSize={14}
+                    weight="semiBold"
+                    color={
+                      isRejectedSelected ? theme.depositRejectedText : theme.depositInactiveText
+                    }
+                    style={styles.tabText}
+                  >
+                    {rejectedCount}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {pendingCount > 0 && (
+                <TouchableOpacity
+                  style={[styles.tabPill, isPendingSelected && styles.tabPillPendingActive]}
+                  onPress={() => setSelectedTab('pending')}
+                  testID="tab-pending"
+                >
+                  <ClockIcon
+                    width={16}
+                    height={16}
+                    color={isPendingSelected ? theme.depositPendingText : theme.depositInactiveText}
+                  />
+                  <Text
+                    fontSize={14}
+                    weight="semiBold"
+                    color={isPendingSelected ? theme.depositPendingText : theme.depositInactiveText}
+                    style={styles.tabText}
+                  >
+                    {pendingCount}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {isRejectedSelected && (
+              <Button
+                type="warning"
+                size="small"
+                accentColor={theme.depositRejectedText}
+                onPress={onWithdrawBack}
+                text="Withdraw back"
+                testID="withdraw-back-button"
+                style={styles.withdrawButton}
               />
-              <Text
-                fontSize={14}
-                weight="semiBold"
-                color={isPendingSelected ? theme.infoDecorative : theme.secondaryText}
-                style={styles.tabText}
-              >
-                {pendingCount}
-              </Text>
-            </TouchableOpacity>
-          )}
+            )}
+          </View>
         </View>
-
-        {/* Withdraw Back Button - Only for rejected */}
-        {isRejectedSelected && (
-          <Button
-            type="warning"
-            size="small"
-            accentColor="#9b2c2c"
-            onPress={onWithdrawBack}
-            text="Withdraw back"
-            testID="withdraw-back-button"
-            style={styles.withdrawButton}
-          />
-        )}
       </View>
     </View>
   )
