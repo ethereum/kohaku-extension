@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect, useState } from 'react'
+import React, { ReactNode, useEffect, useMemo, useState } from 'react'
 import { View } from 'react-native'
 
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
@@ -112,6 +112,20 @@ const DepositForm = ({
     />
   )
 
+  const vettingFeeEth = useMemo(() => {
+    // Vetting Fee in PPv1 is 1% of the deposit amount
+    let vettingFeeEthValue = '0'
+    try {
+      if (depositAmount && depositAmount !== '0') {
+        const feeWei = BigInt(depositAmount) / 100n
+        vettingFeeEthValue = formatEther(feeWei)
+      }
+    } catch {
+      vettingFeeEthValue = '0'
+    }
+    return vettingFeeEthValue
+  }, [depositAmount])
+
   return (
     <ScrollableWrapper contentContainerStyle={styles.container}>
       <SendToken
@@ -172,7 +186,7 @@ const DepositForm = ({
               withNetworkIcon={false}
             />
             <Text fontSize={14} weight="light" style={spacings.mlMi}>
-              0.001 ETH
+              {vettingFeeEth} ETH
             </Text>
           </View>
         </View>
