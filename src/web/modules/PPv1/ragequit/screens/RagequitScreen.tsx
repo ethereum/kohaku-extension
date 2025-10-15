@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { SigningStatus } from '@ambire-common/controllers/signAccountOp/signAccountOp'
@@ -29,6 +29,7 @@ import { Wrapper } from '../../deposit/components/TransactionsScreen'
 const { isActionWindow } = getUiType()
 
 function RagequitScreen() {
+  const hasRefreshedAccountRef = useRef(false)
   const { dispatch } = useBackgroundService()
   const { navigate } = useNavigation()
   const { t } = useTranslation()
@@ -221,6 +222,21 @@ function RagequitScreen() {
       </TrackProgress>
     )
   }
+
+  // Refresh private account after deposit success or unknown but past nonce
+  useEffect(() => {
+    if (
+      !hasRefreshedAccountRef.current &&
+      (submittedAccountOp?.status === AccountOpStatus.Success ||
+        submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce)
+    ) {
+      hasRefreshedAccountRef.current = true
+      refreshPrivateAccount().catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error('Failed to refresh private account after deposit:', error)
+      })
+    }
+  }, [submittedAccountOp?.status, refreshPrivateAccount])
 
   return (
     <Wrapper title={headerTitle} buttons={buttons}>

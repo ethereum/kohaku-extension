@@ -132,6 +132,11 @@ const usePrivacyPoolsForm = () => {
   } = useModalize()
 
   const [isRefreshing, setIsRefreshing] = useState(false)
+  // Ready to load when Merkle data and chain data are present
+  const isReadyToLoad = useMemo(
+    () => Boolean(mtLeaves && mtRoots && chainData),
+    [mtLeaves, mtRoots, chainData]
+  )
 
   const handleUpdateForm = useCallback(
     (params: { [key: string]: any }) => {
@@ -368,6 +373,7 @@ const usePrivacyPoolsForm = () => {
 
   const loadPrivateAccount = useCallback(async () => {
     if (isAccountLoaded) return
+    if (!isReadyToLoad) throw new Error('Privacy Pools data not ready yet')
 
     try {
       setIsLoadingSeedPhrase(true)
@@ -388,7 +394,7 @@ const usePrivacyPoolsForm = () => {
     } finally {
       setIsLoadingSeedPhrase(false)
     }
-  }, [isAccountLoaded, getData, decrypt, loadAccountWithSecrets])
+  }, [isAccountLoaded, isReadyToLoad, getData, decrypt, loadAccountWithSecrets])
 
   const isLoading = isLoadingSeedPhrase || isLoadingAccount
 
@@ -572,7 +578,8 @@ const usePrivacyPoolsForm = () => {
     handleSelectedAccount,
     handleGenerateSeedPhrase,
     loadPrivateAccount,
-    refreshPrivateAccount
+    refreshPrivateAccount,
+    isReadyToLoad
   }
 }
 
