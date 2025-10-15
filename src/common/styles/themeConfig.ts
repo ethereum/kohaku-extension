@@ -180,6 +180,14 @@ const ThemeColors = {
   iconPrimary2: {
     [THEME_TYPES.DARK]: '#6000FF',
     [THEME_TYPES.LIGHT]: '#6000FF'
+  },
+  depositRejectedBackground: {
+    [THEME_TYPES.DARK]: '#FF7089',
+    [THEME_TYPES.LIGHT]: '#FECACA'
+  },
+  depositRejectedText: {
+    [THEME_TYPES.DARK]: '#FF7089',
+    [THEME_TYPES.LIGHT]: '#9b2c2c'
   }
 }
 
