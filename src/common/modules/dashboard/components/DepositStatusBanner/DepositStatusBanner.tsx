@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { View, TouchableOpacity } from 'react-native'
 import { formatEther } from 'viem'
 
@@ -23,7 +23,28 @@ const DepositStatusBanner = ({ onWithdrawBack }: DepositStatusBannerProps) => {
   const { theme } = useTheme()
   const styles = getStyles(theme)
   const { totalDeclinedBalance, totalPendingBalance, ethPrice } = usePrivacyPoolsForm()
-  const [selectedTab, setSelectedTab] = useState<TabType>('rejected')
+
+  const [selectedTab, setSelectedTab] = useState<TabType>(() => {
+    const hasRejected = totalDeclinedBalance.accounts.length > 0
+    const hasPending = totalPendingBalance.accounts.length > 0
+
+    if (hasRejected) return 'rejected'
+    if (hasPending) return 'pending'
+    return 'rejected' // fallback
+  })
+
+  // Update selected tab when data changes and current tab has no items
+  useEffect(() => {
+    const rejectedCount = totalDeclinedBalance.accounts.length
+    const pendingCount = totalPendingBalance.accounts.length
+
+    // If current selected tab has no items, switch to the tab that has items
+    if (selectedTab === 'rejected' && rejectedCount === 0 && pendingCount > 0) {
+      setSelectedTab('pending')
+    } else if (selectedTab === 'pending' && pendingCount === 0 && rejectedCount > 0) {
+      setSelectedTab('rejected')
+    }
+  }, [totalDeclinedBalance.accounts.length, totalPendingBalance.accounts.length, selectedTab])
 
   if (!totalDeclinedBalance.accounts.length && !totalPendingBalance.accounts.length) return null
 
