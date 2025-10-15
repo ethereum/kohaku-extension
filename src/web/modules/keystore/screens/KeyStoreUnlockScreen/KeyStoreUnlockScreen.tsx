@@ -3,7 +3,6 @@ import { Controller, useForm } from 'react-hook-form'
 import { TouchableOpacity, View } from 'react-native'
 
 import { isValidPassword } from '@ambire-common/services/validations'
-import AmbireLogoWithTextMonochrome from '@common/assets/svg/AmbireLogoWithTextMonochrome'
 import LockIcon from '@common/assets/svg/LockIcon'
 import UnlockScreenBackground from '@common/assets/svg/UnlockScreenBackground'
 import Button from '@common/components/Button'
@@ -28,6 +27,7 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
 import { getUiType } from '@web/utils/uiType'
 
+import AmbireLogoHorizontal from '@common/components/AmbireLogoHorizontal/AmbireLogoHorizontal'
 import getStyles from './styles'
 
 const FOOTER_BUTTON_HIT_SLOP = { top: 10, bottom: 15 }
@@ -173,10 +173,7 @@ const KeyStoreUnlockScreen = () => {
               </View>
             )}
             <View style={[flexbox.flex1, flexbox.alignCenter, flexbox.justifyCenter]}>
-              <AmbireLogoWithTextMonochrome
-                width={122}
-                height={height < 550 && !isPopup ? 90 : 128}
-              />
+              <AmbireLogoHorizontal width={300} height={height < 550 && !isPopup ? 90 : 200} />
             </View>
             <View>
               <Text
