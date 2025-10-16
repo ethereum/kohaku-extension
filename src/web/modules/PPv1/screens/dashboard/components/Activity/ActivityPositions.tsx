@@ -1,6 +1,7 @@
-import React, { FC, useCallback, useEffect } from 'react'
+import React, { FC, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Animated, FlatListProps, View } from 'react-native'
+import { useForm } from 'react-hook-form'
 
 import shortenAddress from '@ambire-common/utils/shortenAddress'
 import Button from '@common/components/Button'
@@ -8,7 +9,8 @@ import Text from '@common/components/Text'
 import useTheme from '@common/hooks/useTheme'
 import ActivityPositionsSkeleton from '@web/modules/PPv1/screens/dashboard/components/Activity/ActivityPositionsSkeleton'
 import DashboardPageScrollContainer from '@web/modules/PPv1/screens/dashboard/components/DashboardPageScrollContainer'
-import TabsAndSearch from '@web/modules/PPv1/screens/dashboard/components/TabsAndSearch'
+import ActivityFilter from '@web/modules/PPv1/screens/dashboard/components/Activity/ActivityFilter'
+import { ActivityFilterType } from '@web/modules/PPv1/screens/dashboard/components/Activity/types'
 import { TabType } from '@web/modules/PPv1/screens/dashboard/components/TabsAndSearch/Tabs/Tab/Tab'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
@@ -50,6 +52,16 @@ const ActivityPositions: FC<Props> = ({
   const { accountsOps } = useActivityControllerState()
   const { account, dashboardNetworkFilter } = useSelectedAccountControllerState()
 
+  const [filterType, setFilterType] = useState<ActivityFilterType>('all')
+  const { control, watch } = useForm({
+    mode: 'all',
+    defaultValues: {
+      search: ''
+    }
+  })
+
+  const searchValue = watch('search')
+
   useEffect(() => {
     // Optimization: Don't apply filtration if we are not on Activity tab
     if (!account?.addr || openTab !== 'activity') return
@@ -72,12 +84,53 @@ const ActivityPositions: FC<Props> = ({
     })
   }, [openTab, account?.addr, dispatch, dashboardNetworkFilter, sessionId])
 
+  // Filter activity items based on filter type and search value
+  const filteredActivityItems = useMemo(() => {
+    if (!accountsOps?.[sessionId]?.result.items) return []
+
+    let items = accountsOps[sessionId].result.items
+
+    // Filter by type (send/deposit)
+    if (filterType !== 'all') {
+      items = items.filter((item: any) => {
+        // Assuming the item has a 'type' or similar field to distinguish sends from deposits
+        // You may need to adjust this based on the actual data structure
+        const itemType = item.type?.toLowerCase() || ''
+        return itemType.includes(filterType)
+      })
+    }
+
+    // Filter by search text
+    if (searchValue) {
+      items = items.filter((item: any) => {
+        const searchLower = searchValue.toLowerCase()
+        // Search in various fields - adjust based on actual data structure
+        const txnId = item.txnId?.toLowerCase() || ''
+        const type = item.type?.toLowerCase() || ''
+        const status = item.status?.toLowerCase() || ''
+
+        return (
+          txnId.includes(searchLower) || type.includes(searchLower) || status.includes(searchLower)
+        )
+      })
+    }
+
+    return items
+  }, [accountsOps, sessionId, filterType, searchValue])
+
   const renderItem = useCallback(
     ({ item }: any) => {
       if (item === 'header') {
         return (
-          <View style={{ backgroundColor: theme.primaryBackground }}>
-            <TabsAndSearch openTab={openTab} setOpenTab={setOpenTab} sessionId={sessionId} />
+          <View style={{ backgroundColor: theme.primaryBackground, zIndex: 1000, overflow: 'visible' }}>
+            <ActivityFilter
+              openTab={openTab}
+              setOpenTab={setOpenTab}
+              sessionId={sessionId}
+              searchControl={control}
+              filterType={filterType}
+              setFilterType={setFilterType}
+            />
           </View>
         )
       }
@@ -160,6 +213,8 @@ const ActivityPositions: FC<Props> = ({
       openTab,
       setOpenTab,
       sessionId,
+      control,
+      filterType,
       t,
       account,
       dashboardNetworkFilter,
@@ -182,10 +237,8 @@ const ActivityPositions: FC<Props> = ({
       data={[
         'header',
         !accountsOps ? 'skeleton' : 'keep-this-to-avoid-key-warning',
-        ...(initTab?.activity && accountsOps?.[sessionId]?.result.items.length
-          ? accountsOps[sessionId].result.items
-          : []),
-        accountsOps?.[sessionId] && !accountsOps[sessionId].result.items.length ? 'empty' : '',
+        ...(initTab?.activity && filteredActivityItems.length ? filteredActivityItems : []),
+        accountsOps?.[sessionId] && !filteredActivityItems.length ? 'empty' : '',
         'load-more'
       ]}
       renderItem={renderItem}
