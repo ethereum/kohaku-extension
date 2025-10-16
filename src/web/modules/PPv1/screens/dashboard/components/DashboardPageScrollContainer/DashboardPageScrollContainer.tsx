@@ -31,7 +31,7 @@ const getFlatListStyle = (tab: TabType, openTab: TabType, allBannersLength: numb
   spacings.ph0,
   commonWebStyles.contentContainer,
   !allBannersLength && spacings.mtTy,
-  openTab !== tab ? HIDDEN_STYLE : {}
+  openTab !== tab ? HIDDEN_STYLE : { zIndex: 1 }
 ]
 
 const { isPopup } = getUiType()
@@ -94,8 +94,8 @@ const DashboardPageScrollContainer: FC<Props> = ({
       ref={flatlistRef}
       style={style}
       contentContainerStyle={contentContainerStyle}
-      stickyHeaderIndices={[1]} // Makes the header sticky
-      removeClippedSubviews
+      stickyHeaderIndices={[0]} // Makes the header sticky (first item at index 0)
+      removeClippedSubviews={false} // Disable to fix z-index issues with dropdowns
       bounces={false}
       alwaysBounceVertical={false}
       onContentSizeChange={handleContentSizeChange}
