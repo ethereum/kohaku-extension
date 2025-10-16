@@ -37,6 +37,7 @@ function RagequitScreen() {
   const { accountsOps } = useActivityControllerState()
 
   const {
+    chainId,
     poolInfo,
     hasProceeded,
     estimationModalRef,
@@ -96,11 +97,15 @@ function RagequitScreen() {
   const explorerLink = useMemo(() => {
     if (!submittedAccountOp) return
 
-    const { chainId, identifiedBy, txnId } = submittedAccountOp
+    const { chainId: submittedChainId, identifiedBy, txnId } = submittedAccountOp
 
-    if (!chainId || !identifiedBy || !txnId) return
+    if (!submittedChainId || !identifiedBy || !txnId) return
 
-    return `https://explorer.ambire.com/${getBenzinUrlParams({ chainId, txnId, identifiedBy })}`
+    return `https://explorer.ambire.com/${getBenzinUrlParams({
+      chainId: submittedChainId,
+      txnId,
+      identifiedBy
+    })}`
   }, [submittedAccountOp])
 
   useEffect(() => {
@@ -247,6 +252,7 @@ function RagequitScreen() {
             totalPendingBalance={totalPendingBalance}
             totalDeclinedBalance={totalDeclinedBalance}
             ethPrice={ethPrice || 0}
+            chainId={BigInt(chainId)}
           />
         </Form>
       </Content>

@@ -38,7 +38,8 @@ const TransferForm = ({
   controllerAmount,
   quoteFee,
   totalApprovedBalance,
-  updateQuoteStatus
+  updateQuoteStatus,
+  chainId
 }: {
   addressInputState: ReturnType<typeof useAddressInput>
   amountErrorMessage: string
@@ -59,6 +60,7 @@ const TransferForm = ({
   quoteFee: number
   updateQuoteStatus: 'INITIAL' | 'LOADING'
   totalApprovedBalance: { total: bigint; accounts: PoolAccount[] }
+  chainId: bigint
 }) => {
   const { validation } = addressInputState
   const { account, portfolio } = useSelectedAccountControllerState()
@@ -102,7 +104,7 @@ const TransferForm = ({
       withContainer
       withNetworkIcon
       address={zeroAddress}
-      chainId={11155111n}
+      chainId={chainId}
     />
   )
 
@@ -110,7 +112,7 @@ const TransferForm = ({
   useEffect(() => {
     if (!selectedToken && portfolio?.isReadyToVisualize && ethBalance !== undefined) {
       const defaultToken = portfolio?.tokens.find(
-        (token) => token.chainId === 11155111n && token.address === zeroAddress
+        (token) => token.chainId === chainId && token.address === zeroAddress
       )
       handleUpdateForm({ selectedToken: defaultToken, maxAmount: formatEther(ethBalance) })
     }
@@ -119,7 +121,8 @@ const TransferForm = ({
     portfolio?.isReadyToVisualize,
     portfolio?.tokens,
     ethBalance,
-    handleUpdateForm
+    handleUpdateForm,
+    chainId
   ])
 
   return (
@@ -211,7 +214,7 @@ const TransferForm = ({
           ) : (
             <View style={[flexbox.directionRow, flexbox.alignCenter]}>
               <TokenIcon
-                chainId={11155111n}
+                chainId={chainId}
                 address={zeroAddress}
                 width={20}
                 height={20}
@@ -240,7 +243,7 @@ const TransferForm = ({
           ) : (
             <View style={[flexbox.directionRow, flexbox.alignCenter]}>
               <TokenIcon
-                chainId={11155111n}
+                chainId={chainId}
                 address={zeroAddress}
                 width={20}
                 height={20}

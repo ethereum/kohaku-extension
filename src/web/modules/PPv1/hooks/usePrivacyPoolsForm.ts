@@ -17,6 +17,7 @@ import { loadPrivateAccount as getPrivateAccount } from '../sdk/misc'
 const usePrivacyPoolsForm = () => {
   const { dispatch } = useBackgroundService()
   const {
+    chainId,
     mtRoots,
     mtLeaves,
     chainData,
@@ -52,10 +53,10 @@ const usePrivacyPoolsForm = () => {
   const [showAddedToBatch] = useState(false)
 
   const ethPrice = portfolio.tokens
-    .find((token) => token.chainId === 11155111n && token.name === 'Ether')
+    .find((token) => token.chainId === BigInt(chainId) && token.name === 'Ether')
     ?.priceIn.find((price) => price.baseCurrency === 'usd')?.price
 
-  const poolInfo = chainData?.[11155111]?.poolInfo?.[0]
+  const poolInfo = chainData?.[chainId]?.poolInfo?.[0]
 
   const totalApprovedBalance = useMemo(() => {
     const accounts = poolAccounts.filter(
@@ -442,7 +443,7 @@ const usePrivacyPoolsForm = () => {
       if (!batchWithdrawal) return
 
       prepareBatchWithdrawal({
-        chainId: 11155111,
+        chainId,
         poolAddress: poolInfo.address,
         withdrawal: {
           processooor: batchWithdrawal.processooor,
@@ -458,6 +459,7 @@ const usePrivacyPoolsForm = () => {
       setMessage({ type: 'error', text: errorMessage })
     }
   }, [
+    chainId,
     mtRoots,
     mtLeaves,
     poolInfo,
@@ -477,6 +479,7 @@ const usePrivacyPoolsForm = () => {
   ])
 
   return {
+    chainId,
     ethPrice,
     message,
     poolInfo,

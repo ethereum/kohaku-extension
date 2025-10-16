@@ -20,20 +20,22 @@ const DepositForm = ({
   depositAmount,
   amountErrorMessage,
   formTitle,
-  handleUpdateForm
+  handleUpdateForm,
+  chainId
 }: {
   poolInfo?: PoolInfo
   depositAmount?: string
   amountErrorMessage: string
   formTitle: string | ReactNode
   handleUpdateForm: (params: { [key: string]: any }) => void
+  chainId: bigint
 }) => {
   const { portfolio } = useSelectedAccountControllerState()
   const { t } = useTranslation()
   const [displayAmount, setDisplayAmount] = useState('')
 
   const sepoliaEth = portfolio.tokens.find(
-    (token) => token.chainId === 11155111n && token.address === zeroAddress
+    (token) => token.chainId === chainId && token.address === zeroAddress
   )
 
   const ethBalance = sepoliaEth ? getTokenAmount(sepoliaEth) : 0n
@@ -108,7 +110,7 @@ const DepositForm = ({
       withContainer
       withNetworkIcon
       address={zeroAddress}
-      chainId={11155111n}
+      chainId={chainId}
     />
   )
 
@@ -179,7 +181,7 @@ const DepositForm = ({
           </Text>
           <View style={[flexbox.directionRow, flexbox.alignCenter]}>
             <TokenIcon
-              chainId={11155111n}
+              chainId={chainId}
               address={zeroAddress}
               width={20}
               height={20}
