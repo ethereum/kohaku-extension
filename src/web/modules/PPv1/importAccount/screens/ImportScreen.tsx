@@ -16,12 +16,10 @@ import InProgress from '@web/modules/sign-account-op/components/OneClick/TrackPr
 import useTrackAccountOp from '@web/modules/sign-account-op/hooks/OneClick/useTrackAccountOp'
 import { getUiType } from '@web/utils/uiType'
 import AddChainScreen from '../components/ImportForm'
-import usePrivacyPoolsForm from '../../hooks/usePrivacyPoolsForm'
 
 const { isActionWindow } = getUiType()
 
 const ImportScreen = () => {
-  const { handleLoadAccount } = usePrivacyPoolsForm()
   const { dispatch } = useBackgroundService()
   const { state } = useTransferControllerState()
   const { latestBroadcastedAccountOp } = state
@@ -69,10 +67,9 @@ const ImportScreen = () => {
 
   const handleImportSecretNote = useCallback(async () => {
     setDisplayedView('track')
-    await handleLoadAccount()
 
     setTrackProgress(AccountOpStatus.Success)
-  }, [handleLoadAccount])
+  }, [setDisplayedView, setTrackProgress])
 
   const headerTitle = 'Import new account'
 

@@ -63,10 +63,10 @@ import PPv1ImportScreen from '@web/modules/PPv1/importAccount/screens/ImportScre
 import PPv1RagequitScreen from '@web/modules/PPv1/ragequit/screens/RagequitScreen'
 import PPv1SettingsScreen from '@web/modules/PPv1/settings/screens/SettingsScreen'
 
-import PPv2HomeScreen from '@web/modules/PPv2/screens/Home'
-import PPv2DepositScreen from '@web/modules/PPv2/deposit/screens/DepositScreen'
-import PPv2TransferScreen from '@web/modules/PPv2/transfer/screens/TransferScreen'
-import PPv2ImportScreen from '@web/modules/PPv2/importNote/screens/ImportScreen'
+// import PPv2HomeScreen from '@web/modules/PPv2/screens/Home'
+// import PPv2DepositScreen from '@web/modules/PPv2/deposit/screens/DepositScreen'
+// import PPv2TransferScreen from '@web/modules/PPv2/transfer/screens/TransferScreen'
+// import PPv2ImportScreen from '@web/modules/PPv2/importNote/screens/ImportScreen'
 
 const MainRoutes = () => {
   const location = useLocation()
@@ -174,10 +174,10 @@ const MainRoutes = () => {
           <Route path={WEB_ROUTES.pp1Settings} element={<PPv1SettingsScreen />} />
 
           {/* Privacy Pools V2 */}
-          <Route path={WEB_ROUTES.pp2Home} element={<PPv2HomeScreen />} />
+          {/* <Route path={WEB_ROUTES.pp2Home} element={<PPv2HomeScreen />} />
           <Route path={WEB_ROUTES.pp2Deposit} element={<PPv2DepositScreen />} />
           <Route path={WEB_ROUTES.pp2Transfer} element={<PPv2TransferScreen />} />
-          <Route path={WEB_ROUTES.pp2Import} element={<PPv2ImportScreen />} />
+          <Route path={WEB_ROUTES.pp2Import} element={<PPv2ImportScreen />} /> */}
 
           <Route path={WEB_ROUTES.topUpGasTank} element={<TransferScreen isTopUpScreen />} />
           <Route
