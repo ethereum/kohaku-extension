@@ -14,8 +14,9 @@ import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountCont
 import { getUiType } from '@web/utils/uiType'
 
 import Activity from '../Activity'
-import Transfers from '../Transfers'
-import Deposits from '../Deposits'
+// import Sends from '../Transfers'
+// import Deposits from '../Deposits'
+import Tokens from '../Tokens'
 import { TabType } from '../TabsAndSearch/Tabs/Tab/Tab'
 
 interface Props {
@@ -37,7 +38,7 @@ const DashboardPages = ({ onScroll, animatedOverviewHeight }: Props) => {
   const [openTab, setOpenTab] = useState(() => {
     const params = new URLSearchParams(route?.search)
 
-    return (params.get('tab') as TabType) || 'activity'
+    return (params.get('tab') as TabType) || 'tokens'
   })
   const prevOpenTab = usePrevious(openTab)
   // To prevent initial load of all tabs but load them when requested by the user
@@ -86,39 +87,42 @@ const DashboardPages = ({ onScroll, animatedOverviewHeight }: Props) => {
 
   return (
     <View style={[flexbox.flex1, isTab ? spacings.phSm : {}]}>
-      {openTab === 'activity' && (
-        <Activity
-          openTab={openTab}
-          sessionId={sessionId}
-          setOpenTab={setOpenTab}
-          onScroll={onScroll}
-          initTab={initTab}
-          dashboardNetworkFilterName={dashboardNetworkFilterName}
-          animatedOverviewHeight={animatedOverviewHeight}
-        />
-      )}
-      {openTab === 'transfers' && (
-        <Transfers
-          openTab={openTab}
-          sessionId={sessionId}
-          setOpenTab={setOpenTab}
-          onScroll={onScroll}
-          initTab={initTab}
-          dashboardNetworkFilterName={dashboardNetworkFilterName}
-          animatedOverviewHeight={animatedOverviewHeight}
-        />
-      )}
-      {openTab === 'deposits' && (
-        <Deposits
-          openTab={openTab}
-          sessionId={sessionId}
-          setOpenTab={setOpenTab}
-          onScroll={onScroll}
-          initTab={initTab}
-          dashboardNetworkFilterName={dashboardNetworkFilterName}
-          animatedOverviewHeight={animatedOverviewHeight}
-        />
-      )}
+      <Tokens
+        openTab={openTab}
+        sessionId={sessionId}
+        setOpenTab={setOpenTab}
+        onScroll={onScroll}
+        initTab={initTab}
+        dashboardNetworkFilterName={dashboardNetworkFilterName}
+        animatedOverviewHeight={animatedOverviewHeight}
+      />
+      <Activity
+        openTab={openTab}
+        sessionId={sessionId}
+        setOpenTab={setOpenTab}
+        onScroll={onScroll}
+        initTab={initTab}
+        dashboardNetworkFilterName={dashboardNetworkFilterName}
+        animatedOverviewHeight={animatedOverviewHeight}
+      />
+      {/* <Deposits
+        openTab={openTab}
+        sessionId={sessionId}
+        setOpenTab={setOpenTab}
+        onScroll={onScroll}
+        initTab={initTab}
+        dashboardNetworkFilterName={dashboardNetworkFilterName}
+        animatedOverviewHeight={animatedOverviewHeight}
+      />
+      <Sends
+        openTab={openTab}
+        sessionId={sessionId}
+        setOpenTab={setOpenTab}
+        onScroll={onScroll}
+        initTab={initTab}
+        dashboardNetworkFilterName={dashboardNetworkFilterName}
+        animatedOverviewHeight={animatedOverviewHeight}
+      /> */}
     </View>
   )
 }
