@@ -28,8 +28,8 @@ const getSearchPlaceholder = (openTab: TabType, t: TFunction) => {
   }
 
   if (openTab === 'activity') return t('Search for activity')
-  if (openTab === 'transfers') return t('Search for transfers')
   if (openTab === 'deposits') return t('Search for deposits')
+  if (openTab === 'sends') return t('Search for sends')
 
   return t('Search')
 }
@@ -41,7 +41,7 @@ interface Props {
   sessionId: string
 }
 
-const TABS = ['activity', 'transfers', 'deposits']
+const TABS = ['tokens', 'activity', 'transfers', 'deposits']
 
 const TabsAndSearch: FC<Props> = ({ openTab, setOpenTab, searchControl, sessionId }) => {
   const [, setSearchParams] = useSearchParams()
