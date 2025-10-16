@@ -4,7 +4,6 @@ import {
   formatUnits,
   getAddress,
   isAddress,
-  JsonRpcProvider,
   keccak256,
   TransactionReceipt,
   TransactionResponse,
@@ -40,6 +39,7 @@ import { ActiveStepType, FinalizedStatusType } from '@benzin/screens/BenzinScree
 import { UserOperation } from '@benzin/screens/BenzinScreen/interfaces/userOperation'
 
 import { EIP7702Auth } from '@ambire-common/consts/7702'
+import { RPCProvider } from '@ambire-common/interfaces/provider'
 import { decodeUserOp, entryPointTxnSplit, reproduceCallsFromTxn } from './utils/reproduceCalls'
 
 const REFETCH_TIME = 4000 // 4 seconds
@@ -64,7 +64,7 @@ interface Props {
     callRelayer: any
   }
   setActiveStep: (step: ActiveStepType) => void
-  provider: JsonRpcProvider | null
+  provider: RPCProvider | null
   bundler?: BUNDLER
   extensionAccOp?: SubmittedAccountOp // only for in-app benzina
   networks: Network[]

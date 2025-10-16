@@ -57,9 +57,7 @@ const useBenzin = ({ onOpenExplorer, extensionAccOp }: Props = {}) => {
   const areRelayerNetworksLoaded = actualNetworks && actualNetworks.length
   const network = actualNetworks.find((n) => n.chainId === bigintChainId) || null
   const provider =
-    network && chainId
-      ? getRpcProvider(network.rpcUrls, bigintChainId, network.selectedRpcUrl)
-      : null
+    network && chainId ? getRpcProvider({ ...network, chainId: bigintChainId }) : null
   const isNetworkLoading = loadingBenzinNetworks.includes(bigintChainId)
   const [activeStep, setActiveStep] = useState<ActiveStepType>('signed')
   const isInitialized = !isNetworkLoading && areRelayerNetworksLoaded

@@ -1,6 +1,7 @@
-import { Contract, JsonRpcProvider } from 'ethers'
+import { Contract } from 'ethers'
 import React, { FC, memo, useCallback, useEffect, useMemo, useState } from 'react'
 
+import { RPCProvider } from '@ambire-common/interfaces/provider'
 import { CollectionResult, TokenResult } from '@ambire-common/libs/portfolio'
 import { resolveAssetInfo } from '@ambire-common/services/assetInfo'
 import { getRpcProvider } from '@ambire-common/services/provider'
@@ -39,7 +40,7 @@ const TokenOrNft: FC<Props> = ({
     tokenInfo?: TokenResult
     nftInfo?: CollectionResult
   }>({})
-  const [provider, setProvider] = useState<JsonRpcProvider | null>(null)
+  const [provider, setProvider] = useState<RPCProvider | null>(null)
   const { portfolio } = useSelectedAccountControllerState()
 
   const { t } = useTranslation()
@@ -57,7 +58,7 @@ const TokenOrNft: FC<Props> = ({
   useEffect(() => {
     if (!network) return
     const rpcUrl = network.selectedRpcUrl || network.rpcUrls[0]
-    if (!provider) setProvider(getRpcProvider([rpcUrl], network.chainId))
+    if (!provider) setProvider(getRpcProvider({ ...network, rpcUrls: [rpcUrl] }))
     return () => {
       if (provider && provider.destroy) provider.destroy()
     }
