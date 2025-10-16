@@ -19,6 +19,8 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import SubmittedTransactionSummary from '@web/modules/settings/components/TransactionHistory/SubmittedTransactionSummary'
 import { getUiType } from '@web/utils/uiType'
+import { humanizeAccountOp } from '@ambire-common/libs/humanizer'
+import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 
 import styles from './styles'
 
@@ -51,6 +53,7 @@ const ActivityPositions: FC<Props> = ({
   const { dispatch } = useBackgroundService()
   const { accountsOps } = useActivityControllerState()
   const { account, dashboardNetworkFilter } = useSelectedAccountControllerState()
+  const { networks } = useNetworksControllerState()
 
   const [filterType, setFilterType] = useState<ActivityFilterType>('all')
   const { control, watch } = useForm({
@@ -93,10 +96,20 @@ const ActivityPositions: FC<Props> = ({
     // Filter by type (send/deposit)
     if (filterType !== 'all') {
       items = items.filter((item: any) => {
-        // Assuming the item has a 'type' or similar field to distinguish sends from deposits
-        // You may need to adjust this based on the actual data structure
-        const itemType = item.type?.toLowerCase() || ''
-        return itemType.includes(filterType)
+        // Get the network for this transaction
+        const network = networks.find((n) => n.chainId === item.chainId)
+
+        // Humanize the transaction to extract the action type
+        const humanizedCalls = humanizeAccountOp(item, { network })
+
+        // Extract the action from the first call's visualization
+        const actionElement = humanizedCalls[0]?.fullVisualization?.find((v) => v.type === 'action')
+        const actionType = actionElement?.content?.toLowerCase() || ''
+
+        // Check if the action type matches the filter
+        // For "send" filter: match "send" action
+        // For "deposit" filter: match actions containing "deposit" (e.g., "Call deposit", "Deposit")
+        return actionType.includes(filterType)
       })
     }
 
@@ -104,25 +117,33 @@ const ActivityPositions: FC<Props> = ({
     if (searchValue) {
       items = items.filter((item: any) => {
         const searchLower = searchValue.toLowerCase()
-        // Search in various fields - adjust based on actual data structure
         const txnId = item.txnId?.toLowerCase() || ''
-        const type = item.type?.toLowerCase() || ''
         const status = item.status?.toLowerCase() || ''
 
+        // Also search in humanized action type
+        const network = networks.find((n) => n.chainId === item.chainId)
+        const humanizedCalls = humanizeAccountOp(item, { network })
+        const actionElement = humanizedCalls[0]?.fullVisualization?.find((v) => v.type === 'action')
+        const actionType = actionElement?.content?.toLowerCase() || ''
+
         return (
-          txnId.includes(searchLower) || type.includes(searchLower) || status.includes(searchLower)
+          txnId.includes(searchLower) ||
+          actionType.includes(searchLower) ||
+          status.includes(searchLower)
         )
       })
     }
 
     return items
-  }, [accountsOps, sessionId, filterType, searchValue])
+  }, [accountsOps, sessionId, filterType, searchValue, networks])
 
   const renderItem = useCallback(
     ({ item }: any) => {
       if (item === 'header') {
         return (
-          <View style={{ backgroundColor: theme.primaryBackground, zIndex: 1000, overflow: 'visible' }}>
+          <View
+            style={{ backgroundColor: theme.primaryBackground, zIndex: 1000, overflow: 'visible' }}
+          >
             <ActivityFilter
               openTab={openTab}
               setOpenTab={setOpenTab}
