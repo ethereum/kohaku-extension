@@ -9,6 +9,7 @@ import { getRpcProvider } from '@ambire-common/services/provider'
 import { isValidURL } from '@ambire-common/services/validations'
 import CopyIcon from '@common/assets/svg/CopyIcon'
 import Button from '@common/components/Button'
+import Checkbox from '@common/components/Checkbox'
 import Input from '@common/components/Input'
 import NetworkIcon from '@common/components/NetworkIcon'
 import NumberInput from '@common/components/NumberInput'
@@ -177,7 +178,8 @@ const NetworkForm = ({
       nativeAssetName: '',
       explorerUrl: '',
       coingeckoPlatformId: '',
-      coingeckoNativeAssetId: ''
+      coingeckoNativeAssetId: '',
+      useHelios: false
     },
     values: {
       name: selectedNetwork?.name || '',
@@ -187,7 +189,8 @@ const NetworkForm = ({
       nativeAssetName: selectedNetwork?.nativeAssetName || '',
       explorerUrl: selectedNetwork?.explorerUrl || '',
       coingeckoPlatformId: (selectedNetwork?.platformId as string) || '',
-      coingeckoNativeAssetId: (selectedNetwork?.nativeAssetId as string) || ''
+      coingeckoNativeAssetId: (selectedNetwork?.nativeAssetId as string) || '',
+      useHelios: selectedNetwork?.useHelios || false
     }
   })
   const [rpcUrls, setRpcUrls] = useState(selectedNetwork?.rpcUrls || [])
@@ -471,7 +474,8 @@ const NetworkForm = ({
             rpcUrls,
             selectedRpcUrl,
             chainId: BigInt(networkFormValues.chainId),
-            iconUrls: []
+            iconUrls: [],
+            useHelios: networkFormValues.useHelios
           }
         })
       } else {
@@ -481,7 +485,8 @@ const NetworkForm = ({
             network: {
               rpcUrls,
               selectedRpcUrl,
-              explorerUrl: networkFormValues.explorerUrl
+              explorerUrl: networkFormValues.explorerUrl,
+              useHelios: networkFormValues.useHelios
             },
             chainId: BigInt(networkFormValues.chainId)
           }
@@ -796,6 +801,25 @@ const NetworkForm = ({
                     />
                   )}
                   name="coingeckoNativeAssetId"
+                />
+              </View>
+
+              {/* Use Helios Checkbox */}
+              <View style={spacings.mtLg}>
+                <Controller
+                  control={control}
+                  render={({ field: { onChange, value } }) => (
+                    <Checkbox
+                      value={value}
+                      onValueChange={onChange}
+                      label={t('Use Helios')}
+                      labelProps={{
+                        fontSize: 14,
+                        weight: 'medium'
+                      }}
+                    />
+                  )}
+                  name="useHelios"
                 />
               </View>
             </ScrollableWrapper>
