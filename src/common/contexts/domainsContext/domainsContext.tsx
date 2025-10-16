@@ -13,9 +13,9 @@ const DomainsContext = createContext<{
 })
 
 const providers = networks.reduce(
-  (acc, { selectedRpcUrl, chainId }) => ({
+  (acc, network) => ({
     ...acc,
-    [chainId.toString()]: getRpcProvider([selectedRpcUrl])
+    [network.chainId.toString()]: getRpcProvider(network)
   }),
   {}
 )

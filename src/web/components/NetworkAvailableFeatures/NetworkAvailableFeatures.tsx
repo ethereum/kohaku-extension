@@ -59,7 +59,7 @@ const NetworkAvailableFeatures = ({ chainId, features, withRetryButton, handleRe
     if (!selectedNetwork || selectedNetwork.areContractsDeployed || checkedDeploy) return
 
     setCheckedDeploy(true)
-    const provider = getRpcProvider(selectedNetwork.rpcUrls, selectedNetwork.chainId)
+    const provider = getRpcProvider(selectedNetwork)
     provider
       .getCode(AMBIRE_ACCOUNT_FACTORY)
       .then((factoryCode: string) => {

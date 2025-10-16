@@ -188,7 +188,7 @@ const SendForm = ({
     if (!networkData || isSmartAccount || !account || !selectedToken?.chainId) return
 
     const rpcUrl = networkData.selectedRpcUrl
-    const provider = getRpcProvider([rpcUrl], selectedToken.chainId)
+    const provider = getRpcProvider({ rpcUrls: [rpcUrl], chainId: selectedToken.chainId })
     const nonce = accountStates?.[account.addr]?.[selectedToken.chainId.toString()]?.nonce
 
     if (typeof nonce !== 'bigint') return

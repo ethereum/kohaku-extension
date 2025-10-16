@@ -254,7 +254,10 @@ const NetworkForm = ({
 
       try {
         if (!rpcUrl) throw new Error('No RPC URL provided')
-        const rpc = getRpcProvider([rpcUrl], chainId ? Number(chainId) : undefined)
+        const rpc = getRpcProvider({
+          rpcUrls: [rpcUrl],
+          chainId: chainId ? BigInt(chainId) : undefined
+        })
         const network = await rpc.getNetwork()
         rpc.destroy()
 
