@@ -41,9 +41,8 @@ import useControllerState from '@web/hooks/useControllerState'
 import { getPoolAccountsFromAccount, processDeposits } from '@web/modules/PPv1/utils/sdk'
 import type { PrivacyPoolsController } from '@ambire-common/controllers/privacyPools/privacyPools'
 import { aspClient, MtLeavesResponse, MtRootResponse } from '@web/modules/PPv1/utils/aspClient'
-import { storeData } from '@web/modules/PPv1/utils/extensionStorage'
-import { encrypt } from '@web/modules/PPv1/utils/encryption'
 import { Hex } from 'viem'
+import { storeFirstPrivateAccount } from '@web/modules/PPv1/sdk/misc'
 
 export enum ReviewStatus {
   PENDING = 'pending',
@@ -165,24 +164,16 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
 
   const { secret } = memoizedState
 
+  // Load default private account if secret is provided and reset the secret in the controller state
   useEffect(() => {
     if (secret) {
-      console.log('Signed typed data:', secret)
-      encrypt(secret, 'test')
-        .then((encrypted) => {
-          storeData({ key: 'TEST-private-account', data: encrypted })
-            .then(() => {
-              dispatch({ type: 'PRIVACY_POOLS_CONTROLLER_RESET_SECRET' })
-            })
-            .catch((error) => {
-              console.error('Error storing signed typed data:', error)
-            })
+      storeFirstPrivateAccount(secret)
+        .then(() => {
+          dispatch({ type: 'PRIVACY_POOLS_CONTROLLER_RESET_SECRET' })
         })
-        .catch((error) => {
-          console.error('Error encrypting signed typed data:', error)
-        })
+        .catch(console.error)
     }
-  }, [secret, dispatch])
+  }, [dispatch, secret])
 
   const fetchMtData = useCallback(async () => {
     try {
