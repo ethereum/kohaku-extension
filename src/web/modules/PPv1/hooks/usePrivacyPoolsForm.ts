@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
 import { encodeFunctionData, formatEther, getAddress, parseUnits } from 'viem'
-import { english, generateMnemonic } from 'viem/accounts'
 import { Hash, type Withdrawal } from '@0xbow/privacy-pools-core-sdk'
 import { Call } from '@ambire-common/libs/accountOp/types'
 import { BatchWithdrawalParams } from '@ambire-common/controllers/privacyPools/privacyPools'
@@ -10,7 +9,6 @@ import { PoolAccount, ReviewStatus } from '@web/contexts/privacyPoolsControllerS
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
-import { useStorage } from './useStorage'
 import { prepareWithdrawalProofInput, transformProofForRelayerApi } from '../utils/withdrawal'
 import { transformRagequitProofForContract } from '../utils/ragequit'
 import { entrypointAbi, privacyPoolAbi } from '../utils/abi'
@@ -18,6 +16,7 @@ import { entrypointAbi, privacyPoolAbi } from '../utils/abi'
 const usePrivacyPoolsForm = () => {
   const { dispatch } = useBackgroundService()
   const {
+    chainId,
     mtRoots,
     mtLeaves,
     chainData,
@@ -31,11 +30,14 @@ const usePrivacyPoolsForm = () => {
     signAccountOpController,
     latestBroadcastedAccountOp,
     isAccountLoaded,
+    isLoadingAccount,
+    isRefreshing,
+    isReadyToLoad,
     recipientAddress,
-    setIsAccountLoaded,
     relayerQuote,
     getContext,
-    loadAccount,
+    loadPrivateAccount,
+    refreshPrivateAccount,
     getMerkleProof,
     createDepositSecrets,
     generateRagequitProof,
@@ -44,21 +46,17 @@ const usePrivacyPoolsForm = () => {
     generateWithdrawalProof,
     createWithdrawalSecrets
   } = usePrivacyPoolsControllerState()
-  const { getData, storeData, decrypt, encrypt } = useStorage({ password: 'test' })
 
   const { account: userAccount, portfolio } = useSelectedAccountControllerState()
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [isLoadingSeedPhrase, setIsLoadingSeedPhrase] = useState(false)
-  const [isLoadingAccount, setIsLoadingAccount] = useState(false)
   const [ragequitLoading, setRagequitLoading] = useState<Record<string, boolean>>({})
   const [showAddedToBatch] = useState(false)
 
   const ethPrice = portfolio.tokens
-    .find((token) => token.chainId === 11155111n && token.name === 'Ether')
+    .find((token) => token.chainId === BigInt(chainId) && token.name === 'Ether')
     ?.priceIn.find((price) => price.baseCurrency === 'usd')?.price
 
-  const poolInfo = chainData?.[11155111]?.poolInfo?.[0]
+  const poolInfo = chainData?.[chainId]?.poolInfo?.[0]
 
   const totalApprovedBalance = useMemo(() => {
     const accounts = poolAccounts.filter(
@@ -131,13 +129,6 @@ const usePrivacyPoolsForm = () => {
     close: closeEstimationModal
   } = useModalize()
 
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  // Ready to load when Merkle data and chain data are present
-  const isReadyToLoad = useMemo(
-    () => Boolean(mtLeaves && mtRoots && chainData),
-    [mtLeaves, mtRoots, chainData]
-  )
-
   const handleUpdateForm = useCallback(
     (params: { [key: string]: any }) => {
       dispatch({
@@ -159,89 +150,6 @@ const usePrivacyPoolsForm = () => {
     },
     [dispatch]
   )
-
-  const handleGenerateSeedPhrase = async () => {
-    setIsGenerating(true)
-    setMessage(null)
-
-    const newSeedPhrase = generateMnemonic(english)
-    handleUpdateForm({ seedPhrase: newSeedPhrase })
-    setMessage({ type: 'success', text: 'New seed phrase generated successfully!' })
-    setIsGenerating(false)
-  }
-
-  const loadAccountWithSecrets = useCallback(
-    async (
-      secrets: { masterNullifierSeed: string; masterSecretSeed: string },
-      shouldStore: boolean = false
-    ) => {
-      if (!secrets?.masterNullifierSeed || !secrets?.masterSecretSeed) {
-        throw new Error('Please provide valid secrets to load an account.')
-      }
-
-      await loadAccount(
-        secrets as { masterNullifierSeed: `0x${string}`; masterSecretSeed: `0x${string}` }
-      )
-
-      if (shouldStore) {
-        const encrypted = await encrypt(JSON.stringify(secrets))
-        await storeData({ key: 'TEST-private-account', data: encrypted })
-      }
-    },
-    [loadAccount, encrypt, storeData]
-  )
-
-  const handleLoadAccount = useCallback(
-    async (secrets?: { masterNullifierSeed: string; masterSecretSeed: string }) => {
-      try {
-        setMessage(null)
-        setIsLoadingAccount(true)
-
-        if (!secrets) {
-          throw new Error('Secrets are required to load account')
-        }
-
-        await loadAccountWithSecrets(secrets, true)
-
-        setMessage({ type: 'success', text: 'Account loaded successfully!' })
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Failed to load account. Please try again.'
-        setMessage({ type: 'error', text: errorMessage })
-        throw error
-      } finally {
-        setIsLoadingAccount(false)
-      }
-    },
-    [loadAccountWithSecrets]
-  )
-
-  const refreshPrivateAccount = useCallback(async () => {
-    try {
-      setIsRefreshing(true)
-      setIsAccountLoaded(false)
-      setMessage(null)
-      setIsLoadingAccount(true)
-
-      const data = await getData({ key: 'TEST-private-account' })
-      if (!data) throw new Error('No stored private account found.')
-
-      const decrypted = await decrypt(data)
-      const secrets = JSON.parse(decrypted)
-      await loadAccountWithSecrets(secrets)
-
-      setRagequitLoading({})
-      setMessage({ type: 'success', text: 'Account refreshed successfully!' })
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to refresh account. Please try again.'
-      setMessage({ type: 'error', text: errorMessage })
-    } finally {
-      setIsLoadingAccount(false)
-      setIsAccountLoaded(true)
-      setIsRefreshing(false)
-    }
-  }, [setIsAccountLoaded, getData, decrypt, loadAccountWithSecrets])
 
   const handleSelectedAccount = (poolAccount: PoolAccount) => {
     setSelectedPoolAccount((prevState) => {
@@ -371,33 +279,6 @@ const usePrivacyPoolsForm = () => {
     userAccount?.addr
   ])
 
-  const loadPrivateAccount = useCallback(async () => {
-    if (isAccountLoaded) return
-    if (!isReadyToLoad) throw new Error('Privacy Pools data not ready yet')
-
-    try {
-      setIsLoadingSeedPhrase(true)
-      setMessage(null)
-
-      const data = await getData({ key: 'TEST-private-account' })
-      if (!data) throw new Error('No stored private account found.')
-
-      const decrypted = await decrypt(data)
-      const secrets = JSON.parse(decrypted)
-      await loadAccountWithSecrets(secrets)
-
-      setMessage({ type: 'success', text: 'Private account loaded successfully!' })
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to load private account. Please try again.'
-      setMessage({ type: 'error', text: errorMessage })
-    } finally {
-      setIsLoadingSeedPhrase(false)
-    }
-  }, [isAccountLoaded, isReadyToLoad, getData, decrypt, loadAccountWithSecrets])
-
-  const isLoading = isLoadingSeedPhrase || isLoadingAccount
-
   // Update controller with calculated batchSize whenever it changes
   useEffect(() => {
     handleUpdateForm({ batchSize: calculatedBatchSize })
@@ -508,7 +389,7 @@ const usePrivacyPoolsForm = () => {
       if (!batchWithdrawal) return
 
       prepareBatchWithdrawal({
-        chainId: 11155111,
+        chainId,
         poolAddress: poolInfo.address,
         withdrawal: {
           processooor: batchWithdrawal.processooor,
@@ -524,6 +405,7 @@ const usePrivacyPoolsForm = () => {
       setMessage({ type: 'error', text: errorMessage })
     }
   }, [
+    chainId,
     mtRoots,
     mtLeaves,
     poolInfo,
@@ -543,6 +425,7 @@ const usePrivacyPoolsForm = () => {
   ])
 
   return {
+    chainId,
     ethPrice,
     message,
     poolInfo,
@@ -550,17 +433,15 @@ const usePrivacyPoolsForm = () => {
     seedPhrase,
     poolAccounts,
     hasProceeded,
-    isGenerating,
     depositAmount,
     accountService,
     withdrawalAmount,
-    isLoadingAccount,
     showAddedToBatch,
     estimationModalRef,
     selectedPoolAccount,
     signAccountOpController,
     latestBroadcastedAccountOp,
-    isLoading,
+    isLoading: isLoadingAccount,
     isRefreshing,
     isAccountLoaded,
     totalApprovedBalance,
@@ -568,18 +449,16 @@ const usePrivacyPoolsForm = () => {
     totalDeclinedBalance,
     totalPrivatePortfolio,
     ethPrivateBalance,
+    isReadyToLoad,
     handleDeposit,
     handleMultipleRagequit,
     handleMultipleWithdrawal,
     handleUpdateForm,
-    handleLoadAccount,
     isRagequitLoading,
     closeEstimationModal,
     handleSelectedAccount,
-    handleGenerateSeedPhrase,
     loadPrivateAccount,
-    refreshPrivateAccount,
-    isReadyToLoad
+    refreshPrivateAccount
   }
 }
 

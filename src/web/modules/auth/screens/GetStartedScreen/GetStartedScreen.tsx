@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect } from 'react'
 import { View } from 'react-native'
 
-import AmbireLogo from '@common/assets/svg/AmbireLogo'
 // import ViewModeIcon from '@common/assets/svg/ViewModeIcon'
 import Button from '@common/components/Button'
 import Panel from '@common/components/Panel'
@@ -25,6 +24,7 @@ import {
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useWalletStateController from '@web/hooks/useWalletStateController'
 
+import KohakuLogo from '@common/components/HokahuLogo'
 import getStyles from './styles'
 
 export const CARD_WIDTH = 400
@@ -83,7 +83,7 @@ const GetStartedScreen = () => {
             <View
               style={[flexbox.justifyCenter, flexbox.alignCenter, flexbox.flex1, spacings.mbSm]}
             >
-              <AmbireLogo height={96} withWrapper />
+              <KohakuLogo width={180} height={80} />
               <Text style={[spacings.mtLg, text.center]} weight="medium" appearance="secondaryText">
                 {t('The Web3 wallet that makes self-custody easy and secure.')}
               </Text>
