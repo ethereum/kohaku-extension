@@ -166,7 +166,7 @@ const DepositForm = ({
             {t('Provider')}
           </Text>
           <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-            <PrivacyIcon width={20} height={20} />
+            <PrivacyIcon width={15} height={15} />
             <Text fontSize={14} weight="light" style={spacings.mlMi}>
               {t('Privacy Pools')}
             </Text>
