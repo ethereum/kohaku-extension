@@ -102,14 +102,16 @@ const ActivityPositions: FC<Props> = ({
         // Humanize the transaction to extract the action type
         const humanizedCalls = humanizeAccountOp(item, { network })
 
-        // Extract the action from the first call's visualization
-        const actionElement = humanizedCalls[0]?.fullVisualization?.find((v) => v.type === 'action')
-        const actionType = actionElement?.content?.toLowerCase() || ''
+        // Check ALL calls for action elements, not just the first one
+        // This fixes the issue where transactions with multiple calls might have
+        // the action in a different call than the first one
+        const hasMatchingAction = humanizedCalls.some((call) => {
+          const actionElement = call.fullVisualization?.find((v) => v.type === 'action')
+          const actionType = actionElement?.content?.toLowerCase() || ''
+          return actionType.includes(filterType)
+        })
 
-        // Check if the action type matches the filter
-        // For "send" filter: match "send" action
-        // For "deposit" filter: match actions containing "deposit" (e.g., "Call deposit", "Deposit")
-        return actionType.includes(filterType)
+        return hasMatchingAction
       })
     }
 
@@ -120,15 +122,20 @@ const ActivityPositions: FC<Props> = ({
         const txnId = item.txnId?.toLowerCase() || ''
         const status = item.status?.toLowerCase() || ''
 
-        // Also search in humanized action type
+        // Also search in humanized action types from ALL calls
         const network = networks.find((n) => n.chainId === item.chainId)
         const humanizedCalls = humanizeAccountOp(item, { network })
-        const actionElement = humanizedCalls[0]?.fullVisualization?.find((v) => v.type === 'action')
-        const actionType = actionElement?.content?.toLowerCase() || ''
+
+        // Check if any call's action type matches the search
+        const hasMatchingAction = humanizedCalls.some((call) => {
+          const actionElement = call.fullVisualization?.find((v) => v.type === 'action')
+          const actionType = actionElement?.content?.toLowerCase() || ''
+          return actionType.includes(searchLower)
+        })
 
         return (
           txnId.includes(searchLower) ||
-          actionType.includes(searchLower) ||
+          hasMatchingAction ||
           status.includes(searchLower)
         )
       })
