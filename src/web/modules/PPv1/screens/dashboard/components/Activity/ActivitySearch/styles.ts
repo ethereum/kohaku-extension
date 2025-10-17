@@ -49,7 +49,7 @@ const getStyles = (theme: ThemeProps) =>
       borderColor: theme.secondaryBorder
     },
     pillActive: {
-      backgroundColor: '#000',
+      color: '#000',
       borderColor: '#000'
     }
   })
