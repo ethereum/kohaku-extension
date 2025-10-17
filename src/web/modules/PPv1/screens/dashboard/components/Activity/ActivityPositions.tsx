@@ -104,8 +104,6 @@ const ActivityPositions: FC<Props> = ({
 
     let items = [...accountsOps[sessionId].result.items] // Create a new array reference
 
-    console.log('DEBUG FILTER: Starting with', items.length, 'items, filterType:', filterType)
-
     // Filter by type (send/deposit)
     if (filterType !== 'all') {
       items = items.filter((item: any) => {
@@ -116,22 +114,11 @@ const ActivityPositions: FC<Props> = ({
           const actionElement = call.fullVisualization?.find((v) => v.type === 'action')
           const actionType = actionElement?.content?.toLowerCase() || ''
 
-          console.log('DEBUG: actionElement, actionType', actionElement, actionType)
-
           if (filterType === 'send') {
             const hasSend = actionType.includes('send')
             const hasDeposit = actionType.includes('deposit')
             const result = hasSend && !hasDeposit
-            console.log(
-              'DEBUG SEND FILTER: actionType:',
-              actionType,
-              '| hasSend:',
-              hasSend,
-              '| hasDeposit:',
-              hasDeposit,
-              '| result:',
-              result
-            )
+
             return result
           }
 
@@ -139,42 +126,18 @@ const ActivityPositions: FC<Props> = ({
             const hasDeposit = actionType.includes('deposit')
             const hasReceive = actionType.includes('receive')
             const result = hasDeposit || hasReceive
-            console.log(
-              'DEBUG DEPOSIT FILTER: actionType:',
-              actionType,
-              '| hasDeposit:',
-              hasDeposit,
-              '| hasReceive:',
-              hasReceive,
-              '| result:',
-              result
-            )
             return result
           }
 
           return false // Don't match anything for unknown filter types
         })
 
-        console.log(
-          'DEBUG ITEM MATCH: txnId:',
-          item.txnId,
-          '| hasMatchingAction:',
-          hasMatchingAction
-        )
         return hasMatchingAction
       })
-
-      console.log('DEBUG FILTER: After filtering, left with', items.length, 'items')
     }
 
     // Filter by search text (using debounced value)
     if (debouncedSearchValue) {
-      console.log(
-        'DEBUG SEARCH: debouncedSearchValue:',
-        debouncedSearchValue,
-        '| items before search:',
-        items.length
-      )
       items = items.filter((item: any) => {
         const searchLower = debouncedSearchValue.toLowerCase()
         const txnId = item.txnId?.toLowerCase() || ''
@@ -191,10 +154,8 @@ const ActivityPositions: FC<Props> = ({
 
         const matches =
           txnId.includes(searchLower) || hasMatchingAction || status.includes(searchLower)
-        console.log('DEBUG SEARCH ITEM: txnId:', item.txnId, '| matches:', matches)
         return matches
       })
-      console.log('DEBUG SEARCH: After search filtering, left with', items.length, 'items')
     }
 
     return items
@@ -264,8 +225,6 @@ const ActivityPositions: FC<Props> = ({
         )
       }
 
-      console.log('DEBUG item in renderitems', item)
-
       return (
         <SubmittedTransactionSummary
           key={item.txnId}
@@ -318,8 +277,6 @@ const ActivityPositions: FC<Props> = ({
     return result
   }, [accountsOps, sessionId, filteredActivityItems, initTab?.activity, filterType])
 
-  // Hide the entire Activity component when not on the activity tab
-  // This prevents ActivityFilter from showing on other tabs
   if (openTab !== 'activity') {
     return null
   }
