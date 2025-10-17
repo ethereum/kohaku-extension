@@ -6,13 +6,13 @@ import useTheme from '@common/hooks/useTheme'
 import { TabType } from '@web/modules/PPv1/screens/dashboard/components/TabsAndSearch/Tabs/Tab/Tab'
 import Tabs from '@web/modules/PPv1/screens/dashboard/components/TabsAndSearch/Tabs/Tabs'
 import flexbox from '@common/styles/utils/flexbox'
+import spacings from '@common/styles/spacings'
 import { useSearchParams } from 'react-router-dom'
 
 import ActivitySearch from '../ActivitySearch'
 import { ActivityFilterType } from '../types'
 
 import getStyles from './styles'
-import spacings from '@common/styles/spacings'
 
 interface Props {
   openTab: TabType
