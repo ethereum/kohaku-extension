@@ -57,7 +57,7 @@ const TransferForm = ({
   addressState: any
   controllerAmount: string
   quoteFee: number
-  updateQuoteStatus: 'INITIAL' | 'LOADING'
+  updateQuoteStatus: 'INITIAL' | 'LOADING' | undefined
   totalApprovedBalance: { total: bigint; accounts: PoolAccount[] }
 }) => {
   const { validation } = addressInputState

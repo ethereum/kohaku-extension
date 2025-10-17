@@ -60,8 +60,7 @@ const TransferScreen = () => {
     signAccountOpController,
     maxAmount,
     relayerQuote,
-    updateQuoteStatus,
-    shouldTrackLatestBroadcastedAccountOp
+    updateQuoteStatus
   } = usePrivacyPoolsControllerState()
 
   const { navigate } = useNavigation()
@@ -147,19 +146,13 @@ const TransferScreen = () => {
   }, [latestBroadcastedAccountOp?.accountAddr, latestBroadcastedAccountOp?.chainId, sessionHandler])
 
   const displayedView: 'transfer' | 'track' = useMemo(() => {
-    console.log(
-      'DEBUG: shouldTrackLatestBroadcastedAccountOp',
-      shouldTrackLatestBroadcastedAccountOp,
-      'latestBroadcastedAccountOp',
-      latestBroadcastedAccountOp
-    )
     // Show tracking screen only if both conditions are met:
     // 1. latestBroadcastedAccountOp is set (transaction was broadcasted)
     // 2. shouldTrackLatestBroadcastedAccountOp is true (controller wants us to show tracking)
-    if (latestBroadcastedAccountOp && shouldTrackLatestBroadcastedAccountOp) return 'track'
+    if (latestBroadcastedAccountOp) return 'track'
 
     return 'transfer'
-  }, [latestBroadcastedAccountOp, shouldTrackLatestBroadcastedAccountOp])
+  }, [latestBroadcastedAccountOp])
 
   // When navigating to another screen internally in the extension, we unload the TransferController
   // to ensure that no estimation or SignAccountOp logic is still running.
@@ -257,7 +250,7 @@ const TransferScreen = () => {
       relayerQuote &&
       !addressInputState.validation.isError
     )
-  }, [amountFieldValue, selectedToken, addressInputState.validation.isError])
+  }, [amountFieldValue, selectedToken, addressInputState.validation.isError, relayerQuote])
 
   const onBack = useCallback(() => {
     dispatch({
@@ -268,6 +261,22 @@ const TransferScreen = () => {
 
   const headerTitle = t('Private Transfer')
   const formTitle = t('Send')
+
+  // For privacy pools withdrawals, we need to handle the close button differently
+  // because these transactions don't go through the normal activity controller flow
+  const handlePrimaryButtonPress = useCallback(() => {
+    if (latestBroadcastedAccountOp?.meta?.isPrivacyPoolsWithdrawal) {
+      // For privacy pools, directly navigate out since we don't use activity banners
+      navigateOut()
+    } else {
+      // For normal transactions, use the standard flow
+      onPrimaryButtonPress()
+    }
+  }, [
+    latestBroadcastedAccountOp?.meta?.isPrivacyPoolsWithdrawal,
+    navigateOut,
+    onPrimaryButtonPress
+  ])
 
   const buttons = useMemo(() => {
     return (
@@ -284,17 +293,24 @@ const TransferScreen = () => {
     )
   }, [onBack, handleMultipleWithdrawal, isTransferFormValid, t])
 
+  // Refresh private account after deposit success or unknown but past nonce
+  useEffect(() => {
+    if (
+      !hasRefreshedAccountRef.current &&
+      (submittedAccountOp?.status === AccountOpStatus.Success ||
+        submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce)
+    ) {
+      hasRefreshedAccountRef.current = true
+      refreshPrivateAccount().catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error('Failed to refresh private account after deposit:', error)
+      })
+    }
+  }, [submittedAccountOp?.status, refreshPrivateAccount])
+
   if (displayedView === 'track') {
     return (
-      <TrackProgress
-        onPrimaryButtonPress={onPrimaryButtonPress}
-        handleClose={() => {
-          console.log('destroy latest broadcasted account op')
-          dispatch({
-            type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-          })
-        }}
-      >
+      <TrackProgress onPrimaryButtonPress={handlePrimaryButtonPress} handleClose={navigateOut}>
         {submittedAccountOp?.status === AccountOpStatus.BroadcastedButNotConfirmed && (
           <InProgress title={t('Confirming your transfer')}>
             <Text fontSize={16} weight="medium" appearance="secondaryText">
@@ -326,21 +342,6 @@ const TransferScreen = () => {
       </TrackProgress>
     )
   }
-
-  // Refresh private account after deposit success or unknown but past nonce
-  useEffect(() => {
-    if (
-      !hasRefreshedAccountRef.current &&
-      (submittedAccountOp?.status === AccountOpStatus.Success ||
-        submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce)
-    ) {
-      hasRefreshedAccountRef.current = true
-      refreshPrivateAccount().catch((error) => {
-        // eslint-disable-next-line no-console
-        console.error('Failed to refresh private account after deposit:', error)
-      })
-    }
-  }, [submittedAccountOp?.status, refreshPrivateAccount])
 
   return (
     <Wrapper title={headerTitle} buttons={buttons}>
