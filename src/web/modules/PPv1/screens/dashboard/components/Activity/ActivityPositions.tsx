@@ -327,6 +327,7 @@ const ActivityPositions: FC<Props> = ({
         searchControl={control}
         filterType={filterType}
         setFilterType={setFilterType}
+        searchPlaceholder="Search activity..."
       />
       <DashboardPageScrollContainer
         key={`activity-filter-${filterType}-search-${debouncedSearchValue}`}

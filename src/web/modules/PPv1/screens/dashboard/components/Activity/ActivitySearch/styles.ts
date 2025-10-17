@@ -14,7 +14,7 @@ const getStyles = (theme: ThemeProps) =>
   StyleSheet.create<Style>({
     wrapper: {
       position: 'relative',
-      minWidth: 200,
+      width: 250,
       zIndex: 1001,
       // @ts-ignore - overflow is web only
       overflow: 'visible'

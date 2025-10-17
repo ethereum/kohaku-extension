@@ -91,14 +91,32 @@ const ActivitySearch = ({
             onChange={onChange}
             value={value}
             button={
-              // A trick to prevent layout shift when the clear search icon appears
               <View
                 style={{
-                  width: clearSearchIconSize,
-                  height: clearSearchIconSize
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6
                 }}
               >
-                {!!value && <CloseIcon width={clearSearchIconSize} height={clearSearchIconSize} />}
+                {/* Filter indicator - always visible when filter is active */}
+                {filterType !== 'all' && (
+                  <Text
+                    fontSize={11}
+                    weight="medium"
+                    color={theme.secondaryText}
+                  >
+                    ({filterType})
+                  </Text>
+                )}
+                {/* Clear search icon */}
+                <View
+                  style={{
+                    width: clearSearchIconSize,
+                    height: clearSearchIconSize
+                  }}
+                >
+                  {!!value && <CloseIcon width={clearSearchIconSize} height={clearSearchIconSize} />}
+                </View>
               </View>
             }
             buttonStyle={{

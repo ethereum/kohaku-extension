@@ -21,6 +21,7 @@ interface Props {
   sessionId: string
   filterType: ActivityFilterType
   setFilterType: (type: ActivityFilterType) => void
+  searchPlaceholder?: string
 }
 
 const ActivityFilter: FC<Props> = ({
@@ -29,7 +30,8 @@ const ActivityFilter: FC<Props> = ({
   searchControl,
   sessionId,
   filterType,
-  setFilterType
+  setFilterType,
+  searchPlaceholder = 'Search activity...'
 }) => {
   const [, setSearchParams] = useSearchParams()
   const { styles } = useTheme(getStyles)
@@ -55,7 +57,7 @@ const ActivityFilter: FC<Props> = ({
           control={searchControl}
           filterType={filterType}
           setFilterType={setFilterType}
-          placeholder="Search activity..."
+          placeholder={searchPlaceholder}
           height={32}
           hasLeftIcon
           borderWrapperStyle={styles.borderWrapper}
