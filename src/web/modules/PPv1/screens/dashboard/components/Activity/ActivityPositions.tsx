@@ -65,6 +65,17 @@ const ActivityPositions: FC<Props> = ({
 
   const searchValue = watch('search')
 
+  // Debounce searchValue to avoid remounting FlatList on every keystroke
+  const [debouncedSearchValue, setDebouncedSearchValue] = useState('')
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchValue(searchValue)
+    }, 300) // 300ms delay
+
+    return () => clearTimeout(timer)
+  }, [searchValue])
+
   useEffect(() => {
     // Optimization: Don't apply filtration if we are not on Activity tab
     if (!account?.addr || openTab !== 'activity') return
@@ -91,78 +102,106 @@ const ActivityPositions: FC<Props> = ({
   const filteredActivityItems = useMemo(() => {
     if (!accountsOps?.[sessionId]?.result.items) return []
 
-    let items = accountsOps[sessionId].result.items
+    let items = [...accountsOps[sessionId].result.items] // Create a new array reference
+
+    console.log('DEBUG FILTER: Starting with', items.length, 'items, filterType:', filterType)
 
     // Filter by type (send/deposit)
     if (filterType !== 'all') {
       items = items.filter((item: any) => {
-        // Get the network for this transaction
         const network = networks.find((n) => n.chainId === item.chainId)
-
-        // Humanize the transaction to extract the action type
         const humanizedCalls = humanizeAccountOp(item, { network })
 
-        // Check ALL calls for action elements, not just the first one
-        // This fixes the issue where transactions with multiple calls might have
-        // the action in a different call than the first one
         const hasMatchingAction = humanizedCalls.some((call) => {
           const actionElement = call.fullVisualization?.find((v) => v.type === 'action')
           const actionType = actionElement?.content?.toLowerCase() || ''
-          return actionType.includes(filterType)
+
+          console.log('DEBUG: actionElement, actionType', actionElement, actionType)
+
+          if (filterType === 'send') {
+            const hasSend = actionType.includes('send')
+            const hasDeposit = actionType.includes('deposit')
+            const result = hasSend && !hasDeposit
+            console.log(
+              'DEBUG SEND FILTER: actionType:',
+              actionType,
+              '| hasSend:',
+              hasSend,
+              '| hasDeposit:',
+              hasDeposit,
+              '| result:',
+              result
+            )
+            return result
+          }
+
+          if (filterType === 'deposit') {
+            const hasDeposit = actionType.includes('deposit')
+            const hasReceive = actionType.includes('receive')
+            const result = hasDeposit || hasReceive
+            console.log(
+              'DEBUG DEPOSIT FILTER: actionType:',
+              actionType,
+              '| hasDeposit:',
+              hasDeposit,
+              '| hasReceive:',
+              hasReceive,
+              '| result:',
+              result
+            )
+            return result
+          }
+
+          return false // Don't match anything for unknown filter types
         })
 
+        console.log(
+          'DEBUG ITEM MATCH: txnId:',
+          item.txnId,
+          '| hasMatchingAction:',
+          hasMatchingAction
+        )
         return hasMatchingAction
       })
+
+      console.log('DEBUG FILTER: After filtering, left with', items.length, 'items')
     }
 
-    // Filter by search text
-    if (searchValue) {
+    // Filter by search text (using debounced value)
+    if (debouncedSearchValue) {
+      console.log(
+        'DEBUG SEARCH: debouncedSearchValue:',
+        debouncedSearchValue,
+        '| items before search:',
+        items.length
+      )
       items = items.filter((item: any) => {
-        const searchLower = searchValue.toLowerCase()
+        const searchLower = debouncedSearchValue.toLowerCase()
         const txnId = item.txnId?.toLowerCase() || ''
         const status = item.status?.toLowerCase() || ''
 
-        // Also search in humanized action types from ALL calls
         const network = networks.find((n) => n.chainId === item.chainId)
         const humanizedCalls = humanizeAccountOp(item, { network })
 
-        // Check if any call's action type matches the search
         const hasMatchingAction = humanizedCalls.some((call) => {
           const actionElement = call.fullVisualization?.find((v) => v.type === 'action')
           const actionType = actionElement?.content?.toLowerCase() || ''
           return actionType.includes(searchLower)
         })
 
-        return (
-          txnId.includes(searchLower) ||
-          hasMatchingAction ||
-          status.includes(searchLower)
-        )
+        const matches =
+          txnId.includes(searchLower) || hasMatchingAction || status.includes(searchLower)
+        console.log('DEBUG SEARCH ITEM: txnId:', item.txnId, '| matches:', matches)
+        return matches
       })
+      console.log('DEBUG SEARCH: After search filtering, left with', items.length, 'items')
     }
 
     return items
-  }, [accountsOps, sessionId, filterType, searchValue, networks])
+  }, [accountsOps, sessionId, filterType, debouncedSearchValue, networks])
 
   const renderItem = useCallback(
     ({ item }: any) => {
-      if (item === 'header') {
-        return (
-          <View
-            style={{ backgroundColor: theme.primaryBackground, zIndex: 1000, overflow: 'visible' }}
-          >
-            <ActivityFilter
-              openTab={openTab}
-              setOpenTab={setOpenTab}
-              sessionId={sessionId}
-              searchControl={control}
-              filterType={filterType}
-              setFilterType={setFilterType}
-            />
-          </View>
-        )
-      }
-
       if (item === 'empty') {
         return (
           <Text
@@ -181,7 +220,7 @@ const ActivityPositions: FC<Props> = ({
         )
       }
 
-      if (!initTab?.activity || !item || item === 'keep-this-to-avoid-key-warning') return null
+      if (!initTab?.activity || !item) return null
 
       if (item === 'skeleton') {
         return <ActivityPositionsSkeleton amount={4} />
@@ -225,6 +264,8 @@ const ActivityPositions: FC<Props> = ({
         )
       }
 
+      console.log('DEBUG item in renderitems', item)
+
       return (
         <SubmittedTransactionSummary
           key={item.txnId}
@@ -252,31 +293,62 @@ const ActivityPositions: FC<Props> = ({
     ]
   )
 
-  const keyExtractor = useCallback((positionOrElement: any) => {
-    if (typeof positionOrElement === 'string') return positionOrElement
+  const keyExtractor = useCallback(
+    (positionOrElement: any, index: number) => {
+      if (typeof positionOrElement === 'string') return `${positionOrElement}-${index}`
 
-    return positionOrElement.txnId
-  }, [])
+      // Include filterType in the key to force FlatList to treat items as new when filter changes
+      return `${filterType}-${positionOrElement.txnId}`
+    },
+    [filterType]
+  )
+
+  const dataArray = useMemo(() => {
+    const items = initTab?.activity ? filteredActivityItems : []
+    const skeleton = !accountsOps ? 'skeleton' : null
+    const emptyMessage = accountsOps?.[sessionId] && !filteredActivityItems.length ? 'empty' : null
+    const loadMore = 'load-more'
+    const result = []
+
+    if (skeleton) result.push(skeleton)
+    result.push(...items)
+    if (emptyMessage) result.push(emptyMessage)
+    result.push(loadMore)
+
+    return result
+  }, [accountsOps, sessionId, filteredActivityItems, initTab?.activity, filterType])
 
   return (
-    <DashboardPageScrollContainer
-      tab="activity"
-      openTab={openTab}
-      data={[
-        'header',
-        !accountsOps ? 'skeleton' : 'keep-this-to-avoid-key-warning',
-        ...(initTab?.activity && filteredActivityItems.length ? filteredActivityItems : []),
-        accountsOps?.[sessionId] && !filteredActivityItems.length ? 'empty' : '',
-        'load-more'
-      ]}
-      renderItem={renderItem}
-      keyExtractor={keyExtractor}
-      onEndReachedThreshold={isPopup ? 5 : 2.5}
-      initialNumToRender={isPopup ? 10 : 20}
-      windowSize={9} // Larger values can cause performance issues.
-      onScroll={onScroll}
-      animatedOverviewHeight={animatedOverviewHeight}
-    />
+    <>
+      <ActivityFilter
+        openTab={openTab}
+        setOpenTab={setOpenTab}
+        sessionId={sessionId}
+        searchControl={control}
+        filterType={filterType}
+        setFilterType={setFilterType}
+      />
+      <DashboardPageScrollContainer
+        key={`activity-filter-${filterType}-search-${debouncedSearchValue}`}
+        tab="activity"
+        openTab={openTab}
+        data={dataArray}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        extraData={{
+          filterType,
+          debouncedSearchValue,
+          filteredCount: filteredActivityItems.length
+        }}
+        resetScrollKey={filterType}
+        disableStickyHeader
+        onEndReachedThreshold={isPopup ? 5 : 2.5}
+        initialNumToRender={isPopup ? 10 : 20}
+        windowSize={9} // Larger values can cause performance issues.
+        onScroll={onScroll}
+        animatedOverviewHeight={animatedOverviewHeight}
+      />
+    </>
   )
 }
 
