@@ -42,7 +42,10 @@ import { getPoolAccountsFromAccount, processDeposits } from '@web/modules/PPv1/u
 import type { PrivacyPoolsController } from '@ambire-common/controllers/privacyPools/privacyPools'
 import { aspClient, MtLeavesResponse, MtRootResponse } from '@web/modules/PPv1/utils/aspClient'
 import { Hex } from 'viem'
-import { storeFirstPrivateAccount } from '@web/modules/PPv1/sdk/misc'
+import {
+  storeFirstPrivateAccount,
+  loadPrivateAccount as getPrivateAccount
+} from '@web/modules/PPv1/sdk/misc'
 
 export enum ReviewStatus {
   PENDING = 'pending',
@@ -69,14 +72,20 @@ export type PoolAccount = SDKPoolAccount & {
 }
 
 type EnhancedPrivacyPoolsControllerState = {
+  chainId: number
   mtRoots: MtRootResponse | undefined
   mtLeaves: MtLeavesResponse | undefined
   accountService: AccountService | undefined
   selectedPoolAccount: PoolAccount | null
   poolAccounts: PoolAccount[]
   isAccountLoaded: boolean
+  isLoadingAccount: boolean
+  isRefreshing: boolean
+  isReadyToLoad: boolean
   setIsAccountLoaded: Dispatch<SetStateAction<boolean>>
   loadAccount: (secrets: { masterNullifierSeed: Hex; masterSecretSeed: Hex }) => Promise<void>
+  loadPrivateAccount: () => Promise<void>
+  refreshPrivateAccount: () => Promise<void>
   generateRagequitProof: (commitment: AccountCommitment) => Promise<CommitmentProof>
   verifyRagequitProof: (commitment: CommitmentProof) => Promise<boolean>
   generateWithdrawalProof: (
@@ -148,6 +157,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   const { dispatch } = useBackgroundService()
   // const { portfolio } = useSelectedAccountControllerState()
   // const { networks } = useNetworksControllerState()
+  const chainId = 11155111 // Default PP chainId
 
   const [sdk, setSdk] = useState<PrivacyPoolSDK>()
   const [dataService, setDataService] = useState<DataService>()
@@ -157,6 +167,8 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   const [mtRoots, setMtRoots] = useState<MtRootResponse | undefined>(undefined)
   const [mtLeaves, setMtLeaves] = useState<MtLeavesResponse | undefined>(undefined)
   const [isAccountLoaded, setIsAccountLoaded] = useState(false)
+  const [isLoadingAccount, setIsLoadingAccount] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   const memoizedState = useDeepMemo(state, controller)
 
@@ -177,18 +189,18 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
 
   const fetchMtData = useCallback(async () => {
     try {
-      const firstChainInfo = memoizedState.chainData?.[11155111]
+      const firstChainInfo = memoizedState.chainData?.[chainId]
       if (!firstChainInfo?.poolInfo?.length) throw new Error('No pool information found')
 
       const firstPool = firstChainInfo.poolInfo[0]
       const { aspUrl } = firstChainInfo
       const scope = firstPool.scope.toString()
 
-      console.log('Fetching MT data for:', { aspUrl, scope, chainId: 11155111 })
+      console.log('Fetching MT data for:', { aspUrl, scope, chainId })
 
       const [rootsData, leavesData] = await Promise.all([
-        aspClient.fetchMtRoots(aspUrl, 11155111, scope),
-        aspClient.fetchMtLeaves(aspUrl, 11155111, scope)
+        aspClient.fetchMtRoots(aspUrl, chainId, scope),
+        aspClient.fetchMtLeaves(aspUrl, chainId, scope)
       ])
 
       setMtRoots(rootsData)
@@ -209,7 +221,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       if (!mtLeaves) throw new Error('Merkle tree data not loaded.')
       if (!secrets) throw new Error('Secrets not provided.')
 
-      const firstChainInfo = memoizedState.chainData?.[11155111]
+      const firstChainInfo = memoizedState.chainData?.[chainId]
       if (!firstChainInfo?.poolInfo?.[0]) throw new Error('No pool information found.')
 
       const firstPool = firstChainInfo.poolInfo[0]
@@ -228,7 +240,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       // Get pool accounts
       const { poolAccounts: poolAccountFromAccount } = await getPoolAccountsFromAccount(
         accountServiceResult.account.account,
-        11155111
+        chainId
       )
 
       if (!poolAccountFromAccount) throw new Error('No pool accounts found.')
@@ -238,7 +250,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
         poolAccountFromAccount,
         mtLeaves,
         aspUrl,
-        11155111,
+        chainId,
         scope
       )
 
@@ -247,6 +259,44 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
     },
     [dataService, mtLeaves, memoizedState.chainData, memoizedState.pools]
   )
+
+  const isReadyToLoad = useMemo(
+    () => Boolean(mtLeaves && mtRoots && memoizedState.chainData),
+    [mtLeaves, mtRoots, memoizedState.chainData]
+  )
+
+  const loadPrivateAccount = useCallback(async () => {
+    if (isAccountLoaded) return
+    if (!isReadyToLoad) throw new Error('Privacy Pools data not ready yet')
+
+    try {
+      const secrets = await getPrivateAccount()
+      await loadAccount(secrets)
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to load private account. Please try again.'
+      throw new Error(errorMessage)
+    }
+  }, [isAccountLoaded, isReadyToLoad, loadAccount])
+
+  const refreshPrivateAccount = useCallback(async () => {
+    try {
+      setIsRefreshing(true)
+      setIsAccountLoaded(false)
+      setIsLoadingAccount(true)
+
+      const secrets = await getPrivateAccount()
+      await loadAccount(secrets)
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to refresh account. Please try again.'
+      throw new Error(errorMessage)
+    } finally {
+      setIsLoadingAccount(false)
+      setIsAccountLoaded(true)
+      setIsRefreshing(false)
+    }
+  }, [loadAccount])
 
   const generateRagequitProof = useCallback(
     async (commitment: AccountCommitment): Promise<CommitmentProof> => {
@@ -397,7 +447,13 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       poolAccounts,
       selectedPoolAccount,
       isAccountLoaded,
+      isLoadingAccount,
+      isRefreshing,
+      chainId,
+      isReadyToLoad,
       loadAccount,
+      loadPrivateAccount,
+      refreshPrivateAccount,
       setIsAccountLoaded,
       generateRagequitProof,
       verifyRagequitProof,
@@ -417,7 +473,13 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       poolAccounts,
       selectedPoolAccount,
       isAccountLoaded,
+      isLoadingAccount,
+      isRefreshing,
+      chainId,
+      isReadyToLoad,
       loadAccount,
+      loadPrivateAccount,
+      refreshPrivateAccount,
       setIsAccountLoaded,
       generateRagequitProof,
       verifyRagequitProof,

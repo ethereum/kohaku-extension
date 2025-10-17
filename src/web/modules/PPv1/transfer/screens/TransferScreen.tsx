@@ -40,6 +40,7 @@ const TransferScreen = () => {
   const { dispatch } = useBackgroundService()
   const {
     totalApprovedBalance,
+    chainId,
     handleUpdateForm,
     handleMultipleWithdrawal,
     refreshPrivateAccount
@@ -128,11 +129,15 @@ const TransferScreen = () => {
   const explorerLink = useMemo(() => {
     if (!submittedAccountOp) return
 
-    const { chainId, identifiedBy, txnId } = submittedAccountOp
+    const { chainId: submittedChainId, identifiedBy, txnId } = submittedAccountOp
 
-    if (!chainId || !identifiedBy || !txnId) return
+    if (!submittedChainId || !identifiedBy || !txnId) return
 
-    return `https://explorer.ambire.com/${getBenzinUrlParams({ chainId, txnId, identifiedBy })}`
+    return `https://explorer.ambire.com/${getBenzinUrlParams({
+      chainId: submittedChainId,
+      txnId,
+      identifiedBy
+    })}`
   }, [submittedAccountOp])
 
   useEffect(() => {
@@ -370,6 +375,7 @@ const TransferScreen = () => {
             controllerAmount={withdrawalAmount}
             totalApprovedBalance={totalApprovedBalance}
             updateQuoteStatus={updateQuoteStatus}
+            chainId={BigInt(chainId)}
           />
         </Form>
       </Content>

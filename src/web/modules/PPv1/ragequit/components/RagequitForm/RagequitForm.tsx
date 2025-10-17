@@ -18,12 +18,14 @@ function RagequitForm({
   poolInfo,
   totalPendingBalance,
   totalDeclinedBalance,
-  ethPrice
+  ethPrice,
+  chainId
 }: {
   poolInfo?: PoolInfo
   totalPendingBalance: { total: bigint; accounts: PoolAccount[] }
   totalDeclinedBalance: { total: bigint; accounts: PoolAccount[] }
   ethPrice: number
+  chainId: bigint
 }) {
   const { t } = useTranslation()
 
@@ -151,7 +153,7 @@ function RagequitForm({
           >
             <View style={[flexbox.directionRow, flexbox.alignCenter, { flex: 2 }]}>
               <TokenIcon
-                chainId={11155111n}
+                chainId={chainId}
                 address={zeroAddress}
                 width={40}
                 height={40}
