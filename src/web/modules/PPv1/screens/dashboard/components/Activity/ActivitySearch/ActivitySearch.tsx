@@ -100,11 +100,7 @@ const ActivitySearch = ({
               >
                 {/* Filter indicator - always visible when filter is active */}
                 {filterType !== 'all' && (
-                  <Text
-                    fontSize={11}
-                    weight="medium"
-                    color={theme.secondaryText}
-                  >
+                  <Text fontSize={11} weight="medium" color={theme.secondaryText}>
                     ({filterType})
                   </Text>
                 )}
@@ -115,7 +111,9 @@ const ActivitySearch = ({
                     height: clearSearchIconSize
                   }}
                 >
-                  {!!value && <CloseIcon width={clearSearchIconSize} height={clearSearchIconSize} />}
+                  {!!value && (
+                    <CloseIcon width={clearSearchIconSize} height={clearSearchIconSize} />
+                  )}
                 </View>
               </View>
             }

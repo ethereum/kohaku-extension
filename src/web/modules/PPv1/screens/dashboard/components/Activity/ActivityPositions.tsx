@@ -318,6 +318,12 @@ const ActivityPositions: FC<Props> = ({
     return result
   }, [accountsOps, sessionId, filteredActivityItems, initTab?.activity, filterType])
 
+  // Hide the entire Activity component when not on the activity tab
+  // This prevents ActivityFilter from showing on other tabs
+  if (openTab !== 'activity') {
+    return null
+  }
+
   return (
     <>
       <ActivityFilter
