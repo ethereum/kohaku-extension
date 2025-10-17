@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect } from 'react'
 import { View } from 'react-native'
 
-import AmbireLogo from '@common/assets/svg/AmbireLogo'
 import Button from '@common/components/Button'
 import Panel from '@common/components/Panel'
 import Text from '@common/components/Text'
@@ -21,6 +20,7 @@ import { TAB_CONTENT_WIDTH } from '@web/constants/spacings'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useWalletStateController from '@web/hooks/useWalletStateController'
 import PinExtension from '@web/modules/auth/components/PinExtension'
+import KohakuLogo from '@common/components/HokahuLogo'
 
 export const CARD_WIDTH = 400
 
@@ -51,18 +51,18 @@ const OnboardingCompletedScreen = () => {
             <View style={[flexbox.flex1, flexbox.alignCenter, spacings.pt3Xl]}>
               <View style={[flexbox.alignCenter, flexbox.justifyCenter]}>
                 <ConfettiAnimation width={TAB_CONTENT_WIDTH} height={380} autoPlay={false} />
-                <AmbireLogo height={96} withWrapper />
+                <KohakuLogo width={96} height={80} />
               </View>
               <Text
                 style={[spacings.mtLg, spacings.mb, text.center]}
                 weight="semiBold"
                 fontSize={20}
               >
-                {t('Ambire Wallet is ready to use')}
+                {t('Kohaku Wallet is ready to use')}
               </Text>
               {!isPinned ? (
                 <Text appearance="secondaryText" weight="medium" style={[text.center]}>
-                  {t('Pin the Ambire Extension to your toolbar for easy access.')}
+                  {t('Pin the Kohaku Extension to your toolbar for easy access.')}
                 </Text>
               ) : (
                 <Text appearance="secondaryText" weight="medium" style={[text.center]}>
