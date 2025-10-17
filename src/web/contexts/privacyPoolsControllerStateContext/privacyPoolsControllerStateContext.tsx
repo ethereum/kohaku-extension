@@ -79,7 +79,6 @@ type EnhancedPrivacyPoolsControllerState = {
   selectedPoolAccount: PoolAccount | null
   poolAccounts: PoolAccount[]
   isAccountLoaded: boolean
-  isLoadingSeedPhrase: boolean
   isLoadingAccount: boolean
   isRefreshing: boolean
   isReadyToLoad: boolean
@@ -168,7 +167,6 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   const [mtRoots, setMtRoots] = useState<MtRootResponse | undefined>(undefined)
   const [mtLeaves, setMtLeaves] = useState<MtLeavesResponse | undefined>(undefined)
   const [isAccountLoaded, setIsAccountLoaded] = useState(false)
-  const [isLoadingSeedPhrase, setIsLoadingSeedPhrase] = useState(false)
   const [isLoadingAccount, setIsLoadingAccount] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -272,16 +270,12 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
     if (!isReadyToLoad) throw new Error('Privacy Pools data not ready yet')
 
     try {
-      setIsLoadingSeedPhrase(true)
-
       const secrets = await getPrivateAccount()
       await loadAccount(secrets)
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to load private account. Please try again.'
       throw new Error(errorMessage)
-    } finally {
-      setIsLoadingSeedPhrase(false)
     }
   }, [isAccountLoaded, isReadyToLoad, loadAccount])
 
@@ -453,7 +447,6 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       poolAccounts,
       selectedPoolAccount,
       isAccountLoaded,
-      isLoadingSeedPhrase,
       isLoadingAccount,
       isRefreshing,
       chainId,
@@ -480,7 +473,6 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       poolAccounts,
       selectedPoolAccount,
       isAccountLoaded,
-      isLoadingSeedPhrase,
       isLoadingAccount,
       isRefreshing,
       chainId,

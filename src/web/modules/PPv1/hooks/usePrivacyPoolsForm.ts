@@ -30,7 +30,6 @@ const usePrivacyPoolsForm = () => {
     signAccountOpController,
     latestBroadcastedAccountOp,
     isAccountLoaded,
-    isLoadingSeedPhrase,
     isLoadingAccount,
     isRefreshing,
     isReadyToLoad,
@@ -280,8 +279,6 @@ const usePrivacyPoolsForm = () => {
     userAccount?.addr
   ])
 
-  const isLoading = isLoadingSeedPhrase || isLoadingAccount
-
   // Update controller with calculated batchSize whenever it changes
   useEffect(() => {
     handleUpdateForm({ batchSize: calculatedBatchSize })
@@ -439,13 +436,12 @@ const usePrivacyPoolsForm = () => {
     depositAmount,
     accountService,
     withdrawalAmount,
-    isLoadingAccount,
     showAddedToBatch,
     estimationModalRef,
     selectedPoolAccount,
     signAccountOpController,
     latestBroadcastedAccountOp,
-    isLoading,
+    isLoading: isLoadingAccount,
     isRefreshing,
     isAccountLoaded,
     totalApprovedBalance,
