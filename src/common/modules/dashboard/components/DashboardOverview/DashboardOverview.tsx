@@ -146,11 +146,7 @@ const DashboardOverview: FC<Props> = ({
             })
           }}
         >
-          <Gradients
-            width={dashboardOverviewSize.width}
-            height={dashboardOverviewSize.height}
-            selectedAccount={account?.addr || null}
-          />
+          <Gradients width={dashboardOverviewSize.width} height={dashboardOverviewSize.height} />
           <View style={{ zIndex: 2 }}>
             <DashboardHeader />
             <Animated.View

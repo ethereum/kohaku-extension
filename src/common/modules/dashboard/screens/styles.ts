@@ -9,7 +9,7 @@ interface Style {
 
 export const NEUTRAL_BACKGROUND = '#1418333D'
 export const NEUTRAL_BACKGROUND_HOVERED = '#14183352'
-export const DASHBOARD_OVERVIEW_BACKGROUND = '#353d6e'
+export const DASHBOARD_OVERVIEW_BACKGROUND = '#000000'
 
 const getStyles = (theme: ThemeProps) =>
   StyleSheet.create<Style>({

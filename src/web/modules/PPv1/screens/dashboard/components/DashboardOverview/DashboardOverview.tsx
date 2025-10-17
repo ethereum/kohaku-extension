@@ -54,7 +54,7 @@ const DashboardOverview: FC<Props> = ({
   const { t } = useTranslation()
   const { theme, styles, themeType } = useTheme(getStyles)
   const { isOffline } = useMainControllerState()
-  const { account, portfolio } = useSelectedAccountControllerState()
+  const { portfolio } = useSelectedAccountControllerState()
   const {
     isLoading,
     isAccountLoaded,
@@ -130,11 +130,7 @@ const DashboardOverview: FC<Props> = ({
             })
           }}
         >
-          <Gradients
-            width={dashboardOverviewSize.width}
-            height={dashboardOverviewSize.height}
-            selectedAccount={account?.addr || null}
-          />
+          <Gradients width={dashboardOverviewSize.width} height={dashboardOverviewSize.height} />
           <View style={{ zIndex: 2 }}>
             <DashboardHeader />
             <Animated.View
