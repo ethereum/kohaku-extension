@@ -74,7 +74,7 @@ const ThemeColors = {
   },
   tertiaryBackground: {
     [THEME_TYPES.DARK]: '#2A2A2A',
-    [THEME_TYPES.LIGHT]: '#F5F2E0'
+    [THEME_TYPES.LIGHT]: '#9E9E9F'
   },
   quaternaryBackground: {
     [THEME_TYPES.DARK]: '#FFFFFF20',
