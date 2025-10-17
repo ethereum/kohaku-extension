@@ -42,7 +42,10 @@ import { getPoolAccountsFromAccount, processDeposits } from '@web/modules/PPv1/u
 import type { PrivacyPoolsController } from '@ambire-common/controllers/privacyPools/privacyPools'
 import { aspClient, MtLeavesResponse, MtRootResponse } from '@web/modules/PPv1/utils/aspClient'
 import { Hex } from 'viem'
-import { storeFirstPrivateAccount } from '@web/modules/PPv1/sdk/misc'
+import {
+  storeFirstPrivateAccount,
+  loadPrivateAccount as getPrivateAccount
+} from '@web/modules/PPv1/sdk/misc'
 
 export enum ReviewStatus {
   PENDING = 'pending',
@@ -76,8 +79,14 @@ type EnhancedPrivacyPoolsControllerState = {
   selectedPoolAccount: PoolAccount | null
   poolAccounts: PoolAccount[]
   isAccountLoaded: boolean
+  isLoadingSeedPhrase: boolean
+  isLoadingAccount: boolean
+  isRefreshing: boolean
+  isReadyToLoad: boolean
   setIsAccountLoaded: Dispatch<SetStateAction<boolean>>
   loadAccount: (secrets: { masterNullifierSeed: Hex; masterSecretSeed: Hex }) => Promise<void>
+  loadPrivateAccount: () => Promise<void>
+  refreshPrivateAccount: () => Promise<void>
   generateRagequitProof: (commitment: AccountCommitment) => Promise<CommitmentProof>
   verifyRagequitProof: (commitment: CommitmentProof) => Promise<boolean>
   generateWithdrawalProof: (
@@ -159,6 +168,9 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   const [mtRoots, setMtRoots] = useState<MtRootResponse | undefined>(undefined)
   const [mtLeaves, setMtLeaves] = useState<MtLeavesResponse | undefined>(undefined)
   const [isAccountLoaded, setIsAccountLoaded] = useState(false)
+  const [isLoadingSeedPhrase, setIsLoadingSeedPhrase] = useState(false)
+  const [isLoadingAccount, setIsLoadingAccount] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   const memoizedState = useDeepMemo(state, controller)
 
@@ -249,6 +261,48 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
     },
     [dataService, mtLeaves, memoizedState.chainData, memoizedState.pools]
   )
+
+  const isReadyToLoad = useMemo(
+    () => Boolean(mtLeaves && mtRoots && memoizedState.chainData),
+    [mtLeaves, mtRoots, memoizedState.chainData]
+  )
+
+  const loadPrivateAccount = useCallback(async () => {
+    if (isAccountLoaded) return
+    if (!isReadyToLoad) throw new Error('Privacy Pools data not ready yet')
+
+    try {
+      setIsLoadingSeedPhrase(true)
+
+      const secrets = await getPrivateAccount()
+      await loadAccount(secrets)
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to load private account. Please try again.'
+      throw new Error(errorMessage)
+    } finally {
+      setIsLoadingSeedPhrase(false)
+    }
+  }, [isAccountLoaded, isReadyToLoad, loadAccount])
+
+  const refreshPrivateAccount = useCallback(async () => {
+    try {
+      setIsRefreshing(true)
+      setIsAccountLoaded(false)
+      setIsLoadingAccount(true)
+
+      const secrets = await getPrivateAccount()
+      await loadAccount(secrets)
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to refresh account. Please try again.'
+      throw new Error(errorMessage)
+    } finally {
+      setIsLoadingAccount(false)
+      setIsAccountLoaded(true)
+      setIsRefreshing(false)
+    }
+  }, [loadAccount])
 
   const generateRagequitProof = useCallback(
     async (commitment: AccountCommitment): Promise<CommitmentProof> => {
@@ -399,8 +453,14 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       poolAccounts,
       selectedPoolAccount,
       isAccountLoaded,
+      isLoadingSeedPhrase,
+      isLoadingAccount,
+      isRefreshing,
       chainId,
+      isReadyToLoad,
       loadAccount,
+      loadPrivateAccount,
+      refreshPrivateAccount,
       setIsAccountLoaded,
       generateRagequitProof,
       verifyRagequitProof,
@@ -420,8 +480,14 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       poolAccounts,
       selectedPoolAccount,
       isAccountLoaded,
+      isLoadingSeedPhrase,
+      isLoadingAccount,
+      isRefreshing,
       chainId,
+      isReadyToLoad,
       loadAccount,
+      loadPrivateAccount,
+      refreshPrivateAccount,
       setIsAccountLoaded,
       generateRagequitProof,
       verifyRagequitProof,

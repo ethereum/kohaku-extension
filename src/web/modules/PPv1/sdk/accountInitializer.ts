@@ -75,27 +75,6 @@ function createAccountFromSecrets(secrets: {
  *
  * @throws {AccountError} If account state reconstruction fails or if duplicate pools are found
  *
- * @example
- * ```typescript
- * // Initialize with secrets
- * const result = await initializeAccountWithEvents(
- *   dataService,
- *   {
- *     secrets: {
- *       masterNullifierSeed: '0x...',
- *       masterSecretSeed: '0x...'
- *     }
- *   },
- *   pools
- * )
- *
- * // Initialize with mnemonic
- * const result = await initializeAccountWithEvents(
- *   dataService,
- *   { mnemonic: 'your mnemonic phrase here' },
- *   pools
- * )
- * ```
  */
 export async function initializeAccountWithEvents(
   dataService: DataService,
@@ -113,4 +92,107 @@ export async function initializeAccountWithEvents(
   const accountWithKeys = createAccountFromSecrets(source.secrets)
   const result = new AccountService(dataService, { account: accountWithKeys })
   return AccountService.initializeWithEvents(dataService, { service: result }, pools)
+}
+
+export function getLatestPoolAccountBlock(accountService: AccountService): bigint | undefined {
+  const account = accountService.account
+
+  // Collect all block numbers from all pool accounts
+  const allBlockNumbers: bigint[] = Array.from(account.poolAccounts.values()).flatMap(
+    (poolAccountsArray) =>
+      poolAccountsArray.flatMap((poolAccount) => {
+        const blockNumbers: bigint[] = []
+
+        // Add deposit block number
+        if (poolAccount.deposit?.blockNumber) {
+          blockNumbers.push(poolAccount.deposit.blockNumber)
+        }
+
+        // Add all children commitment block numbers
+        if (poolAccount.children && poolAccount.children.length > 0) {
+          poolAccount.children.forEach((child) => {
+            if (child.blockNumber) {
+              blockNumbers.push(child.blockNumber)
+            }
+          })
+        }
+
+        // Add ragequit block number if it exists
+        if (poolAccount.ragequit?.blockNumber) {
+          blockNumbers.push(poolAccount.ragequit.blockNumber)
+        }
+
+        return blockNumbers
+      })
+  )
+
+  // Return the maximum block number or undefined if no blocks exist
+  if (allBlockNumbers.length === 0) return undefined
+
+  return allBlockNumbers.reduce((max, current) => (current > max ? current : max))
+}
+
+export function serializeForStorage<T>(data: T): string {
+  try {
+    return JSON.stringify(data, (_key, value) => {
+      // Handle bigint
+      if (typeof value === 'bigint') {
+        return { __type: 'bigint', value: value.toString() }
+      }
+      // Handle Map
+      if (value instanceof Map) {
+        return {
+          __type: 'Map',
+          value: Array.from(value.entries())
+        }
+      }
+      // Handle Set
+      if (value instanceof Set) {
+        return {
+          __type: 'Set',
+          value: Array.from(value)
+        }
+      }
+      return value
+    })
+  } catch (error) {
+    throw new Error(
+      `Failed to serialize data: ${error instanceof Error ? error.message : 'Unknown error'}`
+    )
+  }
+}
+
+export function deserializeFromStorage<T>(serialized: string): T {
+  if (!serialized) {
+    throw new Error('Cannot deserialize empty or null string')
+  }
+
+  try {
+    return JSON.parse(serialized, (_key, value) => {
+      // Handle null and undefined
+      if (value === null || value === undefined) {
+        return value
+      }
+
+      // Check if it's a special type object
+      if (typeof value === 'object' && value.__type) {
+        switch (value.__type) {
+          case 'bigint':
+            return BigInt(value.value)
+          case 'Map':
+            return new Map(value.value)
+          case 'Set':
+            return new Set(value.value)
+          default:
+            return value
+        }
+      }
+
+      return value
+    })
+  } catch (error) {
+    throw new Error(
+      `Failed to deserialize data: ${error instanceof Error ? error.message : 'Unknown error'}`
+    )
+  }
 }

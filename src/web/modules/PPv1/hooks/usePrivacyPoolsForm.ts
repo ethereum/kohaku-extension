@@ -12,7 +12,6 @@ import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountCont
 import { prepareWithdrawalProofInput, transformProofForRelayerApi } from '../utils/withdrawal'
 import { transformRagequitProofForContract } from '../utils/ragequit'
 import { entrypointAbi, privacyPoolAbi } from '../utils/abi'
-import { loadPrivateAccount as getPrivateAccount } from '../sdk/misc'
 
 const usePrivacyPoolsForm = () => {
   const { dispatch } = useBackgroundService()
@@ -31,11 +30,15 @@ const usePrivacyPoolsForm = () => {
     signAccountOpController,
     latestBroadcastedAccountOp,
     isAccountLoaded,
+    isLoadingSeedPhrase,
+    isLoadingAccount,
+    isRefreshing,
+    isReadyToLoad,
     recipientAddress,
-    setIsAccountLoaded,
     relayerQuote,
     getContext,
-    loadAccount,
+    loadPrivateAccount,
+    refreshPrivateAccount,
     getMerkleProof,
     createDepositSecrets,
     generateRagequitProof,
@@ -47,8 +50,6 @@ const usePrivacyPoolsForm = () => {
 
   const { account: userAccount, portfolio } = useSelectedAccountControllerState()
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [isLoadingSeedPhrase, setIsLoadingSeedPhrase] = useState(false)
-  const [isLoadingAccount, setIsLoadingAccount] = useState(false)
   const [ragequitLoading, setRagequitLoading] = useState<Record<string, boolean>>({})
   const [showAddedToBatch] = useState(false)
 
@@ -129,14 +130,6 @@ const usePrivacyPoolsForm = () => {
     close: closeEstimationModal
   } = useModalize()
 
-  const [isRefreshing, setIsRefreshing] = useState(false)
-
-  // Ready to load when Merkle data and chain data are present
-  const isReadyToLoad = useMemo(
-    () => Boolean(mtLeaves && mtRoots && chainData),
-    [mtLeaves, mtRoots, chainData]
-  )
-
   const handleUpdateForm = useCallback(
     (params: { [key: string]: any }) => {
       dispatch({
@@ -158,29 +151,6 @@ const usePrivacyPoolsForm = () => {
     },
     [dispatch]
   )
-
-  const refreshPrivateAccount = useCallback(async () => {
-    try {
-      setIsRefreshing(true)
-      setIsAccountLoaded(false)
-      setMessage(null)
-      setIsLoadingAccount(true)
-
-      const secrets = await getPrivateAccount()
-
-      await loadAccount(secrets)
-      setRagequitLoading({})
-      setMessage({ type: 'success', text: 'Account refreshed successfully!' })
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to refresh account. Please try again.'
-      setMessage({ type: 'error', text: errorMessage })
-    } finally {
-      setIsLoadingAccount(false)
-      setIsAccountLoaded(true)
-      setIsRefreshing(false)
-    }
-  }, [setIsAccountLoaded, loadAccount])
 
   const handleSelectedAccount = (poolAccount: PoolAccount) => {
     setSelectedPoolAccount((prevState) => {
@@ -309,27 +279,6 @@ const usePrivacyPoolsForm = () => {
     openEstimationModalAndDispatch,
     userAccount?.addr
   ])
-
-  const loadPrivateAccount = useCallback(async () => {
-    if (isAccountLoaded) return
-    if (!isReadyToLoad) throw new Error('Privacy Pools data not ready yet')
-
-    try {
-      setIsLoadingSeedPhrase(true)
-      setMessage(null)
-
-      const secrets = await getPrivateAccount()
-      await loadAccount(secrets)
-
-      setMessage({ type: 'success', text: 'Private account loaded successfully!' })
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to load private account. Please try again.'
-      setMessage({ type: 'error', text: errorMessage })
-    } finally {
-      setIsLoadingSeedPhrase(false)
-    }
-  }, [isAccountLoaded, isReadyToLoad, loadAccount])
 
   const isLoading = isLoadingSeedPhrase || isLoadingAccount
 
@@ -504,6 +453,7 @@ const usePrivacyPoolsForm = () => {
     totalDeclinedBalance,
     totalPrivatePortfolio,
     ethPrivateBalance,
+    isReadyToLoad,
     handleDeposit,
     handleMultipleRagequit,
     handleMultipleWithdrawal,
@@ -512,8 +462,7 @@ const usePrivacyPoolsForm = () => {
     closeEstimationModal,
     handleSelectedAccount,
     loadPrivateAccount,
-    refreshPrivateAccount,
-    isReadyToLoad
+    refreshPrivateAccount
   }
 }
 
