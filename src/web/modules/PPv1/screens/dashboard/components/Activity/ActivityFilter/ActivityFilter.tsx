@@ -12,6 +12,7 @@ import ActivitySearch from '../ActivitySearch'
 import { ActivityFilterType } from '../types'
 
 import getStyles from './styles'
+import spacings from '@common/styles/spacings'
 
 interface Props {
   openTab: TabType
@@ -37,6 +38,8 @@ const ActivityFilter: FC<Props> = ({
     <View style={styles.container}>
       <View
         style={[
+          spacings.plSm,
+          spacings.prSm,
           flexbox.directionRow,
           flexbox.justifySpaceBetween,
           flexbox.alignCenter,

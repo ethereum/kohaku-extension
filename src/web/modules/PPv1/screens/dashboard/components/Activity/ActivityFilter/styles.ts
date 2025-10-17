@@ -18,7 +18,8 @@ const getStyles = (theme: ThemeProps) =>
       ...flexbox.directionRow,
       ...flexbox.justifySpaceBetween,
       ...flexbox.alignCenter,
-      ...spacings.mb,
+      ...spacings.mbMi,
+      ...spacings.mtTy,
       zIndex: 1000,
       // @ts-ignore - overflow is web only
       overflow: 'visible'
