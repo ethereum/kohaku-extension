@@ -4,7 +4,6 @@ import { View } from 'react-native'
 import { isSmartAccount } from '@ambire-common/libs/account/account'
 import shortenAddress from '@ambire-common/utils/shortenAddress'
 import CopyIcon from '@common/assets/svg/CopyIcon'
-import AmbireLogoHorizontalWithOG from '@common/components/AmbireLogoHorizontalWithOG'
 import Avatar from '@common/components/Avatar'
 import Text from '@common/components/Text'
 import useTheme from '@common/hooks/useTheme'
@@ -25,6 +24,7 @@ import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountCont
 import { getUiType } from '@web/utils/uiType'
 import { useTranslation } from 'react-i18next'
 
+import HokahuLogo from '@common/components/HokahuLogo'
 import getStyles from './styles'
 
 const { isTab } = getUiType()
@@ -115,7 +115,7 @@ const Wrapper: FC<WrapperProps> = ({ children, title, buttons }) => {
               </Text>
             )}
             <View style={[styles.headerSideContainer, { alignItems: 'flex-end' }]}>
-              <AmbireLogoHorizontalWithOG />
+              <HokahuLogo width={72} />
             </View>
           </View>
         </Header>
