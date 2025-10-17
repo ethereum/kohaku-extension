@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Image, ImageProps, View, ViewStyle } from 'react-native'
 
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
+import PrivacyPoolsIcon from '@web/assets/privacy-pools-icon.png'
 
 import useBenzinNetworksContext from '@benzin/hooks/useBenzinNetworksContext'
 import MissingTokenIcon from '@common/assets/svg/MissingTokenIcon'
@@ -158,12 +159,11 @@ const TokenIcon: React.FC<Props> = ({
             networkWrapperStyle
           ]}
         >
-          {/* Privacy Pools badge - grey square for now */}
-          <View
+          <Image
+            source={{ uri: PrivacyPoolsIcon }}
             style={{
               width: networkSize,
               height: networkSize,
-              backgroundColor: theme.secondaryText,
               borderRadius: networkSize / 2,
               borderWidth: 1,
               borderColor: theme.primaryBackground
