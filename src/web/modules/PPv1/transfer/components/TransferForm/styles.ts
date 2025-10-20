@@ -1,17 +1,25 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet, ViewStyle } from 'react-native'
+import { ThemeProps } from '@common/styles/themeConfig'
 
-const styles = StyleSheet.create({
-  container: {
-    paddingBottom: 12
-  },
-  disclaimer: {
-    padding: 2,
-    borderRadius: 9,
-    backgroundColor: '#E6E1FA'
-  },
-  disclaimerText: {
-    color: '#A078FC'
-  }
-})
+type Style = {
+  container: ViewStyle
+  disclaimer: ViewStyle
+  disclaimerText: ViewStyle
+}
 
-export default styles
+const getStyles = (theme: ThemeProps) =>
+  StyleSheet.create<Style>({
+    container: {
+      paddingBottom: 0
+    },
+    disclaimer: {
+      padding: 2,
+      borderRadius: 9,
+      backgroundColor: theme.tertiaryBackground
+    },
+    disclaimerText: {
+      color: theme.primaryText
+    }
+  })
+
+export default getStyles
