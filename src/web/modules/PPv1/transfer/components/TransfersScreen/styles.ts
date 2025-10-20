@@ -23,7 +23,7 @@ const getStyles = (theme: ThemeProps, themeType: ThemeType) =>
     form: {
       ...spacings.ph,
       ...spacings.pb,
-      ...spacings.ptMd,
+      ...spacings.pt,
       ...spacings.mbTy,
       borderRadius: 12,
       backgroundColor: theme.primaryBackground,
