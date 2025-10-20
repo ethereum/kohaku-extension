@@ -144,7 +144,7 @@ const TransferForm = ({
             }
           ]}
           fromTokenValue={{
-            label: `ETH (${ethBalance ? formatEther(ethBalance) : '0'})`,
+            label: 'ETH',
             value: 'eth',
             icon: ethTokenIcon
           }}
