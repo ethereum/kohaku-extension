@@ -10,7 +10,7 @@ type Style = {
 const getStyles = (theme: ThemeProps) =>
   StyleSheet.create<Style>({
     container: {
-      paddingBottom: 12
+      paddingBottom: 0
     },
     disclaimer: {
       padding: 2,

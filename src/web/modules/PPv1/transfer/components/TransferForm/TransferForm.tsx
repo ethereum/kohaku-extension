@@ -230,7 +230,7 @@ const TransferForm = ({
         </View>
       </View>
 
-      <View style={spacings.mbLg}>
+      <View style={spacings.mb0}>
         <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
           <Text appearance="secondaryText" fontSize={14} weight="light">
             {t('Recipient gets')}

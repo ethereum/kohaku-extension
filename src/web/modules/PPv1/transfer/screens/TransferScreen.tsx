@@ -13,7 +13,6 @@ import useAddressInput from '@common/hooks/useAddressInput'
 import useNavigation from '@common/hooks/useNavigation'
 import { ROUTES } from '@common/modules/router/constants/common'
 
-import { Content, Form } from '@web/components/TransactionsScreen'
 import useActivityControllerState from '@web/hooks/useActivityControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useSyncedState from '@web/hooks/useSyncedState'
@@ -31,7 +30,7 @@ import { View } from 'react-native'
 import flexbox from '@common/styles/utils/flexbox'
 import TransferForm from '../components/TransferForm/TransferForm'
 import usePrivacyPoolsForm from '../../hooks/usePrivacyPoolsForm'
-import { Wrapper } from '../../deposit/components/TransactionsScreen'
+import { Wrapper, Content, Form } from '../components/TransfersScreen'
 
 const { isActionWindow } = getUiType()
 
