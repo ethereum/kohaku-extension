@@ -34,7 +34,7 @@ const { isPopup } = getUiType()
 
 const ITEMS_PER_PAGE = 10
 
-const TransfersPositions: FC<Props> = ({
+const SendsPositions: FC<Props> = ({
   openTab,
   sessionId,
   setOpenTab,
@@ -52,7 +52,7 @@ const TransfersPositions: FC<Props> = ({
 
   useEffect(() => {
     // Optimization: Don't apply filtration if we are not on Transfers tab
-    if (!account?.addr || openTab !== 'transfers') return
+    if (!account?.addr || openTab !== 'sends') return
 
     dispatch({
       type: 'MAIN_CONTROLLER_ACTIVITY_SET_ACC_OPS_FILTERS',
@@ -185,7 +185,7 @@ const TransfersPositions: FC<Props> = ({
 
   return (
     <DashboardPageScrollContainer
-      tab="transfers"
+      tab="sends"
       openTab={openTab}
       data={[
         'header',
@@ -205,4 +205,4 @@ const TransfersPositions: FC<Props> = ({
   )
 }
 
-export default React.memo(TransfersPositions)
+export default React.memo(SendsPositions)

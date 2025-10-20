@@ -14,6 +14,8 @@ interface Props extends FlatListProps<any> {
   tab: TabType
   openTab: TabType
   animatedOverviewHeight: Animated.Value
+  resetScrollKey?: string
+  disableStickyHeader?: boolean
 }
 
 // We do this instead of unmounting the component to prevent component rerendering when switching tabs.
@@ -31,7 +33,7 @@ const getFlatListStyle = (tab: TabType, openTab: TabType, allBannersLength: numb
   spacings.ph0,
   commonWebStyles.contentContainer,
   !allBannersLength && spacings.mtTy,
-  openTab !== tab ? HIDDEN_STYLE : {}
+  openTab !== tab ? HIDDEN_STYLE : { zIndex: 1 }
 ]
 
 const { isPopup } = getUiType()
@@ -40,6 +42,8 @@ const DashboardPageScrollContainer: FC<Props> = ({
   tab,
   openTab,
   animatedOverviewHeight,
+  resetScrollKey,
+  disableStickyHeader,
   ...rest
 }) => {
   const [hasScrollBar, setHasScrollBar] = useState(false)
@@ -81,6 +85,13 @@ const DashboardPageScrollContainer: FC<Props> = ({
     }
   }, [animatedOverviewHeight, openTab, tab])
 
+  // Scroll to top when resetScrollKey changes (e.g., when filter changes)
+  useEffect(() => {
+    if (!flatlistRef.current || !resetScrollKey) return
+
+    flatlistRef.current?.scrollToOffset({ offset: 0, animated: false })
+  }, [resetScrollKey])
+
   const handleContentSizeChange = useCallback((contentWidth: number) => {
     const windowWidth = Dimensions.get('window').width
 
@@ -94,8 +105,8 @@ const DashboardPageScrollContainer: FC<Props> = ({
       ref={flatlistRef}
       style={style}
       contentContainerStyle={contentContainerStyle}
-      stickyHeaderIndices={[1]} // Makes the header sticky
-      removeClippedSubviews
+      stickyHeaderIndices={disableStickyHeader ? [] : [0]} // Makes the header sticky (first item at index 0)
+      removeClippedSubviews={false} // Disable to fix z-index issues with dropdowns
       bounces={false}
       alwaysBounceVertical={false}
       onContentSizeChange={handleContentSizeChange}

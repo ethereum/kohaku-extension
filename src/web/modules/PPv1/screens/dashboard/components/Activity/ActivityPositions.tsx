@@ -1,6 +1,7 @@
-import React, { FC, useCallback, useEffect } from 'react'
+import React, { FC, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Animated, FlatListProps, View } from 'react-native'
+import { useForm } from 'react-hook-form'
 
 import shortenAddress from '@ambire-common/utils/shortenAddress'
 import Button from '@common/components/Button'
@@ -8,7 +9,8 @@ import Text from '@common/components/Text'
 import useTheme from '@common/hooks/useTheme'
 import ActivityPositionsSkeleton from '@web/modules/PPv1/screens/dashboard/components/Activity/ActivityPositionsSkeleton'
 import DashboardPageScrollContainer from '@web/modules/PPv1/screens/dashboard/components/DashboardPageScrollContainer'
-import TabsAndSearch from '@web/modules/PPv1/screens/dashboard/components/TabsAndSearch'
+import ActivityFilter from '@web/modules/PPv1/screens/dashboard/components/Activity/ActivityFilter'
+import { ActivityFilterType } from '@web/modules/PPv1/screens/dashboard/components/Activity/types'
 import { TabType } from '@web/modules/PPv1/screens/dashboard/components/TabsAndSearch/Tabs/Tab/Tab'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
@@ -17,6 +19,8 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import SubmittedTransactionSummary from '@web/modules/settings/components/TransactionHistory/SubmittedTransactionSummary'
 import { getUiType } from '@web/utils/uiType'
+import { humanizeAccountOp } from '@ambire-common/libs/humanizer'
+import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 
 import styles from './styles'
 
@@ -49,6 +53,28 @@ const ActivityPositions: FC<Props> = ({
   const { dispatch } = useBackgroundService()
   const { accountsOps } = useActivityControllerState()
   const { account, dashboardNetworkFilter } = useSelectedAccountControllerState()
+  const { networks } = useNetworksControllerState()
+
+  const [filterType, setFilterType] = useState<ActivityFilterType>('all')
+  const { control, watch } = useForm({
+    mode: 'all',
+    defaultValues: {
+      search: ''
+    }
+  })
+
+  const searchValue = watch('search')
+
+  // Debounce searchValue to avoid remounting FlatList on every keystroke
+  const [debouncedSearchValue, setDebouncedSearchValue] = useState('')
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchValue(searchValue)
+    }, 300) // 300ms delay
+
+    return () => clearTimeout(timer)
+  }, [searchValue])
 
   useEffect(() => {
     // Optimization: Don't apply filtration if we are not on Activity tab
@@ -72,16 +98,71 @@ const ActivityPositions: FC<Props> = ({
     })
   }, [openTab, account?.addr, dispatch, dashboardNetworkFilter, sessionId])
 
+  // Filter activity items based on filter type and search value
+  const filteredActivityItems = useMemo(() => {
+    if (!accountsOps?.[sessionId]?.result.items) return []
+
+    let items = [...accountsOps[sessionId].result.items] // Create a new array reference
+
+    // Filter by type (send/deposit)
+    if (filterType !== 'all') {
+      items = items.filter((item: any) => {
+        const network = networks.find((n) => n.chainId === item.chainId)
+        const humanizedCalls = humanizeAccountOp(item, { network })
+
+        const hasMatchingAction = humanizedCalls.some((call) => {
+          const actionElement = call.fullVisualization?.find((v) => v.type === 'action')
+          const actionType = actionElement?.content?.toLowerCase() || ''
+
+          if (filterType === 'send') {
+            const hasSend = actionType.includes('send')
+            const hasDeposit = actionType.includes('deposit')
+            const result = hasSend && !hasDeposit
+
+            return result
+          }
+
+          if (filterType === 'deposit') {
+            const hasDeposit = actionType.includes('deposit')
+            const hasReceive = actionType.includes('receive')
+            const result = hasDeposit || hasReceive
+            return result
+          }
+
+          return false // Don't match anything for unknown filter types
+        })
+
+        return hasMatchingAction
+      })
+    }
+
+    // Filter by search text (using debounced value)
+    if (debouncedSearchValue) {
+      items = items.filter((item: any) => {
+        const searchLower = debouncedSearchValue.toLowerCase()
+        const txnId = item.txnId?.toLowerCase() || ''
+        const status = item.status?.toLowerCase() || ''
+
+        const network = networks.find((n) => n.chainId === item.chainId)
+        const humanizedCalls = humanizeAccountOp(item, { network })
+
+        const hasMatchingAction = humanizedCalls.some((call) => {
+          const actionElement = call.fullVisualization?.find((v) => v.type === 'action')
+          const actionType = actionElement?.content?.toLowerCase() || ''
+          return actionType.includes(searchLower)
+        })
+
+        const matches =
+          txnId.includes(searchLower) || hasMatchingAction || status.includes(searchLower)
+        return matches
+      })
+    }
+
+    return items
+  }, [accountsOps, sessionId, filterType, debouncedSearchValue, networks])
+
   const renderItem = useCallback(
     ({ item }: any) => {
-      if (item === 'header') {
-        return (
-          <View style={{ backgroundColor: theme.primaryBackground }}>
-            <TabsAndSearch openTab={openTab} setOpenTab={setOpenTab} sessionId={sessionId} />
-          </View>
-        )
-      }
-
       if (item === 'empty') {
         return (
           <Text
@@ -100,7 +181,7 @@ const ActivityPositions: FC<Props> = ({
         )
       }
 
-      if (!initTab?.activity || !item || item === 'keep-this-to-avoid-key-warning') return null
+      if (!initTab?.activity || !item) return null
 
       if (item === 'skeleton') {
         return <ActivityPositionsSkeleton amount={4} />
@@ -160,6 +241,8 @@ const ActivityPositions: FC<Props> = ({
       openTab,
       setOpenTab,
       sessionId,
+      control,
+      filterType,
       t,
       account,
       dashboardNetworkFilter,
@@ -169,33 +252,67 @@ const ActivityPositions: FC<Props> = ({
     ]
   )
 
-  const keyExtractor = useCallback((positionOrElement: any) => {
-    if (typeof positionOrElement === 'string') return positionOrElement
+  const keyExtractor = useCallback(
+    (positionOrElement: any, index: number) => {
+      if (typeof positionOrElement === 'string') return `${positionOrElement}-${index}`
 
-    return positionOrElement.txnId
-  }, [])
+      // Include filterType in the key to force FlatList to treat items as new when filter changes
+      return `${filterType}-${positionOrElement.txnId}`
+    },
+    [filterType]
+  )
+
+  const dataArray = useMemo(() => {
+    const items = initTab?.activity ? filteredActivityItems : []
+    const skeleton = !accountsOps ? 'skeleton' : null
+    const emptyMessage = accountsOps?.[sessionId] && !filteredActivityItems.length ? 'empty' : null
+    const loadMore = 'load-more'
+    const result = []
+
+    if (skeleton) result.push(skeleton)
+    result.push(...items)
+    if (emptyMessage) result.push(emptyMessage)
+    result.push(loadMore)
+
+    return result
+  }, [accountsOps, sessionId, filteredActivityItems, initTab?.activity, filterType])
+
+  if (openTab !== 'activity') {
+    return null
+  }
 
   return (
-    <DashboardPageScrollContainer
-      tab="activity"
-      openTab={openTab}
-      data={[
-        'header',
-        !accountsOps ? 'skeleton' : 'keep-this-to-avoid-key-warning',
-        ...(initTab?.activity && accountsOps?.[sessionId]?.result.items.length
-          ? accountsOps[sessionId].result.items
-          : []),
-        accountsOps?.[sessionId] && !accountsOps[sessionId].result.items.length ? 'empty' : '',
-        'load-more'
-      ]}
-      renderItem={renderItem}
-      keyExtractor={keyExtractor}
-      onEndReachedThreshold={isPopup ? 5 : 2.5}
-      initialNumToRender={isPopup ? 10 : 20}
-      windowSize={9} // Larger values can cause performance issues.
-      onScroll={onScroll}
-      animatedOverviewHeight={animatedOverviewHeight}
-    />
+    <>
+      <ActivityFilter
+        openTab={openTab}
+        setOpenTab={setOpenTab}
+        sessionId={sessionId}
+        searchControl={control}
+        filterType={filterType}
+        setFilterType={setFilterType}
+        searchPlaceholder="Search activity..."
+      />
+      <DashboardPageScrollContainer
+        key={`activity-filter-${filterType}-search-${debouncedSearchValue}`}
+        tab="activity"
+        openTab={openTab}
+        data={dataArray}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        extraData={{
+          filterType,
+          debouncedSearchValue,
+          filteredCount: filteredActivityItems.length
+        }}
+        resetScrollKey={filterType}
+        disableStickyHeader
+        onEndReachedThreshold={isPopup ? 5 : 2.5}
+        initialNumToRender={isPopup ? 10 : 20}
+        windowSize={9} // Larger values can cause performance issues.
+        onScroll={onScroll}
+        animatedOverviewHeight={animatedOverviewHeight}
+      />
+    </>
   )
 }
 

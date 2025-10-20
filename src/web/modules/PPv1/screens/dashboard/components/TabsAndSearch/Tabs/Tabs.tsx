@@ -21,20 +21,25 @@ const TABS: {
   testID?: string
 }[] = [
   {
+    testID: 'tab-tokens',
+    type: 'tokens',
+    tabLabel: 'Tokens'
+  },
+  {
     testID: 'tab-activity',
     type: 'activity',
     tabLabel: 'Activity'
-  },
-  {
-    testID: 'tab-transfers',
-    type: 'transfers',
-    tabLabel: 'Transfers'
-  },
-  {
-    testID: 'tab-deposits',
-    type: 'deposits',
-    tabLabel: 'Deposits'
   }
+  // {
+  //   testID: 'tab-deposits',
+  //   type: 'deposits',
+  //   tabLabel: 'Deposits'
+  // },
+  // {
+  //   testID: 'tab-send',
+  //   type: 'sends',
+  //   tabLabel: 'Sends'
+  // }
 ]
 
 const Tabs: React.FC<Props> = ({ openTab, setOpenTab, handleChangeQuery }) => {

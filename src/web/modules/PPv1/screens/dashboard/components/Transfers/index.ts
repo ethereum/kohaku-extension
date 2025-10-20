@@ -1,3 +1,3 @@
-import TransfersPositions from './TransfersPositions'
+import SendsPositions from './SendsPositions'
 
-export default TransfersPositions
+export default SendsPositions
