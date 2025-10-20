@@ -15,6 +15,7 @@ import Failed from '@web/modules/sign-account-op/components/OneClick/TrackProgre
 import InProgress from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/InProgress'
 import useTrackAccountOp from '@web/modules/sign-account-op/hooks/OneClick/useTrackAccountOp'
 import { getUiType } from '@web/utils/uiType'
+import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
 import AddChainScreen from '../components/ImportForm'
 
 const { isActionWindow } = getUiType()
@@ -23,7 +24,7 @@ const ImportScreen = () => {
   const { dispatch } = useBackgroundService()
   const { state } = useTransferControllerState()
   const { latestBroadcastedAccountOp } = state
-
+  const { addImportedPrivateAccount, seedPhrase } = usePrivacyPoolsControllerState()
   const { navigate } = useNavigation()
   const { t } = useTranslation()
 
@@ -67,11 +68,10 @@ const ImportScreen = () => {
 
   const handleImportSecretNote = useCallback(async () => {
     setDisplayedView('track')
+    await addImportedPrivateAccount({ mnemonic: seedPhrase })
 
-    setTimeout(() => {
-      setTrackProgress(AccountOpStatus.Success)
-    }, 3000)
-  }, [setDisplayedView])
+    setTrackProgress(AccountOpStatus.Success)
+  }, [setDisplayedView, addImportedPrivateAccount, seedPhrase])
 
   const headerTitle = 'New Private Account'
 
@@ -90,16 +90,16 @@ const ImportScreen = () => {
         }}
       >
         {trackProgress === AccountOpStatus.Pending && (
-          <InProgress title={t('Generating your Privacy Pool account')}>
+          <InProgress title={t('Importing your Privacy Pool account')}>
             <Text fontSize={16} weight="medium" appearance="secondaryText">
-              {t('Deriving keys from your mnemonic...')}
+              {t('Fetching account deposit details...')}
             </Text>
           </InProgress>
         )}
         {(trackProgress === AccountOpStatus.Success ||
           trackProgress === AccountOpStatus.UnknownButPastNonce) && (
           <Completed
-            title={t('Account imported successfully!')}
+            title={t('Private account imported successfully!')}
             titleSecondary={t('Your Privacy Pool account is ready to use')}
             openExplorerText="View Transaction"
           />
