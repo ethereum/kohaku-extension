@@ -17,7 +17,8 @@ import { PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
 // import { getTokenId } from '@web/utils/token'
 
 import SendToken from '../SendToken'
-import styles from './styles'
+import getStyles from './styles'
+import useTheme from '@common/hooks/useTheme'
 
 const TransferForm = ({
   addressInputState,
@@ -65,6 +66,7 @@ const TransferForm = ({
   const { validation } = addressInputState
   const { account, portfolio } = useSelectedAccountControllerState()
   const { t } = useTranslation()
+  const { styles } = useTheme(getStyles)
 
   const ethBalance = totalApprovedBalance.total || 0n
 
