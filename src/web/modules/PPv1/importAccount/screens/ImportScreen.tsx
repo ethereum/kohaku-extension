@@ -68,10 +68,12 @@ const ImportScreen = () => {
   const handleImportSecretNote = useCallback(async () => {
     setDisplayedView('track')
 
-    setTrackProgress(AccountOpStatus.Success)
-  }, [setDisplayedView, setTrackProgress])
+    setTimeout(() => {
+      setTrackProgress(AccountOpStatus.Success)
+    }, 3000)
+  }, [setDisplayedView])
 
-  const headerTitle = 'Import new account'
+  const headerTitle = 'New Private Account'
 
   const handleGoBackPress = useCallback(() => {
     navigate(ROUTES.pp1Home)
