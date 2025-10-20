@@ -17,7 +17,7 @@ const Routes = ({ openReceiveModal }: { openReceiveModal: () => void }) => {
   const routeItems = [
     {
       testID: 'dashboard-button-privacy-pools',
-      icon: SendIcon,
+      icon: (props: any) => <SendIcon style={{ transform: [{ rotate: '180deg' }] }} {...props} />,
       label: t('Deposit to Private'),
       route: WEB_ROUTES.pp1Deposit,
       isExternal: false,

@@ -58,7 +58,7 @@ const OnboardingCompletedScreen = () => {
                 weight="semiBold"
                 fontSize={20}
               >
-                {t('Kohaku Wallet is ready to use')}
+                {t('Kohaku is ready to use')}
               </Text>
               {!isPinned ? (
                 <Text appearance="secondaryText" weight="medium" style={[text.center]}>
