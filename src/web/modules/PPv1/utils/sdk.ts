@@ -4,31 +4,14 @@
 'use client'
 
 import {
-  Circuits,
-  PrivacyPoolSDK,
-  WithdrawalProofInput,
-  Secret,
-  generateMerkleProof,
   Hash,
-  WithdrawalProof,
-  AccountService,
   PrivacyPoolAccount,
   PoolAccount as SDKPoolAccount,
   AccountCommitment,
   RagequitEvent
 } from '@0xbow/privacy-pools-core-sdk'
-import { Hex, http, HttpTransport } from 'viem'
-import { sepolia } from 'viem/chains'
 import { chainData } from '@ambire-common/controllers/privacyPools/config'
 import { MtLeavesResponse, aspClient } from './aspClient'
-
-export const transports = {
-  11155111: http(sepolia.rpcUrls.default.http[0])
-} as Record<number, HttpTransport>
-
-type RagequitEventWithTimestamp = RagequitEvent & {
-  timestamp: bigint
-}
 
 export type PoolAccount = SDKPoolAccount & {
   name: number
@@ -38,7 +21,9 @@ export type PoolAccount = SDKPoolAccount & {
   lastCommitment: AccountCommitment
   chainId: number
   scope: Hash
-  ragequit?: RagequitEventWithTimestamp
+  ragequit?: RagequitEvent & {
+    timestamp: bigint
+  }
 }
 
 export enum ReviewStatus {
@@ -47,96 +32,6 @@ export enum ReviewStatus {
   DECLINED = 'declined',
   EXITED = 'exited',
   SPENT = 'spent'
-}
-
-// Lazy load circuits only when needed
-let circuits: Circuits | null = null
-let sdk: PrivacyPoolSDK | null = null
-
-const initializeSDK = () => {
-  if (!circuits) {
-    // Ensure we have a valid baseUrl (client-side only)
-    const currentBaseUrl = typeof window !== 'undefined' ? window.location.origin : ''
-    if (!currentBaseUrl) {
-      throw new Error('SDK can only be initialized on client-side')
-    }
-    circuits = new Circuits({ baseUrl: currentBaseUrl })
-    sdk = new PrivacyPoolSDK(circuits)
-  }
-  return sdk!
-}
-
-/**
- * Generates a withdrawal proof.
- *
- * @param commitment - Commitment to withdraw
- * @param input - Input parameters for the withdrawal
- * @param withdrawal - Withdrawal details
- * @returns Promise resolving to withdrawal payload
- * @throws {ProofError} If proof generation fails
- */
-export const generateWithdrawalProof = async (
-  commitment: AccountCommitment,
-  input: WithdrawalProofInput
-) => {
-  const sdkInstance = initializeSDK()
-  return sdkInstance.proveWithdrawal(
-    {
-      preimage: {
-        label: commitment.label,
-        value: commitment.value,
-        precommitment: {
-          hash: BigInt('0x1234') as Hash,
-          nullifier: commitment.nullifier,
-          secret: commitment.secret
-        }
-      },
-      hash: commitment.hash,
-      nullifierHash: BigInt('0x1234') as Hash
-    },
-    input
-  )
-}
-
-export const getMerkleProof = async (leaves: bigint[], leaf: bigint) => {
-  return generateMerkleProof(leaves, leaf)
-}
-
-export const verifyWithdrawalProof = async (proof: WithdrawalProof) => {
-  const sdkInstance = initializeSDK()
-  return sdkInstance.verifyWithdrawal(proof)
-}
-
-export const createWithdrawalSecrets = (
-  accountService: AccountService,
-  commitment: AccountCommitment
-) => {
-  return accountService.createWithdrawalSecrets(commitment)
-}
-
-export const addPoolAccount = (
-  accountService: AccountService,
-  newPoolAccount: {
-    scope: bigint
-    value: bigint
-    nullifier: Secret
-    secret: Secret
-    label: Hash
-    blockNumber: bigint
-    txHash: Hex
-  }
-) => {
-  const accountInfo = accountService.addPoolAccount(
-    newPoolAccount.scope as Hash,
-    newPoolAccount.value,
-    newPoolAccount.nullifier,
-    newPoolAccount.secret,
-    newPoolAccount.label,
-    newPoolAccount.blockNumber,
-    newPoolAccount.txHash
-  )
-
-  return accountInfo
 }
 
 export const getPoolAccountsFromAccount = async (account: PrivacyPoolAccount, chainId: number) => {
