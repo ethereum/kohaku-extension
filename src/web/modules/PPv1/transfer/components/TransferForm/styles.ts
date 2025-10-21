@@ -15,10 +15,10 @@ const getStyles = (theme: ThemeProps) =>
     disclaimer: {
       padding: 2,
       borderRadius: 9,
-      backgroundColor: theme.tertiaryBackground
+      backgroundColor: theme.secondaryBackgroundInverted
     },
     disclaimerText: {
-      color: theme.primaryText
+      color: theme.primaryTextInverted
     }
   })
 

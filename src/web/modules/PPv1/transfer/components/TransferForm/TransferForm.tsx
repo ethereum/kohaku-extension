@@ -11,14 +11,13 @@ import { useTranslation } from '@common/config/localization'
 import useAddressInput from '@common/hooks/useAddressInput'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
+import useTheme from '@common/hooks/useTheme'
 
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import { PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
-// import { getTokenId } from '@web/utils/token'
 
 import SendToken from '../SendToken'
 import getStyles from './styles'
-import useTheme from '@common/hooks/useTheme'
 
 const TransferForm = ({
   addressInputState,

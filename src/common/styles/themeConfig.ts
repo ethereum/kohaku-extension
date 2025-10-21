@@ -36,6 +36,10 @@ const ThemeColors = {
     [THEME_TYPES.DARK]: '#FFFFFF',
     [THEME_TYPES.LIGHT]: '#000000'
   },
+  primaryTextInverted: {
+    [THEME_TYPES.DARK]: '#000000',
+    [THEME_TYPES.LIGHT]: '#FFFFFF'
+  },
   secondaryText: {
     [THEME_TYPES.DARK]: '#A6A6A7',
     [THEME_TYPES.LIGHT]: '#4A4A4A'
