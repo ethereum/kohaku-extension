@@ -67,8 +67,7 @@ const getStyles = (theme: ThemeProps) =>
       marginTop: 1
     },
     tabsContainer: {
-      ...flexbox.directionRow,
-      marginRight: 8
+      ...flexbox.directionRow
     },
     tabPill: {
       ...flexbox.directionRow,
@@ -94,6 +93,7 @@ const getStyles = (theme: ThemeProps) =>
       paddingHorizontal: 8,
       paddingVertical: 1,
       margin: 0,
+      marginLeft: 8,
       height: 24,
       backgroundColor: theme.depositRejectedBackground
     },
