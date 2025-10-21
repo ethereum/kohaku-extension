@@ -17,12 +17,14 @@ type TabType = 'rejected' | 'pending'
 
 interface DepositStatusBannerProps {
   onWithdrawBack: () => void
+  onDeposit: () => void
 }
 
-const DepositStatusBanner = ({ onWithdrawBack }: DepositStatusBannerProps) => {
+const DepositStatusBanner = ({ onWithdrawBack, onDeposit }: DepositStatusBannerProps) => {
   const { theme } = useTheme()
   const styles = getStyles(theme)
-  const { totalDeclinedBalance, totalPendingBalance, ethPrice } = usePrivacyPoolsForm()
+  const { totalDeclinedBalance, totalPendingBalance, ethPrice, isAccountLoaded } =
+    usePrivacyPoolsForm()
 
   const [selectedTab, setSelectedTab] = useState<TabType>(() => {
     const hasRejected = totalDeclinedBalance.accounts.length > 0
@@ -46,8 +48,6 @@ const DepositStatusBanner = ({ onWithdrawBack }: DepositStatusBannerProps) => {
     }
   }, [totalDeclinedBalance.accounts.length, totalPendingBalance.accounts.length, selectedTab])
 
-  if (!totalDeclinedBalance.accounts.length && !totalPendingBalance.accounts.length) return null
-
   const isRejectedSelected = selectedTab === 'rejected'
   const isPendingSelected = selectedTab === 'pending'
 
@@ -60,6 +60,41 @@ const DepositStatusBanner = ({ onWithdrawBack }: DepositStatusBannerProps) => {
 
   const rejectedCount = totalDeclinedBalance.accounts.length
   const pendingCount = totalPendingBalance.accounts.length
+  const zeroBalance = totalDeclinedBalance.total === 0n && totalPendingBalance.total === 0n
+
+  if (!isAccountLoaded) return null
+
+  if (zeroBalance && isAccountLoaded) {
+    return (
+      <View style={spacings.phSm}>
+        <View style={[styles.contentContainer]}>
+          <View style={[styles.container, styles.containerPending]}>
+            <View style={styles.leftContent}>
+              <View style={styles.zeroBalanceContainer}>
+                <Text fontSize={14} weight="semiBold" color={theme.primaryText}>
+                  Zero private balance
+                </Text>
+                <Text fontSize={13} weight="light" color={theme.primaryText}>
+                  Deposit some ETHs into Privacy Pools
+                </Text>
+              </View>
+            </View>
+            <View style={styles.rightContent}>
+              <Button
+                type="warning"
+                size="small"
+                accentColor={theme.depositPendingText}
+                onPress={onDeposit}
+                text="Deposit"
+                testID="withdraw-back-button"
+                style={styles.depositButton}
+              />
+            </View>
+          </View>
+        </View>
+      </View>
+    )
+  }
 
   return (
     <View style={spacings.phSm}>
