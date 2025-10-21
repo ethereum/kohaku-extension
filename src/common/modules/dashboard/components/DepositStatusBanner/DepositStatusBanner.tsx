@@ -165,6 +165,17 @@ const DepositStatusBanner = ({ onWithdrawBack }: DepositStatusBannerProps) => {
                   >
                     {pendingCount}
                   </Text>
+
+                  {rejectedCount <= 0 && (
+                    <Text
+                      fontSize={14}
+                      weight="semiBold"
+                      color={theme.depositInactiveText}
+                      style={styles.tabText}
+                    >
+                      Pending
+                    </Text>
+                  )}
                 </TouchableOpacity>
               )}
             </View>
