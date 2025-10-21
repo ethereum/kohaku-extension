@@ -9,6 +9,7 @@ import { useTranslation } from '@common/config/localization'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import flexbox from '@common/styles/utils/flexbox'
 
+import PrivateDepositIcon from '@common/assets/svg/PrivateDeposit'
 import RouteItem from './RouteItem'
 
 const Routes = ({ openReceiveModal }: { openReceiveModal: () => void }) => {
@@ -17,7 +18,7 @@ const Routes = ({ openReceiveModal }: { openReceiveModal: () => void }) => {
   const routeItems = [
     {
       testID: 'dashboard-button-privacy-pools',
-      icon: (props: any) => <SendIcon style={{ transform: [{ rotate: '180deg' }] }} {...props} />,
+      icon: PrivateDepositIcon,
       label: t('Deposit to Private'),
       route: WEB_ROUTES.pp1Deposit,
       isExternal: false,
