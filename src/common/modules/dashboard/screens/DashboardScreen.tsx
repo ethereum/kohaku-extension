@@ -51,6 +51,10 @@ const DashboardScreen = () => {
     navigate(WEB_ROUTES.pp1Ragequit)
   }, [navigate])
 
+  const onDeposit = useCallback(() => {
+    navigate(WEB_ROUTES.pp1Deposit)
+  }, [navigate])
+
   useEffect(() => {
     if (!isAccountLoaded && isReadyToLoad) {
       loadPrivateAccount().catch((error) => {
@@ -147,7 +151,7 @@ const DashboardScreen = () => {
             onGasTankButtonPosition={handleGasTankButtonPosition}
             isPrivateAccountLoading={!isAccountLoaded}
           />
-          <DepositStatusBanner onWithdrawBack={onWithdrawBack} />
+          <DepositStatusBanner onWithdrawBack={onWithdrawBack} onDeposit={onDeposit} />
           <DashboardPages onScroll={onScroll} animatedOverviewHeight={animatedOverviewHeight} />
         </View>
         <DAppFooter />

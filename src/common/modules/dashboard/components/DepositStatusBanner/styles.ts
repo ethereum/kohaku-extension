@@ -14,6 +14,7 @@ interface Style {
   rightContent: ViewStyle
   iconContainer: ViewStyle
   iconContainerRejected: ViewStyle
+  zeroBalanceContainer: ViewStyle
   amountContainer: ViewStyle
   tabsContainer: ViewStyle
   tabPill: ViewStyle
@@ -21,6 +22,7 @@ interface Style {
   tabPillPendingActive: ViewStyle
   tabText: TextStyle
   withdrawButton: ViewStyle
+  depositButton: ViewStyle
   closeIconContainer: ViewStyle
 }
 
@@ -58,6 +60,13 @@ const getStyles = (theme: ThemeProps) =>
       marginRight: 6
     },
     iconContainerRejected: {},
+    zeroBalanceContainer: {
+      ...flexbox.alignStart,
+      flexWrap: 'wrap',
+      flexDirection: 'column',
+      marginTop: 1,
+      minWidth: 0
+    },
     amountContainer: {
       ...flexbox.flex1,
       minWidth: 0,
@@ -96,6 +105,14 @@ const getStyles = (theme: ThemeProps) =>
       marginLeft: 8,
       height: 24,
       backgroundColor: theme.depositRejectedBackground
+    },
+    depositButton: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      margin: 0,
+      marginLeft: 8,
+      height: 28,
+      backgroundColor: theme.depositPendingBackground
     },
     closeIconContainer: {
       ...flexbox.directionRow,
