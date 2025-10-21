@@ -1,15 +1,4 @@
-import type {
-  AccountCommitment,
-  AccountService,
-  CommitmentProof,
-  RagequitEvent
-} from '@0xbow/privacy-pools-core-sdk'
-
-type PoolAccount = {
-  lastCommitment: AccountCommitment
-  ragequit?: RagequitEvent
-  balance: bigint
-}
+import type { CommitmentProof } from '@0xbow/privacy-pools-core-sdk'
 
 /**
  * Transforms ragequit proof for contract interaction
@@ -29,29 +18,4 @@ export function transformRagequitProofForContract(proof: CommitmentProof) {
       bigint
     ]
   }
-}
-
-/**
- * Validates if ragequit is allowed for a pool account
- */
-export function canRagequit(
-  poolAccount: PoolAccount,
-  account: AccountService
-): {
-  canRagequit: boolean
-  reason?: string
-} {
-  if (!account) {
-    return { canRagequit: false, reason: 'Account service not available' }
-  }
-
-  if (poolAccount.ragequit) {
-    return { canRagequit: false, reason: 'Already ragequit' }
-  }
-
-  if (poolAccount.balance <= 0n) {
-    return { canRagequit: false, reason: 'No balance to ragequit' }
-  }
-
-  return { canRagequit: true }
 }
