@@ -235,7 +235,6 @@ const TransferScreen = () => {
 
   const { estimationModalRef, closeEstimationModal } = usePrivacyPoolsForm()
 
-  // Close the Estimation modal when transitioning to track view
   useEffect(() => {
     if (displayedView === 'track') {
       closeEstimationModal()
