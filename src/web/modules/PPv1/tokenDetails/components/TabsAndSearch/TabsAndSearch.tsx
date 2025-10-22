@@ -7,9 +7,9 @@ import { useSearchParams } from 'react-router-dom'
 import SearchIcon from '@common/assets/svg/SearchIcon'
 import Search from '@common/components/Search'
 import useTheme from '@common/hooks/useTheme'
-import { TabType } from '@web/modules/PPv1/screens/dashboard/components/TabsAndSearch/Tabs/Tab/Tab'
-import Tabs from '@web/modules/PPv1/screens/dashboard/components/TabsAndSearch/Tabs/Tabs'
-import useBanners from '@web/modules/PPv1/screens/dashboard/hooks/useBanners'
+import { TabType } from '@web/modules/PPv1/tokenDetails/components/TabsAndSearch/Tabs/Tab/Tab'
+import Tabs from '@web/modules/PPv1/tokenDetails/components/TabsAndSearch/Tabs/Tabs'
+import useBanners from '@web/modules/PPv1/tokenDetails/hooks/useBanners'
 import spacings from '@common/styles/spacings'
 import { THEME_TYPES } from '@common/styles/themeConfig'
 import flexbox from '@common/styles/utils/flexbox'
@@ -28,8 +28,6 @@ const getSearchPlaceholder = (openTab: TabType, t: TFunction) => {
   }
 
   if (openTab === 'activity') return t('Search for activity')
-  if (openTab === 'deposits') return t('Search for deposits')
-  if (openTab === 'sends') return t('Search for sends')
 
   return t('Search')
 }
@@ -41,7 +39,7 @@ interface Props {
   sessionId: string
 }
 
-const TABS = ['tokens', 'activity', 'transfers', 'deposits']
+const TABS = ['activity']
 
 const TabsAndSearch: FC<Props> = ({ openTab, setOpenTab, searchControl, sessionId }) => {
   const [, setSearchParams] = useSearchParams()

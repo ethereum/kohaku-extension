@@ -6,12 +6,11 @@ import SkeletonLoader from '@common/components/SkeletonLoader'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import useTheme from '@common/hooks/useTheme'
-import DashboardHeader from '@web/modules/PPv1/screens/dashboard/components/DashboardHeader'
-import Gradients from '@web/modules/PPv1/screens/dashboard/components/Gradients/Gradients'
-import Routes from '@web/modules/PPv1/screens/dashboard/components/Routes'
-import useBalanceAffectingErrors from '@web/modules/PPv1/screens/dashboard/hooks/useBalanceAffectingErrors'
-import { OVERVIEW_CONTENT_MAX_HEIGHT } from '@web/modules/PPv1/screens/dashboard/screens/DashboardScreen'
-import { DASHBOARD_OVERVIEW_BACKGROUND } from '@web/modules/PPv1/screens/dashboard/screens/styles'
+import DashboardHeader from '@web/modules/PPv1/tokenDetails/components/DashboardHeader'
+import Gradients from '@web/modules/PPv1/tokenDetails/components/Gradients/Gradients'
+import useBalanceAffectingErrors from '@web/modules/PPv1/tokenDetails/hooks/useBalanceAffectingErrors'
+import { OVERVIEW_CONTENT_MAX_HEIGHT } from '@web/modules/PPv1/tokenDetails/screens/DashboardScreen'
+import { DASHBOARD_OVERVIEW_BACKGROUND } from '@web/modules/PPv1/tokenDetails/screens/styles'
 import spacings, { SPACING, SPACING_TY, SPACING_XL } from '@common/styles/spacings'
 import { THEME_TYPES } from '@common/styles/themeConfig'
 import common from '@common/styles/utils/common'
@@ -245,7 +244,6 @@ const DashboardOverview: FC<Props> = ({
                   />
                 </View>
               </View>
-              <Routes />
             </Animated.View>
           </View>
         </Animated.View>

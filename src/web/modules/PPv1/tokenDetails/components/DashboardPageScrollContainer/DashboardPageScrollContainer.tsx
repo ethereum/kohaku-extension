@@ -2,7 +2,7 @@ import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from 're
 import { Animated, Dimensions, FlatList, FlatListProps, ViewStyle } from 'react-native'
 
 import { isWeb } from '@common/config/env'
-import { OVERVIEW_CONTENT_MAX_HEIGHT } from '@web/modules/PPv1/screens/dashboard/screens/DashboardScreen'
+import { OVERVIEW_CONTENT_MAX_HEIGHT } from '@web/modules/PPv1/tokenDetails/screens/DashboardScreen'
 import spacings from '@common/styles/spacings'
 import commonWebStyles from '@web/styles/utils/common'
 import { getUiType } from '@web/utils/uiType'
