@@ -183,7 +183,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   const [importedPrivateAccounts, setImportedPrivateAccounts] = useState<PoolAccount[][]>([[]])
   const memoizedState = useDeepMemo(state, controller)
 
-  console.log('DEBUG:', { state })
+  console.log('DEBUG:', { state, poolAccounts, importedPrivateAccounts })
 
   const { secret } = memoizedState
 

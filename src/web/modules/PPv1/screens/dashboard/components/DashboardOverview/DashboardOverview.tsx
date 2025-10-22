@@ -181,24 +181,6 @@ const DashboardOverview: FC<Props> = ({
                         >
                           {ethPrivateBalance} ETH
                         </Text>
-                        <Text
-                          fontSize={20}
-                          shouldScale={false}
-                          weight="number_bold"
-                          color={
-                            networksWithErrors.length || isOffline
-                              ? theme.warningDecorative2
-                              : themeType === THEME_TYPES.DARK
-                              ? theme.primaryBackgroundInverted
-                              : theme.primaryBackground
-                          }
-                          selectable
-                        >
-                          {' '}
-                          ({totalPrivatePortfolioInteger}
-                          {t('.')}
-                          {totalPrivatePortfolioDecimal})
-                        </Text>
                       </Text>
                     </Pressable>
                   )}
@@ -223,11 +205,33 @@ const DashboardOverview: FC<Props> = ({
                 </View>
 
                 <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-                  {/* <View style={styles.contentContainer}>
-                    <Text fontSize={14} shouldScale={false} weight="medium" color="white">
-                      Privacy Pools
+                  {isLoading || !isAccountLoaded ? (
+                    <SkeletonLoader
+                      lowOpacity
+                      width={150}
+                      height={BALANCE_HEIGHT / 1.2}
+                      borderRadius={8}
+                    />
+                  ) : (
+                    <Text
+                      fontSize={20}
+                      shouldScale={false}
+                      weight="number_bold"
+                      color={
+                        networksWithErrors.length || isOffline
+                          ? theme.warningDecorative2
+                          : themeType === THEME_TYPES.DARK
+                          ? theme.primaryBackgroundInverted
+                          : theme.primaryBackground
+                      }
+                      selectable
+                    >
+                      {' '}
+                      ({totalPrivatePortfolioInteger}
+                      {t('.')}
+                      {totalPrivatePortfolioDecimal})
                     </Text>
-                  </View> */}
+                  )}
                   <BalanceAffectingErrors
                     reloadAccount={refreshPrivateAccount}
                     networksWithErrors={networksWithErrors}
