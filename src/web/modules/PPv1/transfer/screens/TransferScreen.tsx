@@ -1,9 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { SigningStatus } from '@ambire-common/controllers/signAccountOp/signAccountOp'
 import { AddressStateOptional } from '@ambire-common/interfaces/domains'
-import { Key } from '@ambire-common/interfaces/keystore'
 import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
 import { getBenzinUrlParams } from '@ambire-common/utils/benzin'
 
@@ -18,7 +16,6 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useSyncedState from '@web/hooks/useSyncedState'
 import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
 import Buttons from '@web/modules/PPv1/deposit/components/Buttons'
-import Estimation from '@web/modules/sign-account-op/components/OneClick/Estimation'
 import TrackProgress from '@web/modules/sign-account-op/components/OneClick/TrackProgress'
 import Completed from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/Completed'
 import Failed from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/Failed'
@@ -36,6 +33,7 @@ const { isActionWindow } = getUiType()
 
 const TransferScreen = () => {
   const hasRefreshedAccountRef = useRef(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const { dispatch } = useBackgroundService()
   const {
     totalApprovedBalance,
@@ -50,14 +48,12 @@ const TransferScreen = () => {
     isRecipientAddressUnknown,
     latestBroadcastedAccountOp,
     latestBroadcastedToken,
-    hasProceeded,
     selectedToken,
     amountFieldMode,
     withdrawalAmount,
     amountInFiat,
     programmaticUpdateCounter,
     isRecipientAddressUnknownAgreed,
-    signAccountOpController,
     maxAmount,
     relayerQuote,
     updateQuoteStatus
@@ -169,33 +165,6 @@ const TransferScreen = () => {
     }
   }, [dispatch])
 
-  const handleBroadcastAccountOp = useCallback(() => {
-    dispatch({
-      type: 'PRIVACY_POOLS_CONTROLLER_BROADCAST_WITHDRAWAL'
-    })
-  }, [dispatch])
-
-  const handleUpdateStatus = useCallback(
-    (status: SigningStatus) => {
-      dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS',
-        params: {
-          status
-        }
-      })
-    },
-    [dispatch]
-  )
-  const updateController = useCallback(
-    (params: { signingKeyAddr?: Key['addr']; signingKeyType?: Key['type'] }) => {
-      dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE',
-        params
-      })
-    },
-    [dispatch]
-  )
-
   // Used to resolve ENS, not to update the field value
   const setAddressState = useCallback(
     (newPartialAddressState: AddressStateOptional) => {
@@ -232,14 +201,6 @@ const TransferScreen = () => {
       : '',
     handleCacheResolvedDomain
   })
-
-  const { estimationModalRef, closeEstimationModal } = usePrivacyPoolsForm()
-
-  useEffect(() => {
-    if (displayedView === 'track') {
-      closeEstimationModal()
-    }
-  }, [displayedView, closeEstimationModal])
 
   const amountErrorMessage = useMemo(() => {
     return validationFormMsgs.amount.message || ''
@@ -286,17 +247,26 @@ const TransferScreen = () => {
       <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
         <BackButton onPress={onBack} />
         <Buttons
-          handleSubmitForm={handleMultipleWithdrawal}
+          handleSubmitForm={async () => {
+            setIsSubmitting(true)
+            try {
+              await handleMultipleWithdrawal()
+            } catch (error) {
+              console.error('Withdrawal error:', error)
+              setIsSubmitting(false)
+            }
+          }}
           proceedBtnText={t('Send')}
           isNotReadyToProceed={!isTransferFormValid}
           signAccountOpErrors={[]}
           networkUserRequests={[]}
+          isLoading={isSubmitting}
         />
       </View>
     )
-  }, [onBack, handleMultipleWithdrawal, isTransferFormValid, t])
+  }, [onBack, handleMultipleWithdrawal, isTransferFormValid, t, isSubmitting])
 
-  // Refresh private account after deposit success or unknown but past nonce
+  // Refresh merkle tree and private account after successful withdrawal
   useEffect(() => {
     if (
       !hasRefreshedAccountRef.current &&
@@ -304,9 +274,10 @@ const TransferScreen = () => {
         submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce)
     ) {
       hasRefreshedAccountRef.current = true
+
       refreshPrivateAccount().catch((error) => {
         // eslint-disable-next-line no-console
-        console.error('Failed to refresh private account after deposit:', error)
+        console.error('Failed to refresh after withdrawal:', error)
       })
     }
   }, [submittedAccountOp?.status, refreshPrivateAccount])
@@ -378,17 +349,6 @@ const TransferScreen = () => {
           />
         </Form>
       </Content>
-
-      <Estimation
-        updateType="PrivacyPools"
-        estimationModalRef={estimationModalRef}
-        closeEstimationModal={closeEstimationModal}
-        updateController={updateController}
-        handleUpdateStatus={handleUpdateStatus}
-        handleBroadcastAccountOp={handleBroadcastAccountOp}
-        hasProceeded={!!hasProceeded}
-        signAccountOpController={signAccountOpController || null}
-      />
     </Wrapper>
   )
 }
