@@ -29,6 +29,7 @@ const usePrivacyPoolsForm = () => {
     selectedPoolAccount,
     signAccountOpController,
     latestBroadcastedAccountOp,
+    importedPrivateAccounts,
     isAccountLoaded,
     isLoadingAccount,
     isRefreshing,
@@ -95,6 +96,54 @@ const usePrivacyPoolsForm = () => {
   const ethPrivateBalance = useMemo(() => {
     return formatEther(totalApprovedBalance.total)
   }, [totalApprovedBalance])
+
+  // Imported Private Accounts calculations
+  const flattenedImportedAccounts = useMemo(() => {
+    return importedPrivateAccounts.flat()
+  }, [importedPrivateAccounts])
+
+  const totalImportedApprovedBalance = useMemo(() => {
+    const accounts = flattenedImportedAccounts.filter(
+      (account) => account.reviewStatus === ReviewStatus.APPROVED
+    )
+    const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
+    return { total, accounts }
+  }, [flattenedImportedAccounts])
+
+  const totalImportedPendingBalance = useMemo(() => {
+    const accounts = flattenedImportedAccounts.filter(
+      (account) => account.reviewStatus === ReviewStatus.PENDING
+    )
+    const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
+    return { total, accounts }
+  }, [flattenedImportedAccounts])
+
+  const totalImportedDeclinedBalance = useMemo(() => {
+    const accounts = flattenedImportedAccounts.filter(
+      (account) => account.reviewStatus === ReviewStatus.DECLINED
+    )
+    const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
+    return { total, accounts }
+  }, [flattenedImportedAccounts])
+
+  const totalImportedPrivatePortfolio = useMemo(() => {
+    const ethAmount = Number(formatEther(totalImportedApprovedBalance.total))
+    return ethAmount * (ethPrice || 0)
+  }, [totalImportedApprovedBalance, ethPrice])
+
+  const ethImportedPrivateBalance = useMemo(() => {
+    return formatEther(totalImportedApprovedBalance.total)
+  }, [totalImportedApprovedBalance])
+
+  console.log('DEBUG: importedPrivateAccounts data', {
+    importedPrivateAccounts,
+    flattenedImportedAccounts,
+    totalImportedApprovedBalance,
+    totalImportedPendingBalance,
+    totalImportedDeclinedBalance,
+    totalImportedPrivatePortfolio,
+    ethImportedPrivateBalance
+  })
 
   // Calculate batchSize based on withdrawal amount and pool accounts
   const calculatedBatchSize = useMemo(() => {
@@ -449,6 +498,11 @@ const usePrivacyPoolsForm = () => {
     totalDeclinedBalance,
     totalPrivatePortfolio,
     ethPrivateBalance,
+    totalImportedApprovedBalance,
+    totalImportedPendingBalance,
+    totalImportedDeclinedBalance,
+    totalImportedPrivatePortfolio,
+    ethImportedPrivateBalance,
     isReadyToLoad,
     handleDeposit,
     handleMultipleRagequit,

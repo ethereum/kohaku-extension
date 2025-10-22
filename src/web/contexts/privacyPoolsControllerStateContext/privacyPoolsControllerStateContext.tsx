@@ -29,7 +29,10 @@ import {
   generateMerkleProof,
   PoolAccount as SDKPoolAccount
 } from '@0xbow/privacy-pools-core-sdk'
-import { initializeAccountWithEvents } from '@web/modules/PPv1/sdk/accountInitializer'
+import {
+  initializeAccountWithEvents,
+  type AccountInitSource
+} from '@web/modules/PPv1/sdk/accountInitializer'
 // import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
 // import { sortPortfolioTokenList } from '@ambire-common/libs/swapAndBridge/swapAndBridge'
 import { AddressState } from '@ambire-common/interfaces/domains'
@@ -41,10 +44,11 @@ import useControllerState from '@web/hooks/useControllerState'
 import { getPoolAccountsFromAccount, processDeposits } from '@web/modules/PPv1/utils/sdk'
 import type { PrivacyPoolsController } from '@ambire-common/controllers/privacyPools/privacyPools'
 import { aspClient, MtLeavesResponse, MtRootResponse } from '@web/modules/PPv1/utils/aspClient'
-import { Hex } from 'viem'
 import {
   storeFirstPrivateAccount,
-  loadPrivateAccount as getPrivateAccount
+  getPrivateAccount,
+  getPPv1Accounts,
+  storePPv1Accounts
 } from '@web/modules/PPv1/sdk/misc'
 
 export enum ReviewStatus {
@@ -82,10 +86,17 @@ type EnhancedPrivacyPoolsControllerState = {
   isLoadingAccount: boolean
   isRefreshing: boolean
   isReadyToLoad: boolean
+  importedPrivateAccounts: PoolAccount[][]
   setIsAccountLoaded: Dispatch<SetStateAction<boolean>>
-  loadAccount: (secrets: { masterNullifierSeed: Hex; masterSecretSeed: Hex }) => Promise<void>
   loadPrivateAccount: () => Promise<void>
   refreshPrivateAccount: () => Promise<void>
+  loadPPv1Accounts: () => Promise<void>
+  addImportedPrivateAccount: (accountInitSource: AccountInitSource) => Promise<void>
+  loadImportedPrivateAccount: (accountInitSource: AccountInitSource) => Promise<{
+    poolAccounts: PoolAccount[]
+    accountService: AccountService
+  }>
+  refreshImportedPrivateAccounts: () => Promise<void>
   generateRagequitProof: (commitment: AccountCommitment) => Promise<CommitmentProof>
   verifyRagequitProof: (commitment: CommitmentProof) => Promise<boolean>
   generateWithdrawalProof: (
@@ -169,7 +180,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   const [isAccountLoaded, setIsAccountLoaded] = useState(false)
   const [isLoadingAccount, setIsLoadingAccount] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
-
+  const [importedPrivateAccounts, setImportedPrivateAccounts] = useState<PoolAccount[][]>([[]])
   const memoizedState = useDeepMemo(state, controller)
 
   console.log('DEBUG:', { state })
@@ -215,11 +226,16 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
     }
   }, [memoizedState.chainData])
 
-  const loadAccount = useCallback(
-    async (secrets: { masterNullifierSeed: Hex; masterSecretSeed: Hex }) => {
+  const isReadyToLoad = useMemo(
+    () => Boolean(mtLeaves && mtRoots && memoizedState.chainData),
+    [mtLeaves, mtRoots, memoizedState.chainData]
+  )
+
+  const loadPoolAccounts = useCallback(
+    async (accountInitSource: AccountInitSource) => {
       if (!dataService) throw new Error('DataService not initialized.')
       if (!mtLeaves) throw new Error('Merkle tree data not loaded.')
-      if (!secrets) throw new Error('Secrets not provided.')
+      if (!isReadyToLoad) throw new Error('Privacy Pools data not ready yet')
 
       const firstChainInfo = memoizedState.chainData?.[chainId]
       if (!firstChainInfo?.poolInfo?.[0]) throw new Error('No pool information found.')
@@ -231,11 +247,9 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       // Initialize account service using isolated wrapper
       const accountServiceResult = await initializeAccountWithEvents(
         dataService,
-        { secrets },
+        accountInitSource,
         memoizedState.pools as PoolInfo[]
       )
-
-      setAccountService(accountServiceResult.account)
 
       // Get pool accounts
       const { poolAccounts: poolAccountFromAccount } = await getPoolAccountsFromAccount(
@@ -254,15 +268,9 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
         scope
       )
 
-      setPoolAccounts(newPoolAccounts)
-      setIsAccountLoaded(true)
+      return { poolAccounts: newPoolAccounts, accountService: accountServiceResult.account }
     },
-    [dataService, mtLeaves, memoizedState.chainData, memoizedState.pools]
-  )
-
-  const isReadyToLoad = useMemo(
-    () => Boolean(mtLeaves && mtRoots && memoizedState.chainData),
-    [mtLeaves, mtRoots, memoizedState.chainData]
+    [dataService, mtLeaves, isReadyToLoad, memoizedState.chainData, memoizedState.pools, chainId]
   )
 
   const loadPrivateAccount = useCallback(async () => {
@@ -271,13 +279,16 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
 
     try {
       const secrets = await getPrivateAccount()
-      await loadAccount(secrets)
+      const result = await loadPoolAccounts({ secrets })
+      setPoolAccounts(result.poolAccounts)
+      setAccountService(result.accountService)
+      setIsAccountLoaded(true)
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to load private account. Please try again.'
       throw new Error(errorMessage)
     }
-  }, [isAccountLoaded, isReadyToLoad, loadAccount])
+  }, [isAccountLoaded, isReadyToLoad, loadPoolAccounts, setPoolAccounts, setAccountService])
 
   const refreshPrivateAccount = useCallback(async () => {
     try {
@@ -286,7 +297,9 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       setIsLoadingAccount(true)
 
       const secrets = await getPrivateAccount()
-      await loadAccount(secrets)
+      const result = await loadPoolAccounts({ secrets })
+      setPoolAccounts(result.poolAccounts)
+      setAccountService(result.accountService)
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to refresh account. Please try again.'
@@ -296,7 +309,54 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       setIsAccountLoaded(true)
       setIsRefreshing(false)
     }
-  }, [loadAccount])
+  }, [loadPoolAccounts, setPoolAccounts, setAccountService])
+
+  const loadImportedPPv1Accounts = useCallback(async () => {
+    const accounts = await getPPv1Accounts()
+
+    const importedPrivateAccountsResult = await Promise.all(
+      accounts.map(async (account) => {
+        return loadPoolAccounts(account)
+      })
+    )
+
+    const importedPoolAccounts = importedPrivateAccountsResult.map((result) => result.poolAccounts)
+
+    console.log('DEBUG:', { importedPrivateAccountsResult })
+
+    setImportedPrivateAccounts(importedPoolAccounts)
+  }, [loadPoolAccounts])
+
+  const addImportedPrivateAccount = useCallback(
+    async (accountInitSource: AccountInitSource) => {
+      try {
+        await storePPv1Accounts(accountInitSource)
+        await loadImportedPPv1Accounts()
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : 'Failed to add imported private account. Please try again.'
+        throw new Error(errorMessage)
+      }
+    },
+    [loadImportedPPv1Accounts]
+  )
+
+  const refreshImportedPrivateAccounts = useCallback(async () => {
+    try {
+      setIsRefreshing(true)
+      await loadImportedPPv1Accounts()
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to refresh imported private accounts. Please try again.'
+      throw new Error(errorMessage)
+    } finally {
+      setIsRefreshing(false)
+    }
+  }, [loadImportedPPv1Accounts])
 
   const generateRagequitProof = useCallback(
     async (commitment: AccountCommitment): Promise<CommitmentProof> => {
@@ -396,6 +456,11 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
     }
   }, [dispatch, state])
 
+  // Load PPv1 accounts on initialization
+  useEffect(() => {
+    loadImportedPPv1Accounts().catch(console.error)
+  }, [loadImportedPPv1Accounts])
+
   useEffect(() => {
     if (memoizedState.initialPromiseLoaded && memoizedState.chainData && !sdk) {
       const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
@@ -451,9 +516,13 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       isRefreshing,
       chainId,
       isReadyToLoad,
-      loadAccount,
+      importedPrivateAccounts,
       loadPrivateAccount,
       refreshPrivateAccount,
+      loadPPv1Accounts: loadImportedPPv1Accounts,
+      addImportedPrivateAccount,
+      loadImportedPrivateAccount: loadPoolAccounts,
+      refreshImportedPrivateAccounts,
       setIsAccountLoaded,
       generateRagequitProof,
       verifyRagequitProof,
@@ -477,9 +546,13 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       isRefreshing,
       chainId,
       isReadyToLoad,
-      loadAccount,
+      importedPrivateAccounts,
       loadPrivateAccount,
       refreshPrivateAccount,
+      loadImportedPPv1Accounts,
+      addImportedPrivateAccount,
+      loadPoolAccounts,
+      refreshImportedPrivateAccounts,
       setIsAccountLoaded,
       generateRagequitProof,
       verifyRagequitProof,
