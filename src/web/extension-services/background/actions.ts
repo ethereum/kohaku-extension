@@ -762,6 +762,7 @@ type PrivacyControllerUpdateFormAction = {
     seedPhrase?: string
     targetAddress?: string
     importedSecretNote?: string
+    privacyProvider?: string
   }
 }
 

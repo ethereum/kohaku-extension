@@ -46,10 +46,12 @@ function TransferScreen() {
     isLoading,
     isAccountLoaded,
     handleDeposit,
+    handleDepositRailgun,
     handleUpdateForm,
     closeEstimationModal,
     refreshPrivateAccount,
-    loadPrivateAccount
+    loadPrivateAccount,
+    privacyProvider
   } = usePrivacyPoolsForm()
 
   const amountErrorMessage = useMemo(() => {
@@ -197,6 +199,7 @@ function TransferScreen() {
     navigate(ROUTES.dashboard)
   }, [navigate])
 
+
   const headerTitle = t('Deposit')
   const formTitle = t('Deposit')
 
@@ -205,12 +208,23 @@ function TransferScreen() {
     return t('Deposit')
   }, [isLoading, isAccountLoaded, t])
 
+  // Enhanced deposit handler that includes provider routing
+  const handleDepositWithRouting = useCallback(() => {
+    if (privacyProvider === 'privacy-pools') {
+      console.log('DEBUG:Routing to PrivacyPools deposit flow')
+      handleDeposit()
+    } else if (privacyProvider === 'railgun') {
+      console.log('DEBUG: Routing to Railgun deposit flow')
+      handleDepositRailgun()
+    }
+  }, [privacyProvider, handleDeposit, handleDepositRailgun])
+
   const buttons = useMemo(() => {
     return (
       <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
         <BackButton onPress={onBack} />
         <Buttons
-          handleSubmitForm={handleDeposit}
+          handleSubmitForm={handleDepositWithRouting}
           proceedBtnText={proceedBtnText}
           isNotReadyToProceed={!isTransferFormValid}
           isLoading={isLoading}
@@ -219,7 +233,7 @@ function TransferScreen() {
         />
       </View>
     )
-  }, [onBack, handleDeposit, proceedBtnText, isTransferFormValid, isLoading])
+  }, [onBack, handleDepositWithRouting, proceedBtnText, isTransferFormValid, isLoading])
 
   if (displayedView === 'track') {
     return (

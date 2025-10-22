@@ -44,7 +44,8 @@ const usePrivacyPoolsForm = () => {
     verifyWithdrawalProof,
     setSelectedPoolAccount,
     generateWithdrawalProof,
-    createWithdrawalSecrets
+    createWithdrawalSecrets,
+    privacyProvider
   } = usePrivacyPoolsControllerState()
 
   const { account: userAccount, portfolio } = useSelectedAccountControllerState()
@@ -205,6 +206,10 @@ const usePrivacyPoolsForm = () => {
     // sync SignAccountOp with transaction data and open estimation modal
     await syncSignAccountOp([result])
     openEstimationModalAndDispatch()
+  }
+
+  const handleDepositRailgun = async () => {
+    console.log('DEBUG: handleDepositRailgun PAUSE FOR NOW')
   }
 
   const isRagequitLoading = (poolAccount: PoolAccount) => {
@@ -436,6 +441,7 @@ const usePrivacyPoolsForm = () => {
     depositAmount,
     accountService,
     withdrawalAmount,
+    privacyProvider,
     showAddedToBatch,
     estimationModalRef,
     selectedPoolAccount,
@@ -451,6 +457,7 @@ const usePrivacyPoolsForm = () => {
     ethPrivateBalance,
     isReadyToLoad,
     handleDeposit,
+    handleDepositRailgun,
     handleMultipleRagequit,
     handleMultipleWithdrawal,
     handleUpdateForm,

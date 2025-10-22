@@ -2,6 +2,8 @@ import React, { ReactNode, useEffect, useMemo, useState } from 'react'
 import { View } from 'react-native'
 
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
+import Select from '@common/components/Select'
+import { SelectValue } from '@common/components/Select/types'
 import Text from '@common/components/Text'
 import TokenIcon from '@common/components/TokenIcon'
 import { useTranslation } from '@common/config/localization'
@@ -33,6 +35,7 @@ const DepositForm = ({
   const { portfolio } = useSelectedAccountControllerState()
   const { t } = useTranslation()
   const [displayAmount, setDisplayAmount] = useState('')
+  const [selectedProvider, setSelectedProvider] = useState<SelectValue>({ value: 'privacy-pools', label: t('Privacy Pools') })
 
   const sepoliaEth = portfolio.tokens.find(
     (token) => token.chainId === chainId && token.address === zeroAddress
@@ -75,6 +78,11 @@ const DepositForm = ({
       // eslint-disable-next-line no-console
       console.warn('Invalid ETH amount entered:', inputValue)
     }
+  }
+
+  const handleProviderChange = (provider: SelectValue) => {
+    setSelectedProvider(provider)
+    handleUpdateForm({ privacyProvider: provider.value })
   }
 
   useEffect(() => {
@@ -160,16 +168,44 @@ const DepositForm = ({
         maxAmountDisabled={!ethBalance || ethBalance === 0n}
       />
 
+      {/* Provider Dropdown */}
       <View style={spacings.mbLg}>
         <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
           <Text appearance="secondaryText" fontSize={14} weight="light">
             {t('Provider')}
           </Text>
           <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-            <PrivacyIcon width={15} height={15} />
-            <Text fontSize={14} weight="light" style={spacings.mlMi}>
-              {t('Privacy Pools')}
-            </Text>
+            {/* Dropdown for selecting provider */}
+            <Select
+              options={[
+                {
+                  label: (
+                    <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+                      <PrivacyIcon width={15} height={15} />
+                      <Text fontSize={14} weight="light" style={spacings.mlMi}>
+                        {t('Privacy Pools')}
+                      </Text>
+                    </View>
+                  ),
+                  value: 'privacy-pools'
+                },
+                {
+                  label: (
+                    <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+                      <PrivacyIcon width={15} height={15} />
+                      <Text fontSize={14} weight="light">
+                        {t('Railgun')}
+                      </Text>
+                    </View>
+                  ),
+                  value: 'railgun'
+                }
+              ]}
+              value={selectedProvider}
+              setValue={handleProviderChange}
+              selectStyle={{ minWidth: 150 }}
+              testID="provider-dropdown"
+            />
           </View>
         </View>
       </View>
