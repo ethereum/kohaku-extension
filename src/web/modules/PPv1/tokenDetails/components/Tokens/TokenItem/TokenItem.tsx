@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react'
+import React from 'react'
 import { View } from 'react-native'
 import { formatUnits } from 'ethers'
 
@@ -14,8 +14,6 @@ import { AnimatedPressable, useCustomHover } from '@web/hooks/useHover'
 import { getTokenId } from '@web/utils/token'
 import { THEME_TYPES } from '@common/styles/themeConfig'
 
-import useNavigation from '@common/hooks/useNavigation'
-import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import TokenIcon from '../TokenIcon'
 import getStyles from './styles'
 
@@ -28,11 +26,6 @@ const TokenItem = ({ token }: { token: TokenResult }) => {
     chainId,
     flags: { onGasTank }
   } = token
-
-  const { navigate } = useNavigation()
-  const navigateToTokenDetails = useCallback(() => {
-    navigate(WEB_ROUTES.pp1TokenDetails)
-  }, [navigate])
 
   const [bindAnim, animStyle] = useCustomHover({
     property: 'backgroundColor',
@@ -53,11 +46,7 @@ const TokenItem = ({ token }: { token: TokenResult }) => {
   const balanceUSDFormatted = formatDecimals(balanceUSD, 'value')
 
   return (
-    <AnimatedPressable
-      style={[styles.container, animStyle]}
-      {...bindAnim}
-      onPress={navigateToTokenDetails}
-    >
+    <AnimatedPressable style={[styles.container, animStyle]} {...bindAnim}>
       <View style={flexboxStyles.flex1}>
         <View style={[flexboxStyles.directionRow, flexboxStyles.flex1]}>
           <View style={[flexboxStyles.directionRow, { flex: 1.5 }]}>
