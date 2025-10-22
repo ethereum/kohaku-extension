@@ -208,10 +208,9 @@ function TransferScreen() {
     return t('Deposit')
   }, [isLoading, isAccountLoaded, t])
 
-  // Enhanced deposit handler that includes provider routing
   const handleDepositWithRouting = useCallback(() => {
     if (privacyProvider === 'privacy-pools') {
-      console.log('DEBUG:Routing to PrivacyPools deposit flow')
+      console.log('DEBUG: Routing to PrivacyPools deposit flow')
       handleDeposit()
     } else if (privacyProvider === 'railgun') {
       console.log('DEBUG: Routing to Railgun deposit flow')

@@ -14,6 +14,7 @@ import { formatEther, parseEther, zeroAddress } from 'viem'
 import { PoolInfo } from '@ambire-common/controllers/privacyPools/config'
 import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
 import PrivacyIcon from '@common/assets/svg/PrivacyIcon'
+import RailgunIcon from '@common/assets/svg/RailgunIcon'
 import SendToken from '../SendToken'
 import styles from './styles'
 
@@ -168,7 +169,6 @@ const DepositForm = ({
         maxAmountDisabled={!ethBalance || ethBalance === 0n}
       />
 
-      {/* Provider Dropdown */}
       <View style={spacings.mbLg}>
         <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
           <Text appearance="secondaryText" fontSize={14} weight="light">
@@ -192,7 +192,7 @@ const DepositForm = ({
                 {
                   label: (
                     <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-                      <PrivacyIcon width={15} height={15} />
+                      <RailgunIcon width={15} height={15} />
                       <Text fontSize={14} weight="light">
                         {t('Railgun')}
                       </Text>
