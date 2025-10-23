@@ -11,7 +11,6 @@ import flexbox from '@common/styles/utils/flexbox'
 import commonWebStyles from '@web/styles/utils/common'
 import { getUiType } from '@web/utils/uiType'
 
-import TokensSkeleton from '../../components/Tokens/TokensSkeleton'
 import useBanners from '../../hooks/useBanners'
 import getStyles from '../styles'
 
@@ -33,7 +32,6 @@ const Skeleton = () => {
             <SkeletonLoader key={banner.id} height={61} width="100%" style={spacings.mbTy} />
           ))}
           <TabsAndSearchSkeleton />
-          <TokensSkeleton />
         </View>
       </View>
     </View>
