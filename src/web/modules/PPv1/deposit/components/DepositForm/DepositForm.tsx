@@ -194,8 +194,8 @@ const DepositForm = ({
 
   return (
     <ScrollableWrapper contentContainerStyle={styles.container}>
-      <View style={spacings.mbLg}>
-        <Text appearance="secondaryText" fontSize={14} weight="light" style={spacings.mbMi}>
+      <View>
+        <Text appearance="secondaryText" fontSize={14} weight="light">
           {t('Account')}
         </Text>
         <Select
@@ -210,8 +210,8 @@ const DepositForm = ({
         />
       </View>
 
-      <View style={spacings.mbLg}>
-        <Text appearance="secondaryText" fontSize={14} weight="light" style={spacings.mbMi}>
+      <View>
+        <Text appearance="secondaryText" fontSize={14} weight="light">
           {t('Amount')}
         </Text>
         <SendToken
