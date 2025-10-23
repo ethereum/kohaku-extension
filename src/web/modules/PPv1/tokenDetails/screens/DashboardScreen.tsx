@@ -10,6 +10,8 @@ import flexbox from '@common/styles/utils/flexbox'
 import ReceiveModal from '@web/components/ReceiveModal'
 import { getUiType } from '@web/utils/uiType'
 
+import useNavigation from '@common/hooks/useNavigation'
+import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import DashboardOverview from '../components/DashboardOverview'
 import DashboardPages from '../components/DashboardPages'
 import getStyles from './styles'
@@ -29,6 +31,15 @@ const PPv1TokenDetailsScreen = () => {
   })
   const debouncedDashboardOverviewSize = useDebounce({ value: dashboardOverviewSize, delay: 100 })
   const animatedOverviewHeight = useRef(new Animated.Value(OVERVIEW_CONTENT_MAX_HEIGHT)).current
+  const { navigate } = useNavigation()
+
+  const handleDeposit = useCallback(() => {
+    navigate(WEB_ROUTES.pp1Deposit)
+  }, [navigate])
+
+  const handleSend = useCallback(() => {
+    navigate(WEB_ROUTES.pp1Transfer)
+  }, [navigate])
 
   const onScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -91,9 +102,7 @@ const PPv1TokenDetailsScreen = () => {
                 type="secondary"
                 size="large"
                 text="Deposit"
-                onPress={() => {
-                  // TODO: Implement deposit functionality
-                }}
+                onPress={handleDeposit}
                 testID="deposit-button"
               />
             </View>
@@ -102,9 +111,7 @@ const PPv1TokenDetailsScreen = () => {
                 type="primary"
                 size="large"
                 text="Send"
-                onPress={() => {
-                  // TODO: Implement send functionality
-                }}
+                onPress={handleSend}
                 testID="send-button"
               />
             </View>
