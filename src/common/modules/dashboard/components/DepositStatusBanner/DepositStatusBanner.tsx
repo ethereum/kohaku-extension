@@ -23,8 +23,13 @@ interface DepositStatusBannerProps {
 const DepositStatusBanner = ({ onWithdrawBack, onDeposit }: DepositStatusBannerProps) => {
   const { theme } = useTheme()
   const styles = getStyles(theme)
-  const { totalDeclinedBalance, totalPendingBalance, ethPrice, isAccountLoaded } =
-    usePrivacyPoolsForm()
+  const {
+    totalDeclinedBalance,
+    totalPendingBalance,
+    totalApprovedBalance,
+    ethPrice,
+    isAccountLoaded
+  } = usePrivacyPoolsForm()
 
   const [selectedTab, setSelectedTab] = useState<TabType>(() => {
     const hasRejected = totalDeclinedBalance.accounts.length > 0
@@ -60,7 +65,10 @@ const DepositStatusBanner = ({ onWithdrawBack, onDeposit }: DepositStatusBannerP
 
   const rejectedCount = totalDeclinedBalance.accounts.length
   const pendingCount = totalPendingBalance.accounts.length
-  const zeroBalance = totalDeclinedBalance.total === 0n && totalPendingBalance.total === 0n
+  const zeroBalance =
+    totalDeclinedBalance.total === 0n &&
+    totalPendingBalance.total === 0n &&
+    totalApprovedBalance.total === 0n
 
   if (!isAccountLoaded) return null
 
