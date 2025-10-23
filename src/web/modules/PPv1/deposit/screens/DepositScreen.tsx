@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import { View } from 'react-native'
 
 import { SigningStatus } from '@ambire-common/controllers/signAccountOp/signAccountOp'
 import { Key } from '@ambire-common/interfaces/keystore'
@@ -11,6 +12,7 @@ import useNavigation from '@common/hooks/useNavigation'
 import { ROUTES } from '@common/modules/router/constants/common'
 import useActivityControllerState from '@web/hooks/useActivityControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
+import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
 import Estimation from '@web/modules/sign-account-op/components/OneClick/Estimation'
 import TrackProgress from '@web/modules/sign-account-op/components/OneClick/TrackProgress'
 import Completed from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/Completed'
@@ -22,7 +24,6 @@ import Buttons from '@web/modules/PPv1/deposit/components/Buttons'
 import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import { getUiType } from '@web/utils/uiType'
 import flexbox from '@common/styles/utils/flexbox'
-import { View } from 'react-native'
 import { Content, Form, Wrapper } from '../components/TransactionsScreen'
 
 const { isActionWindow } = getUiType()
@@ -34,6 +35,7 @@ function TransferScreen() {
   const { t } = useTranslation()
 
   const { accountsOps } = useActivityControllerState()
+  const { selectedToken } = usePrivacyPoolsControllerState()
 
   const {
     chainId,
@@ -45,17 +47,13 @@ function TransferScreen() {
     latestBroadcastedAccountOp,
     isLoading,
     isAccountLoaded,
+    validationFormMsgs,
     handleDeposit,
     handleUpdateForm,
     closeEstimationModal,
     refreshPrivateAccount,
     loadPrivateAccount
   } = usePrivacyPoolsForm()
-
-  const amountErrorMessage = useMemo(() => {
-    if (!depositAmount || depositAmount === '0') return ''
-    return ''
-  }, [depositAmount])
 
   const submittedAccountOp = useMemo(() => {
     if (!accountsOps.privacyPools || !latestBroadcastedAccountOp?.signature) return
@@ -261,6 +259,8 @@ function TransferScreen() {
     )
   }
 
+  console.log('DEBUG: validationMessages', validationFormMsgs)
+
   return (
     <Wrapper title={headerTitle} buttons={buttons}>
       <Content buttons={buttons}>
@@ -268,7 +268,8 @@ function TransferScreen() {
           <DepositForm
             poolInfo={poolInfo}
             depositAmount={depositAmount}
-            amountErrorMessage={amountErrorMessage}
+            selectedToken={selectedToken}
+            amountErrorMessage={validationFormMsgs.amount.message || ''}
             formTitle={formTitle}
             handleUpdateForm={handleUpdateForm}
             chainId={BigInt(chainId)}
