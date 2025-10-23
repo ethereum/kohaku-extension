@@ -70,6 +70,7 @@ const WEB_ROUTES = {
   pp1Import: 'PPv1Import',
   pp1Ragequit: 'PPv1Ragequit',
   pp1Settings: 'PPv1Settings',
+  pp1TokenDetails: 'PPv1TokenDetails',
 
   // Privacy Pools V2 routes
   pp2Home: 'PPv2Home',

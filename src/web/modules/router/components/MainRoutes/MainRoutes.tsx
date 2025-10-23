@@ -62,6 +62,7 @@ import PPv1TransferScreen from '@web/modules/PPv1/transfer/screens/TransferScree
 import PPv1ImportScreen from '@web/modules/PPv1/importAccount/screens/ImportScreen'
 import PPv1RagequitScreen from '@web/modules/PPv1/ragequit/screens/RagequitScreen'
 import PPv1SettingsScreen from '@web/modules/PPv1/settings/screens/SettingsScreen'
+import PPv1TokenDetailsScreen from '@web/modules/PPv1/tokenDetails/screens'
 
 // import PPv2HomeScreen from '@web/modules/PPv2/screens/Home'
 // import PPv2DepositScreen from '@web/modules/PPv2/deposit/screens/DepositScreen'
@@ -172,6 +173,7 @@ const MainRoutes = () => {
           <Route path={WEB_ROUTES.pp1Import} element={<PPv1ImportScreen />} />
           <Route path={WEB_ROUTES.pp1Ragequit} element={<PPv1RagequitScreen />} />
           <Route path={WEB_ROUTES.pp1Settings} element={<PPv1SettingsScreen />} />
+          <Route path={WEB_ROUTES.pp1TokenDetails} element={<PPv1TokenDetailsScreen />} />
 
           {/* Privacy Pools V2 */}
           {/* <Route path={WEB_ROUTES.pp2Home} element={<PPv2HomeScreen />} />
