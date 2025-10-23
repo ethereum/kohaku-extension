@@ -242,20 +242,22 @@ const TransferScreen = () => {
     onPrimaryButtonPress
   ])
 
+  const handleWithdrawal = useCallback(async () => {
+    setIsSubmitting(true)
+    try {
+      await handleMultipleWithdrawal()
+    } catch (error) {
+      console.error('Withdrawal error:', error)
+      setIsSubmitting(false)
+    }
+  }, [handleMultipleWithdrawal])
+
   const buttons = useMemo(() => {
     return (
       <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
         <BackButton onPress={onBack} />
         <Buttons
-          handleSubmitForm={async () => {
-            setIsSubmitting(true)
-            try {
-              await handleMultipleWithdrawal()
-            } catch (error) {
-              console.error('Withdrawal error:', error)
-              setIsSubmitting(false)
-            }
-          }}
+          handleSubmitForm={handleWithdrawal}
           proceedBtnText={t('Send')}
           isNotReadyToProceed={!isTransferFormValid}
           signAccountOpErrors={[]}
@@ -264,7 +266,7 @@ const TransferScreen = () => {
         />
       </View>
     )
-  }, [onBack, handleMultipleWithdrawal, isTransferFormValid, t, isSubmitting])
+  }, [onBack, isTransferFormValid, t, isSubmitting, handleWithdrawal])
 
   // Refresh merkle tree and private account after successful withdrawal
   useEffect(() => {
