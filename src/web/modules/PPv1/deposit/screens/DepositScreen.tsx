@@ -23,7 +23,8 @@ import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import { getUiType } from '@web/utils/uiType'
 import flexbox from '@common/styles/utils/flexbox'
 import { View } from 'react-native'
-import { Content, Form, Wrapper } from '../components/TransactionsScreen'
+import { Content } from '@web/components/TransactionsScreen'
+import { Form, Wrapper } from '../components/TransactionsScreen'
 
 const { isActionWindow } = getUiType()
 
