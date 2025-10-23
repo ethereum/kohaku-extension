@@ -20,7 +20,6 @@ import useMainControllerState from '@web/hooks/useMainControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 
-import BalanceAffectingErrors from './BalanceAffectingErrors'
 import RefreshIcon from './RefreshIcon'
 import getStyles from './styles'
 
@@ -65,15 +64,8 @@ const DashboardOverview: FC<Props> = ({
   const [bindRefreshButtonAnim, refreshButtonAnimStyle] = useHover({
     preset: 'opacity'
   })
-  const {
-    sheetRef,
-    balanceAffectingErrorsSnapshot,
-    warningMessage,
-    onIconPress,
-    closeBottomSheetWrapped,
-    isLoadingTakingTooLong,
-    networksWithErrors
-  } = useBalanceAffectingErrors()
+  const { warningMessage, onIconPress, isLoadingTakingTooLong, networksWithErrors } =
+    useBalanceAffectingErrors()
 
   const [totalPrivatePortfolioInteger, totalPrivatePortfolioDecimal] = formatDecimals(
     totalPrivatePortfolio,
@@ -232,16 +224,6 @@ const DashboardOverview: FC<Props> = ({
                       Privacy Pools
                     </Text>
                   </View>
-                  <BalanceAffectingErrors
-                    reloadAccount={refreshPrivateAccount}
-                    networksWithErrors={networksWithErrors}
-                    sheetRef={sheetRef}
-                    balanceAffectingErrorsSnapshot={balanceAffectingErrorsSnapshot}
-                    warningMessage={warningMessage}
-                    onIconPress={onIconPress}
-                    closeBottomSheetWrapped={closeBottomSheetWrapped}
-                    isLoadingTakingTooLong={isLoadingTakingTooLong}
-                  />
                 </View>
               </View>
             </Animated.View>
