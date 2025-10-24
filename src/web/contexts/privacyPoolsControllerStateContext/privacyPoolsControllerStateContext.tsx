@@ -89,7 +89,7 @@ type EnhancedPrivacyPoolsControllerState = {
   importedPrivateAccounts: PoolAccount[][]
   setIsAccountLoaded: Dispatch<SetStateAction<boolean>>
   loadPrivateAccount: () => Promise<void>
-  refreshPrivateAccount: () => Promise<void>
+  refreshPrivateAccount: (refetchLeavesAndRoots?: boolean) => Promise<void>
   loadPPv1Accounts: () => Promise<void>
   addImportedPrivateAccount: (accountInitSource: AccountInitSource) => Promise<void>
   loadImportedPrivateAccount: (accountInitSource: AccountInitSource) => Promise<{
@@ -290,26 +290,33 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
     }
   }, [isAccountLoaded, isReadyToLoad, loadPoolAccounts, setPoolAccounts, setAccountService])
 
-  const refreshPrivateAccount = useCallback(async () => {
-    try {
-      setIsRefreshing(true)
-      setIsAccountLoaded(false)
-      setIsLoadingAccount(true)
+  const refreshPrivateAccount = useCallback(
+    async (refetchLeavesAndRoots = false) => {
+      try {
+        setIsRefreshing(true)
+        setIsAccountLoaded(false)
+        setIsLoadingAccount(true)
 
-      const secrets = await getPrivateAccount()
-      const result = await loadPoolAccounts({ secrets })
-      setPoolAccounts(result.poolAccounts)
-      setAccountService(result.accountService)
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to refresh account. Please try again.'
-      throw new Error(errorMessage)
-    } finally {
-      setIsLoadingAccount(false)
-      setIsAccountLoaded(true)
-      setIsRefreshing(false)
-    }
-  }, [loadPoolAccounts, setPoolAccounts, setAccountService])
+        const secrets = await getPrivateAccount()
+        const result = await loadPoolAccounts({ secrets })
+        setPoolAccounts(result.poolAccounts)
+        setAccountService(result.accountService)
+
+        if (refetchLeavesAndRoots) {
+          await fetchMtData()
+        }
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Failed to refresh account. Please try again.'
+        throw new Error(errorMessage)
+      } finally {
+        setIsLoadingAccount(false)
+        setIsAccountLoaded(true)
+        setIsRefreshing(false)
+      }
+    },
+    [loadPoolAccounts, setPoolAccounts, setAccountService]
+  )
 
   const loadImportedPPv1Accounts = useCallback(async () => {
     const accounts = await getPPv1Accounts()

@@ -816,8 +816,8 @@ type PrivacyControllerResetSecretAction = {
   type: 'PRIVACY_POOLS_CONTROLLER_RESET_SECRET'
 }
 
-type PrivacyControllerPrepareWithdrawalAction = {
-  type: 'PRIVACY_POOLS_CONTROLLER_PREPARE_WITHDRAWAL'
+type PrivacyControllerDirectBroadcastWithdrawalAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_DIRECT_BROADCAST_WITHDRAWAL'
   params: {
     chainId: number
     poolAddress: string
@@ -834,10 +834,6 @@ type PrivacyControllerPrepareWithdrawalAction = {
       }
     }[]
   }
-}
-
-type PrivacyControllerBroadcastWithdrawalAction = {
-  type: 'PRIVACY_POOLS_CONTROLLER_BROADCAST_WITHDRAWAL'
 }
 
 export type Action =
@@ -989,7 +985,6 @@ export type Action =
   | PrivacyControllerSyncSignAccountOpAction
   | PrivacyControllerGenerateSecretAction
   | PrivacyControllerResetFormAction
-  | PrivacyControllerPrepareWithdrawalAction
-  | PrivacyControllerBroadcastWithdrawalAction
+  | PrivacyControllerDirectBroadcastWithdrawalAction
   | PrivacyControllerResetSecretAction
   | PrivacyControllerGeneratePPv1KeysAction
