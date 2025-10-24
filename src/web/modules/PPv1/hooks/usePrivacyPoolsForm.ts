@@ -54,6 +54,10 @@ const usePrivacyPoolsForm = () => {
   const [ragequitLoading, setRagequitLoading] = useState<Record<string, boolean>>({})
   const [showAddedToBatch] = useState(false)
 
+  const allPA = useMemo(() => {
+    return [...poolAccounts, ...importedPrivateAccounts.flat()]
+  }, [poolAccounts, importedPrivateAccounts])
+
   const ethPrice = portfolio.tokens
     .find((token) => token.chainId === BigInt(chainId) && token.name === 'Ether')
     ?.priceIn.find((price) => price.baseCurrency === 'usd')?.price
@@ -61,32 +65,30 @@ const usePrivacyPoolsForm = () => {
   const poolInfo = chainData?.[chainId]?.poolInfo?.[0]
 
   const totalApprovedBalance = useMemo(() => {
-    const accounts = poolAccounts.filter(
-      (account) => account.reviewStatus === ReviewStatus.APPROVED
-    )
+    const accounts = allPA.filter((account) => account.reviewStatus === ReviewStatus.APPROVED)
     const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
     return { total, accounts }
-  }, [poolAccounts])
+  }, [allPA])
 
   const totalPendingBalance = useMemo(() => {
-    const accounts = poolAccounts.filter(
+    const accounts = allPA.filter(
       (account) =>
         account.reviewStatus === ReviewStatus.PENDING &&
         account.depositorAddress?.toLowerCase() === userAccount?.addr?.toLowerCase()
     )
     const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
     return { total, accounts }
-  }, [poolAccounts, userAccount?.addr])
+  }, [allPA, userAccount?.addr])
 
   const totalDeclinedBalance = useMemo(() => {
-    const accounts = poolAccounts.filter(
+    const accounts = allPA.filter(
       (account) =>
         account.reviewStatus === ReviewStatus.DECLINED &&
         account.depositorAddress?.toLowerCase() === userAccount?.addr?.toLowerCase()
     )
     const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
     return { total, accounts }
-  }, [poolAccounts, userAccount?.addr])
+  }, [allPA, userAccount?.addr])
 
   const totalPrivatePortfolio = useMemo(() => {
     // Use totalApprovedBalance from Privacy Pools
@@ -135,16 +137,6 @@ const usePrivacyPoolsForm = () => {
   const ethImportedPrivateBalance = useMemo(() => {
     return formatEther(totalImportedApprovedBalance.total)
   }, [totalImportedApprovedBalance])
-
-  console.log('DEBUG: importedPrivateAccounts data', {
-    importedPrivateAccounts,
-    flattenedImportedAccounts,
-    totalImportedApprovedBalance,
-    totalImportedPendingBalance,
-    totalImportedDeclinedBalance,
-    totalImportedPrivatePortfolio,
-    ethImportedPrivateBalance
-  })
 
   // Calculate batchSize based on withdrawal amount and pool accounts
   const calculatedBatchSize = useMemo(() => {
