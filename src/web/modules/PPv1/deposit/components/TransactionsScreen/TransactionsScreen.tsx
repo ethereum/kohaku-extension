@@ -25,6 +25,7 @@ import { getUiType } from '@web/utils/uiType'
 // import { useTranslation } from 'react-i18next'
 
 import HokahuLogo from '@common/components/HokahuLogo'
+import HeaderBackButton from '@common/modules/header/components/HeaderBackButton'
 import getStyles from './styles'
 
 const { isTab } = getUiType()
@@ -33,6 +34,7 @@ type WrapperProps = {
   children: React.ReactNode
   title?: string | React.ReactNode
   buttons: React.ReactNode
+  handleGoBack?: () => void
 }
 
 type ContentProps = {
@@ -45,7 +47,7 @@ type FormProps = {
   children: React.ReactNode
 }
 
-const Wrapper: FC<WrapperProps> = ({ children, title, buttons }) => {
+const Wrapper: FC<WrapperProps> = ({ children, title, buttons, handleGoBack }) => {
   // const { t } = useTranslation()
   // const { addToast } = useToast()
   const { theme, styles } = useTheme(getStyles)
@@ -108,6 +110,7 @@ const Wrapper: FC<WrapperProps> = ({ children, title, buttons }) => {
                   </View>
                 </View>
               )} */}
+              <HeaderBackButton forceBack onGoBackPress={handleGoBack} />
             </View>
             {title && (
               <Text fontSize={isTab ? 24 : 20} weight="medium">

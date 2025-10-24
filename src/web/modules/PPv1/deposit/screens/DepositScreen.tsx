@@ -64,6 +64,10 @@ function TransferScreen() {
     )
   }, [accountsOps.privacyPools, latestBroadcastedAccountOp?.signature])
 
+  const handleGoBack = useCallback(() => {
+    navigate(ROUTES.dashboard)
+  }, [navigate])
+
   const navigateOut = useCallback(async () => {
     if (isActionWindow) {
       dispatch({
@@ -263,7 +267,7 @@ function TransferScreen() {
   console.log('DEBUG: validationMessages', validationFormMsgs)
 
   return (
-    <Wrapper title={headerTitle} buttons={buttons}>
+    <Wrapper title={headerTitle} handleGoBack={handleGoBack} buttons={buttons}>
       <Content buttons={buttons}>
         <Form>
           <DepositForm
