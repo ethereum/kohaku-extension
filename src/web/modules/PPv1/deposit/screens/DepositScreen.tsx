@@ -192,8 +192,12 @@ function TransferScreen() {
   }, [depositAmount, poolInfo, isLoading, isAccountLoaded])
 
   const onBack = useCallback(() => {
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
+    })
+
     navigate(ROUTES.dashboard)
-  }, [navigate])
+  }, [navigate, dispatch])
 
   const headerTitle = t('Deposit')
   const formTitle = t('Deposit')
