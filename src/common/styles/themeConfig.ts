@@ -48,6 +48,10 @@ const ThemeColors = {
     [THEME_TYPES.DARK]: '#818181',
     [THEME_TYPES.LIGHT]: '#6B6B6B'
   },
+  kohakuAccent: {
+    [THEME_TYPES.DARK]: '#F9F6E9',
+    [THEME_TYPES.LIGHT]: '#F9F6E9'
+  },
   linkText: {
     [THEME_TYPES.DARK]: '#D01C15',
     [THEME_TYPES.LIGHT]: '#D01C15'
