@@ -80,15 +80,11 @@ const TransferScreen = () => {
     forceUpdateOnChangeList: [programmaticUpdateCounter]
   })
 
-  // For privacy pools withdrawals via relayer, we use latestBroadcastedAccountOp directly
-  // because these transactions don't go through the normal AccountOp flow and aren't added to ActivityController
   const submittedAccountOp = useMemo(() => {
-    // If latestBroadcastedAccountOp exists and has the privacy pools withdrawal flag, use it directly
     if (latestBroadcastedAccountOp?.meta?.isPrivacyPoolsWithdrawal) {
       return latestBroadcastedAccountOp as any
     }
 
-    // Otherwise, look for it in the activity controller (for normal transactions)
     if (!accountsOps.privacyPools || !latestBroadcastedAccountOp?.signature) return
 
     return accountsOps.privacyPools.result.items.find(

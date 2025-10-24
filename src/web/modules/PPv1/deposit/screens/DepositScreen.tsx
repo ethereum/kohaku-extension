@@ -263,8 +263,6 @@ function TransferScreen() {
     )
   }
 
-  console.log('DEBUG: validationMessages', validationFormMsgs)
-
   return (
     <Wrapper title={headerTitle} buttons={buttons}>
       <Content buttons={buttons}>
