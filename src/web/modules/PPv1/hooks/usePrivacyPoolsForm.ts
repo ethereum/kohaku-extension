@@ -36,6 +36,7 @@ const usePrivacyPoolsForm = () => {
     isReadyToLoad,
     recipientAddress,
     relayerQuote,
+    validationFormMsgs,
     getContext,
     loadPrivateAccount,
     refreshPrivateAccount,
@@ -190,10 +191,10 @@ const usePrivacyPoolsForm = () => {
     [dispatch]
   )
 
-  const prepareBatchWithdrawal = useCallback(
-    (params: BatchWithdrawalParams): void => {
+  const directBroadcastWithdrawal = useCallback(
+    async (params: BatchWithdrawalParams): Promise<void> => {
       dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_PREPARE_WITHDRAWAL',
+        type: 'PRIVACY_POOLS_CONTROLLER_DIRECT_BROADCAST_WITHDRAWAL',
         params
       })
     },
@@ -211,13 +212,16 @@ const usePrivacyPoolsForm = () => {
   }
 
   const openEstimationModalAndDispatch = useCallback(() => {
+    console.log('DEBUG: openEstimationModalAndDispatch called')
     dispatch({
       type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
       params: {
         proceeded: true
       }
     })
+    console.log('DEBUG: about to call openEstimationModal()')
     openEstimationModal()
+    console.log('DEBUG: after openEstimationModal()')
   }, [openEstimationModal, dispatch])
 
   const syncSignAccountOp = useCallback(
@@ -247,11 +251,6 @@ const usePrivacyPoolsForm = () => {
       value: BigInt(depositAmount)
     }
 
-    // eslint-disable-next-line no-console
-    console.log('DEBUG: result', result)
-
-    // Instead of calling handlePrivateRequest directly,
-    // sync SignAccountOp with transaction data and open estimation modal
     await syncSignAccountOp([result])
     openEstimationModalAndDispatch()
   }
@@ -328,16 +327,10 @@ const usePrivacyPoolsForm = () => {
     userAccount?.addr
   ])
 
-  // Update controller with calculated batchSize whenever it changes
   useEffect(() => {
     handleUpdateForm({ batchSize: calculatedBatchSize })
-    console.log('DEBUG: batchSize update', calculatedBatchSize)
   }, [calculatedBatchSize, handleUpdateForm])
 
-  /**
-   * Handles withdrawal using multiple pool accounts via relayer API
-   * This version generates proofs and submits to the relayer endpoint
-   */
   const handleMultipleWithdrawal = useCallback(async () => {
     if (
       !poolInfo ||
@@ -364,11 +357,7 @@ const usePrivacyPoolsForm = () => {
       }
     })
 
-    console.log('DEBUG: recipientAddress', recipientAddress)
-
     const selectedPoolInfo = poolInfo
-
-    console.log('DEBUG: RELAYER QUOTE', relayerQuote)
 
     const batchWithdrawal = {
       processooor: getAddress('0x7EF84c5660bB5130815099861c613BF935F4DA52'),
@@ -379,65 +368,101 @@ const usePrivacyPoolsForm = () => {
     const stateLeaves = mtLeaves?.stateTreeLeaves
 
     try {
-      console.log('DEBUG: batchWithdrawal', batchWithdrawal)
-
-      // Calculate context from the batch withdrawal data
       // IMPORTANT: All proofs MUST use the SAME context
       const context = getContext(batchWithdrawal, selectedPoolInfo.scope as Hash)
 
       let partialAmount = parseUnits(withdrawalAmount, 18)
+      const accountsWithAmounts = selectedPoolAccounts.map((poolAccount) => {
+        let amount: bigint
+
+        if (partialAmount - poolAccount.balance >= 0) {
+          partialAmount -= poolAccount.balance
+          amount = poolAccount.balance
+        } else {
+          amount = partialAmount
+          partialAmount = 0n
+        }
+
+        return { poolAccount, amount }
+      })
 
       // Generate proofs for each account with the SAME context
-      const proofs = await Promise.all(
-        selectedPoolAccounts.map(async (poolAccount) => {
-          let amount
+      const proofResults = await Promise.allSettled(
+        accountsWithAmounts.map(async ({ poolAccount, amount }) => {
+          try {
+            const commitment = poolAccount.lastCommitment
 
-          if (partialAmount - poolAccount.balance >= 0) {
-            partialAmount -= poolAccount.balance
-            amount = poolAccount.balance
-          } else {
-            amount = partialAmount
+            const stateMerkleProof = getMerkleProof(
+              stateLeaves?.map(BigInt) as bigint[],
+              commitment.hash
+            )
+            const aspMerkleProof = getMerkleProof(aspLeaves?.map(BigInt), commitment.label)
+
+            const { secret, nullifier } = createWithdrawalSecrets(commitment)
+
+            // Workaround for NaN index, SDK issue
+            aspMerkleProof.index = Object.is(aspMerkleProof.index, NaN) ? 0 : aspMerkleProof.index
+
+            const withdrawalProofInput = prepareWithdrawalProofInput(
+              commitment,
+              amount,
+              stateMerkleProof,
+              aspMerkleProof,
+              BigInt(context),
+              secret,
+              nullifier
+            )
+
+            const proof = await generateWithdrawalProof(commitment, withdrawalProofInput)
+
+            await verifyWithdrawalProof(proof)
+
+            return proof
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error ? error.message : 'Unknown error during proof generation'
+            console.error(
+              `DEBUG - failed to generate proof for account ${poolAccount.name}:`,
+              errorMessage
+            )
+            throw new Error(
+              `Failed to generate proof for account ${poolAccount.name}: ${errorMessage}`
+            )
           }
-
-          const commitment = poolAccount.lastCommitment
-
-          // Generate merkle proofs
-          const stateMerkleProof = getMerkleProof(
-            stateLeaves?.map(BigInt) as bigint[],
-            commitment.hash
-          )
-          const aspMerkleProof = getMerkleProof(aspLeaves?.map(BigInt), commitment.label)
-
-          // Create withdrawal secrets
-          const { secret, nullifier } = createWithdrawalSecrets(commitment)
-
-          // Workaround for NaN index, SDK issue
-          aspMerkleProof.index = Object.is(aspMerkleProof.index, NaN) ? 0 : aspMerkleProof.index
-
-          // Prepare withdrawal proof input with the shared context
-          const withdrawalProofInput = prepareWithdrawalProofInput(
-            commitment,
-            amount,
-            stateMerkleProof,
-            aspMerkleProof,
-            BigInt(context),
-            secret,
-            nullifier
-          )
-
-          const proof = await generateWithdrawalProof(commitment, withdrawalProofInput)
-
-          await verifyWithdrawalProof(proof)
-
-          return proof
         })
       )
-      console.log('DEBUG: calling relayer endpoint')
+
+      const failedProofs = proofResults.filter((result) => result.status === 'rejected')
+      if (failedProofs.length > 0) {
+        const errorMessages = failedProofs
+          .map((result, index) => {
+            if (result.status === 'rejected') {
+              return `Account ${index + 1}: ${result.reason}`
+            }
+            return ''
+          })
+          .filter(Boolean)
+          .join('; ')
+
+        throw new Error(
+          `Failed to generate ${failedProofs.length} proof(s) out of ${proofResults.length}: ${errorMessages}`
+        )
+      }
+
+      // Extract successful proofs
+      const proofs = proofResults.map((result) => {
+        if (result.status === 'fulfilled') {
+          return result.value
+        }
+        // This should never happen due to the check above, but TypeScript needs it
+        throw new Error('Unexpected rejected proof after validation')
+      })
+
       const transformedProofs = proofs.map((proof) => transformProofForRelayerApi(proof))
 
       if (!batchWithdrawal) return
 
-      prepareBatchWithdrawal({
+      await directBroadcastWithdrawal({
         chainId,
         poolAddress: poolInfo.address,
         withdrawal: {
@@ -446,8 +471,6 @@ const usePrivacyPoolsForm = () => {
         },
         proofs: transformedProofs
       })
-
-      openEstimationModalAndDispatch()
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to process multiple withdrawal'
@@ -469,8 +492,7 @@ const usePrivacyPoolsForm = () => {
     verifyWithdrawalProof,
     createWithdrawalSecrets,
     generateWithdrawalProof,
-    prepareBatchWithdrawal,
-    openEstimationModalAndDispatch
+    directBroadcastWithdrawal
   ])
 
   return {
@@ -503,6 +525,7 @@ const usePrivacyPoolsForm = () => {
     totalImportedDeclinedBalance,
     totalImportedPrivatePortfolio,
     ethImportedPrivateBalance,
+    validationFormMsgs,
     isReadyToLoad,
     handleDeposit,
     handleMultipleRagequit,

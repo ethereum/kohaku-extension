@@ -28,11 +28,13 @@ const DepositForm = ({
   amountErrorMessage,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   formTitle,
+  selectedToken,
   handleUpdateForm,
   chainId
 }: {
   poolInfo?: PoolInfo
   depositAmount?: string
+  selectedToken: any
   amountErrorMessage: string
   formTitle: string | ReactNode
   handleUpdateForm: (params: { [key: string]: any }) => void
@@ -140,6 +142,23 @@ const DepositForm = ({
       console.warn('Invalid ETH amount entered:', inputValue)
     }
   }
+
+  // Initialize selectedToken with default ETH token if not set
+  useEffect(() => {
+    if (!selectedToken && portfolio?.isReadyToVisualize && ethBalance !== undefined) {
+      const defaultToken = portfolio?.tokens.find(
+        (token) => token.chainId === chainId && token.address === zeroAddress
+      )
+      handleUpdateForm({ selectedToken: defaultToken, maxAmount: formatEther(ethBalance) })
+    }
+  }, [
+    selectedToken,
+    portfolio?.isReadyToVisualize,
+    portfolio?.tokens,
+    ethBalance,
+    handleUpdateForm,
+    chainId
+  ])
 
   useEffect(() => {
     if (depositAmount && depositAmount !== '0') {

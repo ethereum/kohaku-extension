@@ -1,9 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { SigningStatus } from '@ambire-common/controllers/signAccountOp/signAccountOp'
 import { AddressStateOptional } from '@ambire-common/interfaces/domains'
-import { Key } from '@ambire-common/interfaces/keystore'
 import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
 import { getBenzinUrlParams } from '@ambire-common/utils/benzin'
 
@@ -18,7 +16,6 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useSyncedState from '@web/hooks/useSyncedState'
 import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
 import Buttons from '@web/modules/PPv1/deposit/components/Buttons'
-import Estimation from '@web/modules/sign-account-op/components/OneClick/Estimation'
 import TrackProgress from '@web/modules/sign-account-op/components/OneClick/TrackProgress'
 import Completed from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/Completed'
 import Failed from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/Failed'
@@ -36,6 +33,7 @@ const { isActionWindow } = getUiType()
 
 const TransferScreen = () => {
   const hasRefreshedAccountRef = useRef(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const { dispatch } = useBackgroundService()
   const {
     totalApprovedBalance,
@@ -50,17 +48,16 @@ const TransferScreen = () => {
     isRecipientAddressUnknown,
     latestBroadcastedAccountOp,
     latestBroadcastedToken,
-    hasProceeded,
     selectedToken,
     amountFieldMode,
     withdrawalAmount,
     amountInFiat,
     programmaticUpdateCounter,
     isRecipientAddressUnknownAgreed,
-    signAccountOpController,
     maxAmount,
     relayerQuote,
-    updateQuoteStatus
+    updateQuoteStatus,
+    isRefreshing
   } = usePrivacyPoolsControllerState()
 
   const { navigate } = useNavigation()
@@ -139,9 +136,7 @@ const TransferScreen = () => {
   }, [submittedAccountOp])
 
   useEffect(() => {
-    // Optimization: Don't apply filtration if we don't have a recent broadcasted account op
     if (!latestBroadcastedAccountOp?.accountAddr || !latestBroadcastedAccountOp?.chainId) return
-
     sessionHandler.initSession()
 
     return () => {
@@ -150,17 +145,11 @@ const TransferScreen = () => {
   }, [latestBroadcastedAccountOp?.accountAddr, latestBroadcastedAccountOp?.chainId, sessionHandler])
 
   const displayedView: 'transfer' | 'track' = useMemo(() => {
-    // Show tracking screen only if both conditions are met:
-    // 1. latestBroadcastedAccountOp is set (transaction was broadcasted)
-    // 2. shouldTrackLatestBroadcastedAccountOp is true (controller wants us to show tracking)
     if (latestBroadcastedAccountOp) return 'track'
 
     return 'transfer'
   }, [latestBroadcastedAccountOp])
 
-  // When navigating to another screen internally in the extension, we unload the TransferController
-  // to ensure that no estimation or SignAccountOp logic is still running.
-  // If the screen is closed entirely, the clean-up is handled by the port.onDisconnect callback in the background.
   useEffect(() => {
     return () => {
       dispatch({
@@ -168,33 +157,6 @@ const TransferScreen = () => {
       })
     }
   }, [dispatch])
-
-  const handleBroadcastAccountOp = useCallback(() => {
-    dispatch({
-      type: 'PRIVACY_POOLS_CONTROLLER_BROADCAST_WITHDRAWAL'
-    })
-  }, [dispatch])
-
-  const handleUpdateStatus = useCallback(
-    (status: SigningStatus) => {
-      dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS',
-        params: {
-          status
-        }
-      })
-    },
-    [dispatch]
-  )
-  const updateController = useCallback(
-    (params: { signingKeyAddr?: Key['addr']; signingKeyType?: Key['type'] }) => {
-      dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE',
-        params
-      })
-    },
-    [dispatch]
-  )
 
   // Used to resolve ENS, not to update the field value
   const setAddressState = useCallback(
@@ -233,14 +195,6 @@ const TransferScreen = () => {
     handleCacheResolvedDomain
   })
 
-  const { estimationModalRef, closeEstimationModal } = usePrivacyPoolsForm()
-
-  useEffect(() => {
-    if (displayedView === 'track') {
-      closeEstimationModal()
-    }
-  }, [displayedView, closeEstimationModal])
-
   const amountErrorMessage = useMemo(() => {
     return validationFormMsgs.amount.message || ''
   }, [validationFormMsgs.amount.message])
@@ -251,9 +205,16 @@ const TransferScreen = () => {
       amountFieldValue !== '0' &&
       selectedToken &&
       relayerQuote &&
-      !addressInputState.validation.isError
+      !addressInputState.validation.isError &&
+      !isRefreshing
     )
-  }, [amountFieldValue, selectedToken, addressInputState.validation.isError, relayerQuote])
+  }, [
+    amountFieldValue,
+    selectedToken,
+    addressInputState.validation.isError,
+    relayerQuote,
+    isRefreshing
+  ])
 
   const onBack = useCallback(() => {
     dispatch({
@@ -265,14 +226,10 @@ const TransferScreen = () => {
   const headerTitle = t('Private Transfer')
   const formTitle = t('Send')
 
-  // For privacy pools withdrawals, we need to handle the close button differently
-  // because these transactions don't go through the normal activity controller flow
   const handlePrimaryButtonPress = useCallback(() => {
     if (latestBroadcastedAccountOp?.meta?.isPrivacyPoolsWithdrawal) {
-      // For privacy pools, directly navigate out since we don't use activity banners
       navigateOut()
     } else {
-      // For normal transactions, use the standard flow
       onPrimaryButtonPress()
     }
   }, [
@@ -281,22 +238,33 @@ const TransferScreen = () => {
     onPrimaryButtonPress
   ])
 
+  const handleWithdrawal = useCallback(async () => {
+    setIsSubmitting(true)
+    try {
+      await handleMultipleWithdrawal()
+    } catch (error) {
+      console.error('Withdrawal error:', error)
+      setIsSubmitting(false)
+    }
+  }, [handleMultipleWithdrawal])
+
   const buttons = useMemo(() => {
     return (
       <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
         <BackButton onPress={onBack} />
         <Buttons
-          handleSubmitForm={handleMultipleWithdrawal}
-          proceedBtnText={t('Send')}
-          isNotReadyToProceed={!isTransferFormValid}
+          handleSubmitForm={handleWithdrawal}
+          proceedBtnText={isRefreshing ? t('Updating...') : t('Send')}
+          isNotReadyToProceed={!isTransferFormValid || isRefreshing}
           signAccountOpErrors={[]}
           networkUserRequests={[]}
+          isLoading={isSubmitting || isRefreshing}
         />
       </View>
     )
-  }, [onBack, handleMultipleWithdrawal, isTransferFormValid, t])
+  }, [onBack, isTransferFormValid, t, isSubmitting, isRefreshing, handleWithdrawal])
 
-  // Refresh private account after deposit success or unknown but past nonce
+  // Refresh merkle tree and private account after successful withdrawal
   useEffect(() => {
     if (
       !hasRefreshedAccountRef.current &&
@@ -304,10 +272,16 @@ const TransferScreen = () => {
         submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce)
     ) {
       hasRefreshedAccountRef.current = true
-      refreshPrivateAccount().catch((error) => {
-        // eslint-disable-next-line no-console
-        console.error('Failed to refresh private account after deposit:', error)
-      })
+
+      refreshPrivateAccount(true)
+        .then(() => {
+          setIsSubmitting(false)
+        })
+        .catch((error) => {
+          // eslint-disable-next-line no-console
+          console.error('Failed to refresh after withdrawal:', error)
+          setIsSubmitting(false)
+        })
     }
   }, [submittedAccountOp?.status, refreshPrivateAccount])
 
@@ -378,17 +352,6 @@ const TransferScreen = () => {
           />
         </Form>
       </Content>
-
-      <Estimation
-        updateType="PrivacyPools"
-        estimationModalRef={estimationModalRef}
-        closeEstimationModal={closeEstimationModal}
-        updateController={updateController}
-        handleUpdateStatus={handleUpdateStatus}
-        handleBroadcastAccountOp={handleBroadcastAccountOp}
-        hasProceeded={!!hasProceeded}
-        signAccountOpController={signAccountOpController || null}
-      />
     </Wrapper>
   )
 }
