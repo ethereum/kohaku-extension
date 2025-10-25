@@ -278,14 +278,20 @@ function TransferScreen() {
     <Wrapper title={headerTitle} buttons={buttons}>
       <Content buttons={buttons}>
         <Form>
-          <DepositForm
-            poolInfo={poolInfo}
-            depositAmount={depositAmount}
-            amountErrorMessage={amountErrorMessage}
-            formTitle={formTitle}
-            handleUpdateForm={handleUpdateForm}
-            chainId={BigInt(chainId)}
-          />
+          {chainId ? (
+            <DepositForm
+              poolInfo={poolInfo}
+              depositAmount={depositAmount}
+              amountErrorMessage={amountErrorMessage}
+              formTitle={formTitle}
+              handleUpdateForm={handleUpdateForm}
+              chainId={BigInt(chainId)}
+            />
+          ) : (
+            <Text fontSize={14} weight="regular" appearance="secondaryText">
+              {t('Loading...')}
+            </Text>
+          )}
         </Form>
       </Content>
 

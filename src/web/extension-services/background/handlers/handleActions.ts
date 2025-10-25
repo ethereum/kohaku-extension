@@ -444,6 +444,36 @@ export const handleActions = async (
       return mainCtrl.privacyPools.broadcastWithdrawal()
     case 'PRIVACY_POOLS_CONTROLLER_RESET_SECRET':
       return mainCtrl.privacyPools.resetSecret()
+    case 'RAILGUN_CONTROLLER_SDK_LOADED':
+      return mainCtrl.railgun.setSdkInitialized()
+    case 'RAILGUN_CONTROLLER_UPDATE_FORM':
+      return mainCtrl.railgun.update(params)
+    case 'RAILGUN_CONTROLLER_UNLOAD_SCREEN':
+      return mainCtrl.railgun.unloadScreen()
+    case 'RAILGUN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE':
+      return mainCtrl.railgun?.signAccountOpController?.update(params)
+    case 'RAILGUN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS':
+      return mainCtrl.railgun?.signAccountOpController?.updateStatus(params.status)
+    case 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED':
+      return mainCtrl.railgun.setUserProceeded(params.proceeded)
+    case 'RAILGUN_CONTROLLER_RESET_FORM':
+      return mainCtrl.railgun.resetForm()
+    case 'RAILGUN_CONTROLLER_DESTROY_SIGN_ACCOUNT_OP':
+      return mainCtrl.railgun.destroySignAccountOp()
+    case 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP':
+      return mainCtrl.railgun.destroyLatestBroadcastedAccountOp()
+    case 'RAILGUN_CONTROLLER_SYNC_SIGN_ACCOUNT_OP':
+      return mainCtrl.railgun.syncSignAccountOp(params.calls)
+    case 'RAILGUN_CONTROLLER_GENERATE_PPV1_KEYS':
+      return mainCtrl.railgun.generatePPv1Keys()
+    case 'RAILGUN_CONTROLLER_GENERATE_SECRET':
+      return mainCtrl.railgun.generateSecret(params.appInfo)
+    case 'RAILGUN_CONTROLLER_PREPARE_WITHDRAWAL':
+      return mainCtrl.railgun.prepareWithdrawal(params)
+    case 'RAILGUN_CONTROLLER_BROADCAST_WITHDRAWAL':
+      return mainCtrl.railgun.broadcastWithdrawal()
+    case 'RAILGUN_CONTROLLER_RESET_SECRET':
+      return mainCtrl.railgun.resetSecret()
     case 'ACTIONS_CONTROLLER_REMOVE_FROM_ACTIONS_QUEUE':
       return mainCtrl.requests.actions.removeActions([params.id], params.shouldOpenNextAction)
     case 'ACTIONS_CONTROLLER_FOCUS_ACTION_WINDOW':

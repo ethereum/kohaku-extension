@@ -8,6 +8,7 @@ import { BatchWithdrawalParams } from '@ambire-common/controllers/privacyPools/p
 import { PoolAccount, ReviewStatus } from '@web/contexts/privacyPoolsControllerStateContext'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
+import useRailgunControllerState from '@web/hooks/useRailgunControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import { prepareWithdrawalProofInput, transformProofForRelayerApi } from '../utils/withdrawal'
 import { transformRagequitProofForContract } from '../utils/ragequit'
@@ -15,13 +16,24 @@ import { entrypointAbi, privacyPoolAbi } from '../utils/abi'
 
 const usePrivacyPoolsForm = () => {
   const { dispatch } = useBackgroundService()
+
+  // Get both controller states
+  const privacyPoolsState = usePrivacyPoolsControllerState()
+  const railgunState = useRailgunControllerState()
+
+  // Select the active controller based on privacyProvider
+  // Default to privacy-pools if not set
+  const activeProvider = privacyPoolsState.privacyProvider || 'privacy-pools'
+  const activeState = activeProvider === 'railgun' ? railgunState : privacyPoolsState
+
+  // Destructure from active state with default values
   const {
     chainId,
     mtRoots,
     mtLeaves,
     chainData,
     seedPhrase,
-    poolAccounts,
+    poolAccounts = [],
     hasProceeded,
     depositAmount,
     accountService,
@@ -46,16 +58,18 @@ const usePrivacyPoolsForm = () => {
     generateWithdrawalProof,
     createWithdrawalSecrets,
     privacyProvider
-  } = usePrivacyPoolsControllerState()
+  } = activeState
 
   const { account: userAccount, portfolio } = useSelectedAccountControllerState()
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [ragequitLoading, setRagequitLoading] = useState<Record<string, boolean>>({})
   const [showAddedToBatch] = useState(false)
 
-  const ethPrice = portfolio.tokens
-    .find((token) => token.chainId === BigInt(chainId) && token.name === 'Ether')
-    ?.priceIn.find((price) => price.baseCurrency === 'usd')?.price
+  const ethPrice = chainId
+    ? portfolio.tokens
+        .find((token) => token.chainId === BigInt(chainId) && token.name === 'Ether')
+        ?.priceIn.find((price) => price.baseCurrency === 'usd')?.price
+    : undefined
 
   const poolInfo = chainData?.[chainId]?.poolInfo?.[0]
 
@@ -132,14 +146,45 @@ const usePrivacyPoolsForm = () => {
 
   const handleUpdateForm = useCallback(
     (params: { [key: string]: any }) => {
-      dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM',
-        params: { ...params }
-      })
+      // Special handling for privacyProvider changes - reset both controllers
+      if (params.privacyProvider) {
+        // First update both controllers with the new provider
+        dispatch({
+          type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM',
+          params: { privacyProvider: params.privacyProvider }
+        })
+        dispatch({
+          type: 'RAILGUN_CONTROLLER_UPDATE_FORM',
+          params: { privacyProvider: params.privacyProvider }
+        })
+
+        // Then reset both controllers to clear form state
+        dispatch({
+          type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
+        })
+        dispatch({
+          type: 'RAILGUN_CONTROLLER_RESET_FORM'
+        })
+
+        // Finally update the new active controller with the provider
+        const newControllerType = params.privacyProvider === 'railgun' ? 'RAILGUN_CONTROLLER_UPDATE_FORM' : 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM'
+        dispatch({
+          type: newControllerType,
+          params: { privacyProvider: params.privacyProvider }
+        })
+      } else {
+        // Normal form updates - determine which controller to dispatch to
+        const controllerType = activeProvider === 'railgun' ? 'RAILGUN_CONTROLLER_UPDATE_FORM' : 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM'
+
+        dispatch({
+          type: controllerType,
+          params: { ...params }
+        })
+      }
 
       setMessage(null)
     },
-    [dispatch]
+    [dispatch, activeProvider]
   )
 
   const prepareBatchWithdrawal = useCallback(

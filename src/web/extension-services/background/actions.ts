@@ -994,3 +994,108 @@ export type Action =
   | PrivacyControllerBroadcastWithdrawalAction
   | PrivacyControllerResetSecretAction
   | PrivacyControllerGeneratePPv1KeysAction
+  | RailgunControllerInitializeSdkAction
+  | RailgunControllerUpdateFormAction
+  | RailgunControllerUnloadScreenAction
+  | RailgunControllerSignAccountOpUpdateAction
+  | RailgunControllerHasUserProceededAction
+  | RailgunControllerDestroySignAccountOpAction
+  | RailgunControllerDestroyLatestBroadcastedAccountOpAction
+  | RailgunControllerSyncSignAccountOpAction
+  | RailgunControllerGenerateSecretAction
+  | RailgunControllerResetFormAction
+  | RailgunControllerPrepareWithdrawalAction
+  | RailgunControllerBroadcastWithdrawalAction
+  | RailgunControllerResetSecretAction
+  | RailgunControllerGeneratePPv1KeysAction
+
+type RailgunControllerInitializeSdkAction = {
+  type: 'RAILGUN_CONTROLLER_SDK_LOADED'
+}
+
+type RailgunControllerUpdateFormAction = {
+  type: 'RAILGUN_CONTROLLER_UPDATE_FORM'
+  params: {
+    depositAmount?: string
+    withdrawalAmount?: string
+    seedPhrase?: string
+    targetAddress?: string
+    importedSecretNote?: string
+    privacyProvider?: string
+  }
+}
+
+type RailgunControllerUnloadScreenAction = {
+  type: 'RAILGUN_CONTROLLER_UNLOAD_SCREEN'
+}
+
+type RailgunControllerSignAccountOpUpdateAction = {
+  type: 'RAILGUN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
+  params: {
+    status: SigningStatus
+  }
+}
+
+type RailgunControllerHasUserProceededAction = {
+  type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED'
+  params: {
+    proceeded: boolean
+  }
+}
+
+type RailgunControllerDestroySignAccountOpAction = {
+  type: 'RAILGUN_CONTROLLER_DESTROY_SIGN_ACCOUNT_OP'
+}
+
+type RailgunControllerDestroyLatestBroadcastedAccountOpAction = {
+  type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+}
+
+type RailgunControllerSyncSignAccountOpAction = {
+  type: 'RAILGUN_CONTROLLER_SYNC_SIGN_ACCOUNT_OP'
+  params: {
+    calls: Call[]
+  }
+}
+
+type RailgunControllerGeneratePPv1KeysAction = {
+  type: 'RAILGUN_CONTROLLER_GENERATE_PPV1_KEYS'
+}
+
+type RailgunControllerGenerateSecretAction = {
+  type: 'RAILGUN_CONTROLLER_GENERATE_SECRET'
+  params: {
+    appInfo: string
+  }
+}
+
+type RailgunControllerResetFormAction = {
+  type: 'RAILGUN_CONTROLLER_RESET_FORM'
+}
+type RailgunControllerResetSecretAction = {
+  type: 'RAILGUN_CONTROLLER_RESET_SECRET'
+}
+
+type RailgunControllerPrepareWithdrawalAction = {
+  type: 'RAILGUN_CONTROLLER_PREPARE_WITHDRAWAL'
+  params: {
+    chainId: number
+    poolAddress: string
+    withdrawal: {
+      processooor: string
+      data: string
+    }
+    proofs: {
+      publicSignals: bigint[]
+      proof: {
+        pi_a: [bigint, bigint]
+        pi_b: [readonly [bigint, bigint], readonly [bigint, bigint]]
+        pi_c: [bigint, bigint]
+      }
+    }[]
+  }
+}
+
+type RailgunControllerBroadcastWithdrawalAction = {
+  type: 'RAILGUN_CONTROLLER_BROADCAST_WITHDRAWAL'
+}

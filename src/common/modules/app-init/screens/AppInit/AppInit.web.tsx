@@ -48,6 +48,7 @@ import { SwapAndBridgeControllerStateProvider } from '@web/contexts/swapAndBridg
 import { TransferControllerStateProvider } from '@web/contexts/transferControllerStateContext'
 import { WalletStateControllerProvider } from '@web/contexts/walletStateControllerContext'
 import { PrivacyPoolsControllerStateProvider } from '@web/contexts/privacyPoolsControllerStateContext'
+import { RailgunControllerStateProvider } from '@web/contexts/railgunControllerStateContext'
 
 const Router = isExtension ? HashRouter : BrowserRouter
 
@@ -93,9 +94,10 @@ const AppInit = () => {
                                                                   <SwapAndBridgeControllerStateProvider>
                                                                     <TransferControllerStateProvider>
                                                                       <PrivacyPoolsControllerStateProvider>
-                                                                        {/* Reading from controllers in components, rendered above ControllersStateLoadedProvider
+                                                                        <RailgunControllerStateProvider>
+                                                                          {/* Reading from controllers in components, rendered above ControllersStateLoadedProvider
                                                                     must be done very carefully, as it is not guaranteed that the state is loaded */}
-                                                                        <ControllersStateLoadedProvider>
+                                                                          <ControllersStateLoadedProvider>
                                                                           <StorageProvider>
                                                                             <KeyboardProvider>
                                                                               <NetInfoProvider>
@@ -110,7 +112,8 @@ const AppInit = () => {
                                                                               </NetInfoProvider>
                                                                             </KeyboardProvider>
                                                                           </StorageProvider>
-                                                                        </ControllersStateLoadedProvider>
+                                                                          </ControllersStateLoadedProvider>
+                                                                        </RailgunControllerStateProvider>
                                                                       </PrivacyPoolsControllerStateProvider>
                                                                     </TransferControllerStateProvider>
                                                                   </SwapAndBridgeControllerStateProvider>
