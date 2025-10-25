@@ -26,39 +26,41 @@ const usePrivacyPoolsForm = () => {
   const activeProvider = privacyPoolsState.privacyProvider || 'privacy-pools'
   const activeState = activeProvider === 'railgun' ? railgunState : privacyPoolsState
 
-  // Destructure from active state with default values
+  // Destructure common properties from active state
   const {
-    chainId,
-    mtRoots,
-    mtLeaves,
-    chainData,
-    seedPhrase,
-    poolAccounts = [],
     hasProceeded,
     depositAmount,
-    accountService,
     withdrawalAmount,
-    selectedPoolAccount,
     signAccountOpController,
     latestBroadcastedAccountOp,
     isAccountLoaded,
-    isLoadingAccount,
-    isRefreshing,
     isReadyToLoad,
-    recipientAddress,
-    relayerQuote,
-    getContext,
     loadPrivateAccount,
     refreshPrivateAccount,
-    getMerkleProof,
-    createDepositSecrets,
-    generateRagequitProof,
-    verifyWithdrawalProof,
-    setSelectedPoolAccount,
-    generateWithdrawalProof,
-    createWithdrawalSecrets,
-    privacyProvider
+    privacyProvider,
+    chainId
   } = activeState
+
+  // Conditionally get Privacy Pools specific properties
+  const mtRoots = activeProvider === 'privacy-pools' ? privacyPoolsState.mtRoots : undefined
+  const mtLeaves = activeProvider === 'privacy-pools' ? privacyPoolsState.mtLeaves : undefined
+  const chainData = activeProvider === 'privacy-pools' ? privacyPoolsState.chainData : undefined
+  const seedPhrase = activeProvider === 'privacy-pools' ? privacyPoolsState.seedPhrase : undefined
+  const poolAccounts = activeProvider === 'privacy-pools' ? privacyPoolsState.poolAccounts : []
+  const accountService = activeProvider === 'privacy-pools' ? privacyPoolsState.accountService : undefined
+  const selectedPoolAccount = activeProvider === 'privacy-pools' ? privacyPoolsState.selectedPoolAccount : null
+  const isLoadingAccount = activeProvider === 'privacy-pools' ? privacyPoolsState.isLoadingAccount : false
+  const isRefreshing = activeProvider === 'privacy-pools' ? privacyPoolsState.isRefreshing : false
+  const recipientAddress = activeProvider === 'privacy-pools' ? privacyPoolsState.recipientAddress : undefined
+  const relayerQuote = activeProvider === 'privacy-pools' ? privacyPoolsState.relayerQuote : undefined
+  const getContext = activeProvider === 'privacy-pools' ? privacyPoolsState.getContext : undefined
+  const getMerkleProof = activeProvider === 'privacy-pools' ? privacyPoolsState.getMerkleProof : undefined
+  const createDepositSecrets = activeProvider === 'privacy-pools' ? privacyPoolsState.createDepositSecrets : undefined
+  const generateRagequitProof = activeProvider === 'privacy-pools' ? privacyPoolsState.generateRagequitProof : undefined
+  const verifyWithdrawalProof = activeProvider === 'privacy-pools' ? privacyPoolsState.verifyWithdrawalProof : undefined
+  const setSelectedPoolAccount = activeProvider === 'privacy-pools' ? privacyPoolsState.setSelectedPoolAccount : undefined
+  const generateWithdrawalProof = activeProvider === 'privacy-pools' ? privacyPoolsState.generateWithdrawalProof : undefined
+  const createWithdrawalSecrets = activeProvider === 'privacy-pools' ? privacyPoolsState.createWithdrawalSecrets : undefined
 
   const { account: userAccount, portfolio } = useSelectedAccountControllerState()
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -71,7 +73,7 @@ const usePrivacyPoolsForm = () => {
         ?.priceIn.find((price) => price.baseCurrency === 'usd')?.price
     : undefined
 
-  const poolInfo = chainData?.[chainId]?.poolInfo?.[0]
+  const poolInfo = chainId ? chainData?.[chainId]?.poolInfo?.[0] : undefined
 
   const totalApprovedBalance = useMemo(() => {
     const accounts = poolAccounts.filter(
@@ -198,7 +200,9 @@ const usePrivacyPoolsForm = () => {
   )
 
   const handleSelectedAccount = (poolAccount: PoolAccount) => {
-    setSelectedPoolAccount((prevState) => {
+    if (!setSelectedPoolAccount) return
+
+    setSelectedPoolAccount((prevState: any) => {
       if (prevState?.name === poolAccount.name) {
         return null
       }
@@ -228,7 +232,7 @@ const usePrivacyPoolsForm = () => {
   )
 
   const handleDeposit = async () => {
-    if (!depositAmount || !poolInfo) return
+    if (!depositAmount || !poolInfo || !createDepositSecrets) return
 
     const secrets = createDepositSecrets(poolInfo.scope as Hash)
 
@@ -254,7 +258,7 @@ const usePrivacyPoolsForm = () => {
   }
 
   const handleDepositRailgun = async () => {
-    console.log('DEBUG: handleDepositRailgun PAUSE FOR NOW')
+    console.log('WOULD START DEPOSIT FLOW HERE.')
   }
 
   const isRagequitLoading = (poolAccount: PoolAccount) => {
@@ -263,7 +267,7 @@ const usePrivacyPoolsForm = () => {
   }
 
   const handleMultipleRagequit = useCallback(async () => {
-    if (!accountService || !poolInfo) return
+    if (!accountService || !poolInfo || !generateRagequitProof) return
 
     setRagequitLoading({})
 
@@ -330,10 +334,13 @@ const usePrivacyPoolsForm = () => {
   ])
 
   // Update controller with calculated batchSize whenever it changes
+  // Only update when we're using privacy-pools and data is ready
   useEffect(() => {
-    handleUpdateForm({ batchSize: calculatedBatchSize })
-    console.log('DEBUG: batchSize update', calculatedBatchSize)
-  }, [calculatedBatchSize, handleUpdateForm])
+    if (activeProvider === 'privacy-pools' && isReadyToLoad) {
+      handleUpdateForm({ batchSize: calculatedBatchSize })
+      console.log('DEBUG: batchSize update', calculatedBatchSize)
+    }
+  }, [calculatedBatchSize, handleUpdateForm, activeProvider, isReadyToLoad])
 
   /**
    * Handles withdrawal using multiple pool accounts via relayer API
@@ -341,12 +348,18 @@ const usePrivacyPoolsForm = () => {
    */
   const handleMultipleWithdrawal = useCallback(async () => {
     if (
+      !chainId ||
       !poolInfo ||
       !mtLeaves ||
       !mtRoots ||
       !accountService ||
       !userAccount ||
-      !recipientAddress
+      !recipientAddress ||
+      !getContext ||
+      !getMerkleProof ||
+      !createWithdrawalSecrets ||
+      !generateWithdrawalProof ||
+      !verifyWithdrawalProof
     ) {
       setMessage({ type: 'error', text: 'Missing required data for withdrawal.' })
       return

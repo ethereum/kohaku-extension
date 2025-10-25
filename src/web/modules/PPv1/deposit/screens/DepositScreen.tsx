@@ -192,8 +192,13 @@ function TransferScreen() {
 
   const isTransferFormValid = useMemo(() => {
     if (isLoading || !isAccountLoaded) return false
-    return !!(depositAmount && depositAmount !== '0' && poolInfo)
-  }, [depositAmount, poolInfo, isLoading, isAccountLoaded])
+    // For Privacy Pools, we need poolInfo; for Railgun, we don't
+    if (privacyProvider === 'privacy-pools') {
+      return !!(depositAmount && depositAmount !== '0' && poolInfo)
+    }
+    // For Railgun, just check deposit amount
+    return !!(depositAmount && depositAmount !== '0')
+  }, [depositAmount, poolInfo, isLoading, isAccountLoaded, privacyProvider])
 
   const onBack = useCallback(() => {
     navigate(ROUTES.dashboard)
@@ -286,6 +291,7 @@ function TransferScreen() {
               formTitle={formTitle}
               handleUpdateForm={handleUpdateForm}
               chainId={BigInt(chainId)}
+              privacyProvider={privacyProvider}
             />
           ) : (
             <Text fontSize={14} weight="regular" appearance="secondaryText">

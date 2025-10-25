@@ -252,7 +252,7 @@ function RagequitScreen() {
             totalPendingBalance={totalPendingBalance}
             totalDeclinedBalance={totalDeclinedBalance}
             ethPrice={ethPrice || 0}
-            chainId={BigInt(chainId)}
+            chainId={chainId ? BigInt(chainId) : BigInt(1)}
           />
         </Form>
       </Content>

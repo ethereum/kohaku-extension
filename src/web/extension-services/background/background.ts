@@ -42,7 +42,6 @@ import {
   VELCRO_URL,
   PRIVACY_POOLS_ASP_URL,
   PRIVACY_POOLS_RELAYER_URL,
-  RAILGUN_ASP_URL,
   RAILGUN_RELAYER_URL,
   ALCHEMY_API_KEY
 } from '@env'
@@ -370,7 +369,6 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
     velcroUrl: VELCRO_URL,
     privacyPoolsAspUrl: PRIVACY_POOLS_ASP_URL,
     privacyPoolsRelayerUrl: PRIVACY_POOLS_RELAYER_URL,
-    railgunAspUrl: RAILGUN_ASP_URL,
     railgunRelayerUrl: RAILGUN_RELAYER_URL,
     alchemyApiKey: ALCHEMY_API_KEY,
     swapApiKey: LI_FI_API_KEY,

@@ -19,7 +19,6 @@ declare module '@env' {
     ALCHEMY_API_KEY: string
     PRIVACY_POOLS_ASP_URL: string
     PRIVACY_POOLS_RELAYER_URL: string
-    RAILGUN_ASP_URL: string
     RAILGUN_RELAYER_URL: string
   }
 
@@ -123,11 +122,6 @@ declare module '@env' {
    * The API key for Alchemy
    */
   export const PRIVACY_POOLS_RELAYER_URL: EnvTypes['PRIVACY_POOLS_RELAYER_URL']
-
-  /**
-   * The Railgun ASP API endpoint
-   */
-  export const RAILGUN_ASP_URL: EnvTypes['RAILGUN_ASP_URL']
 
   /**
    * The Railgun Relayer URL
