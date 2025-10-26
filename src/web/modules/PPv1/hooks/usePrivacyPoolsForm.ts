@@ -8,7 +8,6 @@ import { BatchWithdrawalParams } from '@ambire-common/controllers/privacyPools/p
 import { PoolAccount, ReviewStatus } from '@web/contexts/privacyPoolsControllerStateContext'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
-import useRailgunControllerState from '@web/hooks/useRailgunControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import { prepareWithdrawalProofInput, transformProofForRelayerApi } from '../utils/withdrawal'
 import { transformRagequitProofForContract } from '../utils/ragequit'
@@ -16,92 +15,81 @@ import { entrypointAbi, privacyPoolAbi } from '../utils/abi'
 
 const usePrivacyPoolsForm = () => {
   const { dispatch } = useBackgroundService()
-
-  // Get both controller states
-  const privacyPoolsState = usePrivacyPoolsControllerState()
-  const railgunState = useRailgunControllerState()
-
-  // Select the active controller based on privacyProvider
-  // Default to privacy-pools if not set
-  const activeProvider = privacyPoolsState.privacyProvider || 'privacy-pools'
-  const activeState = activeProvider === 'railgun' ? railgunState : privacyPoolsState
-
-  // Destructure common properties from active state
   const {
+    chainId,
+    mtRoots,
+    mtLeaves,
+    chainData,
+    seedPhrase,
+    poolAccounts,
     hasProceeded,
     depositAmount,
+    accountService,
     withdrawalAmount,
+    selectedPoolAccount,
     signAccountOpController,
     latestBroadcastedAccountOp,
+    importedPrivateAccounts,
     isAccountLoaded,
+    isLoadingAccount,
+    isRefreshing,
     isReadyToLoad,
+    recipientAddress,
+    relayerQuote,
+    validationFormMsgs,
+    privacyProvider,
+    getContext,
     loadPrivateAccount,
     refreshPrivateAccount,
-    privacyProvider,
-    chainId
-  } = activeState
-
-  // Conditionally get Privacy Pools specific properties
-  const mtRoots = activeProvider === 'privacy-pools' ? privacyPoolsState.mtRoots : undefined
-  const mtLeaves = activeProvider === 'privacy-pools' ? privacyPoolsState.mtLeaves : undefined
-  const chainData = activeProvider === 'privacy-pools' ? privacyPoolsState.chainData : undefined
-  const seedPhrase = activeProvider === 'privacy-pools' ? privacyPoolsState.seedPhrase : undefined
-  const poolAccounts = activeProvider === 'privacy-pools' ? privacyPoolsState.poolAccounts : []
-  const accountService = activeProvider === 'privacy-pools' ? privacyPoolsState.accountService : undefined
-  const selectedPoolAccount = activeProvider === 'privacy-pools' ? privacyPoolsState.selectedPoolAccount : null
-  const isLoadingAccount = activeProvider === 'privacy-pools' ? privacyPoolsState.isLoadingAccount : false
-  const isRefreshing = activeProvider === 'privacy-pools' ? privacyPoolsState.isRefreshing : false
-  const recipientAddress = activeProvider === 'privacy-pools' ? privacyPoolsState.recipientAddress : undefined
-  const relayerQuote = activeProvider === 'privacy-pools' ? privacyPoolsState.relayerQuote : undefined
-  const getContext = activeProvider === 'privacy-pools' ? privacyPoolsState.getContext : undefined
-  const getMerkleProof = activeProvider === 'privacy-pools' ? privacyPoolsState.getMerkleProof : undefined
-  const createDepositSecrets = activeProvider === 'privacy-pools' ? privacyPoolsState.createDepositSecrets : undefined
-  const generateRagequitProof = activeProvider === 'privacy-pools' ? privacyPoolsState.generateRagequitProof : undefined
-  const verifyWithdrawalProof = activeProvider === 'privacy-pools' ? privacyPoolsState.verifyWithdrawalProof : undefined
-  const setSelectedPoolAccount = activeProvider === 'privacy-pools' ? privacyPoolsState.setSelectedPoolAccount : undefined
-  const generateWithdrawalProof = activeProvider === 'privacy-pools' ? privacyPoolsState.generateWithdrawalProof : undefined
-  const createWithdrawalSecrets = activeProvider === 'privacy-pools' ? privacyPoolsState.createWithdrawalSecrets : undefined
+    getMerkleProof,
+    createDepositSecrets,
+    generateRagequitProof,
+    verifyWithdrawalProof,
+    setSelectedPoolAccount,
+    generateWithdrawalProof,
+    createWithdrawalSecrets
+  } = usePrivacyPoolsControllerState()
 
   const { account: userAccount, portfolio } = useSelectedAccountControllerState()
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [ragequitLoading, setRagequitLoading] = useState<Record<string, boolean>>({})
   const [showAddedToBatch] = useState(false)
 
-  const ethPrice = chainId
-    ? portfolio.tokens
-        .find((token) => token.chainId === BigInt(chainId) && token.name === 'Ether')
-        ?.priceIn.find((price) => price.baseCurrency === 'usd')?.price
-    : undefined
+  const allPA = useMemo(() => {
+    return [...(poolAccounts ?? []), ...((importedPrivateAccounts ?? []).flat())]
+  }, [poolAccounts, importedPrivateAccounts])
 
-  const poolInfo = chainId ? chainData?.[chainId]?.poolInfo?.[0] : undefined
+  const ethPrice = portfolio.tokens
+    .find((token) => token.chainId === BigInt(chainId) && token.name === 'Ether')
+    ?.priceIn.find((price) => price.baseCurrency === 'usd')?.price
+
+  const poolInfo = chainData?.[chainId]?.poolInfo?.[0]
 
   const totalApprovedBalance = useMemo(() => {
-    const accounts = poolAccounts.filter(
-      (account) => account.reviewStatus === ReviewStatus.APPROVED
-    )
+    const accounts = allPA.filter((account) => account.reviewStatus === ReviewStatus.APPROVED)
     const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
     return { total, accounts }
-  }, [poolAccounts])
+  }, [allPA])
 
   const totalPendingBalance = useMemo(() => {
-    const accounts = poolAccounts.filter(
+    const accounts = allPA.filter(
       (account) =>
         account.reviewStatus === ReviewStatus.PENDING &&
         account.depositorAddress?.toLowerCase() === userAccount?.addr?.toLowerCase()
     )
     const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
     return { total, accounts }
-  }, [poolAccounts, userAccount?.addr])
+  }, [allPA, userAccount?.addr])
 
   const totalDeclinedBalance = useMemo(() => {
-    const accounts = poolAccounts.filter(
+    const accounts = allPA.filter(
       (account) =>
         account.reviewStatus === ReviewStatus.DECLINED &&
         account.depositorAddress?.toLowerCase() === userAccount?.addr?.toLowerCase()
     )
     const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
     return { total, accounts }
-  }, [poolAccounts, userAccount?.addr])
+  }, [allPA, userAccount?.addr])
 
   const totalPrivatePortfolio = useMemo(() => {
     // Use totalApprovedBalance from Privacy Pools
@@ -112,6 +100,44 @@ const usePrivacyPoolsForm = () => {
   const ethPrivateBalance = useMemo(() => {
     return formatEther(totalApprovedBalance.total)
   }, [totalApprovedBalance])
+
+  // Imported Private Accounts calculations
+  const flattenedImportedAccounts = useMemo(() => {
+    return (importedPrivateAccounts ?? []).flat()
+  }, [importedPrivateAccounts])
+
+  const totalImportedApprovedBalance = useMemo(() => {
+    const accounts = flattenedImportedAccounts.filter(
+      (account) => account.reviewStatus === ReviewStatus.APPROVED
+    )
+    const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
+    return { total, accounts }
+  }, [flattenedImportedAccounts])
+
+  const totalImportedPendingBalance = useMemo(() => {
+    const accounts = flattenedImportedAccounts.filter(
+      (account) => account.reviewStatus === ReviewStatus.PENDING
+    )
+    const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
+    return { total, accounts }
+  }, [flattenedImportedAccounts])
+
+  const totalImportedDeclinedBalance = useMemo(() => {
+    const accounts = flattenedImportedAccounts.filter(
+      (account) => account.reviewStatus === ReviewStatus.DECLINED
+    )
+    const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
+    return { total, accounts }
+  }, [flattenedImportedAccounts])
+
+  const totalImportedPrivatePortfolio = useMemo(() => {
+    const ethAmount = Number(formatEther(totalImportedApprovedBalance.total))
+    return ethAmount * (ethPrice || 0)
+  }, [totalImportedApprovedBalance, ethPrice])
+
+  const ethImportedPrivateBalance = useMemo(() => {
+    return formatEther(totalImportedApprovedBalance.total)
+  }, [totalImportedApprovedBalance])
 
   // Calculate batchSize based on withdrawal amount and pool accounts
   const calculatedBatchSize = useMemo(() => {
@@ -148,67 +174,28 @@ const usePrivacyPoolsForm = () => {
 
   const handleUpdateForm = useCallback(
     (params: { [key: string]: any }) => {
-      // Special handling for privacyProvider changes - reset only deposit form fields
-      if (params.privacyProvider) {
-        // Update both controllers with the new provider
-        dispatch({
-          type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM',
-          params: { privacyProvider: params.privacyProvider }
-        })
+      dispatch({
+        type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM',
+        params: { ...params }
+      })
+
+      // If privacyProvider is being updated, sync it to Railgun controller as well
+      if (params.privacyProvider !== undefined) {
         dispatch({
           type: 'RAILGUN_CONTROLLER_UPDATE_FORM',
           params: { privacyProvider: params.privacyProvider }
-        })
-
-        // Reset only deposit-form-specific fields (not entire controller state)
-        // This preserves important state like isInitialized, poolAccounts, balances, etc.
-        const resetFields = {
-          depositAmount: '',
-          withdrawalAmount: '',
-          selectedToken: null,
-          amountInFiat: '',
-          addressState: {
-            fieldValue: '',
-            ensAddress: '',
-            isDomainResolving: false
-          }
-        }
-
-        // Reset fields on both controllers
-        dispatch({
-          type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM',
-          params: resetFields
-        })
-        dispatch({
-          type: 'RAILGUN_CONTROLLER_UPDATE_FORM',
-          params: resetFields
-        })
-
-        // Finally update the new active controller with the provider
-        const newControllerType = params.privacyProvider === 'railgun' ? 'RAILGUN_CONTROLLER_UPDATE_FORM' : 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM'
-        dispatch({
-          type: newControllerType,
-          params: { privacyProvider: params.privacyProvider }
-        })
-      } else {
-        // Normal form updates - determine which controller to dispatch to
-        const controllerType = activeProvider === 'railgun' ? 'RAILGUN_CONTROLLER_UPDATE_FORM' : 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM'
-
-        dispatch({
-          type: controllerType,
-          params: { ...params }
         })
       }
 
       setMessage(null)
     },
-    [dispatch, activeProvider]
+    [dispatch]
   )
 
-  const prepareBatchWithdrawal = useCallback(
-    (params: BatchWithdrawalParams): void => {
+  const directBroadcastWithdrawal = useCallback(
+    async (params: BatchWithdrawalParams): Promise<void> => {
       dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_PREPARE_WITHDRAWAL',
+        type: 'PRIVACY_POOLS_CONTROLLER_DIRECT_BROADCAST_WITHDRAWAL',
         params
       })
     },
@@ -216,9 +203,7 @@ const usePrivacyPoolsForm = () => {
   )
 
   const handleSelectedAccount = (poolAccount: PoolAccount) => {
-    if (!setSelectedPoolAccount) return
-
-    setSelectedPoolAccount((prevState: any) => {
+    setSelectedPoolAccount((prevState) => {
       if (prevState?.name === poolAccount.name) {
         return null
       }
@@ -228,13 +213,16 @@ const usePrivacyPoolsForm = () => {
   }
 
   const openEstimationModalAndDispatch = useCallback(() => {
+    console.log('DEBUG: openEstimationModalAndDispatch called')
     dispatch({
       type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
       params: {
         proceeded: true
       }
     })
+    console.log('DEBUG: about to call openEstimationModal()')
     openEstimationModal()
+    console.log('DEBUG: after openEstimationModal()')
   }, [openEstimationModal, dispatch])
 
   const syncSignAccountOp = useCallback(
@@ -248,7 +236,7 @@ const usePrivacyPoolsForm = () => {
   )
 
   const handleDeposit = async () => {
-    if (!depositAmount || !poolInfo || !createDepositSecrets) return
+    if (!depositAmount || !poolInfo) return
 
     const secrets = createDepositSecrets(poolInfo.scope as Hash)
 
@@ -264,17 +252,8 @@ const usePrivacyPoolsForm = () => {
       value: BigInt(depositAmount)
     }
 
-    // eslint-disable-next-line no-console
-    console.log('DEBUG: result', result)
-
-    // Instead of calling handlePrivateRequest directly,
-    // sync SignAccountOp with transaction data and open estimation modal
     await syncSignAccountOp([result])
     openEstimationModalAndDispatch()
-  }
-
-  const handleDepositRailgun = async () => {
-    console.log('WOULD START DEPOSIT FLOW HERE.')
   }
 
   const isRagequitLoading = (poolAccount: PoolAccount) => {
@@ -283,7 +262,7 @@ const usePrivacyPoolsForm = () => {
   }
 
   const handleMultipleRagequit = useCallback(async () => {
-    if (!accountService || !poolInfo || !generateRagequitProof) return
+    if (!accountService || !poolInfo) return
 
     setRagequitLoading({})
 
@@ -349,33 +328,20 @@ const usePrivacyPoolsForm = () => {
     userAccount?.addr
   ])
 
-  // Update controller with calculated batchSize whenever it changes
-  // Only update when we're using privacy-pools and data is ready
   useEffect(() => {
-    if (activeProvider === 'privacy-pools' && isReadyToLoad) {
+    if (isReadyToLoad) {
       handleUpdateForm({ batchSize: calculatedBatchSize })
-      console.log('DEBUG: batchSize update', calculatedBatchSize)
     }
-  }, [calculatedBatchSize, handleUpdateForm, activeProvider, isReadyToLoad])
+  }, [calculatedBatchSize, handleUpdateForm, isReadyToLoad])
 
-  /**
-   * Handles withdrawal using multiple pool accounts via relayer API
-   * This version generates proofs and submits to the relayer endpoint
-   */
   const handleMultipleWithdrawal = useCallback(async () => {
     if (
-      !chainId ||
       !poolInfo ||
       !mtLeaves ||
       !mtRoots ||
       !accountService ||
       !userAccount ||
-      !recipientAddress ||
-      !getContext ||
-      !getMerkleProof ||
-      !createWithdrawalSecrets ||
-      !generateWithdrawalProof ||
-      !verifyWithdrawalProof
+      !recipientAddress
     ) {
       setMessage({ type: 'error', text: 'Missing required data for withdrawal.' })
       return
@@ -394,11 +360,7 @@ const usePrivacyPoolsForm = () => {
       }
     })
 
-    console.log('DEBUG: recipientAddress', recipientAddress)
-
     const selectedPoolInfo = poolInfo
-
-    console.log('DEBUG: RELAYER QUOTE', relayerQuote)
 
     const batchWithdrawal = {
       processooor: getAddress('0x7EF84c5660bB5130815099861c613BF935F4DA52'),
@@ -409,65 +371,99 @@ const usePrivacyPoolsForm = () => {
     const stateLeaves = mtLeaves?.stateTreeLeaves
 
     try {
-      console.log('DEBUG: batchWithdrawal', batchWithdrawal)
-
-      // Calculate context from the batch withdrawal data
       // IMPORTANT: All proofs MUST use the SAME context
       const context = getContext(batchWithdrawal, selectedPoolInfo.scope as Hash)
-
       let partialAmount = parseUnits(withdrawalAmount, 18)
+      const accountsWithAmounts = selectedPoolAccounts.map((poolAccount) => {
+        let amount: bigint
+
+        if (partialAmount - poolAccount.balance >= 0) {
+          partialAmount -= poolAccount.balance
+          amount = poolAccount.balance
+        } else {
+          amount = partialAmount
+          partialAmount = 0n
+        }
+
+        return { poolAccount, amount }
+      })
 
       // Generate proofs for each account with the SAME context
-      const proofs = await Promise.all(
-        selectedPoolAccounts.map(async (poolAccount) => {
-          let amount
+      const proofResults = await Promise.allSettled(
+        accountsWithAmounts.map(async ({ poolAccount, amount }) => {
+          try {
+            const commitment = poolAccount.lastCommitment
 
-          if (partialAmount - poolAccount.balance >= 0) {
-            partialAmount -= poolAccount.balance
-            amount = poolAccount.balance
-          } else {
-            amount = partialAmount
+            const stateMerkleProof = getMerkleProof(
+              stateLeaves?.map(BigInt) as bigint[],
+              commitment.hash
+            )
+            const aspMerkleProof = getMerkleProof(aspLeaves?.map(BigInt), commitment.label)
+
+            const { secret, nullifier } = createWithdrawalSecrets(commitment)
+
+            // Workaround for NaN index, SDK issue
+            aspMerkleProof.index = Object.is(aspMerkleProof.index, NaN) ? 0 : aspMerkleProof.index
+
+            const withdrawalProofInput = prepareWithdrawalProofInput(
+              commitment,
+              amount,
+              stateMerkleProof,
+              aspMerkleProof,
+              BigInt(context),
+              secret,
+              nullifier
+            )
+
+            const proof = await generateWithdrawalProof(commitment, withdrawalProofInput)
+            await verifyWithdrawalProof(proof)
+
+            return proof
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error ? error.message : 'Unknown error during proof generation'
+            console.error(
+              `DEBUG - failed to generate proof for account ${poolAccount.name}:`,
+              errorMessage
+            )
+            throw new Error(
+              `Failed to generate proof for account ${poolAccount.name}: ${errorMessage}`
+            )
           }
-
-          const commitment = poolAccount.lastCommitment
-
-          // Generate merkle proofs
-          const stateMerkleProof = getMerkleProof(
-            stateLeaves?.map(BigInt) as bigint[],
-            commitment.hash
-          )
-          const aspMerkleProof = getMerkleProof(aspLeaves?.map(BigInt), commitment.label)
-
-          // Create withdrawal secrets
-          const { secret, nullifier } = createWithdrawalSecrets(commitment)
-
-          // Workaround for NaN index, SDK issue
-          aspMerkleProof.index = Object.is(aspMerkleProof.index, NaN) ? 0 : aspMerkleProof.index
-
-          // Prepare withdrawal proof input with the shared context
-          const withdrawalProofInput = prepareWithdrawalProofInput(
-            commitment,
-            amount,
-            stateMerkleProof,
-            aspMerkleProof,
-            BigInt(context),
-            secret,
-            nullifier
-          )
-
-          const proof = await generateWithdrawalProof(commitment, withdrawalProofInput)
-
-          await verifyWithdrawalProof(proof)
-
-          return proof
         })
       )
-      console.log('DEBUG: calling relayer endpoint')
+
+      const failedProofs = proofResults.filter((result) => result.status === 'rejected')
+      if (failedProofs.length > 0) {
+        const errorMessages = failedProofs
+          .map((result, index) => {
+            if (result.status === 'rejected') {
+              return `Account ${index + 1}: ${result.reason}`
+            }
+            return ''
+          })
+          .filter(Boolean)
+          .join('; ')
+
+        throw new Error(
+          `Failed to generate ${failedProofs.length} proof(s) out of ${proofResults.length}: ${errorMessages}`
+        )
+      }
+
+      // Extract successful proofs
+      const proofs = proofResults.map((result) => {
+        if (result.status === 'fulfilled') {
+          return result.value
+        }
+        // This should never happen due to the check above, but TypeScript needs it
+        throw new Error('Unexpected rejected proof after validation')
+      })
+
       const transformedProofs = proofs.map((proof) => transformProofForRelayerApi(proof))
 
       if (!batchWithdrawal) return
 
-      prepareBatchWithdrawal({
+      await directBroadcastWithdrawal({
         chainId,
         poolAddress: poolInfo.address,
         withdrawal: {
@@ -476,8 +472,6 @@ const usePrivacyPoolsForm = () => {
         },
         proofs: transformedProofs
       })
-
-      openEstimationModalAndDispatch()
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to process multiple withdrawal'
@@ -499,8 +493,7 @@ const usePrivacyPoolsForm = () => {
     verifyWithdrawalProof,
     createWithdrawalSecrets,
     generateWithdrawalProof,
-    prepareBatchWithdrawal,
-    openEstimationModalAndDispatch
+    directBroadcastWithdrawal
   ])
 
   return {
@@ -529,9 +522,14 @@ const usePrivacyPoolsForm = () => {
     totalDeclinedBalance,
     totalPrivatePortfolio,
     ethPrivateBalance,
+    totalImportedApprovedBalance,
+    totalImportedPendingBalance,
+    totalImportedDeclinedBalance,
+    totalImportedPrivatePortfolio,
+    ethImportedPrivateBalance,
+    validationFormMsgs,
     isReadyToLoad,
     handleDeposit,
-    handleDepositRailgun,
     handleMultipleRagequit,
     handleMultipleWithdrawal,
     handleUpdateForm,

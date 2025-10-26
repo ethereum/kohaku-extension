@@ -19,7 +19,7 @@ import InProgress from '@web/modules/sign-account-op/components/OneClick/TrackPr
 import useTrackAccountOp from '@web/modules/sign-account-op/hooks/OneClick/useTrackAccountOp'
 import DepositForm from '@web/modules/PPv1/deposit/components/DepositForm/DepositForm'
 import Buttons from '@web/modules/PPv1/deposit/components/Buttons'
-import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
+import useDepositForm from '@web/hooks/useDepositForm'
 import { getUiType } from '@web/utils/uiType'
 import flexbox from '@common/styles/utils/flexbox'
 import { View } from 'react-native'
@@ -46,13 +46,12 @@ function TransferScreen() {
     isLoading,
     isAccountLoaded,
     handleDeposit,
-    handleDepositRailgun,
     handleUpdateForm,
     closeEstimationModal,
     refreshPrivateAccount,
     loadPrivateAccount,
     privacyProvider
-  } = usePrivacyPoolsForm()
+  } = useDepositForm()
 
   const amountErrorMessage = useMemo(() => {
     if (!depositAmount || depositAmount === '0') return ''
@@ -138,6 +137,11 @@ function TransferScreen() {
     }
   }, [])
 
+  // Reset deposit amount when switching between providers
+  useEffect(() => {
+    handleUpdateForm({ depositAmount: '0' })
+  }, [privacyProvider, handleUpdateForm])
+
   const displayedView: 'transfer' | 'track' = useMemo(() => {
     if (latestBroadcastedAccountOp) return 'track'
 
@@ -201,10 +205,8 @@ function TransferScreen() {
   }, [depositAmount, poolInfo, isLoading, isAccountLoaded, privacyProvider])
 
   const onBack = useCallback(() => {
-    // Reset to privacy-pools default when leaving the deposit form
-    handleUpdateForm({ privacyProvider: 'privacy-pools' })
     navigate(ROUTES.dashboard)
-  }, [navigate, handleUpdateForm])
+  }, [navigate])
 
 
   const headerTitle = t('Deposit')
@@ -215,15 +217,11 @@ function TransferScreen() {
     return t('Deposit')
   }, [isLoading, isAccountLoaded, t])
 
+  // The wrapper hook (useDepositForm) handles routing to the correct protocol
+  // So we can just call handleDeposit directly - no routing needed here
   const handleDepositWithRouting = useCallback(() => {
-    if (privacyProvider === 'privacy-pools') {
-      console.log('DEBUG: Routing to PrivacyPools deposit flow')
-      handleDeposit()
-    } else if (privacyProvider === 'railgun') {
-      console.log('DEBUG: Routing to Railgun deposit flow')
-      handleDepositRailgun()
-    }
-  }, [privacyProvider, handleDeposit, handleDepositRailgun])
+    handleDeposit()
+  }, [handleDeposit])
 
   const buttons = useMemo(() => {
     return (
