@@ -206,7 +206,24 @@ function TransferScreen() {
 
   const onBack = useCallback(() => {
     navigate(ROUTES.dashboard)
-  }, [navigate])
+
+    // Reset hasProceeded for the currently selected controller when navigating back
+    if (privacyProvider === 'privacy-pools') {
+      dispatch({
+        type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
+        params: {
+          proceeded: false
+        }
+      })
+    } else {
+      dispatch({
+        type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED',
+        params: {
+          proceeded: false
+        }
+      })
+    }
+  }, [navigate, privacyProvider, dispatch])
 
 
   const headerTitle = t('Deposit')
@@ -247,6 +264,24 @@ function TransferScreen() {
           dispatch({
             type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
           })
+
+          // Reset hasProceeded for the currently selected controller
+          // to prevent double-click issue when depositing again
+          if (privacyProvider === 'privacy-pools') {
+            dispatch({
+              type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
+              params: {
+                proceeded: false
+              }
+            })
+          } else {
+            dispatch({
+              type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED',
+              params: {
+                proceeded: false
+              }
+            })
+          }
         }}
       >
         {submittedAccountOp?.status === AccountOpStatus.BroadcastedButNotConfirmed && (
