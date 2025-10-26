@@ -201,8 +201,10 @@ function TransferScreen() {
   }, [depositAmount, poolInfo, isLoading, isAccountLoaded, privacyProvider])
 
   const onBack = useCallback(() => {
+    // Reset to privacy-pools default when leaving the deposit form
+    handleUpdateForm({ privacyProvider: 'privacy-pools' })
     navigate(ROUTES.dashboard)
-  }, [navigate])
+  }, [navigate, handleUpdateForm])
 
 
   const headerTitle = t('Deposit')

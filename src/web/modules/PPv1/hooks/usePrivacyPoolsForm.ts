@@ -148,9 +148,9 @@ const usePrivacyPoolsForm = () => {
 
   const handleUpdateForm = useCallback(
     (params: { [key: string]: any }) => {
-      // Special handling for privacyProvider changes - reset both controllers
+      // Special handling for privacyProvider changes - reset only deposit form fields
       if (params.privacyProvider) {
-        // First update both controllers with the new provider
+        // Update both controllers with the new provider
         dispatch({
           type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM',
           params: { privacyProvider: params.privacyProvider }
@@ -160,12 +160,28 @@ const usePrivacyPoolsForm = () => {
           params: { privacyProvider: params.privacyProvider }
         })
 
-        // Then reset both controllers to clear form state
+        // Reset only deposit-form-specific fields (not entire controller state)
+        // This preserves important state like isInitialized, poolAccounts, balances, etc.
+        const resetFields = {
+          depositAmount: '',
+          withdrawalAmount: '',
+          selectedToken: null,
+          amountInFiat: '',
+          addressState: {
+            fieldValue: '',
+            ensAddress: '',
+            isDomainResolving: false
+          }
+        }
+
+        // Reset fields on both controllers
         dispatch({
-          type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
+          type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM',
+          params: resetFields
         })
         dispatch({
-          type: 'RAILGUN_CONTROLLER_RESET_FORM'
+          type: 'RAILGUN_CONTROLLER_UPDATE_FORM',
+          params: resetFields
         })
 
         // Finally update the new active controller with the provider
