@@ -230,6 +230,7 @@ const TransferScreen = () => {
       selectedToken &&
       relayerQuote &&
       !addressInputState.validation.isError &&
+      !amountErrorMessage &&
       !isRefreshing
     )
   }, [
