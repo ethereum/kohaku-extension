@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { formatUnits, parseUnits } from 'viem'
 
 import { AddressStateOptional } from '@ambire-common/interfaces/domains'
 import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
@@ -36,11 +37,12 @@ const TransferScreen = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { dispatch } = useBackgroundService()
   const {
-    totalApprovedBalance,
     chainId,
+    poolInfo,
+    totalApprovedBalance,
     handleUpdateForm,
-    handleMultipleWithdrawal,
-    refreshPrivateAccount
+    refreshPrivateAccount,
+    handleMultipleWithdrawal
   } = usePrivacyPoolsForm()
   const {
     validationFormMsgs,
@@ -192,8 +194,34 @@ const TransferScreen = () => {
   })
 
   const amountErrorMessage = useMemo(() => {
-    return validationFormMsgs.amount.message || ''
-  }, [validationFormMsgs.amount.message])
+    if (!withdrawalAmount || withdrawalAmount.trim() === '') return ''
+    if (!poolInfo) return ''
+
+    try {
+      const amount = parseUnits(withdrawalAmount, 18)
+
+      if (amount < poolInfo.minWithdrawal) {
+        return `Minimum transfer amount is ${formatUnits(poolInfo.minWithdrawal, 18)} ETH`
+      }
+
+      if (amount > totalApprovedBalance.total) {
+        return 'Insufficient amount'
+      }
+
+      // safety check if relayer feeBPS change in future
+      if (relayerQuote?.relayFeeBPS) {
+        const fee = (amount * BigInt(relayerQuote.relayFeeBPS)) / 10000n
+
+        if (amount <= fee) {
+          return 'Amount too small to cover relay fees'
+        }
+      }
+
+      return ''
+    } catch (error) {
+      return 'Invalid amount'
+    }
+  }, [withdrawalAmount, totalApprovedBalance.total, poolInfo, relayerQuote])
 
   const isTransferFormValid = useMemo(() => {
     return !!(
