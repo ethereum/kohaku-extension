@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
@@ -16,6 +16,7 @@ import InProgress from '@web/modules/sign-account-op/components/OneClick/TrackPr
 import useTrackAccountOp from '@web/modules/sign-account-op/hooks/OneClick/useTrackAccountOp'
 import { getUiType } from '@web/utils/uiType'
 import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
+import { getPPv1Accounts } from '@web/modules/PPv1/sdk/misc'
 import AddChainScreen from '../components/ImportForm'
 
 const { isActionWindow } = getUiType()
@@ -65,13 +66,49 @@ const ImportScreen = () => {
 
   const [displayedView, setDisplayedView] = useState<'transfer' | 'track'>('transfer')
   const [trackProgress, setTrackProgress] = useState<AccountOpStatus>(AccountOpStatus.Pending)
+  const [isDuplicate, setIsDuplicate] = useState(false)
+  const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false)
+
+  useEffect(() => {
+    async function checkForDuplicate() {
+      if (!seedPhrase || seedPhrase.trim().length === 0) {
+        setIsDuplicate(false)
+        return
+      }
+
+      setIsCheckingDuplicate(true)
+      try {
+        const existingAccounts = await getPPv1Accounts()
+        const normalizedSeedPhrase = seedPhrase.trim().toLowerCase()
+
+        const duplicate = existingAccounts.some((account) => {
+          if ('mnemonic' in account) {
+            return account.mnemonic.trim().toLowerCase() === normalizedSeedPhrase
+          }
+          return false
+        })
+
+        setIsDuplicate(duplicate)
+      } catch {
+        setIsDuplicate(false)
+      } finally {
+        setIsCheckingDuplicate(false)
+      }
+    }
+
+    checkForDuplicate().catch(() => {
+      setIsDuplicate(false)
+    })
+  }, [seedPhrase])
 
   const handleImportSecretNote = useCallback(async () => {
+    if (isDuplicate) return
+
     setDisplayedView('track')
     await addImportedPrivateAccount({ mnemonic: seedPhrase })
 
     setTrackProgress(AccountOpStatus.Success)
-  }, [setDisplayedView, addImportedPrivateAccount, seedPhrase])
+  }, [setDisplayedView, addImportedPrivateAccount, seedPhrase, isDuplicate])
 
   const headerTitle = 'New Private Account'
 
@@ -122,7 +159,11 @@ const ImportScreen = () => {
   return (
     <Wrapper title={headerTitle} handleGoBack={handleGoBackPress} buttons={<>,</>}>
       <Content buttons={<> </>}>
-        <AddChainScreen handleImportSecretNote={handleImportSecretNote} />
+        <AddChainScreen
+          handleImportSecretNote={handleImportSecretNote}
+          isDuplicate={isDuplicate}
+          isCheckingDuplicate={isCheckingDuplicate}
+        />
       </Content>
     </Wrapper>
   )
