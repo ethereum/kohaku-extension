@@ -1,10 +1,8 @@
 import React, { FC, useCallback, useEffect, useState } from 'react'
 import { Animated, Pressable, View } from 'react-native'
 
-import formatDecimals from '@ambire-common/utils/formatDecimals/formatDecimals'
 import SkeletonLoader from '@common/components/SkeletonLoader'
 import Text from '@common/components/Text'
-import { useTranslation } from '@common/config/localization'
 import useTheme from '@common/hooks/useTheme'
 import DashboardHeader from '@web/modules/PPv1/tokenDetails/components/DashboardHeader'
 import Gradients from '@web/modules/PPv1/tokenDetails/components/Gradients/Gradients'
@@ -49,28 +47,17 @@ const DashboardOverview: FC<Props> = ({
   setDashboardOverviewSize,
   onGasTankButtonPosition
 }) => {
-  const { t } = useTranslation()
   const { theme, styles, themeType } = useTheme(getStyles)
   const { isOffline } = useMainControllerState()
   const { portfolio } = useSelectedAccountControllerState()
-  const {
-    isLoading,
-    isAccountLoaded,
-    totalPrivatePortfolio,
-    ethPrivateBalance,
-    refreshPrivateAccount
-  } = usePrivacyPoolsForm()
+  const { isLoading, isAccountLoaded, ethPrivateBalance, refreshPrivateAccount } =
+    usePrivacyPoolsForm()
 
   const [bindRefreshButtonAnim, refreshButtonAnimStyle] = useHover({
     preset: 'opacity'
   })
   const { warningMessage, onIconPress, isLoadingTakingTooLong, networksWithErrors } =
     useBalanceAffectingErrors()
-
-  const [totalPrivatePortfolioInteger, totalPrivatePortfolioDecimal] = formatDecimals(
-    totalPrivatePortfolio,
-    'value'
-  ).split('.')
 
   const [buttonPosition, setButtonPosition] = useState<{
     x: number
@@ -184,18 +171,13 @@ const DashboardOverview: FC<Props> = ({
                               : theme.primaryBackground
                           }
                           selectable
-                        >
-                          {' '}
-                          ({totalPrivatePortfolioInteger}
-                          {t('.')}
-                          {totalPrivatePortfolioDecimal})
-                        </Text>
+                        />
                       </Text>
                     </Pressable>
                   )}
                   <AnimatedPressable
                     style={[spacings.mlTy, refreshButtonAnimStyle]}
-                    onPress={refreshPrivateAccount}
+                    onPress={() => refreshPrivateAccount(true)}
                     {...bindRefreshButtonAnim}
                     disabled={!portfolio?.isAllReady}
                     testID="refresh-button"
