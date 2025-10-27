@@ -92,7 +92,7 @@ const RouteItem: FC<Props> = ({ routeItem, index, routeItemsLength }) => {
                   themeType === THEME_TYPES.DARK
                     ? theme.primary
                     : hovered
-                    ? '#c197ff'
+                    ? theme.infoDecorative
                     : theme.primaryBackground
                 }
                 height={ITEM_HEIGHT}
