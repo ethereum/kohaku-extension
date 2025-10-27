@@ -188,7 +188,9 @@ function TransferScreen() {
 
   const isTransferFormValid = useMemo(() => {
     if (isLoading || !isAccountLoaded) return false
-    return !!(depositAmount && depositAmount !== '0' && poolInfo)
+    return (
+      !!(depositAmount && depositAmount !== '0' && poolInfo) && !validationFormMsgs.amount.message
+    )
   }, [depositAmount, poolInfo, isLoading, isAccountLoaded])
 
   const onBack = useCallback(() => {
