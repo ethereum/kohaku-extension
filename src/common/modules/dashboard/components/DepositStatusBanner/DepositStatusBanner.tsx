@@ -70,7 +70,12 @@ const DepositStatusBanner = ({ onWithdrawBack, onDeposit }: DepositStatusBannerP
     totalPendingBalance.total === 0n &&
     totalApprovedBalance.total === 0n
 
-  if (!isAccountLoaded) return null
+  const onlyApprovedBalance =
+    totalDeclinedBalance.total === 0n &&
+    totalPendingBalance.total === 0n &&
+    totalApprovedBalance.total > 0n
+
+  if (!isAccountLoaded || onlyApprovedBalance) return null
 
   if (zeroBalance && isAccountLoaded) {
     return (
