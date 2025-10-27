@@ -170,7 +170,7 @@ function RagequitScreen() {
     navigate(ROUTES.dashboard)
   }, [navigate])
 
-  const headerTitle = t('Withdraw')
+  const headerTitle = t('Public Exit')
 
   const buttons = useMemo(() => {
     return (
@@ -178,7 +178,7 @@ function RagequitScreen() {
         <BackButton onPress={onBack} />
         <Buttons
           handleSubmitForm={handleMultipleRagequit}
-          proceedBtnText={t('Withdraw All')}
+          proceedBtnText={t('Exit All')}
           isNotReadyToProceed={!isRagequitFormValid}
           isLoading={isLoading}
           signAccountOpErrors={[]}
@@ -214,7 +214,7 @@ function RagequitScreen() {
         }}
       >
         {submittedAccountOp?.status === AccountOpStatus.BroadcastedButNotConfirmed && (
-          <InProgress title={t('Confirming your ragequit')}>
+          <InProgress title={t('Confirming Your Public Exit')}>
             <Text fontSize={16} weight="medium" appearance="secondaryText">
               {t('Almost there!')}
             </Text>
@@ -223,7 +223,7 @@ function RagequitScreen() {
         {(submittedAccountOp?.status === AccountOpStatus.Success ||
           submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce) && (
           <Completed
-            title={t('Ragequit complete!')}
+            title={t('Public Exit Complete!')}
             titleSecondary={t('You have successfully exited the pool!')}
             explorerLink={explorerLink}
             openExplorerText="View Transaction"
@@ -235,7 +235,7 @@ function RagequitScreen() {
           <Failed
             title={t('Something went wrong!')}
             errorMessage={t(
-              "We couldn't complete your ragequit. Please try again later or contact Ambire support."
+              "We couldn't complete your public exit. Please try again later or contact Kohaku support."
             )}
           />
         )}
