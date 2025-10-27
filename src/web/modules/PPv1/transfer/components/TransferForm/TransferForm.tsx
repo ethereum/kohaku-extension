@@ -167,7 +167,7 @@ const TransferForm = ({
         />
       )}
 
-      <View style={[spacings.mbLg, styles.disclaimer]}>
+      <View style={[spacings.mbSm, styles.disclaimer]}>
         <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifyCenter]}>
           <Text
             style={styles.disclaimerText}

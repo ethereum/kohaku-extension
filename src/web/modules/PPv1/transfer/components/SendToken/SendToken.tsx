@@ -62,7 +62,7 @@ const SendToken: FC<Props> = ({
   const heading = title ?? t('Send')
 
   return (
-    <View style={spacings.mbLg}>
+    <View style={spacings.mbSm}>
       <Text appearance="secondaryText" fontSize={16} weight="medium" style={spacings.mbTy}>
         {heading}
       </Text>
