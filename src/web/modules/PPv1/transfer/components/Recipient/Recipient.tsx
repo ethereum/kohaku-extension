@@ -1,9 +1,8 @@
-import React, { useCallback, useEffect, useMemo } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 import { useModalize } from 'react-native-modalize'
 
-import { Contact } from '@ambire-common/controllers/addressBook/addressBook'
 import { TransferController } from '@ambire-common/controllers/transfer/transfer'
 import { TokenResult } from '@ambire-common/libs/portfolio'
 import { findAccountDomainFromPartialDomain } from '@ambire-common/utils/domains'
@@ -37,6 +36,8 @@ import TitleAndIcon from '@common/components/TitleAndIcon'
 import AddContactBottomSheet from '@common/components/Recipient/AddContactBottomSheet'
 import ConfirmAddress from '@common/components/Recipient/ConfirmAddress'
 import styles from '@common/components/Recipient/styles'
+import useAccountsList from '@common/hooks/useAccountsList'
+import { zeroAddress } from 'viem'
 
 interface Props extends InputProps {
   setAddress: (text: string) => void
@@ -72,11 +73,11 @@ const SelectedMenuOption: React.FC<{
   disabled?: boolean
   toggleMenu: () => void
   isAddressInAddressBook: boolean
-  filteredContacts: Contact[]
+  totalAvailableOptions: number
   recipientMenuClosedAutomaticallyRef: React.MutableRefObject<boolean>
 }> = ({
   selectRef,
-  filteredContacts,
+  totalAvailableOptions,
   validation,
   isMenuOpen,
   ensAddress,
@@ -91,14 +92,14 @@ const SelectedMenuOption: React.FC<{
   const { theme } = useTheme()
 
   useEffect(() => {
-    if (isMenuOpen && !filteredContacts.length) {
+    if (isMenuOpen && !totalAvailableOptions) {
       toggleMenu()
       // eslint-disable-next-line no-param-reassign
       recipientMenuClosedAutomaticallyRef.current = true
     } else if (
       recipientMenuClosedAutomaticallyRef.current &&
       !isMenuOpen &&
-      filteredContacts.length &&
+      totalAvailableOptions &&
       // Reopen the menu only if the address is invalid
       // Otherwise we will reopen it while the user is done with this field
       // and wants to proceed
@@ -110,7 +111,7 @@ const SelectedMenuOption: React.FC<{
     }
   }, [
     address,
-    filteredContacts.length,
+    totalAvailableOptions,
     isMenuOpen,
     recipientMenuClosedAutomaticallyRef,
     toggleMenu,
@@ -171,17 +172,27 @@ const Recipient: React.FC<Props> = ({
   const { theme } = useTheme()
   const { ref: sheetRef, open: openBottomSheet, close: closeBottomSheet } = useModalize()
   const { contacts } = useAddressBookControllerState()
+
+  const flatlistRef = useRef(null)
+  const { accounts } = useAccountsList({ flatlistRef })
   const { domains } = useDomainsControllerState()
   const [bindManageBtnAnim, manageBtnAnimStyle] = useHover({
     preset: 'opacityInverted'
   })
+
+  const myWalletAccounts = accounts.filter((contact) => contact.addr !== zeroAddress)
 
   const onManagePress = useCallback(() => {
     navigate(ROUTES.addressBook)
   }, [navigate])
 
   const isAddressInAddressBook = contacts.some((contact) => {
-    return actualAddress.toLowerCase() === contact.address.toLowerCase()
+    return (
+      actualAddress.toLowerCase() === contact.address.toLowerCase() ||
+      myWalletAccounts.some(
+        (myWalletAccount) => myWalletAccount.addr.toLowerCase() === actualAddress.toLowerCase()
+      )
+    )
   })
 
   const filteredContacts = useMemo(
@@ -220,26 +231,24 @@ const Recipient: React.FC<Props> = ({
 
   const walletAccountsSourcedContactOptions = useMemo(
     () =>
-      filteredContacts
-        .filter((contact) => contact.isWalletAccount)
-        .map((contact, index) => ({
-          value: contact.address,
-          label: (
-            <AddressBookContact
-              avatarSize={32}
-              testID={`address-book-my-wallet-contact-${index + 1}`}
-              key={contact.address}
-              style={{
-                borderRadius: 0,
-                ...spacings.ph0,
-                ...spacings.pv0
-              }}
-              address={contact.address}
-              name={contact.name}
-            />
-          )
-        })),
-    [filteredContacts]
+      myWalletAccounts.map(({ addr }, index) => ({
+        value: addr,
+        label: (
+          <AddressBookContact
+            avatarSize={32}
+            testID={`address-book-my-wallet-contact-${index + 1}`}
+            key={addr}
+            style={{
+              borderRadius: 0,
+              ...spacings.ph0,
+              ...spacings.pv0
+            }}
+            address={addr}
+            name={`Address #${index + 1}`}
+          />
+        )
+      })),
+    [myWalletAccounts]
   )
 
   const manuallyAddedContactOptions = useMemo(
@@ -314,11 +323,13 @@ const Recipient: React.FC<Props> = ({
 
   const renderSelectedOption = useCallback(
     ({ toggleMenu, isMenuOpen, selectRef }: RenderSelectedOptionParams) => {
+      const totalAvailableOptions =
+        walletAccountsSourcedContactOptions.length + manuallyAddedContactOptions.length
       return (
         <SelectedMenuOption
           toggleMenu={toggleMenu}
           selectRef={selectRef}
-          filteredContacts={filteredContacts}
+          totalAvailableOptions={totalAvailableOptions}
           isMenuOpen={isMenuOpen}
           validation={isMenuOpen ? ADDRESS_BOOK_VISIBLE_VALIDATION : validation}
           ensAddress={ensAddress}
@@ -332,7 +343,8 @@ const Recipient: React.FC<Props> = ({
       )
     },
     [
-      filteredContacts,
+      walletAccountsSourcedContactOptions.length,
+      manuallyAddedContactOptions.length,
       validation,
       ensAddress,
       isRecipientDomainResolving,
