@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Controller, useForm } from 'react-hook-form'
-import { TouchableOpacity, View } from 'react-native'
+import { /* TouchableOpacity, */ View } from 'react-native'
 
 import { isValidPassword } from '@ambire-common/services/validations'
 import LockIcon from '@common/assets/svg/LockIcon'
@@ -15,14 +15,14 @@ import useElementSize from '@common/hooks/useElementSize'
 import useNavigation from '@common/hooks/useNavigation'
 import useTheme from '@common/hooks/useTheme'
 import Header from '@common/modules/header/components/Header'
-import { ROUTES } from '@common/modules/router/constants/common'
+// import { ROUTES } from '@common/modules/router/constants/common'
 import spacings, { SPACING } from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import text from '@common/styles/utils/text'
 import { DEFAULT_KEYSTORE_PASSWORD_DEV } from '@env'
 import { TabLayoutContainer, TabLayoutWrapperMainContent } from '@web/components/TabLayoutWrapper'
 import { POPUP_WIDTH } from '@web/constants/spacings'
-import { openInTab } from '@web/extension-services/background/webapi/tab'
+// import { openInTab } from '@web/extension-services/background/webapi/tab'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
 import { getUiType } from '@web/utils/uiType'
@@ -30,7 +30,7 @@ import { getUiType } from '@web/utils/uiType'
 import KohakuLogo from '@common/components/HokahuLogo'
 import getStyles from './styles'
 
-const FOOTER_BUTTON_HIT_SLOP = { top: 10, bottom: 15 }
+// const FOOTER_BUTTON_HIT_SLOP = { top: 10, bottom: 15 }
 const MIN_PANEL_SIZE = 480
 
 const isPopup = getUiType().isPopup
@@ -224,7 +224,7 @@ const KeyStoreUnlockScreen = () => {
               onPress={handleSubmit((data) => handleUnlock(data))}
             />
 
-            <TouchableOpacity
+            {/* <TouchableOpacity
               onPress={() =>
                 openInTab({
                   url: `tab.html#/${ROUTES.keyStoreReset}`,
@@ -236,7 +236,7 @@ const KeyStoreUnlockScreen = () => {
               <Text weight="medium" appearance="secondaryText" fontSize={14} underline>
                 {t('Forgot extension password?')}
               </Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
         </View>
       </Container>
