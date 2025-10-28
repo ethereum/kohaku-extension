@@ -24,6 +24,18 @@ export type AccountInitSource =
       }
     }
 
+export type ImportedAccountInitSource =
+  | {
+      name: string
+      mnemonic: string
+    }
+  | {
+      secrets: {
+        masterNullifierSeed: Hex
+        masterSecretSeed: Hex
+      }
+      name?: string
+    }
 /**
  * Result of account initialization
  */

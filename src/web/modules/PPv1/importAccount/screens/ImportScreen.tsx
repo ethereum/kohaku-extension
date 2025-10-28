@@ -25,7 +25,8 @@ const ImportScreen = () => {
   const { dispatch } = useBackgroundService()
   const { state } = useTransferControllerState()
   const { latestBroadcastedAccountOp } = state
-  const { addImportedPrivateAccount, seedPhrase } = usePrivacyPoolsControllerState()
+  const { addImportedPrivateAccount, seedPhrase, importedPrivateAccounts } =
+    usePrivacyPoolsControllerState()
   const { navigate } = useNavigation()
   const { t } = useTranslation()
 
@@ -69,6 +70,17 @@ const ImportScreen = () => {
   const [isDuplicate, setIsDuplicate] = useState(false)
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false)
 
+  const defaultAccountName = useMemo(() => {
+    const existingCount = importedPrivateAccounts.filter((accounts) => accounts.length > 0).length
+    return `Privacy Pools #${existingCount + 1}`
+  }, [importedPrivateAccounts])
+
+  const [accountName, setAccountName] = useState(defaultAccountName)
+
+  useEffect(() => {
+    setAccountName(defaultAccountName)
+  }, [defaultAccountName])
+
   useEffect(() => {
     async function checkForDuplicate() {
       if (!seedPhrase || seedPhrase.trim().length === 0) {
@@ -102,13 +114,13 @@ const ImportScreen = () => {
   }, [seedPhrase])
 
   const handleImportSecretNote = useCallback(async () => {
-    if (isDuplicate) return
+    if (isDuplicate || !accountName.trim()) return
 
     setDisplayedView('track')
-    await addImportedPrivateAccount({ mnemonic: seedPhrase })
+    await addImportedPrivateAccount({ mnemonic: seedPhrase, name: accountName.trim() })
 
     setTrackProgress(AccountOpStatus.Success)
-  }, [setDisplayedView, addImportedPrivateAccount, seedPhrase, isDuplicate])
+  }, [setDisplayedView, addImportedPrivateAccount, seedPhrase, accountName, isDuplicate])
 
   const headerTitle = 'New Private Account'
 
@@ -163,6 +175,8 @@ const ImportScreen = () => {
           handleImportSecretNote={handleImportSecretNote}
           isDuplicate={isDuplicate}
           isCheckingDuplicate={isCheckingDuplicate}
+          accountName={accountName}
+          onAccountNameChange={setAccountName}
         />
       </Content>
     </Wrapper>

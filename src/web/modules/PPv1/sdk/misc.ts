@@ -2,8 +2,8 @@
 import { getData, storeData } from '@web/modules/PPv1/utils/extensionStorage'
 import { decrypt, encrypt } from '@web/modules/PPv1/utils/encryption'
 import {
-  AccountInitSource,
   deserializeFromStorage,
+  ImportedAccountInitSource,
   serializeForStorage
 } from './accountInitializer'
 
@@ -39,16 +39,16 @@ export const getPrivateAccount = async (): Promise<PrivateAccountSecrets> => {
   return secrets
 }
 
-export const getPPv1Accounts = async (): Promise<AccountInitSource[]> => {
+export const getPPv1Accounts = async (): Promise<ImportedAccountInitSource[]> => {
   const data = await getData({ key: PPV1_ACCOUNTS_KEY })
   if (!data) return []
   const decrypted = await decrypt(data, DEFAULT_PRIVATE_ACCOUNT_PASSWORD)
-  const deserialized = deserializeFromStorage<AccountInitSource[]>(decrypted)
+  const deserialized = deserializeFromStorage<ImportedAccountInitSource[]>(decrypted)
   if (!deserialized) return []
   return deserialized
 }
 
-export const storePPv1Accounts = async (accountInitSource: AccountInitSource) => {
+export const storePPv1Accounts = async (accountInitSource: ImportedAccountInitSource) => {
   const currentAccounts = await getPPv1Accounts()
   const accounts = [...currentAccounts, accountInitSource]
   const serialized = serializeForStorage(accounts)
