@@ -100,7 +100,7 @@ function RagequitForm({
             </Text>
             <Text appearance="secondaryText" fontSize={14} weight="regular">
               {t(
-                'Funds have been declined. By withdrawing back, funds will be publicly send back to your account.'
+                'Funds have been declined. By public exiting back, funds will be publicly send back to your account.'
               )}
             </Text>
           </View>

@@ -193,7 +193,9 @@ function TransferScreen() {
 
   const isTransferFormValid = useMemo(() => {
     if (isLoading || !isAccountLoaded) return false
-    return !!(depositAmount && depositAmount !== '0' && poolInfo)
+    return (
+      !!(depositAmount && depositAmount !== '0' && poolInfo) && !validationFormMsgs.amount.message
+    )
   }, [depositAmount, poolInfo, isLoading, isAccountLoaded])
 
   const onBack = useCallback(() => {
@@ -267,8 +269,6 @@ function TransferScreen() {
       </TrackProgress>
     )
   }
-
-  console.log('DEBUG: validationMessages', validationFormMsgs)
 
   return (
     <Wrapper title={headerTitle} handleGoBack={handleGoBack} buttons={buttons}>

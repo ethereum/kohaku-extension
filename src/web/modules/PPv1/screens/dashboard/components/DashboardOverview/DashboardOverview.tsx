@@ -55,13 +55,8 @@ const DashboardOverview: FC<Props> = ({
   const { theme, styles, themeType } = useTheme(getStyles)
   const { isOffline } = useMainControllerState()
   const { portfolio } = useSelectedAccountControllerState()
-  const {
-    isLoading,
-    isAccountLoaded,
-    totalPrivatePortfolio,
-    ethPrivateBalance,
-    refreshPrivateAccount
-  } = usePrivacyPoolsForm()
+  const { isLoading, isAccountLoaded, totalPrivatePortfolio, refreshPrivateAccount } =
+    usePrivacyPoolsForm()
 
   const [bindRefreshButtonAnim, refreshButtonAnimStyle] = useHover({
     preset: 'opacity'
@@ -179,14 +174,16 @@ const DashboardOverview: FC<Props> = ({
                           selectable
                           testID="total-portfolio-amount-eth"
                         >
-                          {ethPrivateBalance} ETH
+                          {totalPrivatePortfolioInteger}
+                          {t('.')}
+                          {totalPrivatePortfolioDecimal}
                         </Text>
                       </Text>
                     </Pressable>
                   )}
                   <AnimatedPressable
                     style={[spacings.mlTy, refreshButtonAnimStyle]}
-                    onPress={refreshPrivateAccount}
+                    onPress={() => refreshPrivateAccount(true)}
                     {...bindRefreshButtonAnim}
                     disabled={!portfolio?.isAllReady}
                     testID="refresh-button"
@@ -205,7 +202,7 @@ const DashboardOverview: FC<Props> = ({
                 </View>
 
                 <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-                  {isLoading || !isAccountLoaded ? (
+                  {/* {isLoading || !isAccountLoaded ? (
                     <SkeletonLoader
                       lowOpacity
                       width={150}
@@ -231,7 +228,7 @@ const DashboardOverview: FC<Props> = ({
                       {t('.')}
                       {totalPrivatePortfolioDecimal})
                     </Text>
-                  )}
+                  )} */}
                   <BalanceAffectingErrors
                     reloadAccount={refreshPrivateAccount}
                     networksWithErrors={networksWithErrors}

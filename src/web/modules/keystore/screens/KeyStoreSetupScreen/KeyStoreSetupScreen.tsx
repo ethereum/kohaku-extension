@@ -28,7 +28,7 @@ const KeyStoreSetupScreen = () => {
 
   const { goToPrevRoute } = useOnboardingNavigation()
   const { theme, themeType } = useTheme()
-  const [agreedWithTerms, setAgreedWithTerms] = useState(true)
+  const [agreedWithTerms, setAgreedWithTerms] = useState(false)
   const { ref: termsModalRef, open: openTermsModal, close: closeTermsModal } = useModalize()
   const animation = useRef(new Animated.Value(0)).current
 
