@@ -104,7 +104,7 @@ const SubmittedTransactionSummaryInner = ({
       <Footer
         size={size}
         network={network}
-        rawCalls={submittedAccountOp.calls}
+        // rawCalls={submittedAccountOp.calls}
         txnId={submittedAccountOp.txnId}
         identifiedBy={submittedAccountOp.identifiedBy}
         accountAddr={submittedAccountOp.accountAddr}

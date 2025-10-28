@@ -20,10 +20,10 @@ import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { createTab } from '@web/extension-services/background/webapi/tab'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
-import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
+// import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import { sizeMultiplier } from '@web/modules/sign-account-op/components/TransactionSummary'
 
-import RepeatTransaction from './RepeatTransaction'
+// import RepeatTransaction from './RepeatTransaction'
 import StatusBadge from './StatusBadge'
 import getStyles from './styles'
 import SubmittedOn from './SubmittedOn'
@@ -31,7 +31,7 @@ import SubmittedOn from './SubmittedOn'
 type Props = {
   network: Network
   size: 'sm' | 'md' | 'lg'
-  rawCalls?: SubmittedAccountOp['calls']
+  // rawCalls?: SubmittedAccountOp['calls']
 } & Pick<
   SubmittedAccountOp,
   'txnId' | 'identifiedBy' | 'accountAddr' | 'gasFeePayment' | 'status' | 'timestamp'
@@ -40,9 +40,9 @@ type Props = {
 const Footer: FC<Props> = ({
   network,
   txnId,
-  rawCalls,
+  // rawCalls,
   identifiedBy,
-  accountAddr,
+  // accountAddr,
   gasFeePayment,
   status,
   size,
@@ -51,7 +51,7 @@ const Footer: FC<Props> = ({
   const { styles } = useTheme(getStyles)
   const { addToast } = useToast()
   const { networks } = useNetworksControllerState()
-  const { account: selectedAccount } = useSelectedAccountControllerState()
+  // const { account: selectedAccount } = useSelectedAccountControllerState()
   const { t } = useTranslation()
   const textSize = 14 * sizeMultiplier[size]
   const iconSize = 26 * sizeMultiplier[size]
@@ -168,7 +168,7 @@ const Footer: FC<Props> = ({
             </Text>
             <LinkIcon width={iconSizeSm} height={iconSizeSm} />
           </TouchableOpacity>
-          {rawCalls?.length && selectedAccount?.addr === accountAddr ? (
+          {/* rawCalls?.length && selectedAccount?.addr === accountAddr ? (
             <RepeatTransaction
               accountAddr={accountAddr}
               chainId={network.chainId}
@@ -178,7 +178,8 @@ const Footer: FC<Props> = ({
             />
           ) : (
             <View />
-          )}
+          ) */}
+          <View />
         </View>
       </View>
     </View>
