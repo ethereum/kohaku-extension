@@ -3,7 +3,6 @@ import { View } from 'react-native'
 import { formatEther, zeroAddress } from 'viem'
 
 import TokenIcon from '@common/components/TokenIcon'
-import Recipient from '@common/components/Recipient'
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
 import SkeletonLoader from '@common/components/SkeletonLoader'
 import Text from '@common/components/Text'
@@ -15,6 +14,7 @@ import useTheme from '@common/hooks/useTheme'
 
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import { PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
+import Recipient from '../Recipient'
 
 import SendToken from '../SendToken'
 import getStyles from './styles'
