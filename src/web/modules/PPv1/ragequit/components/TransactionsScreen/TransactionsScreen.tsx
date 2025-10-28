@@ -1,31 +1,30 @@
 import React, { FC, useMemo } from 'react'
 import { View } from 'react-native'
 
-// import { isSmartAccount } from '@ambire-common/libs/account/account'
-// import shortenAddress from '@ambire-common/utils/shortenAddress'
-// import CopyIcon from '@common/assets/svg/CopyIcon'
-// import Avatar from '@common/components/Avatar'
+import { isSmartAccount } from '@ambire-common/libs/account/account'
+import shortenAddress from '@ambire-common/utils/shortenAddress'
+import CopyIcon from '@common/assets/svg/CopyIcon'
+import Avatar from '@common/components/Avatar'
 import Text from '@common/components/Text'
 import useTheme from '@common/hooks/useTheme'
-// import useToast from '@common/hooks/useToast'
+import useToast from '@common/hooks/useToast'
 import useWindowSize from '@common/hooks/useWindowSize'
 import Header from '@common/modules/header/components/Header'
 import getHeaderStyles from '@common/modules/header/components/Header/styles'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
-// import { setStringAsync } from '@common/utils/clipboard'
+import { setStringAsync } from '@common/utils/clipboard'
 import { TabLayoutContainer, TabLayoutWrapperMainContent } from '@web/components/TabLayoutWrapper'
 import {
   getTabLayoutPadding,
   tabLayoutWidths
 } from '@web/components/TabLayoutWrapper/TabLayoutWrapper'
-// import { AnimatedPressable } from '@web/hooks/useHover'
-// import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
+import { AnimatedPressable } from '@web/hooks/useHover'
+import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import { getUiType } from '@web/utils/uiType'
-// import { useTranslation } from 'react-i18next'
+import { useTranslation } from 'react-i18next'
 
 import HokahuLogo from '@common/components/HokahuLogo'
-import HeaderBackButton from '@common/modules/header/components/HeaderBackButton'
 import getStyles from './styles'
 
 const { isTab } = getUiType()
@@ -34,7 +33,6 @@ type WrapperProps = {
   children: React.ReactNode
   title?: string | React.ReactNode
   buttons: React.ReactNode
-  handleGoBack?: () => void
 }
 
 type ContentProps = {
@@ -47,26 +45,26 @@ type FormProps = {
   children: React.ReactNode
 }
 
-const Wrapper: FC<WrapperProps> = ({ children, title, buttons, handleGoBack }) => {
-  // const { t } = useTranslation()
-  // const { addToast } = useToast()
+const Wrapper: FC<WrapperProps> = ({ children, title, buttons }) => {
+  const { t } = useTranslation()
+  const { addToast } = useToast()
   const { theme, styles } = useTheme(getStyles)
   const { styles: headerStyles } = useTheme(getHeaderStyles)
-  // const { account } = useSelectedAccountControllerState()
+  const { account } = useSelectedAccountControllerState()
 
-  // const handleCopyText = async () => {
-  //   if (!account) return
+  const handleCopyText = async () => {
+    if (!account) return
 
-  //   try {
-  //     await setStringAsync(account.addr)
-  //     addToast(t('Copied address to clipboard!') as string, { timeout: 2500 })
-  //   } catch {
-  //     addToast(t('Failed to copy address to clipboard!') as string, {
-  //       timeout: 2500,
-  //       type: 'error'
-  //     })
-  //   }
-  // }
+    try {
+      await setStringAsync(account.addr)
+      addToast(t('Copied address to clipboard!') as string, { timeout: 2500 })
+    } catch {
+      addToast(t('Failed to copy address to clipboard!') as string, {
+        timeout: 2500,
+        type: 'error'
+      })
+    }
+  }
 
   return (
     <TabLayoutContainer
@@ -80,7 +78,7 @@ const Wrapper: FC<WrapperProps> = ({ children, title, buttons, handleGoBack }) =
             ]}
           >
             <View style={styles.headerSideContainer}>
-              {/* {account && (
+              {account && (
                 <View style={[flexbox.directionRow, flexbox.alignCenter]}>
                   <View style={[flexbox.directionRow, flexbox.alignCenter]}>
                     <Avatar
@@ -109,8 +107,7 @@ const Wrapper: FC<WrapperProps> = ({ children, title, buttons, handleGoBack }) =
                     </View>
                   </View>
                 </View>
-              )} */}
-              <HeaderBackButton forceBack onGoBackPress={handleGoBack} />
+              )}
             </View>
             {title && (
               <Text fontSize={isTab ? 24 : 20} weight="medium">

@@ -24,7 +24,8 @@ import Buttons from '@web/modules/PPv1/deposit/components/Buttons'
 import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import { getUiType } from '@web/utils/uiType'
 import flexbox from '@common/styles/utils/flexbox'
-import { Content, Form, Wrapper } from '../components/TransactionsScreen'
+import { Content } from '@web/components/TransactionsScreen'
+import { Form, Wrapper } from '../components/TransactionsScreen'
 
 const { isActionWindow } = getUiType()
 
@@ -62,6 +63,10 @@ function TransferScreen() {
       (accOp) => accOp.signature === latestBroadcastedAccountOp?.signature
     )
   }, [accountsOps.privacyPools, latestBroadcastedAccountOp?.signature])
+
+  const handleGoBack = useCallback(() => {
+    navigate(ROUTES.dashboard)
+  }, [navigate])
 
   const navigateOut = useCallback(async () => {
     if (isActionWindow) {
@@ -266,7 +271,7 @@ function TransferScreen() {
   }
 
   return (
-    <Wrapper title={headerTitle} buttons={buttons}>
+    <Wrapper title={headerTitle} handleGoBack={handleGoBack} buttons={buttons}>
       <Content buttons={buttons}>
         <Form>
           <DepositForm

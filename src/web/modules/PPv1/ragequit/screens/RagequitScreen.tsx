@@ -24,7 +24,7 @@ import { getUiType } from '@web/utils/uiType'
 import { View } from 'react-native'
 import flexbox from '@common/styles/utils/flexbox'
 import { Content, Form } from '@web/components/TransactionsScreen'
-import { Wrapper } from '../../deposit/components/TransactionsScreen'
+import { Wrapper } from '../components/TransactionsScreen'
 
 const { isActionWindow } = getUiType()
 
