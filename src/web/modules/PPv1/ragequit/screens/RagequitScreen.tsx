@@ -44,7 +44,7 @@ function RagequitScreen() {
     signAccountOpController,
     latestBroadcastedAccountOp,
     isLoading,
-    totalPendingBalance,
+    // totalPendingBalance,
     totalDeclinedBalance,
     ethPrice,
     handleMultipleRagequit,
@@ -53,10 +53,14 @@ function RagequitScreen() {
   } = usePrivacyPoolsForm()
 
   const ragequitableAccounts = useMemo(() => {
-    return [...totalPendingBalance.accounts, ...totalDeclinedBalance.accounts].filter(
-      (account) => !account.ragequit
-    )
-  }, [totalPendingBalance.accounts, totalDeclinedBalance.accounts])
+    return [
+      // ...totalPendingBalance.accounts,
+      ...totalDeclinedBalance.accounts
+    ].filter((account) => !account.ragequit)
+  }, [
+    // totalPendingBalance.accounts,
+    totalDeclinedBalance.accounts
+  ])
 
   const submittedAccountOp = useMemo(() => {
     if (!accountsOps.privacyPools || !latestBroadcastedAccountOp?.signature) return
@@ -249,7 +253,7 @@ function RagequitScreen() {
         <Form>
           <RagequitForm
             poolInfo={poolInfo}
-            totalPendingBalance={totalPendingBalance}
+            // totalPendingBalance={totalPendingBalance}
             totalDeclinedBalance={totalDeclinedBalance}
             ethPrice={ethPrice || 0}
             chainId={BigInt(chainId)}

@@ -259,7 +259,7 @@ const usePrivacyPoolsForm = () => {
 
     try {
       const ragequitableAccounts = [
-        ...totalPendingBalance.accounts,
+        // ...totalPendingBalance.accounts,
         ...totalDeclinedBalance.accounts
       ].filter(
         (account) =>
@@ -311,7 +311,7 @@ const usePrivacyPoolsForm = () => {
   }, [
     accountService,
     poolInfo,
-    totalPendingBalance.accounts,
+    // totalPendingBalance.accounts,
     totalDeclinedBalance.accounts,
     generateRagequitProof,
     syncSignAccountOp,
