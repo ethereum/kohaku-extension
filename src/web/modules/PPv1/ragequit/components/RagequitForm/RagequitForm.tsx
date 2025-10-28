@@ -16,13 +16,13 @@ import styles from './styles'
 
 function RagequitForm({
   poolInfo,
-  totalPendingBalance,
+  // totalPendingBalance,
   totalDeclinedBalance,
   ethPrice,
   chainId
 }: {
   poolInfo?: PoolInfo
-  totalPendingBalance: { total: bigint; accounts: PoolAccount[] }
+  // totalPendingBalance: { total: bigint; accounts: PoolAccount[] }
   totalDeclinedBalance: { total: bigint; accounts: PoolAccount[] }
   ethPrice: number
   chainId: bigint
@@ -30,7 +30,7 @@ function RagequitForm({
   const { t } = useTranslation()
 
   const ragequitableAccounts = [
-    ...totalPendingBalance.accounts,
+    // ...totalPendingBalance.accounts,
     ...totalDeclinedBalance.accounts
   ].filter((account) => !account.ragequit)
 
