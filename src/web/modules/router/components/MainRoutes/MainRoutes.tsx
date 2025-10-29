@@ -56,6 +56,19 @@ import SwapAndBridgeScreen from '@web/modules/swap-and-bridge/screens/SwapAndBri
 import TransferScreen from '@web/modules/transfer/screens/TransferScreen'
 import ViewOnlyAccountAdderScreen from '@web/modules/view-only-account-adder/ViewOnlyAccountAdderScreen'
 
+import PPv1HomeScreen from '@web/modules/PPv1/screens/Home'
+import PPv1DepositScreen from '@web/modules/PPv1/deposit/screens/DepositScreen'
+import PPv1TransferScreen from '@web/modules/PPv1/transfer/screens/TransferScreen'
+import PPv1ImportScreen from '@web/modules/PPv1/importAccount/screens/ImportScreen'
+import PPv1RagequitScreen from '@web/modules/PPv1/ragequit/screens/RagequitScreen'
+import PPv1SettingsScreen from '@web/modules/PPv1/settings/screens/SettingsScreen'
+import PPv1TokenDetailsScreen from '@web/modules/PPv1/tokenDetails/screens'
+
+// import PPv2HomeScreen from '@web/modules/PPv2/screens/Home'
+// import PPv2DepositScreen from '@web/modules/PPv2/deposit/screens/DepositScreen'
+// import PPv2TransferScreen from '@web/modules/PPv2/transfer/screens/TransferScreen'
+// import PPv2ImportScreen from '@web/modules/PPv2/importNote/screens/ImportScreen'
+
 const MainRoutes = () => {
   const location = useLocation()
   const { t } = useTranslation()
@@ -152,6 +165,22 @@ const MainRoutes = () => {
       <Route element={<KeystoreUnlockedRoute />}>
         <Route element={<AuthenticatedRoute />}>
           <Route path={WEB_ROUTES.transfer} element={<TransferScreen />} />
+
+          {/* Privacy Pools V1 */}
+          <Route path={WEB_ROUTES.pp1Home} element={<PPv1HomeScreen />} />
+          <Route path={WEB_ROUTES.pp1Deposit} element={<PPv1DepositScreen />} />
+          <Route path={WEB_ROUTES.pp1Transfer} element={<PPv1TransferScreen />} />
+          <Route path={WEB_ROUTES.pp1Import} element={<PPv1ImportScreen />} />
+          <Route path={WEB_ROUTES.pp1Ragequit} element={<PPv1RagequitScreen />} />
+          <Route path={WEB_ROUTES.pp1Settings} element={<PPv1SettingsScreen />} />
+          <Route path={WEB_ROUTES.pp1TokenDetails} element={<PPv1TokenDetailsScreen />} />
+
+          {/* Privacy Pools V2 */}
+          {/* <Route path={WEB_ROUTES.pp2Home} element={<PPv2HomeScreen />} />
+          <Route path={WEB_ROUTES.pp2Deposit} element={<PPv2DepositScreen />} />
+          <Route path={WEB_ROUTES.pp2Transfer} element={<PPv2TransferScreen />} />
+          <Route path={WEB_ROUTES.pp2Import} element={<PPv2ImportScreen />} /> */}
+
           <Route path={WEB_ROUTES.topUpGasTank} element={<TransferScreen isTopUpScreen />} />
           <Route
             path={WEB_ROUTES.signAccountOp}

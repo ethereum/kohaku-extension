@@ -17,7 +17,7 @@ type Props = {
   isViewOnly: boolean
   isSponsored: boolean
   sponsor: Sponsor | undefined
-  updateType: 'Main' | 'Swap&Bridge' | 'Transfer&TopUp'
+  updateType: 'Main' | 'Swap&Bridge' | 'Transfer&TopUp' | 'PrivacyPools'
   bundlerNonceDiscrepancy?: {
     id: string
     title: string

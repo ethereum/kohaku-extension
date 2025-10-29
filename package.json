@@ -55,6 +55,7 @@
     "yarn": ">=1.22.0 <2.0.0"
   },
   "dependencies": {
+    "@0xbow/privacy-pools-core-sdk": "0.1.22",
     "@ambire/signature-validator": "^1.0.3",
     "@babel/plugin-proposal-decorators": "~7.22.7",
     "@babel/plugin-proposal-private-methods": "~7.18.6",
@@ -167,6 +168,7 @@
     "lottie-react": "^2.3.1",
     "lottie-react-native": "^5.1.4",
     "lru-cache": "6.0.0",
+    "maci-crypto": "2.5.0",
     "mini-css-extract-plugin": "^2.7.6",
     "nanoid": "4.0.0",
     "p-queue": "^7.3.4",
@@ -232,15 +234,17 @@
     "util": "~0.10.3",
     "uuid": "9.0.0",
     "validator": "^13.7.0",
-    "viem": "^2.33.3",
+    "viem": "2.33.3",
     "vm-browserify": "0.0.4",
     "webextension-polyfill": "^0.10.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.2",
+    "@babel/plugin-proposal-export-namespace-from": "7.18.9",
     "@babel/preset-env": "^7.22.5",
     "@babel/preset-typescript": "^7.23.3",
     "@expo/webpack-config": "^18.0.4",
+    "@types/aes-js": "3.1.4",
     "@types/chrome": "^0.0.212",
     "@types/crypto-js": "^4.1.1",
     "@types/debounce": "1.2.1",

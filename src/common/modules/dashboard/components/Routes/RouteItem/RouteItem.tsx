@@ -92,25 +92,30 @@ const RouteItem: FC<Props> = ({ routeItem, index, routeItemsLength }) => {
                   themeType === THEME_TYPES.DARK
                     ? theme.primary
                     : hovered
-                    ? '#c197ff'
+                    ? theme.infoDecorative
                     : theme.primaryBackground
                 }
                 height={ITEM_HEIGHT}
               />
             </View>
           </View>
-          <Text
-            color={
-              themeType === THEME_TYPES.DARK
-                ? theme.primaryBackgroundInverted
-                : theme.primaryBackground
-            }
-            weight="regular"
-            fontSize={12}
-            style={routeItem.disabled && { opacity: 0.4 }}
-          >
-            {routeItem.label}
-          </Text>
+          <View style={{ minHeight: 32, ...flexbox.center }}>
+            <Text
+              color={
+                themeType === THEME_TYPES.DARK
+                  ? theme.primaryBackgroundInverted
+                  : theme.primaryBackground
+              }
+              weight="regular"
+              fontSize={12}
+              style={[
+                { textAlign: 'center', maxWidth: '60px' },
+                routeItem.disabled && { opacity: 0.4 }
+              ]}
+            >
+              {routeItem.label}
+            </Text>
+          </View>
         </>
       )}
     </Pressable>

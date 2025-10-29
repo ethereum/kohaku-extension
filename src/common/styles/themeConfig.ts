@@ -17,80 +17,88 @@ export type ThemeProps = {
 
 const ThemeColors = {
   primary: {
-    [THEME_TYPES.DARK]: '#39F7EF',
-    [THEME_TYPES.LIGHT]: '#6000FF'
+    [THEME_TYPES.DARK]: '#FFFFFF',
+    [THEME_TYPES.LIGHT]: '#000000'
   },
   primary20: {
-    [THEME_TYPES.DARK]: '#39F7EF20',
-    [THEME_TYPES.LIGHT]: '#6000FF20'
+    [THEME_TYPES.DARK]: '#FFFFFF20',
+    [THEME_TYPES.LIGHT]: '#00000020'
   },
   primaryLight: {
-    [THEME_TYPES.DARK]: '#0B3230',
-    [THEME_TYPES.LIGHT]: '#8B3DFF'
+    [THEME_TYPES.DARK]: '#2A2A2A',
+    [THEME_TYPES.LIGHT]: '#1A1A1A'
   },
   primaryLight80: {
-    [THEME_TYPES.DARK]: '#AD8FFF80',
-    [THEME_TYPES.LIGHT]: '#8B3DFF80'
+    [THEME_TYPES.DARK]: '#2A2A2A80',
+    [THEME_TYPES.LIGHT]: '#1A1A1A80'
   },
   primaryText: {
     [THEME_TYPES.DARK]: '#FFFFFF',
-    [THEME_TYPES.LIGHT]: '#141833'
+    [THEME_TYPES.LIGHT]: '#000000'
+  },
+  primaryTextInverted: {
+    [THEME_TYPES.DARK]: '#000000',
+    [THEME_TYPES.LIGHT]: '#FFFFFF'
   },
   secondaryText: {
     [THEME_TYPES.DARK]: '#A6A6A7',
-    [THEME_TYPES.LIGHT]: '#54597A'
+    [THEME_TYPES.LIGHT]: '#4A4A4A'
   },
   tertiaryText: {
     [THEME_TYPES.DARK]: '#818181',
-    [THEME_TYPES.LIGHT]: '#767DAD'
+    [THEME_TYPES.LIGHT]: '#6B6B6B'
+  },
+  kohakuAccent: {
+    [THEME_TYPES.DARK]: '#F9F6E9',
+    [THEME_TYPES.LIGHT]: '#F9F6E9'
   },
   linkText: {
-    [THEME_TYPES.DARK]: '#9D7AFF',
-    [THEME_TYPES.LIGHT]: '#6000FF'
+    [THEME_TYPES.DARK]: '#D01C15',
+    [THEME_TYPES.LIGHT]: '#D01C15'
   },
   primaryBorder: {
     [THEME_TYPES.DARK]: '#FFFFFF1F',
-    [THEME_TYPES.LIGHT]: '#767DAD'
+    [THEME_TYPES.LIGHT]: '#00000030'
   },
   secondaryBorder: {
     [THEME_TYPES.DARK]: '#FFFFFF52',
-    [THEME_TYPES.LIGHT]: '#CACDE6'
+    [THEME_TYPES.LIGHT]: '#00000050'
   },
   primaryBackground: {
-    [THEME_TYPES.DARK]: '#0D0D0F',
+    [THEME_TYPES.DARK]: '#000000',
     [THEME_TYPES.LIGHT]: '#FFFFFF'
   },
   primaryBackgroundInverted: {
     [THEME_TYPES.DARK]: '#FFFFFF',
-    [THEME_TYPES.LIGHT]: '#141833'
+    [THEME_TYPES.LIGHT]: '#000000'
   },
   secondaryBackground: {
-    [THEME_TYPES.DARK]: '#2A2A2C',
-    [THEME_TYPES.LIGHT]: '#F2F3FA'
+    [THEME_TYPES.DARK]: '#1A1A1A',
+    [THEME_TYPES.LIGHT]: '#f1f1f1'
   },
   secondaryBackgroundInverted: {
-    [THEME_TYPES.DARK]: '#F2F3FA',
-    [THEME_TYPES.LIGHT]: '#2A2A2C'
+    [THEME_TYPES.DARK]: '#F9F6E9',
+    [THEME_TYPES.LIGHT]: '#1A1A1A'
   },
   tertiaryBackground: {
-    [THEME_TYPES.DARK]: '#202022',
-    [THEME_TYPES.LIGHT]: '#E7E9FB'
+    [THEME_TYPES.DARK]: '#2A2A2A',
+    [THEME_TYPES.LIGHT]: '#9E9E9F'
   },
   quaternaryBackground: {
     [THEME_TYPES.DARK]: '#FFFFFF20',
-    [THEME_TYPES.LIGHT]: '#767DAD16'
+    [THEME_TYPES.LIGHT]: '#00000010'
   },
   quaternaryBackgroundSolid: {
-    [THEME_TYPES.DARK]: '#2A2A2C',
-    [THEME_TYPES.LIGHT]: '#F4F5F8'
+    [THEME_TYPES.DARK]: '#2A2A2A',
+    [THEME_TYPES.LIGHT]: '#FAFAF8'
   },
   quinaryBackground: {
-    [THEME_TYPES.DARK]: '#0D0D0F',
-    [THEME_TYPES.LIGHT]: '#F7F8FC'
+    [THEME_TYPES.DARK]: '#0D0D0D',
+    [THEME_TYPES.LIGHT]: '#FCFCFA'
   },
   backdrop: {
-    [THEME_TYPES.DARK]: '#0D0D0F95',
-    [THEME_TYPES.LIGHT]: '#54597ACC'
+    [THEME_TYPES.DARK]: '#00000095',
+    [THEME_TYPES.LIGHT]: '#000000CC'
   },
   // Success
   successText: {
@@ -107,29 +115,29 @@ const ThemeColors = {
   },
   // Info
   infoText: {
-    [THEME_TYPES.DARK]: '#70B4FF',
-    [THEME_TYPES.LIGHT]: '#35058E'
+    [THEME_TYPES.DARK]: '#D01C15',
+    [THEME_TYPES.LIGHT]: '#8B1510'
   },
   infoDecorative: {
-    [THEME_TYPES.DARK]: '#70B4FF',
-    [THEME_TYPES.LIGHT]: '#8B3DFF'
+    [THEME_TYPES.DARK]: '#D01C15',
+    [THEME_TYPES.LIGHT]: '#D01C15'
   },
   infoBackground: {
-    [THEME_TYPES.DARK]: '#1b212b',
-    [THEME_TYPES.LIGHT]: '#F6F0FF'
+    [THEME_TYPES.DARK]: '#2a1b1b',
+    [THEME_TYPES.LIGHT]: '#FFF5F5'
   },
   // Info 2
   info2Text: {
-    [THEME_TYPES.DARK]: '#70B4FF',
-    [THEME_TYPES.LIGHT]: '#0750A1'
+    [THEME_TYPES.DARK]: '#D01C15',
+    [THEME_TYPES.LIGHT]: '#8B1510'
   },
   info2Decorative: {
-    [THEME_TYPES.DARK]: '#70B4FF',
-    [THEME_TYPES.LIGHT]: '#0079FF'
+    [THEME_TYPES.DARK]: '#D01C15',
+    [THEME_TYPES.LIGHT]: '#D01C15'
   },
   info2Background: {
-    [THEME_TYPES.DARK]: '#70B4FF1F',
-    [THEME_TYPES.LIGHT]: '#0079FF14'
+    [THEME_TYPES.DARK]: '#D01C151F',
+    [THEME_TYPES.LIGHT]: '#D01C1514'
   },
   // Warning
   warningText: {
@@ -162,24 +170,56 @@ const ThemeColors = {
     [THEME_TYPES.LIGHT]: '#FEEBEE'
   },
   featureDecorative: {
-    [THEME_TYPES.DARK]: '#70B4FF',
-    [THEME_TYPES.LIGHT]: '#3851FF'
+    [THEME_TYPES.DARK]: '#D01C15',
+    [THEME_TYPES.LIGHT]: '#D01C15'
   },
   featureBackground: {
-    [THEME_TYPES.DARK]: '#70B4FF1F',
-    [THEME_TYPES.LIGHT]: '#ECF4FD'
+    [THEME_TYPES.DARK]: '#D01C151F',
+    [THEME_TYPES.LIGHT]: '#FFF5F5'
   },
   iconPrimary: {
     [THEME_TYPES.DARK]: '#9E9E9F',
-    [THEME_TYPES.LIGHT]: '#54597A'
+    [THEME_TYPES.LIGHT]: '#4A4A4A'
   },
   iconSecondary: {
     [THEME_TYPES.DARK]: '#9E9E9F',
-    [THEME_TYPES.LIGHT]: '#2D314D'
+    [THEME_TYPES.LIGHT]: '#2D2D2D'
   },
   iconPrimary2: {
-    [THEME_TYPES.DARK]: '#6000FF',
-    [THEME_TYPES.LIGHT]: '#6000FF'
+    [THEME_TYPES.DARK]: '#D01C15',
+    [THEME_TYPES.LIGHT]: '#D01C15'
+  },
+  depositRejectedNotificationBackground: {
+    [THEME_TYPES.DARK]: '#FEF2F2',
+    [THEME_TYPES.LIGHT]: '#FEF2F2'
+  },
+  depositRejectedBackground: {
+    [THEME_TYPES.DARK]: '#FECACA',
+    [THEME_TYPES.LIGHT]: '#FECACA'
+  },
+  depositRejectedText: {
+    [THEME_TYPES.DARK]: '#9b2c2c',
+    [THEME_TYPES.LIGHT]: '#9b2c2c'
+  },
+  depositPendingNotificationBackground: {
+    [THEME_TYPES.DARK]: '#EFF6FF',
+    [THEME_TYPES.LIGHT]: '#EFF6FF'
+  },
+  depositPendingBackground: {
+    [THEME_TYPES.DARK]: '#bee3f8',
+    [THEME_TYPES.LIGHT]: '#bee3f8'
+  },
+  depositPendingText: {
+    [THEME_TYPES.DARK]: '#2c5282',
+    [THEME_TYPES.LIGHT]: '#2c5282'
+  },
+  depositInactiveBackground: {
+    [THEME_TYPES.DARK]: '#f7fafc',
+    [THEME_TYPES.LIGHT]: '#f7fafc'
+  },
+  depositInactiveText: {
+    [THEME_TYPES.DARK]: '#4a5568',
+    [THEME_TYPES.LIGHT]: '#4a5568'
   }
 }
 

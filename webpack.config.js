@@ -198,7 +198,68 @@ module.exports = async function (env, argv) {
 
   config.resolve.fallback = {
     stream: require.resolve('stream-browserify'),
-    crypto: require.resolve('crypto-browserify')
+    crypto: require.resolve('crypto-browserify'),
+    fs: false,
+    // Add fallbacks for all missing viem test action files
+    '../../actions/test/dumpState.js': false,
+
+    '../../actions/test/dropTransaction.js': false,
+
+    '../../actions/test/getAutomine.js': false,
+
+    '../../actions/test/getTxpoolContent.js': false,
+
+    '../../actions/test/getTxpoolStatus.js': false,
+
+    '../../actions/test/impersonateAccount.js': false,
+
+    '../../actions/test/increaseTime.js': false,
+
+    '../../actions/test/inspectTxpool.js': false,
+
+    '../../actions/test/loadState.js': false,
+
+    '../../actions/test/mine.js': false,
+
+    '../../actions/test/removeBlockTimestampInterval.js': false,
+
+    '../../actions/test/reset.js': false,
+
+    '../../actions/test/revert.js': false,
+
+    '../../actions/test/sendUnsignedTransaction.js': false,
+
+    '../../actions/test/setAutomine.js': false,
+
+    '../../actions/test/setBalance.js': false,
+
+    '../../actions/test/setBlockGasLimit.js': false,
+
+    '../../actions/test/setBlockTimestampInterval.js': false,
+
+    '../../actions/test/setCode.js': false,
+
+    '../../actions/test/setCoinbase.js': false,
+
+    '../../actions/test/setIntervalMining.js': false,
+
+    '../../actions/test/setLoggingEnabled.js': false,
+
+    '../../actions/test/setMinGasPrice.js': false,
+
+    '../../actions/test/setNextBlockBaseFeePerGas.js': false,
+
+    '../../actions/test/setNextBlockTimestamp.js': false,
+
+    '../../actions/test/setNonce.js': false,
+
+    '../../actions/test/setRpcUrl.js': false,
+
+    '../../actions/test/setStorageAt.js': false,
+
+    '../../actions/test/snapshot.js': false,
+
+    '../../actions/test/stopImpersonatingAccount.js': false
   }
 
   // There will be 2 instances of React if node_modules are installed in src/ambire-common.
@@ -225,7 +286,10 @@ module.exports = async function (env, argv) {
   if (config.mode === 'production') {
     config.output.assetModuleFilename = '[name].[ext]'
     config.output.filename = '[name].js'
-    config.output.chunkFilename = '[id].js'
+    config.output.chunkFilename = 'd[id].js'
+  } else {
+    // For development, use the same pattern to prevent "_" prefix issues
+    config.output.chunkFilename = 'd[id].js'
   }
 
   // Environment specific configurations
@@ -275,6 +339,10 @@ module.exports = async function (env, argv) {
       {
         from: './src/web/assets',
         to: 'assets'
+      },
+      {
+        from: './src/web/public/artifacts',
+        to: 'artifacts'
       },
       {
         from: './src/web/public/style.css',

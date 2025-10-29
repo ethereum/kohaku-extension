@@ -2,7 +2,6 @@ import { StyleSheet, ViewStyle } from 'react-native'
 
 import spacings from '@common/styles/spacings'
 import { THEME_TYPES, ThemeProps, ThemeType } from '@common/styles/themeConfig'
-import flexbox from '@common/styles/utils/flexbox'
 import { getUiType } from '@web/utils/uiType'
 
 interface Style {
@@ -41,9 +40,8 @@ const getStyles = (theme: ThemeProps, themeType: ThemeType) =>
       overflow: 'visible'
     },
     nonTabButtons: {
-      ...flexbox.flex1,
-      ...spacings.pbLg,
-      ...flexbox.justifyEnd
+      ...spacings.mtLg,
+      ...spacings.pbLg
     },
     headerSideContainer: { width: isTab ? 300 : 170, minWidth: isTab ? 300 : 160 }
   })

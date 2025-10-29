@@ -15,7 +15,6 @@ import useTheme from '@common/hooks/useTheme'
 import useToast from '@common/hooks/useToast'
 import useOnboardingNavigation from '@common/modules/auth/hooks/useOnboardingNavigation'
 import Header from '@common/modules/header/components/Header'
-import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import text from '@common/styles/utils/text'
@@ -181,6 +180,13 @@ const AccountPersonalizeScreen = () => {
     goToNextRoute
   ])
 
+  // Generate privacy pool v1 secrets when accounts are loaded
+  useEffect(() => {
+    if (!isLoading && accountsToPersonalize.length && !completed) {
+      dispatch({ type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_PPV1_KEYS' })
+    }
+  }, [isLoading, accountsToPersonalize.length, completed, dispatch])
+
   // prevents showing accounts to personalize from prev sessions
   useEffect(() => {
     if (newlyAddedAccounts.length && accountPickerState.isInitialized) {
@@ -326,7 +332,7 @@ const AccountPersonalizeScreen = () => {
                     disabled={!accounts.length}
                   />
                 )}
-                {!completed && ['seed', 'hw'].includes(accountPickerState.subType as any) && (
+                {/* {!completed && ['seed', 'hw'].includes(accountPickerState.subType as any) && (
                   <View style={spacings.ptLg}>
                     <Button
                       testID="add-more-accounts-btn"
@@ -356,7 +362,7 @@ const AccountPersonalizeScreen = () => {
                       </Text>
                     </Button>
                   </View>
-                )}
+                )} */}
               </>
             )}
           </Panel>

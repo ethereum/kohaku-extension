@@ -35,6 +35,7 @@ import { AccountOp } from '@ambire-common/libs/accountOp/accountOp'
 import { FullEstimation } from '@ambire-common/libs/estimate/interfaces'
 import { GasRecommendation } from '@ambire-common/libs/gasPrice/gasPrice'
 import { TokenResult } from '@ambire-common/libs/portfolio'
+import { Call } from '@ambire-common/libs/accountOp/types'
 import { CustomToken, TokenPreference } from '@ambire-common/libs/portfolio/customToken'
 import { THEME_TYPES } from '@common/styles/themeConfig'
 import { LOG_LEVELS } from '@web/utils/logger'
@@ -378,7 +379,7 @@ type MainControllerSignAccountOpUpdateAction = {
 type SignAccountOpUpdateAction = {
   type: 'SIGN_ACCOUNT_OP_UPDATE'
   params: {
-    updateType: 'Main' | 'Swap&Bridge' | 'Transfer&TopUp'
+    updateType: 'Main' | 'Swap&Bridge' | 'Transfer&TopUp' | 'PrivacyPools'
     accountOp?: AccountOp
     gasPrices?: GasRecommendation[]
     estimation?: FullEstimation
@@ -395,6 +396,7 @@ type MainControllerSignAccountOpUpdateStatus = {
     | 'MAIN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
     | 'SWAP_AND_BRIDGE_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
     | 'TRANSFER_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
+    | 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
   params: {
     status: SigningStatus
   }
@@ -402,7 +404,7 @@ type MainControllerSignAccountOpUpdateStatus = {
 type MainControllerHandleSignAndBroadcastAccountOp = {
   type: 'MAIN_CONTROLLER_HANDLE_SIGN_AND_BROADCAST_ACCOUNT_OP'
   params: {
-    updateType: 'Main' | 'Swap&Bridge' | 'Transfer&TopUp'
+    updateType: 'Main' | 'Swap&Bridge' | 'Transfer&TopUp' | 'PrivacyPools'
   }
 }
 
@@ -748,6 +750,92 @@ type DismissBanner = {
   }
 }
 
+type PrivacyControllerInitializeSdkAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_SDK_LOADED'
+}
+
+type PrivacyControllerUpdateFormAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM'
+  params: {
+    depositAmount?: string
+    withdrawalAmount?: string
+    seedPhrase?: string
+    targetAddress?: string
+    importedSecretNote?: string
+  }
+}
+
+type PrivacyControllerUnloadScreenAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN'
+}
+
+type PrivacyControllerSignAccountOpUpdateAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
+  params: {
+    status: SigningStatus
+  }
+}
+
+type PrivacyControllerHasUserProceededAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED'
+  params: {
+    proceeded: boolean
+  }
+}
+
+type PrivacyControllerDestroySignAccountOpAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_SIGN_ACCOUNT_OP'
+}
+
+type PrivacyControllerDestroyLatestBroadcastedAccountOpAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+}
+
+type PrivacyControllerSyncSignAccountOpAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_SYNC_SIGN_ACCOUNT_OP'
+  params: {
+    calls: Call[]
+  }
+}
+
+type PrivacyControllerGeneratePPv1KeysAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_PPV1_KEYS'
+}
+
+type PrivacyControllerGenerateSecretAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_SECRET'
+  params: {
+    appInfo: string
+  }
+}
+
+type PrivacyControllerResetFormAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
+}
+type PrivacyControllerResetSecretAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_RESET_SECRET'
+}
+
+type PrivacyControllerDirectBroadcastWithdrawalAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_DIRECT_BROADCAST_WITHDRAWAL'
+  params: {
+    chainId: number
+    poolAddress: string
+    withdrawal: {
+      processooor: string
+      data: string
+    }
+    proofs: {
+      publicSignals: bigint[]
+      proof: {
+        pi_a: [bigint, bigint]
+        pi_b: [readonly [bigint, bigint], readonly [bigint, bigint]]
+        pi_c: [bigint, bigint]
+      }
+    }[]
+  }
+}
+
 export type Action =
   | UpdateNavigationUrl
   | InitControllerStateAction
@@ -887,3 +975,16 @@ export type Action =
   | SetLogLevelTypeAction
   | SetCrashAnalyticsAction
   | DismissBanner
+  | PrivacyControllerInitializeSdkAction
+  | PrivacyControllerUpdateFormAction
+  | PrivacyControllerUnloadScreenAction
+  | PrivacyControllerSignAccountOpUpdateAction
+  | PrivacyControllerHasUserProceededAction
+  | PrivacyControllerDestroySignAccountOpAction
+  | PrivacyControllerDestroyLatestBroadcastedAccountOpAction
+  | PrivacyControllerSyncSignAccountOpAction
+  | PrivacyControllerGenerateSecretAction
+  | PrivacyControllerResetFormAction
+  | PrivacyControllerDirectBroadcastWithdrawalAction
+  | PrivacyControllerResetSecretAction
+  | PrivacyControllerGeneratePPv1KeysAction

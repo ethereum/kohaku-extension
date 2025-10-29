@@ -8,6 +8,7 @@ import {
 import spacings from '@common/styles/spacings'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
 
+import { zeroAddress } from 'viem'
 import BadgeWithPreset from '../BadgeWithPreset'
 
 interface Props {
@@ -29,9 +30,10 @@ const AccountBadges: FC<Props> = ({ accountData }) => {
 
   return (
     <>
-      {keystoreCtrl.keys.every((k) => !accountData?.associatedKeys.includes(k.addr)) && (
-        <BadgeWithPreset preset="view-only" style={spacings.mlTy} />
-      )}
+      {keystoreCtrl.keys.every((k) => !accountData?.associatedKeys.includes(k.addr)) &&
+        accountData?.addr !== zeroAddress && (
+          <BadgeWithPreset preset="view-only" style={spacings.mlTy} />
+        )}
       {isSmartAccount && isAmbireV1LinkedAccount && (
         <BadgeWithPreset preset="ambire-v1" style={spacings.mlTy} />
       )}
