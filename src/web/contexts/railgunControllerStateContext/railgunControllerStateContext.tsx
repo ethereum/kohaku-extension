@@ -5,7 +5,7 @@ import { AddressState } from '@ambire-common/interfaces/domains'
 import useDeepMemo from '@common/hooks/useDeepMemo'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useControllerState from '@web/hooks/useControllerState'
-import type { RailgunController } from '@ambire-common/controllers/railgun/railgun'
+import type { RailgunController, RailgunAccountKeys } from '@ambire-common/controllers/railgun/railgun'
 
 type EnhancedRailgunControllerState = {
   // Core form state
@@ -32,6 +32,7 @@ type EnhancedRailgunControllerState = {
   maxAmount: string
   isAccountLoaded: boolean
   isReadyToLoad: boolean
+  currentRailgunKeys: RailgunAccountKeys | null
   loadPrivateAccount: () => Promise<void>
   refreshPrivateAccount: () => Promise<void>
 } & Omit<
@@ -53,6 +54,7 @@ type EnhancedRailgunControllerState = {
   | 'depositAmount'
   | 'privacyProvider'
   | 'chainId'
+  | 'currentRailgunKeys'
 >
 
 const RailgunControllerStateContext = createContext<EnhancedRailgunControllerState>(
@@ -93,7 +95,8 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
       isAccountLoaded: true, // Mock: always loaded for now
       isReadyToLoad: true, // Mock: always ready for now
       loadPrivateAccount,
-      refreshPrivateAccount
+      refreshPrivateAccount,
+      currentRailgunKeys: memoizedState.currentRailgunKeys ?? null
     }),
     [memoizedState, loadPrivateAccount, refreshPrivateAccount]
   )

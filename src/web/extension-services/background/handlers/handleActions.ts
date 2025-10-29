@@ -464,16 +464,8 @@ export const handleActions = async (
       return mainCtrl.railgun.destroyLatestBroadcastedAccountOp()
     case 'RAILGUN_CONTROLLER_SYNC_SIGN_ACCOUNT_OP':
       return mainCtrl.railgun.syncSignAccountOp(params.calls)
-    case 'RAILGUN_CONTROLLER_GENERATE_PPV1_KEYS':
-      return mainCtrl.railgun.generatePPv1Keys()
-    case 'RAILGUN_CONTROLLER_GENERATE_SECRET':
-      return mainCtrl.railgun.generateSecret(params.appInfo)
-    case 'RAILGUN_CONTROLLER_PREPARE_WITHDRAWAL':
-      return mainCtrl.railgun.prepareWithdrawal(params)
-    case 'RAILGUN_CONTROLLER_BROADCAST_WITHDRAWAL':
-      return mainCtrl.railgun.broadcastWithdrawal()
-    case 'RAILGUN_CONTROLLER_RESET_SECRET':
-      return mainCtrl.railgun.resetSecret()
+    case 'RAILGUN_CONTROLLER_GET_RAILGUN_KEYS':
+      return mainCtrl.railgun.getRailgunKeys(params.index)
     case 'ACTIONS_CONTROLLER_REMOVE_FROM_ACTIONS_QUEUE':
       return mainCtrl.requests.actions.removeActions([params.id], params.shouldOpenNextAction)
     case 'ACTIONS_CONTROLLER_FOCUS_ACTION_WINDOW':

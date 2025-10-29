@@ -6,6 +6,7 @@ import { Call } from '@ambire-common/libs/accountOp/types'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useRailgunControllerState from '@web/hooks/useRailgunControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
+import { RailgunAccount } from '@kohaku-eth/railgun'
 
 /**
  * Hook for managing Railgun privacy protocol operations
@@ -26,7 +27,8 @@ const useRailgunForm = () => {
     isReadyToLoad,
     privacyProvider,
     loadPrivateAccount,
-    refreshPrivateAccount
+    refreshPrivateAccount,
+    currentRailgunKeys
   } = useRailgunControllerState()
 
   const { account: userAccount, portfolio } = useSelectedAccountControllerState()
@@ -108,17 +110,19 @@ const useRailgunForm = () => {
   )
 
   const handleDeposit = async () => {
-    console.log('RAILGUN DEPOSIT: Implementation coming soon')
+    console.log('RAILGUN DEPOSIT')
     console.log('Deposit amount:', depositAmount)
     console.log('Chain ID:', chainId)
     console.log('User account:', userAccount?.addr)
-
-    // TODO: Implement Railgun deposit logic
-    // This will involve:
-    // 1. Generating Railgun shield commitment
-    // 2. Creating the deposit transaction
-    // 3. Calling syncSignAccountOp with the transaction
-    // 4. Opening the estimation modal
+    if (!currentRailgunKeys) {
+      console.log('No railgun keys found')
+    } else {
+      console.log('Current railgun keys:', currentRailgunKeys)
+      const railgunAccount = RailgunAccount.fromPrivateKeys(currentRailgunKeys?.spendingKey, currentRailgunKeys?.viewingKey, BigInt(chainId), currentRailgunKeys?.shieldKeySigner);
+      const result = await railgunAccount?.createNativeShieldTx(BigInt(depositAmount));
+      await syncSignAccountOp([result])
+      openEstimationModalAndDispatch()
+    }
   }
 
   const handleMultipleWithdrawal = useCallback(async () => {
