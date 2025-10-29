@@ -1,8 +1,9 @@
 /* eslint-disable no-console */
 import { useCallback, useMemo, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
-import { formatEther } from 'viem'
+import { formatEther, getAddress } from 'viem'
 import { Call } from '@ambire-common/libs/accountOp/types'
+import { randomId } from '@ambire-common/libs/humanizer/utils'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useRailgunControllerState from '@web/hooks/useRailgunControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
@@ -101,6 +102,7 @@ const useRailgunForm = () => {
 
   const syncSignAccountOp = useCallback(
     async (calls: Call[]) => {
+      console.log('DEBUG: syncSignAccountOp called with calls:', calls)
       dispatch({
         type: 'RAILGUN_CONTROLLER_SYNC_SIGN_ACCOUNT_OP',
         params: { calls }
@@ -110,18 +112,32 @@ const useRailgunForm = () => {
   )
 
   const handleDeposit = async () => {
-    console.log('RAILGUN DEPOSIT')
-    console.log('Deposit amount:', depositAmount)
-    console.log('Chain ID:', chainId)
-    console.log('User account:', userAccount?.addr)
+    console.log('DEBUG: RAILGUN handleDeposit called')
+    console.log('DEBUG: Deposit amount:', depositAmount)
+    console.log('DEBUG: Chain ID:', chainId)
+    console.log('DEBUG: User account:', userAccount?.addr)
+    console.log('DEBUG: Privacy provider:', privacyProvider)
     if (!currentRailgunKeys) {
-      console.log('No railgun keys found')
+      console.log('DEBUG: No railgun keys found')
     } else {
-      console.log('Current railgun keys:', currentRailgunKeys)
       const railgunAccount = RailgunAccount.fromPrivateKeys(currentRailgunKeys?.spendingKey, currentRailgunKeys?.viewingKey, BigInt(chainId), currentRailgunKeys?.shieldKeySigner);
-      const result = await railgunAccount?.createNativeShieldTx(BigInt(depositAmount));
-      await syncSignAccountOp([result])
+
+      const txData = await railgunAccount?.createNativeShieldTx(BigInt(depositAmount));
+      console.log('DEBUG: Created native shield tx:', txData)
+
+      // Normalize the Call object to match PrivacyPools format
+      // Ensures: to is checksummed, data is 0x-prefixed string, value is bigint
+      const call: Call = {
+        to: getAddress(txData.to), // Checksum the address
+        data: txData.data, // Already 0x-prefixed hex string from Railgun SDK
+        value: BigInt(txData.value), // Ensure bigint type
+        fromUserRequestId: randomId() // Required for proper action tracking
+      }
+
+      await syncSignAccountOp([call])
+      console.log('DEBUG: About to open estimation modal')
       openEstimationModalAndDispatch()
+      console.log('DEBUG: Estimation modal opened')
     }
   }
 

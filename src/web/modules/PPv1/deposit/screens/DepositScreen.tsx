@@ -164,34 +164,44 @@ function TransferScreen() {
   }, [dispatch])
 
   const handleBroadcastAccountOp = useCallback(() => {
+    const updateType = privacyProvider === 'railgun' ? 'Railgun' : 'PrivacyPools'
     dispatch({
       type: 'MAIN_CONTROLLER_HANDLE_SIGN_AND_BROADCAST_ACCOUNT_OP',
       params: {
-        updateType: 'PrivacyPools'
+        updateType
       }
     })
-  }, [dispatch])
+  }, [dispatch, privacyProvider])
 
   const handleUpdateStatus = useCallback(
     (status: SigningStatus) => {
+      const actionType =
+        privacyProvider === 'railgun'
+          ? 'RAILGUN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
+          : 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
       dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS',
+        type: actionType,
         params: {
           status
         }
       })
     },
-    [dispatch]
+    [dispatch, privacyProvider]
   )
 
   const updateController = useCallback(
     (params: { signingKeyAddr?: Key['addr']; signingKeyType?: Key['type'] }) => {
+      console.log('DEBUG: updateController called with params:', params, 'privacyProvider:', privacyProvider)
+      const actionType =
+        privacyProvider === 'railgun'
+          ? 'RAILGUN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
+          : 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
       dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE',
+        type: actionType,
         params
       })
     },
-    [dispatch]
+    [dispatch, privacyProvider]
   )
 
   const isTransferFormValid = useMemo(() => {
@@ -331,7 +341,7 @@ function TransferScreen() {
       </Content>
 
       <Estimation
-        updateType="PrivacyPools"
+        updateType={privacyProvider === 'railgun' ? 'Railgun' : 'PrivacyPools'}
         estimationModalRef={estimationModalRef}
         closeEstimationModal={closeEstimationModal}
         updateController={updateController}

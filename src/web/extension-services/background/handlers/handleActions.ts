@@ -8,6 +8,7 @@ import {
   SIGN_ACCOUNT_OP_SWAP,
   SIGN_ACCOUNT_OP_TRANSFER,
   SIGN_ACCOUNT_OP_PRIVACY_POOLS,
+  SIGN_ACCOUNT_OP_RAILGUN,
   SignAccountOpType
 } from '@ambire-common/controllers/signAccountOp/helper'
 import { KeyIterator } from '@ambire-common/libs/keyIterator/keyIterator'
@@ -256,6 +257,8 @@ export const handleActions = async (
         signAccountOpType = SIGN_ACCOUNT_OP_SWAP
       } else if (params.updateType === 'PrivacyPools') {
         signAccountOpType = SIGN_ACCOUNT_OP_PRIVACY_POOLS
+      } else if (params.updateType === 'Railgun') {
+        signAccountOpType = SIGN_ACCOUNT_OP_RAILGUN
       } else {
         signAccountOpType = SIGN_ACCOUNT_OP_TRANSFER
       }
@@ -296,6 +299,10 @@ export const handleActions = async (
 
       if (params.updateType === 'PrivacyPools') {
         return mainCtrl?.privacyPools?.signAccountOpController?.update(params)
+      }
+
+      if (params.updateType === 'Railgun') {
+        return mainCtrl?.railgun?.signAccountOpController?.update(params)
       }
 
       // 'Transfer&TopUp'
