@@ -134,14 +134,6 @@ const usePrivacyPoolsForm = () => {
     return formatEther(totalImportedApprovedBalance.total)
   }, [totalImportedApprovedBalance])
 
-  console.log('DEBUG: totalBalances', {
-    allPA,
-    totalApprovedBalance,
-    totalPendingBalance,
-    totalDeclinedBalance,
-    userAccount
-  })
-
   // Calculate batchSize based on withdrawal amount and pool accounts
   const calculatedBatchSize = useMemo(() => {
     if (!withdrawalAmount || !poolAccounts) return 1
