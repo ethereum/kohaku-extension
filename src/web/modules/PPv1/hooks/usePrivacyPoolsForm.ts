@@ -71,14 +71,10 @@ const usePrivacyPoolsForm = () => {
   }, [allPA])
 
   const totalPendingBalance = useMemo(() => {
-    const accounts = allPA.filter(
-      (account) =>
-        account.reviewStatus === ReviewStatus.PENDING &&
-        account.depositorAddress?.toLowerCase() === userAccount?.addr?.toLowerCase()
-    )
+    const accounts = allPA.filter((account) => account.reviewStatus === ReviewStatus.PENDING)
     const total = accounts.reduce((sum, account) => sum + account.balance, 0n)
     return { total, accounts }
-  }, [allPA, userAccount?.addr])
+  }, [allPA])
 
   const totalDeclinedBalance = useMemo(() => {
     const accounts = allPA.filter(
@@ -137,6 +133,14 @@ const usePrivacyPoolsForm = () => {
   const ethImportedPrivateBalance = useMemo(() => {
     return formatEther(totalImportedApprovedBalance.total)
   }, [totalImportedApprovedBalance])
+
+  console.log('DEBUG: totalBalances', {
+    allPA,
+    totalApprovedBalance,
+    totalPendingBalance,
+    totalDeclinedBalance,
+    userAccount
+  })
 
   // Calculate batchSize based on withdrawal amount and pool accounts
   const calculatedBatchSize = useMemo(() => {
