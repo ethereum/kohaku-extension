@@ -129,17 +129,17 @@ const Footer: FC<Props> = ({
       <View style={styles.footer}>
         <StatusBadge status={status} textSize={textSize} />
         {canViewFee && (
-          <View style={spacings.mrMd}>
+          <View style={styles.feeColumn}>
             <Text fontSize={textSize} appearance="secondaryText" weight="semiBold">
               {t('Fee')}:
             </Text>
 
             {gasFeePayment?.isSponsored ? (
-              <Text fontSize={12} appearance="successText" weight="semiBold">
+              <Text fontSize={12} appearance="successText" weight="semiBold" numberOfLines={2}>
                 {t('Sponsored')}
               </Text>
             ) : (
-              <Text fontSize={textSize} appearance="secondaryText">
+              <Text fontSize={textSize} appearance="secondaryText" numberOfLines={2}>
                 {feeFormattedValue || (
                   <SkeletonLoader width={80} height={21} appearance="tertiaryBackground" />
                 )}
