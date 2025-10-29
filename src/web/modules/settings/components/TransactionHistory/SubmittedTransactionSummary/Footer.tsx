@@ -140,7 +140,9 @@ const Footer: FC<Props> = ({
               </Text>
             ) : (
               <Text fontSize={textSize} appearance="secondaryText">
-                {feeFormattedValue || <SkeletonLoader width={80} height={21} />}
+                {feeFormattedValue || (
+                  <SkeletonLoader width={80} height={21} appearance="tertiaryBackground" />
+                )}
               </Text>
             )}
           </View>
