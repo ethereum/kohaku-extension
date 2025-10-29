@@ -57,7 +57,7 @@ const TransferForm = ({
   isRecipientAddressUnknownAgreed: boolean
   addressState: any
   controllerAmount: string
-  quoteFee: number
+  quoteFee: string
   updateQuoteStatus: 'INITIAL' | 'LOADING' | undefined
   totalApprovedBalance: { total: bigint; accounts: PoolAccount[] }
   chainId: bigint
@@ -222,7 +222,7 @@ const TransferForm = ({
                 withNetworkIcon={false}
               />
               <Text fontSize={14} weight="light" style={spacings.mlMi}>
-                {quoteFee} ETH
+                {formatEther(BigInt(quoteFee))} ETH
               </Text>
             </View>
           )}
@@ -251,7 +251,8 @@ const TransferForm = ({
                 withNetworkIcon={false}
               />
               <Text fontSize={14} weight="light" style={spacings.mlMi}>
-                {parseFloat(amountFieldValue) - quoteFee || 0} ETH
+                {(parseFloat(amountFieldValue) || 0) - parseFloat(formatEther(BigInt(quoteFee)))}{' '}
+                ETH
               </Text>
             </View>
           )}
