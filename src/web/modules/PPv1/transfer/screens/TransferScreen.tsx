@@ -360,11 +360,7 @@ const TransferScreen = () => {
             handleUpdateForm={handleUpdateForm}
             selectedToken={selectedToken}
             maxAmount={maxAmount || '0'}
-            quoteFee={
-              amountFieldValue && relayerQuote?.totalAmountWithFee
-                ? parseFloat(relayerQuote.totalAmountWithFee) - parseFloat(amountFieldValue)
-                : 0
-            }
+            quoteFee={relayerQuote?.estimatedFee || '0'}
             amountFieldMode={amountFieldMode}
             amountInFiat={amountInFiat}
             isRecipientAddressUnknownAgreed={isRecipientAddressUnknownAgreed || false}
