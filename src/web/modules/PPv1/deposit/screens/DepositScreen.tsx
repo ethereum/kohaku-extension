@@ -262,7 +262,7 @@ function TransferScreen() {
           <Failed
             title={t('Something went wrong!')}
             errorMessage={t(
-              "We couldn't complete your deposit. Please try again later or contact Ambire support."
+              "We couldn't complete your deposit. Please try again later or contact Kohaku support."
             )}
           />
         )}
