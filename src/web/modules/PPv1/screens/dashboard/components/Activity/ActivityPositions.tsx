@@ -107,6 +107,13 @@ const ActivityPositions: FC<Props> = ({
     // Filter by type (send/deposit)
     if (filterType !== 'all') {
       items = items.filter((item: any) => {
+        // Special handling for PrivacyPoolsRelayer transactions
+        // These have empty calls arrays, so humanizeAccountOp returns empty array
+        // which causes them to be filtered out. Treat all PrivacyPoolsRelayer as "send" type
+        if (item.identifiedBy?.type === 'PrivacyPoolsRelayer') {
+          return filterType === 'send'
+        }
+
         const network = networks.find((n) => n.chainId === item.chainId)
         const humanizedCalls = humanizeAccountOp(item, { network })
 
