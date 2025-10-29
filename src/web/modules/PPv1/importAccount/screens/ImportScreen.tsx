@@ -119,8 +119,13 @@ const ImportScreen = () => {
     setDisplayedView('track')
     await addImportedPrivateAccount({ mnemonic: seedPhrase, name: accountName.trim() })
 
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_ADD_IMPORTED_ACCOUNT_TO_ACTIVITY_CONTROLLER',
+      params: { accountName: accountName.trim() }
+    })
+
     setTrackProgress(AccountOpStatus.Success)
-  }, [setDisplayedView, addImportedPrivateAccount, seedPhrase, accountName, isDuplicate])
+  }, [isDuplicate, accountName, addImportedPrivateAccount, seedPhrase, dispatch])
 
   const headerTitle = 'New Private Account'
 

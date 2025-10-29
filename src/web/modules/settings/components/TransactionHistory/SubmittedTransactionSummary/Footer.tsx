@@ -124,6 +124,27 @@ const Footer: FC<Props> = ({
     addToast
   ])
 
+  const date = new Date(timestamp)
+
+  if (identifiedBy?.type === 'ImportedAccount') {
+    return (
+      <View style={spacings.phMd}>
+        <View style={[styles.footer, flexbox.justifySpaceBetween]}>
+          <View>
+            <Text fontSize={textSize} appearance="secondaryText" weight="semiBold">
+              {t('Synced on')}
+            </Text>
+          </View>
+          {date.toString() !== 'Invalid Date' && (
+            <Text fontSize={textSize} appearance="secondaryText" style={spacings.mrTy}>
+              {`${date.toLocaleDateString()} (${date.toLocaleTimeString()})`}
+            </Text>
+          )}
+        </View>
+      </View>
+    )
+  }
+
   return (
     <View style={spacings.phMd}>
       <View style={styles.footer}>
