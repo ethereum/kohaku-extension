@@ -473,6 +473,8 @@ export const handleActions = async (
       return mainCtrl.railgun.syncSignAccountOp(params.calls)
     case 'RAILGUN_CONTROLLER_GET_RAILGUN_KEYS':
       return mainCtrl.railgun.getRailgunKeys(params.index)
+    case 'RAILGUN_CONTROLLER_LOAD_AND_SYNC_ACCOUNT':
+      return mainCtrl.railgun.loadAndSyncRailgunAccount(params)
     case 'ACTIONS_CONTROLLER_REMOVE_FROM_ACTIONS_QUEUE':
       return mainCtrl.requests.actions.removeActions([params.id], params.shouldOpenNextAction)
     case 'ACTIONS_CONTROLLER_FOCUS_ACTION_WINDOW':

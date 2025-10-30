@@ -897,6 +897,14 @@ type RailgunControllerGetRailgunKeysAction = {
   }
 }
 
+type RailgunControllerLoadAndSyncAccountAction = {
+  type: 'RAILGUN_CONTROLLER_LOAD_AND_SYNC_ACCOUNT'
+  params: {
+    identity: string
+    chainId: number
+  }
+}
+
 export type Action =
   | UpdateNavigationUrl
   | InitControllerStateAction
@@ -1059,3 +1067,4 @@ export type Action =
   | RailgunControllerSyncSignAccountOpAction
   | RailgunControllerResetFormAction
   | RailgunControllerGetRailgunKeysAction
+  | RailgunControllerLoadAndSyncAccountAction

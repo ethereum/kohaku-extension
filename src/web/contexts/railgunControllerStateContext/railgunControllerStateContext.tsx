@@ -1,11 +1,25 @@
 /* eslint-disable no-console */
-import React, { createContext, useEffect, useMemo } from 'react'
+import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react'
 
 import { AddressState } from '@ambire-common/interfaces/domains'
 import useDeepMemo from '@common/hooks/useDeepMemo'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useControllerState from '@web/hooks/useControllerState'
-import type { RailgunController, RailgunAccountKeys } from '@ambire-common/controllers/railgun/railgun'
+import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
+import type {
+  RailgunController,
+  RailgunAccountKeys,
+  RailgunBalance
+} from '@ambire-common/controllers/railgun/railgun'
+import { RailgunAccount } from '@kohaku-eth/railgun'
+
+type RailgunControllerReactState = {
+  status: 'idle' | 'loading-cache' | 'syncing' | 'ready' | 'error'
+  balances: RailgunBalance[]
+  lastSyncedBlock?: number
+  account?: RailgunAccount
+  error?: string
+}
 
 type EnhancedRailgunControllerState = {
   // Core form state
@@ -31,10 +45,14 @@ type EnhancedRailgunControllerState = {
   isRecipientAddressUnknownAgreed: boolean
   maxAmount: string
   isAccountLoaded: boolean
+  isLoadingAccount: boolean
+  isRefreshing: boolean
   isReadyToLoad: boolean
   currentRailgunKeys: RailgunAccountKeys | null
   loadPrivateAccount: () => Promise<void>
   refreshPrivateAccount: () => Promise<void>
+  // New Railgun account sync state
+  railgunState: RailgunControllerReactState
 } & Omit<
   Partial<RailgunController>,
   | 'validationFormMsgs'
@@ -65,22 +83,58 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
   const controller = 'railgun'
   const state = useControllerState(controller)
   const { dispatch } = useBackgroundService()
+  const { account: selectedAccount } = useSelectedAccountControllerState()
 
   const memoizedState = useDeepMemo(state, controller)
 
   console.log('DEBUG:', { state })
 
-  // Mock functions for interface compatibility with Privacy Pools
-  // These will be implemented with real Railgun functionality later
-  const loadPrivateAccount = React.useCallback(async () => {
-    console.log('DEBUG: Railgun loadPrivateAccount called (mock)')
-    // TODO: Implement Railgun account loading
+  // Derive identity from the selected account (using account index 0 for now)
+  const deriveRailgunIdentity = useCallback((account: any): string => {
+    // For now, use account index 0. In the future, this could be derived
+    // from the account address or stored in account metadata
+    return '0'
   }, [])
 
-  const refreshPrivateAccount = React.useCallback(async () => {
-    console.log('DEBUG: Railgun refreshPrivateAccount called (mock)')
-    // TODO: Implement Railgun account refresh
-  }, [])
+  // Load private account (trigger sync)
+  const loadPrivateAccount = useCallback(async () => {
+    if (!selectedAccount || !memoizedState.chainId) {
+      console.log('DEBUG: Railgun loadPrivateAccount - no selected account or chainId')
+      return
+    }
+
+    const identity = deriveRailgunIdentity(selectedAccount)
+    const chainId = memoizedState.chainId
+
+    console.log('DEBUG: Triggering Railgun account load/sync', { identity, chainId })
+
+    dispatch({
+      type: 'RAILGUN_CONTROLLER_LOAD_AND_SYNC_ACCOUNT',
+      params: { identity, chainId }
+    })
+  }, [selectedAccount, memoizedState.chainId, deriveRailgunIdentity, dispatch])
+
+  // Refresh account (same as load - it will sync)
+  const refreshPrivateAccount = useCallback(async () => {
+    return loadPrivateAccount()
+  }, [loadPrivateAccount])
+
+  // Auto-load account when component mounts or when active account/chainId changes
+  useEffect(() => {
+    if (!selectedAccount || !memoizedState.chainId) {
+      return
+    }
+
+    const identity = deriveRailgunIdentity(selectedAccount)
+    const chainId = memoizedState.chainId
+
+    console.log('DEBUG: Auto-loading Railgun account', { identity, chainId })
+
+    dispatch({
+      type: 'RAILGUN_CONTROLLER_LOAD_AND_SYNC_ACCOUNT',
+      params: { identity, chainId }
+    })
+  }, [selectedAccount, memoizedState.chainId, deriveRailgunIdentity, dispatch])
 
   useEffect(() => {
     if (!Object.keys(state).length) {
@@ -91,12 +145,15 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
   const value = useMemo(
     () => ({
       ...memoizedState,
-      selectedToken: memoizedState.selectedToken ?? null, // Ensure selectedToken is always present
-      isAccountLoaded: true, // Mock: always loaded for now
-      isReadyToLoad: true, // Mock: always ready for now
+      selectedToken: memoizedState.selectedToken ?? null,
+      isAccountLoaded: memoizedState.accountSyncState?.status === 'ready',
+      isLoadingAccount: memoizedState.accountSyncState?.status === 'loading-cache' || memoizedState.accountSyncState?.status === 'syncing',
+      isRefreshing: memoizedState.accountSyncState?.status === 'syncing',
+      isReadyToLoad: memoizedState.accountSyncState?.status !== 'idle',
       loadPrivateAccount,
       refreshPrivateAccount,
-      currentRailgunKeys: memoizedState.currentRailgunKeys ?? null
+      currentRailgunKeys: memoizedState.currentRailgunKeys ?? null,
+      railgunState: memoizedState.accountSyncState || { status: 'idle', balances: [] }
     }),
     [memoizedState, loadPrivateAccount, refreshPrivateAccount]
   )
