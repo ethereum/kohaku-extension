@@ -69,7 +69,7 @@ const AccountDappAccessBottomSheet: FC<Props> = ({ sheetRef, closeBottomSheet, a
         dappUrls.push(domain)
         setDappUrl('')
         dispatch({
-            type: "ACCOUNTS_CONTROLLER_SET_DAPP_ACCESS",
+            type: "ACCOUNTS_CONTROLLER_SET_ASSOCIATED_DAPPS",
             params: {
                 addr: account?.addr,
                 dappUrls
@@ -82,7 +82,7 @@ const AccountDappAccessBottomSheet: FC<Props> = ({ sheetRef, closeBottomSheet, a
         dappUrls = dappUrls.filter(dapp => dapp !== url)
 
         dispatch({
-            type: "ACCOUNTS_CONTROLLER_SET_DAPP_ACCESS",
+            type: "ACCOUNTS_CONTROLLER_SET_ASSOCIATED_DAPPS",
             params: {
                 addr: account?.addr,
                 dappUrls

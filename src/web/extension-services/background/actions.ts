@@ -160,8 +160,8 @@ type AccountsControllerUpdateAccountState = {
 type AccountsControllerResetAccountsNewlyAddedStateAction = {
   type: 'ACCOUNTS_CONTROLLER_RESET_ACCOUNTS_NEWLY_ADDED_STATE'
 }
-type AccountsControllerSetDappAccess = {
-  type: 'ACCOUNTS_CONTROLLER_SET_DAPP_ACCESS'
+type AccountsControllerSetAssociatedDapps = {
+  type: 'ACCOUNTS_CONTROLLER_SET_ASSOCIATED_DAPPS'
   params: {
     addr: string;
     dappUrls: string[];
@@ -774,7 +774,7 @@ export type Action =
   | AccountsControllerUpdateAccountPreferences
   | AccountsControllerUpdateAccountState
   | AccountsControllerResetAccountsNewlyAddedStateAction
-  | AccountsControllerSetDappAccess
+  | AccountsControllerSetAssociatedDapps
   | SettingsControllerSetNetworkToAddOrUpdate
   | SettingsControllerResetNetworkToAddOrUpdate
   | MainControllerAddNetwork
