@@ -5,15 +5,24 @@ import ButtonWithLoader from '@common/components/ButtonWithLoader/ButtonWithLoad
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import TextArea from '@common/components/TextArea'
+import Input from '@common/components/Input'
 import usePrivacyPoolsForm from '../../hooks/usePrivacyPoolsForm'
 
 type Props = {
   handleImportSecretNote: () => void
   isDuplicate: boolean
   isCheckingDuplicate: boolean
+  accountName: string
+  onAccountNameChange: (name: string) => void
 }
 
-const ImportForm: FC<Props> = ({ handleImportSecretNote, isDuplicate, isCheckingDuplicate }) => {
+const ImportForm: FC<Props> = ({
+  handleImportSecretNote,
+  isDuplicate,
+  isCheckingDuplicate,
+  accountName,
+  onAccountNameChange
+}) => {
   const { t } = useTranslation()
   const { seedPhrase, handleUpdateForm } = usePrivacyPoolsForm()
 
@@ -24,13 +33,21 @@ const ImportForm: FC<Props> = ({ handleImportSecretNote, isDuplicate, isChecking
     [handleUpdateForm]
   )
 
-  const isButtonDisabled = !seedPhrase || isDuplicate || isCheckingDuplicate
+  const isButtonDisabled = !seedPhrase || isDuplicate || isCheckingDuplicate || !accountName.trim()
 
   return (
     <View>
+      <Input
+        value={accountName}
+        onChangeText={onAccountNameChange}
+        label={t('Account Name')}
+        placeholder={t('Enter account name')}
+        inputStyle={spacings.mbSm}
+        containerStyle={spacings.mbXl}
+      />
       <TextArea
         onChangeText={onInputChange}
-        label={t('')}
+        label={t('Recovery Phrase')}
         placeholder={t('Write or paste your Privacy Pool recovery phrase')}
         multiline
         numberOfLines={4}

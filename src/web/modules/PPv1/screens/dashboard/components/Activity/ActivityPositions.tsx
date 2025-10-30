@@ -6,7 +6,6 @@ import { useForm } from 'react-hook-form'
 import shortenAddress from '@ambire-common/utils/shortenAddress'
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
-import useTheme from '@common/hooks/useTheme'
 import ActivityPositionsSkeleton from '@web/modules/PPv1/screens/dashboard/components/Activity/ActivityPositionsSkeleton'
 import DashboardPageScrollContainer from '@web/modules/PPv1/screens/dashboard/components/DashboardPageScrollContainer'
 import ActivityFilter from '@web/modules/PPv1/screens/dashboard/components/Activity/ActivityFilter'
@@ -48,7 +47,6 @@ const ActivityPositions: FC<Props> = ({
   animatedOverviewHeight
 }) => {
   const { t } = useTranslation()
-  const { theme } = useTheme()
 
   const { dispatch } = useBackgroundService()
   const { accountsOps } = useActivityControllerState()
@@ -102,11 +100,18 @@ const ActivityPositions: FC<Props> = ({
   const filteredActivityItems = useMemo(() => {
     if (!accountsOps?.[sessionId]?.result.items) return []
 
-    let items = [...accountsOps[sessionId].result.items] // Create a new array reference
-
+    const items = [...accountsOps[sessionId].result.items] // Create a new array reference
+    let filteredItems = items
     // Filter by type (send/deposit)
     if (filterType !== 'all') {
-      items = items.filter((item: any) => {
+      filteredItems = items.filter((item: any) => {
+        // Special handling for ImportedAccount records
+        // These are informational entries about account imports, not transactions
+        // Don't show them in send/deposit filters, only in 'all'
+        if (item.identifiedBy?.type === 'ImportedAccount') {
+          return false
+        }
+
         // Special handling for PrivacyPoolsRelayer transactions
         // These have empty calls arrays, so humanizeAccountOp returns empty array
         // which causes them to be filtered out. Treat all PrivacyPoolsRelayer as "send" type
@@ -145,10 +150,16 @@ const ActivityPositions: FC<Props> = ({
 
     // Filter by search text (using debounced value)
     if (debouncedSearchValue) {
-      items = items.filter((item: any) => {
+      filteredItems = items.filter((item: any) => {
         const searchLower = debouncedSearchValue.toLowerCase()
         const txnId = item.txnId?.toLowerCase() || ''
         const status = item.status?.toLowerCase() || ''
+
+        // For ImportedAccount records, search by account name
+        if (item.identifiedBy?.type === 'ImportedAccount') {
+          const accountName = item.identifiedBy?.identifier?.toLowerCase() || ''
+          return accountName.includes(searchLower) || 'imported account'.includes(searchLower)
+        }
 
         const network = networks.find((n) => n.chainId === item.chainId)
         const humanizedCalls = humanizeAccountOp(item, { network })
@@ -165,7 +176,7 @@ const ActivityPositions: FC<Props> = ({
       })
     }
 
-    return items
+    return filteredItems ?? []
   }, [accountsOps, sessionId, filterType, debouncedSearchValue, networks])
 
   const renderItem = useCallback(
@@ -244,7 +255,6 @@ const ActivityPositions: FC<Props> = ({
     },
     [
       initTab?.activity,
-      theme.primaryBackground,
       openTab,
       setOpenTab,
       sessionId,
