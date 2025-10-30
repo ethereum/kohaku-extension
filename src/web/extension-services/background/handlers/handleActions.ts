@@ -117,6 +117,9 @@ export const handleActions = async (
     case 'ACCOUNTS_CONTROLLER_REORDER_ACCOUNTS': {
       return await mainCtrl.accounts.reorderAccounts(params)
     }
+    case 'ACCOUNTS_CONTROLLER_SET_DAPP_ACCESS': {
+      return await mainCtrl.accounts.setDappAccess(params.addr, params.dappUrls)
+    }
     case 'ACCOUNTS_CONTROLLER_UPDATE_ACCOUNT_STATE': {
       return await mainCtrl.accounts.updateAccountState(params.addr, 'latest', params.chainIds)
     }
