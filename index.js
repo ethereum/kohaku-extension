@@ -5,6 +5,7 @@ import './src/common/config/analytics/CrashAnalytics'
 import './src/common/services/layoutAnimation'
 import 'react-native-gesture-handler'
 import 'expo-asset'
+import 'setimmediate'
 
 import { createElement } from 'react'
 import { createRoot } from 'react-dom/client'
