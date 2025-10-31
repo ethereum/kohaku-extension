@@ -329,8 +329,7 @@ const usePrivacyPoolsForm = () => {
       !userAccount ||
       !recipientAddress
     ) {
-      setMessage({ type: 'error', text: 'Missing required data for withdrawal.' })
-      return
+      throw new Error('Missing required data for withdrawal.')
     }
 
     const approvedAccounts =
@@ -356,115 +355,97 @@ const usePrivacyPoolsForm = () => {
     const aspLeaves = mtLeaves?.aspLeaves
     const stateLeaves = mtLeaves?.stateTreeLeaves
 
-    try {
-      // IMPORTANT: All proofs MUST use the SAME context
-      const context = getContext(batchWithdrawal, selectedPoolInfo.scope as Hash)
+    // IMPORTANT: All proofs MUST use the SAME context
+    const context = getContext(batchWithdrawal, selectedPoolInfo.scope as Hash)
 
-      let partialAmount = parseUnits(withdrawalAmount, 18)
-      const accountsWithAmounts = selectedPoolAccounts.map((poolAccount) => {
-        let amount: bigint
+    let partialAmount = parseUnits(withdrawalAmount, 18)
+    const accountsWithAmounts = selectedPoolAccounts.map((poolAccount) => {
+      let amount: bigint
 
-        if (partialAmount - poolAccount.balance >= 0) {
-          partialAmount -= poolAccount.balance
-          amount = poolAccount.balance
-        } else {
-          amount = partialAmount
-          partialAmount = 0n
-        }
-
-        return { poolAccount, amount }
-      })
-
-      // Generate proofs for each account with the SAME context
-      const proofResults = await Promise.allSettled(
-        accountsWithAmounts.map(async ({ poolAccount, amount }) => {
-          try {
-            const commitment = poolAccount.lastCommitment
-
-            const stateMerkleProof = getMerkleProof(
-              stateLeaves?.map(BigInt) as bigint[],
-              commitment.hash
-            )
-            const aspMerkleProof = getMerkleProof(aspLeaves?.map(BigInt), commitment.label)
-
-            const { secret, nullifier } = createWithdrawalSecrets(commitment)
-
-            // Workaround for NaN index, SDK issue
-            aspMerkleProof.index = Object.is(aspMerkleProof.index, NaN) ? 0 : aspMerkleProof.index
-
-            const withdrawalProofInput = prepareWithdrawalProofInput(
-              commitment,
-              amount,
-              stateMerkleProof,
-              aspMerkleProof,
-              BigInt(context),
-              secret,
-              nullifier
-            )
-
-            const proof = await generateWithdrawalProof(commitment, withdrawalProofInput)
-
-            await verifyWithdrawalProof(proof)
-
-            return proof
-          } catch (error) {
-            const errorMessage =
-              error instanceof Error ? error.message : 'Unknown error during proof generation'
-            console.error(
-              `DEBUG - failed to generate proof for account ${poolAccount.name}:`,
-              errorMessage
-            )
-            throw new Error(
-              `Failed to generate proof for account ${poolAccount.name}: ${errorMessage}`
-            )
-          }
-        })
-      )
-
-      const failedProofs = proofResults.filter((result) => result.status === 'rejected')
-      if (failedProofs.length > 0) {
-        const errorMessages = failedProofs
-          .map((result, index) => {
-            if (result.status === 'rejected') {
-              return `Account ${index + 1}: ${result.reason}`
-            }
-            return ''
-          })
-          .filter(Boolean)
-          .join('; ')
-
-        throw new Error(
-          `Failed to generate ${failedProofs.length} proof(s) out of ${proofResults.length}: ${errorMessages}`
-        )
+      if (partialAmount - poolAccount.balance >= 0) {
+        partialAmount -= poolAccount.balance
+        amount = poolAccount.balance
+      } else {
+        amount = partialAmount
+        partialAmount = 0n
       }
 
-      // Extract successful proofs
-      const proofs = proofResults.map((result) => {
-        if (result.status === 'fulfilled') {
-          return result.value
-        }
-        // This should never happen due to the check above, but TypeScript needs it
-        throw new Error('Unexpected rejected proof after validation')
+      return { poolAccount, amount }
+    })
+
+    // Generate proofs for each account with the SAME context
+    const proofResults = await Promise.allSettled(
+      accountsWithAmounts.map(async ({ poolAccount, amount }) => {
+        const commitment = poolAccount.lastCommitment
+
+        const stateMerkleProof = getMerkleProof(
+          stateLeaves?.map(BigInt) as bigint[],
+          commitment.hash
+        )
+        const aspMerkleProof = getMerkleProof(aspLeaves?.map(BigInt), commitment.label)
+
+        const { secret, nullifier } = createWithdrawalSecrets(commitment)
+
+        // Workaround for NaN index, SDK issue
+        aspMerkleProof.index = Object.is(aspMerkleProof.index, NaN) ? 0 : aspMerkleProof.index
+
+        const withdrawalProofInput = prepareWithdrawalProofInput(
+          commitment,
+          amount,
+          stateMerkleProof,
+          aspMerkleProof,
+          BigInt(context),
+          secret,
+          nullifier
+        )
+
+        const proof = await generateWithdrawalProof(commitment, withdrawalProofInput)
+
+        await verifyWithdrawalProof(proof)
+
+        return proof
       })
+    )
 
-      const transformedProofs = proofs.map((proof) => transformProofForRelayerApi(proof))
+    const failedProofs = proofResults.filter((result) => result.status === 'rejected')
+    if (failedProofs.length > 0) {
+      const errorMessages = failedProofs
+        .map((result, index) => {
+          if (result.status === 'rejected') {
+            return `Account ${index + 1}: ${result.reason}`
+          }
+          return ''
+        })
+        .filter(Boolean)
+        .join('; ')
 
-      if (!batchWithdrawal) return
-
-      await directBroadcastWithdrawal({
-        chainId,
-        poolAddress: poolInfo.address,
-        withdrawal: {
-          processooor: batchWithdrawal.processooor,
-          data: batchWithdrawal.data
-        },
-        proofs: transformedProofs
-      })
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to process multiple withdrawal'
-      setMessage({ type: 'error', text: errorMessage })
+      throw new Error(
+        `Failed to generate ${failedProofs.length} proof(s) out of ${proofResults.length}: ${errorMessages}`
+      )
     }
+
+    // Extract successful proofs
+    const proofs = proofResults.map((result) => {
+      if (result.status === 'fulfilled') {
+        return result.value
+      }
+      // This should never happen due to the check above, but TypeScript needs it
+      throw new Error('Unexpected rejected proof after validation')
+    })
+
+    const transformedProofs = proofs.map((proof) => transformProofForRelayerApi(proof))
+
+    if (!batchWithdrawal) return
+
+    await directBroadcastWithdrawal({
+      chainId,
+      poolAddress: poolInfo.address,
+      withdrawal: {
+        processooor: batchWithdrawal.processooor,
+        data: batchWithdrawal.data
+      },
+      proofs: transformedProofs
+    })
   }, [
     chainId,
     mtRoots,

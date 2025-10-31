@@ -10,6 +10,7 @@ import BackButton from '@common/components/BackButton'
 import Text from '@common/components/Text'
 import useAddressInput from '@common/hooks/useAddressInput'
 import useNavigation from '@common/hooks/useNavigation'
+import useToast from '@common/hooks/useToast'
 import { ROUTES } from '@common/modules/router/constants/common'
 
 import useActivityControllerState from '@web/hooks/useActivityControllerState'
@@ -65,6 +66,7 @@ const TransferScreen = () => {
   const { navigate } = useNavigation()
   const { t } = useTranslation()
   const { accountsOps } = useActivityControllerState()
+  const { addToast } = useToast()
 
   const controllerAmountFieldValue = amountFieldMode === 'token' ? withdrawalAmount : amountInFiat
   const [amountFieldValue, setAmountFieldValue] = useSyncedState<string>({
@@ -268,9 +270,13 @@ const TransferScreen = () => {
       await handleMultipleWithdrawal()
     } catch (error) {
       console.error('Withdrawal error:', error)
+      addToast('Unable to generate proof for transfer. Please try again.', {
+        type: 'error',
+        timeout: 8000
+      })
       setIsSubmitting(false)
     }
-  }, [handleMultipleWithdrawal])
+  }, [handleMultipleWithdrawal, addToast])
 
   const buttons = useMemo(() => {
     return (
