@@ -336,7 +336,7 @@ const TransferScreen = () => {
           <Failed
             title={t('Something went wrong!')}
             errorMessage={t(
-              "We couldn't complete your transfer. Please try again later or contact Ambire support."
+              "We couldn't complete your transfer. Please try again later or contact Kohaku support."
             )}
           />
         )}
