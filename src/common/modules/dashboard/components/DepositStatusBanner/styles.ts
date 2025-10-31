@@ -26,8 +26,8 @@ interface Style {
   closeIconContainer: ViewStyle
 }
 
-const getStyles = (theme: ThemeProps) =>
-  StyleSheet.create<Style>({
+const getStyles = (theme: ThemeProps) => {
+  const reactNativeStyles = StyleSheet.create<Style>({
     contentContainer: commonWebStyles.contentContainer,
     container: {
       ...flexbox.directionRow,
@@ -126,5 +126,23 @@ const getStyles = (theme: ThemeProps) =>
       padding: 1
     }
   })
+
+  return {
+    ...reactNativeStyles,
+    tooltips: {
+      statusIcon: (isRejected: boolean) => ({
+        style: {
+          backgroundColor: isRejected
+            ? theme.depositRejectedBackground
+            : theme.depositPendingBackground,
+          color: isRejected ? theme.depositRejectedText : theme.depositPendingText
+        },
+        border: `1px solid ${String(
+          isRejected ? theme.depositRejectedText : theme.depositPendingText
+        )}`
+      })
+    }
+  }
+}
 
 export default getStyles

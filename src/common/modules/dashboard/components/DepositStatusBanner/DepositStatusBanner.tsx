@@ -10,6 +10,7 @@ import useTheme from '@common/hooks/useTheme'
 import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import Button from '@common/components/Button'
 import spacings from '@common/styles/spacings'
+import Tooltip from '@common/components/Tooltip'
 
 import getStyles from './styles'
 
@@ -121,7 +122,11 @@ const DepositStatusBanner = ({ onWithdrawBack, onDeposit }: DepositStatusBannerP
           <View style={styles.leftContent}>
             <View style={styles.iconContainer}>
               {isRejectedSelected ? (
-                <View style={styles.closeIconContainer}>
+                <View
+                  style={styles.closeIconContainer}
+                  data-tooltip-id="deposit-status-icon"
+                  data-tooltip-content="Rejected"
+                >
                   <CloseIcon
                     width={8}
                     height={8}
@@ -135,6 +140,8 @@ const DepositStatusBanner = ({ onWithdrawBack, onDeposit }: DepositStatusBannerP
                   height={16}
                   color={theme.depositPendingText}
                   testID="deposit-status-banner-icon-pending"
+                  data-tooltip-id="deposit-status-icon"
+                  data-tooltip-content="Pending"
                 />
               )}
             </View>
@@ -242,6 +249,7 @@ const DepositStatusBanner = ({ onWithdrawBack, onDeposit }: DepositStatusBannerP
           </View>
         </View>
       </View>
+      <Tooltip id="deposit-status-icon" {...styles.tooltips.statusIcon(isRejectedSelected)} />
     </View>
   )
 }
