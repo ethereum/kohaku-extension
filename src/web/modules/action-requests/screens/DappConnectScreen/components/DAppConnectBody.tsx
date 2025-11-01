@@ -15,16 +15,21 @@ import flexbox from '@common/styles/utils/flexbox'
 import { openInTab } from '@web/extension-services/background/webapi/tab'
 
 import getStyles from '../styles'
+import DAppAccountSelector from './DAppAccountSelector'
 import DAppPermissions from './DAppPermissions'
 
 const DAppConnectBody: FC<{
   confirmedRiskCheckbox: boolean
   setConfirmedRiskCheckbox: React.Dispatch<React.SetStateAction<boolean>>
+  selectedAccount: string | null
+  setSelectedAccount: React.Dispatch<React.SetStateAction<string | null>>
   responsiveSizeMultiplier: number
   securityCheck: 'BLACKLISTED' | 'NOT_BLACKLISTED' | 'LOADING'
 }> = ({
   confirmedRiskCheckbox,
   setConfirmedRiskCheckbox,
+  selectedAccount,
+  setSelectedAccount,
   securityCheck,
   responsiveSizeMultiplier
 }) => {
@@ -117,6 +122,7 @@ const DAppConnectBody: FC<{
         )}
       </View>
       <DAppPermissions responsiveSizeMultiplier={responsiveSizeMultiplier} />
+      <DAppAccountSelector selectedAccount={selectedAccount} setSelectedAccount={setSelectedAccount} responsiveSizeMultiplier={responsiveSizeMultiplier} />
       {securityCheck === 'BLACKLISTED' ? (
         <Alert type="warning" size="sm" withIcon={false}>
           <Checkbox
