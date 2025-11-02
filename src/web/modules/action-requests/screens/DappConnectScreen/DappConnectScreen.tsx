@@ -34,6 +34,7 @@ const DappConnectScreen = () => {
   )
   const [confirmedRiskCheckbox, setConfirmedRiskCheckbox] = useState(false)
   const [dappAccount, setDappAccount] = useState<string | null>(null)
+  const [saveDappAccountPreference, setSaveDappAccountPreference] = useState(false)
 
   const dappAction = useMemo(
     () => (isDappRequestAction(state.currentAction) ? state.currentAction : null),
@@ -89,11 +90,22 @@ const DappConnectScreen = () => {
     if (!dappAccount || !dappAction) return
 
     setIsAuthorizing(true)
+    if (saveDappAccountPreference) {
+      const dappUrls = selectedAccount?.account?.associatedDapps || []
+      dappUrls.push(userRequest?.session?.origin || '')
+      dispatch({
+        type: 'ACCOUNTS_CONTROLLER_SET_ASSOCIATED_DAPPS',
+        params: {
+          addr: dappAccount,
+          dappUrls
+        }
+      })
+    }
     dispatch({
       type: 'MAIN_CONTROLLER_SELECT_ACCOUNT',
       params: { accountAddr: dappAccount }
     })
-  }, [dappAction, dappAccount, dispatch])
+  }, [dappAction, dappAccount, saveDappAccountPreference, dispatch])
 
   // Automatically resolve the request once the dispatched `MAIN_CONTROLLER_SELECT_ACCOUNT`
   // from `handleAuthorizeButtonPress` has updated the selected account to match 
@@ -155,7 +167,6 @@ const DappConnectScreen = () => {
       }
     >
       <View style={[styles.container]}>
-        <p>{dappAccount}</p>
         <View style={styles.content}>
           <DAppConnectHeader
             name={userRequest?.session?.name}
@@ -171,6 +182,8 @@ const DappConnectScreen = () => {
             setConfirmedRiskCheckbox={setConfirmedRiskCheckbox}
             selectedAccount={dappAccount}
             setSelectedAccount={setDappAccount}
+            saveDappAccountPreference={saveDappAccountPreference}
+            setSaveDappAccountPreference={setSaveDappAccountPreference}
           />
         </View>
       </View>

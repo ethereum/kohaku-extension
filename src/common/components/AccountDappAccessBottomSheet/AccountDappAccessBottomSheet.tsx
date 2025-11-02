@@ -16,7 +16,6 @@ import spacings from '@common/styles/spacings'
 import { THEME_TYPES } from '@common/styles/themeConfig'
 import flexbox from '@common/styles/utils/flexbox'
 import text from '@common/styles/utils/text'
-import { TAB_CONTENT_WIDTH } from '@web/constants/spacings'
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 
@@ -47,26 +46,15 @@ const AccountDappAccessBottomSheet: FC<Props> = ({ sheetRef, closeBottomSheet, a
             return
         }
 
-        let domain;
         try {
-            const urlObj = new URL(dappUrl.startsWith('http') ? dappUrl : `https://${dappUrl}`)
-            domain = urlObj.hostname
-            const domainParts = domain.split('.')
-            if (domainParts.length > 2) {
-                domain = domainParts.slice(-2).join('.')
-            }
+            new URL(dappUrl.startsWith('http') ? dappUrl : `http://${dappUrl}`)
         } catch (error) {
             setDappUrlError('Invalid Dapp URL')
             return
         }
 
         let dappUrls = currentAccount?.associatedDapps || []
-        if (dappUrls.includes(domain)) {
-            setDappUrlError('Dapp URL already added')
-            return
-        }
-
-        dappUrls.push(domain)
+        dappUrls.push(dappUrl)
         setDappUrl('')
         dispatch({
             type: "ACCOUNTS_CONTROLLER_SET_ASSOCIATED_DAPPS",
