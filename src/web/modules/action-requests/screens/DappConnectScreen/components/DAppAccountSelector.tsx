@@ -11,6 +11,9 @@ import Account from '@web/modules/account-select/components/Account'
 import Button from '@common/components/Button'
 import Checkbox from '@common/components/Checkbox'
 import spacings from '@common/styles/spacings'
+import { useModalize } from 'react-native-modalize'
+import BottomSheet from '@common/components/BottomSheet'
+import SavedSeedPhrases from '@web/modules/account-select/components/SavedSeedPhrases'
 
 interface Props {
     responsiveSizeMultiplier: number
@@ -60,6 +63,8 @@ const DappAccountSelector: FC<Props> = ({
     const state = useActionsControllerState()
     const [fullscreen, setFullscreen] = React.useState(false)
 
+    const { ref: sheetRef, open: openBottomSheet, close: closeBottomSheet } = useModalize()
+
     const userRequest = useMemo(() => {
         if (!isDappRequestAction(state.currentAction)) return null
         if (state.currentAction.userRequest.action.kind !== 'dappConnect') return null
@@ -91,10 +96,14 @@ const DappAccountSelector: FC<Props> = ({
         return accounts.filter(acc => !recommendedAccounts?.includes(acc))
     }, [accounts, recommendedAccounts])
 
-    const onAllAccountsPress = () => {
+    const onPressAllAccounts = () => {
         const newFullscreen = !fullscreen
         setFullscreen(newFullscreen)
         onFullscreen && onFullscreen(newFullscreen)
+    }
+
+    const onPressNewDappAccount = () => {
+        openBottomSheet()
     }
 
     const handleSelectAccount = (accountAddr: string) => {
@@ -105,7 +114,7 @@ const DappAccountSelector: FC<Props> = ({
         return null
     }
 
-    return (
+    return (<>
         <View>
             <Text fontSize={16} weight="medium" style={spacings.mbSm}>
                 {t('Select account to connect:')}
@@ -142,7 +151,13 @@ const DappAccountSelector: FC<Props> = ({
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-evenly' }}>
                 {recommendedAccounts.length == 0 && !fullscreen && (
-                    <Button type="secondary" size="small" text="New Dapp Account" style={{ flex: 1, marginHorizontal: 4 }} />
+                    <Button
+                        type="secondary"
+                        size="small"
+                        text="New Dapp Account"
+                        onPress={onPressNewDappAccount}
+                        style={{ flex: 1, marginHorizontal: 4 }}
+                    />
                 )}
                 {fullscreen && (
                     <Checkbox
@@ -157,11 +172,22 @@ const DappAccountSelector: FC<Props> = ({
                     size="small"
                     text={fullscreen ? t('Dapp Accounts') : t('All Accounts')}
                     style={{ flex: 1, marginHorizontal: 4 }}
-                    onPress={onAllAccountsPress}
+                    onPress={onPressAllAccounts}
                 />
             </View>
         </View>
-    )
+
+        <BottomSheet
+            id="seed-phrases-bottom-sheet"
+            sheetRef={sheetRef}
+            adjustToContentHeight={false}
+            containerInnerWrapperStyles={{ flex: 1 }}
+            isScrollEnabled={false}
+            closeBottomSheet={closeBottomSheet}
+        >
+            <SavedSeedPhrases handleClose={closeBottomSheet as any} />
+        </BottomSheet>
+    </>)
 }
 
 export default React.memo(DappAccountSelector)
