@@ -380,10 +380,6 @@ const usePrivacyPoolsForm = () => {
     const BATCH_SIZE = proofsBatchSize
     const GC_DELAY = 150 // 150ms delay between batches for garbage collection
 
-    console.log(
-      `[WITHDRAWAL] Generating ${accountsWithAmounts.length} proofs with BATCH_SIZE=${BATCH_SIZE}`
-    )
-
     const proofs: Awaited<ReturnType<typeof generateWithdrawalProof>>[] = []
     const errors: Array<{ index: number; error: any }> = []
 
