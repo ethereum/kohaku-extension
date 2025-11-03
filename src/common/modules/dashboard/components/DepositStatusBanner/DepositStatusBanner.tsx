@@ -4,7 +4,6 @@ import { formatEther } from 'viem'
 
 import formatDecimals from '@ambire-common/utils/formatDecimals/formatDecimals'
 import Text from '@common/components/Text'
-import CloseIcon from '@common/assets/svg/CloseIcon'
 import ClockIcon from '@common/assets/svg/ClockIcon'
 import useTheme from '@common/hooks/useTheme'
 import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
@@ -12,6 +11,7 @@ import Button from '@common/components/Button'
 import spacings from '@common/styles/spacings'
 import Tooltip from '@common/components/Tooltip'
 
+import CloseIconWithCircle from './CloseIconWithCircle'
 import getStyles from './styles'
 
 type TabType = 'rejected' | 'pending'
@@ -122,25 +122,22 @@ const DepositStatusBanner = ({ onWithdrawBack, onDeposit }: DepositStatusBannerP
           <View style={styles.leftContent}>
             <View style={styles.iconContainer}>
               {isRejectedSelected ? (
-                <View
-                  style={styles.closeIconContainer}
-                  data-tooltip-id="deposit-status-icon"
+                <CloseIconWithCircle
+                  width={16}
+                  height={16}
+                  color={theme.depositRejectedText}
+                  circleColor={theme.depositRejectedText}
+                  data-tooltip-id="deposit-status-icon-rejected"
                   data-tooltip-content="Rejected"
-                >
-                  <CloseIcon
-                    width={8}
-                    height={8}
-                    color={theme.depositRejectedText}
-                    testID="deposit-status-banner-icon-rejected"
-                  />
-                </View>
+                  testID="deposit-status-banner-icon-rejected"
+                />
               ) : (
                 <ClockIcon
                   width={16}
                   height={16}
                   color={theme.depositPendingText}
                   testID="deposit-status-banner-icon-pending"
-                  data-tooltip-id="deposit-status-icon"
+                  data-tooltip-id="deposit-status-icon-pending"
                   data-tooltip-content="Pending"
                 />
               )}
@@ -170,24 +167,13 @@ const DepositStatusBanner = ({ onWithdrawBack, onDeposit }: DepositStatusBannerP
                   onPress={() => setSelectedTab('rejected')}
                   testID="tab-rejected"
                 >
-                  <View
-                    style={[
-                      styles.closeIconContainer,
-                      {
-                        borderColor: isRejectedSelected
-                          ? theme.depositRejectedText
-                          : theme.depositInactiveText
-                      }
-                    ]}
-                  >
-                    <CloseIcon
-                      width={8}
-                      height={8}
-                      color={
-                        isRejectedSelected ? theme.depositRejectedText : theme.depositInactiveText
-                      }
-                    />
-                  </View>
+                  <CloseIconWithCircle
+                    width={16}
+                    height={16}
+                    color={
+                      isRejectedSelected ? theme.depositRejectedText : theme.depositInactiveText
+                    }
+                  />
                   <Text
                     fontSize={14}
                     weight="semiBold"
@@ -249,7 +235,16 @@ const DepositStatusBanner = ({ onWithdrawBack, onDeposit }: DepositStatusBannerP
           </View>
         </View>
       </View>
-      <Tooltip id="deposit-status-icon" {...styles.tooltips.statusIcon(isRejectedSelected)} />
+      <Tooltip
+        id="deposit-status-icon-pending"
+        style={styles.pendingTooltip}
+        border={styles.pendingTooltipBorder}
+      />
+      <Tooltip
+        id="deposit-status-icon-rejected"
+        style={styles.rejectedTooltip}
+        border={styles.rejectedTooltipBorder}
+      />
     </View>
   )
 }
