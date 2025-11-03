@@ -43,7 +43,8 @@ import {
   PRIVACY_POOLS_ASP_URL,
   PRIVACY_POOLS_RELAYER_URL,
   RAILGUN_RELAYER_URL,
-  ALCHEMY_API_KEY
+  ALCHEMY_API_KEY,
+  INFURA_API_KEY
 } from '@env'
 import * as Sentry from '@sentry/browser'
 import { browser, platform } from '@web/constants/browserapi'
@@ -371,6 +372,7 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
     privacyPoolsRelayerUrl: PRIVACY_POOLS_RELAYER_URL,
     railgunRelayerUrl: RAILGUN_RELAYER_URL,
     alchemyApiKey: ALCHEMY_API_KEY,
+    infuraApiKey: INFURA_API_KEY,
     swapApiKey: LI_FI_API_KEY,
     featureFlags: {},
     keystoreSigners: {

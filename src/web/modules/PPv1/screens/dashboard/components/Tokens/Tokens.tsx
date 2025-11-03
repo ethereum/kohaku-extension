@@ -9,6 +9,7 @@ import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { getUiType } from '@web/utils/uiType'
 import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
+import useRailgunForm from '@web/modules/railgun/hooks/useRailgunForm'
 
 import DashboardPageScrollContainer from '../DashboardPageScrollContainer'
 import TabsAndSearch from '../TabsAndSearch'
@@ -51,6 +52,7 @@ const Tokens = ({
   const searchValue = watch('search')
 
   const { ethPrice, totalApprovedBalance, isAccountLoaded, isReadyToLoad } = usePrivacyPoolsForm()
+  const { totalApprovedBalance: railgunTotalApprovedBalance, isAccountLoaded: railgunIsAccountLoaded, isReadyToLoad: railgunIsReadyToLoad } = useRailgunForm()
 
   // Create token-like objects for display - only approved tokens
   const privateTokens = useMemo(() => {
@@ -60,7 +62,7 @@ const Tokens = ({
       tokens.push({
         id: 'approved-eth',
         name: 'Ethereum',
-        symbol: 'ETH',
+        symbol: 'ETH (PP)',
         amount: totalApprovedBalance.total.toString(),
         address: '0x0000000000000000000000000000000000000000',
         chainId: 11155111,
@@ -74,6 +76,27 @@ const Tokens = ({
           defiTokenType: null
         },
         accounts: totalApprovedBalance.accounts
+      })
+    }
+
+    if (railgunTotalApprovedBalance.total > 0n) {
+      tokens.push({
+        id: 'approved-railgun-eth',
+        name: 'Ethereum',
+        symbol: 'ETH (Railgun)',
+        amount: railgunTotalApprovedBalance.total.toString(),
+        address: '0x0000000000000000000000000000000000000000',
+        chainId: 11155111,
+        decimals: 18,
+        priceIn: [{ baseCurrency: 'usd', price: ethPrice }],
+        flags: {
+          onGasTank: false,
+          rewardsType: null,
+          canTopUpGasTank: false,
+          isHidden: false,
+          defiTokenType: null
+        },
+        accounts: railgunTotalApprovedBalance.accounts
       })
     }
 

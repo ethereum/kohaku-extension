@@ -29,7 +29,8 @@ const useRailgunForm = () => {
     privacyProvider,
     loadPrivateAccount,
     refreshPrivateAccount,
-    currentRailgunKeys
+    defaultRailgunKeys,
+    railgunAccountsState
   } = useRailgunControllerState()
 
   const { account: userAccount, portfolio } = useSelectedAccountControllerState()
@@ -44,8 +45,11 @@ const useRailgunForm = () => {
   // Railgun doesn't use pool accounts like Privacy Pools
   // These are placeholder values to maintain interface compatibility
   const totalApprovedBalance = useMemo(() => {
+    if (railgunAccountsState.balances.length !== 0) {
+      return { total: BigInt(railgunAccountsState.balances[0].amount), accounts: []}
+    }
     return { total: 0n, accounts: [] }
-  }, [])
+  }, [railgunAccountsState])
 
   const totalPendingBalance = useMemo(() => {
     return { total: 0n, accounts: [] }
@@ -116,11 +120,10 @@ const useRailgunForm = () => {
     console.log('DEBUG: Deposit amount:', depositAmount)
     console.log('DEBUG: Chain ID:', chainId)
     console.log('DEBUG: User account:', userAccount?.addr)
-    console.log('DEBUG: Privacy provider:', privacyProvider)
-    if (!currentRailgunKeys) {
+    if (!defaultRailgunKeys) {
       console.log('DEBUG: No railgun keys found')
     } else {
-      const railgunAccount = RailgunAccount.fromPrivateKeys(currentRailgunKeys?.spendingKey, currentRailgunKeys?.viewingKey, BigInt(chainId), currentRailgunKeys?.shieldKeySigner);
+      const railgunAccount = RailgunAccount.fromPrivateKeys(defaultRailgunKeys?.spendingKey, defaultRailgunKeys?.viewingKey, BigInt(chainId), defaultRailgunKeys?.shieldKeySigner);
 
       const txData = await railgunAccount?.createNativeShieldTx(BigInt(depositAmount));
       console.log('DEBUG: Created native shield tx:', txData)

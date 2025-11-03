@@ -190,7 +190,7 @@ const AccountPersonalizeScreen = () => {
   // Generate railgun keys when accounts are loaded
   useEffect(() => {
     if (!isLoading && accountsToPersonalize.length && !completed) {
-      dispatch({ type: 'RAILGUN_CONTROLLER_GET_RAILGUN_KEYS', params: { index: 0 } })
+      dispatch({ type: 'RAILGUN_CONTROLLER_GET_DEFAULT_RAILGUN_KEYS' })
     }
   }, [isLoading, accountsToPersonalize.length, completed, dispatch])
 

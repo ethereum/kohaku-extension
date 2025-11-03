@@ -205,9 +205,9 @@ function TransferScreen() {
   )
 
   const isTransferFormValid = useMemo(() => {
-    if (isLoading || !isAccountLoaded) return false
     // For Privacy Pools, we need poolInfo; for Railgun, we don't
     if (privacyProvider === 'privacy-pools') {
+      if (isLoading || !isAccountLoaded) return false
       return !!(depositAmount && depositAmount !== '0' && poolInfo)
     }
     // For Railgun, just check deposit amount
@@ -237,9 +237,9 @@ function TransferScreen() {
   const formTitle = t('Deposit')
 
   const proceedBtnText = useMemo(() => {
-    if (isLoading && !isAccountLoaded) return t('Loading account...')
+    if (isLoading && !isAccountLoaded && privacyProvider === 'privacy-pools') return t('Loading account...')
     return t('Deposit')
-  }, [isLoading, isAccountLoaded, t])
+  }, [isLoading, privacyProvider, isAccountLoaded, t])
 
   // The wrapper hook (useDepositForm) handles routing to the correct protocol
   // So we can just call handleDeposit directly - no routing needed here
@@ -255,7 +255,7 @@ function TransferScreen() {
           handleSubmitForm={handleDepositWithRouting}
           proceedBtnText={proceedBtnText}
           isNotReadyToProceed={!isTransferFormValid}
-          isLoading={isLoading}
+          isLoading={privacyProvider === 'privacy-pools' ? isLoading : false}
           signAccountOpErrors={[]}
           networkUserRequests={[]}
         />

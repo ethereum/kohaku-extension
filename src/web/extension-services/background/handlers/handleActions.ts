@@ -73,10 +73,16 @@ export const handleActions = async (
       } else if (params.controller === ('extensionUpdate' as any)) {
         pm.send('> ui', { method: 'extensionUpdate', params: extensionUpdateCtrl })
       } else {
+        const ctrl = (mainCtrl as any)[params.controller];
+        const payload =
+          ctrl && typeof ctrl.toJSON === 'function'
+            ? ctrl.toJSON()
+            : ctrl;
+    
         pm.send('> ui', {
           method: params.controller,
-          params: (mainCtrl as any)[params.controller]
-        })
+          params: payload,
+        });
       }
       break
     }
@@ -471,10 +477,18 @@ export const handleActions = async (
       return mainCtrl.railgun.destroyLatestBroadcastedAccountOp()
     case 'RAILGUN_CONTROLLER_SYNC_SIGN_ACCOUNT_OP':
       return mainCtrl.railgun.syncSignAccountOp(params.calls)
-    case 'RAILGUN_CONTROLLER_GET_RAILGUN_KEYS':
-      return mainCtrl.railgun.getRailgunKeys(params.index)
-    case 'RAILGUN_CONTROLLER_LOAD_AND_SYNC_ACCOUNT':
-      return mainCtrl.railgun.loadAndSyncRailgunAccount(params)
+    case 'RAILGUN_CONTROLLER_GET_DEFAULT_RAILGUN_KEYS':
+      console.log('[BG][RAILGUN] GET_DEFAULT_RAILGUN_KEYS action');
+      return mainCtrl.railgun.getDefaultRailgunKeys()
+    case 'RAILGUN_CONTROLLER_DERIVE_RAILGUN_KEYS':
+      console.log('[BG][RAILGUN] DERIVE_RAILGUN_KEYS action', params);
+      return mainCtrl.railgun.deriveRailgunKeys(params.index)
+    case 'RAILGUN_CONTROLLER_GET_ACCOUNT_CACHE':
+      console.log('[BG][RAILGUN] GET_ACCOUNT_CACHE action', params);
+      return mainCtrl.railgun.getRailgunAccountCache(params.zkAddress, params.chainId);
+    case 'RAILGUN_CONTROLLER_SET_ACCOUNT_CACHE':
+      console.log('[BG][RAILGUN] SET_ACCOUNT_CACHE action', params);
+      return mainCtrl.railgun.setRailgunAccountCache(params.zkAddress, params.chainId, params.cache)
     case 'ACTIONS_CONTROLLER_REMOVE_FROM_ACTIONS_QUEUE':
       return mainCtrl.requests.actions.removeActions([params.id], params.shouldOpenNextAction)
     case 'ACTIONS_CONTROLLER_FOCUS_ACTION_WINDOW':

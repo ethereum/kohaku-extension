@@ -43,6 +43,8 @@ import { LOG_LEVELS } from '@web/utils/logger'
 import { AUTO_LOCK_TIMES } from './controllers/auto-lock'
 import { controllersMapping } from './types'
 
+import type { RailgunAccountCache } from '@ambire-common/controllers/railgun/railgun'
+
 type UpdateNavigationUrl = {
   type: 'UPDATE_PORT_URL'
   params: { url: string }
@@ -890,18 +892,30 @@ type RailgunControllerResetFormAction = {
   type: 'RAILGUN_CONTROLLER_RESET_FORM'
 }
 
-type RailgunControllerGetRailgunKeysAction = {
-  type: 'RAILGUN_CONTROLLER_GET_RAILGUN_KEYS'
+type RailgunControllerDeriveRailgunKeysAction = {
+  type: 'RAILGUN_CONTROLLER_DERIVE_RAILGUN_KEYS'
   params: {
     index: number
   }
 }
 
-type RailgunControllerLoadAndSyncAccountAction = {
-  type: 'RAILGUN_CONTROLLER_LOAD_AND_SYNC_ACCOUNT'
+type RailgunControllerGetDefaultRailgunKeysAction = {
+  type: 'RAILGUN_CONTROLLER_GET_DEFAULT_RAILGUN_KEYS'
+}
+
+type RailgunControllerGetAccountCacheAction = {
+  type: 'RAILGUN_CONTROLLER_GET_ACCOUNT_CACHE'
   params: {
-    identity: string
+    zkAddress: string
     chainId: number
+  }
+}
+type RailgunControllerSetAccountCacheAction = {
+  type: 'RAILGUN_CONTROLLER_SET_ACCOUNT_CACHE'
+  params: {
+    zkAddress: string
+    chainId: number
+    cache: RailgunAccountCache
   }
 }
 
@@ -1066,5 +1080,7 @@ export type Action =
   | RailgunControllerDestroyLatestBroadcastedAccountOpAction
   | RailgunControllerSyncSignAccountOpAction
   | RailgunControllerResetFormAction
-  | RailgunControllerGetRailgunKeysAction
-  | RailgunControllerLoadAndSyncAccountAction
+  | RailgunControllerDeriveRailgunKeysAction
+  | RailgunControllerGetDefaultRailgunKeysAction
+  | RailgunControllerGetAccountCacheAction
+  | RailgunControllerSetAccountCacheAction
