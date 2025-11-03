@@ -38,6 +38,7 @@ const usePrivacyPoolsForm = () => {
     recipientAddress,
     relayerQuote,
     validationFormMsgs,
+    proofsBatchSize,
     getContext,
     loadPrivateAccount,
     refreshPrivateAccount,
@@ -374,64 +375,81 @@ const usePrivacyPoolsForm = () => {
     })
 
     // Generate proofs for each account with the SAME context
-    const proofResults = await Promise.allSettled(
-      accountsWithAmounts.map(async ({ poolAccount, amount }) => {
-        const commitment = poolAccount.lastCommitment
+    // Using batched sequential processing to prevent memory issues
+    // TEMPORARY: Set BATCH_SIZE to total number of proofs for testing
+    const BATCH_SIZE = proofsBatchSize
+    const GC_DELAY = 150 // 150ms delay between batches for garbage collection
 
-        const stateMerkleProof = getMerkleProof(
-          stateLeaves?.map(BigInt) as bigint[],
-          commitment.hash
-        )
-        const aspMerkleProof = getMerkleProof(aspLeaves?.map(BigInt), commitment.label)
+    const proofs: Awaited<ReturnType<typeof generateWithdrawalProof>>[] = []
+    const errors: Array<{ index: number; error: any }> = []
 
-        const { secret, nullifier } = createWithdrawalSecrets(commitment)
+    // eslint-disable-next-line no-await-in-loop
+    for (let i = 0; i < accountsWithAmounts.length; i += BATCH_SIZE) {
+      const batch = accountsWithAmounts.slice(i, i + BATCH_SIZE)
 
-        // Workaround for NaN index, SDK issue
-        aspMerkleProof.index = Object.is(aspMerkleProof.index, NaN) ? 0 : aspMerkleProof.index
+      // eslint-disable-next-line no-await-in-loop
+      const batchResults = await Promise.allSettled(
+        batch.map(async ({ poolAccount, amount }) => {
+          const commitment = poolAccount.lastCommitment
 
-        const withdrawalProofInput = prepareWithdrawalProofInput(
-          commitment,
-          amount,
-          stateMerkleProof,
-          aspMerkleProof,
-          BigInt(context),
-          secret,
-          nullifier
-        )
+          const stateMerkleProof = getMerkleProof(
+            stateLeaves?.map(BigInt) as bigint[],
+            commitment.hash
+          )
+          const aspMerkleProof = getMerkleProof(aspLeaves?.map(BigInt), commitment.label)
 
-        const proof = await generateWithdrawalProof(commitment, withdrawalProofInput)
+          const { secret, nullifier } = createWithdrawalSecrets(commitment)
 
-        await verifyWithdrawalProof(proof)
+          // Workaround for NaN index, SDK issue
+          aspMerkleProof.index = Object.is(aspMerkleProof.index, NaN) ? 0 : aspMerkleProof.index
 
-        return proof
-      })
-    )
+          const withdrawalProofInput = prepareWithdrawalProofInput(
+            commitment,
+            amount,
+            stateMerkleProof,
+            aspMerkleProof,
+            BigInt(context),
+            secret,
+            nullifier
+          )
 
-    const failedProofs = proofResults.filter((result) => result.status === 'rejected')
-    if (failedProofs.length > 0) {
-      const errorMessages = failedProofs
-        .map((result, index) => {
-          if (result.status === 'rejected') {
-            return `Account ${index + 1}: ${result.reason}`
-          }
-          return ''
+          const proof = await generateWithdrawalProof(commitment, withdrawalProofInput)
+
+          await verifyWithdrawalProof(proof)
+
+          return proof
         })
-        .filter(Boolean)
+      )
+
+      // Process batch results
+      batchResults.forEach((result, batchIndex) => {
+        const globalIndex = i + batchIndex
+        if (result.status === 'fulfilled') {
+          proofs.push(result.value)
+        } else {
+          errors.push({ index: globalIndex, error: result.reason })
+        }
+      })
+
+      // Add delay between batches for garbage collection (except after the last batch)
+      if (i + BATCH_SIZE < accountsWithAmounts.length) {
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise<void>((resolve) => {
+          setTimeout(resolve, GC_DELAY)
+        })
+      }
+    }
+
+    // Check for failures
+    if (errors.length > 0) {
+      const errorMessages = errors
+        .map(({ index, error }) => `Account ${index + 1}: ${error}`)
         .join('; ')
 
       throw new Error(
-        `Failed to generate ${failedProofs.length} proof(s) out of ${proofResults.length}: ${errorMessages}`
+        `Failed to generate ${errors.length} proof(s) out of ${accountsWithAmounts.length}: ${errorMessages}`
       )
     }
-
-    // Extract successful proofs
-    const proofs = proofResults.map((result) => {
-      if (result.status === 'fulfilled') {
-        return result.value
-      }
-      // This should never happen due to the check above, but TypeScript needs it
-      throw new Error('Unexpected rejected proof after validation')
-    })
 
     const transformedProofs = proofs.map((proof) => transformProofForRelayerApi(proof))
 

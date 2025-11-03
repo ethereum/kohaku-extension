@@ -144,6 +144,7 @@ type EnhancedPrivacyPoolsControllerState = {
   depositAmount: string
   seedPhrase: string
   importedSecretNote: string
+  proofsBatchSize: number
 } & Omit<
   Partial<PrivacyPoolsController>,
   | 'validationFormMsgs'
@@ -176,6 +177,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   // const { portfolio } = useSelectedAccountControllerState()
   // const { networks } = useNetworksControllerState()
   const chainId = 11155111 // Default PP chainId
+  const PROOFS_BATCH_SIZE = 10
 
   const [sdk, setSdk] = useState<PrivacyPoolSDK>()
   const [dataService, setDataService] = useState<DataService>()
@@ -542,6 +544,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
         isReadyToLoad,
         importedPrivateAccounts,
         importedAccountsWithNames,
+        proofsBatchSize: PROOFS_BATCH_SIZE,
         loadPrivateAccount,
         refreshPrivateAccount,
         loadPPv1Accounts: loadImportedPPv1Accounts,
