@@ -35,8 +35,8 @@ const routesConfig: RouteConfig = {
   [ROUTES.getStarted]: {
     route: ROUTES.getStarted,
     title: Platform.select({
-      default: i18n.t('Welcome to Ambire Wallet'),
-      web: i18n.t('Welcome to Ambire Wallet')
+      default: i18n.t('Welcome to Kohaku Wallet'),
+      web: i18n.t('Welcome to Kohaku Wallet')
     }),
     name: Platform.select({
       default: i18n.t('Onboarding'),
@@ -46,8 +46,8 @@ const routesConfig: RouteConfig = {
   [ROUTES.importExistingAccount]: {
     route: ROUTES.importExistingAccount,
     title: Platform.select({
-      default: i18n.t('Welcome to Ambire Wallet'),
-      web: i18n.t('Welcome to Ambire Wallet')
+      default: i18n.t('Welcome to Kohaku Wallet'),
+      web: i18n.t('Welcome to Kohaku Wallet')
     }),
     name: Platform.select({
       default: i18n.t('Select Import Method'),
@@ -57,8 +57,8 @@ const routesConfig: RouteConfig = {
   [ROUTES.ledgerConnect]: {
     route: ROUTES.ledgerConnect,
     title: Platform.select({
-      default: i18n.t('Welcome to Ambire Wallet'),
-      web: i18n.t('Welcome to Ambire Wallet')
+      default: i18n.t('Welcome to Kohaku Wallet'),
+      web: i18n.t('Welcome to Kohaku Wallet')
     }),
     name: Platform.select({
       default: i18n.t('Connect Ledger'),
@@ -100,7 +100,7 @@ const routesConfig: RouteConfig = {
   },
   [ROUTES.keyStoreSetup]: {
     route: ROUTES.keyStoreSetup,
-    title: i18n.t('Welcome to Ambire Wallet'),
+    title: i18n.t('Welcome to Kohaku Wallet'),
     name: i18n.t('Extension Password Setup')
   },
   [ROUTES.keyStoreReset]: {
@@ -120,7 +120,7 @@ const routesConfig: RouteConfig = {
   [ROUTES.accountPersonalize]: {
     route: ROUTES.accountPersonalize,
     title: Platform.select({
-      default: i18n.t('Welcome to Ambire Wallet')
+      default: i18n.t('Welcome to Kohaku Wallet')
     }),
     name: Platform.select({
       default: i18n.t('Account Personalization')
@@ -129,7 +129,7 @@ const routesConfig: RouteConfig = {
   [ROUTES.viewOnlyAccountAdder]: {
     route: ROUTES.viewOnlyAccountAdder,
     title: Platform.select({
-      default: i18n.t('Welcome to Ambire Wallet')
+      default: i18n.t('Welcome to Kohaku Wallet')
     }),
     name: Platform.select({
       default: i18n.t('Watch an address')
@@ -250,28 +250,28 @@ const routesConfig: RouteConfig = {
   [ROUTES.importPrivateKey]: {
     route: ROUTES.importPrivateKey,
     title: Platform.select({
-      default: i18n.t('Welcome to Ambire Wallet')
+      default: i18n.t('Welcome to Kohaku Wallet')
     }),
     name: Platform.select({ default: i18n.t('Import Private Key') })
   },
   [ROUTES.importSeedPhrase]: {
     route: ROUTES.importSeedPhrase,
     title: Platform.select({
-      default: i18n.t('Welcome to Ambire Wallet')
+      default: i18n.t('Welcome to Kohaku Wallet')
     }),
     name: Platform.select({ default: i18n.t('Import Recovery Phrase') })
   },
   [ROUTES.importSmartAccountJson]: {
     route: ROUTES.importSmartAccountJson,
     title: Platform.select({
-      default: i18n.t('Welcome to Ambire Wallet')
+      default: i18n.t('Welcome to Kohaku Wallet')
     }),
     name: Platform.select({ default: i18n.t('Import Smart Account JSON') })
   },
   [ROUTES.createSeedPhrasePrepare]: {
     route: ROUTES.createSeedPhrasePrepare,
     title: Platform.select({
-      default: i18n.t('Welcome to Ambire Wallet')
+      default: i18n.t('Welcome to Kohaku Wallet')
     }),
     name: Platform.select({ default: i18n.t('Create New Recovery Phrase') })
   },
@@ -285,7 +285,7 @@ const routesConfig: RouteConfig = {
   [ROUTES.onboardingCompleted]: {
     route: ROUTES.onboardingCompleted,
     title: Platform.select({
-      default: i18n.t('Welcome to Ambire Wallet')
+      default: i18n.t('Welcome to Kohaku Wallet')
     }),
     name: Platform.select({ default: i18n.t('Ready To Use') })
   },
