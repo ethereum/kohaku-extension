@@ -202,16 +202,13 @@ const usePrivacyPoolsForm = () => {
   }
 
   const openEstimationModalAndDispatch = useCallback(() => {
-    console.log('DEBUG: openEstimationModalAndDispatch called')
     dispatch({
       type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
       params: {
         proceeded: true
       }
     })
-    console.log('DEBUG: about to call openEstimationModal()')
     openEstimationModal()
-    console.log('DEBUG: after openEstimationModal()')
   }, [openEstimationModal, dispatch])
 
   const syncSignAccountOp = useCallback(
