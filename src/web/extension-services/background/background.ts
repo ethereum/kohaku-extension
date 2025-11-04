@@ -42,6 +42,7 @@ import {
   VELCRO_URL,
   PRIVACY_POOLS_ASP_URL,
   PRIVACY_POOLS_RELAYER_URL,
+  HYPERSYNC_API_KEY,
   ALCHEMY_API_KEY
 } from '@env'
 import * as Sentry from '@sentry/browser'
@@ -370,6 +371,7 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
     privacyPoolsRelayerUrl: PRIVACY_POOLS_RELAYER_URL,
     alchemyApiKey: ALCHEMY_API_KEY,
     swapApiKey: LI_FI_API_KEY,
+    hypersyncApiKey: HYPERSYNC_API_KEY,
     featureFlags: {},
     keystoreSigners: {
       internal: KeystoreSigner,
