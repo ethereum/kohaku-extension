@@ -75,11 +75,13 @@ const Footer: FC<Props> = ({
       return
     }
 
-    const link = `https://explorer.ambire.com/${getBenzinUrlParams({
-      txnId,
-      chainId: Number(chainId),
-      identifiedBy
-    })}`
+    // const link = `https://explorer.ambire.com/${getBenzinUrlParams({
+    //   txnId,
+    //   chainId: Number(chainId),
+    //   identifiedBy
+    // })}`
+
+    const link = `https://sepolia.etherscan.io/tx/${txnId}`
 
     try {
       await createTab(link)
