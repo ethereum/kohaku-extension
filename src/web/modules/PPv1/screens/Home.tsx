@@ -8,15 +8,7 @@ import usePrivacyPoolsForm from '../hooks/usePrivacyPoolsForm'
 const HomeScreen = () => {
   const { dispatch } = useBackgroundService()
   const { addToast } = useToast()
-  const {
-    isAccountLoaded,
-    isReadyToLoad,
-    poolAccounts,
-    totalApprovedBalance,
-    totalPendingBalance,
-    totalDeclinedBalance,
-    loadPrivateAccount
-  } = usePrivacyPoolsForm()
+  const { isAccountLoaded, isReadyToLoad, loadPrivateAccount } = usePrivacyPoolsForm()
   const hasLoadedRef = useRef(false)
 
   useEffect(() => {
