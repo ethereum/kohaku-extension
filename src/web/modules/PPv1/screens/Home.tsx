@@ -1,11 +1,13 @@
 /* eslint-disable no-console */
 import React, { useEffect, useRef } from 'react'
 import useBackgroundService from '@web/hooks/useBackgroundService'
+import useToast from '@common/hooks/useToast'
 import DashboardScreen from './dashboard/screens/DashboardScreen'
 import usePrivacyPoolsForm from '../hooks/usePrivacyPoolsForm'
 
 const HomeScreen = () => {
   const { dispatch } = useBackgroundService()
+  const { addToast } = useToast()
   const {
     isAccountLoaded,
     isReadyToLoad,
@@ -17,18 +19,15 @@ const HomeScreen = () => {
   } = usePrivacyPoolsForm()
   const hasLoadedRef = useRef(false)
 
-  console.log('DEBUG: totalApprovedBalance', totalApprovedBalance)
-  console.log('DEBUG: totalPendingBalance', totalPendingBalance)
-  console.log('DEBUG: totalDeclinedBalance', totalDeclinedBalance)
-  console.log({ isAccountLoaded, poolAccounts })
-
   useEffect(() => {
     if (!isAccountLoaded && !hasLoadedRef.current && isReadyToLoad) {
       hasLoadedRef.current = true
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      loadPrivateAccount()
+      loadPrivateAccount().catch((error) => {
+        console.error('Failed to load private account:', error)
+        addToast('Failed to load your privacy account. Please try again.', { type: 'error' })
+      })
     }
-  }, [loadPrivateAccount, isAccountLoaded, hasLoadedRef, isReadyToLoad])
+  }, [isAccountLoaded, isReadyToLoad, loadPrivateAccount, addToast])
 
   useEffect(() => {
     return () => {

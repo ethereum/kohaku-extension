@@ -310,10 +310,11 @@ const TransferScreen = () => {
         .catch((error) => {
           // eslint-disable-next-line no-console
           console.error('Failed to refresh after withdrawal:', error)
+          addToast('Failed to refresh your privacy account. Please try again.', { type: 'error' })
           setIsSubmitting(false)
         })
     }
-  }, [submittedAccountOp?.status, refreshPrivateAccount])
+  }, [submittedAccountOp?.status, refreshPrivateAccount, addToast])
 
   if (displayedView === 'track') {
     return (
