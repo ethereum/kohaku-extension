@@ -105,51 +105,46 @@ export const processDeposits = async (
   if (!loadedPoolAccounts) throw Error('Pool accounts not found')
   if (!mtLeavesData?.aspLeaves) throw Error('ASP leaves not found')
 
-  try {
-    // Extract labels from pool accounts to fetch only relevant deposits
-    const labels = loadedPoolAccounts.map((account) => account.label.toString())
+  // Extract labels from pool accounts to fetch only relevant deposits
+  const labels = loadedPoolAccounts.map((account) => account.label.toString())
 
-    // Fetch deposit data from ASP for specific labels
-    const depositData = await aspClient.fetchDepositsByLabel(aspUrl, chainId, scope, labels)
+  // Fetch deposit data from ASP for specific labels
+  const depositData = await aspClient.fetchDepositsByLabel(aspUrl, chainId, scope, labels)
 
-    const updatedPoolAccounts = loadedPoolAccounts.map((entry) => {
-      const deposit = depositData.find((d) => d.label === entry.label.toString())
-      if (!deposit) return entry
+  const updatedPoolAccounts = loadedPoolAccounts.map((entry) => {
+    const deposit = depositData.find((d) => d.label === entry.label.toString())
+    if (!deposit) return entry
 
-      if (entry.reviewStatus === ReviewStatus.EXITED) {
-        return {
-          ...entry,
-          reviewStatus: ReviewStatus.EXITED,
-          isValid: false,
-          depositorAddress: deposit.address
-        }
-      }
-
-      const aspLeaf = mtLeavesData.aspLeaves.find(
-        (leaf) => leaf.toString() === entry.label.toString()
-      )
-      let reviewStatus = deposit.reviewStatus
-
-      // The deposit is approved but the leaves are not yet updated
-      if (deposit.reviewStatus === ReviewStatus.APPROVED && !aspLeaf) {
-        reviewStatus = ReviewStatus.PENDING
-      }
-
-      const isWithdrawn =
-        entry.balance === BigInt(0) && deposit.reviewStatus === ReviewStatus.APPROVED
-
+    if (entry.reviewStatus === ReviewStatus.EXITED) {
       return {
         ...entry,
-        reviewStatus: isWithdrawn ? ReviewStatus.SPENT : reviewStatus,
-        isValid: reviewStatus === ReviewStatus.APPROVED, // Could be removed due reviewStatus is pending till leaves are updated
-        timestamp: deposit.timestamp,
+        reviewStatus: ReviewStatus.EXITED,
+        isValid: false,
         depositorAddress: deposit.address
       }
-    })
+    }
 
-    return updatedPoolAccounts
-  } catch (error) {
-    console.error('Error processing deposits:', error)
-    return loadedPoolAccounts
-  }
+    const aspLeaf = mtLeavesData.aspLeaves.find(
+      (leaf) => leaf.toString() === entry.label.toString()
+    )
+    let reviewStatus = deposit.reviewStatus
+
+    // The deposit is approved but the leaves are not yet updated
+    if (deposit.reviewStatus === ReviewStatus.APPROVED && !aspLeaf) {
+      reviewStatus = ReviewStatus.PENDING
+    }
+
+    const isWithdrawn =
+      entry.balance === BigInt(0) && deposit.reviewStatus === ReviewStatus.APPROVED
+
+    return {
+      ...entry,
+      reviewStatus: isWithdrawn ? ReviewStatus.SPENT : reviewStatus,
+      isValid: reviewStatus === ReviewStatus.APPROVED, // Could be removed due reviewStatus is pending till leaves are updated
+      timestamp: deposit.timestamp,
+      depositorAddress: deposit.address
+    }
+  })
+
+  return updatedPoolAccounts
 }

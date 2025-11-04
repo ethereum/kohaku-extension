@@ -195,8 +195,6 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   >([])
   const memoizedState = useDeepMemo(state, controller)
 
-  console.log('DEBUG:', { state, poolAccounts, importedPrivateAccounts })
-
   const { secret } = memoizedState
 
   // Load default private account if secret is provided and reset the secret in the controller state
@@ -286,10 +284,11 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   )
 
   const loadPrivateAccount = useCallback(async () => {
-    if (isAccountLoaded) return
+    if (isAccountLoaded || isLoadingAccount) return
     if (!isReadyToLoad) throw new Error('Privacy Pools data not ready yet')
 
     try {
+      setIsLoadingAccount(true)
       const secrets = await getPrivateAccount()
       const result = await loadPoolAccounts({ secrets })
       setPoolAccounts(result.poolAccounts)
@@ -299,11 +298,17 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to load private account. Please try again.'
       throw new Error(errorMessage)
+    } finally {
+      setIsLoadingAccount(false)
     }
-  }, [isAccountLoaded, isReadyToLoad, loadPoolAccounts, setPoolAccounts, setAccountService])
+  }, [isAccountLoaded, isLoadingAccount, isReadyToLoad, loadPoolAccounts])
 
   const refreshPrivateAccount = useCallback(
     async (refetchLeavesAndRoots = false) => {
+      if (isLoadingAccount || isRefreshing) {
+        return
+      }
+
       try {
         setIsRefreshing(true)
         setIsAccountLoaded(false)
@@ -327,7 +332,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
         setIsRefreshing(false)
       }
     },
-    [loadPoolAccounts, setPoolAccounts, setAccountService, fetchMtData]
+    [isLoadingAccount, isRefreshing, loadPoolAccounts, fetchMtData]
   )
 
   const loadImportedPPv1Accounts = useCallback(async () => {
@@ -483,8 +488,11 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
 
   // Load PPv1 accounts on initialization
   useEffect(() => {
-    loadImportedPPv1Accounts().catch(console.error)
-  }, [loadImportedPPv1Accounts])
+    if (isReadyToLoad) {
+      loadImportedPPv1Accounts().catch(console.error)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReadyToLoad])
 
   useEffect(() => {
     if (memoizedState.initialPromiseLoaded && memoizedState.chainData && !sdk) {

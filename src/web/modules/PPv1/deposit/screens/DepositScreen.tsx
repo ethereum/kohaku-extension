@@ -9,6 +9,7 @@ import { getBenzinUrlParams } from '@ambire-common/utils/benzin'
 import BackButton from '@common/components/BackButton'
 import Text from '@common/components/Text'
 import useNavigation from '@common/hooks/useNavigation'
+import useToast from '@common/hooks/useToast'
 import { ROUTES } from '@common/modules/router/constants/common'
 import useActivityControllerState from '@web/hooks/useActivityControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
@@ -34,6 +35,7 @@ function TransferScreen() {
   const { dispatch } = useBackgroundService()
   const { navigate } = useNavigation()
   const { t } = useTranslation()
+  const { addToast } = useToast()
 
   const { accountsOps } = useActivityControllerState()
   const { selectedToken } = usePrivacyPoolsControllerState()
@@ -129,9 +131,10 @@ function TransferScreen() {
       refreshPrivateAccount().catch((error) => {
         // eslint-disable-next-line no-console
         console.error('Failed to refresh private account after deposit:', error)
+        addToast('Failed to refresh your privacy account. Please try again.', { type: 'error' })
       })
     }
-  }, [submittedAccountOp?.status, refreshPrivateAccount])
+  }, [submittedAccountOp?.status, refreshPrivateAccount, addToast])
 
   useEffect(() => {
     return () => {
@@ -150,9 +153,10 @@ function TransferScreen() {
       loadPrivateAccount().catch((error) => {
         // eslint-disable-next-line no-console
         console.error('Failed to load private account:', error)
+        addToast('Failed to load your privacy account. Please try again.', { type: 'error' })
       })
     }
-  }, [isAccountLoaded, loadPrivateAccount])
+  }, [isAccountLoaded, loadPrivateAccount, addToast])
 
   useEffect(() => {
     return () => {

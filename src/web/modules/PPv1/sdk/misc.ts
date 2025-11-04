@@ -18,7 +18,6 @@ export interface PrivateAccountSecrets {
 
 export const storeFirstPrivateAccount = async (secrets: string | null) => {
   if (!secrets) {
-    console.log('DEBUG: No secrets provided.')
     return
   }
   const encryptedSecret = await encrypt(secrets, DEFAULT_PRIVATE_ACCOUNT_PASSWORD)
@@ -26,7 +25,6 @@ export const storeFirstPrivateAccount = async (secrets: string | null) => {
 }
 
 export const storePrivateAccount = async (secrets: PrivateAccountSecrets) => {
-  console.log('DEBUG: Storing private account with secrets:', secrets)
   const encryptedSecret = await encrypt(JSON.stringify(secrets), DEFAULT_PRIVATE_ACCOUNT_PASSWORD)
   await storeData({ key: DEFAULT_PRIVATE_ACCOUNT_KEY, data: encryptedSecret })
 }

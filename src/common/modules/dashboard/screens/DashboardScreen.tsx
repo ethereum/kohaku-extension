@@ -5,6 +5,7 @@ import { useModalize } from 'react-native-modalize'
 import { isWeb } from '@common/config/env'
 import useDebounce from '@common/hooks/useDebounce'
 import useTheme from '@common/hooks/useTheme'
+import useToast from '@common/hooks/useToast'
 import PendingActionWindowModal from '@common/modules/dashboard/components/PendingActionWindowModal'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
@@ -32,6 +33,7 @@ const DashboardScreen = () => {
   const { styles } = useTheme(getStyles)
   const { dispatch } = useBackgroundService()
   const { navigate } = useNavigation()
+  const { addToast } = useToast()
   const { ref: receiveModalRef, open: openReceiveModal, close: closeReceiveModal } = useModalize()
   const { ref: gasTankModalRef, open: openGasTankModal, close: closeGasTankModal } = useModalize()
   const lastOffsetY = useRef(0)
@@ -60,9 +62,10 @@ const DashboardScreen = () => {
       loadPrivateAccount().catch((error) => {
         // eslint-disable-next-line no-console
         console.error('Failed to load private account:', error)
+        addToast('Failed to load your privacy account. Please try again.', { type: 'error' })
       })
     }
-  }, [loadPrivateAccount, isAccountLoaded, isReadyToLoad])
+  }, [loadPrivateAccount, isAccountLoaded, isReadyToLoad, addToast])
 
   const hasUnseenFirstCashback = useMemo(
     () => cashbackStatus === 'cashback-modal',
