@@ -77,7 +77,7 @@ const MainRoutes = () => {
     const trimmedPathName = location.pathname.replace(/^\/|\/$/g, '')
     const routeConfig = routesConfig[trimmedPathName as keyof typeof routesConfig]
     const withTitlePrefix = routeConfig?.withTitlePrefix ?? true
-    const title = `${withTitlePrefix ? 'Ambire ' : ''}${routeConfig?.name || t('Wallet')}`
+    const title = `${withTitlePrefix ? 'Kohaku ' : ''}${routeConfig?.name || t('Wallet')}`
 
     document.title = title
   }, [location.pathname, t])
