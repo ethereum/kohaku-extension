@@ -356,6 +356,12 @@ const usePrivacyPoolsForm = () => {
     }
   }, [poolAccounts, importedPrivateAccounts, withdrawalAmount])
 
+  // Update currentPrivateBalance whenever totalApprovedBalance changes
+  useEffect(() => {
+    const balanceString = formatEther(totalApprovedBalance.total)
+    handleUpdateForm({ currentPrivateBalance: balanceString })
+  }, [totalApprovedBalance.total, handleUpdateForm])
+
   const handleMultipleWithdrawal = useCallback(async () => {
     if (
       !poolInfo ||
