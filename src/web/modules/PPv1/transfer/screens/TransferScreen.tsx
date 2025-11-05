@@ -232,10 +232,12 @@ const TransferScreen = () => {
       selectedToken &&
       relayerQuote &&
       !addressInputState.validation.isError &&
+      !amountErrorMessage &&
       !isRefreshing
     )
   }, [
     amountFieldValue,
+    amountErrorMessage,
     selectedToken,
     addressInputState.validation.isError,
     relayerQuote,
