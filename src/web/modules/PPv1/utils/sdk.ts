@@ -108,6 +108,10 @@ export const processDeposits = async (
   // Extract labels from pool accounts to fetch only relevant deposits
   const labels = loadedPoolAccounts.map((account) => account.label.toString())
 
+  if (!labels.length) {
+    return []
+  }
+
   // Fetch deposit data from ASP for specific labels
   const depositData = await aspClient.fetchDepositsByLabel(aspUrl, chainId, scope, labels)
 
