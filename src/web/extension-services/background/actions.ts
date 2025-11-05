@@ -836,6 +836,13 @@ type PrivacyControllerDirectBroadcastWithdrawalAction = {
   }
 }
 
+type PrivacyControllerAddImportedAccountToActivityControllerAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_ADD_IMPORTED_ACCOUNT_TO_ACTIVITY_CONTROLLER'
+  params: {
+    accountName: string
+  }
+}
+
 export type Action =
   | UpdateNavigationUrl
   | InitControllerStateAction
@@ -988,3 +995,4 @@ export type Action =
   | PrivacyControllerDirectBroadcastWithdrawalAction
   | PrivacyControllerResetSecretAction
   | PrivacyControllerGeneratePPv1KeysAction
+  | PrivacyControllerAddImportedAccountToActivityControllerAction

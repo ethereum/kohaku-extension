@@ -19,6 +19,7 @@ declare module '@env' {
     ALCHEMY_API_KEY: string
     PRIVACY_POOLS_ASP_URL: string
     PRIVACY_POOLS_RELAYER_URL: string
+    HYPERSYNC_API_KEY: string
   }
 
   /**
@@ -121,4 +122,9 @@ declare module '@env' {
    * The API key for Alchemy
    */
   export const PRIVACY_POOLS_RELAYER_URL: EnvTypes['PRIVACY_POOLS_RELAYER_URL']
+
+  /**
+   * The API key for sdk RPC (Hypersync from Envio)
+   */
+  export const HYPERSYNC_API_KEY: EnvTypes['HYPERSYNC_API_KEY']
 }

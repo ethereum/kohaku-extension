@@ -2,8 +2,8 @@
 import { getData, storeData } from '@web/modules/PPv1/utils/extensionStorage'
 import { decrypt, encrypt } from '@web/modules/PPv1/utils/encryption'
 import {
-  AccountInitSource,
   deserializeFromStorage,
+  ImportedAccountInitSource,
   serializeForStorage
 } from './accountInitializer'
 
@@ -18,7 +18,6 @@ export interface PrivateAccountSecrets {
 
 export const storeFirstPrivateAccount = async (secrets: string | null) => {
   if (!secrets) {
-    console.log('DEBUG: No secrets provided.')
     return
   }
   const encryptedSecret = await encrypt(secrets, DEFAULT_PRIVATE_ACCOUNT_PASSWORD)
@@ -26,7 +25,6 @@ export const storeFirstPrivateAccount = async (secrets: string | null) => {
 }
 
 export const storePrivateAccount = async (secrets: PrivateAccountSecrets) => {
-  console.log('DEBUG: Storing private account with secrets:', secrets)
   const encryptedSecret = await encrypt(JSON.stringify(secrets), DEFAULT_PRIVATE_ACCOUNT_PASSWORD)
   await storeData({ key: DEFAULT_PRIVATE_ACCOUNT_KEY, data: encryptedSecret })
 }
@@ -39,16 +37,16 @@ export const getPrivateAccount = async (): Promise<PrivateAccountSecrets> => {
   return secrets
 }
 
-export const getPPv1Accounts = async (): Promise<AccountInitSource[]> => {
+export const getPPv1Accounts = async (): Promise<ImportedAccountInitSource[]> => {
   const data = await getData({ key: PPV1_ACCOUNTS_KEY })
   if (!data) return []
   const decrypted = await decrypt(data, DEFAULT_PRIVATE_ACCOUNT_PASSWORD)
-  const deserialized = deserializeFromStorage<AccountInitSource[]>(decrypted)
+  const deserialized = deserializeFromStorage<ImportedAccountInitSource[]>(decrypted)
   if (!deserialized) return []
   return deserialized
 }
 
-export const storePPv1Accounts = async (accountInitSource: AccountInitSource) => {
+export const storePPv1Accounts = async (accountInitSource: ImportedAccountInitSource) => {
   const currentAccounts = await getPPv1Accounts()
   const accounts = [...currentAccounts, accountInitSource]
   const serialized = serializeForStorage(accounts)

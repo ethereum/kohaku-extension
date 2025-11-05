@@ -8,6 +8,7 @@ import { getBenzinUrlParams } from '@ambire-common/utils/benzin'
 import BackButton from '@common/components/BackButton'
 import Text from '@common/components/Text'
 import useNavigation from '@common/hooks/useNavigation'
+import useToast from '@common/hooks/useToast'
 import { ROUTES } from '@common/modules/router/constants/common'
 import useActivityControllerState from '@web/hooks/useActivityControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
@@ -33,6 +34,7 @@ function RagequitScreen() {
   const { dispatch } = useBackgroundService()
   const { navigate } = useNavigation()
   const { t } = useTranslation()
+  const { addToast } = useToast()
 
   const { accountsOps } = useActivityControllerState()
 
@@ -86,9 +88,11 @@ function RagequitScreen() {
       type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN'
     })
 
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    refreshPrivateAccount()
-  }, [dispatch, navigate, refreshPrivateAccount])
+    refreshPrivateAccount().catch((error) => {
+      console.error('Failed to refresh private account:', error)
+      addToast('Failed to refresh your privacy account. Please try again.', { type: 'error' })
+    })
+  }, [dispatch, navigate, refreshPrivateAccount, addToast])
 
   const { sessionHandler, onPrimaryButtonPress } = useTrackAccountOp({
     address: latestBroadcastedAccountOp?.accountAddr,
@@ -203,9 +207,10 @@ function RagequitScreen() {
       refreshPrivateAccount().catch((error) => {
         // eslint-disable-next-line no-console
         console.error('Failed to refresh private account after deposit:', error)
+        addToast('Failed to refresh your privacy account. Please try again.', { type: 'error' })
       })
     }
-  }, [submittedAccountOp?.status, refreshPrivateAccount])
+  }, [submittedAccountOp?.status, refreshPrivateAccount, addToast])
 
   if (displayedView === 'track') {
     return (

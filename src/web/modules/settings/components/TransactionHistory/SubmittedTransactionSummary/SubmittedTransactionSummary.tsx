@@ -46,10 +46,14 @@ const SubmittedTransactionSummaryInner = ({
 
   const calls = useMemo(
     () => {
-      // Special handling for PrivacyPoolsRelayer transactions
-      // These have empty calls arrays, so humanizeAccountOp returns empty array
+      // Special handling for Privacy Pools related operations
+      // These include PrivacyPoolsRelayer transactions and ImportedAccount records
+      // Both have empty calls arrays, so humanizeAccountOp returns empty array
       // which causes skeleton to show. Use custom humanizer instead.
-      if (submittedAccountOp.identifiedBy?.type === 'PrivacyPoolsRelayer') {
+      if (
+        submittedAccountOp.identifiedBy?.type === 'PrivacyPoolsRelayer' ||
+        submittedAccountOp.identifiedBy?.type === 'ImportedAccount'
+      ) {
         return humanizePrivacyPoolsAccountOp(submittedAccountOp)
       }
 

@@ -442,6 +442,9 @@ export const handleActions = async (
       return mainCtrl.privacyPools.directBroadcastWithdrawal(params)
     case 'PRIVACY_POOLS_CONTROLLER_RESET_SECRET':
       return mainCtrl.privacyPools.resetSecret()
+    case 'PRIVACY_POOLS_CONTROLLER_ADD_IMPORTED_ACCOUNT_TO_ACTIVITY_CONTROLLER': {
+      return await mainCtrl.privacyPools.addImportedAccountToActivityController(params.accountName)
+    }
     case 'ACTIONS_CONTROLLER_REMOVE_FROM_ACTIONS_QUEUE':
       return mainCtrl.requests.actions.removeActions([params.id], params.shouldOpenNextAction)
     case 'ACTIONS_CONTROLLER_FOCUS_ACTION_WINDOW':
