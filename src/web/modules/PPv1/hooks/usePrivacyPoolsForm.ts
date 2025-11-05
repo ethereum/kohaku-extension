@@ -12,6 +12,12 @@ import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountCont
 import { prepareWithdrawalProofInput, transformProofForRelayerApi } from '../utils/withdrawal'
 import { transformRagequitProofForContract } from '../utils/ragequit'
 import { entrypointAbi, privacyPoolAbi } from '../utils/abi'
+import {
+  convertToAlgorithmFormat,
+  generateAnonymitySetFromChain
+} from '../noteSelection/anonimitySet/anonymitySetGeneration'
+import { selectNotesForWithdrawal } from '../noteSelection/selectNotesForWithdrawal'
+import { getPoolAccountsFromResult } from '../noteSelection/helpers'
 
 const usePrivacyPoolsForm = () => {
   const { dispatch } = useBackgroundService()
@@ -318,6 +324,38 @@ const usePrivacyPoolsForm = () => {
     handleUpdateForm({ batchSize: calculatedBatchSize })
   }, [calculatedBatchSize, handleUpdateForm])
 
+  const runNoteSelection = useCallback(async () => {
+    try {
+      const anonymitySetData = await generateAnonymitySetFromChain()
+      const convertedData = convertToAlgorithmFormat(anonymitySetData)
+
+      const algorithmResults = selectNotesForWithdrawal({
+        poolAccounts,
+        importedPoolAccounts: importedPrivateAccounts.flat(),
+        withdrawalAmount: Number(withdrawalAmount),
+        anonymityData: convertedData
+      })
+      console.log({ algorithmResults })
+
+      console.log('📊 Algorithm Results:')
+      console.log(`   Generated ${algorithmResults.length} candidate strategies`)
+      algorithmResults.forEach((result, index) => {
+        console.log(
+          `   ${index + 1}. ${result.name} - Privacy Score: ${result.privacyScore.toFixed(4)} ${
+            result.isChosen ? '🏆 WINNER' : ''
+          }`
+        )
+      })
+
+      const poolAccountsFromResult = getPoolAccountsFromResult(algorithmResults[0])
+
+      return poolAccountsFromResult
+    } catch (error) {
+      console.error('Error running note selection:', error)
+      return []
+    }
+  }, [poolAccounts, importedPrivateAccounts, withdrawalAmount])
+
   const handleMultipleWithdrawal = useCallback(async () => {
     if (
       !poolInfo ||
@@ -356,20 +394,7 @@ const usePrivacyPoolsForm = () => {
     // IMPORTANT: All proofs MUST use the SAME context
     const context = getContext(batchWithdrawal, selectedPoolInfo.scope as Hash)
 
-    let partialAmount = parseUnits(withdrawalAmount, 18)
-    const accountsWithAmounts = selectedPoolAccounts.map((poolAccount) => {
-      let amount: bigint
-
-      if (partialAmount - poolAccount.balance >= 0) {
-        partialAmount -= poolAccount.balance
-        amount = poolAccount.balance
-      } else {
-        amount = partialAmount
-        partialAmount = 0n
-      }
-
-      return { poolAccount, amount }
-    })
+    const accountsWithAmounts = await runNoteSelection()
 
     // Generate proofs for each account with the SAME context
     // Using batched sequential processing to prevent memory issues
@@ -462,22 +487,24 @@ const usePrivacyPoolsForm = () => {
       proofs: transformedProofs
     })
   }, [
-    chainId,
-    mtRoots,
-    mtLeaves,
     poolInfo,
-    userAccount,
-    poolAccounts,
-    relayerQuote,
+    mtLeaves,
+    mtRoots,
     accountService,
-    withdrawalAmount,
+    userAccount,
     recipientAddress,
+    poolAccounts,
+    withdrawalAmount,
+    relayerQuote?.data,
     getContext,
+    runNoteSelection,
+    proofsBatchSize,
+    directBroadcastWithdrawal,
+    chainId,
     getMerkleProof,
-    verifyWithdrawalProof,
     createWithdrawalSecrets,
     generateWithdrawalProof,
-    directBroadcastWithdrawal
+    verifyWithdrawalProof
   ])
 
   return {
