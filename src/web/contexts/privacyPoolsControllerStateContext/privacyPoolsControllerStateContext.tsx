@@ -289,8 +289,9 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
 
     try {
       setIsLoadingAccount(true)
-      const secrets = await getPrivateAccount()
-      const result = await loadPoolAccounts({ secrets })
+      // const secrets = await getPrivateAccount()
+      const mnemonic = 'test test test test test test test test test test test test'
+      const result = await loadPoolAccounts({ mnemonic })
       setPoolAccounts(result.poolAccounts)
       setAccountService(result.accountService)
       setIsAccountLoaded(true)
