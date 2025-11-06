@@ -671,6 +671,7 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
       selectedToken: memoizedBgState.selectedToken ?? null,
       maxAmount: memoizedBgState.maxAmount ?? '',
       privacyProvider: memoizedBgState.privacyProvider ?? 'railgun',
+      validationFormMsgs: memoizedBgState.validationFormMsgs,
 
       // simplified state
       railgunAccountsState,

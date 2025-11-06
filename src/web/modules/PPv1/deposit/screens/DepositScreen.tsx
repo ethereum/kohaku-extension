@@ -219,9 +219,13 @@ function TransferScreen() {
         !!(depositAmount && depositAmount !== '0' && poolInfo) && !validationFormMsgs.amount.message
       )
     }
+
+    console.log('DEBUG: validationFormMsgs:', validationFormMsgs.amount)
     // For Railgun, just check deposit amount
-    return !!(depositAmount && depositAmount !== '0')
-  }, [depositAmount, poolInfo, isLoading, isAccountLoaded, privacyProvider])
+    return (
+      !!(depositAmount && depositAmount !== '0') && !validationFormMsgs.amount.message
+    )
+  }, [depositAmount, poolInfo, isLoading, isAccountLoaded, privacyProvider, validationFormMsgs.amount])
 
   const onBack = useCallback(() => {
     dispatch({
@@ -254,18 +258,12 @@ function TransferScreen() {
     return t('Deposit')
   }, [isLoading, privacyProvider, isAccountLoaded, t])
 
-  // The wrapper hook (useDepositForm) handles routing to the correct protocol
-  // So we can just call handleDeposit directly - no routing needed here
-  const handleDepositWithRouting = useCallback(() => {
-    handleDeposit()
-  }, [handleDeposit])
-
   const buttons = useMemo(() => {
     return (
       <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
         <BackButton onPress={onBack} />
         <Buttons
-          handleSubmitForm={handleDepositWithRouting}
+          handleSubmitForm={handleDeposit}
           proceedBtnText={proceedBtnText}
           isNotReadyToProceed={!isTransferFormValid}
           isLoading={privacyProvider === 'privacy-pools' ? isLoading : false}
@@ -274,7 +272,7 @@ function TransferScreen() {
         />
       </View>
     )
-  }, [onBack, handleDepositWithRouting, proceedBtnText, isTransferFormValid, isLoading])
+  }, [onBack, handleDeposit, proceedBtnText, isTransferFormValid, isLoading])
 
   if (displayedView === 'track') {
     return (
@@ -343,6 +341,7 @@ function TransferScreen() {
             formTitle={formTitle}
             handleUpdateForm={handleUpdateForm}
             chainId={BigInt(chainId)}
+            privacyProvider={privacyProvider}
           />
         </Form>
       </Content>

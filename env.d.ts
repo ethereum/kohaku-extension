@@ -19,12 +19,9 @@ declare module '@env' {
     ALCHEMY_API_KEY: string
     PRIVACY_POOLS_ASP_URL: string
     PRIVACY_POOLS_RELAYER_URL: string
-<<<<<<< HEAD
     HYPERSYNC_API_KEY: string
-=======
     RAILGUN_RELAYER_URL: string
     INFURA_API_KEY: string
->>>>>>> 0b07ea290 (feat: add railgun)
   }
 
   /**

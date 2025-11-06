@@ -2,12 +2,16 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
 import { formatEther, getAddress } from 'viem'
+import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
 import { Call } from '@ambire-common/libs/accountOp/types'
 import { randomId } from '@ambire-common/libs/humanizer/utils'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useRailgunControllerState from '@web/hooks/useRailgunControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import { RailgunAccount } from '@kohaku-eth/railgun'
+import { Interface } from 'ethers'
+
+const ERC20 = new Interface(["function transfer(address to, uint256 amount) external returns (bool)"]);
 
 /**
  * Hook for managing Railgun privacy protocol operations
@@ -17,6 +21,7 @@ const useRailgunForm = () => {
   const { dispatch } = useBackgroundService()
   const {
     chainId,
+    validationFormMsgs,
     hasProceeded,
     depositAmount,
     withdrawalAmount,
@@ -30,7 +35,8 @@ const useRailgunForm = () => {
     loadPrivateAccount,
     refreshPrivateAccount,
     defaultRailgunKeys,
-    railgunAccountsState
+    railgunAccountsState,
+    selectedToken
   } = useRailgunControllerState()
 
   const { account: userAccount, portfolio } = useSelectedAccountControllerState()
@@ -120,24 +126,36 @@ const useRailgunForm = () => {
     console.log('DEBUG: Deposit amount:', depositAmount)
     console.log('DEBUG: Chain ID:', chainId)
     console.log('DEBUG: User account:', userAccount?.addr)
+    console.log('DEBUG: selectedToken:', selectedToken)
     if (!defaultRailgunKeys) {
       console.log('DEBUG: No railgun keys found')
     } else {
       const railgunAccount = RailgunAccount.fromPrivateKeys(defaultRailgunKeys?.spendingKey, defaultRailgunKeys?.viewingKey, BigInt(chainId), defaultRailgunKeys?.shieldKeySigner);
 
-      const txData = await railgunAccount?.createNativeShieldTx(BigInt(depositAmount));
-      console.log('DEBUG: Created native shield tx:', txData)
+      const isEth = selectedToken?.address ? selectedToken.address.toString() === ZERO_ADDRESS : true;
+      const txData = isEth ? await railgunAccount?.createNativeShieldTx(BigInt(depositAmount)) : await railgunAccount?.createShieldTx(depositAmount, selectedToken.address);
 
-      // Normalize the Call object to match PrivacyPools format
-      // Ensures: to is checksummed, data is 0x-prefixed string, value is bigint
-      const call: Call = {
-        to: getAddress(txData.to), // Checksum the address
-        data: txData.data, // Already 0x-prefixed hex string from Railgun SDK
-        value: BigInt(txData.value), // Ensure bigint type
-        fromUserRequestId: randomId() // Required for proper action tracking
+      console.log('DEBUG: isETH?', isEth)
+      console.log('DEBUG: Created shield tx:', txData)
+
+      let calls: Call[] = [];
+      const requestId = randomId();
+      if (!isEth) {
+        calls.push({
+          to: getAddress(selectedToken.address),
+          data: ERC20.encodeFunctionData('transfer', [txData.to, depositAmount]),
+          value: BigInt(depositAmount),
+          fromUserRequestId: requestId
+        })
       }
+      calls.push({
+        to: getAddress(txData.to),
+        data: txData.data,
+        value: BigInt(txData.value),
+        fromUserRequestId: requestId
+      })
 
-      await syncSignAccountOp([call])
+      await syncSignAccountOp(calls)
       console.log('DEBUG: About to open estimation modal')
       openEstimationModalAndDispatch()
       console.log('DEBUG: Estimation modal opened')
@@ -198,6 +216,7 @@ const useRailgunForm = () => {
     totalPrivatePortfolio,
     ethPrivateBalance,
     isReadyToLoad,
+    validationFormMsgs,
     handleDeposit,
     handleMultipleRagequit,
     handleMultipleWithdrawal,

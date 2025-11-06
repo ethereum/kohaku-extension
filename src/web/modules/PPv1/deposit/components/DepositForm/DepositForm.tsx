@@ -2,8 +2,6 @@ import React, { ReactNode, useCallback, useEffect, useMemo, useState } from 'rea
 import { View } from 'react-native'
 
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
-import Select from '@common/components/Select'
-import { SelectValue } from '@common/components/Select/types'
 import Text from '@common/components/Text'
 import TokenIcon from '@common/components/TokenIcon'
 import { useTranslation } from '@common/config/localization'
@@ -52,6 +50,7 @@ const DepositForm = ({
   const { t } = useTranslation()
   const [displayAmount, setDisplayAmount] = useState('')
   const [selectedAccountAddr, setSelectedAccountAddr] = useState<string | null>(null)
+  const [mySelectedToken, setMySelectedToken] = useState<any>(null)
 
   // Filter out private account (zeroAddress)
   const regularAccounts = useMemo(
@@ -65,6 +64,11 @@ const DepositForm = ({
       setSelectedAccountAddr(selectedAccount.addr)
     }
   }, [selectedAccount, selectedAccountAddr])
+
+  // Set initial selected token
+  useEffect(() => {
+    setMySelectedToken(selectedToken)
+  }, [selectedToken])
 
   // Get ETH balance for the currently selected account
   // When user selects a different account in the dropdown, we immediately switch to it
@@ -157,24 +161,34 @@ const DepositForm = ({
 
   // Initialize selectedToken with default ETH token if not set
   useEffect(() => {
-    if (!selectedToken && portfolio?.isReadyToVisualize && ethBalance !== undefined) {
+    console.log('DEBUG: useEffect selectedToken init')
+    console.log('DEBUG: useEffect selectedToken init: privacyProvider', privacyProvider)
+    console.log('DEBUG: useEffect selectedToken init: chainId', chainId)
+    console.log('DEBUG: useEffect selectedToken init: ethBalance', ethBalance)
+    console.log('DEBUG: useEffect selectedToken init: portfolio?.isReadyToVisualize', portfolio?.isReadyToVisualize)
+    console.log('DEBUG: useEffect selectedToken init: selectedToken', mySelectedToken)
+    if (!mySelectedToken && portfolio?.isReadyToVisualize && ethBalance !== undefined) {
+      console.log('DEBUG: useEffect selectedToken init: defaultToken')
       const defaultToken = portfolio?.tokens.find(
         (token) => token.chainId === chainId && token.address === zeroAddress
       )
-      handleUpdateForm({ selectedToken: defaultToken, maxAmount: formatEther(ethBalance) })
+      const args = privacyProvider === 'railgun' ? { selectedToken: defaultToken } : { selectedToken: defaultToken, maxAmount: formatEther(ethBalance) }
+      handleUpdateForm(args)
     }
   }, [
-    selectedToken,
+    mySelectedToken,
     portfolio?.isReadyToVisualize,
     portfolio?.tokens,
     ethBalance,
     handleUpdateForm,
-    chainId
+    chainId,
+    privacyProvider
   ])
-  
+
   const handleProviderChange = (provider: SelectValue) => {
     setSelectedProvider(provider)
-    handleUpdateForm({ privacyProvider: provider.value })
+    setMySelectedToken(null)
+    handleUpdateForm({ privacyProvider: provider.value, selectedToken: null })
   }
 
   useEffect(() => {
