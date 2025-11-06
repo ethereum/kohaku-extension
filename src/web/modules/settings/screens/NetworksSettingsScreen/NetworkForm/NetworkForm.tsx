@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next'
 import { Pressable, View, ViewStyle } from 'react-native'
 
 import { getFeatures } from '@ambire-common/libs/networks/networks'
-import { getRpcProvider } from '@ambire-common/services/provider'
 import { isValidURL } from '@ambire-common/services/validations'
 import CopyIcon from '@common/assets/svg/CopyIcon'
 import Button from '@common/components/Button'
@@ -30,6 +29,7 @@ import {
   getAreDefaultsChanged,
   handleErrors
 } from '@web/modules/settings/screens/NetworksSettingsScreen/NetworkForm/helpers'
+import { getRpcProviderForUI } from '@web/services/provider'
 
 import getStyles from './styles'
 
@@ -257,10 +257,13 @@ const NetworkForm = ({
 
       try {
         if (!rpcUrl) throw new Error('No RPC URL provided')
-        const rpc = getRpcProvider({
-          rpcUrls: [rpcUrl],
-          chainId: chainId ? BigInt(chainId) : undefined
-        })
+        const rpc = getRpcProviderForUI(
+          {
+            rpcUrls: [rpcUrl],
+            chainId: chainId ? BigInt(chainId) : undefined
+          },
+          dispatch
+        )
         const network = await rpc.getNetwork()
         rpc.destroy()
 

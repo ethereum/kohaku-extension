@@ -22,7 +22,9 @@ import { createTab } from '@web/extension-services/background/webapi/tab'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 // import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import { sizeMultiplier } from '@web/modules/sign-account-op/components/TransactionSummary'
+import { getRpcProviderForUI } from '@web/services/provider'
 
+import useBackgroundService from '@web/hooks/useBackgroundService'
 // import RepeatTransaction from './RepeatTransaction'
 import StatusBadge from './StatusBadge'
 import getStyles from './styles'
@@ -48,6 +50,7 @@ const Footer: FC<Props> = ({
   size,
   timestamp
 }) => {
+  const { dispatch } = useBackgroundService()
   const { styles } = useTheme(getStyles)
   const { addToast } = useToast()
   const { networks } = useNetworksControllerState()
@@ -90,7 +93,7 @@ const Footer: FC<Props> = ({
     }
   }, [txnId, identifiedBy, addToast, chainId, t])
 
-  useEffect((): void => {
+  useEffect(() => {
     const feeTokenAddress = gasFeePayment?.inToken
     const nChainId =
       gasFeePayment?.feeTokenChainId ||
@@ -105,25 +108,36 @@ const Footer: FC<Props> = ({
     const tokenNetwork = networks.filter((n: Network) => n.chainId === nChainId)[0]
 
     const feeTokenAmount = gasFeePayment?.amount
-    if (!feeTokenAddress || !tokenNetwork || !feeTokenAmount) return
+    if (!feeTokenAddress || !tokenNetwork || !feeTokenAmount || !dispatch) return
+    const provider = getRpcProviderForUI(tokenNetwork, dispatch)
 
-    resolveAssetInfo(feeTokenAddress, tokenNetwork, ({ tokenInfo }) => {
-      if (!tokenInfo || !gasFeePayment?.amount) return
+    resolveAssetInfo(
+      feeTokenAddress,
+      tokenNetwork,
+      ({ tokenInfo }) => {
+        if (!tokenInfo || !gasFeePayment?.amount) return
 
-      const fee = parseFloat(formatUnits(feeTokenAmount, tokenInfo.decimals))
+        const fee = parseFloat(formatUnits(feeTokenAmount, tokenInfo.decimals))
 
-      setFeeFormattedValue(`${formatDecimals(fee)} ${tokenInfo.symbol}`)
-    }).catch((e) => {
+        setFeeFormattedValue(`${formatDecimals(fee)} ${tokenInfo.symbol}`)
+      },
+      provider
+    ).catch((e) => {
       console.error(e)
       setFeeFormattedValue('Unknown. Please check the explorer.')
     })
+
+    return () => {
+      if (provider && provider.destroy) provider.destroy()
+    }
   }, [
     networks,
     chainId,
     gasFeePayment?.feeTokenChainId,
     gasFeePayment?.amount,
     gasFeePayment?.inToken,
-    addToast
+    addToast,
+    dispatch
   ])
 
   const date = new Date(timestamp)
