@@ -15,9 +15,9 @@ import { entrypointAbi, privacyPoolAbi } from '../utils/abi'
 import {
   convertToAlgorithmFormat,
   generateAnonymitySetFromChain
-} from '../noteSelection/anonimitySet/anonymitySetGeneration'
-import { selectNotesForWithdrawal } from '../noteSelection/selectNotesForWithdrawal'
-import { getPoolAccountsFromResult } from '../noteSelection/helpers'
+} from '../sdk/noteSelection/anonimitySet/anonymitySetGeneration'
+import { selectNotesForWithdrawal } from '../sdk/noteSelection/selectNotesForWithdrawal'
+import { getPoolAccountsFromResult } from '../sdk/noteSelection/helpers'
 
 const usePrivacyPoolsForm = () => {
   const { dispatch } = useBackgroundService()
@@ -320,10 +320,6 @@ const usePrivacyPoolsForm = () => {
     userAccount?.addr
   ])
 
-  useEffect(() => {
-    handleUpdateForm({ batchSize: calculatedBatchSize })
-  }, [calculatedBatchSize, handleUpdateForm])
-
   const runNoteSelection = useCallback(async () => {
     try {
       const anonymitySetData = await generateAnonymitySetFromChain()
@@ -356,12 +352,6 @@ const usePrivacyPoolsForm = () => {
     }
   }, [poolAccounts, importedPrivateAccounts, withdrawalAmount])
 
-  // Update currentPrivateBalance whenever totalApprovedBalance changes
-  useEffect(() => {
-    const balanceString = formatEther(totalApprovedBalance.total)
-    handleUpdateForm({ currentPrivateBalance: balanceString })
-  }, [totalApprovedBalance.total, handleUpdateForm])
-
   const handleMultipleWithdrawal = useCallback(async () => {
     if (
       !poolInfo ||
@@ -373,19 +363,6 @@ const usePrivacyPoolsForm = () => {
     ) {
       throw new Error('Missing required data for withdrawal.')
     }
-
-    const approvedAccounts =
-      poolAccounts?.filter((account) => account.reviewStatus === 'approved') || []
-
-    const selectedPoolAccounts: PoolAccount[] = []
-    let remainingAmount = parseUnits(withdrawalAmount, 18)
-
-    approvedAccounts.forEach((account) => {
-      if (remainingAmount > 0n) {
-        selectedPoolAccounts.push(account)
-        remainingAmount -= account.balance
-      }
-    })
 
     const selectedPoolInfo = poolInfo
 
@@ -499,8 +476,6 @@ const usePrivacyPoolsForm = () => {
     accountService,
     userAccount,
     recipientAddress,
-    poolAccounts,
-    withdrawalAmount,
     relayerQuote?.data,
     getContext,
     runNoteSelection,
@@ -512,6 +487,16 @@ const usePrivacyPoolsForm = () => {
     generateWithdrawalProof,
     verifyWithdrawalProof
   ])
+
+  useEffect(() => {
+    handleUpdateForm({ batchSize: calculatedBatchSize })
+  }, [calculatedBatchSize, handleUpdateForm])
+
+  // Update currentPrivateBalance whenever totalApprovedBalance changes
+  useEffect(() => {
+    const balanceString = formatEther(totalApprovedBalance.total)
+    handleUpdateForm({ currentPrivateBalance: balanceString })
+  }, [totalApprovedBalance.total, handleUpdateForm])
 
   return {
     chainId,
