@@ -187,6 +187,13 @@ const AccountPersonalizeScreen = () => {
     }
   }, [isLoading, accountsToPersonalize.length, completed, dispatch])
 
+  // Generate railgun keys when accounts are loaded
+  useEffect(() => {
+    if (!isLoading && accountsToPersonalize.length && !completed) {
+      dispatch({ type: 'RAILGUN_CONTROLLER_GET_DEFAULT_RAILGUN_KEYS' })
+    }
+  }, [isLoading, accountsToPersonalize.length, completed, dispatch])
+
   // prevents showing accounts to personalize from prev sessions
   useEffect(() => {
     if (newlyAddedAccounts.length && accountPickerState.isInitialized) {

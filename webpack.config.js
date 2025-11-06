@@ -16,6 +16,8 @@ const { validateEnvVariables } = require('./scripts/validateEnv')
 const appJSON = require('./app.json')
 const AssetReplacePlugin = require('./plugins/AssetReplacePlugin')
 
+const IgnorePlugin = webpack.IgnorePlugin;
+
 const isWebkit = process.env.WEB_ENGINE?.startsWith('webkit')
 const isGecko = process.env.WEB_ENGINE === 'gecko'
 const isSafari = process.env.WEB_ENGINE === 'webkit-safari'
@@ -37,6 +39,18 @@ function processStyleGecko(content) {
 
 module.exports = async function (env, argv) {
   const config = await createExpoWebpackConfigAsync(env, argv)
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Added: pnpm/link friendliness & quieter caching logs
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Treat symlinked/local "file:" deps as real paths (prevents odd node_modules lookups)
+  config.resolve = config.resolve || {}
+  config.resolve.symlinks = false
+
+  // Silence "<w> Managed item ... isn't a directory or doesn't contain a package.json"
+  config.snapshot = config.snapshot || {}
+  config.snapshot.managedPaths = [/^(.+?[\\/]node_modules[\\/](?!\.pnpm))/]
+  config.snapshot.immutablePaths = [/^(.+?[\\/]node_modules[\\/]\.pnpm[\\/])/]
 
   function processManifest(content) {
     const manifest = JSON.parse(content.toString())
@@ -185,6 +199,9 @@ module.exports = async function (env, argv) {
 
   config.resolve.alias = {
     ...(config.resolve.alias || {}),
+    '@railgun-community/circuit-artifacts': false,
+    'dotenv': false,
+    'dotenv/config': false,
     '@ambire-common': path.resolve(__dirname, 'src/ambire-common/src'),
     '@contracts': path.resolve(__dirname, 'src/ambire-common/contracts'),
     '@ambire-common-v1': path.resolve(__dirname, 'src/ambire-common/v1'),
@@ -197,9 +214,14 @@ module.exports = async function (env, argv) {
   }
 
   config.resolve.fallback = {
+    // existing fallbacks you already have:
     stream: require.resolve('stream-browserify'),
-    crypto: require.resolve('crypto-browserify'),
+    crypto: false,
     fs: false,
+
+    // Added: explicitly avoid bundling Node's 'module' in web
+    module: false,
+
     // Add fallbacks for all missing viem test action files
     '../../actions/test/dumpState.js': false,
 
@@ -371,13 +393,41 @@ module.exports = async function (env, argv) {
       {
         from: require.resolve('@trezor/connect-webextension/build/trezor-connect-webextension.js'),
         to: 'vendor/trezor/trezor-connect-webextension.js'
+      },
+
+      // ────────────────────────────────────────────────────────────────────────
+      // Added: optional copying for proving assets (only if installed)
+      // These are skipped automatically when not present.
+      // ────────────────────────────────────────────────────────────────────────
+      {
+        from: 'node_modules/snarkjs/dist/*.wasm',
+        to: 'assets/snarkjs/[name][ext]',
+        noErrorOnMissing: true
+      },
+      {
+        from: 'node_modules/@railgun-community/circuit-artifacts/**/*',
+        to: 'assets/circuits/[name][ext]',
+        noErrorOnMissing: true
       }
     ]
 
     config.plugins = [
       ...defaultExpoConfigPlugins,
-      new NodePolyfillPlugin(),
+
+      // you already rely on this elsewhere; keep it
+      new NodePolyfillPlugin({excludeAliases: ['crypto', 'module', 'fs', 'path']}),
+
+      // Keep your existing global shims
       new webpack.ProvidePlugin({ Buffer: ['buffer', 'Buffer'], process: 'process' }),
+
+      // Added: define NODE_ENV for any conditional checks without requiring a global 'process'
+      new webpack.DefinePlugin({
+        'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
+        'process.env.REACT_APP_PIMLICO_API_KEY': JSON.stringify(process.env.REACT_APP_PIMLICO_API_KEY)
+      }),
+
+      new webpack.IgnorePlugin({resourceRegExp: /^dotenv(\/config)?$/,}),
+
       new HtmlWebpackPlugin({
         template: './src/web/public/index.html',
         filename: 'index.html',
@@ -526,6 +576,12 @@ module.exports = async function (env, argv) {
         Buffer: ['buffer', 'Buffer'],
         process: 'process'
       }),
+      new HtmlWebpackPlugin({
+        template: './src/benzin/public/index.html',
+        filename: 'index.html',
+        inject: 'body',
+        hash: true
+      }),
       new CopyPlugin({
         patterns: [
           {
@@ -634,3 +690,4 @@ module.exports = async function (env, argv) {
 
   throw new Error('Invalid WEBPACK_BUILD_OUTPUT_PATH')
 }
+

@@ -2,6 +2,8 @@ import React, { ReactNode, useCallback, useEffect, useMemo, useState } from 'rea
 import { View } from 'react-native'
 
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
+import Select from '@common/components/Select'
+import { SelectValue } from '@common/components/Select/types'
 import Text from '@common/components/Text'
 import TokenIcon from '@common/components/TokenIcon'
 import { useTranslation } from '@common/config/localization'
@@ -19,6 +21,7 @@ import { SelectValue } from '@common/components/Select/types'
 import Avatar from '@common/components/Avatar'
 import { isSmartAccount } from '@ambire-common/libs/account/account'
 import shortenAddress from '@ambire-common/utils/shortenAddress'
+import RailgunIcon from '@common/assets/svg/RailgunIcon'
 import SendToken from '../SendToken'
 import styles from './styles'
 
@@ -30,7 +33,8 @@ const DepositForm = ({
   formTitle,
   selectedToken,
   handleUpdateForm,
-  chainId
+  chainId,
+  privacyProvider
 }: {
   poolInfo?: PoolInfo
   depositAmount?: string
@@ -39,6 +43,7 @@ const DepositForm = ({
   formTitle: string | ReactNode
   handleUpdateForm: (params: { [key: string]: any }) => void
   chainId: bigint
+  privacyProvider?: string
 }) => {
   const { account: selectedAccount, portfolio: selectedAccountPortfolio } =
     useSelectedAccountControllerState()
@@ -65,9 +70,16 @@ const DepositForm = ({
   // When user selects a different account in the dropdown, we immediately switch to it
   const portfolio = selectedAccountPortfolio
 
-  const sepoliaEth = portfolio?.tokens?.find(
-    (token: any) => token.chainId === chainId && token.address === zeroAddress
+  const sepoliaEth = portfolio.tokens.find(
+    (token) => token.chainId === chainId && token.address === zeroAddress
   )
+  
+  const [selectedProvider, setSelectedProvider] = useState<SelectValue>(() => {
+    if (privacyProvider === 'railgun') {
+      return { value: 'railgun', label: t('Railgun') }
+    }
+    return { value: 'privacy-pools', label: t('Privacy Pools') }
+  })
 
   const ethBalance = sepoliaEth ? getTokenAmount(sepoliaEth) : 0n
 
@@ -159,6 +171,11 @@ const DepositForm = ({
     handleUpdateForm,
     chainId
   ])
+  
+  const handleProviderChange = (provider: SelectValue) => {
+    setSelectedProvider(provider)
+    handleUpdateForm({ privacyProvider: provider.value })
+  }
 
   useEffect(() => {
     if (depositAmount && depositAmount !== '0') {
@@ -172,31 +189,16 @@ const DepositForm = ({
     }
   }, [depositAmount])
 
-  if (!poolInfo) {
-    return (
-      <ScrollableWrapper contentContainerStyle={styles.container}>
-        <View style={spacings.mbLg}>
-          <Text appearance="secondaryText" fontSize={14} weight="regular" style={spacings.mbMi}>
-            {t('No privacy pool available on this chain. Please switch to Sepolia testnet.')}
-          </Text>
-        </View>
-      </ScrollableWrapper>
-    )
-  }
+  // Sync local provider state with parent privacyProvider prop
+  useEffect(() => {
+    if (privacyProvider === 'railgun') {
+      setSelectedProvider({ value: 'railgun', label: t('Railgun') })
+    } else {
+      setSelectedProvider({ value: 'privacy-pools', label: t('Privacy Pools') })
+    }
+  }, [privacyProvider, t])
 
-  const ethTokenIcon = (
-    <TokenIcon
-      key="eth-sepolia"
-      containerHeight={30}
-      containerWidth={30}
-      networkSize={12}
-      withContainer
-      withNetworkIcon
-      address={zeroAddress}
-      chainId={chainId}
-    />
-  )
-
+  // Move useMemo BEFORE the early return to comply with Rules of Hooks
   const vettingFeeEth = useMemo(() => {
     // Vetting Fee in PPv1 is 1% of the deposit amount
     let vettingFeeEthValue = '0'
@@ -210,6 +212,32 @@ const DepositForm = ({
     }
     return vettingFeeEthValue
   }, [depositAmount])
+
+  const ethTokenIcon = useMemo(() => (
+    <TokenIcon
+      key="eth-sepolia"
+      containerHeight={30}
+      containerWidth={30}
+      networkSize={12}
+      withContainer
+      withNetworkIcon
+      address={zeroAddress}
+      chainId={chainId}
+    />
+  ), [chainId])
+
+  // Only check for poolInfo when using Privacy Pools
+  if (privacyProvider === 'privacy-pools' && !poolInfo) {
+    return (
+      <ScrollableWrapper contentContainerStyle={styles.container}>
+        <View style={spacings.mbLg}>
+          <Text appearance="secondaryText" fontSize={14} weight="regular" style={spacings.mbMi}>
+            {t('No privacy pool available on this chain. Please switch to Sepolia testnet.')}
+          </Text>
+        </View>
+      </ScrollableWrapper>
+    )
+  }
 
   return (
     <ScrollableWrapper contentContainerStyle={styles.container}>
@@ -270,33 +298,63 @@ const DepositForm = ({
             {t('Provider')}
           </Text>
           <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-            <PrivacyIcon width={15} height={15} />
-            <Text fontSize={14} weight="light" style={spacings.mlMi}>
-              {t('Privacy Pools')}
-            </Text>
+            {/* Dropdown for selecting provider */}
+            <Select
+              options={[
+                {
+                  label: (
+                    <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+                      <PrivacyIcon width={15} height={15} />
+                      <Text fontSize={14} weight="light" style={spacings.mlMi}>
+                        {t('Privacy Pools')}
+                      </Text>
+                    </View>
+                  ),
+                  value: 'privacy-pools'
+                },
+                {
+                  label: (
+                    <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+                      <RailgunIcon width={15} height={15} />
+                      <Text fontSize={14} weight="light">
+                        {t('Railgun')}
+                      </Text>
+                    </View>
+                  ),
+                  value: 'railgun'
+                }
+              ]}
+              value={selectedProvider}
+              setValue={handleProviderChange}
+              selectStyle={{ minWidth: 150 }}
+              testID="provider-dropdown"
+            />
           </View>
         </View>
       </View>
 
-      <View style={spacings.mbLg}>
-        <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
-          <Text appearance="secondaryText" fontSize={14} weight="light">
-            {t('Vetting fee')}
-          </Text>
-          <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-            <TokenIcon
-              chainId={chainId}
-              address={zeroAddress}
-              width={20}
-              height={20}
-              withNetworkIcon={false}
-            />
-            <Text fontSize={14} weight="light" style={spacings.mlMi}>
-              {vettingFeeEth} ETH
+      {/* Only show vetting fee for Privacy Pools */}
+      {privacyProvider === 'privacy-pools' && (
+        <View style={spacings.mbLg}>
+          <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
+            <Text appearance="secondaryText" fontSize={14} weight="light">
+              {t('Vetting fee')}
             </Text>
+            <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+              <TokenIcon
+                chainId={chainId}
+                address={zeroAddress}
+                width={20}
+                height={20}
+                withNetworkIcon={false}
+              />
+              <Text fontSize={14} weight="light" style={spacings.mlMi}>
+                {vettingFeeEth} ETH
+              </Text>
+            </View>
           </View>
         </View>
-      </View>
+      )}
     </ScrollableWrapper>
   )
 }

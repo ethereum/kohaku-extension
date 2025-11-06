@@ -22,7 +22,7 @@ import InProgress from '@web/modules/sign-account-op/components/OneClick/TrackPr
 import useTrackAccountOp from '@web/modules/sign-account-op/hooks/OneClick/useTrackAccountOp'
 import DepositForm from '@web/modules/PPv1/deposit/components/DepositForm/DepositForm'
 import Buttons from '@web/modules/PPv1/deposit/components/Buttons'
-import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
+import useDepositForm from '@web/hooks/useDepositForm'
 import { getUiType } from '@web/utils/uiType'
 import flexbox from '@common/styles/utils/flexbox'
 import { Content } from '@web/components/TransactionsScreen'
@@ -55,8 +55,9 @@ function TransferScreen() {
     handleUpdateForm,
     closeEstimationModal,
     refreshPrivateAccount,
-    loadPrivateAccount
-  } = usePrivacyPoolsForm()
+    loadPrivateAccount,
+    privacyProvider
+  } = useDepositForm()
 
   const submittedAccountOp = useMemo(() => {
     if (!accountsOps.privacyPools || !latestBroadcastedAccountOp?.signature) return
@@ -142,6 +143,11 @@ function TransferScreen() {
     }
   }, [])
 
+  // Reset deposit amount when switching between providers
+  useEffect(() => {
+    handleUpdateForm({ depositAmount: '0' })
+  }, [privacyProvider, handleUpdateForm])
+
   const displayedView: 'transfer' | 'track' = useMemo(() => {
     if (latestBroadcastedAccountOp) return 'track'
 
@@ -165,42 +171,57 @@ function TransferScreen() {
   }, [dispatch])
 
   const handleBroadcastAccountOp = useCallback(() => {
+    const updateType = privacyProvider === 'railgun' ? 'Railgun' : 'PrivacyPools'
     dispatch({
       type: 'MAIN_CONTROLLER_HANDLE_SIGN_AND_BROADCAST_ACCOUNT_OP',
       params: {
-        updateType: 'PrivacyPools'
+        updateType
       }
     })
-  }, [dispatch])
+  }, [dispatch, privacyProvider])
 
   const handleUpdateStatus = useCallback(
     (status: SigningStatus) => {
+      const actionType =
+        privacyProvider === 'railgun'
+          ? 'RAILGUN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
+          : 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
       dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS',
+        type: actionType,
         params: {
           status
         }
       })
     },
-    [dispatch]
+    [dispatch, privacyProvider]
   )
 
   const updateController = useCallback(
     (params: { signingKeyAddr?: Key['addr']; signingKeyType?: Key['type'] }) => {
+      console.log('DEBUG: updateController called with params:', params, 'privacyProvider:', privacyProvider)
+      const actionType =
+        privacyProvider === 'railgun'
+          ? 'RAILGUN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
+          : 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
       dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE',
+        type: actionType,
         params
       })
     },
-    [dispatch]
+    [dispatch, privacyProvider]
   )
 
   const isTransferFormValid = useMemo(() => {
-    if (isLoading || !isAccountLoaded) return false
-    return (
-      !!(depositAmount && depositAmount !== '0' && poolInfo) && !validationFormMsgs.amount.message
-    )
-  }, [depositAmount, poolInfo, isLoading, isAccountLoaded])
+    // For Privacy Pools, we need poolInfo; for Railgun, we don't
+    if (privacyProvider === 'privacy-pools') {
+      if (isLoading || !isAccountLoaded) return false
+      return (
+        !!(depositAmount && depositAmount !== '0' && poolInfo) && !validationFormMsgs.amount.message
+      )
+    }
+    // For Railgun, just check deposit amount
+    return !!(depositAmount && depositAmount !== '0')
+  }, [depositAmount, poolInfo, isLoading, isAccountLoaded, privacyProvider])
 
   const onBack = useCallback(() => {
     dispatch({
@@ -208,31 +229,52 @@ function TransferScreen() {
     })
 
     navigate(ROUTES.dashboard)
+
+    // Reset hasProceeded for the currently selected controller when navigating back
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
+      params: {
+        proceeded: false
+      }
+    })
+    dispatch({
+      type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED',
+      params: {
+        proceeded: false
+      }
+    })
   }, [navigate, dispatch])
+
 
   const headerTitle = t('Deposit')
   const formTitle = t('Deposit')
 
   const proceedBtnText = useMemo(() => {
-    if (isLoading && !isAccountLoaded) return t('Loading account...')
+    if (isLoading && !isAccountLoaded && privacyProvider === 'privacy-pools') return t('Loading account...')
     return t('Deposit')
-  }, [isLoading, isAccountLoaded, t])
+  }, [isLoading, privacyProvider, isAccountLoaded, t])
+
+  // The wrapper hook (useDepositForm) handles routing to the correct protocol
+  // So we can just call handleDeposit directly - no routing needed here
+  const handleDepositWithRouting = useCallback(() => {
+    handleDeposit()
+  }, [handleDeposit])
 
   const buttons = useMemo(() => {
     return (
       <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
         <BackButton onPress={onBack} />
         <Buttons
-          handleSubmitForm={handleDeposit}
+          handleSubmitForm={handleDepositWithRouting}
           proceedBtnText={proceedBtnText}
           isNotReadyToProceed={!isTransferFormValid}
-          isLoading={isLoading}
+          isLoading={privacyProvider === 'privacy-pools' ? isLoading : false}
           signAccountOpErrors={[]}
           networkUserRequests={[]}
         />
       </View>
     )
-  }, [onBack, handleDeposit, proceedBtnText, isTransferFormValid, isLoading])
+  }, [onBack, handleDepositWithRouting, proceedBtnText, isTransferFormValid, isLoading])
 
   if (displayedView === 'track') {
     return (
@@ -241,6 +283,21 @@ function TransferScreen() {
         handleClose={() => {
           dispatch({
             type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+          })
+
+          // Reset hasProceeded for the currently selected controller
+          // to prevent double-click issue when depositing again
+          dispatch({
+            type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
+            params: {
+              proceeded: false
+            }
+          })
+          dispatch({
+            type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED',
+            params: {
+              proceeded: false
+            }
           })
         }}
       >
@@ -291,7 +348,7 @@ function TransferScreen() {
       </Content>
 
       <Estimation
-        updateType="PrivacyPools"
+        updateType={privacyProvider === 'railgun' ? 'Railgun' : 'PrivacyPools'}
         estimationModalRef={estimationModalRef}
         closeEstimationModal={closeEstimationModal}
         updateController={updateController}

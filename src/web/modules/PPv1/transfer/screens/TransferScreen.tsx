@@ -377,7 +377,7 @@ const TransferScreen = () => {
             controllerAmount={withdrawalAmount}
             totalApprovedBalance={totalApprovedBalance}
             updateQuoteStatus={updateQuoteStatus}
-            chainId={BigInt(chainId)}
+            chainId={chainId ? BigInt(chainId) : BigInt(1)}
           />
         </Form>
       </Content>

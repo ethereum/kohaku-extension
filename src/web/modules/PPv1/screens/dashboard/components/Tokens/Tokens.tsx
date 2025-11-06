@@ -3,12 +3,14 @@ import { useForm } from 'react-hook-form'
 import { Animated, FlatListProps, View } from 'react-native'
 
 import Text from '@common/components/Text'
+import Spinner from '@common/components/Spinner'
 import { useTranslation } from '@common/config/localization'
 import useTheme from '@common/hooks/useTheme'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { getUiType } from '@web/utils/uiType'
 import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
+import useRailgunForm from '@web/modules/railgun/hooks/useRailgunForm'
 
 import DashboardPageScrollContainer from '../DashboardPageScrollContainer'
 import TabsAndSearch from '../TabsAndSearch'
@@ -51,16 +53,17 @@ const Tokens = ({
   const searchValue = watch('search')
 
   const { ethPrice, totalApprovedBalance, isAccountLoaded, isReadyToLoad } = usePrivacyPoolsForm()
+  const { totalApprovedBalance: railgunTotalApprovedBalance, isAccountLoaded: railgunIsAccountLoaded, isReadyToLoad: railgunIsReadyToLoad } = useRailgunForm()
 
   // Create token-like objects for display - only approved tokens
   const privateTokens = useMemo(() => {
-    const tokens = []
+    const tokens: any[] = []
 
     if (totalApprovedBalance.total > 0n) {
       tokens.push({
         id: 'approved-eth',
         name: 'Ethereum',
-        symbol: 'ETH',
+        symbol: 'ETH (Privacy Pools)',
         amount: totalApprovedBalance.total.toString(),
         address: '0x0000000000000000000000000000000000000000',
         chainId: 11155111,
@@ -77,8 +80,29 @@ const Tokens = ({
       })
     }
 
+    if (railgunTotalApprovedBalance.total > 0n) {
+      tokens.push({
+        id: 'approved-railgun-eth',
+        name: 'Ethereum',
+        symbol: 'ETH (Railgun)',
+        amount: railgunTotalApprovedBalance.total.toString(),
+        address: '0x0000000000000000000000000000000000000000',
+        chainId: 11155111,
+        decimals: 18,
+        priceIn: [{ baseCurrency: 'usd', price: ethPrice }],
+        flags: {
+          onGasTank: false,
+          rewardsType: null,
+          canTopUpGasTank: false,
+          isHidden: false,
+          defiTokenType: null
+        },
+        accounts: railgunTotalApprovedBalance.accounts
+      })
+    }
+
     return tokens
-  }, [totalApprovedBalance, ethPrice])
+  }, [totalApprovedBalance, railgunTotalApprovedBalance, ethPrice])
 
   const filteredTokens = useMemo(() => {
     if (!searchValue) return privateTokens
@@ -89,6 +113,10 @@ const Tokens = ({
         token.symbol.toLowerCase().includes(searchValue.toLowerCase())
     )
   }, [privateTokens, searchValue])
+
+  // New: decide if we should show the Railgun loading row
+  const showRailgunLoadingRow =
+    railgunTotalApprovedBalance.total === 0n && !railgunIsAccountLoaded
 
   const renderItem = useCallback(
     ({ item, index }: any) => {
@@ -117,6 +145,23 @@ const Tokens = ({
                 {t('USD VALUE')}
               </Text>
             </View>
+          </View>
+        )
+      }
+
+      if (item === 'railgun-loading') {
+        return (
+          <View
+            style={[
+              spacings.pvTy,
+              spacings.phTy,
+              { alignItems: 'center', justifyContent: 'center' }
+            ]}
+          >
+            <Spinner style={{ width: 24, height: 24 }} />
+            <Text fontSize={14} style={spacings.mtXs}>
+              {t('Loading Railgun Balances...')}
+            </Text>
           </View>
         )
       }
@@ -154,7 +199,7 @@ const Tokens = ({
               fontSize={12}
               style={[spacings.phTy, { textAlign: 'center' }]}
             >
-              {t('Private balances from Privacy Pools')}
+              {t('Private balances from Privacy Pools and Railgun')}
             </Text>
           </View>
         ) : null
@@ -173,6 +218,7 @@ const Tokens = ({
     [
       initTab?.tokens,
       theme.primaryBackground,
+      theme.primaryText, // added for spinner color
       openTab,
       setOpenTab,
       control,
@@ -181,8 +227,7 @@ const Tokens = ({
       searchValue,
       dashboardNetworkFilterName,
       isAccountLoaded,
-      filteredTokens.length,
-      ethPrice
+      filteredTokens.length
     ]
   )
 
@@ -190,7 +235,6 @@ const Tokens = ({
     if (typeof tokenOrElement === 'string') {
       return tokenOrElement
     }
-
     return tokenOrElement.id
   }, [])
 
@@ -213,6 +257,7 @@ const Tokens = ({
           ? 'skeleton'
           : 'keep-this-to-avoid-key-warning-2',
         !filteredTokens.length && isAccountLoaded ? 'empty' : '',
+        ...(showRailgunLoadingRow ? (['railgun-loading'] as const) : []),
         'footer'
       ]}
       renderItem={renderItem}

@@ -19,7 +19,12 @@ declare module '@env' {
     ALCHEMY_API_KEY: string
     PRIVACY_POOLS_ASP_URL: string
     PRIVACY_POOLS_RELAYER_URL: string
+<<<<<<< HEAD
     HYPERSYNC_API_KEY: string
+=======
+    RAILGUN_RELAYER_URL: string
+    INFURA_API_KEY: string
+>>>>>>> 0b07ea290 (feat: add railgun)
   }
 
   /**
@@ -127,4 +132,13 @@ declare module '@env' {
    * The API key for sdk RPC (Hypersync from Envio)
    */
   export const HYPERSYNC_API_KEY: EnvTypes['HYPERSYNC_API_KEY']
+  
+  /** The Railgun Relayer URL
+   */
+  export const RAILGUN_RELAYER_URL: EnvTypes['RAILGUN_RELAYER_URL']
+
+  /**
+   * The Infura API key
+   */
+  export const INFURA_API_KEY: EnvTypes['INFURA_API_KEY']
 }

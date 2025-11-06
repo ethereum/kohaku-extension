@@ -20,6 +20,7 @@ import useHover, { AnimatedPressable } from '@web/hooks/useHover'
 import useMainControllerState from '@web/hooks/useMainControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
+import useRailgunForm from '@web/modules/railgun/hooks/useRailgunForm'
 
 import BalanceAffectingErrors from './BalanceAffectingErrors'
 import RefreshIcon from './RefreshIcon'
@@ -58,6 +59,8 @@ const DashboardOverview: FC<Props> = ({
   const { isLoading, isAccountLoaded, totalPrivatePortfolio, refreshPrivateAccount } =
     usePrivacyPoolsForm()
 
+  const { totalPrivatePortfolio: totalPrivatePortfolioRailgun, refreshPrivateAccount: refreshPrivateAccountRailgun } = useRailgunForm()
+
   const [bindRefreshButtonAnim, refreshButtonAnimStyle] = useHover({
     preset: 'opacity'
   })
@@ -71,8 +74,10 @@ const DashboardOverview: FC<Props> = ({
     networksWithErrors
   } = useBalanceAffectingErrors()
 
+  const totalPrivatePortfolioMixed = totalPrivatePortfolio + totalPrivatePortfolioRailgun;
+
   const [totalPrivatePortfolioInteger, totalPrivatePortfolioDecimal] = formatDecimals(
-    totalPrivatePortfolio,
+    totalPrivatePortfolioMixed,
     'value'
   ).split('.')
 
@@ -96,6 +101,11 @@ const DashboardOverview: FC<Props> = ({
       onGasTankButtonPositionWrapped(buttonPosition)
     }
   }, [buttonPosition, onGasTankButtonPositionWrapped])
+
+  const doRefreshPrivateAccounts = useCallback(() => {
+    refreshPrivateAccount(true)
+    refreshPrivateAccountRailgun()
+  }, [refreshPrivateAccount, refreshPrivateAccountRailgun])
 
   return (
     <View style={[spacings.phSm, spacings.mbMi]}>
@@ -183,7 +193,7 @@ const DashboardOverview: FC<Props> = ({
                   )}
                   <AnimatedPressable
                     style={[spacings.mlTy, refreshButtonAnimStyle]}
-                    onPress={() => refreshPrivateAccount(true)}
+                    onPress={doRefreshPrivateAccounts}
                     {...bindRefreshButtonAnim}
                     disabled={!portfolio?.isAllReady}
                     testID="refresh-button"

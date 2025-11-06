@@ -8,6 +8,7 @@ import {
   SIGN_ACCOUNT_OP_SWAP,
   SIGN_ACCOUNT_OP_TRANSFER,
   SIGN_ACCOUNT_OP_PRIVACY_POOLS,
+  SIGN_ACCOUNT_OP_RAILGUN,
   SignAccountOpType
 } from '@ambire-common/controllers/signAccountOp/helper'
 import { KeyIterator } from '@ambire-common/libs/keyIterator/keyIterator'
@@ -72,10 +73,16 @@ export const handleActions = async (
       } else if (params.controller === ('extensionUpdate' as any)) {
         pm.send('> ui', { method: 'extensionUpdate', params: extensionUpdateCtrl })
       } else {
+        const ctrl = (mainCtrl as any)[params.controller];
+        const payload =
+          ctrl && typeof ctrl.toJSON === 'function'
+            ? ctrl.toJSON()
+            : ctrl;
+    
         pm.send('> ui', {
           method: params.controller,
-          params: (mainCtrl as any)[params.controller]
-        })
+          params: payload,
+        });
       }
       break
     }
@@ -256,6 +263,8 @@ export const handleActions = async (
         signAccountOpType = SIGN_ACCOUNT_OP_SWAP
       } else if (params.updateType === 'PrivacyPools') {
         signAccountOpType = SIGN_ACCOUNT_OP_PRIVACY_POOLS
+      } else if (params.updateType === 'Railgun') {
+        signAccountOpType = SIGN_ACCOUNT_OP_RAILGUN
       } else {
         signAccountOpType = SIGN_ACCOUNT_OP_TRANSFER
       }
@@ -296,6 +305,10 @@ export const handleActions = async (
 
       if (params.updateType === 'PrivacyPools') {
         return mainCtrl?.privacyPools?.signAccountOpController?.update(params)
+      }
+
+      if (params.updateType === 'Railgun') {
+        return mainCtrl?.railgun?.signAccountOpController?.update(params)
       }
 
       // 'Transfer&TopUp'
@@ -445,6 +458,38 @@ export const handleActions = async (
     case 'PRIVACY_POOLS_CONTROLLER_ADD_IMPORTED_ACCOUNT_TO_ACTIVITY_CONTROLLER': {
       return await mainCtrl.privacyPools.addImportedAccountToActivityController(params.accountName)
     }
+    case 'RAILGUN_CONTROLLER_SDK_LOADED':
+      return mainCtrl.railgun.setSdkInitialized()
+    case 'RAILGUN_CONTROLLER_UPDATE_FORM':
+      return mainCtrl.railgun.update(params)
+    case 'RAILGUN_CONTROLLER_UNLOAD_SCREEN':
+      return mainCtrl.railgun.unloadScreen()
+    case 'RAILGUN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE':
+      return mainCtrl.railgun?.signAccountOpController?.update(params)
+    case 'RAILGUN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS':
+      return mainCtrl.railgun?.signAccountOpController?.updateStatus(params.status)
+    case 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED':
+      return mainCtrl.railgun.setUserProceeded(params.proceeded)
+    case 'RAILGUN_CONTROLLER_RESET_FORM':
+      return mainCtrl.railgun.resetForm()
+    case 'RAILGUN_CONTROLLER_DESTROY_SIGN_ACCOUNT_OP':
+      return mainCtrl.railgun.destroySignAccountOp()
+    case 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP':
+      return mainCtrl.railgun.destroyLatestBroadcastedAccountOp()
+    case 'RAILGUN_CONTROLLER_SYNC_SIGN_ACCOUNT_OP':
+      return mainCtrl.railgun.syncSignAccountOp(params.calls)
+    case 'RAILGUN_CONTROLLER_GET_DEFAULT_RAILGUN_KEYS':
+      console.log('[BG][RAILGUN] GET_DEFAULT_RAILGUN_KEYS action');
+      return mainCtrl.railgun.getDefaultRailgunKeys()
+    case 'RAILGUN_CONTROLLER_DERIVE_RAILGUN_KEYS':
+      console.log('[BG][RAILGUN] DERIVE_RAILGUN_KEYS action', params);
+      return mainCtrl.railgun.deriveRailgunKeys(params.index)
+    case 'RAILGUN_CONTROLLER_GET_ACCOUNT_CACHE':
+      console.log('[BG][RAILGUN] GET_ACCOUNT_CACHE action', params);
+      return mainCtrl.railgun.getRailgunAccountCache(params.zkAddress, params.chainId);
+    case 'RAILGUN_CONTROLLER_SET_ACCOUNT_CACHE':
+      console.log('[BG][RAILGUN] SET_ACCOUNT_CACHE action', params);
+      return mainCtrl.railgun.setRailgunAccountCache(params.zkAddress, params.chainId, params.cache)
     case 'ACTIONS_CONTROLLER_REMOVE_FROM_ACTIONS_QUEUE':
       return mainCtrl.requests.actions.removeActions([params.id], params.shouldOpenNextAction)
     case 'ACTIONS_CONTROLLER_FOCUS_ACTION_WINDOW':
