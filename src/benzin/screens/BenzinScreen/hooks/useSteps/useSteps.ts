@@ -584,7 +584,7 @@ const useSteps = ({
 
   // update the gas feePaidWith
   useEffect(() => {
-    if (feePaidWith || !network) return
+    if (feePaidWith || !network || !provider) return
 
     let isMounted = true
     let address: string | undefined
@@ -648,7 +648,8 @@ const useSteps = ({
           isSponsored,
           chainId: tokenChainId
         })
-      }
+      },
+      provider
     ).catch(() => {
       if (!isMounted) return
       setFeePaidWith({
@@ -665,7 +666,7 @@ const useSteps = ({
     return () => {
       isMounted = false
     }
-  }, [txnReceipt.actualGasCost, feePaidWith, feeCall, network, userOp, networks])
+  }, [txnReceipt.actualGasCost, feePaidWith, feeCall, network, userOp, networks, provider])
 
   useEffect(() => {
     if (!network) return

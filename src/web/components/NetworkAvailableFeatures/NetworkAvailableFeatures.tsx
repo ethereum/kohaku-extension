@@ -11,7 +11,7 @@ import { AMBIRE_ACCOUNT_FACTORY, SINGLETON } from '@ambire-common/consts/deploy'
 import { NetworkFeature } from '@ambire-common/interfaces/network'
 import { SignUserRequest } from '@ambire-common/interfaces/userRequest'
 import { isSmartAccount } from '@ambire-common/libs/account/account'
-import { getRpcProvider } from '@ambire-common/services/provider'
+import { getRpcProviderForUI } from '@web/services/provider'
 import CheckIcon from '@common/assets/svg/CheckIcon'
 import ErrorFilledIcon from '@common/assets/svg/ErrorFilledIcon'
 import InformationIcon from '@common/assets/svg/InformationIcon'
@@ -59,7 +59,7 @@ const NetworkAvailableFeatures = ({ chainId, features, withRetryButton, handleRe
     if (!selectedNetwork || selectedNetwork.areContractsDeployed || checkedDeploy) return
 
     setCheckedDeploy(true)
-    const provider = getRpcProvider(selectedNetwork)
+    const provider = getRpcProviderForUI(selectedNetwork, dispatch)
     provider
       .getCode(AMBIRE_ACCOUNT_FACTORY)
       .then((factoryCode: string) => {

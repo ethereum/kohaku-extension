@@ -4,12 +4,13 @@ import React, { FC, memo, useCallback, useEffect, useMemo, useState } from 'reac
 import { RPCProvider } from '@ambire-common/interfaces/provider'
 import { CollectionResult, TokenResult } from '@ambire-common/libs/portfolio'
 import { resolveAssetInfo } from '@ambire-common/services/assetInfo'
-import { getRpcProvider } from '@ambire-common/services/provider'
 import useBenzinNetworksContext from '@benzin/hooks/useBenzinNetworksContext'
 import SkeletonLoader from '@common/components/SkeletonLoader'
 import { useTranslation } from '@common/config/localization'
 import useToast from '@common/hooks/useToast'
 import { SPACING_TY } from '@common/styles/spacings'
+import { getRpcProviderForUI } from '@web/services/provider'
+import useBackgroundService from '@web/hooks/useBackgroundService'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 
@@ -42,6 +43,7 @@ const TokenOrNft: FC<Props> = ({
   }>({})
   const [provider, setProvider] = useState<RPCProvider | null>(null)
   const { portfolio } = useSelectedAccountControllerState()
+  const { dispatch } = useBackgroundService()
 
   const { t } = useTranslation()
   const { networks: controllerNetworks } = useNetworksControllerState()
@@ -58,18 +60,23 @@ const TokenOrNft: FC<Props> = ({
   useEffect(() => {
     if (!network) return
     const rpcUrl = network.selectedRpcUrl || network.rpcUrls[0]
-    if (!provider) setProvider(getRpcProvider({ ...network, rpcUrls: [rpcUrl] }))
+    if (!provider)
+      setProvider(getRpcProviderForUI({ ...network, rpcUrls: [rpcUrl] }, dispatch) as any)
     return () => {
       if (provider && provider.destroy) provider.destroy()
     }
-  }, [network, provider])
+  }, [network, provider, dispatch])
 
   const fetchFallbackNameIfNeeded = useCallback(
     async (_assetInfo: any) => {
       if (!network) return
       if (_assetInfo.nftInfo || _assetInfo.tokenInfo) return
       if (!provider) return
-      const contract = new Contract(address, ['function name() view returns(string)'], provider)
+      const contract = new Contract(
+        address,
+        ['function name() view returns(string)'],
+        provider as any
+      )
       const name = await contract.name().catch(console.error)
       setFallbackName(name)
     },
@@ -97,11 +104,16 @@ const TokenOrNft: FC<Props> = ({
     )
     if (tokenFromPortfolio || nftFromPortfolio)
       setAssetInfo({ tokenInfo: tokenFromPortfolio, nftInfo: nftFromPortfolio })
-    else if (network)
-      resolveAssetInfo(address, network, (_assetInfo: any) => {
-        setAssetInfo(_assetInfo)
-        fetchFallbackNameIfNeeded(_assetInfo).catch(console.error)
-      }).catch((e) => {
+    else if (network && provider)
+      resolveAssetInfo(
+        address,
+        network,
+        (_assetInfo: any) => {
+          setAssetInfo(_assetInfo)
+          fetchFallbackNameIfNeeded(_assetInfo).catch(console.error)
+        },
+        provider
+      ).catch((e) => {
         fetchFallbackNameIfNeeded({}).catch(console.error)
         console.error(e)
       })
@@ -114,7 +126,8 @@ const TokenOrNft: FC<Props> = ({
     portfolio?.tokens,
     t,
     addNetwork,
-    chainId
+    chainId,
+    provider
   ])
 
   if (!assetInfo.nftInfo && !assetInfo.tokenInfo)

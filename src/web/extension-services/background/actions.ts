@@ -921,6 +921,15 @@ type RailgunControllerSetAccountCacheAction = {
     cache: RailgunAccountCache
   }
 }
+type ProviderRpcRequestAction = {
+  type: 'PROVIDER_RPC_REQUEST'
+  params: {
+    requestId: string
+    chainId: bigint
+    method: string
+    params: any[]
+  }
+}
 
 export type Action =
   | UpdateNavigationUrl
@@ -946,7 +955,6 @@ export type Action =
   | MainControllerAddNetwork
   | KeystoreControllerUpdateKeyPreferencesAction
   | MainControllerUpdateNetworkAction
-  | MainControllerUpdateNetworksAction
   | MainControllerAccountPickerSetPageAction
   | MainControllerAccountPickerSetHdPathTemplateAction
   | MainControllerAccountPickerAddAccounts
@@ -1087,3 +1095,4 @@ export type Action =
   | RailgunControllerGetDefaultRailgunKeysAction
   | RailgunControllerGetAccountCacheAction
   | RailgunControllerSetAccountCacheAction
+  | ProviderRpcRequestAction

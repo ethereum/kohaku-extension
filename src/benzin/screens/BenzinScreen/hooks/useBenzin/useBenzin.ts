@@ -8,7 +8,6 @@ import {
 } from '@ambire-common/libs/accountOp/submittedAccountOp'
 import { relayerCall } from '@ambire-common/libs/relayerCall/relayerCall'
 import { getDefaultBundler } from '@ambire-common/services/bundlers/getBundler'
-import { getRpcProvider } from '@ambire-common/services/provider'
 import { getBenzinUrlParams } from '@ambire-common/utils/benzin'
 import useBenzinNetworksContext from '@benzin/hooks/useBenzinNetworksContext'
 import useSteps from '@benzin/screens/BenzinScreen/hooks/useSteps'
@@ -17,7 +16,9 @@ import useRoute from '@common/hooks/useRoute'
 import useToast from '@common/hooks/useToast'
 import { setStringAsync } from '@common/utils/clipboard'
 import { RELAYER_URL } from '@env'
+import useBackgroundService from '@web/hooks/useBackgroundService'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
+import { getRpcProviderForUI } from '@web/services/provider'
 
 const fetch = window.fetch.bind(window) as any
 const standardOptions = {
@@ -50,17 +51,28 @@ const useBenzin = ({ onOpenExplorer, extensionAccOp }: Props = {}) => {
     route?.search
   )
 
+  const { dispatch } = useBackgroundService()
   const { networks } = useNetworksControllerState()
   const { benzinNetworks, loadingBenzinNetworks = [], addNetwork } = useBenzinNetworksContext()
   const bigintChainId = BigInt(chainId || '') || 0n
   const actualNetworks = networks ?? benzinNetworks
   const areRelayerNetworksLoaded = actualNetworks && actualNetworks.length
   const network = actualNetworks.find((n) => n.chainId === bigintChainId) || null
-  const provider =
-    network && chainId ? getRpcProvider({ ...network, chainId: bigintChainId }) : null
+  const [provider, setProvider] = useState<any>(null)
   const isNetworkLoading = loadingBenzinNetworks.includes(bigintChainId)
   const [activeStep, setActiveStep] = useState<ActiveStepType>('signed')
   const isInitialized = !isNetworkLoading && areRelayerNetworksLoaded
+
+  useEffect(() => {
+    if (!network || !chainId) return
+    const rpcUrl = network.selectedRpcUrl || network.rpcUrls[0]
+    if (!provider) {
+      setProvider(getRpcProviderForUI({ ...network, rpcUrls: [rpcUrl] }, dispatch) as any)
+    }
+    return () => {
+      if (provider && provider.destroy) provider.destroy()
+    }
+  }, [network, chainId, provider, dispatch])
 
   const userOpBundler = useMemo(() => {
     if (bundler && allBundlers.includes(bundler)) return bundler as BUNDLER
