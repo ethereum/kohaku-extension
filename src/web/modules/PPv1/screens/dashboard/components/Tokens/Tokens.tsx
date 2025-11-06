@@ -18,6 +18,8 @@ import { TabType } from '../TabsAndSearch/Tabs/Tab/Tab'
 import TokenItem from './TokenItem'
 import Skeleton from './TokensSkeleton'
 
+const ETH_ADDRESS = '0x0000000000000000000000000000000000000000';
+
 interface Props {
   openTab: TabType
   setOpenTab: React.Dispatch<React.SetStateAction<TabType>>
@@ -53,7 +55,7 @@ const Tokens = ({
   const searchValue = watch('search')
 
   const { ethPrice, totalApprovedBalance, isAccountLoaded, isReadyToLoad } = usePrivacyPoolsForm()
-  const { totalApprovedBalance: railgunTotalApprovedBalance, isAccountLoaded: railgunIsAccountLoaded, isReadyToLoad: railgunIsReadyToLoad } = useRailgunForm()
+  const { totalApprovedBalance: railgunTotalApprovedBalance, isAccountLoaded: railgunIsAccountLoaded, totalPrivateBalancesFormatted } = useRailgunForm()
 
   // Create token-like objects for display - only approved tokens
   const privateTokens = useMemo(() => {
@@ -79,30 +81,33 @@ const Tokens = ({
         accounts: totalApprovedBalance.accounts
       })
     }
-
-    if (railgunTotalApprovedBalance.total > 0n) {
-      tokens.push({
-        id: 'approved-railgun-eth',
-        name: 'Ethereum',
-        symbol: 'ETH (Railgun)',
-        amount: railgunTotalApprovedBalance.total.toString(),
-        address: '0x0000000000000000000000000000000000000000',
-        chainId: 11155111,
-        decimals: 18,
-        priceIn: [{ baseCurrency: 'usd', price: ethPrice }],
-        flags: {
-          onGasTank: false,
-          rewardsType: null,
-          canTopUpGasTank: false,
-          isHidden: false,
-          defiTokenType: null
-        },
-        accounts: railgunTotalApprovedBalance.accounts
-      })
-    }
+    Object.entries(totalPrivateBalancesFormatted).forEach(([tokenAddress, tokenInfo]) => {
+      if (
+        tokenInfo.amount !== '0'
+      ) {
+        tokens.push({
+          id: `approved-railgun-${tokenInfo.symbol.toLowerCase()}`,
+          name: tokenInfo.name,
+          symbol: `${tokenInfo.symbol} (Railgun)`,
+          amount: tokenInfo.amount,
+          address: tokenAddress,
+          chainId: 11155111,
+          decimals: tokenInfo.decimals,
+          priceIn: [{ baseCurrency: 'usd', price: tokenAddress === ETH_ADDRESS ? ethPrice : undefined }],
+          flags: {
+            onGasTank: false,
+            rewardsType: null,
+            canTopUpGasTank: false,
+            isHidden: false,
+            defiTokenType: null
+          },
+          accounts: []
+        });
+      }
+    });
 
     return tokens
-  }, [totalApprovedBalance, railgunTotalApprovedBalance, ethPrice])
+  }, [totalApprovedBalance, totalPrivateBalancesFormatted, ethPrice])
 
   const filteredTokens = useMemo(() => {
     if (!searchValue) return privateTokens
@@ -115,8 +120,7 @@ const Tokens = ({
   }, [privateTokens, searchValue])
 
   // New: decide if we should show the Railgun loading row
-  const showRailgunLoadingRow =
-    railgunTotalApprovedBalance.total === 0n && !railgunIsAccountLoaded
+  const showRailgunLoadingRow = !railgunIsAccountLoaded
 
   const renderItem = useCallback(
     ({ item, index }: any) => {

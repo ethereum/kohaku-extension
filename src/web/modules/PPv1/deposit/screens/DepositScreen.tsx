@@ -60,12 +60,19 @@ function TransferScreen() {
   } = useDepositForm()
 
   const submittedAccountOp = useMemo(() => {
-    if (!accountsOps.privacyPools || !latestBroadcastedAccountOp?.signature) return
+    if (!latestBroadcastedAccountOp?.signature) return
 
-    return accountsOps.privacyPools.result.items.find(
+    // For Railgun, transactions are stored in accountsOps.transfer
+    // For Privacy Pools, they're stored in accountsOps.privacyPools
+    const accountsOpsSource =
+      privacyProvider === 'railgun' ? accountsOps.transfer : accountsOps.privacyPools
+
+    if (!accountsOpsSource) return
+
+    return accountsOpsSource.result.items.find(
       (accOp) => accOp.signature === latestBroadcastedAccountOp?.signature
     )
-  }, [accountsOps.privacyPools, latestBroadcastedAccountOp?.signature])
+  }, [accountsOps.privacyPools, accountsOps.transfer, latestBroadcastedAccountOp?.signature, privacyProvider])
 
   const handleGoBack = useCallback(() => {
     navigate(ROUTES.dashboard)
@@ -83,15 +90,27 @@ function TransferScreen() {
       navigate(ROUTES.dashboard)
     }
 
-    dispatch({
-      type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN'
-    })
-  }, [dispatch, navigate])
+    // Unload the appropriate controller based on privacy provider
+    if (privacyProvider === 'railgun') {
+      dispatch({
+        type: 'RAILGUN_CONTROLLER_UNLOAD_SCREEN'
+      })
+    } else {
+      dispatch({
+        type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN'
+      })
+    }
+  }, [dispatch, navigate, privacyProvider])
+
+  // Use 'transfer' sessionId for Railgun, 'privacyPools' for Privacy Pools
+  const sessionId = useMemo(() => {
+    return privacyProvider === 'railgun' ? 'transfer' : 'privacyPools'
+  }, [privacyProvider])
 
   const { sessionHandler, onPrimaryButtonPress } = useTrackAccountOp({
     address: latestBroadcastedAccountOp?.accountAddr,
     chainId: latestBroadcastedAccountOp?.chainId,
-    sessionId: 'privacyPools',
+    sessionId,
     submittedAccountOp,
     navigateOut
   })
@@ -274,14 +293,74 @@ function TransferScreen() {
     )
   }, [onBack, handleDeposit, proceedBtnText, isTransferFormValid, isLoading])
 
+  // Create a wrapper for onPrimaryButtonPress that ensures navigation happens
+  // This must be defined before conditional returns to comply with Rules of Hooks
+  const handlePrimaryButtonPress = useCallback(() => {
+    // If transaction is successful, navigate immediately
+    // The banner hiding logic in onPrimaryButtonPress might not work reliably
+    if (
+      submittedAccountOp &&
+      (submittedAccountOp.status === AccountOpStatus.Success ||
+        submittedAccountOp.status === AccountOpStatus.UnknownButPastNonce)
+    ) {
+      // Hide the banner first
+      dispatch({
+        type: 'ACTIVITY_CONTROLLER_HIDE_BANNER',
+        params: {
+          ...submittedAccountOp,
+          addr: submittedAccountOp.accountAddr
+        }
+      })
+      
+      // Clean up state before navigating - use the appropriate controller based on provider
+      if (privacyProvider === 'railgun') {
+        dispatch({
+          type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+        })
+      } else {
+        dispatch({
+          type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+        })
+      }
+      
+      // Reset hasProceeded for the currently selected controller
+      // to prevent double-click issue when depositing again
+      dispatch({
+        type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
+        params: {
+          proceeded: false
+        }
+      })
+      dispatch({
+        type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED',
+        params: {
+          proceeded: false
+        }
+      })
+      
+      // Navigate immediately instead of waiting for the flag
+      navigateOut()
+    } else {
+      // For other states, use the original logic
+      onPrimaryButtonPress()
+    }
+  }, [submittedAccountOp, dispatch, navigateOut, onPrimaryButtonPress, privacyProvider])
+
   if (displayedView === 'track') {
     return (
       <TrackProgress
-        onPrimaryButtonPress={onPrimaryButtonPress}
+        onPrimaryButtonPress={handlePrimaryButtonPress}
         handleClose={() => {
-          dispatch({
-            type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-          })
+          // Clean up the appropriate controller based on provider
+          if (privacyProvider === 'railgun') {
+            dispatch({
+              type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+            })
+          } else {
+            dispatch({
+              type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+            })
+          }
 
           // Reset hasProceeded for the currently selected controller
           // to prevent double-click issue when depositing again

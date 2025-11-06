@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import { useCallback, useMemo, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
-import { formatEther, getAddress } from 'viem'
+import { formatEther, formatUnits, getAddress } from 'viem'
 import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
 import { Call } from '@ambire-common/libs/accountOp/types'
 import { randomId } from '@ambire-common/libs/humanizer/utils'
@@ -11,8 +11,8 @@ import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountCont
 import { RailgunAccount } from '@kohaku-eth/railgun'
 import { Interface } from 'ethers'
 
-const ERC20 = new Interface(["function transfer(address to, uint256 amount) external returns (bool)"]);
-
+const ERC20 = new Interface(["function approve(address spender, uint256 amount) external returns (bool)"]);
+const ETH_ADDRESS = '0x0000000000000000000000000000000000000000';
 /**
  * Hook for managing Railgun privacy protocol operations
  * Handles deposits, withdrawals, and form state specific to Railgun
@@ -48,14 +48,42 @@ const useRailgunForm = () => {
         ?.priceIn.find((price) => price.baseCurrency === 'usd')?.price
     : undefined
 
-  // Railgun doesn't use pool accounts like Privacy Pools
-  // These are placeholder values to maintain interface compatibility
   const totalApprovedBalance = useMemo(() => {
-    if (railgunAccountsState.balances.length !== 0) {
-      return { total: BigInt(railgunAccountsState.balances[0].amount), accounts: []}
+    if (railgunAccountsState.balances.length > 0) {
+      let balance = BigInt(0);
+      for (const bal of railgunAccountsState.balances) {
+        if (bal.tokenAddress === ETH_ADDRESS) {
+          balance += BigInt(bal.amount);
+        }
+      }
+      return { total: balance, accounts: []}
     }
     return { total: 0n, accounts: [] }
   }, [railgunAccountsState])
+
+  const totalPrivateBalancesFormatted = useMemo(() => {
+    const railgunBalances = railgunAccountsState.balances;
+    const balanceMap: Record<string, { amount: string; decimals: number; symbol: string; name: string }> = {};
+    
+    for (const balance of railgunBalances) {
+      // Find the token in portfolio to get decimals
+      const token = portfolio.tokens.find(
+        (t) => 
+          t.chainId === BigInt(chainId || 0) && 
+          t.address.toLowerCase() === balance.tokenAddress.toLowerCase()
+      );
+      
+      // Format the balance using formatUnits
+      balanceMap[balance.tokenAddress] = { 
+        amount: balance.amount,
+        decimals: token?.decimals ?? 18,
+        symbol: token?.symbol ?? '-',
+        name: token?.name ?? '-',
+      };
+    }
+    
+    return balanceMap;
+  }, [railgunAccountsState, portfolio.tokens, chainId])
 
   const totalPendingBalance = useMemo(() => {
     return { total: 0n, accounts: [] }
@@ -132,8 +160,10 @@ const useRailgunForm = () => {
     } else {
       const railgunAccount = RailgunAccount.fromPrivateKeys(defaultRailgunKeys?.spendingKey, defaultRailgunKeys?.viewingKey, BigInt(chainId), defaultRailgunKeys?.shieldKeySigner);
 
-      const isEth = selectedToken?.address ? selectedToken.address.toString() === ZERO_ADDRESS : true;
-      const txData = isEth ? await railgunAccount?.createNativeShieldTx(BigInt(depositAmount)) : await railgunAccount?.createShieldTx(depositAmount, selectedToken.address);
+      console.log("try IsEth");
+      const isEth = selectedToken?.address ? selectedToken.address === ZERO_ADDRESS : true;
+      console.log("IsEth:", isEth)
+      const txData = isEth ? await railgunAccount?.createNativeShieldTx(BigInt(depositAmount)) : await railgunAccount?.createShieldTx(selectedToken.address, BigInt(depositAmount));
 
       console.log('DEBUG: isETH?', isEth)
       console.log('DEBUG: Created shield tx:', txData)
@@ -143,15 +173,15 @@ const useRailgunForm = () => {
       if (!isEth) {
         calls.push({
           to: getAddress(selectedToken.address),
-          data: ERC20.encodeFunctionData('transfer', [txData.to, depositAmount]),
-          value: BigInt(depositAmount),
+          data: ERC20.encodeFunctionData('approve', [txData.to, depositAmount]),
+          value: BigInt(0),
           fromUserRequestId: requestId
         })
       }
       calls.push({
         to: getAddress(txData.to),
         data: txData.data,
-        value: BigInt(txData.value),
+        value: isEth ? BigInt(txData.value) : BigInt(0),
         fromUserRequestId: requestId
       })
 
@@ -211,6 +241,7 @@ const useRailgunForm = () => {
     isRefreshing,
     isAccountLoaded,
     totalApprovedBalance,
+    totalPrivateBalancesFormatted,
     totalPendingBalance,
     totalDeclinedBalance,
     totalPrivatePortfolio,

@@ -68,6 +68,10 @@ const DERIVED_KEYS_GLOBAL_START_BLOCKS = {
   '11155111': 9342029,
 }
 
+const WETH_ADDRESSES = {
+  '11155111': '0x97a36608DA67AF0A79e50cb6343f86F340B3b49e',
+}
+
 const getInfuraProvider = (chainId: number, infuraApiKey: string) => {
   const name = NETWORK_NAMES[chainId.toString() as keyof typeof NETWORK_NAMES]
   const tmpl = INFURA_URL_TEMPLATES[chainId.toString() as keyof typeof INFURA_URL_TEMPLATES]
@@ -495,7 +499,7 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
     try {
       const tracked = DEFAULT_TRACKED_ACCOUNTS
       const newAccountsMeta: TrackedRailgunAccount[] = []
-      const balancesForAggregation: RailgunBalance[] = []
+      const balancesForAggregation: RailgunBalance[][] = []
 
       let earliestLastSyncedBlock: number = 0;
 
@@ -571,40 +575,66 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
         }
 
         // NOTE: only works for one native token balancefor now
-        const nativeBalance = await account.getBalance();
-        console.log('[RailgunContext - LPA] get balance', nativeBalance)
-        const balance = { tokenAddress: ETH_ADDRESS, amount: nativeBalance.toString() };
+        const notes = account.serializeNoteBooks();
+        const weth = WETH_ADDRESSES[chainId.toString() as keyof typeof WETH_ADDRESSES];
+        const tokens = Array.from(
+          new Set(
+            notes
+              .flat()
+              .map((note) => note ? note.tokenData.tokenAddress : undefined)
+              .filter((token) => token !== undefined)
+          )
+        );
+        const balances = [];
+        for (const token of tokens) {
+          const balance = await account.getBalance(token);
+          balances.push({ tokenAddress: token === weth ? ETH_ADDRESS : token, amount: balance.toString() });
+        }
 
         newAccountsMeta.push({
           id: zkAddress,
           kind: 'derived',
           index: item.index,
           zkAddress,
-          balances: [balance],
+          balances: balances,
           lastSyncedBlock: toBlock,
         } as TrackedRailgunAccount)
 
-        balancesForAggregation.push(balance)
+        balancesForAggregation.push(balances)
         console.log('[RailgunContext - LPA] completed account run', item);
       }
 
       console.log('[RailgunContext - LPA] completed all accounts runs');
 
-      // NOTE: only works for one native token balancefor now
-      let amount = BigInt(0);
-      for (const balance of balancesForAggregation) {
-        amount += BigInt(balance.amount);
+      // Efficiently aggregate balances by tokenAddress across all accounts
+      const aggregateMap: { [tokenAddress: string]: bigint } = {};
+
+      for (const accountBalances of balancesForAggregation) {
+        for (const bal of accountBalances) {
+          const addr = bal.tokenAddress;
+          // parse as bigint for accurate sum
+          const amountBig = BigInt(bal.amount);
+          if (!aggregateMap[addr]) {
+            aggregateMap[addr] = amountBig;
+          } else {
+            aggregateMap[addr] += amountBig;
+          }
+        }
       }
 
-      const aggregatedBalance = { tokenAddress: ETH_ADDRESS, amount: amount.toString() };
-      console.log('[RailgunContext - LPA] aggregated balance', aggregatedBalance);
+      const aggregatedBalances: RailgunBalance[] = Object.entries(aggregateMap).map(
+        ([tokenAddress, amountBig]) => ({
+          tokenAddress,
+          amount: amountBig.toString(),
+        })
+      );
 
       isRunningRef.current = false
       lastRunTimeRef.current = Date.now() // Record completion time
       setRailgunAccountsState((prev) => ({
         ...prev,
         status: 'ready',
-        balances: [aggregatedBalance],
+        balances: aggregatedBalances,
         accounts: newAccountsMeta,
         lastSyncedBlock: earliestLastSyncedBlock,
       }))

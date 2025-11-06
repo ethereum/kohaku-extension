@@ -10,7 +10,8 @@ import flexbox from '@common/styles/utils/flexbox'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
-import { formatEther, parseEther, zeroAddress } from 'viem'
+import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
+import { formatEther, parseEther, formatUnits, parseUnits, zeroAddress } from 'viem'
 import { PoolInfo } from '@ambire-common/controllers/privacyPools/config'
 import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
 import PrivacyIcon from '@common/assets/svg/PrivacyIcon'
@@ -20,6 +21,8 @@ import Avatar from '@common/components/Avatar'
 import { isSmartAccount } from '@ambire-common/libs/account/account'
 import shortenAddress from '@ambire-common/utils/shortenAddress'
 import RailgunIcon from '@common/assets/svg/RailgunIcon'
+import useGetTokenSelectProps from '@common/hooks/useGetTokenSelectProps/useGetTokenSelectProps'
+import { getTokenId } from '@web/utils/token'
 import SendToken from '../SendToken'
 import styles from './styles'
 
@@ -46,6 +49,7 @@ const DepositForm = ({
   const { account: selectedAccount, portfolio: selectedAccountPortfolio } =
     useSelectedAccountControllerState()
   const { accounts } = useAccountsControllerState()
+  const { networks } = useNetworksControllerState()
   const { dispatch } = useBackgroundService()
   const { t } = useTranslation()
   const [displayAmount, setDisplayAmount] = useState('')
@@ -70,14 +74,51 @@ const DepositForm = ({
     setMySelectedToken(selectedToken)
   }, [selectedToken])
 
-  // Get ETH balance for the currently selected account
+  // Get portfolio for the currently selected account
   // When user selects a different account in the dropdown, we immediately switch to it
   const portfolio = selectedAccountPortfolio
 
-  const sepoliaEth = portfolio.tokens.find(
-    (token) => token.chainId === chainId && token.address === zeroAddress
-  )
-  
+  // Get all tokens from portfolio that match the chainId
+  const availableTokens = useMemo(() => {
+    if (!portfolio?.tokens || !networks) return []
+    
+    return portfolio.tokens.filter((token) => {
+      // Filter by chainId
+      if (token.chainId !== chainId) return false
+      
+      // Exclude gas tank tokens and rewards tokens
+      if (token.flags.onGasTank || token.flags.rewardsType) return false
+      
+      // Include tokens with balance > 0 or native token
+      const hasAmount = getTokenAmount(token) > 0n
+      const isNative = token.address === zeroAddress
+      
+      return hasAmount || isNative
+    })
+  }, [portfolio?.tokens, chainId, networks])
+
+  // Get the currently selected token from portfolio
+  const currentSelectedToken = useMemo(() => {
+    if (!mySelectedToken || !portfolio?.tokens) return null
+    
+    return portfolio.tokens.find(
+      (token) =>
+        token.chainId === mySelectedToken.chainId &&
+        token.address.toLowerCase() === mySelectedToken.address.toLowerCase()
+    ) || null
+  }, [mySelectedToken, portfolio?.tokens])
+
+  // Build token select options using useGetTokenSelectProps
+  const {
+    options: tokenOptions,
+    value: tokenSelectValue
+  } = useGetTokenSelectProps({
+    tokens: availableTokens,
+    token: currentSelectedToken ? getTokenId(currentSelectedToken) : '',
+    networks: networks || [],
+    isToToken: false
+  })
+
   const [selectedProvider, setSelectedProvider] = useState<SelectValue>(() => {
     if (privacyProvider === 'railgun') {
       return { value: 'railgun', label: t('Railgun') }
@@ -85,7 +126,11 @@ const DepositForm = ({
     return { value: 'privacy-pools', label: t('Privacy Pools') }
   })
 
-  const ethBalance = sepoliaEth ? getTokenAmount(sepoliaEth) : 0n
+  // Get balance for the currently selected token
+  const selectedTokenBalance = useMemo(() => {
+    if (!currentSelectedToken) return 0n
+    return getTokenAmount(currentSelectedToken)
+  }, [currentSelectedToken])
 
   // Create account options for the selector
   const accountOptions: SelectValue[] = useMemo(() => {
@@ -122,66 +167,98 @@ const DepositForm = ({
     [handleUpdateForm, selectedAccount?.addr, dispatch]
   )
 
-  const handleSetMaxAmount = () => {
-    if (ethBalance && ethBalance > 0n) {
-      const formattedAmount = formatEther(ethBalance)
-      setDisplayAmount(formattedAmount)
-      handleUpdateForm({ depositAmount: parseEther(formattedAmount).toString() })
-    } else {
+  const handleChangeFromToken = useCallback(
+    (value: SelectValue) => {
+      const tokenId = value.value as string
+      const tokenToSelect = availableTokens.find((token) => getTokenId(token) === tokenId)
+      
+      if (tokenToSelect) {
+        setMySelectedToken(tokenToSelect)
+        // Reset amount when changing tokens
+        setDisplayAmount('')
+        handleUpdateForm({ selectedToken: tokenToSelect, depositAmount: '0' })
+      }
+    },
+    [availableTokens, handleUpdateForm]
+  )
+
+  const handleSetMaxAmount = useCallback(() => {
+    if (!currentSelectedToken || selectedTokenBalance <= 0n) {
       setDisplayAmount('')
       handleUpdateForm({ depositAmount: '0' })
+      return
     }
-  }
 
-  const handleAmountChange = (inputValue: string) => {
-    setDisplayAmount(inputValue)
+    const decimals = currentSelectedToken.decimals || 18
+    const formattedAmount = formatUnits(selectedTokenBalance, decimals)
+    setDisplayAmount(formattedAmount)
+    
+    // Store the amount in the smallest unit (wei for ETH, or token's smallest unit)
+    handleUpdateForm({ depositAmount: selectedTokenBalance.toString() })
+  }, [currentSelectedToken, selectedTokenBalance, handleUpdateForm])
 
-    try {
-      if (inputValue === '') {
+  const handleAmountChange = useCallback(
+    (inputValue: string) => {
+      setDisplayAmount(inputValue)
+
+      if (!currentSelectedToken) {
         handleUpdateForm({ depositAmount: '0' })
         return
       }
 
-      if (inputValue.endsWith('.') || inputValue === '0.' || /^\d*\.0*$/.test(inputValue)) {
-        return
-      }
+      try {
+        if (inputValue === '') {
+          handleUpdateForm({ depositAmount: '0' })
+          return
+        }
 
-      const numValue = parseFloat(inputValue)
-      if (Number.isNaN(numValue) || numValue < 0) {
-        return
-      }
+        if (inputValue.endsWith('.') || inputValue === '0.' || /^\d*\.0*$/.test(inputValue)) {
+          return
+        }
 
-      const weiAmount = parseEther(inputValue)
-      handleUpdateForm({ depositAmount: weiAmount.toString() })
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.warn('Invalid ETH amount entered:', inputValue)
-    }
-  }
+        const numValue = parseFloat(inputValue)
+        if (Number.isNaN(numValue) || numValue < 0) {
+          return
+        }
+
+        const decimals = currentSelectedToken.decimals || 18
+        const tokenAmount = parseUnits(inputValue, decimals)
+        handleUpdateForm({ depositAmount: tokenAmount.toString() })
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.warn('Invalid token amount entered:', inputValue)
+      }
+    },
+    [currentSelectedToken, handleUpdateForm]
+  )
 
   // Initialize selectedToken with default ETH token if not set
   useEffect(() => {
-    console.log('DEBUG: useEffect selectedToken init')
-    console.log('DEBUG: useEffect selectedToken init: privacyProvider', privacyProvider)
-    console.log('DEBUG: useEffect selectedToken init: chainId', chainId)
-    console.log('DEBUG: useEffect selectedToken init: ethBalance', ethBalance)
-    console.log('DEBUG: useEffect selectedToken init: portfolio?.isReadyToVisualize', portfolio?.isReadyToVisualize)
-    console.log('DEBUG: useEffect selectedToken init: selectedToken', mySelectedToken)
-    if (!mySelectedToken && portfolio?.isReadyToVisualize && ethBalance !== undefined) {
-      console.log('DEBUG: useEffect selectedToken init: defaultToken')
-      const defaultToken = portfolio?.tokens.find(
-        (token) => token.chainId === chainId && token.address === zeroAddress
-      )
-      const args = privacyProvider === 'railgun' ? { selectedToken: defaultToken } : { selectedToken: defaultToken, maxAmount: formatEther(ethBalance) }
-      handleUpdateForm(args)
+    if (!mySelectedToken && portfolio?.isReadyToVisualize && availableTokens.length > 0) {
+      // Default to native token (ETH) if available, otherwise use first token
+      const defaultToken =
+        availableTokens.find((token) => token.address === zeroAddress) || availableTokens[0]
+      
+      if (defaultToken) {
+        const defaultTokenBalance = getTokenAmount(defaultToken)
+        const args =
+          privacyProvider === 'railgun'
+            ? { selectedToken: defaultToken }
+            : {
+                selectedToken: defaultToken,
+                maxAmount:
+                  defaultToken.decimals !== undefined
+                    ? formatUnits(defaultTokenBalance, defaultToken.decimals)
+                    : formatEther(defaultTokenBalance)
+              }
+        handleUpdateForm(args)
+      }
     }
   }, [
     mySelectedToken,
     portfolio?.isReadyToVisualize,
-    portfolio?.tokens,
-    ethBalance,
+    availableTokens,
     handleUpdateForm,
-    chainId,
     privacyProvider
   ])
 
@@ -192,16 +269,17 @@ const DepositForm = ({
   }
 
   useEffect(() => {
-    if (depositAmount && depositAmount !== '0') {
+    if (depositAmount && depositAmount !== '0' && currentSelectedToken) {
       try {
-        setDisplayAmount(formatEther(BigInt(depositAmount)))
+        const decimals = currentSelectedToken.decimals || 18
+        setDisplayAmount(formatUnits(BigInt(depositAmount), decimals))
       } catch {
         setDisplayAmount('')
       }
     } else {
       setDisplayAmount('')
     }
-  }, [depositAmount])
+  }, [depositAmount, currentSelectedToken])
 
   // Sync local provider state with parent privacyProvider prop
   useEffect(() => {
@@ -218,8 +296,10 @@ const DepositForm = ({
     let vettingFeeEthValue = '0'
     try {
       if (depositAmount && depositAmount !== '0') {
-        const feeWei = BigInt(depositAmount) / 100n
-        vettingFeeEthValue = formatEther(feeWei)
+        const feeAmount = BigInt(depositAmount) / 100n
+        // For vetting fee display, we always show in ETH format (18 decimals)
+        // This assumes the fee is calculated in the same unit as the deposit
+        vettingFeeEthValue = formatEther(feeAmount)
       }
     } catch {
       vettingFeeEthValue = '0'
@@ -227,18 +307,23 @@ const DepositForm = ({
     return vettingFeeEthValue
   }, [depositAmount])
 
-  const ethTokenIcon = useMemo(() => (
-    <TokenIcon
-      key="eth-sepolia"
-      containerHeight={30}
-      containerWidth={30}
-      networkSize={12}
-      withContainer
-      withNetworkIcon
-      address={zeroAddress}
-      chainId={chainId}
-    />
-  ), [chainId])
+  // Format max amount for display
+  const maxFromAmountFormatted = useMemo(() => {
+    if (!currentSelectedToken || selectedTokenBalance <= 0n) return '0'
+    const decimals = currentSelectedToken.decimals || 18
+    return formatUnits(selectedTokenBalance, decimals)
+  }, [currentSelectedToken, selectedTokenBalance])
+
+  // Format current amount for display
+  const fromAmountFormatted = useMemo(() => {
+    if (!depositAmount || depositAmount === '0' || !currentSelectedToken) return '0'
+    try {
+      const decimals = currentSelectedToken.decimals || 18
+      return formatUnits(BigInt(depositAmount), decimals)
+    } catch {
+      return '0'
+    }
+  }, [depositAmount, currentSelectedToken])
 
   // Only check for poolInfo when using Privacy Pools
   if (privacyProvider === 'privacy-pools' && !poolInfo) {
@@ -276,33 +361,23 @@ const DepositForm = ({
           {t('Amount')}
         </Text>
         <SendToken
-          fromTokenOptions={[
-            {
-              label: `ETH (${ethBalance ? formatEther(ethBalance) : '0'})`,
-              value: 'eth',
-              icon: ethTokenIcon
-            }
-          ]}
-          fromTokenValue={{
-            label: 'ETH',
-            value: 'eth',
-            icon: ethTokenIcon
-          }}
+          fromTokenOptions={tokenOptions}
+          fromTokenValue={tokenSelectValue}
           fromAmountValue={displayAmount}
           fromTokenAmountSelectDisabled={false}
-          handleChangeFromToken={() => {}}
-          fromSelectedToken={sepoliaEth || null}
-          fromAmount={depositAmount ? formatEther(BigInt(depositAmount)) : '0'}
+          handleChangeFromToken={handleChangeFromToken}
+          fromSelectedToken={currentSelectedToken}
+          fromAmount={fromAmountFormatted}
           fromAmountInFiat="0"
           fromAmountFieldMode="token"
-          maxFromAmount={ethBalance ? formatEther(ethBalance) : '0'}
+          maxFromAmount={maxFromAmountFormatted}
           validateFromAmount={{ success: !amountErrorMessage, message: amountErrorMessage }}
           onFromAmountChange={handleAmountChange}
           handleSetMaxFromAmount={handleSetMaxAmount}
           inputTestId="amount-field"
           selectTestId="tokens-select"
           title=""
-          maxAmountDisabled={!ethBalance || ethBalance === 0n}
+          maxAmountDisabled={!currentSelectedToken || selectedTokenBalance === 0n}
         />
       </View>
 
