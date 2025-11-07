@@ -12,10 +12,6 @@ import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountCont
 import { prepareWithdrawalProofInput, transformProofForRelayerApi } from '../utils/withdrawal'
 import { transformRagequitProofForContract } from '../utils/ragequit'
 import { entrypointAbi, privacyPoolAbi } from '../utils/abi'
-import {
-  convertToAlgorithmFormat,
-  generateAnonymitySetFromChain
-} from '../sdk/noteSelection/anonimitySet/anonymitySetGeneration'
 import { selectNotesForWithdrawal } from '../sdk/noteSelection/selectNotesForWithdrawal'
 import { getPoolAccountsFromResult } from '../sdk/noteSelection/helpers'
 
@@ -45,6 +41,8 @@ const usePrivacyPoolsForm = () => {
     relayerQuote,
     validationFormMsgs,
     proofsBatchSize,
+    anonymitySetData,
+    isLoadingAnonymitySet,
     getContext,
     loadPrivateAccount,
     refreshPrivateAccount,
@@ -322,14 +320,15 @@ const usePrivacyPoolsForm = () => {
   ])
 
   const runNoteSelection = useCallback(async () => {
-    const anonymitySetData = await generateAnonymitySetFromChain()
-    const convertedData = convertToAlgorithmFormat(anonymitySetData)
+    if (!anonymitySetData) {
+      throw new Error('Anonymity set data not loaded yet. Please wait...')
+    }
 
     const algorithmResults = selectNotesForWithdrawal({
       poolAccounts,
       importedPoolAccounts: importedPrivateAccounts.flat(),
       withdrawalAmount: Number(withdrawalAmount),
-      anonymityData: convertedData
+      anonymityData: anonymitySetData
     })
     console.log({ algorithmResults })
 
@@ -346,7 +345,7 @@ const usePrivacyPoolsForm = () => {
     const poolAccountsFromResult = getPoolAccountsFromResult(algorithmResults[0])
 
     return poolAccountsFromResult
-  }, [poolAccounts, importedPrivateAccounts, withdrawalAmount])
+  }, [poolAccounts, importedPrivateAccounts, withdrawalAmount, anonymitySetData])
 
   const handleMultipleWithdrawal = useCallback(async () => {
     if (
@@ -526,6 +525,7 @@ const usePrivacyPoolsForm = () => {
     isLoading: isLoadingAccount,
     isRefreshing,
     isAccountLoaded,
+    isLoadingAnonymitySet,
     totalApprovedBalance,
     totalPendingBalance,
     totalDeclinedBalance,
