@@ -109,7 +109,7 @@ function RagequitScreen() {
 
     if (!submittedChainId || !identifiedBy || !txnId) return
 
-    return `https://explorer.ambire.com/${getBenzinUrlParams({
+    return `https://sepolia.etherscan.io/${getBenzinUrlParams({
       chainId: submittedChainId,
       txnId,
       identifiedBy
