@@ -12,8 +12,15 @@
  * 4. Anchor Sanitizer - Hybrid: takes one bite from unhealthy note + fills with healthy notes
  */
 
-import { EPS, getAccountValue, getAnonymitySetSize, roundAmount } from './helpers';
-import { Ctx, ExecutionPlan, PoolAccount } from './types';
+import { parseUnits } from 'viem'
+import { getAccountValue, getAnonymitySetSize } from './helpers'
+import { Ctx, ExecutionPlan, PoolAccount } from './types'
+
+// Standard bite sizes in wei (0.1 ETH, 0.2 ETH, 0.4 ETH, 0.6 ETH)
+const BITE_SIZE_01_ETH = parseUnits('0.1', 18)
+const BITE_SIZE_02_ETH = parseUnits('0.2', 18)
+const BITE_SIZE_04_ETH = parseUnits('0.4', 18)
+const BITE_SIZE_06_ETH = parseUnits('0.6', 18)
 
 /**
  * Generates "Sanitizer" candidate plans that only use unhealthy notes.
@@ -27,37 +34,63 @@ import { Ctx, ExecutionPlan, PoolAccount } from './types';
  * through unhealthy notes repeatedly, taking bites until the withdrawal amount is met.
  *
  * @param ctx - Algorithm context with wallet and anonymity thresholds
- * @param wAmount - Withdrawal amount in ETH
+ * @param wAmount - Withdrawal amount in wei (bigint)
  * @returns Array of execution plans using only unhealthy notes
  */
-function generateSanitizationCandidates(ctx: Ctx, wAmount: number): ExecutionPlan[] {
-  const plans: ExecutionPlan[] = [];
+function generateSanitizationCandidates(ctx: Ctx, wAmount: bigint): ExecutionPlan[] {
+  const plans: ExecutionPlan[] = []
   const unhealthy = ctx.wallet
     .filter((a) => getAnonymitySetSize(ctx, getAccountValue(a)) <= ctx.unhealthyThreshold)
-    .sort((a, b) => getAnonymitySetSize(ctx, getAccountValue(a)) - getAnonymitySetSize(ctx, getAccountValue(b)));
-  if (!unhealthy.length) return [];
-  const TARGETS = [0.1, 0.2, 0.4, 0.6];
-  for (const t of TARGETS) {
-    let remain = roundAmount(wAmount);
-    const bites = new Map<PoolAccount, number>();
-    let iter = 0;
-    while (remain > 1e-9 && iter < 10) {
-      iter++;
-      for (const a of unhealthy) {
-        if (remain <= 1e-9) break;
-        const available = roundAmount(getAccountValue(a) - (bites.get(a) ?? 0));
-        const bite = roundAmount(Math.min(remain, t, available));
-        if (bite > 1e-9) {
-          bites.set(a, roundAmount((bites.get(a) ?? 0) + bite));
-          remain = roundAmount(remain - bite);
+    .sort(
+      (a, b) =>
+        getAnonymitySetSize(ctx, getAccountValue(a)) - getAnonymitySetSize(ctx, getAccountValue(b))
+    )
+  if (!unhealthy.length) return []
+
+  const TARGETS: bigint[] = [BITE_SIZE_01_ETH, BITE_SIZE_02_ETH, BITE_SIZE_04_ETH, BITE_SIZE_06_ETH]
+
+  TARGETS.forEach((targetBite) => {
+    let remain = wAmount
+    const bites = new Map<PoolAccount, bigint>()
+    let iter = 0
+
+    while (remain > 0n && iter < 10) {
+      iter += 1
+      const unhealthyCount = unhealthy.length
+
+      // Use traditional for loop to avoid closure issues
+      // eslint-disable-next-line no-plusplus
+      for (let i = 0; i < unhealthyCount; i++) {
+        if (remain <= 0n) break
+
+        const account = unhealthy[i]
+        const accountValue = getAccountValue(account)
+        const alreadyUsed = bites.get(account) ?? 0n
+        const available = accountValue - alreadyUsed
+
+        // Calculate bite size: min(remain, targetBite, available)
+        let bite = targetBite
+        if (remain < bite) bite = remain
+        if (available < bite) bite = available
+
+        if (bite > 0n) {
+          bites.set(account, alreadyUsed + bite)
+          remain -= bite
         }
       }
     }
-    const totalBites = roundAmount(Array.from(bites.values()).reduce((s, v) => s + v, 0));
-    const valid = Array.from(bites.entries()).every(([a, v]) => getAccountValue(a) >= v);
-    if (Math.abs(totalBites - wAmount) < EPS && valid) plans.push(new Map(bites));
-  }
-  return plans;
+
+    const totalBites = Array.from(bites.values()).reduce((sum, value) => sum + value, 0n)
+    const valid = Array.from(bites.entries()).every(
+      ([account, value]) => getAccountValue(account) >= value
+    )
+
+    if (totalBites === wAmount && valid) {
+      plans.push(new Map(bites))
+    }
+  })
+
+  return plans
 }
 
 /**
@@ -74,33 +107,55 @@ function generateSanitizationCandidates(ctx: Ctx, wAmount: number): ExecutionPla
  * The algorithm tries each unhealthy note as a potential anchor, creating diverse candidates.
  *
  * @param ctx - Algorithm context with wallet and anonymity thresholds
- * @param wAmount - Withdrawal amount in ETH
+ * @param wAmount - Withdrawal amount in wei (bigint)
  * @returns Array of execution plans using anchor + healthy notes strategy
  */
-function generateAnchorSanitizerCandidates(ctx: Ctx, wAmount: number): ExecutionPlan[] {
-  const plans: ExecutionPlan[] = [];
-  const unhealthy = ctx.wallet.filter((a) => getAnonymitySetSize(ctx, getAccountValue(a)) <= ctx.unhealthyThreshold);
+function generateAnchorSanitizerCandidates(ctx: Ctx, wAmount: bigint): ExecutionPlan[] {
+  const plans: ExecutionPlan[] = []
+  const unhealthy = ctx.wallet.filter(
+    (a) => getAnonymitySetSize(ctx, getAccountValue(a)) <= ctx.unhealthyThreshold
+  )
   const healthy = ctx.wallet
     .filter((a) => !unhealthy.includes(a))
-    .sort((a, b) => getAccountValue(a) - getAccountValue(b));
-  const ANCHOR = 0.1;
-  for (const anchor of unhealthy) {
-    if (getAccountValue(anchor) < ANCHOR || wAmount < ANCHOR) continue;
-    const plan = new Map<PoolAccount, number>([[anchor, ANCHOR]]);
-    let remain = roundAmount(wAmount - ANCHOR);
-    if (Math.abs(remain) < EPS) {
-      plans.push(plan);
-      continue;
+    .sort((a, b) => {
+      const aVal = getAccountValue(a)
+      const bVal = getAccountValue(b)
+      if (aVal > bVal) return 1
+      if (aVal < bVal) return -1
+      return 0
+    })
+
+  const ANCHOR = BITE_SIZE_01_ETH
+
+  unhealthy.forEach((anchor) => {
+    const anchorValue = getAccountValue(anchor)
+
+    if (anchorValue < ANCHOR || wAmount < ANCHOR) return
+
+    const plan = new Map<PoolAccount, bigint>([[anchor, ANCHOR]])
+    let remain = wAmount - ANCHOR
+
+    if (remain === 0n) {
+      plans.push(plan)
+      return
     }
-    for (const a of healthy) {
-      if (remain <= 1e-9) break;
-      const spend = roundAmount(Math.min(getAccountValue(a), remain));
-      plan.set(a, spend);
-      remain = roundAmount(remain - spend);
+
+    healthy.forEach((account) => {
+      if (remain <= 0n) return
+
+      const accountValue = getAccountValue(account)
+      const spend = accountValue < remain ? accountValue : remain
+
+      plan.set(account, spend)
+      remain -= spend
+    })
+
+    if (remain === 0n) {
+      plans.push(new Map(plan))
     }
-    if (Math.abs(remain) < EPS) plans.push(new Map(plan));
-  }
-  return plans;
+  })
+
+  return plans
 }
 
 /**
@@ -119,82 +174,108 @@ function generateAnchorSanitizerCandidates(ctx: Ctx, wAmount: number): Execution
  * Deduplication is performed to ensure each unique plan appears only once.
  *
  * @param ctx - Algorithm context with wallet, anonymity data, and thresholds
- * @param amount - Withdrawal amount in ETH
+ * @param amount - Withdrawal amount in wei (bigint)
  * @returns Array of named candidate plans, deduplicated
  *
  * @example
- * generateCandidates(ctx, 0.5)
+ * generateCandidates(ctx, parseUnits('0.5', 18)) // 0.5 ETH in wei
  * // => [
  * //   { name: 'Greedy Large', plan: Map(...) },
  * //   { name: 'Sanitizer', plan: Map(...) },
  * //   { name: 'Anchor Sanitizer', plan: Map(...) }
  * // ]
  */
-export function generateCandidates(ctx: Ctx, amount: number): Array<{ name: string; plan: ExecutionPlan }> {
-  const out: Array<{ name: string; plan: ExecutionPlan }> = [];
-  const seen = new Set<string>();
+export function generateCandidates(
+  ctx: Ctx,
+  amount: bigint
+): Array<{ name: string; plan: ExecutionPlan }> {
+  const out: Array<{ name: string; plan: ExecutionPlan }> = []
+  const seen = new Set<string>()
   const keyOf = (plan: ExecutionPlan) =>
     Array.from(plan.entries())
-      .map(([a, v]) => `${a.label}:${v}`)
+      .map(([account, value]) => `${account.label}:${value.toString()}`)
       .sort()
-      .join('|');
+      .join('|')
 
-  // Greedy Large
+  // Greedy Large: Use single largest note that can cover the withdrawal
   const large = [...ctx.wallet]
-    .sort((a, b) => getAccountValue(b) - getAccountValue(a))
-    .find((a) => getAccountValue(a) >= amount);
+    .sort((a, b) => {
+      const aVal = getAccountValue(a)
+      const bVal = getAccountValue(b)
+      if (aVal > bVal) return -1
+      if (aVal < bVal) return 1
+      return 0
+    })
+    .find((a) => getAccountValue(a) >= amount)
+
   if (large) {
-    const plan = new Map<PoolAccount, number>([[large, amount]]);
-    const k = keyOf(plan);
+    const plan = new Map<PoolAccount, bigint>([[large, amount]])
+    const k = keyOf(plan)
     if (!seen.has(k)) {
-      seen.add(k);
-      out.push({ name: 'Greedy Large', plan });
+      seen.add(k)
+      out.push({ name: 'Greedy Large', plan })
     }
   }
 
-  // Sanitizer
-  for (const plan of generateSanitizationCandidates(ctx, amount)) {
-    const k = keyOf(plan);
+  // Sanitizer: Use only unhealthy notes in standard chunks
+  generateSanitizationCandidates(ctx, amount).forEach((plan) => {
+    const k = keyOf(plan)
     if (!seen.has(k)) {
-      seen.add(k);
-      out.push({ name: 'Sanitizer', plan });
+      seen.add(k)
+      out.push({ name: 'Sanitizer', plan })
     }
-  }
+  })
 
-  // Dust Aggregation
-  const dust: PoolAccount[] = [];
-  let s = 0;
-  for (const a of [...ctx.wallet].sort((a, b) => getAccountValue(a) - getAccountValue(b))) {
-    if (s < amount) {
-      dust.push(a);
-      s += getAccountValue(a);
-    }
-  }
-  if (s >= amount) {
-    const plan = new Map<PoolAccount, number>();
-    let left = roundAmount(amount);
-    for (const a of dust) {
-      const spend = roundAmount(Math.min(getAccountValue(a), left));
-      if (spend > 1e-9) {
-        plan.set(a, spend);
-        left = roundAmount(left - spend);
+  // Dust Aggregation: Combine smallest notes until amount is met
+  const dust: PoolAccount[] = []
+  let accumulatedValue = 0n
+
+  ;[...ctx.wallet]
+    .sort((a, b) => {
+      const aVal = getAccountValue(a)
+      const bVal = getAccountValue(b)
+      if (aVal > bVal) return 1
+      if (aVal < bVal) return -1
+      return 0
+    })
+    .forEach((account) => {
+      if (accumulatedValue < amount) {
+        dust.push(account)
+        accumulatedValue += getAccountValue(account)
       }
-    }
-    const k = keyOf(plan);
+    })
+
+  if (accumulatedValue >= amount) {
+    const plan = new Map<PoolAccount, bigint>()
+    let remaining = amount
+
+    dust.forEach((account) => {
+      if (remaining <= 0n) return
+
+      const accountValue = getAccountValue(account)
+      const spend = accountValue < remaining ? accountValue : remaining
+
+      if (spend > 0n) {
+        plan.set(account, spend)
+        remaining -= spend
+      }
+    })
+
+    const k = keyOf(plan)
     if (!seen.has(k)) {
-      seen.add(k);
-      out.push({ name: 'Dust Aggregation', plan });
+      seen.add(k)
+      out.push({ name: 'Dust Aggregation', plan })
     }
   }
 
-  // Anchor Sanitizer
-  for (const plan of generateAnchorSanitizerCandidates(ctx, amount)) {
-    const k = keyOf(plan);
+  // Anchor Sanitizer: Hybrid strategy using unhealthy anchor + healthy remainder
+  generateAnchorSanitizerCandidates(ctx, amount).forEach((plan) => {
+    const k = keyOf(plan)
     if (!seen.has(k)) {
-      seen.add(k);
-      out.push({ name: 'Anchor Sanitizer', plan });
+      seen.add(k)
+      out.push({ name: 'Anchor Sanitizer', plan })
     }
-  }
+  })
 
-  return out;
+  return out
 }

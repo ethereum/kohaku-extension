@@ -16,7 +16,7 @@
  * - f8: Preserve Healthy Notes (15% weight) - Penalizes spending high-anonymity notes
  */
 
-import { getAccountBlockNumber, getAccountValue, getAnonymitySetSize, roundAmount } from './helpers'
+import { getAccountBlockNumber, getAccountValue, getAnonymitySetSize } from './helpers'
 import { AnonymityData, ExecutionPlan, SelectionResult, Ctx } from './types'
 
 /**
@@ -64,7 +64,7 @@ export function computeThresholds(
  * @returns Penalty score (lower is better). Returns 0 if no chunks exist.
  */
 function f1SpendPatternAnonymity(ctx: Ctx, plan: ExecutionPlan): number {
-  const chunks = Array.from(plan.values()).filter((v) => v > 1e-9)
+  const chunks = Array.from(plan.values()).filter((v) => v > 0n)
   if (chunks.length === 0) return 0
   const minAnon = Math.min(...chunks.map((v) => getAnonymitySetSize(ctx, v)))
   const logDiff = Math.log(ctx.MAX_ANON_SET) - Math.log(Math.max(1, minAnon))
@@ -163,10 +163,10 @@ function f5RandomNoise(): number {
  * @param withdrawalAmount - Desired withdrawal amount in ETH
  * @returns Penalty score (lower is better). Returns 0 if no change is created.
  */
-function f6WalletHealth(ctx: Ctx, plan: ExecutionPlan, withdrawalAmount: number): number {
-  const totalInput = Array.from(plan.keys()).reduce((s, a) => s + getAccountValue(a), 0)
+function f6WalletHealth(ctx: Ctx, plan: ExecutionPlan, withdrawalAmount: bigint): number {
+  const totalInput = Array.from(plan.keys()).reduce((s, a) => s + getAccountValue(a), 0n)
   const change = totalInput - withdrawalAmount
-  if (change < 1e-9) return 0
+  if (change <= 0n) return 0
   const changeAnon = getAnonymitySetSize(ctx, change)
   const logDiff = Math.log(ctx.MAX_ANON_SET) - Math.log(Math.max(1, changeAnon))
   return logDiff ** ctx.PENALTY_EXPONENT
@@ -188,7 +188,7 @@ function f6WalletHealth(ctx: Ctx, plan: ExecutionPlan, withdrawalAmount: number)
  * @returns Total anonymity cost penalty (lower is better). Returns 0 if no chunks exist.
  */
 function f7SpendAnonymityCost(ctx: Ctx, plan: ExecutionPlan): number {
-  const chunks = Array.from(plan.values()).filter((v) => v > 1e-9)
+  const chunks = Array.from(plan.values()).filter((v) => v > 0n)
   if (!chunks.length) return 0
   return chunks.reduce((sum, v) => {
     const logDiff = Math.log(ctx.MAX_ANON_SET) - Math.log(Math.max(1, getAnonymitySetSize(ctx, v)))
@@ -226,11 +226,11 @@ function f8PreserveHealthyNotes(ctx: Ctx, plan: ExecutionPlan): number {
  * normalized and weighted to produce a final privacy score.
  *
  * @param ctx - Algorithm context with anonymity data, thresholds, and configuration
- * @param plan - Execution plan to evaluate
- * @param withdrawalAmount - Desired withdrawal amount in ETH
+ * @param plan - Execution plan to evaluate (amounts in wei)
+ * @param withdrawalAmount - Desired withdrawal amount in wei
  * @returns Map of objective function names to raw scores
  */
-export function scorePlan(ctx: Ctx, plan: ExecutionPlan, withdrawalAmount: number) {
+export function scorePlan(ctx: Ctx, plan: ExecutionPlan, withdrawalAmount: bigint) {
   const scores: Record<string, number> = {}
   scores.f1_spend_pattern_anonymity = f1SpendPatternAnonymity(ctx, plan)
   scores.f2_time = f2Time(ctx, plan)
@@ -276,7 +276,7 @@ export function normalizeScores(candidates: Array<{ scores: Record<string, numbe
  * object with human-readable note details, computed totals, and all scoring information.
  *
  * @param name - Name of the strategy that generated this plan (e.g., "Greedy Large")
- * @param plan - Execution plan mapping notes to spend amounts
+ * @param plan - Execution plan mapping notes to spend amounts (in wei)
  * @param scores - Raw objective function scores
  * @param normalized - Normalized objective function scores (0-1 range)
  * @param privacyScore - Final weighted privacy score (lower is better)
@@ -289,19 +289,27 @@ export function toResult(
   normalized: Record<string, number>,
   privacyScore: number
 ): SelectionResult {
-  const totalSpent = roundAmount(Array.from(plan.values()).reduce((s, v) => s + v, 0))
-  const totalInput = roundAmount(
-    Array.from(plan.keys()).reduce((s, a) => s + getAccountValue(a), 0)
-  )
-  const change = roundAmount(totalInput - totalSpent)
+  const totalSpent = Array.from(plan.values()).reduce((s, v) => s + v, 0n)
+  const totalInput = Array.from(plan.keys()).reduce((s, a) => s + getAccountValue(a), 0n)
+  const change = totalInput - totalSpent
   const notes = Array.from(plan.keys())
-    .sort((a, b) => getAccountValue(b) - getAccountValue(a))
-    .map((a) => ({
-      value: roundAmount(getAccountValue(a)),
-      blockNumber: a.lastCommitment.blockNumber.toString(),
-      spent: roundAmount(plan.get(a) ?? 0),
-      leftover: roundAmount(getAccountValue(a) - (plan.get(a) ?? 0)),
-      label: a.label.toString()
-    }))
+    .sort((a, b) => {
+      const aVal = getAccountValue(a)
+      const bVal = getAccountValue(b)
+      if (aVal > bVal) return -1
+      if (aVal < bVal) return 1
+      return 0
+    })
+    .map((a) => {
+      const accountValue = getAccountValue(a)
+      const spent = plan.get(a) ?? 0n
+      return {
+        value: accountValue,
+        blockNumber: a.lastCommitment.blockNumber.toString(),
+        spent,
+        leftover: accountValue - spent,
+        label: a.label.toString()
+      }
+    })
   return { name, plan, scores, normalized, privacyScore, totalSpent, totalInput, change, notes }
 }
