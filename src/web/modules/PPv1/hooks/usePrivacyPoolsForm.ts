@@ -2,10 +2,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
 import { encodeFunctionData, formatEther, getAddress } from 'viem'
-import { Hash, type Withdrawal } from '@0xbow/privacy-pools-core-sdk'
+import { Hash, Secret, type Withdrawal } from '@0xbow/privacy-pools-core-sdk'
 import { Call } from '@ambire-common/libs/accountOp/types'
 import { BatchWithdrawalParams } from '@ambire-common/controllers/privacyPools/privacyPools'
-import { PoolAccount, ReviewStatus } from '@web/contexts/privacyPoolsControllerStateContext'
+import { ReviewStatus } from '@web/contexts/privacyPoolsControllerStateContext'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
@@ -18,6 +18,7 @@ import {
 } from '../sdk/noteSelection/anonimitySet/anonymitySetGeneration'
 import { selectNotesForWithdrawal } from '../sdk/noteSelection/selectNotesForWithdrawal'
 import { getPoolAccountsFromResult } from '../sdk/noteSelection/helpers'
+import { PoolAccount } from '../sdk/noteSelection/types'
 
 const usePrivacyPoolsForm = () => {
   const { dispatch } = useBackgroundService()
@@ -55,7 +56,8 @@ const usePrivacyPoolsForm = () => {
     verifyWithdrawalProof,
     setSelectedPoolAccount,
     generateWithdrawalProof,
-    createWithdrawalSecrets
+    createWithdrawalSecrets,
+    createWithdrawalSecretsForImportedAccount
   } = usePrivacyPoolsControllerState()
 
   const { account: userAccount, portfolio } = useSelectedAccountControllerState()
@@ -410,8 +412,19 @@ const usePrivacyPoolsForm = () => {
             commitment.hash
           )
           const aspMerkleProof = getMerkleProof(aspLeaves?.map(BigInt), commitment.label)
-
-          const { secret, nullifier } = createWithdrawalSecrets(commitment)
+          let secret: Secret
+          let nullifier: Secret
+          if (poolAccount.derivationMethod === 'NATIVE_APPSECRET') {
+            // Use native account service for native accounts
+            const result = createWithdrawalSecrets(commitment)
+            secret = result.secret
+            nullifier = result.nullifier
+          } else {
+            // Use imported account service for legacy/imported accounts
+            const result = createWithdrawalSecretsForImportedAccount(poolAccount, commitment)
+            secret = result.secret
+            nullifier = result.nullifier
+          }
 
           // Workaround for NaN index, SDK issue
           aspMerkleProof.index = Object.is(aspMerkleProof.index, NaN) ? 0 : aspMerkleProof.index
@@ -492,6 +505,7 @@ const usePrivacyPoolsForm = () => {
     chainId,
     getMerkleProof,
     createWithdrawalSecrets,
+    createWithdrawalSecretsForImportedAccount,
     generateWithdrawalProof,
     verifyWithdrawalProof
   ])
