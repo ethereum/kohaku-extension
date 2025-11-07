@@ -122,6 +122,13 @@ type EnhancedPrivacyPoolsControllerState = {
     nullifier: Secret
     secret: Secret
   }
+  createWithdrawalSecretsForImportedAccount: (
+    poolAccount: PoolAccount,
+    commitment: AccountCommitment
+  ) => {
+    nullifier: Secret
+    secret: Secret
+  }
   getContext: (withdrawal: Withdrawal, scope: Hash) => string
   getMerkleProof: (leaves: bigint[], leaf: bigint) => LeanIMTMerkleProof<bigint>
   setSelectedPoolAccount: Dispatch<SetStateAction<PoolAccount | null>>
@@ -197,6 +204,10 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   const [importedAccountsWithNames, setImportedAccountsWithNames] = useState<
     ImportedAccountWithName[]
   >([])
+  // Map to store account services for imported accounts: key format is "chainId-scope-accountName"
+  const [importedAccountServicesMap, setImportedAccountServicesMap] = useState<
+    Map<string, AccountService>
+  >(new Map())
   const memoizedState = useDeepMemo(state, controller)
 
   const { secret } = memoizedState
@@ -377,10 +388,22 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       poolAccounts: importedPoolAccounts[index] || []
     }))
 
+    // Store account services in map for quick lookup
+    const newAccountServicesMap = new Map<string, AccountService>()
+    importedPrivateAccountsResult.forEach((result) => {
+      const poolAccountsArray = result.poolAccounts
+      poolAccountsArray.forEach((poolAccount) => {
+        // Create unique key: chainId-scope-accountName
+        const key = `${poolAccount.chainId}-${poolAccount.scope}-${poolAccount.name}`
+        newAccountServicesMap.set(key, result.accountService)
+      })
+    })
+
     console.log('DEBUG:', { importedPrivateAccountsResult, accountsWithNames })
 
     setImportedPrivateAccounts(importedPoolAccounts)
     setImportedAccountsWithNames(accountsWithNames)
+    setImportedAccountServicesMap(newAccountServicesMap)
   }, [loadPoolAccounts])
 
   const addImportedPrivateAccount = useCallback(
@@ -488,6 +511,23 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
     [accountService]
   )
 
+  const createWithdrawalSecretsForImportedAccount = useCallback(
+    (poolAccount: PoolAccount, commitment: AccountCommitment) => {
+      // Create unique key to lookup the account service
+      const key = `${poolAccount.chainId}-${poolAccount.scope}-${poolAccount.name}`
+      const importedAccountService = importedAccountServicesMap.get(key)
+
+      if (!importedAccountService) {
+        throw new Error(
+          `Could not find account service for imported pool account: ${key}. Make sure imported accounts are loaded.`
+        )
+      }
+
+      return importedAccountService.createWithdrawalSecrets(commitment)
+    },
+    [importedAccountServicesMap]
+  )
+
   const getContext = useCallback(
     (withdrawal: Withdrawal, scope: Hash) => {
       if (!sdk) throw new Error('SDK not initialized.')
@@ -592,6 +632,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
         verifyWithdrawalProof,
         createDepositSecrets,
         createWithdrawalSecrets,
+        createWithdrawalSecretsForImportedAccount,
         getContext,
         getMerkleProof,
         setSelectedPoolAccount
@@ -624,6 +665,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       verifyWithdrawalProof,
       createDepositSecrets,
       createWithdrawalSecrets,
+      createWithdrawalSecretsForImportedAccount,
       getContext,
       getMerkleProof
     ]
