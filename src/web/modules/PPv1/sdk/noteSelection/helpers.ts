@@ -1,20 +1,14 @@
+import { parseEther } from 'viem'
 import { Ctx, PoolAccount, SelectionResult } from './types'
 
-export const EPS = 1e-12
-export const SCALE = 1e12
-export function roundAmount(n: number): number {
-  if (Math.abs(n) < EPS) return 0
-  return Math.round(n * SCALE) / SCALE
-}
-
 /**
- * Converts a pool account's balance from wei to ETH.
+ * Returns a pool account's balance in wei.
  *
  * @param account - Pool account with balance in wei
- * @returns Account value in ETH (floating point)
+ * @returns Account value in wei (bigint)
  */
-export function getAccountValue(account: PoolAccount): number {
-  return Number(account.balance) / 1e18
+export function getAccountValue(account: PoolAccount): bigint {
+  return account.balance
 }
 
 /**
@@ -40,16 +34,13 @@ export type PoolAccountWithAmount = {
 /**
  * Converts a SelectionResult's execution plan to a list of pool accounts with bigint amounts.
  *
- * Transforms the internal representation (ETH as floats) to the format required for
- * on-chain transactions (wei as bigints).
- *
  * @param result - Selection result containing the execution plan
  * @returns Array of pool accounts with their spend amounts in wei
  */
 export function getPoolAccountsFromResult(result: SelectionResult): PoolAccountWithAmount[] {
-  return Array.from(result.plan.entries()).map(([poolAccount, ethAmount]) => ({
+  return Array.from(result.plan.entries()).map(([poolAccount, amount]) => ({
     poolAccount,
-    amount: BigInt(Math.round(ethAmount * 1e18))
+    amount
   }))
 }
 
@@ -65,20 +56,23 @@ export function getPoolAccountsFromResult(result: SelectionResult): PoolAccountW
  * anonymity sets, making them easier to link.
  *
  * @param ctx - Algorithm context with pre-calculated anonymity set data
- * @param amount - Amount in ETH to look up
+ * @param amount - Amount in wei (bigint) to look up
  * @returns Anonymity set size (number of deposits at or below this amount)
  *
  * @example
- * getAnonymitySetSize(ctx, 0.1)  // => ~1600 (high privacy)
- * getAnonymitySetSize(ctx, 1.5)  // => ~50 (low privacy)
- * getAnonymitySetSize(ctx, 0.0)  // => MAX_ANON_SET (perfect privacy for zero)
+ * getAnonymitySetSize(ctx, 100000000000000000n)  // 0.1 ETH => ~1600 (high privacy)
+ * getAnonymitySetSize(ctx, 0n)  // => MAX_ANON_SET (perfect privacy for zero)
  */
-export function getAnonymitySetSize(ctx: Ctx, amount: number): number {
-  if (amount <= 1e-9) return ctx.MAX_ANON_SET
+export function getAnonymitySetSize(ctx: Ctx, amount: bigint): number {
+  if (amount <= 0n) return ctx.MAX_ANON_SET
+
   const keys = Object.keys(ctx.anonymitySet)
-    .map(parseFloat)
+    .map((k) => parseEther(k))
     .filter((k) => k <= amount)
+
   if (keys.length === 0) return 1
-  const maxKey = Math.max(...keys)
-  return ctx.anonymitySet[maxKey] ?? 1
+
+  const maxKey = keys.reduce((max, k) => (k > max ? k : max), keys[0])
+
+  return ctx.anonymitySet[maxKey.toString()] ?? 1
 }

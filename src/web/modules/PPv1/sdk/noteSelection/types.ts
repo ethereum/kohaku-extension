@@ -46,17 +46,17 @@ export type PoolAccount = SDKPoolAccount & {
 export type DerivationMethod = 'LEGACY_MNEMONONIC' | 'NATIVE_APPSECRET'
 
 /**
- * Execution plan mapping pool accounts to their spend amounts in ETH.
+ * Execution plan mapping pool accounts to their spend amounts in wei (bigint).
  *
  * Represents a candidate solution to the note selection problem.
- * The map keys are the notes to spend, and values are the amounts to spend from each.
+ * The map keys are the notes to spend, and values are the amounts to spend from each in wei.
  */
-export type ExecutionPlan = Map<PoolAccount, number>
+export type ExecutionPlan = Map<PoolAccount, bigint>
 
 /**
  * Pre-calculated anonymity set data from on-chain analysis.
  *
- * Maps deposit amounts (in ETH) to their anonymity set sizes.
+ * Maps deposit amounts (in wei as strings) to their anonymity set sizes.
  * The anonymity set size is the number of deposits at or below that amount that
  * are still active in the pool (deposits - ragequits).
  *
@@ -64,9 +64,9 @@ export type ExecutionPlan = Map<PoolAccount, number>
  * cumulative distribution function (CDF) query.
  *
  * @example
- * { 0.1: 1600, 0.2: 800, 0.5: 300, 1.0: 200 }
+ * { "100000000000000000": 1600, "200000000000000000": 800 }  // 0.1 ETH, 0.2 ETH in wei
  */
-export type AnonymityData = Record<number, number>
+export type AnonymityData = Record<string, number>
 
 /**
  * Weights for the 8 objective functions in the multi-objective optimization.
@@ -123,7 +123,7 @@ export const DEFAULT_WEIGHTS: Weights = {
 export type SelectNoteOptions = {
   poolAccounts: PoolAccount[]
   importedPoolAccounts?: PoolAccount[]
-  withdrawalAmount: number
+  withdrawalAmount: bigint // Amount in wei
   anonymityData: AnonymityData
   weights?: Weights
   unhealthyPercentile?: number
@@ -143,14 +143,14 @@ export type SelectionResult = {
   normalized: Record<string, number>
   privacyScore: number
   isChosen?: boolean
-  totalSpent: number
-  totalInput: number
-  change: number
+  totalSpent: bigint // Amount in wei
+  totalInput: bigint // Amount in wei
+  change: bigint // Amount in wei
   notes: Array<{
-    value: number
+    value: bigint // Amount in wei
     blockNumber: string
-    spent: number
-    leftover: number
+    spent: bigint // Amount in wei
+    leftover: bigint // Amount in wei
     label: string
   }>
 }

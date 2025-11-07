@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
-import { encodeFunctionData, formatEther, getAddress } from 'viem'
+import { encodeFunctionData, formatEther, getAddress, parseUnits } from 'viem'
 import { Hash, Secret, type Withdrawal } from '@0xbow/privacy-pools-core-sdk'
 import { Call } from '@ambire-common/libs/accountOp/types'
 import { BatchWithdrawalParams } from '@ambire-common/controllers/privacyPools/privacyPools'
@@ -162,7 +162,7 @@ const usePrivacyPoolsForm = () => {
         const algorithmResults = selectNotesForWithdrawal({
           poolAccounts,
           importedPoolAccounts: importedPrivateAccounts.flat(),
-          withdrawalAmount: Number(withdrawalAmount),
+          withdrawalAmount: parseUnits(withdrawalAmount.toString(), 18),
           anonymityData: anonymitySetData
         })
 
