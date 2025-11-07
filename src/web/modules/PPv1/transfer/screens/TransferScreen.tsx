@@ -41,6 +41,7 @@ const TransferScreen = () => {
     chainId,
     poolInfo,
     totalApprovedBalance,
+    loadingSelectionAlgorithm,
     handleUpdateForm,
     refreshPrivateAccount,
     handleMultipleWithdrawal
@@ -233,7 +234,8 @@ const TransferScreen = () => {
       relayerQuote &&
       !addressInputState.validation.isError &&
       !amountErrorMessage &&
-      !isRefreshing
+      !isRefreshing &&
+      !loadingSelectionAlgorithm
     )
   }, [
     amountFieldValue,
@@ -241,7 +243,8 @@ const TransferScreen = () => {
     selectedToken,
     addressInputState.validation.isError,
     relayerQuote,
-    isRefreshing
+    isRefreshing,
+    loadingSelectionAlgorithm
   ])
 
   const onBack = useCallback(() => {

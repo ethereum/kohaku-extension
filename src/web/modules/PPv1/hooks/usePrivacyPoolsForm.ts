@@ -62,6 +62,7 @@ const usePrivacyPoolsForm = () => {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [ragequitLoading, setRagequitLoading] = useState<Record<string, boolean>>({})
   const [showAddedToBatch] = useState(false)
+  const [loadingSelectionAlgorithm, setLoadingSelectionAlgorithm] = useState(false)
 
   const allPA = useMemo(() => {
     return [...poolAccounts, ...importedPrivateAccounts.flat()]
@@ -158,6 +159,8 @@ const usePrivacyPoolsForm = () => {
         return
       }
 
+      setLoadingSelectionAlgorithm(true)
+
       try {
         const algorithmResults = selectNotesForWithdrawal({
           poolAccounts,
@@ -191,6 +194,8 @@ const usePrivacyPoolsForm = () => {
         console.error('Error calculating batch size:', error)
         setCalculatedBatchSize(1)
         setSelectedNotesCache(null)
+      } finally {
+        setLoadingSelectionAlgorithm(false)
       }
     }
 
@@ -550,6 +555,7 @@ const usePrivacyPoolsForm = () => {
     validationFormMsgs,
     isReadyToLoad,
     loadingError,
+    loadingSelectionAlgorithm,
     handleDeposit,
     handleMultipleRagequit,
     handleMultipleWithdrawal,
