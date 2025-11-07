@@ -12,6 +12,12 @@ import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountCont
 import { prepareWithdrawalProofInput, transformProofForRelayerApi } from '../utils/withdrawal'
 import { transformRagequitProofForContract } from '../utils/ragequit'
 import { entrypointAbi, privacyPoolAbi } from '../utils/abi'
+import {
+  convertToAlgorithmFormat,
+  generateAnonymitySetFromChain
+} from '../sdk/noteSelection/anonimitySet/anonymitySetGeneration'
+import { selectNotesForWithdrawal } from '../sdk/noteSelection/selectNotesForWithdrawal'
+import { getPoolAccountsFromResult } from '../sdk/noteSelection/helpers'
 
 const usePrivacyPoolsForm = () => {
   const { dispatch } = useBackgroundService()
@@ -314,15 +320,32 @@ const usePrivacyPoolsForm = () => {
     userAccount?.addr
   ])
 
-  useEffect(() => {
-    handleUpdateForm({ batchSize: calculatedBatchSize })
-  }, [calculatedBatchSize, handleUpdateForm])
+  const runNoteSelection = useCallback(async () => {
+    const anonymitySetData = await generateAnonymitySetFromChain()
+    const convertedData = convertToAlgorithmFormat(anonymitySetData)
 
-  // Update currentPrivateBalance whenever totalApprovedBalance changes
-  useEffect(() => {
-    const balanceString = formatEther(totalApprovedBalance.total)
-    handleUpdateForm({ currentPrivateBalance: balanceString })
-  }, [totalApprovedBalance.total, handleUpdateForm])
+    const algorithmResults = selectNotesForWithdrawal({
+      poolAccounts,
+      importedPoolAccounts: importedPrivateAccounts.flat(),
+      withdrawalAmount: Number(withdrawalAmount),
+      anonymityData: convertedData
+    })
+    console.log({ algorithmResults })
+
+    console.log('📊 Algorithm Results:')
+    console.log(`   Generated ${algorithmResults.length} candidate strategies`)
+    algorithmResults.forEach((result, index) => {
+      console.log(
+        `   ${index + 1}. ${result.name} - Privacy Score: ${result.privacyScore.toFixed(4)} ${
+          result.isChosen ? '🏆 WINNER' : ''
+        }`
+      )
+    })
+
+    const poolAccountsFromResult = getPoolAccountsFromResult(algorithmResults[0])
+
+    return poolAccountsFromResult
+  }, [poolAccounts, importedPrivateAccounts, withdrawalAmount])
 
   const handleMultipleWithdrawal = useCallback(async () => {
     if (
@@ -335,19 +358,6 @@ const usePrivacyPoolsForm = () => {
     ) {
       throw new Error('Missing required data for withdrawal.')
     }
-
-    const approvedAccounts =
-      poolAccounts?.filter((account) => account.reviewStatus === 'approved') || []
-
-    const selectedPoolAccounts: PoolAccount[] = []
-    let remainingAmount = parseUnits(withdrawalAmount, 18)
-
-    approvedAccounts.forEach((account) => {
-      if (remainingAmount > 0n) {
-        selectedPoolAccounts.push(account)
-        remainingAmount -= account.balance
-      }
-    })
 
     const selectedPoolInfo = poolInfo
 
@@ -362,20 +372,7 @@ const usePrivacyPoolsForm = () => {
     // IMPORTANT: All proofs MUST use the SAME context
     const context = getContext(batchWithdrawal, selectedPoolInfo.scope as Hash)
 
-    let partialAmount = parseUnits(withdrawalAmount, 18)
-    const accountsWithAmounts = selectedPoolAccounts.map((poolAccount) => {
-      let amount: bigint
-
-      if (partialAmount - poolAccount.balance >= 0) {
-        partialAmount -= poolAccount.balance
-        amount = poolAccount.balance
-      } else {
-        amount = partialAmount
-        partialAmount = 0n
-      }
-
-      return { poolAccount, amount }
-    })
+    const accountsWithAmounts = await runNoteSelection()
 
     // Generate proofs for each account with the SAME context
     // Using batched sequential processing to prevent memory issues
@@ -468,23 +465,33 @@ const usePrivacyPoolsForm = () => {
       proofs: transformedProofs
     })
   }, [
-    chainId,
-    mtRoots,
-    mtLeaves,
     poolInfo,
-    userAccount,
-    poolAccounts,
-    relayerQuote,
+    mtLeaves,
+    mtRoots,
     accountService,
-    withdrawalAmount,
+    userAccount,
     recipientAddress,
+    relayerQuote?.data,
     getContext,
+    runNoteSelection,
+    proofsBatchSize,
+    directBroadcastWithdrawal,
+    chainId,
     getMerkleProof,
-    verifyWithdrawalProof,
     createWithdrawalSecrets,
     generateWithdrawalProof,
-    directBroadcastWithdrawal
+    verifyWithdrawalProof
   ])
+
+  useEffect(() => {
+    handleUpdateForm({ batchSize: calculatedBatchSize })
+  }, [calculatedBatchSize, handleUpdateForm])
+
+  // Update currentPrivateBalance whenever totalApprovedBalance changes
+  useEffect(() => {
+    const balanceString = formatEther(totalApprovedBalance.total)
+    handleUpdateForm({ currentPrivateBalance: balanceString })
+  }, [totalApprovedBalance.total, handleUpdateForm])
 
   return {
     chainId,
