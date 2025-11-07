@@ -321,35 +321,30 @@ const usePrivacyPoolsForm = () => {
   ])
 
   const runNoteSelection = useCallback(async () => {
-    try {
-      const anonymitySetData = await generateAnonymitySetFromChain()
-      const convertedData = convertToAlgorithmFormat(anonymitySetData)
+    const anonymitySetData = await generateAnonymitySetFromChain()
+    const convertedData = convertToAlgorithmFormat(anonymitySetData)
 
-      const algorithmResults = selectNotesForWithdrawal({
-        poolAccounts,
-        importedPoolAccounts: importedPrivateAccounts.flat(),
-        withdrawalAmount: Number(withdrawalAmount),
-        anonymityData: convertedData
-      })
-      console.log({ algorithmResults })
+    const algorithmResults = selectNotesForWithdrawal({
+      poolAccounts,
+      importedPoolAccounts: importedPrivateAccounts.flat(),
+      withdrawalAmount: Number(withdrawalAmount),
+      anonymityData: convertedData
+    })
+    console.log({ algorithmResults })
 
-      console.log('📊 Algorithm Results:')
-      console.log(`   Generated ${algorithmResults.length} candidate strategies`)
-      algorithmResults.forEach((result, index) => {
-        console.log(
-          `   ${index + 1}. ${result.name} - Privacy Score: ${result.privacyScore.toFixed(4)} ${
-            result.isChosen ? '🏆 WINNER' : ''
-          }`
-        )
-      })
+    console.log('📊 Algorithm Results:')
+    console.log(`   Generated ${algorithmResults.length} candidate strategies`)
+    algorithmResults.forEach((result, index) => {
+      console.log(
+        `   ${index + 1}. ${result.name} - Privacy Score: ${result.privacyScore.toFixed(4)} ${
+          result.isChosen ? '🏆 WINNER' : ''
+        }`
+      )
+    })
 
-      const poolAccountsFromResult = getPoolAccountsFromResult(algorithmResults[0])
+    const poolAccountsFromResult = getPoolAccountsFromResult(algorithmResults[0])
 
-      return poolAccountsFromResult
-    } catch (error) {
-      console.error('Error running note selection:', error)
-      return []
-    }
+    return poolAccountsFromResult
   }, [poolAccounts, importedPrivateAccounts, withdrawalAmount])
 
   const handleMultipleWithdrawal = useCallback(async () => {
