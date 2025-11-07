@@ -29,7 +29,8 @@ const DepositStatusBanner = ({ onWithdrawBack, onDeposit }: DepositStatusBannerP
     totalPendingBalance,
     totalApprovedBalance,
     ethPrice,
-    isAccountLoaded
+    isAccountLoaded,
+    loadingError
   } = usePrivacyPoolsForm()
 
   const [selectedTab, setSelectedTab] = useState<TabType>(() => {
@@ -76,7 +77,7 @@ const DepositStatusBanner = ({ onWithdrawBack, onDeposit }: DepositStatusBannerP
     totalPendingBalance.total === 0n &&
     totalApprovedBalance.total > 0n
 
-  if (!isAccountLoaded || onlyApprovedBalance) return null
+  if (!isAccountLoaded || onlyApprovedBalance || loadingError) return null
 
   if (zeroBalance && isAccountLoaded) {
     return (
