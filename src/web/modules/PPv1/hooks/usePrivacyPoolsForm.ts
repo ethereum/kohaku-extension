@@ -12,10 +12,6 @@ import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountCont
 import { prepareWithdrawalProofInput, transformProofForRelayerApi } from '../utils/withdrawal'
 import { transformRagequitProofForContract } from '../utils/ragequit'
 import { entrypointAbi, privacyPoolAbi } from '../utils/abi'
-import {
-  convertToAlgorithmFormat,
-  generateAnonymitySetFromChain
-} from '../sdk/noteSelection/anonimitySet/anonymitySetGeneration'
 import { selectNotesForWithdrawal } from '../sdk/noteSelection/selectNotesForWithdrawal'
 import { getPoolAccountsFromResult } from '../sdk/noteSelection/helpers'
 import { PoolAccount } from '../sdk/noteSelection/types'
@@ -47,6 +43,8 @@ const usePrivacyPoolsForm = () => {
     relayerQuote,
     validationFormMsgs,
     proofsBatchSize,
+    anonymitySetData,
+    isLoadingAnonymitySet,
     getContext,
     loadPrivateAccount,
     refreshPrivateAccount,
@@ -154,21 +152,18 @@ const usePrivacyPoolsForm = () => {
 
   useEffect(() => {
     const runNoteSelectionAlgorithm = async () => {
-      if (!withdrawalAmount || !poolAccounts || poolAccounts.length === 0) {
+      if (!withdrawalAmount || !poolAccounts || poolAccounts.length === 0 || !anonymitySetData) {
         setCalculatedBatchSize(1)
         setSelectedNotesCache(null)
         return
       }
 
       try {
-        const anonymitySetData = await generateAnonymitySetFromChain()
-        const convertedData = convertToAlgorithmFormat(anonymitySetData)
-
         const algorithmResults = selectNotesForWithdrawal({
           poolAccounts,
           importedPoolAccounts: importedPrivateAccounts.flat(),
           withdrawalAmount: Number(withdrawalAmount),
-          anonymityData: convertedData
+          anonymityData: anonymitySetData
         })
 
         console.log({ algorithmResults })
@@ -202,7 +197,7 @@ const usePrivacyPoolsForm = () => {
     runNoteSelectionAlgorithm().catch((error) => {
       console.error('Error running note selection algorithm:', error)
     })
-  }, [withdrawalAmount, poolAccounts, importedPrivateAccounts])
+  }, [withdrawalAmount, poolAccounts, importedPrivateAccounts, anonymitySetData])
 
   console.log('DEBUG: calculatedBatchSize', calculatedBatchSize)
 
@@ -540,6 +535,7 @@ const usePrivacyPoolsForm = () => {
     isLoading: isLoadingAccount,
     isRefreshing,
     isAccountLoaded,
+    isLoadingAnonymitySet,
     totalApprovedBalance,
     totalPendingBalance,
     totalDeclinedBalance,

@@ -52,6 +52,10 @@ import {
   getPPv1Accounts,
   storePPv1Accounts
 } from '@web/modules/PPv1/sdk/misc'
+import {
+  generateAnonymitySetFromChain,
+  convertToAlgorithmFormat
+} from '@web/modules/PPv1/sdk/noteSelection/anonimitySet/anonymitySetGeneration'
 
 export enum ReviewStatus {
   PENDING = 'pending',
@@ -96,6 +100,8 @@ type EnhancedPrivacyPoolsControllerState = {
   loadingError: string | null
   importedPrivateAccounts: PoolAccount[][]
   importedAccountsWithNames: ImportedAccountWithName[]
+  anonymitySetData: Record<number, number> | undefined
+  isLoadingAnonymitySet: boolean
   setIsAccountLoaded: Dispatch<SetStateAction<boolean>>
   loadPrivateAccount: () => Promise<void>
   refreshPrivateAccount: (refetchLeavesAndRoots?: boolean) => Promise<void>
@@ -208,6 +214,10 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   const [importedAccountServicesMap, setImportedAccountServicesMap] = useState<
     Map<string, AccountService>
   >(new Map())
+  const [anonymitySetData, setAnonymitySetData] = useState<Record<number, number> | undefined>(
+    undefined
+  )
+  const [isLoadingAnonymitySet, setIsLoadingAnonymitySet] = useState(false)
   const memoizedState = useDeepMemo(state, controller)
 
   const { secret } = memoizedState
@@ -560,6 +570,24 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReadyToLoad])
 
+  // Generate anonymity set data when app is ready
+  useEffect(() => {
+    if (isReadyToLoad && !anonymitySetData && !isLoadingAnonymitySet) {
+      const loadAnonymitySet = async () => {
+        try {
+          setIsLoadingAnonymitySet(true)
+          const rawAnonymitySetData = await generateAnonymitySetFromChain()
+          const convertedData = convertToAlgorithmFormat(rawAnonymitySetData)
+          setAnonymitySetData(convertedData)
+        } finally {
+          setIsLoadingAnonymitySet(false)
+        }
+      }
+
+      loadAnonymitySet().catch(console.error)
+    }
+  }, [isReadyToLoad, anonymitySetData, isLoadingAnonymitySet])
+
   useEffect(() => {
     if (memoizedState.initialPromiseLoaded && memoizedState.chainData && !sdk) {
       const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
@@ -618,6 +646,8 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
         loadingError,
         importedPrivateAccounts,
         importedAccountsWithNames,
+        anonymitySetData,
+        isLoadingAnonymitySet,
         proofsBatchSize: PROOFS_BATCH_SIZE,
         loadPrivateAccount,
         refreshPrivateAccount,
@@ -652,6 +682,8 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       loadingError,
       importedPrivateAccounts,
       importedAccountsWithNames,
+      anonymitySetData,
+      isLoadingAnonymitySet,
       loadPrivateAccount,
       refreshPrivateAccount,
       loadImportedPPv1Accounts,
