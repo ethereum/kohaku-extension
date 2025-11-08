@@ -21,6 +21,7 @@ import {
   fetchTxnId,
   isIdentifiedByMultipleTxn
 } from '@ambire-common/libs/accountOp/submittedAccountOp'
+import { getDappIdFromUrl } from '@ambire-common/libs/dapps/helpers'
 import { getBundlerByName, getDefaultBundler } from '@ambire-common/services/bundlers/getBundler'
 import { getRpcProvider } from '@ambire-common/services/provider'
 import { getBenzinUrlParams } from '@ambire-common/utils/benzin'
@@ -71,23 +72,29 @@ export class ProviderController {
       : true
   }
 
-  _internalGetAccounts = (origin: string) => {
-    if (ORIGINS_WHITELISTED_TO_ALL_ACCOUNTS.includes(origin)) {
-      const allOtherAccountAddresses = this.mainCtrl.accounts.accounts.reduce((prevValue, acc) => {
-        if (acc.addr !== this.mainCtrl.selectedAccount.account?.addr) {
-          prevValue.push(acc.addr)
-        }
+  _internalGetAccounts = (origin: string): string[] => {
+    const dappId = getDappIdFromUrl(origin)
+    const accounts = this.mainCtrl.accounts.accounts.filter((acc) =>
+      acc.associatedDappIDs?.includes(dappId)
+    )
+    const accountAddrs = accounts.map((acc) => acc.addr)
+    return accountAddrs || []
+    // if (ORIGINS_WHITELISTED_TO_ALL_ACCOUNTS.includes(origin)) {
+    //   const allOtherAccountAddresses = this.mainCtrl.accounts.accounts.reduce((prevValue, acc) => {
+    //     if (acc.addr !== this.mainCtrl.selectedAccount.account?.addr) {
+    //       prevValue.push(acc.addr)
+    //     }
 
-        return prevValue
-      }, [] as string[])
+    //     return prevValue
+    //   }, [] as string[])
 
-      // Selected account goes first in the list
-      return [this.mainCtrl.selectedAccount.account?.addr, ...allOtherAccountAddresses]
-    }
+    //   // Selected account goes first in the list
+    //   return [this.mainCtrl.selectedAccount.account?.addr, ...allOtherAccountAddresses]
+    // }
 
-    return this.mainCtrl.selectedAccount.account?.addr
-      ? [this.mainCtrl.selectedAccount.account?.addr]
-      : []
+    // return this.mainCtrl.selectedAccount.account?.addr
+    //   ? [this.mainCtrl.selectedAccount.account?.addr]
+    //   : []
   }
 
   getDappNetwork = (id: string) => {
@@ -129,8 +136,7 @@ export class ProviderController {
     }
 
     const account = this._internalGetAccounts(origin)
-
-    await this.mainCtrl.dapps.broadcastDappSessionEvent('accountsChanged', account)
+    await this.mainCtrl.handleBroadcastAccountsChanged()
 
     return account
   }
@@ -437,10 +443,10 @@ export class ProviderController {
     )[0]
     const accOp = this.mainCtrl.selectedAccount.account
       ? this.mainCtrl.activity.findByIdentifiedBy(
-          identifiedBy,
-          this.mainCtrl.selectedAccount.account.addr,
-          network.chainId
-        )
+        identifiedBy,
+        this.mainCtrl.selectedAccount.account.addr,
+        network.chainId
+      )
       : undefined
     const version = getVersion(accOp)
 
@@ -608,13 +614,13 @@ export class ProviderController {
 
     if (dapp?.chainId !== chainId) {
       this.mainCtrl.dapps.updateDapp(id, { chainId })
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      ;(async () => {
-        await notificationManager.create({
-          title: 'Successfully switched network',
-          message: `Network switched to ${network.name} for ${name || origin}.`
-        })
-      })()
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        ; (async () => {
+          await notificationManager.create({
+            title: 'Successfully switched network',
+            message: `Network switched to ${network.name} for ${name || origin}.`
+          })
+        })()
       await this.mainCtrl.dapps.broadcastDappSessionEvent(
         'chainChanged',
         {

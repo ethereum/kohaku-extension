@@ -53,7 +53,7 @@ const AccountDappAccessBottomSheet: FC<Props> = ({ sheetRef, closeBottomSheet, a
             return
         }
 
-        let dappUrls = currentAccount?.associatedDapps || []
+        let dappUrls = currentAccount?.associatedDappIDs || []
         dappUrls.push(dappUrl)
         setDappUrl('')
         dispatch({
@@ -66,7 +66,7 @@ const AccountDappAccessBottomSheet: FC<Props> = ({ sheetRef, closeBottomSheet, a
     }
 
     const removeDappUrl = (url: string) => {
-        let dappUrls = currentAccount?.associatedDapps || []
+        let dappUrls = currentAccount?.associatedDappIDs || []
         dappUrls = dappUrls.filter(dapp => dapp !== url)
 
         dispatch({
@@ -109,7 +109,7 @@ const AccountDappAccessBottomSheet: FC<Props> = ({ sheetRef, closeBottomSheet, a
                         style={flexbox.flex1}
                         contentContainerStyle={{ flexGrow: 1 }}
                     >
-                        {currentAccount.associatedDapps && currentAccount.associatedDapps.map((dapp) => (
+                        {currentAccount.associatedDappIDs && currentAccount.associatedDappIDs.map((dapp) => (
                             <View style={[flexbox.directionRow, flexbox.justifySpaceBetween, flexbox.alignCenter, spacings.pvMi]} key={dapp}>
                                 <View style={[{ flex: 1 }, spacings.plMi]}>
                                     <Text selectable appearance='secondaryText'>{dapp}</Text>

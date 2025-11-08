@@ -27,6 +27,7 @@ const DAppConnectBody: FC<{
   setSaveDappAccountPreference: React.Dispatch<React.SetStateAction<boolean>>
   responsiveSizeMultiplier: number
   securityCheck: 'BLACKLISTED' | 'NOT_BLACKLISTED' | 'LOADING'
+  origin?: string
 }> = ({
   confirmedRiskCheckbox,
   setConfirmedRiskCheckbox,
@@ -35,7 +36,8 @@ const DAppConnectBody: FC<{
   saveDappAccountPreference,
   setSaveDappAccountPreference,
   securityCheck,
-  responsiveSizeMultiplier
+  responsiveSizeMultiplier,
+  origin
 }) => {
     const { t } = useTranslation()
     const { styles, theme } = useTheme(getStyles)
@@ -136,6 +138,7 @@ const DAppConnectBody: FC<{
           setSaveDappAccountPreference={setSaveDappAccountPreference}
           responsiveSizeMultiplier={responsiveSizeMultiplier}
           onFullscreen={setFullscreenDappAccounts}
+          origin={origin}
         />
         {securityCheck === 'BLACKLISTED' ? (
           <Alert type="warning" size="sm" withIcon={false}>

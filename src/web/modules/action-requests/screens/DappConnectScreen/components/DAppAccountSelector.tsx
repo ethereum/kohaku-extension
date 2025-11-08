@@ -1,18 +1,17 @@
 import React, { FC, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Animated, Pressable, View } from 'react-native'
+import { useModalize } from 'react-native-modalize'
 
 import { Account as AccountInterface } from '@ambire-common/interfaces/account'
-import { isDappRequestAction } from '@ambire-common/libs/actions/actions'
-import Text from '@common/components/Text'
-import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
-import useActionsControllerState from '@web/hooks/useActionsControllerState'
-import Account from '@web/modules/account-select/components/Account'
+import { getDappIdFromUrl } from '@ambire-common/libs/dapps/helpers'
+import BottomSheet from '@common/components/BottomSheet'
 import Button from '@common/components/Button'
 import Checkbox from '@common/components/Checkbox'
+import Text from '@common/components/Text'
 import spacings from '@common/styles/spacings'
-import { useModalize } from 'react-native-modalize'
-import BottomSheet from '@common/components/BottomSheet'
+import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
+import Account from '@web/modules/account-select/components/Account'
 import SavedSeedPhrases from '@web/modules/account-select/components/SavedSeedPhrases'
 
 interface Props {
@@ -22,17 +21,16 @@ interface Props {
     saveDappAccountPreference: boolean
     setSaveDappAccountPreference: React.Dispatch<React.SetStateAction<boolean>>
     onFullscreen?: (fullscreen: boolean) => void
+    origin?: string
 }
 
 interface AccountOptionProps {
-    responsiveSizeMultiplier: number
     account: AccountInterface
     isSelected: boolean
     onSelect: () => void
-    isRecommended: boolean
 }
 
-const AccountOption: FC<AccountOptionProps> = ({ account, isSelected, onSelect, isRecommended, responsiveSizeMultiplier }) => {
+const AccountOption: FC<AccountOptionProps> = ({ account, isSelected, onSelect }) => {
     const onAccountSelect = () => {
         onSelect()
     }
@@ -56,41 +54,21 @@ const DappAccountSelector: FC<Props> = ({
     setSelectedAccount,
     saveDappAccountPreference,
     setSaveDappAccountPreference,
-    onFullscreen
+    onFullscreen,
+    origin
 }) => {
     const { t } = useTranslation()
     const { accounts } = useAccountsControllerState()
-    const state = useActionsControllerState()
     const [fullscreen, setFullscreen] = React.useState(false)
 
     const { ref: sheetRef, open: openBottomSheet, close: closeBottomSheet } = useModalize()
 
-    const userRequest = useMemo(() => {
-        if (!isDappRequestAction(state.currentAction)) return null
-        if (state.currentAction.userRequest.action.kind !== 'dappConnect') return null
-        return state.currentAction.userRequest
-    }, [state.currentAction])
-
-    const dappOrigin = useMemo(() => userRequest?.session?.origin, [userRequest])
-    const dappDomain = useMemo(() => {
-        if (!dappOrigin) return null
-        try {
-            const url = new URL(dappOrigin)
-            let domain = url.hostname
-            const domainParts = domain.split('.')
-            if (domainParts.length > 2) {
-                domain = domainParts.slice(-2).join('.')
-            }
-            return domain
-        } catch {
-            return null
-        }
-    }, [dappOrigin])
-
+    const dappId = useMemo(() => getDappIdFromUrl(origin || ''), [origin])
     const recommendedAccounts = useMemo(() => {
-        if (!dappDomain) return []
-        return accounts.filter(acc => acc.associatedDapps?.includes(dappDomain)) || []
-    }, [accounts, dappDomain])
+        console.log('Filtering recommended accounts for dappId', dappId, accounts)
+        if (!dappId) return []
+        return accounts.filter(acc => acc.associatedDappIDs?.includes(dappId)) || []
+    }, [accounts, dappId])
 
     const remainingAccounts = useMemo(() => {
         return accounts.filter(acc => !recommendedAccounts?.includes(acc))
@@ -127,8 +105,6 @@ const DappAccountSelector: FC<Props> = ({
                             account={account}
                             isSelected={selectedAccount === account.addr}
                             onSelect={() => handleSelectAccount(account.addr)}
-                            isRecommended={true}
-                            responsiveSizeMultiplier={responsiveSizeMultiplier}
                         />
                     ))}
                 </View>
@@ -142,8 +118,6 @@ const DappAccountSelector: FC<Props> = ({
                             account={account}
                             isSelected={selectedAccount === account.addr}
                             onSelect={() => handleSelectAccount(account.addr)}
-                            isRecommended={false}
-                            responsiveSizeMultiplier={responsiveSizeMultiplier}
                         />
                     ))}
                 </View>

@@ -91,7 +91,7 @@ const DappConnectScreen = () => {
 
     setIsAuthorizing(true)
     if (saveDappAccountPreference) {
-      const dappUrls = selectedAccount?.account?.associatedDapps || []
+      const dappUrls = selectedAccount?.account?.associatedDappIDs || []
       dappUrls.push(userRequest?.session?.origin || '')
       dispatch({
         type: 'ACCOUNTS_CONTROLLER_SET_ASSOCIATED_DAPPS',
@@ -180,6 +180,7 @@ const DappConnectScreen = () => {
             responsiveSizeMultiplier={responsiveSizeMultiplier}
             confirmedRiskCheckbox={confirmedRiskCheckbox}
             setConfirmedRiskCheckbox={setConfirmedRiskCheckbox}
+            origin={userRequest?.session?.origin}
             selectedAccount={dappAccount}
             setSelectedAccount={setDappAccount}
             saveDappAccountPreference={saveDappAccountPreference}
