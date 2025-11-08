@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View } from 'react-native'
 
 import { isDappRequestAction } from '@ambire-common/libs/actions/actions'
+import { getDappIdFromUrl } from '@ambire-common/libs/dapps/helpers'
 import wait from '@ambire-common/utils/wait'
 import { useTranslation } from '@common/config/localization'
 import useTheme from '@common/hooks/useTheme'
@@ -89,10 +90,12 @@ const DappConnectScreen = () => {
   const handleAuthorizeButtonPress = useCallback(() => {
     if (!dappAccount || !dappAction) return
 
+    const dappId = getDappIdFromUrl(userRequest?.session?.origin || '')
+
     setIsAuthorizing(true)
     if (saveDappAccountPreference) {
       const dappUrls = selectedAccount?.account?.associatedDappIDs || []
-      dappUrls.push(userRequest?.session?.origin || '')
+      dappUrls.push(dappId)
       dispatch({
         type: 'ACCOUNTS_CONTROLLER_SET_ASSOCIATED_DAPPS',
         params: {
@@ -101,6 +104,13 @@ const DappConnectScreen = () => {
         }
       })
     }
+    dispatch({
+      type: 'ACCOUNTS_CONTROLLER_SET_ASSOCIATED_SESSION_ID',
+      params: {
+        addr: dappAccount,
+        sessionId: dappId
+      }
+    })
     dispatch({
       type: 'MAIN_CONTROLLER_SELECT_ACCOUNT',
       params: { accountAddr: dappAccount }

@@ -120,6 +120,9 @@ export const handleActions = async (
     case 'ACCOUNTS_CONTROLLER_SET_ASSOCIATED_DAPPS': {
       return await mainCtrl.accounts.setAssociatedDapps(params.addr, params.dappUrls)
     }
+    case 'ACCOUNTS_CONTROLLER_SET_ASSOCIATED_SESSION_ID': {
+      return await mainCtrl.accounts.setAssociatedSessionId(params.addr, params.sessionId)
+    }
     case 'ACCOUNTS_CONTROLLER_UPDATE_ACCOUNT_STATE': {
       return await mainCtrl.accounts.updateAccountState(params.addr, 'latest', params.chainIds)
     }

@@ -83,6 +83,7 @@ import {
   setBackgroundExtraContext,
   setBackgroundUserContext
 } from './CrashAnalytics'
+import { handleDappAccountSwitching } from './handlers/handleDappAccountSwitching'
 
 const debugLogs: {
   key: string
@@ -410,6 +411,8 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
     },
     notificationManager
   })
+
+  handleDappAccountSwitching(mainCtrl)
 
   walletStateCtrl = new WalletStateController({
     onLogLevelUpdateCallback: async (nextLogLevel: LOG_LEVELS) => {

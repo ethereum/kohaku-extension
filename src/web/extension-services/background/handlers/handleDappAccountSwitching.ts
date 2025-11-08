@@ -33,14 +33,18 @@ async function changeActiveAccount(mainCtrl: MainController, tabId: number, url:
 
         console.log("Dapp ID identified:", dappId)
 
-        const dapp = mainCtrl.dapps.getDapp(dappId)
-        // const preferredAccount = dapp?.accountAddr
-        const preferredAccount = "0x01"
+        const preferredAccount = mainCtrl.accounts.accounts.filter(
+            acc => acc.associatedSessionIds?.includes(dappId)
+        ).map(acc => acc.addr)
         console.log("Preferred account for dapp:", preferredAccount)
 
-        if (preferredAccount && preferredAccount !== mainCtrl.selectedAccount?.account?.addr) {
+        if (
+            preferredAccount &&
+            preferredAccount.length === 1 &&
+            preferredAccount[0] !== mainCtrl.selectedAccount?.account?.addr
+        ) {
             console.log("Switching to preferred account for dapp:", preferredAccount)
-            // await mainCtrl.selectAccount(preferredAccount)
+            await mainCtrl.selectAccount(preferredAccount[0])
         }
     } catch (error) {
         console.error("Error handling dapp account switching:", error)

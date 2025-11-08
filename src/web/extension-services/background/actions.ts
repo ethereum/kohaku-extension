@@ -167,6 +167,13 @@ type AccountsControllerSetAssociatedDapps = {
     dappUrls: string[];
   }
 }
+type AccountsControllerSetAssociatedSessionId = {
+  type: 'ACCOUNTS_CONTROLLER_SET_ASSOCIATED_SESSION_ID'
+  params: {
+    addr: string;
+    sessionId: string;
+  }
+}
 
 type SettingsControllerSetNetworkToAddOrUpdate = {
   type: 'SETTINGS_CONTROLLER_SET_NETWORK_TO_ADD_OR_UPDATE'
@@ -367,9 +374,9 @@ type MainControllerSignAccountOpUpdateMainDepsAction = {
 }
 type MainControllerSignAccountOpUpdateAction = {
   type:
-    | 'MAIN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
-    | 'SWAP_AND_BRIDGE_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
-    | 'TRANSFER_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
+  | 'MAIN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
+  | 'SWAP_AND_BRIDGE_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
+  | 'TRANSFER_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
   params: {
     accountOp?: AccountOp
     gasPrices?: GasRecommendation[]
@@ -399,9 +406,9 @@ type SignAccountOpUpdateAction = {
 }
 type MainControllerSignAccountOpUpdateStatus = {
   type:
-    | 'MAIN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
-    | 'SWAP_AND_BRIDGE_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
-    | 'TRANSFER_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
+  | 'MAIN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
+  | 'SWAP_AND_BRIDGE_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
+  | 'TRANSFER_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
   params: {
     status: SigningStatus
   }
@@ -775,6 +782,7 @@ export type Action =
   | AccountsControllerUpdateAccountState
   | AccountsControllerResetAccountsNewlyAddedStateAction
   | AccountsControllerSetAssociatedDapps
+  | AccountsControllerSetAssociatedSessionId
   | SettingsControllerSetNetworkToAddOrUpdate
   | SettingsControllerResetNetworkToAddOrUpdate
   | MainControllerAddNetwork
