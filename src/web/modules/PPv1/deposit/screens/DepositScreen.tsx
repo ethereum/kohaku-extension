@@ -32,6 +32,7 @@ const { isActionWindow } = getUiType()
 
 function TransferScreen() {
   const hasRefreshedAccountRef = useRef(false)
+  const prevProviderRef = useRef<string | undefined>(undefined)
   const { dispatch } = useBackgroundService()
   const { navigate } = useNavigation()
   const { t } = useTranslation()
@@ -167,6 +168,60 @@ function TransferScreen() {
     handleUpdateForm({ depositAmount: '0' })
   }, [privacyProvider, handleUpdateForm])
 
+  // Refresh full state when provider changes to ensure consistency
+  // This fixes the issue where extension reopen had stale provider state
+  useEffect(() => {
+    // Only refresh if provider actually changed (not on initial mount)
+    if (prevProviderRef.current !== undefined && prevProviderRef.current !== privacyProvider) {
+      console.log('DEBUG: Provider changed from', prevProviderRef.current, 'to', privacyProvider)
+      
+      // Close estimation modal if open (from previous provider)
+      closeEstimationModal()
+      
+      // Destroy sign account op controllers when switching providers
+      // This prevents stale controller state from causing RPC errors
+      // (e.g., if you started a deposit with Privacy Pools, then switch to Railgun)
+      // Always force provider recreation when switching providers to prevent Helios bad state
+      dispatch({
+        type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_SIGN_ACCOUNT_OP',
+        params: { forceProviderRecreate: true }
+      })
+      dispatch({
+        type: 'RAILGUN_CONTROLLER_DESTROY_SIGN_ACCOUNT_OP',
+        params: { forceProviderRecreate: true }
+      })
+
+      // Explicitly reset hasProceeded for both controllers when switching providers
+      // This ensures clean state when switching between providers
+      dispatch({
+        type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
+        params: {
+          proceeded: false
+        }
+      })
+      dispatch({
+        type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED',
+        params: {
+          proceeded: false
+        }
+      })
+
+      // Reset account loaded state to force reload with correct provider
+      if (privacyProvider === 'privacy-pools') {
+        // For Privacy Pools, refresh the account
+        refreshPrivateAccount().catch((error) => {
+          console.error('Failed to refresh Privacy Pools account on provider change:', error)
+        })
+      } else if (privacyProvider === 'railgun') {
+        // For Railgun, refresh the account
+        refreshPrivateAccount().catch((error) => {
+          console.error('Failed to refresh Railgun account on provider change:', error)
+        })
+      }
+    }
+    prevProviderRef.current = privacyProvider
+  }, [privacyProvider, refreshPrivateAccount, dispatch, closeEstimationModal])
+
   const displayedView: 'transfer' | 'track' = useMemo(() => {
     if (latestBroadcastedAccountOp) return 'track'
 
@@ -247,6 +302,21 @@ function TransferScreen() {
   }, [depositAmount, poolInfo, isLoading, isAccountLoaded, privacyProvider, validationFormMsgs.amount])
 
   const onBack = useCallback(() => {
+    console.log('DEBUG: DepositScreen onBack: destroying controllers and forcing provider recreation')
+    // Destroy sign account op controllers to prevent stale state issues
+    // This is critical when clicking back during a deposit, as the controller
+    // may have ongoing RPC calls (e.g., through Helios) that can cause errors
+    // on the next transaction attempt
+    // Always force provider recreation when clicking back to prevent Helios bad state
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_SIGN_ACCOUNT_OP',
+      params: { forceProviderRecreate: true }
+    })
+    dispatch({
+      type: 'RAILGUN_CONTROLLER_DESTROY_SIGN_ACCOUNT_OP',
+      params: { forceProviderRecreate: true }
+    })
+
     dispatch({
       type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
     })

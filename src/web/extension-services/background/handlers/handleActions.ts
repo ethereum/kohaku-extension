@@ -465,7 +465,9 @@ export const handleActions = async (
     case 'PRIVACY_POOLS_CONTROLLER_RESET_FORM':
       return mainCtrl.privacyPools.resetForm()
     case 'PRIVACY_POOLS_CONTROLLER_DESTROY_SIGN_ACCOUNT_OP':
-      return mainCtrl.privacyPools.destroySignAccountOp()
+      // Always force provider recreation for deposits to prevent Helios bad state
+      // params?.forceProviderRecreate can be passed, but defaults to true for safety
+      return mainCtrl.privacyPools.destroySignAccountOp(params?.forceProviderRecreate !== false)
     case 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP':
       return mainCtrl.privacyPools.destroyLatestBroadcastedAccountOp()
     case 'PRIVACY_POOLS_CONTROLLER_SYNC_SIGN_ACCOUNT_OP':
@@ -496,7 +498,9 @@ export const handleActions = async (
     case 'RAILGUN_CONTROLLER_RESET_FORM':
       return mainCtrl.railgun.resetForm()
     case 'RAILGUN_CONTROLLER_DESTROY_SIGN_ACCOUNT_OP':
-      return mainCtrl.railgun.destroySignAccountOp()
+      // Always force provider recreation for deposits to prevent Helios bad state
+      // params?.forceProviderRecreate can be passed, but defaults to true for safety
+      return mainCtrl.railgun.destroySignAccountOp(params?.forceProviderRecreate !== false)
     case 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP':
       return mainCtrl.railgun.destroyLatestBroadcastedAccountOp()
     case 'RAILGUN_CONTROLLER_SYNC_SIGN_ACCOUNT_OP':

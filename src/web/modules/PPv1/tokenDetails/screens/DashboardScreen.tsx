@@ -12,6 +12,7 @@ import { getUiType } from '@web/utils/uiType'
 
 import useNavigation from '@common/hooks/useNavigation'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
+import useBackgroundService from '@web/hooks/useBackgroundService'
 import DashboardOverview from '../components/DashboardOverview'
 import DashboardPages from '../components/DashboardPages'
 import getStyles from './styles'
@@ -32,10 +33,21 @@ const PPv1TokenDetailsScreen = () => {
   const debouncedDashboardOverviewSize = useDebounce({ value: dashboardOverviewSize, delay: 100 })
   const animatedOverviewHeight = useRef(new Animated.Value(OVERVIEW_CONTENT_MAX_HEIGHT)).current
   const { navigate } = useNavigation()
+  const { dispatch } = useBackgroundService()
 
   const handleDeposit = useCallback(() => {
+    // Reset provider to privacy-pools when navigating to deposit screen
+    // This ensures consistent state on extension reopen
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM',
+      params: { privacyProvider: 'privacy-pools' }
+    })
+    dispatch({
+      type: 'RAILGUN_CONTROLLER_UPDATE_FORM',
+      params: { privacyProvider: 'privacy-pools' }
+    })
     navigate(WEB_ROUTES.pp1Deposit)
-  }, [navigate])
+  }, [navigate, dispatch])
 
   const handleSend = useCallback(() => {
     navigate(WEB_ROUTES.pp1Transfer)

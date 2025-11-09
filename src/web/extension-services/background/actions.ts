@@ -788,6 +788,9 @@ type PrivacyControllerHasUserProceededAction = {
 
 type PrivacyControllerDestroySignAccountOpAction = {
   type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_SIGN_ACCOUNT_OP'
+  params?: {
+    forceProviderRecreate?: boolean
+  }
 }
 
 type PrivacyControllerDestroyLatestBroadcastedAccountOpAction = {
@@ -878,6 +881,9 @@ type RailgunControllerHasUserProceededAction = {
 
 type RailgunControllerDestroySignAccountOpAction = {
   type: 'RAILGUN_CONTROLLER_DESTROY_SIGN_ACCOUNT_OP'
+  params?: {
+    forceProviderRecreate?: boolean
+  }
 }
 
 type RailgunControllerDestroyLatestBroadcastedAccountOpAction = {

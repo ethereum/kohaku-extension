@@ -1,4 +1,4 @@
-import React, { ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
+import React, { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View } from 'react-native'
 
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
@@ -55,6 +55,8 @@ const DepositForm = ({
   const [displayAmount, setDisplayAmount] = useState('')
   const [selectedAccountAddr, setSelectedAccountAddr] = useState<string | null>(null)
   const [mySelectedToken, setMySelectedToken] = useState<any>(null)
+  const hasUserSelectedTokenRef = useRef(false)
+  const hasInitializedTokenRef = useRef(false)
 
   // Filter out private account (zeroAddress)
   const regularAccounts = useMemo(
@@ -69,9 +71,17 @@ const DepositForm = ({
     }
   }, [selectedAccount, selectedAccountAddr])
 
-  // Set initial selected token
+  // Set initial selected token from prop, but only if user hasn't manually selected one
   useEffect(() => {
-    setMySelectedToken(selectedToken)
+    // Only sync from prop if user hasn't manually selected a token
+    // or if the prop is explicitly set (not null/undefined)
+    if (selectedToken && !hasUserSelectedTokenRef.current) {
+      setMySelectedToken(selectedToken)
+      hasInitializedTokenRef.current = true
+    } else if (!selectedToken && !hasUserSelectedTokenRef.current && !hasInitializedTokenRef.current) {
+      // If prop is null and we haven't initialized, clear local state
+      setMySelectedToken(null)
+    }
   }, [selectedToken])
 
   // Get portfolio for the currently selected account
@@ -173,6 +183,7 @@ const DepositForm = ({
       const tokenToSelect = availableTokens.find((token) => getTokenId(token) === tokenId)
       
       if (tokenToSelect) {
+        hasUserSelectedTokenRef.current = true
         setMySelectedToken(tokenToSelect)
         // Reset amount when changing tokens
         setDisplayAmount('')
@@ -233,26 +244,41 @@ const DepositForm = ({
   )
 
   // Initialize selectedToken with default ETH token if not set
+  // Only run once when portfolio becomes ready, and only if user hasn't manually selected a token
   useEffect(() => {
-    if (!mySelectedToken && portfolio?.isReadyToVisualize && availableTokens.length > 0) {
-      // Default to native token (ETH) if available, otherwise use first token
-      const defaultToken =
-        availableTokens.find((token) => token.address === zeroAddress) || availableTokens[0]
-      
-      if (defaultToken) {
-        const defaultTokenBalance = getTokenAmount(defaultToken)
-        const args =
-          privacyProvider === 'railgun'
-            ? { selectedToken: defaultToken }
-            : {
-                selectedToken: defaultToken,
-                maxAmount:
-                  defaultToken.decimals !== undefined
-                    ? formatUnits(defaultTokenBalance, defaultToken.decimals)
-                    : formatEther(defaultTokenBalance)
-              }
-        handleUpdateForm(args)
-      }
+    // Don't initialize if:
+    // 1. User has manually selected a token
+    // 2. We've already initialized
+    // 3. Portfolio isn't ready or no tokens available
+    // 4. We already have a selected token
+    if (
+      hasUserSelectedTokenRef.current ||
+      hasInitializedTokenRef.current ||
+      !portfolio?.isReadyToVisualize ||
+      availableTokens.length === 0 ||
+      mySelectedToken
+    ) {
+      return
+    }
+
+    // Default to native token (ETH) if available, otherwise use first token
+    const defaultToken =
+      availableTokens.find((token) => token.address === zeroAddress) || availableTokens[0]
+    
+    if (defaultToken) {
+      hasInitializedTokenRef.current = true
+      const defaultTokenBalance = getTokenAmount(defaultToken)
+      const args =
+        privacyProvider === 'railgun'
+          ? { selectedToken: defaultToken }
+          : {
+              selectedToken: defaultToken,
+              maxAmount:
+                defaultToken.decimals !== undefined
+                  ? formatUnits(defaultTokenBalance, defaultToken.decimals)
+                  : formatEther(defaultTokenBalance)
+            }
+      handleUpdateForm(args)
     }
   }, [
     mySelectedToken,
@@ -265,6 +291,9 @@ const DepositForm = ({
   const handleProviderChange = (provider: SelectValue) => {
     setSelectedProvider(provider)
     setMySelectedToken(null)
+    // Reset flags when provider changes so we can re-initialize
+    hasUserSelectedTokenRef.current = false
+    hasInitializedTokenRef.current = false
     handleUpdateForm({ privacyProvider: provider.value, selectedToken: null })
   }
 
@@ -325,6 +354,23 @@ const DepositForm = ({
     }
   }, [depositAmount, currentSelectedToken])
 
+  // Validate that only native ETH is used for privacy pools
+  const privacyPoolsTokenError = useMemo(() => {
+    if (privacyProvider === 'privacy-pools' && currentSelectedToken) {
+      const isNativeToken = currentSelectedToken.address === zeroAddress
+      if (!isNativeToken) {
+        return 'Only native ETH deposits for privacyPools'
+      }
+    }
+    return ''
+  }, [privacyProvider, currentSelectedToken])
+
+  // Combine existing error message with privacy pools token validation
+  const combinedErrorMessage = useMemo(() => {
+    if (privacyPoolsTokenError) return privacyPoolsTokenError
+    return amountErrorMessage
+  }, [privacyPoolsTokenError, amountErrorMessage])
+
   // Only check for poolInfo when using Privacy Pools
   if (privacyProvider === 'privacy-pools' && !poolInfo) {
     return (
@@ -371,7 +417,7 @@ const DepositForm = ({
           fromAmountInFiat="0"
           fromAmountFieldMode="token"
           maxFromAmount={maxFromAmountFormatted}
-          validateFromAmount={{ success: !amountErrorMessage, message: amountErrorMessage }}
+          validateFromAmount={{ success: !combinedErrorMessage, message: combinedErrorMessage }}
           onFromAmountChange={handleAmountChange}
           handleSetMaxFromAmount={handleSetMaxAmount}
           inputTestId="amount-field"

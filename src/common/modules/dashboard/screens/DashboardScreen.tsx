@@ -54,8 +54,18 @@ const DashboardScreen = () => {
   }, [navigate])
 
   const onDeposit = useCallback(() => {
+    // Reset provider to privacy-pools when navigating to deposit screen
+    // This ensures consistent state on extension reopen
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM',
+      params: { privacyProvider: 'privacy-pools' }
+    })
+    dispatch({
+      type: 'RAILGUN_CONTROLLER_UPDATE_FORM',
+      params: { privacyProvider: 'privacy-pools' }
+    })
     navigate(WEB_ROUTES.pp1Deposit)
-  }, [navigate])
+  }, [navigate, dispatch])
 
   useEffect(() => {
     if (!isAccountLoaded && isReadyToLoad) {
