@@ -26,6 +26,7 @@ import Account from '@web/modules/account-select/components/Account'
 import AddAccount from '@web/modules/account-select/components/AddAccount'
 import { getUiType } from '@web/utils/uiType'
 
+import { zeroAddress } from 'viem'
 import getStyles from './styles'
 
 const extractTriggerAddAccountSheetParam = (search: string | undefined): boolean | null => {
@@ -90,6 +91,11 @@ const AccountSelectScreen = () => {
     // of the previously selected account.
     if (!account || !pendingToBeSetSelectedAccount) return
 
+    if (pendingToBeSetSelectedAccount === zeroAddress) {
+      navigate(ROUTES.pp1Home)
+      return
+    }
+
     if (account.addr === pendingToBeSetSelectedAccount) {
       navigate(ROUTES.dashboard)
     }
@@ -124,17 +130,28 @@ const AccountSelectScreen = () => {
           keyExtractor={keyExtractor}
           ListEmptyComponent={<Text>{t('No accounts found')}</Text>}
         />
-        <View style={[spacings.ptSm, { width: '100%' }]}>
+        <View style={[spacings.ptSm, flexbox.directionRow, { width: '100%' }]}>
+          <Button
+            testID="button-add-private-account"
+            text={t('Add private account')}
+            type="secondary"
+            hasBottomSpacing={false}
+            onPress={() => navigate(ROUTES.pp1Import)}
+            childrenPosition="left"
+            style={[{ flex: 1 }, spacings.mrSm]}
+          >
+            <AddIcon color={theme.primary} style={spacings.mrTy} />
+          </Button>
           <Button
             testID="button-add-account"
             text={t('Add account')}
-            type="secondary"
+            type="primary"
             hasBottomSpacing={false}
             onPress={openBottomSheet as any}
             childrenPosition="left"
-            style={{ ...flexbox.alignSelfCenter, width: '100%' }}
+            style={{ flex: 1 }}
           >
-            <AddIcon color={theme.primary} style={spacings.mrTy} />
+            <AddIcon color="#fff" style={spacings.mrTy} />
           </Button>
         </View>
       </View>

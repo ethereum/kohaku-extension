@@ -4,6 +4,7 @@ import React, { FC, useEffect, useMemo, useState } from 'react'
 import { HumanizerMetaAddress } from '@ambire-common/libs/humanizer/interfaces'
 import { getAddressCaught } from '@ambire-common/utils/getAddressCaught'
 import { Props as TextProps } from '@common/components/Text'
+import SkeletonLoader from '@common/components/SkeletonLoader'
 import { isExtension } from '@web/constants/browserapi'
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useAddressBookControllerState from '@web/hooks/useAddressBookControllerState'
@@ -34,6 +35,7 @@ const HumanizerAddressInner: FC<Props> = ({
   const { contacts = [] } = useAddressBookControllerState()
   const checksummedAddress = getAddressCaught(address)
   const [fetchedAddressLabel, setFetchedAddressLabel] = useState<null | string>(null)
+  const [isFetching, setIsFetching] = useState(false)
 
   const localAddressLabel = useMemo(() => {
     const zeroAddressLabel = address === ZeroAddress && 'Zero Address'
@@ -64,12 +66,25 @@ const HumanizerAddressInner: FC<Props> = ({
   ])
 
   useEffect(() => {
-    if (!localAddressLabel && chainId)
+    if (!localAddressLabel && chainId) {
+      setIsFetching(true)
       fetch(`https://cena.ambire.com/api/v3/contracts/${address}/${chainId}`)
         .then((r) => r.json())
-        .then((r) => setFetchedAddressLabel(r.name))
-        .catch(console.error)
+        .then((r) => {
+          setFetchedAddressLabel(r.name)
+          setIsFetching(false)
+        })
+        .catch((error) => {
+          console.error(error)
+          setIsFetching(false)
+        })
+    }
   }, [address, chainId, localAddressLabel])
+
+  // Show skeleton while fetching
+  if (isFetching && !localAddressLabel && !fetchedAddressLabel) {
+    return <SkeletonLoader width={120} height={16} appearance="tertiaryBackground" />
+  }
 
   // highestPriorityAlias and account labels are of higher priority than domains
   if (localAddressLabel || fetchedAddressLabel)

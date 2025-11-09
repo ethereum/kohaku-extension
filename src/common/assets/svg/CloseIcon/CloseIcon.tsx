@@ -9,10 +9,16 @@ interface Props extends SvgProps {
   strokeWidth?: string
 }
 
-const CloseIcon: React.FC<Props> = ({ width = 14, height = 14, strokeWidth = '1.5', color }) => {
+const CloseIcon: React.FC<Props> = ({
+  width = 14,
+  height = 14,
+  strokeWidth = '1.5',
+  color,
+  ...rest
+}) => {
   const { theme } = useTheme()
   return (
-    <Svg width={width} height={height} viewBox="0 0 14.121 14.121">
+    <Svg width={width} height={height} viewBox="0 0 14.121 14.121" {...rest}>
       <G transform="translate(-70.81 -462.818)">
         <Line
           x2="12"

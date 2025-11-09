@@ -568,10 +568,10 @@ const TransferScreen = ({ isTopUpScreen }: { isTopUpScreen?: boolean }) => {
             errorMessage={
               isTopUp
                 ? t(
-                    'Unable to top up the Gas tank. Please try again later or contact Ambire support.'
+                    'Unable to top up the Gas tank. Please try again later or contact Kokaku support.'
                   )
                 : t(
-                    "We couldn't complete your transfer. Please try again later or contact Ambire support."
+                    "We couldn't complete your transfer. Please try again later or contact Kokaku support."
                   )
             }
           />

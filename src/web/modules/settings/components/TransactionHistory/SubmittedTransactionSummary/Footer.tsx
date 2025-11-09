@@ -20,10 +20,10 @@ import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { createTab } from '@web/extension-services/background/webapi/tab'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
-import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
+// import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import { sizeMultiplier } from '@web/modules/sign-account-op/components/TransactionSummary'
 
-import RepeatTransaction from './RepeatTransaction'
+// import RepeatTransaction from './RepeatTransaction'
 import StatusBadge from './StatusBadge'
 import getStyles from './styles'
 import SubmittedOn from './SubmittedOn'
@@ -31,7 +31,7 @@ import SubmittedOn from './SubmittedOn'
 type Props = {
   network: Network
   size: 'sm' | 'md' | 'lg'
-  rawCalls?: SubmittedAccountOp['calls']
+  // rawCalls?: SubmittedAccountOp['calls']
 } & Pick<
   SubmittedAccountOp,
   'txnId' | 'identifiedBy' | 'accountAddr' | 'gasFeePayment' | 'status' | 'timestamp'
@@ -40,9 +40,9 @@ type Props = {
 const Footer: FC<Props> = ({
   network,
   txnId,
-  rawCalls,
+  // rawCalls,
   identifiedBy,
-  accountAddr,
+  // accountAddr,
   gasFeePayment,
   status,
   size,
@@ -51,7 +51,7 @@ const Footer: FC<Props> = ({
   const { styles } = useTheme(getStyles)
   const { addToast } = useToast()
   const { networks } = useNetworksControllerState()
-  const { account: selectedAccount } = useSelectedAccountControllerState()
+  // const { account: selectedAccount } = useSelectedAccountControllerState()
   const { t } = useTranslation()
   const textSize = 14 * sizeMultiplier[size]
   const iconSize = 26 * sizeMultiplier[size]
@@ -75,11 +75,13 @@ const Footer: FC<Props> = ({
       return
     }
 
-    const link = `https://explorer.ambire.com/${getBenzinUrlParams({
-      txnId,
-      chainId: Number(chainId),
-      identifiedBy
-    })}`
+    // const link = `https://explorer.ambire.com/${getBenzinUrlParams({
+    //   txnId,
+    //   chainId: Number(chainId),
+    //   identifiedBy
+    // })}`
+
+    const link = `https://sepolia.etherscan.io/tx/${txnId}`
 
     try {
       await createTab(link)
@@ -124,23 +126,46 @@ const Footer: FC<Props> = ({
     addToast
   ])
 
+  const date = new Date(timestamp)
+
+  if (identifiedBy?.type === 'ImportedAccount') {
+    return (
+      <View style={spacings.phMd}>
+        <View style={[styles.footer, flexbox.justifySpaceBetween]}>
+          <View>
+            <Text fontSize={textSize} appearance="secondaryText" weight="semiBold">
+              {t('Synced on')}
+            </Text>
+          </View>
+          {date.toString() !== 'Invalid Date' && (
+            <Text fontSize={textSize} appearance="secondaryText" style={spacings.mrTy}>
+              {`${date.toLocaleDateString()} (${date.toLocaleTimeString()})`}
+            </Text>
+          )}
+        </View>
+      </View>
+    )
+  }
+
   return (
     <View style={spacings.phMd}>
       <View style={styles.footer}>
         <StatusBadge status={status} textSize={textSize} />
         {canViewFee && (
-          <View style={spacings.mrMd}>
+          <View style={styles.feeColumn}>
             <Text fontSize={textSize} appearance="secondaryText" weight="semiBold">
               {t('Fee')}:
             </Text>
 
             {gasFeePayment?.isSponsored ? (
-              <Text fontSize={12} appearance="successText" weight="semiBold">
+              <Text fontSize={12} appearance="successText" weight="semiBold" numberOfLines={2}>
                 {t('Sponsored')}
               </Text>
             ) : (
-              <Text fontSize={textSize} appearance="secondaryText">
-                {feeFormattedValue || <SkeletonLoader width={80} height={21} />}
+              <Text fontSize={textSize} appearance="secondaryText" numberOfLines={2}>
+                {feeFormattedValue || (
+                  <SkeletonLoader width={80} height={21} appearance="tertiaryBackground" />
+                )}
               </Text>
             )}
           </View>
@@ -168,7 +193,7 @@ const Footer: FC<Props> = ({
             </Text>
             <LinkIcon width={iconSizeSm} height={iconSizeSm} />
           </TouchableOpacity>
-          {rawCalls?.length && selectedAccount?.addr === accountAddr ? (
+          {/* rawCalls?.length && selectedAccount?.addr === accountAddr ? (
             <RepeatTransaction
               accountAddr={accountAddr}
               chainId={network.chainId}
@@ -178,7 +203,8 @@ const Footer: FC<Props> = ({
             />
           ) : (
             <View />
-          )}
+          ) */}
+          <View />
         </View>
       </View>
     </View>

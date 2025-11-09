@@ -16,6 +16,12 @@ declare module '@env' {
     LEGENDS_NFT_ADDRESS: string
     SENTRY_DSN_LEGENDS?: string
     SENTRY_DSN_BROWSER_EXTENSION?: string
+    ALCHEMY_API_KEY: string
+    PRIVACY_POOLS_ASP_URL: string
+    PRIVACY_POOLS_RELAYER_URL: string
+    HYPERSYNC_API_KEY: string
+    RAILGUN_RELAYER_URL: string
+    INFURA_API_KEY: string
   }
 
   /**
@@ -103,4 +109,33 @@ declare module '@env' {
    * Sentry is application monitoring and error tracking app
    */
   export const SENTRY_DSN_BROWSER_EXTENSION: EnvTypes['SENTRY_DSN_BROWSER_EXTENSION']
+
+  /**
+   * The API key for Alchemy
+   */
+  export const ALCHEMY_API_KEY: EnvTypes['ALCHEMY_API_KEY']
+
+  /**
+   * The PrivacyPools ASP API endpoint
+   */
+  export const PRIVACY_POOLS_ASP_URL: EnvTypes['PRIVACY_POOLS_ASP_URL']
+
+  /**
+   * The API key for Alchemy
+   */
+  export const PRIVACY_POOLS_RELAYER_URL: EnvTypes['PRIVACY_POOLS_RELAYER_URL']
+
+  /**
+   * The API key for sdk RPC (Hypersync from Envio)
+   */
+  export const HYPERSYNC_API_KEY: EnvTypes['HYPERSYNC_API_KEY']
+  
+  /** The Railgun Relayer URL
+   */
+  export const RAILGUN_RELAYER_URL: EnvTypes['RAILGUN_RELAYER_URL']
+
+  /**
+   * The Infura API key
+   */
+  export const INFURA_API_KEY: EnvTypes['INFURA_API_KEY']
 }

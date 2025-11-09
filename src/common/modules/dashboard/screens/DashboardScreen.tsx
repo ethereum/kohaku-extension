@@ -1,10 +1,11 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, NativeScrollEvent, NativeSyntheticEvent, View } from 'react-native'
 import { useModalize } from 'react-native-modalize'
 
 import { isWeb } from '@common/config/env'
 import useDebounce from '@common/hooks/useDebounce'
 import useTheme from '@common/hooks/useTheme'
+import useToast from '@common/hooks/useToast'
 import PendingActionWindowModal from '@common/modules/dashboard/components/PendingActionWindowModal'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
@@ -14,11 +15,15 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import { getUiType } from '@web/utils/uiType'
 
+import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
+import { WEB_ROUTES } from '@common/modules/router/constants/common'
+import useNavigation from '@common/hooks/useNavigation'
 import DAppFooter from '../components/DAppFooter'
 import DashboardOverview from '../components/DashboardOverview'
 import CongratsFirstCashbackModal from '../components/DashboardOverview/CongratsFirstCashbackModal'
 import DashboardPages from '../components/DashboardPages'
 import getStyles from './styles'
+import DepositStatusBanner from '../components/DepositStatusBanner/DepositStatusBanner'
 
 const { isPopup } = getUiType()
 
@@ -27,6 +32,8 @@ export const OVERVIEW_CONTENT_MAX_HEIGHT = 120
 const DashboardScreen = () => {
   const { styles } = useTheme(getStyles)
   const { dispatch } = useBackgroundService()
+  const { navigate } = useNavigation()
+  const { addToast } = useToast()
   const { ref: receiveModalRef, open: openReceiveModal, close: closeReceiveModal } = useModalize()
   const { ref: gasTankModalRef, open: openGasTankModal, close: closeGasTankModal } = useModalize()
   const lastOffsetY = useRef(0)
@@ -39,6 +46,26 @@ const DashboardScreen = () => {
   const animatedOverviewHeight = useRef(new Animated.Value(OVERVIEW_CONTENT_MAX_HEIGHT)).current
 
   const { account, portfolio, cashbackStatus } = useSelectedAccountControllerState()
+
+  const { loadPrivateAccount, isAccountLoaded, isReadyToLoad } = usePrivacyPoolsForm()
+
+  const onWithdrawBack = useCallback(() => {
+    navigate(WEB_ROUTES.pp1Ragequit)
+  }, [navigate])
+
+  const onDeposit = useCallback(() => {
+    navigate(WEB_ROUTES.pp1Deposit)
+  }, [navigate])
+
+  useEffect(() => {
+    if (!isAccountLoaded && isReadyToLoad) {
+      loadPrivateAccount().catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error('Failed to load private account:', error)
+        addToast('Failed to load your privacy account. Please try again.', { type: 'error' })
+      })
+    }
+  }, [loadPrivateAccount, isAccountLoaded, isReadyToLoad, addToast])
 
   const hasUnseenFirstCashback = useMemo(
     () => cashbackStatus === 'cashback-modal',
@@ -125,7 +152,9 @@ const DashboardScreen = () => {
             dashboardOverviewSize={debouncedDashboardOverviewSize}
             setDashboardOverviewSize={setDashboardOverviewSize}
             onGasTankButtonPosition={handleGasTankButtonPosition}
+            isPrivateAccountLoading={!isAccountLoaded}
           />
+          <DepositStatusBanner onWithdrawBack={onWithdrawBack} onDeposit={onDeposit} />
           <DashboardPages onScroll={onScroll} animatedOverviewHeight={animatedOverviewHeight} />
         </View>
         <DAppFooter />

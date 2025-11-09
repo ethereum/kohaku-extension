@@ -9,7 +9,7 @@ import { useTranslation } from '@common/config/localization'
 import useTheme from '@common/hooks/useTheme'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
-import AmbireIcon from '@web/assets/images/xicon@128.png'
+import KohakuIcon from '@web/assets/kohaku.png'
 import { engine } from '@web/constants/browserapi'
 import useWalletStateController from '@web/hooks/useWalletStateController'
 
@@ -31,11 +31,11 @@ const PinExtension = () => {
         { right: isPinned ? pinnedRightOffset : notPinnedRightOffset }
       ]}
     >
-      <Image source={AmbireIcon as any} style={{ width: 80, height: 80 }} />
+      <Image source={KohakuIcon as any} style={{ width: 80, height: 80 }} />
       {!isPinned ? (
         <View style={spacings.ph}>
           <Text fontSize={16} weight="semiBold" style={spacings.mbMi}>
-            {t('Pin the Ambire extension')}
+            {t('Pin the Kohaku extension')}
           </Text>
           <View style={[flexbox.directionRow, flexbox.alignCenter]}>
             <Text appearance="secondaryText" weight="medium">
@@ -55,7 +55,7 @@ const PinExtension = () => {
       ) : (
         <View style={spacings.ph}>
           <Text fontSize={16} weight="medium" appearance="secondaryText">
-            {t('Open Ambire from your browser toolbar.')}
+            {t('Open Kohaku from your browser toolbar.')}
           </Text>
         </View>
       )}
