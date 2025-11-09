@@ -8,6 +8,7 @@ import React, {
   useState,
 } from 'react'
 
+import { testnetNetworks } from '@ambire-common/consts/testnetNetworks'
 import { AddressState } from '@ambire-common/interfaces/domains'
 import useDeepMemo from '@common/hooks/useDeepMemo'
 import useBackgroundService from '@web/hooks/useBackgroundService'
@@ -31,8 +32,9 @@ import type {
   RailgunAccountKeys,
   RailgunAccountCache,
 } from '@ambire-common/controllers/railgun/railgun'
+import { getRpcProviderForUI, UIProxyProvider } from '@web/services/provider'
 
-import { JsonRpcProvider, Log, Network } from 'ethers'
+import { JsonRpcProvider, Log } from 'ethers'
 
 type Checkpoint = {
   merkleTrees: { tree: string[][]; nullifiers: string[] }[]
@@ -61,22 +63,18 @@ const DEFAULT_TRACKED_ACCOUNTS: Array<{ kind: 'derived'; index: number; }> = [
   { kind: 'derived', index: 0 },
 ]
 
-const INFURA_URL_TEMPLATES = {
-  '11155111': 'https://sepolia.infura.io/v3/<apiKey>'
-}
-
 const DERIVED_KEYS_GLOBAL_START_BLOCKS = {
   '11155111': 9342029,
 }
 
-const getInfuraProvider = (chainId: number, infuraApiKey: string) => {
-  const name = RAILGUN_CONFIG_BY_CHAIN_ID[chainId.toString() as keyof typeof RAILGUN_CONFIG_BY_CHAIN_ID].NAME
-  const tmpl = INFURA_URL_TEMPLATES[chainId.toString() as keyof typeof INFURA_URL_TEMPLATES]
-  if (!name || !tmpl) {
-    throw new Error(`Unsupported chainId for Infura provider: ${chainId}`)
+const getProvider = (chainId: number, dispatch: (action: any) => void) => {
+  const name =
+    RAILGUN_CONFIG_BY_CHAIN_ID[chainId.toString() as keyof typeof RAILGUN_CONFIG_BY_CHAIN_ID].NAME
+  const networkConfig = testnetNetworks.find((n) => n.chainId === BigInt(chainId))
+  if (!name || !networkConfig) {
+    throw new Error(`Unsupported network: ${chainId}`)
   }
-  const url = tmpl.replace('<apiKey>', infuraApiKey)
-  return new JsonRpcProvider(url, Network.from({ name, chainId }), {staticNetwork: true, batchMaxCount: 1, batchMaxSize: 0, batchStallTime: 0})
+  return getRpcProviderForUI(networkConfig, dispatch)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -379,14 +377,13 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
   const isRunningRef = useRef<boolean>(false) // strict single-flight guard
   const hasLoadedOnceRef = useRef<boolean>(false) // track if we've loaded once on startup
 
-  const infuraApiKey = memoizedBgState.infuraApiKey;
   const chainId = memoizedBgState.chainId || DEFAULT_CHAIN_ID;
   
-  const providerRef = useRef<JsonRpcProvider | null>(null);
+  const providerRef = useRef<UIProxyProvider | null>(null);
   useEffect(() => {
-    providerRef.current = getInfuraProvider(chainId, infuraApiKey);
+    providerRef.current = getProvider(chainId, dispatch);
     return () => { providerRef.current = null; };
-  }, [chainId, infuraApiKey]);
+  }, [chainId, dispatch]);
 
   useEffect(() => {
     latestBgStateRef.current = memoizedBgState
