@@ -14,7 +14,17 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useControllerState from '@web/hooks/useControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 
-import { RailgunAccount } from '@kohaku-eth/railgun'
+import {
+  createRailgunAccount,
+  createRailgunIndexer,
+  getRailgunAddress,
+  RAILGUN_CONFIG_BY_CHAIN_ID,
+  type RailgunAccount,
+  type Indexer,
+  type RailgunLog
+} from '@kohaku-eth/railgun'
+
+import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
 
 import type {
   RailgunController,
@@ -44,7 +54,6 @@ async function loadSepoliaCheckpoint() {
 // CONSTANTS / HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ETH_ADDRESS = '0x0000000000000000000000000000000000000000'
 const DEFAULT_CHAIN_ID = 11155111
 
 // track ONE account: derived 0
@@ -56,24 +65,12 @@ const INFURA_URL_TEMPLATES = {
   '11155111': 'https://sepolia.infura.io/v3/<apiKey>'
 }
 
-const NETWORK_NAMES = {
-  '11155111': 'sepolia'
-}
-
-const RAILGUN_ADDRESSES = {
-  '11155111': '0x942D5026b421cf2705363A525897576cFAdA5964',
-}
-
 const DERIVED_KEYS_GLOBAL_START_BLOCKS = {
   '11155111': 9342029,
 }
 
-const WETH_ADDRESSES = {
-  '11155111': '0x97a36608DA67AF0A79e50cb6343f86F340B3b49e',
-}
-
 const getInfuraProvider = (chainId: number, infuraApiKey: string) => {
-  const name = NETWORK_NAMES[chainId.toString() as keyof typeof NETWORK_NAMES]
+  const name = RAILGUN_CONFIG_BY_CHAIN_ID[chainId.toString() as keyof typeof RAILGUN_CONFIG_BY_CHAIN_ID].NAME
   const tmpl = INFURA_URL_TEMPLATES[chainId.toString() as keyof typeof INFURA_URL_TEMPLATES]
   if (!name || !tmpl) {
     throw new Error(`Unsupported chainId for Infura provider: ${chainId}`)
@@ -362,17 +359,16 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
   const [railgunAccountsState, setRailgunAccountsState] = useState<RailgunReactState>({
     status: 'idle',
     error: undefined,
-    balances: [ { tokenAddress: ETH_ADDRESS, amount: '0' } ],
+    balances: [ { tokenAddress: ZERO_ADDRESS, amount: '0' } ],
     accounts: [],
     chainId: DEFAULT_CHAIN_ID,
     lastSyncedBlock: 0,
   })
 
-  // 5) refs to avoid re-entrancy & noisy loops
+  // 5) refs to avoid re-entrancy & track initial load
   const latestBgStateRef = useRef<any>(memoizedBgState)
   const isRunningRef = useRef<boolean>(false) // strict single-flight guard
-  const lastRunTimeRef = useRef<number>(0) // track when last run completed
-  const MIN_COOLDOWN_MS = 15000 // 15 seconds cooldown between runs
+  const hasLoadedOnceRef = useRef<boolean>(false) // track if we've loaded once on startup
 
   const infuraApiKey = memoizedBgState.infuraApiKey;
   const chainId = memoizedBgState.chainId || DEFAULT_CHAIN_ID;
@@ -387,6 +383,11 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
     latestBgStateRef.current = memoizedBgState
   }, [memoizedBgState])
 
+  // Reset hasLoadedOnceRef when account or chainId changes (allows loading for new account/chain)
+  useEffect(() => {
+    hasLoadedOnceRef.current = false
+  }, [selectedAccount?.addr, chainId])
+
   // ───────────────────────────────────────────────────────────────────────────
   // helpers: BG call, wait & getters
   // ───────────────────────────────────────────────────────────────────────────
@@ -394,7 +395,7 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
   const fireBg = useCallback(
     (type: string, params?: any) => {
       if (!dispatch) throw new Error('Background dispatch not available')
-      void dispatch({ type, params })
+      void dispatch({ type: type as keyof typeof dispatch, params })
     },
     [dispatch]
   )
@@ -464,7 +465,7 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
   // ───────────────────────────────────────────────────────────────────────────
   // Core load (single-flight, minimal transitions)
   // ───────────────────────────────────────────────────────────────────────────
-  const loadPrivateAccount = useCallback(async () => {
+  const loadPrivateAccount = useCallback(async (force = false) => {
     if (!isUnlocked) {
       console.log('[RailgunContext] load skipped — keystore locked');
       return;
@@ -474,13 +475,10 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
       return;
     }
 
-    // Check cooldown: ensure at least 30 seconds have passed since last run
-    const now = Date.now()
-    const timeSinceLastRun = now - lastRunTimeRef.current
-    if (lastRunTimeRef.current > 0 && timeSinceLastRun < MIN_COOLDOWN_MS) {
-      const remainingSeconds = Math.ceil((MIN_COOLDOWN_MS - timeSinceLastRun) / 1000)
-      console.log(`[RailgunContext] load skipped — cooldown active (${remainingSeconds}s remaining)`)
-      return
+    // If already loaded once and not forced, skip (only allow manual refresh)
+    if (!force && hasLoadedOnceRef.current) {
+      console.log('[RailgunContext] load skipped — already loaded once (use refreshPrivateAccount to reload)');
+      return;
     }
 
     if (!selectedAccount) {
@@ -503,32 +501,45 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
 
       let earliestLastSyncedBlock: number = 0;
 
+      const networkConfig = RAILGUN_CONFIG_BY_CHAIN_ID[chainId.toString() as keyof typeof RAILGUN_CONFIG_BY_CHAIN_ID];
+      const railgunAddress = networkConfig.RAILGUN_ADDRESS;
+      const weth = networkConfig.WETH;
+
       // ——— per-account init ———
       for (const item of tracked) {
         
         const keys = await getDerivedKeysFromBg(item.index)
-        const account = RailgunAccount.fromPrivateKeys(
-          keys.spendingKey,
-          keys.viewingKey,
-          BigInt(chainId),
-          keys.shieldKeySigner
-        )
 
-        const zkAddress = await account.getRailgunAddress()
+        const zkAddress = await getRailgunAddress({ type: 'key', spendingKey: keys.spendingKey, viewingKey: keys.viewingKey })
         console.log('[RailgunContext - LPA] get account from cache', item)
         const cached = await getAccountCacheFromBg(zkAddress, chainId)
 
         let currentLastSyncedBlock: number
-
+        let account: RailgunAccount;
+        let indexer: Indexer;
         if (!cached || !cached.lastSyncedBlock) {
           console.log('[RailgunContext - LPA] no cache found — applying checkpoint')
           const sepoliaCheckpoint = await loadSepoliaCheckpoint()
-          await account.loadCachedMerkleTrees(sepoliaCheckpoint.merkleTrees)
+          indexer = await createRailgunIndexer({
+            network: RAILGUN_CONFIG_BY_CHAIN_ID[chainId.toString() as keyof typeof RAILGUN_CONFIG_BY_CHAIN_ID],
+            loadState: sepoliaCheckpoint,
+          });
+          account = await createRailgunAccount({
+            credential: { type: 'key', spendingKey: keys.spendingKey, viewingKey: keys.viewingKey, ethKey: keys.shieldKeySigner },
+            indexer,
+          });
           const startBlock = DERIVED_KEYS_GLOBAL_START_BLOCKS[chainId.toString() as keyof typeof DERIVED_KEYS_GLOBAL_START_BLOCKS]
           const filteredLogs = sepoliaCheckpoint.logs.filter(
             (log) => Number(log.blockNumber) > startBlock
           );
-          await account.syncWithLogs(filteredLogs, true)
+          console.log('[RailgunContext - LPA] filtered logs length', filteredLogs.length)
+          const filteredRailgunLogs: RailgunLog[] = filteredLogs.map((log) => ({
+            blockNumber: Number(log.blockNumber),
+            topics: [...log.topics],
+            data: log.data,
+            address: log.address,
+          }));
+          await indexer.processLogs(filteredRailgunLogs, { skipMerkleTree: true})
           currentLastSyncedBlock = sepoliaCheckpoint.endBlock
 
           console.log('[RailgunContext - LPA] set first account cache')
@@ -536,15 +547,21 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
             zkAddress,
             chainId,
             cache: {
-              merkleTrees: account.serializeMerkleTrees(),
-              noteBooks: account.serializeNoteBooks(),
-              lastSyncedBlock: currentLastSyncedBlock,
+              merkleTrees: indexer.getSerializedState(),
+              noteBooks: account.getSerializedState(),
+              lastSyncedBlock: account.getEndBlock(),
             },
           })
         } else {
-          console.log('[RailgunContext - LPA] cache found - sync account from cache')
-          await account.loadCachedMerkleTrees(cached.merkleTrees)
-          await account.loadCachedNoteBooks(cached.noteBooks)
+          indexer = await createRailgunIndexer({
+            network: RAILGUN_CONFIG_BY_CHAIN_ID[chainId.toString() as keyof typeof RAILGUN_CONFIG_BY_CHAIN_ID],
+            loadState: cached.merkleTrees,
+          });
+          account = await createRailgunAccount({
+            credential: { type: 'key', spendingKey: keys.spendingKey, viewingKey: keys.viewingKey, ethKey: keys.shieldKeySigner },
+            indexer,
+            loadState: cached.noteBooks,
+          });
           currentLastSyncedBlock = cached.lastSyncedBlock
         }
 
@@ -553,10 +570,15 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
         const fromBlock = currentLastSyncedBlock
         const toBlock = await provider.getBlockNumber()
         console.log('[RailgunContext - LPA] get logs', fromBlock, toBlock)
-        const railgunAddress = RAILGUN_ADDRESSES[chainId.toString() as keyof typeof RAILGUN_ADDRESSES]
         const logs = await getAllLogs(provider, railgunAddress, fromBlock, toBlock)
+        const railgunLogs: RailgunLog[] = logs.map((log) => ({
+          blockNumber: Number(log.blockNumber),
+          topics: [...log.topics],
+          data: log.data,
+          address: log.address,
+        }));
         console.log('[RailgunContext - LPA] sync with logs')
-        await account.syncWithLogs(logs);
+        await indexer.processLogs(railgunLogs);
         console.log('[RailgunContext - LPA] account synced with logs')
 
         console.log('[RailgunContext - LPA] set account cache after sync')
@@ -564,8 +586,8 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
           zkAddress,
           chainId,
           cache: {
-            merkleTrees: account.serializeMerkleTrees(),
-            noteBooks: account.serializeNoteBooks(),
+            merkleTrees: indexer.getSerializedState(),
+            noteBooks: account.getSerializedState(),
             lastSyncedBlock: toBlock,
           },
         })
@@ -575,8 +597,7 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
         }
 
         // NOTE: only works for one native token balancefor now
-        const notes = account.serializeNoteBooks();
-        const weth = WETH_ADDRESSES[chainId.toString() as keyof typeof WETH_ADDRESSES];
+        const notes = account.getSerializedState().notebooks;
         const tokens = Array.from(
           new Set(
             notes
@@ -587,8 +608,8 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
         );
         const balances = [];
         for (const token of tokens) {
-          const balance = await account.getBalance(token);
-          balances.push({ tokenAddress: token === weth ? ETH_ADDRESS : token, amount: balance.toString() });
+          const balance = await account.getBalance(token as `0x${string}`);
+          balances.push({ tokenAddress: token === weth ? ZERO_ADDRESS : token, amount: balance.toString() });
         }
 
         newAccountsMeta.push({
@@ -630,7 +651,7 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
       );
 
       isRunningRef.current = false
-      lastRunTimeRef.current = Date.now() // Record completion time
+      hasLoadedOnceRef.current = true // Mark as loaded
       setRailgunAccountsState((prev) => ({
         ...prev,
         status: 'ready',
@@ -642,7 +663,7 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
     } catch (err: any) {
       console.error('[RailgunContext] load failed', err)
       isRunningRef.current = false
-      lastRunTimeRef.current = Date.now() // Record completion time even on error
+      // Don't mark as loaded on error, so it can retry
       setRailgunAccountsState((prev) => ({
         ...prev,
         status: 'error',
@@ -653,7 +674,7 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
 
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Public refresh: only if not running
+  // Public refresh: bypasses "already loaded" check and runs immediately
   // ───────────────────────────────────────────────────────────────────────────
   const refreshPrivateAccount = useCallback(async () => {
     if (isRunningRef.current || railgunAccountsState.status === 'running') {
@@ -661,7 +682,8 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
       return
     }
 
-    await loadPrivateAccount()
+    // Force reload by passing true
+    await loadPrivateAccount(true)
   }, [loadPrivateAccount])
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -674,14 +696,14 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
   }, [dispatch, bgState])
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Auto-load exactly once
+  // Auto-load exactly once on startup (when selectedAccount becomes available)
   // ───────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!selectedAccount) return
+    if (!selectedAccount || hasLoadedOnceRef.current) return
 
-    const t = setTimeout(() => { void loadPrivateAccount() }, 100)
+    const t = setTimeout(() => { void loadPrivateAccount(false) }, 100)
     return () => clearTimeout(t)
-  }, [selectedAccount, chainId, loadPrivateAccount])
+  }, [selectedAccount, loadPrivateAccount])
 
   // ───────────────────────────────────────────────────────────────────────────
   // derive “view model” for UI

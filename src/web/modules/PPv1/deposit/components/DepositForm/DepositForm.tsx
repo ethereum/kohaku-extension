@@ -325,6 +325,23 @@ const DepositForm = ({
     }
   }, [depositAmount, currentSelectedToken])
 
+  // Validate that only native ETH is used for privacy pools
+  const privacyPoolsTokenError = useMemo(() => {
+    if (privacyProvider === 'privacy-pools' && currentSelectedToken) {
+      const isNativeToken = currentSelectedToken.address === zeroAddress
+      if (!isNativeToken) {
+        return 'Only native ETH deposits for privacyPools'
+      }
+    }
+    return ''
+  }, [privacyProvider, currentSelectedToken])
+
+  // Combine existing error message with privacy pools token validation
+  const combinedErrorMessage = useMemo(() => {
+    if (privacyPoolsTokenError) return privacyPoolsTokenError
+    return amountErrorMessage
+  }, [privacyPoolsTokenError, amountErrorMessage])
+
   // Only check for poolInfo when using Privacy Pools
   if (privacyProvider === 'privacy-pools' && !poolInfo) {
     return (
@@ -371,7 +388,7 @@ const DepositForm = ({
           fromAmountInFiat="0"
           fromAmountFieldMode="token"
           maxFromAmount={maxFromAmountFormatted}
-          validateFromAmount={{ success: !amountErrorMessage, message: amountErrorMessage }}
+          validateFromAmount={{ success: !combinedErrorMessage, message: combinedErrorMessage }}
           onFromAmountChange={handleAmountChange}
           handleSetMaxFromAmount={handleSetMaxAmount}
           inputTestId="amount-field"
