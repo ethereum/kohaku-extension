@@ -17,8 +17,7 @@ import TabsAndSearch from '../TabsAndSearch'
 import { TabType } from '../TabsAndSearch/Tabs/Tab/Tab'
 import TokenItem from './TokenItem'
 import Skeleton from './TokensSkeleton'
-
-const ETH_ADDRESS = '0x0000000000000000000000000000000000000000';
+import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
 
 interface Props {
   openTab: TabType
@@ -93,7 +92,7 @@ const Tokens = ({
           address: tokenAddress,
           chainId: 11155111,
           decimals: tokenInfo.decimals,
-          priceIn: [{ baseCurrency: 'usd', price: tokenAddress === ETH_ADDRESS ? ethPrice : undefined }],
+          priceIn: [{ baseCurrency: 'usd', price: tokenAddress === ZERO_ADDRESS ? ethPrice : undefined }],
           flags: {
             onGasTank: false,
             rewardsType: null,
