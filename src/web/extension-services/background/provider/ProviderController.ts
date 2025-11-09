@@ -73,28 +73,15 @@ export class ProviderController {
   }
 
   _internalGetAccounts = (origin: string): string[] => {
+    if (ORIGINS_WHITELISTED_TO_ALL_ACCOUNTS.includes(origin)) {
+      return this.mainCtrl.accounts.accounts.map((acc) => acc.addr)
+    }
+
     const dappId = getDappIdFromUrl(origin)
-    const accounts = this.mainCtrl.accounts.accounts.filter((acc) =>
-      acc.associatedDappIDs?.includes(dappId)
-    )
-    const accountAddrs = accounts.map((acc) => acc.addr)
-    return accountAddrs || []
-    // if (ORIGINS_WHITELISTED_TO_ALL_ACCOUNTS.includes(origin)) {
-    //   const allOtherAccountAddresses = this.mainCtrl.accounts.accounts.reduce((prevValue, acc) => {
-    //     if (acc.addr !== this.mainCtrl.selectedAccount.account?.addr) {
-    //       prevValue.push(acc.addr)
-    //     }
-
-    //     return prevValue
-    //   }, [] as string[])
-
-    //   // Selected account goes first in the list
-    //   return [this.mainCtrl.selectedAccount.account?.addr, ...allOtherAccountAddresses]
-    // }
-
-    // return this.mainCtrl.selectedAccount.account?.addr
-    //   ? [this.mainCtrl.selectedAccount.account?.addr]
-    //   : []
+    const dapp = this.mainCtrl.dapps.getDapp(dappId)
+    const account = dapp?.account;
+    if (!account) return []
+    return [account]
   }
 
   getDappNetwork = (id: string) => {
