@@ -8,7 +8,14 @@ import { randomId } from '@ambire-common/libs/humanizer/utils'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useRailgunControllerState from '@web/hooks/useRailgunControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
-import { createRailgunAccount, createRailgunIndexer, RAILGUN_CONFIG_BY_CHAIN_ID } from '@kohaku-eth/railgun'
+import {
+  createRailgunAccount,
+  createRailgunIndexer,
+  getRailgunAddress,
+  RAILGUN_CONFIG_BY_CHAIN_ID,
+  type RailgunAccount,
+  type Indexer
+} from '@kohaku-eth/railgun'
 import { Interface } from 'ethers'
 
 const ERC20 = new Interface(["function approve(address spender, uint256 amount) external returns (bool)"]);
@@ -34,7 +41,10 @@ const useRailgunForm = () => {
     privacyProvider,
     loadPrivateAccount,
     refreshPrivateAccount,
+    getAccountCache,
     defaultRailgunKeys,
+    syncedDefaultRailgunAccount,
+    syncedDefaultRailgunIndexer,
     railgunAccountsState,
     selectedToken
   } = useRailgunControllerState()
@@ -87,7 +97,8 @@ const useRailgunForm = () => {
         continue;
       }
 
-      balanceMap[balance.tokenAddress] = { 
+      // Use lowercase address as key for consistent matching
+      balanceMap[balance.tokenAddress.toLowerCase()] = { 
         amount: balance.amount,
         decimals: token.decimals,
         symbol: token.symbol,
@@ -210,6 +221,26 @@ const useRailgunForm = () => {
     }
   }
 
+  /**
+   * Gets the synced Railgun account instance directly from context state
+   * The account is created and stored during loadPrivateAccount/refreshPrivateAccount
+   * This avoids the need to reconstitute from cache
+   */
+  const getSyncedDefaultRailgunAccount = useCallback((): {
+    account: RailgunAccount
+    indexer: Indexer
+  } | null => {
+    if (!syncedDefaultRailgunAccount || !syncedDefaultRailgunIndexer) {
+      console.warn('[useRailgunForm] Synced account not available. Ensure loadPrivateAccount has been called first.')
+      return null
+    }
+
+    return {
+      account: syncedDefaultRailgunAccount,
+      indexer: syncedDefaultRailgunIndexer
+    }
+  }, [syncedDefaultRailgunAccount, syncedDefaultRailgunIndexer])
+
   const handleMultipleWithdrawal = useCallback(async () => {
     console.log('RAILGUN WITHDRAWAL: Implementation coming soon')
     console.log('Withdrawal amount:', withdrawalAmount)
@@ -274,7 +305,10 @@ const useRailgunForm = () => {
     closeEstimationModal,
     handleSelectedAccount,
     loadPrivateAccount,
-    refreshPrivateAccount
+    refreshPrivateAccount,
+    syncedDefaultRailgunAccount: getSyncedDefaultRailgunAccount,
+    syncSignAccountOp,
+    openEstimationModalAndDispatch
   }
 }
 

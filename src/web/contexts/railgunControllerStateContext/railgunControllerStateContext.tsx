@@ -307,8 +307,13 @@ type EnhancedRailgunControllerState = {
   // actions
   loadPrivateAccount: () => Promise<void>
   refreshPrivateAccount: () => Promise<void>
+  getAccountCache: (zkAddress: string, chainId: number) => Promise<RailgunAccountCache | null>
 
   defaultRailgunKeys: RailgunAccountKeys | null
+  
+  // synced account instance (created during loadPrivateAccount, available for direct use)
+  syncedDefaultRailgunAccount: RailgunAccount | null
+  syncedDefaultRailgunIndexer: Indexer | null
 } & Omit<
   Partial<RailgunController>,
   | 'validationFormMsgs'
@@ -365,7 +370,11 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
     lastSyncedBlock: 0,
   })
 
-  // 5) refs to avoid re-entrancy & track initial load
+  // 5) Store synced account instance for direct access (created during loadPrivateAccount)
+  const [syncedDefaultRailgunAccount, setSyncedDefaultRailgunAccount] = useState<RailgunAccount | null>(null)
+  const [syncedDefaultRailgunIndexer, setSyncedDefaultRailgunIndexer] = useState<Indexer | null>(null)
+
+  // 6) refs to avoid re-entrancy & track initial load
   const latestBgStateRef = useRef<any>(memoizedBgState)
   const isRunningRef = useRef<boolean>(false) // strict single-flight guard
   const hasLoadedOnceRef = useRef<boolean>(false) // track if we've loaded once on startup
@@ -552,6 +561,12 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
               lastSyncedBlock: account.getEndBlock(),
             },
           })
+
+          // Store the account instance for direct access (only for default account, index 0)
+          if (item.index === 0) {
+            setSyncedDefaultRailgunAccount(account)
+            setSyncedDefaultRailgunIndexer(indexer)
+          }
         } else {
           indexer = await createRailgunIndexer({
             network: RAILGUN_CONFIG_BY_CHAIN_ID[chainId.toString() as keyof typeof RAILGUN_CONFIG_BY_CHAIN_ID],
@@ -591,6 +606,12 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
             lastSyncedBlock: toBlock,
           },
         })
+
+        // Update stored account instance after sync (only for default account, index 0)
+        if (item.index === 0) {
+          setSyncedDefaultRailgunAccount(account)
+          setSyncedDefaultRailgunIndexer(indexer)
+        }
 
         if (earliestLastSyncedBlock === 0 || toBlock < earliestLastSyncedBlock) {
           earliestLastSyncedBlock = toBlock
@@ -737,11 +758,16 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
       // actions
       loadPrivateAccount,
       refreshPrivateAccount,
+      getAccountCache: getAccountCacheFromBg,
 
       // expose default keys if bg already has them cached
       defaultRailgunKeys: memoizedBgState.defaultRailgunKeys ?? null,
+      
+      // expose synced account instance for direct use
+      syncedDefaultRailgunAccount,
+      syncedDefaultRailgunIndexer,
     }
-  }, [memoizedBgState, railgunAccountsState, loadPrivateAccount, refreshPrivateAccount])
+  }, [memoizedBgState, railgunAccountsState, loadPrivateAccount, refreshPrivateAccount, syncedDefaultRailgunAccount, syncedDefaultRailgunIndexer])
 
   return (
     <RailgunControllerStateContext.Provider value={value}>

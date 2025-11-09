@@ -199,7 +199,7 @@ module.exports = async function (env, argv) {
 
   config.resolve.alias = {
     ...(config.resolve.alias || {}),
-    '@railgun-community/circuit-artifacts': false,
+    // DEBUG: Removed '@railgun-community/circuit-artifacts': false to let webpack bundle it normally
     'dotenv': false,
     'dotenv/config': false,
     '@ambire-common': path.resolve(__dirname, 'src/ambire-common/src'),
@@ -408,6 +408,15 @@ module.exports = async function (env, argv) {
         from: 'node_modules/@railgun-community/circuit-artifacts/**/*',
         to: 'assets/circuits/[name][ext]',
         noErrorOnMissing: true
+      },
+      // Copy the entire circuit-artifacts package so it can be loaded as external at runtime
+      {
+        from: 'node_modules/@railgun-community/circuit-artifacts',
+        to: 'node_modules/@railgun-community/circuit-artifacts',
+        noErrorOnMissing: true,
+        globOptions: {
+          ignore: ['**/node_modules/**'] // Don't copy nested node_modules
+        }
       }
     ]
 

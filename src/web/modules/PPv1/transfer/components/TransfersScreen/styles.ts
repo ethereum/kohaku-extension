@@ -31,14 +31,17 @@ const getStyles = (theme: ThemeProps, themeType: ThemeType) =>
       shadowOffset: { width: 0, height: 12 },
       shadowOpacity: themeType === THEME_TYPES.DARK ? 0 : 0.3,
       shadowRadius: 24,
-      elevation: 10
+      elevation: 10,
+      flexShrink: 1,
+      minHeight: 0
     },
     container: {
       width: '100%',
       maxWidth: TRANSACTION_FORM_WIDTH,
       flex: 1,
       alignSelf: 'center',
-      overflow: 'visible'
+      overflow: 'visible',
+      minHeight: 0
     },
     nonTabButtons: {
       ...flexbox.flex1,

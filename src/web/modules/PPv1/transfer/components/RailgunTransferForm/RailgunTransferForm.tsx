@@ -6,6 +6,7 @@ import TokenIcon from '@common/components/TokenIcon'
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
 import SkeletonLoader from '@common/components/SkeletonLoader'
 import Text from '@common/components/Text'
+import Checkbox from '@common/components/Checkbox'
 import { useTranslation } from '@common/config/localization'
 import useAddressInput from '@common/hooks/useAddressInput'
 import spacings from '@common/styles/spacings'
@@ -13,6 +14,7 @@ import flexbox from '@common/styles/utils/flexbox'
 import useTheme from '@common/hooks/useTheme'
 import formatDecimals from '@ambire-common/utils/formatDecimals/formatDecimals'
 import { getTokenId } from '@web/utils/token'
+import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
 
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import useRailgunControllerState from '@web/hooks/useRailgunControllerState'
@@ -68,17 +70,63 @@ const RailgunTransferForm = ({
   const { styles } = useTheme(getStyles)
 
   // Get tokens that have Railgun balances and match the current chainId
+  // Includes tokens from both portfolio and pinnedTokens, and creates tokens from balances if needed
   const availableTokens = useMemo(() => {
-    if (!portfolio?.tokens || !portfolio.isReadyToVisualize) return []
+    const tokens: any[] = []
+    const addedAddresses = new Set<string>()
     
-    return portfolio.tokens.filter((token) => {
-      // Only include tokens on the current chain
-      if (token.chainId !== BigInt(chainId)) return false
+    // Add tokens from portfolio
+    if (portfolio?.tokens && portfolio.isReadyToVisualize) {
+      portfolio.tokens.forEach((token) => {
+        // Only include tokens on the current chain
+        if (token.chainId !== BigInt(chainId)) return
+        
+        // Check if token has a Railgun balance
+        const tokenAddressLower = token.address.toLowerCase()
+        if (tokenAddressLower in totalPrivateBalancesFormatted) {
+          tokens.push(token)
+          addedAddresses.add(tokenAddressLower)
+        }
+      })
+    }
+    
+    // Add tokens from pinnedTokens that have Railgun balances
+    if (typeof window !== 'undefined' && (window as any).pinnedTokens) {
+      const pinnedTokens = (window as any).pinnedTokens as any[]
+      pinnedTokens.forEach((token) => {
+        // Only include tokens on the current chain
+        if (token.chainId !== BigInt(chainId)) return
+        
+        // Check if token has a Railgun balance
+        const tokenAddressLower = token.address.toLowerCase()
+        if (tokenAddressLower in totalPrivateBalancesFormatted && !addedAddresses.has(tokenAddressLower)) {
+          tokens.push(token)
+          addedAddresses.add(tokenAddressLower)
+        }
+      })
+    }
+    
+    // Also add tokens directly from balances if they're not in portfolio or pinnedTokens
+    // This ensures all tokens with balances are available
+    Object.keys(totalPrivateBalancesFormatted).forEach((tokenAddressLower) => {
+      if (addedAddresses.has(tokenAddressLower)) return
       
-      // Check if token has a Railgun balance
-      const tokenAddressLower = token.address.toLowerCase()
-      return tokenAddressLower in totalPrivateBalancesFormatted
+      const balanceInfo = totalPrivateBalancesFormatted[tokenAddressLower]
+      // Create a basic token object from the balance info
+      const token: any = {
+        address: tokenAddressLower, // Use lowercase for consistency
+        chainId: BigInt(chainId),
+        symbol: balanceInfo.symbol || 'UNKNOWN',
+        name: balanceInfo.name || 'Unknown Token',
+        decimals: balanceInfo.decimals || 18,
+        amount: balanceInfo.amount,
+        flags: {}
+      }
+      tokens.push(token)
+      addedAddresses.add(tokenAddressLower)
     })
+    
+    return tokens
   }, [portfolio?.tokens, portfolio?.isReadyToVisualize, chainId, totalPrivateBalancesFormatted])
 
   // Build token options for the selector
@@ -179,12 +227,29 @@ const RailgunTransferForm = ({
     if (!selectedToken || selectedTokenBalance === 0n) return
     
     const maxAmountFormatted = formatUnits(selectedTokenBalance, selectedTokenDecimals)
+    // Update the input field directly
+    setAmountFieldValue(maxAmountFormatted)
+    // Also update the form state
     handleUpdateForm({ withdrawalAmount: maxAmountFormatted, maxAmount: maxAmountFormatted })
-  }, [selectedToken, selectedTokenBalance, selectedTokenDecimals, handleUpdateForm])
+  }, [selectedToken, selectedTokenBalance, selectedTokenDecimals, setAmountFieldValue, handleUpdateForm])
 
   const onRecipientCheckboxClick = useCallback(() => {
     handleUpdateForm({ isRecipientAddressUnknownAgreed: true })
   }, [handleUpdateForm])
+
+  // TODO: Add WETH checkbox UI later
+  // For now, always use native ETH (withdrawAsWETH = false)
+  const withdrawAsWETH = false
+
+  const onWithdrawAsWETHCheckboxClick = useCallback(() => {
+    // TODO: Implement when checkbox is added
+    // handleUpdateForm({ withdrawAsWETH: !withdrawAsWETH })
+  }, [])
+
+  // Check if selected token is native ETH
+  const isNativeETH = useMemo(() => {
+    return selectedToken?.address?.toLowerCase() === ZERO_ADDRESS.toLowerCase()
+  }, [selectedToken])
 
   const isMaxAmountEnabled = useMemo(() => {
     if (!selectedToken || selectedTokenBalance === 0n) return false
@@ -210,8 +275,38 @@ const RailgunTransferForm = ({
     handleUpdateForm
   ])
 
-  // For Railgun, we'll use a placeholder fee for now (0 ETH)
-  const quoteFee = '0'
+  // Calculate 0.25% fee for Railgun withdrawals
+  const calculatedFee = useMemo(() => {
+    if (!amountFieldValue || !selectedToken || parseFloat(amountFieldValue) <= 0) {
+      return { amount: 0n, formatted: '0' }
+    }
+    
+    try {
+      const amount = parseUnits(amountFieldValue, selectedTokenDecimals)
+      // 0.25% = 0.0025 = 25 / 10000
+      const feeAmount = (amount * 25n) / 10000n
+      const feeFormatted = formatUnits(feeAmount, selectedTokenDecimals)
+      return { amount: feeAmount, formatted: feeFormatted }
+    } catch (error) {
+      return { amount: 0n, formatted: '0' }
+    }
+  }, [amountFieldValue, selectedToken, selectedTokenDecimals])
+
+  // Calculate recipient gets (amount - fee)
+  const recipientGets = useMemo(() => {
+    if (!amountFieldValue || parseFloat(amountFieldValue) <= 0) {
+      return '0'
+    }
+    
+    try {
+      const amount = parseFloat(amountFieldValue)
+      const fee = parseFloat(calculatedFee.formatted)
+      const recipientAmount = amount - fee
+      return recipientAmount > 0 ? recipientAmount.toString() : '0'
+    } catch (error) {
+      return '0'
+    }
+  }, [amountFieldValue, calculatedFee.formatted])
 
   return (
     <ScrollableWrapper contentContainerStyle={styles.container}>
@@ -277,6 +372,19 @@ const RailgunTransferForm = ({
         />
       </View>
 
+      {/* TODO: Add WETH checkbox UI when native ETH is selected */}
+      {/* {isNativeETH && (
+        <View style={spacings.mbLg}>
+          <Checkbox
+            value={withdrawAsWETH}
+            onValueChange={onWithdrawAsWETHCheckboxClick}
+            label={t('Withdraw as WETH token instead of native ETH')}
+            style={spacings.mb0}
+            testID="withdraw-as-weth-checkbox"
+          />
+        </View>
+      )} */}
+
       <View style={spacings.mbLg}>
         <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
           <Text appearance="secondaryText" fontSize={14} weight="light">
@@ -291,7 +399,7 @@ const RailgunTransferForm = ({
               withNetworkIcon={false}
             />
             <Text fontSize={14} weight="light" style={spacings.mlMi}>
-              {formatUnits(BigInt(quoteFee), selectedTokenDecimals)} {selectedToken?.symbol || 'ETH'}
+              {calculatedFee.formatted} {selectedToken?.symbol || 'ETH'}
             </Text>
           </View>
         </View>
@@ -311,7 +419,7 @@ const RailgunTransferForm = ({
               withNetworkIcon={false}
             />
             <Text fontSize={14} weight="light" style={spacings.mlMi}>
-              {parseFloat(amountFieldValue) || 0} {selectedToken?.symbol || 'ETH'}
+              {formatDecimals(parseFloat(recipientGets), 'amount')} {selectedToken?.symbol || 'ETH'}
             </Text>
           </View>
         </View>
