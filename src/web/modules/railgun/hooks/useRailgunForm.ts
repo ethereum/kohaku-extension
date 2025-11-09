@@ -1,18 +1,18 @@
 /* eslint-disable no-console */
 import { useCallback, useMemo, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
-import { formatEther, formatUnits, getAddress } from 'viem'
+import { formatEther, getAddress } from 'viem'
 import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
 import { Call } from '@ambire-common/libs/accountOp/types'
 import { randomId } from '@ambire-common/libs/humanizer/utils'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useRailgunControllerState from '@web/hooks/useRailgunControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
-import { RailgunAccount } from '@kohaku-eth/railgun'
+import { createRailgunAccount, createRailgunIndexer, RAILGUN_CONFIG_BY_CHAIN_ID } from '@kohaku-eth/railgun'
 import { Interface } from 'ethers'
 
 const ERC20 = new Interface(["function approve(address spender, uint256 amount) external returns (bool)"]);
-const ETH_ADDRESS = '0x0000000000000000000000000000000000000000';
+
 /**
  * Hook for managing Railgun privacy protocol operations
  * Handles deposits, withdrawals, and form state specific to Railgun
@@ -52,7 +52,7 @@ const useRailgunForm = () => {
     if (railgunAccountsState.balances.length > 0) {
       let balance = BigInt(0);
       for (const bal of railgunAccountsState.balances) {
-        if (bal.tokenAddress === ETH_ADDRESS) {
+        if (bal.tokenAddress === ZERO_ADDRESS) {
           balance += BigInt(bal.amount);
         }
       }
@@ -67,18 +67,31 @@ const useRailgunForm = () => {
     
     for (const balance of railgunBalances) {
       // Find the token in portfolio to get decimals
-      const token = portfolio.tokens.find(
+      // Try to find a matching token in user's portfolio
+      let token = portfolio.tokens.find(
         (t) => 
           t.chainId === BigInt(chainId || 0) && 
           t.address.toLowerCase() === balance.tokenAddress.toLowerCase()
       );
-      
-      // Format the balance using formatUnits
+
+      // If not found, try to find it in pinnedTokens (global pinned list)
+      if (!token && typeof window !== 'undefined' && (window as any).pinnedTokens) {
+        token = (window as any).pinnedTokens.find(
+          (t: any) =>
+            t.chainId === BigInt(chainId || 0) &&
+            t.address.toLowerCase() === balance.tokenAddress.toLowerCase()
+        );
+      }
+
+      if (!token) {
+        continue;
+      }
+
       balanceMap[balance.tokenAddress] = { 
         amount: balance.amount,
-        decimals: token?.decimals ?? 18,
-        symbol: token?.symbol ?? '-',
-        name: token?.name ?? '-',
+        decimals: token.decimals,
+        symbol: token.symbol,
+        name: token.name,
       };
     }
     
@@ -158,12 +171,17 @@ const useRailgunForm = () => {
     if (!defaultRailgunKeys) {
       console.log('DEBUG: No railgun keys found')
     } else {
-      const railgunAccount = RailgunAccount.fromPrivateKeys(defaultRailgunKeys?.spendingKey, defaultRailgunKeys?.viewingKey, BigInt(chainId), defaultRailgunKeys?.shieldKeySigner);
+      const railgunAccount = await createRailgunAccount({
+        credential: { type: 'key', spendingKey: defaultRailgunKeys?.spendingKey, viewingKey: defaultRailgunKeys?.viewingKey, ethKey: defaultRailgunKeys?.shieldKeySigner },
+        indexer: await createRailgunIndexer({
+          network: RAILGUN_CONFIG_BY_CHAIN_ID[chainId.toString() as keyof typeof RAILGUN_CONFIG_BY_CHAIN_ID],
+        }),
+      });
 
       console.log("try IsEth");
       const isEth = selectedToken?.address ? selectedToken.address === ZERO_ADDRESS : true;
       console.log("IsEth:", isEth)
-      const txData = isEth ? await railgunAccount?.createNativeShieldTx(BigInt(depositAmount)) : await railgunAccount?.createShieldTx(selectedToken.address, BigInt(depositAmount));
+      const txData = isEth ? await railgunAccount?.shieldNative(BigInt(depositAmount)) : await railgunAccount?.shield(selectedToken.address, BigInt(depositAmount));
 
       console.log('DEBUG: isETH?', isEth)
       console.log('DEBUG: Created shield tx:', txData)
