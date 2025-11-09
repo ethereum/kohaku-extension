@@ -167,13 +167,6 @@ type AccountsControllerSetAssociatedDapps = {
     dappUrls: string[];
   }
 }
-type AccountsControllerSetAssociatedSessionId = {
-  type: 'ACCOUNTS_CONTROLLER_SET_ASSOCIATED_SESSION_ID'
-  params: {
-    addr: string;
-    sessionId: string;
-  }
-}
 
 type SettingsControllerSetNetworkToAddOrUpdate = {
   type: 'SETTINGS_CONTROLLER_SET_NETWORK_TO_ADD_OR_UPDATE'
@@ -782,7 +775,6 @@ export type Action =
   | AccountsControllerUpdateAccountState
   | AccountsControllerResetAccountsNewlyAddedStateAction
   | AccountsControllerSetAssociatedDapps
-  | AccountsControllerSetAssociatedSessionId
   | SettingsControllerSetNetworkToAddOrUpdate
   | SettingsControllerResetNetworkToAddOrUpdate
   | MainControllerAddNetwork

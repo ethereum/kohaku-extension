@@ -50,6 +50,11 @@ const DappControl = ({
     [dapp?.chainId, networks]
   )
 
+  const sessionAccount = useMemo(() => {
+    if (!dapp) return null
+    return dapp.account || null
+  }, [dapp])
+
   const showDisconnectButton = !!dapp?.isConnected && (isHovered || inModal)
 
   const isPredefinedDapp = useMemo(
@@ -61,7 +66,7 @@ const DappControl = ({
     <View>
       <View style={styles.titleWrapper}>
         <Text weight="medium" fontSize={12} appearance="secondaryText">
-          {t(`Manage ${isCurrentDapp ? 'current ' : ''}app`)}
+          {t(`Manage ${isCurrentDapp ? 'current ' : ''}app (${sessionAccount ? `${sessionAccount}` : 'ERROR: NO SESSION ACCOUNT'})`)}
         </Text>
       </View>
 

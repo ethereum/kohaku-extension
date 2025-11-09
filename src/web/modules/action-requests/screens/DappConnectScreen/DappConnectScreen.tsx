@@ -105,13 +105,6 @@ const DappConnectScreen = () => {
       })
     }
     dispatch({
-      type: 'ACCOUNTS_CONTROLLER_SET_ASSOCIATED_SESSION_ID',
-      params: {
-        addr: dappAccount,
-        sessionId: dappId
-      }
-    })
-    dispatch({
       type: 'MAIN_CONTROLLER_SELECT_ACCOUNT',
       params: { accountAddr: dappAccount }
     })
