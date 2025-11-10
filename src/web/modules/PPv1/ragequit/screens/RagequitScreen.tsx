@@ -80,7 +80,7 @@ function RagequitScreen() {
         }
       })
     } else {
-      navigate(ROUTES.pp1Home)
+      navigate(ROUTES.dashboard)
     }
 
     dispatch({
