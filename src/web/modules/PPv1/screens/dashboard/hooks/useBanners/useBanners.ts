@@ -11,6 +11,7 @@ import useMainControllerState from '@web/hooks/useMainControllerState'
 import useRequestsControllerState from '@web/hooks/useRequestsControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import useSwapAndBridgeControllerState from '@web/hooks/useSwapAndBridgeControllerState'
+import { filterDisabledBanners } from '@web/config/disabledBanners'
 
 const getCurrentAccountBanners = (banners: BannerInterface[], selectedAccount?: AccountId) =>
   banners.filter((banner) => {
@@ -47,7 +48,7 @@ export default function useBanners(): [BannerInterface[], BannerInterface[]] {
   const { banners: selectedAccountBanners } = useSelectedAccountControllerState()
 
   const controllerBanners = useMemo(() => {
-    return [
+    return filterDisabledBanners([
       ...deprecatedSmartAccountBanner,
       ...requestBanners,
       ...actionBanners,
@@ -58,7 +59,7 @@ export default function useBanners(): [BannerInterface[], BannerInterface[]] {
       ...selectedAccountBanners,
       ...extensionUpdateBanner,
       ...firstCashbackBanner
-    ]
+    ])
   }, [
     deprecatedSmartAccountBanner,
     requestBanners,
