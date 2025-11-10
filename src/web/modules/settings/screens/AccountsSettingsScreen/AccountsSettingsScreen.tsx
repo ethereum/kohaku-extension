@@ -6,7 +6,7 @@ import { useModalize } from 'react-native-modalize'
 
 import { Account as AccountInterface } from '@ambire-common/interfaces/account'
 import DragIndicatorIcon from '@common/assets/svg/DragIndicatorIcon'
-import AccountDappAccessBottomSheet from '@common/components/AccountDappAccessBottomSheet'
+import AccountDappAssociationBottomSheet from '@common/components/AccountDappAccessBottomSheet'
 import AccountKeysBottomSheet from '@common/components/AccountKeysBottomSheet'
 import BottomSheet from '@common/components/BottomSheet'
 import Button from '@common/components/Button'
@@ -241,7 +241,7 @@ const AccountsSettingsScreen = () => {
         openAddAccountBottomSheet={openBottomSheet}
         showExportImport
       />
-      <AccountDappAccessBottomSheet
+      <AccountDappAssociationBottomSheet
         sheetRef={sheetRefAccountDappAccess}
         closeBottomSheet={() => {
           setAccountDappAccess(null)

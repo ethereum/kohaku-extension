@@ -76,7 +76,6 @@ const flowContext = flow
     const {
       session: { id, origin, name, icon }
     } = request
-    console.log("Processing dapp connection for origin:", origin, "dapp ID:", id)
     const providerCtrl = new ProviderController(mainCtrl)
     if (!Reflect.getMetadata('SAFE', providerCtrl, mapMethod)) {
       if (!mainCtrl.dapps.hasPermission(id)) {
@@ -98,7 +97,6 @@ const flowContext = flow
 
           // The wallet should switch to the dapp account before connecting
           const activeAccount = mainCtrl.selectedAccount.account?.addr
-          console.log("Setting dapp's preferred account:", activeAccount)
 
           const isBlacklisted = await mainCtrl.phishing.getIsBlacklisted(origin)
           mainCtrl.dapps.addDapp({

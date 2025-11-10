@@ -65,7 +65,6 @@ const DappAccountSelector: FC<Props> = ({
 
     const dappId = useMemo(() => getDappIdFromUrl(origin || ''), [origin])
     const recommendedAccounts = useMemo(() => {
-        console.log('Filtering recommended accounts for dappId', dappId, accounts)
         if (!dappId) return []
         return accounts.filter(acc => acc.associatedDappIDs?.includes(dappId)) || []
     }, [accounts, dappId])
@@ -128,14 +127,14 @@ const DappAccountSelector: FC<Props> = ({
                     <Button
                         type="secondary"
                         size="small"
-                        text="New Dapp Account"
+                        text="New Account"
                         onPress={onPressNewDappAccount}
                         style={{ flex: 1, marginHorizontal: 4 }}
                     />
                 )}
                 {fullscreen && (
                     <Checkbox
-                        label={t('Save Preferences')}
+                        label={t('Save Preference')}
                         value={saveDappAccountPreference}
                         onValueChange={setSaveDappAccountPreference}
                         style={{ flex: 1, marginHorizontal: 4 }}
@@ -144,7 +143,7 @@ const DappAccountSelector: FC<Props> = ({
                 <Button
                     type="secondary"
                     size="small"
-                    text={fullscreen ? t('Dapp Accounts') : t('All Accounts')}
+                    text={fullscreen ? t('View Dapp Accounts') : t('View All Accounts')}
                     style={{ flex: 1, marginHorizontal: 4 }}
                     onPress={onPressAllAccounts}
                 />

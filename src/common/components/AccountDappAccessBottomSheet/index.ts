@@ -1,3 +1,3 @@
-import AccountDappAccessBottomSheet from './AccountDappAccessBottomSheet'
+import AccountDappAssociationBottomSheet from './AccountDappAccessBottomSheet'
 
-export default AccountDappAccessBottomSheet;
+export default AccountDappAssociationBottomSheet;

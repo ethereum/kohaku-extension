@@ -3,7 +3,6 @@ import { getDappIdFromUrl } from '@ambire-common/libs/dapps/helpers'
 import { browser } from '@web/constants/browserapi'
 
 export const handleDappAccountSwitching = (mainCtrl: MainController) => {
-    console.log("Setting up dapp account switching handler")
     browser.tabs.onActivated.addListener(async ({ tabId }: chrome.tabs.TabActiveInfo) => {
         const tab = await browser.tabs.get(tabId)
         if (!tab.url) return
@@ -26,20 +25,16 @@ export const handleDappAccountSwitching = (mainCtrl: MainController) => {
 }
 
 async function changeActiveAccount(mainCtrl: MainController, tabId: number, url: string) {
-    console.log("Checking for dapp account switching for tab:", tabId, "url:", url)
     try {
         const dappId = getDappIdFromUrl(url)
         if (!dappId) return
 
-        console.log("Dapp ID identified:", dappId)
         const dapp = mainCtrl.dapps.getDapp(dappId)
         if (!dapp) return
 
-        console.log("Dapp found for account switching:", dapp)
         const account = dapp.account
         if (!account) return
 
-        console.log("Switching to preferred account for dapp:", account)
         await mainCtrl.selectAccount(account)
     } catch (error) {
         console.error("Error handling dapp account switching:", error)

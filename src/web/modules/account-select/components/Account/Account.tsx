@@ -53,7 +53,7 @@ const Account = ({
     setAccountToImportOrExport?: React.Dispatch<React.SetStateAction<AccountInterface | null>>
     setSmartSettingsAccount?: React.Dispatch<React.SetStateAction<AccountInterface | null>>
     setAccountToRemove?: React.Dispatch<React.SetStateAction<AccountInterface | null>>
-    setAccountDappAccess?: React.Dispatch<React.SetStateAction<AccountInterface | null>>
+    setAccountAssociatedDapps?: React.Dispatch<React.SetStateAction<AccountInterface | null>>
   }
   containerStyle?: ViewStyle
 }) => {
@@ -118,8 +118,8 @@ const Account = ({
       !!options.setSmartSettingsAccount && options.setSmartSettingsAccount(account)
     }
 
-    if (item.value === 'dappAccess') {
-      !!options.setAccountDappAccess && options.setAccountDappAccess(account)
+    if (item.value === 'dappAssociation') {
+      !!options.setAccountAssociatedDapps && options.setAccountAssociatedDapps(account)
     }
   }
 
@@ -136,7 +136,7 @@ const Account = ({
 
   const submenuOptions = useMemo(
     () => [
-      { label: 'Modify Dapp Access', value: 'dappAccess' },
+      { label: 'Manage Dapp Associations', value: 'dappAssociation' },
       { label: 'Manage keys', value: 'keys' },
       { label: 'Remove account', value: 'remove', style: { color: theme.errorDecorative } }
     ],

@@ -25,7 +25,7 @@ interface Props {
     account: Account | null
 }
 
-const AccountDappAccessBottomSheet: FC<Props> = ({ sheetRef, closeBottomSheet, account }) => {
+const AccountDappAssociationBottomSheet: FC<Props> = ({ sheetRef, closeBottomSheet, account }) => {
     const { accounts } = useAccountsControllerState();
     const { theme, themeType } = useTheme()
     const { t } = useTranslation()
@@ -142,4 +142,4 @@ const AccountDappAccessBottomSheet: FC<Props> = ({ sheetRef, closeBottomSheet, a
     )
 }
 
-export default React.memo(AccountDappAccessBottomSheet)
+export default React.memo(AccountDappAssociationBottomSheet)
