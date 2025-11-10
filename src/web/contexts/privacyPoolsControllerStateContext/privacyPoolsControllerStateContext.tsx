@@ -193,7 +193,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   // const { portfolio } = useSelectedAccountControllerState()
   // const { networks } = useNetworksControllerState()
   const chainId = 11155111 // Default PP chainId
-  const PROOFS_BATCH_SIZE = 10
+  const PROOFS_BATCH_SIZE = 5
 
   const [sdk, setSdk] = useState<PrivacyPoolSDK>()
   const [dataService, setDataService] = useState<DataService>()
