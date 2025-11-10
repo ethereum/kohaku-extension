@@ -682,9 +682,10 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
     const networksToUpdate = mainCtrl.activity.broadcastedButNotConfirmed
       .map((op) => op.chainId)
       .filter((chainId, index, self) => self.indexOf(chainId) === index)
+    // Switched to 'latest' instead of 'pending' because a light client can't fetch the pending state
     await mainCtrl.accounts.updateAccountState(
       mainCtrl.selectedAccount.account.addr,
-      'pending',
+      'latest',
       networksToUpdate
     )
 
@@ -694,9 +695,10 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
         return
       }
 
+      // Switched to 'latest' instead of 'pending' because a light client can't fetch the pending state.
       await mainCtrl.accounts.updateAccountState(
         mainCtrl.selectedAccount.account.addr,
-        'pending',
+        'latest',
         chainIds
       )
 

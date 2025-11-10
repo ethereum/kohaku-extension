@@ -27,6 +27,9 @@ const getAreDefaultsChanged = (values: any, selectedNetwork?: Network) => {
       )
     }
 
+    if (key === 'useHelios') {
+      return values[key] !== (selectedNetwork[key as keyof Network] || false)
+    }
     return key in selectedNetwork && values[key] !== selectedNetwork[key as keyof Network]
   })
 }

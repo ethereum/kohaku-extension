@@ -463,7 +463,7 @@ export class ProviderController {
 
     const isMultipleTxn = isIdentifiedByMultipleTxn(identifiedBy)
     const txnId = txnIdData.txnId as string
-    const provider = getRpcProvider(network.rpcUrls, network.chainId, network.selectedRpcUrl)
+    const provider = getRpcProvider(network)
     const isUserOp = identifiedBy.type === 'UserOperation'
     const bundler = bundlerName ? getBundlerByName(bundlerName) : getDefaultBundler(network)
 

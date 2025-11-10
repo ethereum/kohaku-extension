@@ -86,6 +86,29 @@ export const handleActions = async (
       }
       break
     }
+    case 'PROVIDER_RPC_REQUEST': {
+      const { requestId, chainId, method, params: rpcParams } = params
+      const provider = mainCtrl.providers.providers[chainId.toString()]
+
+      if (!provider) {
+        pm.send('> ui', {
+          method: 'PROVIDER_RPC_RESPONSE',
+          params: { requestId, error: { message: `Provider not found for chainId ${chainId}` } }
+        })
+        break
+      }
+
+      try {
+        const result = await provider.send(method, rpcParams)
+        pm.send('> ui', { method: 'PROVIDER_RPC_RESPONSE', params: { requestId, result } })
+      } catch (error: any) {
+        pm.send('> ui', {
+          method: 'PROVIDER_RPC_RESPONSE',
+          params: { requestId, error: { message: error.message || String(error) } }
+        })
+      }
+      break
+    }
     case 'MAIN_CONTROLLER_ON_POPUP_OPEN':
       return mainCtrl.onPopupOpen()
     case 'MAIN_CONTROLLER_LOCK':

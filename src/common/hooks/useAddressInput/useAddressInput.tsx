@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { AddressState, AddressStateOptional } from '@ambire-common/interfaces/domains'
 import { resolveENSDomain } from '@ambire-common/services/ensDomains'
+import { MinNetworkConfig } from '@ambire-common/services/provider'
 
+import { getRpcProviderForUI } from '@web/services/provider'
+import useBackgroundService from '@web/hooks/useBackgroundService'
 import getAddressInputValidation from './utils/validation'
 
 interface Props {
@@ -25,6 +28,7 @@ const useAddressInput = ({
   handleCacheResolvedDomain,
   handleRevalidate
 }: Props) => {
+  const { dispatch } = useBackgroundService()
   const fieldValueRef = useRef(addressState.fieldValue)
   const fieldValue = addressState.fieldValue
   const [hasDomainResolveFailed, setHasDomainResolveFailed] = useState(false)
@@ -56,10 +60,12 @@ const useAddressInput = ({
   const resolveDomains = useCallback(
     async (trimmedAddress: string) => {
       let ensAddress = ''
+      const providerFactoryOverride = (network: MinNetworkConfig) =>
+        getRpcProviderForUI(network, dispatch)
 
       // Keep the promise all as we may add more domain resolvers in the future
       await Promise.all([
-        resolveENSDomain(trimmedAddress)
+        resolveENSDomain(trimmedAddress, undefined, providerFactoryOverride)
           .then((newEnsAddress: string) => {
             ensAddress = newEnsAddress
 
@@ -84,7 +90,7 @@ const useAddressInput = ({
         isDomainResolving: false
       })
     },
-    [handleCacheResolvedDomain, fieldValue, setAddressState]
+    [handleCacheResolvedDomain, fieldValue, setAddressState, dispatch]
   )
 
   useEffect(() => {
