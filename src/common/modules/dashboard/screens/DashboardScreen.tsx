@@ -47,7 +47,21 @@ const DashboardScreen = () => {
 
   const { account, portfolio, cashbackStatus } = useSelectedAccountControllerState()
 
-  const { loadPrivateAccount, isAccountLoaded, isReadyToLoad } = usePrivacyPoolsForm()
+  const {
+    loadPrivateAccount,
+    refreshPrivateAccount,
+    isAccountLoaded,
+    isReadyToLoad,
+    loadingError
+  } = usePrivacyPoolsForm()
+
+  const handleRetryLoadPrivateAccount = useCallback(() => {
+    // Use refreshPrivateAccount with refetchLeavesAndRoots=true to retry fetching MT data first
+    refreshPrivateAccount(true).catch((error) => {
+      // eslint-disable-next-line no-console
+      console.error('Failed to load private account:', error)
+    })
+  }, [refreshPrivateAccount])
 
   const onWithdrawBack = useCallback(() => {
     navigate(WEB_ROUTES.pp1Ragequit)
@@ -153,6 +167,8 @@ const DashboardScreen = () => {
             setDashboardOverviewSize={setDashboardOverviewSize}
             onGasTankButtonPosition={handleGasTankButtonPosition}
             isPrivateAccountLoading={!isAccountLoaded}
+            privateAccountLoadingError={loadingError}
+            onRetryLoadPrivateAccount={handleRetryLoadPrivateAccount}
           />
           <DepositStatusBanner onWithdrawBack={onWithdrawBack} onDeposit={onDeposit} />
           <DashboardPages onScroll={onScroll} animatedOverviewHeight={animatedOverviewHeight} />
