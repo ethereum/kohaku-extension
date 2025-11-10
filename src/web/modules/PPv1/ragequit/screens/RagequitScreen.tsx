@@ -109,11 +109,7 @@ function RagequitScreen() {
 
     if (!submittedChainId || !identifiedBy || !txnId) return
 
-    return `https://sepolia.etherscan.io/${getBenzinUrlParams({
-      chainId: submittedChainId,
-      txnId,
-      identifiedBy
-    })}`
+    return `https://sepolia.etherscan.io/tx/${txnId}`
   }, [submittedAccountOp])
 
   useEffect(() => {

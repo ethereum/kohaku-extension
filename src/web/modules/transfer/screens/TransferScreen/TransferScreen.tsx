@@ -172,7 +172,8 @@ const TransferScreen = ({ isTopUpScreen }: { isTopUpScreen?: boolean }) => {
 
     if (!chainId || !identifiedBy || !txnId) return
 
-    return `https://explorer.ambire.com/${getBenzinUrlParams({ chainId, txnId, identifiedBy })}`
+    // return `https://explorer.ambire.com/${getBenzinUrlParams({ chainId, txnId, identifiedBy })}`
+    return `https://sepolia.etherscan.io/tx/${txnId}`
   }, [submittedAccountOp])
 
   useEffect(() => {
