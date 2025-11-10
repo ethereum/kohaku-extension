@@ -4,7 +4,6 @@ import { formatUnits, parseUnits } from 'viem'
 
 import { AddressStateOptional } from '@ambire-common/interfaces/domains'
 import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
-import { getBenzinUrlParams } from '@ambire-common/utils/benzin'
 
 import BackButton from '@common/components/BackButton'
 import Text from '@common/components/Text'
