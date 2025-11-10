@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View } from 'react-native'
 
 import { isDappRequestAction } from '@ambire-common/libs/actions/actions'
+import { getDappIdFromUrl } from '@ambire-common/libs/dapps/helpers'
 import wait from '@ambire-common/utils/wait'
 import { useTranslation } from '@common/config/localization'
 import useTheme from '@common/hooks/useTheme'
@@ -12,6 +13,7 @@ import { TabLayoutContainer } from '@web/components/TabLayoutWrapper/TabLayoutWr
 import eventBus from '@web/extension-services/event/eventBus'
 import useActionsControllerState from '@web/hooks/useActionsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
+import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import ActionFooter from '@web/modules/action-requests/components/ActionFooter'
 
 import DAppConnectBody from './components/DAppConnectBody'
@@ -24,6 +26,7 @@ const DappConnectScreen = () => {
   const { theme, styles } = useTheme(getStyles)
   const { dispatch } = useBackgroundService()
   const state = useActionsControllerState()
+  const selectedAccount = useSelectedAccountControllerState()
   const [isAuthorizing, setIsAuthorizing] = useState(false)
   const { minHeightSize } = useWindowSize()
   const securityCheckCalled = useRef(false)
@@ -31,6 +34,8 @@ const DappConnectScreen = () => {
     'LOADING'
   )
   const [confirmedRiskCheckbox, setConfirmedRiskCheckbox] = useState(false)
+  const [dappAccount, setDappAccount] = useState<string | null>(null)
+  const [saveDappAccountPreference, setSaveDappAccountPreference] = useState(false)
 
   const dappAction = useMemo(
     () => (isDappRequestAction(state.currentAction) ? state.currentAction : null),
@@ -46,7 +51,7 @@ const DappConnectScreen = () => {
 
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    ;(async () => {
+    ; (async () => {
       if (!userRequest?.session?.origin) return
       if (securityCheckCalled.current) return
 
@@ -83,14 +88,40 @@ const DappConnectScreen = () => {
   }, [dappAction, t, dispatch])
 
   const handleAuthorizeButtonPress = useCallback(() => {
-    if (!dappAction) return
+    if (!dappAccount || !dappAction) return
+
+    const dappId = getDappIdFromUrl(userRequest?.session?.origin || '')
 
     setIsAuthorizing(true)
+    if (saveDappAccountPreference) {
+      const dappUrls = selectedAccount?.account?.associatedDappIDs || []
+      dappUrls.push(dappId)
+      dispatch({
+        type: 'ACCOUNTS_CONTROLLER_SET_ASSOCIATED_DAPPS',
+        params: {
+          addr: dappAccount,
+          dappUrls
+        }
+      })
+    }
+    dispatch({
+      type: 'MAIN_CONTROLLER_SELECT_ACCOUNT',
+      params: { accountAddr: dappAccount }
+    })
+  }, [dappAction, dappAccount, saveDappAccountPreference, dispatch])
+
+  // Automatically resolve the request once the dispatched `MAIN_CONTROLLER_SELECT_ACCOUNT`
+  // from `handleAuthorizeButtonPress` has updated the selected account to match 
+  // the one chosen for the dApp connection.
+  useEffect(() => {
+    if (!isAuthorizing || !dappAction) return
+    if (selectedAccount?.account?.addr !== dappAccount) return
+
     dispatch({
       type: 'REQUESTS_CONTROLLER_RESOLVE_USER_REQUEST',
       params: { data: null, id: dappAction.id }
     })
-  }, [dappAction, dispatch])
+  }, [isAuthorizing, selectedAccount?.account?.addr, dappAccount, dappAction, dispatch])
 
   const responsiveSizeMultiplier = useMemo(() => {
     if (minHeightSize(690)) return 0.75
@@ -129,7 +160,8 @@ const DappConnectScreen = () => {
           resolveDisabled={
             isAuthorizing ||
             securityCheck === 'LOADING' ||
-            (securityCheck === 'BLACKLISTED' && !confirmedRiskCheckbox)
+            (securityCheck === 'BLACKLISTED' && !confirmedRiskCheckbox) ||
+            dappAccount === null
           }
           resolveType={securityCheck === 'BLACKLISTED' ? 'error' : 'primary'}
           rejectButtonText={t('Deny')}
@@ -151,6 +183,11 @@ const DappConnectScreen = () => {
             responsiveSizeMultiplier={responsiveSizeMultiplier}
             confirmedRiskCheckbox={confirmedRiskCheckbox}
             setConfirmedRiskCheckbox={setConfirmedRiskCheckbox}
+            origin={userRequest?.session?.origin}
+            selectedAccount={dappAccount}
+            setSelectedAccount={setDappAccount}
+            saveDappAccountPreference={saveDappAccountPreference}
+            setSaveDappAccountPreference={setSaveDappAccountPreference}
           />
         </View>
       </View>

@@ -498,3 +498,6 @@ e2e-playwright-tests/run-tests.sh
 e2e-playwright-tests/.vscode
 run-tests-logs
 run-tests.sh
+
+.direnv
+.envrc

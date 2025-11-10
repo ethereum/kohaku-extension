@@ -95,6 +95,9 @@ const flowContext = flow
           }
           await connectOrigins[origin]
 
+          // The wallet should switch to the dapp account before connecting
+          const activeAccount = mainCtrl.selectedAccount.account?.addr
+
           const isBlacklisted = await mainCtrl.phishing.getIsBlacklisted(origin)
           mainCtrl.dapps.addDapp({
             id,
@@ -105,6 +108,7 @@ const flowContext = flow
             favorite: false,
             chainId: 1,
             isConnected: true,
+            account: activeAccount,
             blacklisted: isBlacklisted
           })
           await mainCtrl.dapps.broadcastDappSessionEvent(
