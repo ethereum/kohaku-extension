@@ -217,7 +217,7 @@ module.exports = async function (env, argv) {
     // existing fallbacks you already have:
     stream: require.resolve('stream-browserify'),
     crypto: false,
-    fs: false,
+    fs: require.resolve('@kohaku-eth/railgun/global'),
 
     // Added: explicitly avoid bundling Node's 'module' in web
     module: false,
@@ -404,18 +404,16 @@ module.exports = async function (env, argv) {
         to: 'assets/snarkjs/[name][ext]',
         noErrorOnMissing: true
       },
-      {
-        from: 'node_modules/@railgun-community/circuit-artifacts/**/*',
-        to: 'assets/circuits/[name][ext]',
-        noErrorOnMissing: true
-      },
-      // Copy the entire circuit-artifacts package so it can be loaded as external at runtime
+      // Copy circuit-artifacts to assets/circuits preserving directory structure
+      // Files will be accessible at: /assets/circuits/{circuit-name}/{filename}
+      // Example: /assets/circuits/1x1/vkey.json, /assets/circuits/1x1/wasm.br, etc.
       {
         from: 'node_modules/@railgun-community/circuit-artifacts',
-        to: 'node_modules/@railgun-community/circuit-artifacts',
+        to: 'assets/circuits',
         noErrorOnMissing: true,
         globOptions: {
-          ignore: ['**/node_modules/**'] // Don't copy nested node_modules
+          // Copy all files recursively, preserving directory structure
+          ignore: ['**/node_modules/**', '**/package.json', '**/README.md']
         }
       }
     ]

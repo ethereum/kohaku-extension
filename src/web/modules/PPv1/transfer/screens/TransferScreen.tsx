@@ -9,6 +9,8 @@ import { AddressStateOptional } from '@ambire-common/interfaces/domains'
 import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
 import { getBenzinUrlParams } from '@ambire-common/utils/benzin'
 import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
+import { SigningStatus } from '@ambire-common/controllers/signAccountOp/signAccountOp'
+import { Key } from '@ambire-common/interfaces/keystore'
 
 import BackButton from '@common/components/BackButton'
 import Text from '@common/components/Text'
@@ -29,6 +31,7 @@ import Completed from '@web/modules/sign-account-op/components/OneClick/TrackPro
 import Failed from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/Failed'
 import InProgress from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/InProgress'
 import useTrackAccountOp from '@web/modules/sign-account-op/hooks/OneClick/useTrackAccountOp'
+import Estimation from '@web/modules/sign-account-op/components/OneClick/Estimation'
 import { getUiType } from '@web/utils/uiType'
 
 import { View } from 'react-native'
@@ -91,7 +94,9 @@ const TransferScreen = () => {
     isRecipientAddressUnknownAgreed: railgunIsRecipientAddressUnknownAgreed,
     maxAmount: railgunMaxAmount,
     withdrawAsWETH: railgunWithdrawAsWETH,
-    railgunAccountsState
+    railgunAccountsState,
+    latestBroadcastedAccountOp: railgunLatestBroadcastedAccountOp,
+    latestBroadcastedToken: railgunLatestBroadcastedToken
   } = useRailgunControllerState()
 
   const railgunTotalApprovedBalance = useMemo(() => {
@@ -153,6 +158,18 @@ const TransferScreen = () => {
   })
 
   const submittedAccountOp = useMemo(() => {
+    // For Railgun withdrawals, check accountsOps.transfer
+    if (activeTab === 'railgun') {
+      if (!railgunLatestBroadcastedAccountOp?.signature) return
+
+      if (!accountsOps.transfer) return
+
+      return accountsOps.transfer.result.items.find(
+        (accOp) => accOp.signature === railgunLatestBroadcastedAccountOp.signature
+      )
+    }
+
+    // For Privacy Pools withdrawals
     if (latestBroadcastedAccountOp?.meta?.isPrivacyPoolsWithdrawal) {
       return latestBroadcastedAccountOp as any
     }
@@ -162,7 +179,13 @@ const TransferScreen = () => {
     return accountsOps.privacyPools.result.items.find(
       (accOp) => accOp.signature === latestBroadcastedAccountOp.signature
     )
-  }, [accountsOps.privacyPools, latestBroadcastedAccountOp])
+  }, [
+    accountsOps.privacyPools,
+    accountsOps.transfer,
+    latestBroadcastedAccountOp,
+    railgunLatestBroadcastedAccountOp,
+    activeTab
+  ])
 
   const navigateOut = useCallback(() => {
     if (isActionWindow) {
@@ -176,15 +199,31 @@ const TransferScreen = () => {
       navigate(ROUTES.pp1Home)
     }
 
-    dispatch({
-      type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
-    })
-  }, [dispatch, navigate])
+    if (activeTab === 'railgun') {
+      dispatch({
+        type: 'RAILGUN_CONTROLLER_RESET_FORM'
+      })
+    } else {
+      dispatch({
+        type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
+      })
+    }
+  }, [dispatch, navigate, activeTab])
+
+  // Determine which latestBroadcastedAccountOp to use based on active tab
+  const currentLatestBroadcastedAccountOp = useMemo(() => {
+    return activeTab === 'railgun' ? railgunLatestBroadcastedAccountOp : latestBroadcastedAccountOp
+  }, [activeTab, railgunLatestBroadcastedAccountOp, latestBroadcastedAccountOp])
+
+  // Use 'transfer' sessionId for Railgun, 'privacyPools' for Privacy Pools
+  const sessionId = useMemo(() => {
+    return activeTab === 'railgun' ? 'transfer' : 'privacyPools'
+  }, [activeTab])
 
   const { sessionHandler, onPrimaryButtonPress } = useTrackAccountOp({
-    address: latestBroadcastedAccountOp?.accountAddr,
-    chainId: latestBroadcastedAccountOp?.chainId,
-    sessionId: 'privacyPools',
+    address: currentLatestBroadcastedAccountOp?.accountAddr,
+    chainId: currentLatestBroadcastedAccountOp?.chainId,
+    sessionId,
     submittedAccountOp,
     navigateOut
   })
@@ -204,19 +243,19 @@ const TransferScreen = () => {
   }, [submittedAccountOp])
 
   useEffect(() => {
-    if (!latestBroadcastedAccountOp?.accountAddr || !latestBroadcastedAccountOp?.chainId) return
+    if (!currentLatestBroadcastedAccountOp?.accountAddr || !currentLatestBroadcastedAccountOp?.chainId) return
     sessionHandler.initSession()
 
     return () => {
       sessionHandler.killSession()
     }
-  }, [latestBroadcastedAccountOp?.accountAddr, latestBroadcastedAccountOp?.chainId, sessionHandler])
+  }, [currentLatestBroadcastedAccountOp?.accountAddr, currentLatestBroadcastedAccountOp?.chainId, sessionHandler])
 
   const displayedView: 'transfer' | 'track' = useMemo(() => {
-    if (latestBroadcastedAccountOp) return 'track'
+    if (currentLatestBroadcastedAccountOp) return 'track'
 
     return 'transfer'
-  }, [latestBroadcastedAccountOp])
+  }, [currentLatestBroadcastedAccountOp])
 
   useEffect(() => {
     return () => {
@@ -469,17 +508,61 @@ const TransferScreen = () => {
   const headerTitle = t('Private Transfer')
   const formTitle = t('Send')
 
+  // Determine which latestBroadcastedToken to use based on active tab
+  const currentLatestBroadcastedToken = useMemo(() => {
+    return activeTab === 'railgun' ? railgunLatestBroadcastedToken : latestBroadcastedToken
+  }, [activeTab, railgunLatestBroadcastedToken, latestBroadcastedToken])
+
   const handlePrimaryButtonPress = useCallback(() => {
-    if (latestBroadcastedAccountOp?.meta?.isPrivacyPoolsWithdrawal) {
+    // If transaction is successful, navigate immediately
+    // The banner hiding logic in onPrimaryButtonPress might not work reliably
+    if (
+      submittedAccountOp &&
+      (submittedAccountOp.status === AccountOpStatus.Success ||
+        submittedAccountOp.status === AccountOpStatus.UnknownButPastNonce)
+    ) {
+      // Hide the banner first
+      dispatch({
+        type: 'ACTIVITY_CONTROLLER_HIDE_BANNER',
+        params: {
+          ...submittedAccountOp,
+          addr: submittedAccountOp.accountAddr
+        }
+      })
+      
+      // Clean up state before navigating - use the appropriate controller based on active tab
+      if (activeTab === 'railgun') {
+        dispatch({
+          type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+        })
+      } else {
+        dispatch({
+          type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+        })
+      }
+      
+      // Reset hasProceeded for both controllers
+      // to prevent double-click issue when withdrawing again
+      dispatch({
+        type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
+        params: {
+          proceeded: false
+        }
+      })
+      dispatch({
+        type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED',
+        params: {
+          proceeded: false
+        }
+      })
+      
+      // Navigate immediately instead of waiting for the flag
       navigateOut()
     } else {
+      // For other states, use the original logic
       onPrimaryButtonPress()
     }
-  }, [
-    latestBroadcastedAccountOp?.meta?.isPrivacyPoolsWithdrawal,
-    navigateOut,
-    onPrimaryButtonPress
-  ])
+  }, [submittedAccountOp, dispatch, navigateOut, onPrimaryButtonPress, activeTab])
 
   const handleWithdrawal = useCallback(async () => {
     setIsSubmitting(true)
@@ -628,6 +711,38 @@ const TransferScreen = () => {
     railgunChainId
   ])
 
+  // Handler functions for Estimation component
+  const handleBroadcastAccountOp = useCallback(() => {
+    dispatch({
+      type: 'MAIN_CONTROLLER_HANDLE_SIGN_AND_BROADCAST_ACCOUNT_OP',
+      params: {
+        updateType: 'Railgun'
+      }
+    })
+  }, [dispatch])
+
+  const handleUpdateStatus = useCallback(
+    (status: SigningStatus) => {
+      dispatch({
+        type: 'RAILGUN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS',
+        params: {
+          status
+        }
+      })
+    },
+    [dispatch]
+  )
+
+  const updateController = useCallback(
+    (params: { signingKeyAddr?: Key['addr']; signingKeyType?: Key['type'] }) => {
+      dispatch({
+        type: 'RAILGUN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE',
+        params
+      })
+    },
+    [dispatch]
+  )
+
   const buttons = useMemo(() => {
     if (activeTab === 'railgun') {
       return (
@@ -679,22 +794,68 @@ const TransferScreen = () => {
     ) {
       hasRefreshedAccountRef.current = true
 
-      refreshPrivateAccount(true)
-        .then(() => {
-          setIsSubmitting(false)
-        })
-        .catch((error) => {
-          // eslint-disable-next-line no-console
-          console.error('Failed to refresh after withdrawal:', error)
-          addToast('Failed to refresh your privacy account. Please try again.', { type: 'error' })
-          setIsSubmitting(false)
-        })
+      if (activeTab === 'railgun') {
+        // For Railgun, use railgunForm's refreshPrivateAccount
+        railgunForm.refreshPrivateAccount()
+          .then(() => {
+            setIsSubmitting(false)
+          })
+          .catch((error) => {
+            // eslint-disable-next-line no-console
+            console.error('Failed to refresh after Railgun withdrawal:', error)
+            addToast('Failed to refresh your privacy account. Please try again.', { type: 'error' })
+            setIsSubmitting(false)
+          })
+      } else {
+        // For Privacy Pools
+        refreshPrivateAccount(true)
+          .then(() => {
+            setIsSubmitting(false)
+          })
+          .catch((error) => {
+            // eslint-disable-next-line no-console
+            console.error('Failed to refresh after withdrawal:', error)
+            addToast('Failed to refresh your privacy account. Please try again.', { type: 'error' })
+            setIsSubmitting(false)
+          })
+      }
     }
-  }, [submittedAccountOp?.status, refreshPrivateAccount, addToast])
+  }, [submittedAccountOp?.status, refreshPrivateAccount, railgunForm, addToast, activeTab])
 
   if (displayedView === 'track') {
     return (
-      <TrackProgress onPrimaryButtonPress={handlePrimaryButtonPress} handleClose={navigateOut}>
+      <TrackProgress
+        onPrimaryButtonPress={handlePrimaryButtonPress}
+        handleClose={() => {
+          // Clean up the appropriate controller based on active tab
+          if (activeTab === 'railgun') {
+            dispatch({
+              type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+            })
+          } else {
+            dispatch({
+              type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+            })
+          }
+
+          // Reset hasProceeded for both controllers
+          // to prevent double-click issue when withdrawing again
+          dispatch({
+            type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
+            params: {
+              proceeded: false
+            }
+          })
+          dispatch({
+            type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED',
+            params: {
+              proceeded: false
+            }
+          })
+
+          navigateOut()
+        }}
+      >
         {submittedAccountOp?.status === AccountOpStatus.BroadcastedButNotConfirmed && (
           <InProgress title={t('Confirming your transfer')}>
             <Text fontSize={16} weight="medium" appearance="secondaryText">
@@ -705,9 +866,9 @@ const TransferScreen = () => {
         {(submittedAccountOp?.status === AccountOpStatus.Success ||
           submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce) && (
           <Completed
-            title={t('Transfer done!')}
-            titleSecondary={t('{{symbol}} delivered!', {
-              symbol: latestBroadcastedToken?.symbol || 'Token'
+            title={t('Private Transfer done!')}
+            titleSecondary={t('{{symbol}} sent!', {
+              symbol: currentLatestBroadcastedToken?.symbol || 'Token'
             })}
             explorerLink={explorerLink}
             openExplorerText="View Transfer"
@@ -780,6 +941,17 @@ const TransferScreen = () => {
           )}
         </Form>
       </Content>
+
+      <Estimation
+        updateType="Railgun"
+        estimationModalRef={railgunForm.estimationModalRef}
+        closeEstimationModal={railgunForm.closeEstimationModal}
+        updateController={updateController}
+        handleUpdateStatus={handleUpdateStatus}
+        handleBroadcastAccountOp={handleBroadcastAccountOp}
+        hasProceeded={!!railgunForm.hasProceeded}
+        signAccountOpController={railgunForm.signAccountOpController || null}
+      />
     </Wrapper>
   )
 }
