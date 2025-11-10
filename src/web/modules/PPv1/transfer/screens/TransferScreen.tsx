@@ -2,12 +2,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { formatUnits, parseUnits, getAddress } from 'viem'
 import { RAILGUN_CONFIG_BY_CHAIN_ID } from '@kohaku-eth/railgun'
-import { Call } from '@ambire-common/libs/accountOp/types'
+import { Call, AccountOpStatus } from '@ambire-common/libs/accountOp/types'
 import { randomId } from '@ambire-common/libs/humanizer/utils'
 
 import { AddressStateOptional } from '@ambire-common/interfaces/domains'
-import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
-import { getBenzinUrlParams } from '@ambire-common/utils/benzin'
 import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
 import { SigningStatus } from '@ambire-common/controllers/signAccountOp/signAccountOp'
 import { Key } from '@ambire-common/interfaces/keystore'
@@ -236,21 +234,25 @@ const TransferScreen = () => {
 
     if (!submittedChainId || !identifiedBy || !txnId) return
 
-    return `https://explorer.ambire.com/${getBenzinUrlParams({
-      chainId: submittedChainId,
-      txnId,
-      identifiedBy
-    })}`
+    return `https://sepolia.etherscan.io/tx/${txnId}`
   }, [submittedAccountOp])
 
   useEffect(() => {
-    if (!currentLatestBroadcastedAccountOp?.accountAddr || !currentLatestBroadcastedAccountOp?.chainId) return
+    if (
+      !currentLatestBroadcastedAccountOp?.accountAddr ||
+      !currentLatestBroadcastedAccountOp?.chainId
+    )
+      return
     sessionHandler.initSession()
 
     return () => {
       sessionHandler.killSession()
     }
-  }, [currentLatestBroadcastedAccountOp?.accountAddr, currentLatestBroadcastedAccountOp?.chainId, sessionHandler])
+  }, [
+    currentLatestBroadcastedAccountOp?.accountAddr,
+    currentLatestBroadcastedAccountOp?.chainId,
+    sessionHandler
+  ])
 
   const displayedView: 'transfer' | 'track' = useMemo(() => {
     if (currentLatestBroadcastedAccountOp) return 'track'
@@ -334,10 +336,13 @@ const TransferScreen = () => {
 
   // Create a merged addressState that uses the synced field value
   // This ensures useAddressInput sees the current input value
-  const mergedRailgunAddressState = useMemo(() => ({
-    ...railgunAddressState,
-    fieldValue: railgunAddressStateFieldValue || railgunAddressState.fieldValue
-  }), [railgunAddressState, railgunAddressStateFieldValue])
+  const mergedRailgunAddressState = useMemo(
+    () => ({
+      ...railgunAddressState,
+      fieldValue: railgunAddressStateFieldValue || railgunAddressState.fieldValue
+    }),
+    [railgunAddressState, railgunAddressStateFieldValue]
+  )
 
   const railgunAddressInputState = useAddressInput({
     addressState: mergedRailgunAddressState,
@@ -426,7 +431,7 @@ const TransferScreen = () => {
       // Get the balance for the selected token
       const tokenAddressLower = railgunSelectedToken.address?.toLowerCase()
       const balanceInfo = railgunTotalPrivateBalancesFormatted[tokenAddressLower]
-      
+
       if (!balanceInfo) {
         return 'No balance available for this token'
       }
@@ -449,13 +454,17 @@ const TransferScreen = () => {
   const isRailgunTransferFormValid = useMemo(() => {
     // Use the synced state value for address check, or fall back to controller state
     const addressValue = railgunAddressStateFieldValue || railgunAddressState.fieldValue
-    const hasAmount = railgunAmountFieldValue && railgunAmountFieldValue !== '0' && parseFloat(railgunAmountFieldValue) > 0
+    const hasAmount =
+      railgunAmountFieldValue &&
+      railgunAmountFieldValue !== '0' &&
+      parseFloat(railgunAmountFieldValue) > 0
     const hasToken = !!railgunSelectedToken
     const hasAddress = addressValue && addressValue.trim() !== ''
-    
+
     // For address validation, check if the address input state says it's valid
     // OR if we have an address value and no explicit error
-    const addressIsValid = !railgunAddressInputState.validation.isError || 
+    const addressIsValid =
+      !railgunAddressInputState.validation.isError ||
       (hasAddress && !railgunAddressInputState.validation.message)
     const noAmountError = !railgunAmountErrorMessage
 
@@ -478,13 +487,7 @@ const TransferScreen = () => {
       })
     }
 
-    return !!(
-      hasAmount &&
-      hasToken &&
-      hasAddress &&
-      addressIsValid &&
-      noAmountError
-    )
+    return !!(hasAmount && hasToken && hasAddress && addressIsValid && noAmountError)
   }, [
     railgunAmountFieldValue,
     railgunAmountErrorMessage,
@@ -532,7 +535,7 @@ const TransferScreen = () => {
           addr: submittedAccountOp.accountAddr
         }
       })
-      
+
       // Clean up state before navigating - use the appropriate controller based on active tab
       if (activeTab === 'railgun') {
         dispatch({
@@ -543,7 +546,7 @@ const TransferScreen = () => {
           type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
         })
       }
-      
+
       // Reset hasProceeded for both controllers
       // to prevent double-click issue when withdrawing again
       dispatch({
@@ -558,7 +561,7 @@ const TransferScreen = () => {
           proceeded: false
         }
       })
-      
+
       // Navigate immediately instead of waiting for the flag
       navigateOut()
     } else {
@@ -586,8 +589,11 @@ const TransferScreen = () => {
     // Controller state may be debounced and not updated yet
     const amount = railgunAmountFieldValue || railgunWithdrawalAmount
     // Prioritize synced state field value, then ENS resolved address, then addressInputState.address
-    const address = railgunAddressStateFieldValue || railgunAddressState.ensAddress || railgunAddressInputState.address
-    
+    const address =
+      railgunAddressStateFieldValue ||
+      railgunAddressState.ensAddress ||
+      railgunAddressInputState.address
+
     // Debug logging
     console.log('handleRailgunWithdrawal - Input values:', {
       amount,
@@ -599,13 +605,13 @@ const TransferScreen = () => {
       addressStateEnsAddress: railgunAddressState.ensAddress,
       selectedToken: railgunSelectedToken
     })
-    
+
     // Validate form inputs
     if (!railgunSelectedToken || !amount || !address) {
       console.error('Missing required form inputs:', {
         token: railgunSelectedToken,
-        amount: amount,
-        address: address,
+        amount,
+        address,
         amountFieldValue: railgunAmountFieldValue,
         withdrawalAmount: railgunWithdrawalAmount,
         addressInputState: railgunAddressInputState.address,
@@ -619,26 +625,28 @@ const TransferScreen = () => {
     console.log('Getting synced Railgun account from state...')
     const accountData = railgunForm.syncedDefaultRailgunAccount()
     if (!accountData) {
-      console.error('Failed to get synced Railgun account. Ensure loadPrivateAccount has been called.')
+      console.error(
+        'Failed to get synced Railgun account. Ensure loadPrivateAccount has been called.'
+      )
       return
     }
 
     const { account, indexer } = accountData
     console.log('Railgun account instance ready:', { account, indexer })
-    
+
     // Parse amount to BigInt using token decimals
     const tokenDecimals = railgunSelectedToken.decimals || 18
     const amountBigInt = parseUnits(amount, tokenDecimals)
-    
+
     // Ensure address is properly formatted (checksummed)
     const receiver = getAddress(address)
-    
+
     // Check if this is native ETH and user wants WETH instead
     // TODO: Get from checkbox state when WETH checkbox is implemented
     const withdrawAsWETH = false
     const isNativeETH = railgunSelectedToken.address?.toLowerCase() === ZERO_ADDRESS.toLowerCase()
     let txData
-    
+
     try {
       if (isNativeETH && !withdrawAsWETH) {
         // Use native ETH unshield
@@ -649,17 +657,20 @@ const TransferScreen = () => {
         txData = await account.unshieldNative(amountBigInt, receiver)
       } else {
         let tokenAddress = railgunSelectedToken.address
-        
+
         // If native ETH but user wants WETH, use WETH address
         if (isNativeETH && withdrawAsWETH) {
-          const networkConfig = RAILGUN_CONFIG_BY_CHAIN_ID[railgunChainId?.toString() as keyof typeof RAILGUN_CONFIG_BY_CHAIN_ID]
+          const networkConfig =
+            RAILGUN_CONFIG_BY_CHAIN_ID[
+              railgunChainId?.toString() as keyof typeof RAILGUN_CONFIG_BY_CHAIN_ID
+            ]
           if (!networkConfig?.WETH) {
             console.error('WETH address not found for chainId:', railgunChainId)
             return
           }
           tokenAddress = networkConfig.WETH
         }
-        
+
         console.log('Calling account.unshield with:', {
           tokenAddress,
           amount: amountBigInt.toString(),
@@ -667,42 +678,40 @@ const TransferScreen = () => {
         })
         txData = await account.unshield(tokenAddress, amountBigInt, receiver)
       }
-      
+
       console.log('Unshield txData:', txData)
     } catch (error) {
       console.error('Error generating unshield transaction:', error)
       return
     }
-    
+
     // Construct calls for signing operation
     // For withdrawals, we only need the unshield call (no approve needed)
     const requestId = randomId()
-    
+
     // Add the unshield transaction call
-    const call: Call ={
+    const call: Call = {
       to: getAddress(txData.to),
       data: txData.data,
       value: isNativeETH && !withdrawAsWETH ? BigInt(txData.value) : BigInt(0),
       fromUserRequestId: requestId
-    };
-    
+    }
+
     console.log('Constructed call for withdrawal:', call)
-    
+
     try {
       // Sync the calls to the sign account op controller
       console.log('Syncing calls to sign account op controller...')
       await railgunForm.syncSignAccountOp([call])
       console.log('Calls synced successfully')
-      
+
       // Open the estimation modal
       console.log('Opening estimation modal...')
       railgunForm.openEstimationModalAndDispatch()
       console.log('Estimation modal opened successfully')
     } catch (error) {
       console.error('Error syncing calls or opening modal:', error)
-      return
     }
-    
   }, [
     railgunForm,
     railgunSelectedToken,
@@ -799,7 +808,8 @@ const TransferScreen = () => {
 
       if (activeTab === 'railgun') {
         // For Railgun, use railgunForm's refreshPrivateAccount
-        railgunForm.refreshPrivateAccount()
+        railgunForm
+          .refreshPrivateAccount()
           .then(() => {
             setIsSubmitting(false)
           })

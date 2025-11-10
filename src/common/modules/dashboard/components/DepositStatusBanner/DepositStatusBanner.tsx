@@ -228,7 +228,7 @@ const DepositStatusBanner = ({ onWithdrawBack, onDeposit }: DepositStatusBannerP
                 size="small"
                 accentColor={theme.depositRejectedText}
                 onPress={onWithdrawBack}
-                text="Withdraw back"
+                text="Exit all"
                 testID="withdraw-back-button"
                 style={styles.withdrawButton}
               />

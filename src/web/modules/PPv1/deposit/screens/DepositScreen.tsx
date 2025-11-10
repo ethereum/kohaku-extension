@@ -5,7 +5,6 @@ import { View } from 'react-native'
 import { SigningStatus } from '@ambire-common/controllers/signAccountOp/signAccountOp'
 import { Key } from '@ambire-common/interfaces/keystore'
 import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
-import { getBenzinUrlParams } from '@ambire-common/utils/benzin'
 import BackButton from '@common/components/BackButton'
 import Text from '@common/components/Text'
 import useNavigation from '@common/hooks/useNavigation'
@@ -122,11 +121,7 @@ function TransferScreen() {
 
     if (!submittedChainId || !identifiedBy || !txnId) return
 
-    return `https://explorer.ambire.com/${getBenzinUrlParams({
-      chainId: submittedChainId,
-      txnId,
-      identifiedBy
-    })}`
+    return `https://sepolia.etherscan.io/tx/${txnId}`
   }, [submittedAccountOp])
 
   useEffect(() => {

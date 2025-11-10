@@ -40,7 +40,7 @@ const Network: FC<Props> = ({ chainId, openBlockExplorer, openSettingsBottomShee
         from:
           themeType === THEME_TYPES.DARK
             ? `${String(theme.primaryLight)}00`
-            : `${String(theme.secondaryBorder)}00`,
+            : `${String(theme.secondaryBorder)}`,
         to: themeType === THEME_TYPES.DARK ? theme.primaryLight80 : theme.secondaryBorder
       }
     ],
