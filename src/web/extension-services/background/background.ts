@@ -45,7 +45,9 @@ import {
   HYPERSYNC_API_KEY,
   RAILGUN_RELAYER_URL,
   ALCHEMY_API_KEY,
-  INFURA_API_KEY
+  SEPOLIA_RPC_URL,
+  USE_HELIOS,
+  HELIOS_CHECKPOINT,
 } from '@env'
 import * as Sentry from '@sentry/browser'
 import { browser, platform } from '@web/constants/browserapi'
@@ -374,7 +376,6 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
     privacyPoolsRelayerUrl: PRIVACY_POOLS_RELAYER_URL,
     railgunRelayerUrl: RAILGUN_RELAYER_URL,
     alchemyApiKey: ALCHEMY_API_KEY,
-    infuraApiKey: INFURA_API_KEY,
     swapApiKey: LI_FI_API_KEY,
     hypersyncApiKey: HYPERSYNC_API_KEY,
     featureFlags: {},

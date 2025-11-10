@@ -16,12 +16,13 @@ declare module '@env' {
     LEGENDS_NFT_ADDRESS: string
     SENTRY_DSN_LEGENDS?: string
     SENTRY_DSN_BROWSER_EXTENSION?: string
-    ALCHEMY_API_KEY: string
+    SEPOLIA_RPC_URL: string
     PRIVACY_POOLS_ASP_URL: string
     PRIVACY_POOLS_RELAYER_URL: string
     HYPERSYNC_API_KEY: string
     RAILGUN_RELAYER_URL: string
-    INFURA_API_KEY: string
+    USE_HELIOS: string
+    HELIOS_CHECKPOINT: string
   }
 
   /**
@@ -113,7 +114,7 @@ declare module '@env' {
   /**
    * The API key for Alchemy
    */
-  export const ALCHEMY_API_KEY: EnvTypes['ALCHEMY_API_KEY']
+  export const SEPOLIA_RPC_URL: EnvTypes['SEPOLIA_RPC_URL']
 
   /**
    * The PrivacyPools ASP API endpoint
@@ -138,4 +139,14 @@ declare module '@env' {
    * The Infura API key
    */
   export const INFURA_API_KEY: EnvTypes['INFURA_API_KEY']
+
+  /**
+   * Whether to use Helios
+   */
+  export const USE_HELIOS: EnvTypes['USE_HELIOS']
+
+  /**
+   * Custom Helios checkpoint
+   */
+  export const HELIOS_CHECKPOINT: EnvTypes['HELIOS_CHECKPOINT']
 }

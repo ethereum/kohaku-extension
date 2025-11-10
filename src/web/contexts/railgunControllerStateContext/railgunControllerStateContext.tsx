@@ -139,12 +139,12 @@ export const getAllLogs = async (
   let batch = Math.min(2000, Math.max(MIN_BATCH, endBlock - startBlock + 1))
 
   // Base spacing between requests (in addition to limiter). Keep your original intent but slightly slower.
-  const BASE_DELAY_MS = 700
+  const BASE_DELAY_MS = 1200
 
   // Exponential backoff window when we hit 429. Resets on any success.
   let backoffMs = 0
-  const BACKOFF_BASE_MS = 1200
-  const BACKOFF_MAX_MS = 12000
+  const BACKOFF_BASE_MS = 2000
+  const BACKOFF_MAX_MS = 20000
 
   // Additional tiny jitter so multiple tabs/processes don’t align perfectly.
   const jitter = () => Math.floor(Math.random() * 120)
