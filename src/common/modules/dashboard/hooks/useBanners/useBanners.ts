@@ -75,5 +75,5 @@ export default function useBanners(): [BannerInterface[], BannerInterface[]] {
     firstCashbackBanner
   ])
 
-  return [controllerBanners, marketingBanners]
+  return [controllerBanners, filterDisabledBanners(marketingBanners)]
 }
