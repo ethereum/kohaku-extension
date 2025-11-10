@@ -74,7 +74,18 @@ export class ProviderController {
 
   _internalGetAccounts = (origin: string): string[] => {
     if (ORIGINS_WHITELISTED_TO_ALL_ACCOUNTS.includes(origin)) {
-      return this.mainCtrl.accounts.accounts.map((acc) => acc.addr)
+      const allOtherAccountAddresses = this.mainCtrl.accounts.accounts.reduce((prevValue, acc) => {
+        if (acc.addr !== this.mainCtrl.selectedAccount.account?.addr) {
+          prevValue.push(acc.addr)
+        }
+
+        return prevValue
+      }, [] as string[])
+
+      // Selected account goes first in the list
+      const selected = this.mainCtrl.selectedAccount.account?.addr;
+      if (!selected) return allOtherAccountAddresses
+      return [selected, ...allOtherAccountAddresses]
     }
 
     const dappId = getDappIdFromUrl(origin)
