@@ -4,7 +4,6 @@ import { formatUnits, parseUnits } from 'viem'
 
 import { AddressStateOptional } from '@ambire-common/interfaces/domains'
 import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
-import { getBenzinUrlParams } from '@ambire-common/utils/benzin'
 
 import BackButton from '@common/components/BackButton'
 import Text from '@common/components/Text'
@@ -129,11 +128,7 @@ const TransferScreen = () => {
 
     if (!submittedChainId || !identifiedBy || !txnId) return
 
-    return `https://explorer.ambire.com/${getBenzinUrlParams({
-      chainId: submittedChainId,
-      txnId,
-      identifiedBy
-    })}`
+    return `https://sepolia.etherscan.io/tx/${txnId}`
   }, [submittedAccountOp])
 
   useEffect(() => {
