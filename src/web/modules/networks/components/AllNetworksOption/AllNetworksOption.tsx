@@ -31,7 +31,7 @@ const AllNetworksOption = ({ onPress }: { onPress: (chainId: bigint | null) => v
         from:
           themeType === THEME_TYPES.DARK
             ? `${String(theme.primaryLight)}00`
-            : `${String(theme.secondaryBorder)}00`,
+            : `${String(theme.secondaryBorder)}`,
         to: themeType === THEME_TYPES.DARK ? theme.primaryLight80 : theme.secondaryBorder
       }
     ],
