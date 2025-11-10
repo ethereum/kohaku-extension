@@ -15,6 +15,7 @@ import { NetworksController } from '@ambire-common/controllers/networks/networks
 import { PhishingController } from '@ambire-common/controllers/phishing/phishing'
 import { PortfolioController } from '@ambire-common/controllers/portfolio/portfolio'
 import { PrivacyPoolsController } from '@ambire-common/controllers/privacyPools/privacyPools'
+import { RailgunController } from '@ambire-common/controllers/railgun/railgun'
 import { ProvidersController } from '@ambire-common/controllers/providers/providers'
 import { RequestsController } from '@ambire-common/controllers/requests/requests'
 import { SelectedAccountController } from '@ambire-common/controllers/selectedAccount/selectedAccount'
@@ -42,6 +43,7 @@ export const controllersNestedInMainMapping = {
   signAccountOp: SignAccountOpController,
   transfer: TransferController,
   privacyPools: PrivacyPoolsController,
+  railgun: RailgunController,
   phishing: PhishingController,
   dapps: DappsController,
   requests: RequestsController,

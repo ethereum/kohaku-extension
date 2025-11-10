@@ -160,6 +160,7 @@ type EnhancedPrivacyPoolsControllerState = {
   seedPhrase: string
   importedSecretNote: string
   proofsBatchSize: number
+  privacyProvider: string
 } & Omit<
   Partial<PrivacyPoolsController>,
   | 'validationFormMsgs'
@@ -179,6 +180,7 @@ type EnhancedPrivacyPoolsControllerState = {
   | 'depositAmount'
   | 'seedPhrase'
   | 'importedSecretNote'
+  | 'privacyProvider'
 >
 
 const PrivacyPoolsControllerStateContext = createContext<EnhancedPrivacyPoolsControllerState>(
@@ -633,6 +635,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
         ...memoizedState,
         selectedToken: memoizedState.selectedToken,
         maxAmount: memoizedState.maxAmount,
+        privacyProvider: memoizedState.privacyProvider,
         mtRoots,
         mtLeaves,
         accountService,

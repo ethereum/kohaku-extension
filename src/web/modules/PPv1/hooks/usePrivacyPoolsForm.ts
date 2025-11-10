@@ -45,6 +45,7 @@ const usePrivacyPoolsForm = () => {
     proofsBatchSize,
     anonymitySetData,
     isLoadingAnonymitySet,
+    privacyProvider,
     getContext,
     loadPrivateAccount,
     refreshPrivateAccount,
@@ -219,6 +220,14 @@ const usePrivacyPoolsForm = () => {
         params: { ...params }
       })
 
+      // If privacyProvider is being updated, sync it to Railgun controller as well
+      if (params.privacyProvider !== undefined) {
+        dispatch({
+          type: 'RAILGUN_CONTROLLER_UPDATE_FORM',
+          params: { privacyProvider: params.privacyProvider }
+        })
+      }
+
       setMessage(null)
     },
     [dispatch]
@@ -245,13 +254,16 @@ const usePrivacyPoolsForm = () => {
   }
 
   const openEstimationModalAndDispatch = useCallback(() => {
+    console.log('DEBUG: openEstimationModalAndDispatch called')
     dispatch({
       type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
       params: {
         proceeded: true
       }
     })
+    console.log('DEBUG: about to call openEstimationModal()')
     openEstimationModal()
+    console.log('DEBUG: after openEstimationModal()')
   }, [openEstimationModal, dispatch])
 
   const syncSignAccountOp = useCallback(
@@ -532,6 +544,7 @@ const usePrivacyPoolsForm = () => {
     depositAmount,
     accountService,
     withdrawalAmount,
+    privacyProvider,
     showAddedToBatch,
     estimationModalRef,
     selectedPoolAccount,
