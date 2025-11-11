@@ -56,9 +56,6 @@ const DepositForm = ({
   const [selectedAccountAddr, setSelectedAccountAddr] = useState<string | null>(null)
   const [mySelectedToken, setMySelectedToken] = useState<any>(null)
 
-  const ethBalance =
-    selectedAccountPortfolio?.tokens.find((token) => token.address === zeroAddress)?.amount || 0n
-
   // Filter out private account (zeroAddress)
   const regularAccounts = useMemo(
     () => accounts.filter((acc) => acc.addr !== zeroAddress),
@@ -278,6 +275,10 @@ const DepositForm = ({
       const updatedToken = portfolio?.tokens.find(
         (token) => token.chainId === chainId && token.address === zeroAddress
       )
+      const ethBalance =
+        selectedAccountPortfolio?.tokens.find((token) => token.address === zeroAddress)?.amount ||
+        0n
+
       if (updatedToken) {
         handleUpdateForm({ selectedToken: updatedToken, maxAmount: formatEther(ethBalance) })
       }
@@ -287,8 +288,8 @@ const DepositForm = ({
     portfolio?.isReadyToVisualize,
     portfolio?.tokens,
     chainId,
-    ethBalance,
-    handleUpdateForm
+    handleUpdateForm,
+    selectedAccountPortfolio?.tokens
   ])
 
   useEffect(() => {
