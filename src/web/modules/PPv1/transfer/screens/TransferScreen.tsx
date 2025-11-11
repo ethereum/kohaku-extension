@@ -34,11 +34,11 @@ import { getUiType } from '@web/utils/uiType'
 
 import { View } from 'react-native'
 import flexbox from '@common/styles/utils/flexbox'
+import { Wrapper, Content, Form } from '@web/components/TransactionsScreen'
+import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import TransferForm from '../components/TransferForm/TransferForm'
 import RailgunTransferForm from '../components/RailgunTransferForm/RailgunTransferForm'
 import Tabs, { TransferTabType } from '../components/Tabs/Tabs'
-import usePrivacyPoolsForm from '../../hooks/usePrivacyPoolsForm'
-import { Wrapper, Content, Form } from '../components/TransfersScreen'
 
 const { isActionWindow } = getUiType()
 

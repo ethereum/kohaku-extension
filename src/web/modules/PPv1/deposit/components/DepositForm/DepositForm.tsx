@@ -11,7 +11,7 @@ import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountCont
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
-import { formatEther, parseEther, formatUnits, parseUnits, zeroAddress } from 'viem'
+import { formatEther, formatUnits, parseUnits, zeroAddress } from 'viem'
 import { PoolInfo } from '@ambire-common/controllers/privacyPools/config'
 import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
 import PrivacyIcon from '@common/assets/svg/PrivacyIcon'
@@ -55,6 +55,9 @@ const DepositForm = ({
   const [displayAmount, setDisplayAmount] = useState('')
   const [selectedAccountAddr, setSelectedAccountAddr] = useState<string | null>(null)
   const [mySelectedToken, setMySelectedToken] = useState<any>(null)
+
+  const ethBalance =
+    selectedAccountPortfolio?.tokens.find((token) => token.address === zeroAddress)?.amount || 0n
 
   // Filter out private account (zeroAddress)
   const regularAccounts = useMemo(
@@ -271,9 +274,27 @@ const DepositForm = ({
   }
 
   useEffect(() => {
-    if (depositAmount && depositAmount !== '0' && currentSelectedToken) {
+    if (portfolio?.isReadyToVisualize && selectedAccountAddr) {
+      const updatedToken = portfolio?.tokens.find(
+        (token) => token.chainId === chainId && token.address === zeroAddress
+      )
+      if (updatedToken) {
+        handleUpdateForm({ selectedToken: updatedToken, maxAmount: formatEther(ethBalance) })
+      }
+    }
+  }, [
+    selectedAccountAddr,
+    portfolio?.isReadyToVisualize,
+    portfolio?.tokens,
+    chainId,
+    ethBalance,
+    handleUpdateForm
+  ])
+
+  useEffect(() => {
+    if (depositAmount && depositAmount !== '0') {
       try {
-        const decimals = currentSelectedToken.decimals || 18
+        const decimals = currentSelectedToken?.decimals || 18
         setDisplayAmount(formatUnits(BigInt(depositAmount), decimals))
       } catch {
         setDisplayAmount('')
