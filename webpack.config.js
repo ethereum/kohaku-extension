@@ -123,7 +123,7 @@ module.exports = async function (env, argv) {
     // in Chrome Web Store and can't be changed.
     // {@link https://developer.chrome.com/extensions/manifest/key}
     // TODO: key not supported in gecko browsers
-    if (isWebkit) {
+    if (isWebkit && process.env.BROWSER_EXTENSION_PUBLIC_KEY) {
       manifest.key = process.env.BROWSER_EXTENSION_PUBLIC_KEY
     }
 
@@ -422,7 +422,7 @@ module.exports = async function (env, argv) {
       ...defaultExpoConfigPlugins,
 
       // you already rely on this elsewhere; keep it
-      new NodePolyfillPlugin({excludeAliases: ['crypto', 'module', 'fs', 'path']}),
+      new NodePolyfillPlugin({ excludeAliases: ['crypto', 'module', 'fs', 'path'] }),
 
       // Keep your existing global shims
       new webpack.ProvidePlugin({ Buffer: ['buffer', 'Buffer'], process: 'process' }),
@@ -433,7 +433,7 @@ module.exports = async function (env, argv) {
         'process.env.REACT_APP_PIMLICO_API_KEY': JSON.stringify(process.env.REACT_APP_PIMLICO_API_KEY)
       }),
 
-      new webpack.IgnorePlugin({resourceRegExp: /^dotenv(\/config)?$/,}),
+      new webpack.IgnorePlugin({ resourceRegExp: /^dotenv(\/config)?$/, }),
 
       new HtmlWebpackPlugin({
         template: './src/web/public/index.html',
