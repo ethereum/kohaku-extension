@@ -454,7 +454,7 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
     async (zkAddress: string, chainId: number): Promise<RailgunAccountCache | null> => {
       const s = latestBgStateRef.current
       const last = s.lastFetchedRailgunAccountCache
-      if (last && last.zkAddress === zkAddress && last.chainId === chainId) {
+      if (last && last.zkAddress === zkAddress && last.chainId === chainId && last.cache !== null) {
         return last.cache as RailgunAccountCache | null
       }
 
