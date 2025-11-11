@@ -4,6 +4,7 @@ import { Pressable, View } from 'react-native'
 
 import predefinedDapps from '@ambire-common/consts/dappCatalog.json'
 import { Dapp } from '@ambire-common/interfaces/dapp'
+import { Network } from '@ambire-common/interfaces/network'
 import CloseIcon from '@common/assets/svg/CloseIcon'
 import DAppsIcon from '@common/assets/svg/DAppsIcon'
 import ManifestFallbackIcon from '@common/assets/svg/ManifestFallbackIcon'
@@ -43,7 +44,7 @@ const DappControl = ({
   const { t } = useTranslation()
   const { networks } = useNetworksControllerState()
 
-  const network = useMemo(
+  const network: Network | null = useMemo(
     () =>
       networks.filter((n) => Number(n.chainId) === dapp?.chainId)[0] ||
       networks.filter((n) => n.chainId === 1n)[0],
@@ -102,7 +103,7 @@ const DappControl = ({
                 color={dapp.isConnected ? theme.successText : theme.errorText}
                 fontSize={10}
               >
-                {dapp.isConnected ? t(`Connected on ${network.name}`) : t('Not connected')}
+                {dapp.isConnected ? t(`Connected on ${network ? network.name : 'Unknown Network'}`) : t('Not connected')}
               </Text>
             </View>
           </View>
