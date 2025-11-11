@@ -81,38 +81,40 @@ const DepositForm = ({
   // Get all tokens from portfolio that match the chainId
   const availableTokens = useMemo(() => {
     if (!portfolio?.tokens || !networks) return []
-    
+
     return portfolio.tokens.filter((token) => {
       // Filter by chainId
       if (token.chainId !== chainId) return false
-      
+
       // Exclude gas tank tokens and rewards tokens
       if (token.flags.onGasTank || token.flags.rewardsType) return false
-      
+
+      // For Privacy Pools, only allow native ETH
+      const isNative = token.address === zeroAddress
+      if (privacyProvider === 'privacy-pools' && !isNative) return false
+
       // Include tokens with balance > 0 or native token
       const hasAmount = getTokenAmount(token) > 0n
-      const isNative = token.address === zeroAddress
-      
+
       return hasAmount || isNative
     })
-  }, [portfolio?.tokens, chainId, networks])
+  }, [portfolio?.tokens, chainId, networks, privacyProvider])
 
   // Get the currently selected token from portfolio
   const currentSelectedToken = useMemo(() => {
     if (!mySelectedToken || !portfolio?.tokens) return null
-    
-    return portfolio.tokens.find(
-      (token) =>
-        token.chainId === mySelectedToken.chainId &&
-        token.address.toLowerCase() === mySelectedToken.address.toLowerCase()
-    ) || null
+
+    return (
+      portfolio.tokens.find(
+        (token) =>
+          token.chainId === mySelectedToken.chainId &&
+          token.address.toLowerCase() === mySelectedToken.address.toLowerCase()
+      ) || null
+    )
   }, [mySelectedToken, portfolio?.tokens])
 
   // Build token select options using useGetTokenSelectProps
-  const {
-    options: tokenOptions,
-    value: tokenSelectValue
-  } = useGetTokenSelectProps({
+  const { options: tokenOptions, value: tokenSelectValue } = useGetTokenSelectProps({
     tokens: availableTokens,
     token: currentSelectedToken ? getTokenId(currentSelectedToken) : '',
     networks: networks || [],
@@ -171,7 +173,7 @@ const DepositForm = ({
     (value: SelectValue) => {
       const tokenId = value.value as string
       const tokenToSelect = availableTokens.find((token) => getTokenId(token) === tokenId)
-      
+
       if (tokenToSelect) {
         setMySelectedToken(tokenToSelect)
         // Reset amount when changing tokens
@@ -192,7 +194,7 @@ const DepositForm = ({
     const decimals = currentSelectedToken.decimals || 18
     const formattedAmount = formatUnits(selectedTokenBalance, decimals)
     setDisplayAmount(formattedAmount)
-    
+
     // Store the amount in the smallest unit (wei for ETH, or token's smallest unit)
     handleUpdateForm({ depositAmount: selectedTokenBalance.toString() })
   }, [currentSelectedToken, selectedTokenBalance, handleUpdateForm])
@@ -238,7 +240,7 @@ const DepositForm = ({
       // Default to native token (ETH) if available, otherwise use first token
       const defaultToken =
         availableTokens.find((token) => token.address === zeroAddress) || availableTokens[0]
-      
+
       if (defaultToken) {
         const defaultTokenBalance = getTokenAmount(defaultToken)
         const args =
