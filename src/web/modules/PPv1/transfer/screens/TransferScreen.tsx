@@ -911,7 +911,7 @@ const TransferScreen = () => {
               addressInputState={addressInputState}
               amountErrorMessage={amountErrorMessage}
               isRecipientAddressUnknown={isRecipientAddressUnknown}
-              formTitle={formTitle}
+              formTitle=""
               amountFieldValue={amountFieldValue}
               setAmountFieldValue={setAmountFieldValue}
               addressStateFieldValue={addressStateFieldValue}
@@ -934,7 +934,7 @@ const TransferScreen = () => {
               addressInputState={railgunAddressInputState}
               amountErrorMessage={railgunAmountErrorMessage}
               isRecipientAddressUnknown={railgunIsRecipientAddressUnknown}
-              formTitle={formTitle}
+              formTitle=""
               amountFieldValue={railgunAmountFieldValue}
               setAmountFieldValue={setRailgunAmountFieldValue}
               addressStateFieldValue={railgunAddressStateFieldValue}
