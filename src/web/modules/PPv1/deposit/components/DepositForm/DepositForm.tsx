@@ -11,7 +11,7 @@ import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountCont
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
-import { formatEther, parseEther, formatUnits, parseUnits, zeroAddress } from 'viem'
+import { formatEther, formatUnits, parseUnits, zeroAddress } from 'viem'
 import { PoolInfo } from '@ambire-common/controllers/privacyPools/config'
 import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
 import PrivacyIcon from '@common/assets/svg/PrivacyIcon'
@@ -164,7 +164,7 @@ const DepositForm = ({
 
       // Reset amount when changing accounts
       setDisplayAmount('')
-      handleUpdateForm({ depositAmount: '0' })
+      handleUpdateForm({ depositAmount: '' })
     },
     [handleUpdateForm, selectedAccount?.addr, dispatch]
   )
@@ -178,7 +178,7 @@ const DepositForm = ({
         setMySelectedToken(tokenToSelect)
         // Reset amount when changing tokens
         setDisplayAmount('')
-        handleUpdateForm({ selectedToken: tokenToSelect, depositAmount: '0' })
+        handleUpdateForm({ selectedToken: tokenToSelect, depositAmount: '' })
       }
     },
     [availableTokens, handleUpdateForm]
@@ -187,7 +187,7 @@ const DepositForm = ({
   const handleSetMaxAmount = useCallback(() => {
     if (!currentSelectedToken || selectedTokenBalance <= 0n) {
       setDisplayAmount('')
-      handleUpdateForm({ depositAmount: '0' })
+      handleUpdateForm({ depositAmount: '' })
       return
     }
 
@@ -204,13 +204,13 @@ const DepositForm = ({
       setDisplayAmount(inputValue)
 
       if (!currentSelectedToken) {
-        handleUpdateForm({ depositAmount: '0' })
+        handleUpdateForm({ depositAmount: '' })
         return
       }
 
       try {
         if (inputValue === '') {
-          handleUpdateForm({ depositAmount: '0' })
+          handleUpdateForm({ depositAmount: '' })
           return
         }
 

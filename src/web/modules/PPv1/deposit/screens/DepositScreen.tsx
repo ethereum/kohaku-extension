@@ -71,7 +71,12 @@ function TransferScreen() {
     return accountsOpsSource.result.items.find(
       (accOp) => accOp.signature === latestBroadcastedAccountOp?.signature
     )
-  }, [accountsOps.privacyPools, accountsOps.transfer, latestBroadcastedAccountOp?.signature, privacyProvider])
+  }, [
+    accountsOps.privacyPools,
+    accountsOps.transfer,
+    latestBroadcastedAccountOp?.signature,
+    privacyProvider
+  ])
 
   const handleGoBack = useCallback(() => {
     navigate(ROUTES.dashboard)
@@ -159,7 +164,7 @@ function TransferScreen() {
 
   // Reset deposit amount when switching between providers
   useEffect(() => {
-    handleUpdateForm({ depositAmount: '0' })
+    handleUpdateForm({ depositAmount: '' })
   }, [privacyProvider, handleUpdateForm])
 
   const displayedView: 'transfer' | 'track' = useMemo(() => {
@@ -212,7 +217,12 @@ function TransferScreen() {
 
   const updateController = useCallback(
     (params: { signingKeyAddr?: Key['addr']; signingKeyType?: Key['type'] }) => {
-      console.log('DEBUG: updateController called with params:', params, 'privacyProvider:', privacyProvider)
+      console.log(
+        'DEBUG: updateController called with params:',
+        params,
+        'privacyProvider:',
+        privacyProvider
+      )
       const actionType =
         privacyProvider === 'railgun'
           ? 'RAILGUN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
@@ -226,20 +236,26 @@ function TransferScreen() {
   )
 
   const isTransferFormValid = useMemo(() => {
+    // Don't allow submission if amount is empty or not entered
+    if (!depositAmount || depositAmount === '' || depositAmount === '0') return false
+
     // For Privacy Pools, we need poolInfo; for Railgun, we don't
     if (privacyProvider === 'privacy-pools') {
       if (isLoading || !isAccountLoaded) return false
-      return (
-        !!(depositAmount && depositAmount !== '0' && poolInfo) && !validationFormMsgs.amount.message
-      )
+      return !!poolInfo && !validationFormMsgs.amount.message
     }
 
     console.log('DEBUG: validationFormMsgs:', validationFormMsgs.amount)
     // For Railgun, just check deposit amount
-    return (
-      !!(depositAmount && depositAmount !== '0') && !validationFormMsgs.amount.message
-    )
-  }, [depositAmount, poolInfo, isLoading, isAccountLoaded, privacyProvider, validationFormMsgs.amount])
+    return !validationFormMsgs.amount.message
+  }, [
+    depositAmount,
+    poolInfo,
+    isLoading,
+    isAccountLoaded,
+    privacyProvider,
+    validationFormMsgs.amount
+  ])
 
   const onBack = useCallback(() => {
     dispatch({
@@ -263,12 +279,12 @@ function TransferScreen() {
     })
   }, [navigate, dispatch])
 
-
   const headerTitle = t('Deposit')
   const formTitle = t('Deposit')
 
   const proceedBtnText = useMemo(() => {
-    if (isLoading && !isAccountLoaded && privacyProvider === 'privacy-pools') return t('Loading account...')
+    if (isLoading && !isAccountLoaded && privacyProvider === 'privacy-pools')
+      return t('Loading account...')
     return t('Deposit')
   }, [isLoading, privacyProvider, isAccountLoaded, t])
 
@@ -306,7 +322,7 @@ function TransferScreen() {
           addr: submittedAccountOp.accountAddr
         }
       })
-      
+
       // Clean up state before navigating - use the appropriate controller based on provider
       if (privacyProvider === 'railgun') {
         dispatch({
@@ -317,7 +333,7 @@ function TransferScreen() {
           type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
         })
       }
-      
+
       // Reset hasProceeded for the currently selected controller
       // to prevent double-click issue when depositing again
       dispatch({
@@ -332,7 +348,7 @@ function TransferScreen() {
           proceeded: false
         }
       })
-      
+
       // Navigate immediately instead of waiting for the flag
       navigateOut()
     } else {
