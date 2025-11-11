@@ -92,7 +92,7 @@ const Tokens = ({
           address: tokenAddress,
           chainId: 11155111,
           decimals: tokenInfo.decimals,
-          priceIn: [{ baseCurrency: 'usd', price: tokenAddress === ZERO_ADDRESS ? ethPrice : undefined }],
+          priceIn: [{ baseCurrency: 'usd', price: tokenAddress === ZERO_ADDRESS ? ethPrice : tokenInfo.price }],
           flags: {
             onGasTank: false,
             rewardsType: null,

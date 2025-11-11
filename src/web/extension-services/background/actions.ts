@@ -898,6 +898,16 @@ type RailgunControllerSyncSignAccountOpAction = {
   }
 }
 
+type RailgunControllerDirectBroadcastWithdrawalAction = {
+  type: 'RAILGUN_CONTROLLER_DIRECT_BROADCAST_WITHDRAWAL'
+  params: {
+    to: string
+    data: string
+    value: string
+    chainId: number
+  }
+}
+
 type RailgunControllerResetFormAction = {
   type: 'RAILGUN_CONTROLLER_RESET_FORM'
 }
@@ -1098,6 +1108,7 @@ export type Action =
   | RailgunControllerDestroySignAccountOpAction
   | RailgunControllerDestroyLatestBroadcastedAccountOpAction
   | RailgunControllerSyncSignAccountOpAction
+  | RailgunControllerDirectBroadcastWithdrawalAction
   | RailgunControllerResetFormAction
   | RailgunControllerDeriveRailgunKeysAction
   | RailgunControllerGetDefaultRailgunKeysAction
