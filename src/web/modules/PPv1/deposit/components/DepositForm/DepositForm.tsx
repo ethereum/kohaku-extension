@@ -161,6 +161,24 @@ const DepositForm = ({
   ])
 
   useEffect(() => {
+    if (portfolio?.isReadyToVisualize && selectedAccountAddr) {
+      const updatedToken = portfolio?.tokens.find(
+        (token) => token.chainId === chainId && token.address === zeroAddress
+      )
+      if (updatedToken) {
+        handleUpdateForm({ selectedToken: updatedToken, maxAmount: formatEther(ethBalance) })
+      }
+    }
+  }, [
+    selectedAccountAddr,
+    portfolio?.isReadyToVisualize,
+    portfolio?.tokens,
+    chainId,
+    ethBalance,
+    handleUpdateForm
+  ])
+
+  useEffect(() => {
     if (depositAmount && depositAmount !== '0') {
       try {
         setDisplayAmount(formatEther(BigInt(depositAmount)))
