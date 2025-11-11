@@ -162,9 +162,10 @@ const DepositForm = ({
         })
       }
 
-      // Reset amount when changing accounts
+      // Reset amount and token when changing accounts to force refresh from new portfolio
       setDisplayAmount('')
-      handleUpdateForm({ depositAmount: '' })
+      setMySelectedToken(null)
+      handleUpdateForm({ depositAmount: '', selectedToken: null })
     },
     [handleUpdateForm, selectedAccount?.addr, dispatch]
   )
