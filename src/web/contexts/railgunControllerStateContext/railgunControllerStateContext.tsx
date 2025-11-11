@@ -34,7 +34,7 @@ import type {
 } from '@ambire-common/controllers/railgun/railgun'
 import { getRpcProviderForUI, UIProxyProvider } from '@web/services/provider'
 
-import { JsonRpcProvider, Log } from 'ethers'
+import { JsonRpcProvider, Log, Network } from 'ethers'
 
 type Checkpoint = {
   merkleTrees: { tree: string[][]; nullifiers: string[] }[]
@@ -67,14 +67,13 @@ const DERIVED_KEYS_GLOBAL_START_BLOCKS = {
   '11155111': 9342029,
 }
 
-const getProvider = (chainId: number, dispatch: (action: any) => void) => {
-  const name =
-    RAILGUN_CONFIG_BY_CHAIN_ID[chainId.toString() as keyof typeof RAILGUN_CONFIG_BY_CHAIN_ID].NAME
+const getProvider = (chainId: number) => {
+  const name = RAILGUN_CONFIG_BY_CHAIN_ID[chainId.toString() as keyof typeof RAILGUN_CONFIG_BY_CHAIN_ID].NAME
   const networkConfig = testnetNetworks.find((n) => n.chainId === BigInt(chainId))
   if (!name || !networkConfig) {
-    throw new Error(`Unsupported network: ${chainId}`)
+    throw new Error(`Unsupported chainId for Railgun: ${chainId}`)
   }
-  return getRpcProviderForUI(networkConfig, dispatch)
+  return new JsonRpcProvider(networkConfig.selectedRpcUrl, Network.from({ name, chainId }), {staticNetwork: true, batchMaxCount: 1, batchMaxSize: 0, batchStallTime: 0})
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
