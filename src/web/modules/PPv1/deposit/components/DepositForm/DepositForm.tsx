@@ -229,6 +229,7 @@ const DepositForm = ({
 
         const decimals = currentSelectedToken.decimals || 18
         const tokenAmount = parseUnits(inputValue, decimals)
+        // Always update selectedToken with the current one from portfolio to ensure fresh balance
         handleUpdateForm({
           depositAmount: tokenAmount.toString(),
           selectedToken: currentSelectedToken
