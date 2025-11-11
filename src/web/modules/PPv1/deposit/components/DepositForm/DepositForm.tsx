@@ -197,7 +197,10 @@ const DepositForm = ({
     setDisplayAmount(formattedAmount)
 
     // Store the amount in the smallest unit (wei for ETH, or token's smallest unit)
-    handleUpdateForm({ depositAmount: selectedTokenBalance.toString() })
+    handleUpdateForm({
+      depositAmount: selectedTokenBalance.toString(),
+      selectedToken: currentSelectedToken
+    })
   }, [currentSelectedToken, selectedTokenBalance, handleUpdateForm])
 
   const handleAmountChange = useCallback(
@@ -226,7 +229,10 @@ const DepositForm = ({
 
         const decimals = currentSelectedToken.decimals || 18
         const tokenAmount = parseUnits(inputValue, decimals)
-        handleUpdateForm({ depositAmount: tokenAmount.toString() })
+        handleUpdateForm({
+          depositAmount: tokenAmount.toString(),
+          selectedToken: currentSelectedToken
+        })
       } catch (error) {
         // eslint-disable-next-line no-console
         console.warn('Invalid token amount entered:', inputValue)
