@@ -236,7 +236,6 @@ function TransferScreen() {
   )
 
   const isTransferFormValid = useMemo(() => {
-    // Don't allow submission if amount is empty or not entered
     if (!depositAmount || depositAmount === '' || depositAmount === '0') return false
 
     // For Privacy Pools, we need poolInfo; for Railgun, we don't
