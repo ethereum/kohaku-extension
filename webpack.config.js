@@ -53,8 +53,7 @@ module.exports = async function (env, argv) {
       manifest.icons = devBuildIcons
     }
     // Note: Safari allows up to 100 characters, all others allow up to 132 characters
-    manifest.description =
-      'Fast & secure Web3 wallet to supercharge your account on Ethereum and EVM networks.'
+    manifest.description = 'Privacy-focused Web3 wallet for secure transactions on Ethereum.'
 
     // Maintain the same versioning between the web extension and the mobile app
     manifest.version = appJSON.expo.version
