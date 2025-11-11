@@ -1,4 +1,4 @@
-import React, { FC, useCallback } from 'react'
+import React, { FC, useCallback, useMemo } from 'react'
 import { View } from 'react-native'
 
 import ButtonWithLoader from '@common/components/ButtonWithLoader/ButtonWithLoader'
@@ -7,6 +7,7 @@ import spacings from '@common/styles/spacings'
 import TextArea from '@common/components/TextArea'
 import Input from '@common/components/Input'
 import usePrivacyPoolsForm from '../../hooks/usePrivacyPoolsForm'
+import { validateSeedPhrase } from '../../utils/validation'
 
 type Props = {
   handleImportSecretNote: () => void
@@ -26,6 +27,8 @@ const ImportForm: FC<Props> = ({
   const { t } = useTranslation()
   const { seedPhrase, handleUpdateForm } = usePrivacyPoolsForm()
 
+  const seedPhraseValidation = useMemo(() => validateSeedPhrase(seedPhrase), [seedPhrase])
+
   const onInputChange = useCallback(
     (value: string) => {
       handleUpdateForm({ seedPhrase: value })
@@ -33,7 +36,12 @@ const ImportForm: FC<Props> = ({
     [handleUpdateForm]
   )
 
-  const isButtonDisabled = !seedPhrase || isDuplicate || isCheckingDuplicate || !accountName.trim()
+  const isButtonDisabled =
+    !seedPhrase ||
+    !seedPhraseValidation.isValid ||
+    isDuplicate ||
+    isCheckingDuplicate ||
+    !accountName.trim()
 
   return (
     <View>
@@ -55,7 +63,11 @@ const ImportForm: FC<Props> = ({
         value={seedPhrase}
         inputStyle={spacings.mbSm}
         containerStyle={spacings.mbXl}
-        error={isDuplicate && seedPhrase ? 'This recovery phrase has already been imported' : ''}
+        error={
+          isDuplicate && seedPhrase
+            ? 'This recovery phrase has already been imported'
+            : seedPhraseValidation.error || ''
+        }
       />
       <ButtonWithLoader
         disabled={isButtonDisabled}
