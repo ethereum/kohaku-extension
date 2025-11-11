@@ -159,13 +159,26 @@ const TransferScreen = () => {
   const submittedAccountOp = useMemo(() => {
     // For Railgun withdrawals, check accountsOps.transfer
     if (activeTab === 'railgun') {
-      if (!railgunLatestBroadcastedAccountOp?.signature) return
+      if (!railgunLatestBroadcastedAccountOp) return
 
-      if (!accountsOps.transfer) return
+      // First, try to find it in accountsOps (this will have the most up-to-date status)
+      // Match by signature (txHash) or txnId
+      if (accountsOps.transfer) {
+        const signature = railgunLatestBroadcastedAccountOp.signature
+        const txnId = railgunLatestBroadcastedAccountOp.txnId || (railgunLatestBroadcastedAccountOp as any).meta?.txnId
 
-      return accountsOps.transfer.result.items.find(
-        (accOp) => accOp.signature === railgunLatestBroadcastedAccountOp.signature
-      )
+        const found = accountsOps.transfer.result.items.find(
+          (accOp) =>
+            (signature && accOp.signature === signature) ||
+            (txnId && accOp.txnId === txnId) ||
+            (signature && accOp.txnId === signature) // signature is the txHash
+        )
+        if (found) return found
+      }
+
+      // Fall back to latestBroadcastedAccountOp if not found in accountsOps yet
+      // This handles the case when withdrawal is first submitted
+      return railgunLatestBroadcastedAccountOp as any
     }
 
     // For Privacy Pools withdrawals
@@ -585,132 +598,135 @@ const TransferScreen = () => {
   }, [handleMultipleWithdrawal, addToast])
 
   const handleRailgunWithdrawal = useCallback(async () => {
-    // Use synced state values (current input values) instead of controller state
-    // Controller state may be debounced and not updated yet
-    const amount = railgunAmountFieldValue || railgunWithdrawalAmount
-    // Prioritize synced state field value, then ENS resolved address, then addressInputState.address
-    const address =
-      railgunAddressStateFieldValue ||
-      railgunAddressState.ensAddress ||
-      railgunAddressInputState.address
+    setIsSubmitting(true)
+    try {
+      // Use synced state values (current input values) instead of controller state
+      // Controller state may be debounced and not updated yet
+      const amount = railgunAmountFieldValue || railgunWithdrawalAmount
+      // Prioritize synced state field value, then ENS resolved address, then addressInputState.address
+      const address =
+        railgunAddressStateFieldValue ||
+        railgunAddressState.ensAddress ||
+        railgunAddressInputState.address
 
-    // Debug logging
-    console.log('handleRailgunWithdrawal - Input values:', {
-      amount,
-      address,
-      amountFieldValue: railgunAmountFieldValue,
-      withdrawalAmount: railgunWithdrawalAmount,
-      addressStateFieldValue: railgunAddressStateFieldValue,
-      addressInputStateAddress: railgunAddressInputState.address,
-      addressStateEnsAddress: railgunAddressState.ensAddress,
-      selectedToken: railgunSelectedToken
-    })
-
-    // Validate form inputs
-    if (!railgunSelectedToken || !amount || !address) {
-      console.error('Missing required form inputs:', {
-        token: railgunSelectedToken,
+      // Debug logging
+      console.log('handleRailgunWithdrawal - Input values:', {
         amount,
         address,
         amountFieldValue: railgunAmountFieldValue,
         withdrawalAmount: railgunWithdrawalAmount,
-        addressInputState: railgunAddressInputState.address,
         addressStateFieldValue: railgunAddressStateFieldValue,
-        addressStateEnsAddress: railgunAddressState.ensAddress
+        addressInputStateAddress: railgunAddressInputState.address,
+        addressStateEnsAddress: railgunAddressState.ensAddress,
+        selectedToken: railgunSelectedToken
       })
-      return
-    }
 
-    // Get the synced default Railgun account instance directly from state
-    console.log('Getting synced Railgun account from state...')
-    const accountData = railgunForm.syncedDefaultRailgunAccount()
-    if (!accountData) {
-      console.error(
-        'Failed to get synced Railgun account. Ensure loadPrivateAccount has been called.'
-      )
-      return
-    }
-
-    const { account, indexer } = accountData
-    console.log('Railgun account instance ready:', { account, indexer })
-
-    // Parse amount to BigInt using token decimals
-    const tokenDecimals = railgunSelectedToken.decimals || 18
-    const amountBigInt = parseUnits(amount, tokenDecimals)
-
-    // Ensure address is properly formatted (checksummed)
-    const receiver = getAddress(address)
-
-    // Check if this is native ETH and user wants WETH instead
-    // TODO: Get from checkbox state when WETH checkbox is implemented
-    const withdrawAsWETH = false
-    const isNativeETH = railgunSelectedToken.address?.toLowerCase() === ZERO_ADDRESS.toLowerCase()
-    let txData
-
-    try {
-      if (isNativeETH && !withdrawAsWETH) {
-        // Use native ETH unshield
-        console.log('Calling account.unshieldNative with:', {
-          amount: amountBigInt.toString(),
-          receiver
+      // Validate form inputs
+      if (!railgunSelectedToken || !amount || !address) {
+        console.error('Missing required form inputs:', {
+          token: railgunSelectedToken,
+          amount,
+          address,
+          amountFieldValue: railgunAmountFieldValue,
+          withdrawalAmount: railgunWithdrawalAmount,
+          addressInputState: railgunAddressInputState.address,
+          addressStateFieldValue: railgunAddressStateFieldValue,
+          addressStateEnsAddress: railgunAddressState.ensAddress
         })
-        txData = await account.unshieldNative(amountBigInt, receiver)
-      } else {
-        let tokenAddress = railgunSelectedToken.address
-
-        // If native ETH but user wants WETH, use WETH address
-        if (isNativeETH && withdrawAsWETH) {
-          const networkConfig =
-            RAILGUN_CONFIG_BY_CHAIN_ID[
-              railgunChainId?.toString() as keyof typeof RAILGUN_CONFIG_BY_CHAIN_ID
-            ]
-          if (!networkConfig?.WETH) {
-            console.error('WETH address not found for chainId:', railgunChainId)
-            return
-          }
-          tokenAddress = networkConfig.WETH
-        }
-
-        console.log('Calling account.unshield with:', {
-          tokenAddress,
-          amount: amountBigInt.toString(),
-          receiver
-        })
-        txData = await account.unshield(tokenAddress, amountBigInt, receiver)
+        setIsSubmitting(false)
+        return
       }
 
-      console.log('Unshield txData:', txData)
+      // Get the synced default Railgun account instance directly from state
+      console.log('Getting synced Railgun account from state...')
+      const accountData = railgunForm.syncedDefaultRailgunAccount()
+      if (!accountData) {
+        console.error(
+          'Failed to get synced Railgun account. Ensure loadPrivateAccount has been called.'
+        )
+        setIsSubmitting(false)
+        return
+      }
+
+      const { account, indexer } = accountData
+      console.log('Railgun account instance ready:', { account, indexer })
+
+      // Parse amount to BigInt using token decimals
+      const tokenDecimals = railgunSelectedToken.decimals || 18
+      const amountBigInt = parseUnits(amount, tokenDecimals)
+
+      // Ensure address is properly formatted (checksummed)
+      const receiver = getAddress(address)
+
+      // Check if this is native ETH and user wants WETH instead
+      // TODO: Get from checkbox state when WETH checkbox is implemented
+      const withdrawAsWETH = false
+      const isNativeETH = railgunSelectedToken.address?.toLowerCase() === ZERO_ADDRESS.toLowerCase()
+      let txData
+
+      try {
+        if (isNativeETH && !withdrawAsWETH) {
+          // Use native ETH unshield
+          console.log('Calling account.unshieldNative with:', {
+            amount: amountBigInt.toString(),
+            receiver
+          })
+          txData = await account.unshieldNative(amountBigInt, receiver)
+        } else {
+          let tokenAddress = railgunSelectedToken.address
+
+          // If native ETH but user wants WETH, use WETH address
+          if (isNativeETH && withdrawAsWETH) {
+            const networkConfig =
+              RAILGUN_CONFIG_BY_CHAIN_ID[
+                railgunChainId?.toString() as keyof typeof RAILGUN_CONFIG_BY_CHAIN_ID
+              ]
+            if (!networkConfig?.WETH) {
+              console.error('WETH address not found for chainId:', railgunChainId)
+              setIsSubmitting(false)
+              return
+            }
+            tokenAddress = networkConfig.WETH
+          }
+
+          console.log('Calling account.unshield with:', {
+            tokenAddress,
+            amount: amountBigInt.toString(),
+            receiver
+          })
+          txData = await account.unshield(tokenAddress, amountBigInt, receiver)
+        }
+
+        console.log('Unshield txData:', txData)
+      } catch (error) {
+        console.error('Error generating unshield transaction:', error)
+        setIsSubmitting(false)
+        addToast('Unable to generate withdrawal transaction. Please try again.', {
+          type: 'error',
+          timeout: 8000
+        })
+        return
+      }
+
+      // Submit withdrawal directly to relayer (no estimation modal)
+      // The controller will set latestBroadcastedAccountOp immediately, causing UI to show track screen
+      console.log('Submitting withdrawal to relayer...')
+      await railgunForm.directBroadcastWithdrawal({
+        to: txData.to,
+        data: txData.data,
+        value: isNativeETH && !withdrawAsWETH ? txData.value : '0',
+        chainId: railgunChainId || 11155111
+      })
+      console.log('Withdrawal submitted successfully')
+      // Note: isSubmitting will be reset when the transaction completes or fails
+      // The UI will show the track screen immediately after directBroadcastWithdrawal is called
     } catch (error) {
-      console.error('Error generating unshield transaction:', error)
-      return
-    }
-
-    // Construct calls for signing operation
-    // For withdrawals, we only need the unshield call (no approve needed)
-    const requestId = randomId()
-
-    // Add the unshield transaction call
-    const call: Call = {
-      to: getAddress(txData.to),
-      data: txData.data,
-      value: isNativeETH && !withdrawAsWETH ? BigInt(txData.value) : BigInt(0),
-      fromUserRequestId: requestId
-    }
-
-    console.log('Constructed call for withdrawal:', call)
-
-    try {
-      // Sync the calls to the sign account op controller
-      console.log('Syncing calls to sign account op controller...')
-      await railgunForm.syncSignAccountOp([call])
-      console.log('Calls synced successfully')
-
-      // Open the estimation modal
-      console.log('Opening estimation modal...')
-      railgunForm.openEstimationModalAndDispatch()
-      console.log('Estimation modal opened successfully')
-    } catch (error) {
-      console.error('Error syncing calls or opening modal:', error)
+      console.error('Error submitting withdrawal:', error)
+      setIsSubmitting(false)
+      addToast('Unable to submit withdrawal. Please try again.', {
+        type: 'error',
+        timeout: 8000
+      })
     }
   }, [
     railgunForm,
@@ -720,7 +736,8 @@ const TransferScreen = () => {
     railgunAddressInputState.address,
     railgunAddressStateFieldValue,
     railgunAddressState.ensAddress,
-    railgunChainId
+    railgunChainId,
+    addToast
   ])
 
   // Handler functions for Estimation component
@@ -869,8 +886,15 @@ const TransferScreen = () => {
           navigateOut()
         }}
       >
-        {submittedAccountOp?.status === AccountOpStatus.BroadcastedButNotConfirmed && (
-          <InProgress title={t('Confirming your transfer')}>
+        {(submittedAccountOp?.status === AccountOpStatus.BroadcastedButNotConfirmed ||
+          (!submittedAccountOp?.status && currentLatestBroadcastedAccountOp)) && (
+          <InProgress
+            title={
+              activeTab === 'railgun'
+                ? t('Relaying withdrawal')
+                : t('Confirming your transfer')
+            }
+          >
             <Text fontSize={16} weight="medium" appearance="secondaryText">
               {t('Almost there!')}
             </Text>

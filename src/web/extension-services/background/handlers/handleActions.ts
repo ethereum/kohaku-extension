@@ -504,6 +504,8 @@ export const handleActions = async (
       return mainCtrl.railgun.destroyLatestBroadcastedAccountOp()
     case 'RAILGUN_CONTROLLER_SYNC_SIGN_ACCOUNT_OP':
       return mainCtrl.railgun.syncSignAccountOp(params.calls)
+    case 'RAILGUN_CONTROLLER_DIRECT_BROADCAST_WITHDRAWAL':
+      return mainCtrl.railgun.directBroadcastWithdrawal(params)
     case 'RAILGUN_CONTROLLER_GET_DEFAULT_RAILGUN_KEYS':
       console.log('[BG][RAILGUN] GET_DEFAULT_RAILGUN_KEYS action');
       return mainCtrl.railgun.getDefaultRailgunKeys()

@@ -73,7 +73,7 @@ const useRailgunForm = () => {
 
   const totalPrivateBalancesFormatted = useMemo(() => {
     const railgunBalances = railgunAccountsState.balances;
-    const balanceMap: Record<string, { amount: string; decimals: number; symbol: string; name: string }> = {};
+    const balanceMap: Record<string, { amount: string; decimals: number; symbol: string; name: string; price?: number }> = {};
     
     for (const balance of railgunBalances) {
       // Find the token in portfolio to get decimals
@@ -97,12 +97,16 @@ const useRailgunForm = () => {
         continue;
       }
 
+      // Extract price from token's priceIn array if available
+      const tokenPrice = token.priceIn?.find((price) => price.baseCurrency === 'usd')?.price;
+
       // Use lowercase address as key for consistent matching
       balanceMap[balance.tokenAddress.toLowerCase()] = { 
         amount: balance.amount,
         decimals: token.decimals,
         symbol: token.symbol,
         name: token.name,
+        price: tokenPrice,
       };
     }
     
@@ -168,6 +172,16 @@ const useRailgunForm = () => {
       dispatch({
         type: 'RAILGUN_CONTROLLER_SYNC_SIGN_ACCOUNT_OP',
         params: { calls }
+      })
+    },
+    [dispatch]
+  )
+
+  const directBroadcastWithdrawal = useCallback(
+    async (params: { to: string; data: string; value: string; chainId: number }): Promise<void> => {
+      dispatch({
+        type: 'RAILGUN_CONTROLLER_DIRECT_BROADCAST_WITHDRAWAL',
+        params
       })
     },
     [dispatch]
@@ -308,7 +322,8 @@ const useRailgunForm = () => {
     refreshPrivateAccount,
     syncedDefaultRailgunAccount: getSyncedDefaultRailgunAccount,
     syncSignAccountOp,
-    openEstimationModalAndDispatch
+    openEstimationModalAndDispatch,
+    directBroadcastWithdrawal
   }
 }
 
