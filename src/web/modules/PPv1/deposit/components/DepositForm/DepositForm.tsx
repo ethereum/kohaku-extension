@@ -23,6 +23,7 @@ import shortenAddress from '@ambire-common/utils/shortenAddress'
 import RailgunIcon from '@common/assets/svg/RailgunIcon'
 import useGetTokenSelectProps from '@common/hooks/useGetTokenSelectProps/useGetTokenSelectProps'
 import { getTokenId } from '@web/utils/token'
+import formatDecimals from '@ambire-common/utils/formatDecimals/formatDecimals'
 import SendToken from '../SendToken'
 import styles from './styles'
 
@@ -331,6 +332,42 @@ const DepositForm = ({
     return vettingFeeEthValue
   }, [depositAmount])
 
+  // Calculate 0.25% fee for Railgun deposits
+  const railgunDepositFee = useMemo(() => {
+    if (!depositAmount || depositAmount === '0' || !currentSelectedToken || privacyProvider !== 'railgun') {
+      return { amount: 0n, formatted: '0' }
+    }
+    
+    try {
+      const decimals = currentSelectedToken.decimals || 18
+      const amount = BigInt(depositAmount)
+      // 0.25% = 0.0025 = 25 / 10000
+      const feeAmount = (amount * 25n) / 10000n
+      const feeFormatted = formatUnits(feeAmount, decimals)
+      return { amount: feeAmount, formatted: feeFormatted }
+    } catch (error) {
+      return { amount: 0n, formatted: '0' }
+    }
+  }, [depositAmount, currentSelectedToken, privacyProvider])
+
+  // Calculate amount user will receive after fee (for Railgun deposits)
+  const railgunDepositReceives = useMemo(() => {
+    if (!depositAmount || depositAmount === '0' || !currentSelectedToken || privacyProvider !== 'railgun') {
+      return '0'
+    }
+    
+    try {
+      const decimals = currentSelectedToken.decimals || 18
+      const amount = BigInt(depositAmount)
+      const feeAmount = railgunDepositFee.amount
+      const receivesAmount = amount - feeAmount
+      const receivesFormatted = formatUnits(receivesAmount, decimals)
+      return receivesFormatted
+    } catch (error) {
+      return '0'
+    }
+  }, [depositAmount, currentSelectedToken, privacyProvider, railgunDepositFee.amount])
+
   // Format max amount for display
   const maxFromAmountFormatted = useMemo(() => {
     if (!currentSelectedToken || selectedTokenBalance <= 0n) return '0'
@@ -484,6 +521,53 @@ const DepositForm = ({
             </View>
           </View>
         </View>
+      )}
+
+      {/* Show fee and amount received for Railgun deposits */}
+      {privacyProvider === 'railgun' && currentSelectedToken && (
+        <>
+          <View style={spacings.mbLg}>
+            <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
+              <Text appearance="secondaryText" fontSize={14} weight="light">
+                {t('Fee')}
+              </Text>
+              <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+                <TokenIcon
+                  chainId={chainId}
+                  address={currentSelectedToken.address || zeroAddress}
+                  width={20}
+                  height={20}
+                  withNetworkIcon={false}
+                />
+                <Text fontSize={14} weight="light" style={spacings.mlMi}>
+                  {formatDecimals(parseFloat(railgunDepositFee.formatted), 'amount')}{' '}
+                  {currentSelectedToken.symbol || 'ETH'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={spacings.mbMi}>
+            <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
+              <Text appearance="secondaryText" fontSize={14} weight="light">
+                {t("You'll receive")}
+              </Text>
+              <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+                <TokenIcon
+                  chainId={chainId}
+                  address={currentSelectedToken.address || zeroAddress}
+                  width={20}
+                  height={20}
+                  withNetworkIcon={false}
+                />
+                <Text fontSize={14} weight="light" style={spacings.mlMi}>
+                  {formatDecimals(parseFloat(railgunDepositReceives), 'amount')}{' '}
+                  {currentSelectedToken.symbol || 'ETH'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </>
       )}
     </ScrollableWrapper>
   )

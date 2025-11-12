@@ -48,7 +48,7 @@
     "eas:secret:list": "eas secret:list",
     "eas:secret:push": "eas secret:push --scope project --env-file .env",
     "test": "jest --config=./jest.config.js --passWithNoTests",
-    "postinstall": "patch-package",
+    "postinstall": "patch-package && node scripts/copy-circuit-artifacts.js",
     "copy:circuit-artifacts": "node scripts/copy-circuit-artifacts.js"
   },
   "engines": {
