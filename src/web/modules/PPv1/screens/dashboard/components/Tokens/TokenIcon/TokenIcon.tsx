@@ -3,6 +3,7 @@ import { Image, ImageProps, View, ViewStyle } from 'react-native'
 
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import PrivacyIcon from '@common/assets/svg/PrivacyIcon'
+import RailgunIcon from '@common/assets/svg/RailgunIcon'
 
 import useBenzinNetworksContext from '@benzin/hooks/useBenzinNetworksContext'
 import MissingTokenIcon from '@common/assets/svg/MissingTokenIcon'
@@ -11,6 +12,7 @@ import { BORDER_RADIUS_PRIMARY } from '@common/styles/utils/common'
 import { checkIfImageExists } from '@common/utils/checkIfImageExists'
 import SkeletonLoader from '@common/components/SkeletonLoader'
 import { SkeletonLoaderProps } from '@common/components/SkeletonLoader/types'
+import { PrivacyProtocolType } from '@web/modules/PPv1/types/privacy'
 
 import getStyles from './styles'
 
@@ -26,7 +28,7 @@ interface Props extends Partial<ImageProps> {
   width?: number
   height?: number
   onGasTank?: boolean
-  networkSize?: number
+  privacyProtocol?: PrivacyProtocolType
   uri?: string
   networkWrapperStyle?: ViewStyle
   skeletonAppearance?: SkeletonLoaderProps['appearance']
@@ -50,12 +52,12 @@ const TokenIcon: React.FC<Props> = ({
   width = 20,
   height = 20,
   onGasTank = false,
-  networkSize = 14,
+  privacyProtocol,
   networkWrapperStyle,
   skeletonAppearance = 'primaryBackground',
   ...props
 }) => {
-  const { styles, theme } = useTheme(getStyles)
+  const { styles } = useTheme(getStyles)
   const [uriStatus, setUriStatus] = useState<UriStatus>(UriStatus.UNKNOWN)
   const [imageUrl, setImageUrl] = useState<string | undefined>()
   const { networks: controllerNetworks } = useNetworksControllerState()
@@ -124,8 +126,13 @@ const TokenIcon: React.FC<Props> = ({
     ]
   )
 
-  // Always show Privacy Pools badge instead of network icon
-  const shouldDisplayPrivacyPoolsBadge = withNetworkIcon && !onGasTank
+  // Determine which privacy protocol badge to display
+  // Priority: privacyProtocol prop > onGasTank prop (for backward compatibility)
+  const shouldDisplayPrivacyPoolsBadge =
+    withNetworkIcon && !onGasTank && privacyProtocol === PrivacyProtocolType.PRIVACY_POOLS
+
+  const shouldDisplayRailgunBadge =
+    withNetworkIcon && !onGasTank && privacyProtocol === PrivacyProtocolType.RAILGUN
 
   return (
     <View style={memoizedContainerStyle}>
@@ -160,6 +167,18 @@ const TokenIcon: React.FC<Props> = ({
           ]}
         >
           <PrivacyIcon width={9} height={9} />
+        </View>
+      )}
+
+      {shouldDisplayRailgunBadge && (
+        <View
+          style={[
+            styles.networkIconWrapper,
+            withContainer ? { right: -1, bottom: -1 } : { left: -4, top: -4 },
+            networkWrapperStyle
+          ]}
+        >
+          <RailgunIcon width={9} height={9} />
         </View>
       )}
     </View>
