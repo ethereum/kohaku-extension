@@ -10,7 +10,6 @@ import React, {
 } from 'react'
 
 import {
-  type ChainConfig,
   type AccountCommitment,
   type CommitmentProof,
   type WithdrawalProof,
@@ -56,6 +55,11 @@ import {
   generateAnonymitySetFromChain,
   convertToAlgorithmFormat
 } from '@web/modules/PPv1/sdk/noteSelection/anonimitySet/anonymitySetGeneration'
+import { getRpcProviderForUI } from '@web/services/provider'
+import {
+  createDataServiceWithProviders,
+  type ExtendedChainConfig
+} from '@web/services/privacyPools'
 
 export enum ReviewStatus {
   PENDING = 'pending',
@@ -596,18 +600,31 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
 
       const circuits = new Circuits({ baseUrl })
 
-      const dataServiceConfig: ChainConfig[] = memoizedState.poolsByChain.map((pool) => {
+      const dataServiceConfig: ExtendedChainConfig[] = memoizedState.poolsByChain.map((pool) => {
+        const chainData = memoizedState.chainData?.[pool.chainId]
+        const sdkRpcUrl = chainData?.sdkRpcUrl || ''
+
+        // Create a provider instance for this chain using UIProxyProvider
+        const provider = getRpcProviderForUI(
+          {
+            chainId: BigInt(pool.chainId),
+            rpcUrls: [sdkRpcUrl],
+            selectedRpcUrl: sdkRpcUrl
+          },
+          dispatch
+        )
+
         return {
           chainId: pool.chainId,
           privacyPoolAddress: pool.address,
           startBlock: pool.deploymentBlock,
-          rpcUrl: memoizedState.chainData?.[pool.chainId]?.sdkRpcUrl || '',
-          apiKey: 'sdk'
+          rpcUrl: sdkRpcUrl,
+          provider
         }
       })
 
       const sdkModule = new PrivacyPoolSDK(circuits)
-      const ds = new DataService(dataServiceConfig)
+      const ds = createDataServiceWithProviders(dataServiceConfig)
 
       setDataService(ds)
       setSdk(sdkModule)
