@@ -5,6 +5,7 @@ import { formatEther, getAddress } from 'viem'
 import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
 import { Call } from '@ambire-common/libs/accountOp/types'
 import { randomId } from '@ambire-common/libs/humanizer/utils'
+import { PINNED_TOKENS } from '@ambire-common/consts/pinnedTokens'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useRailgunControllerState from '@web/hooks/useRailgunControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
@@ -76,38 +77,61 @@ const useRailgunForm = () => {
     const balanceMap: Record<string, { amount: string; decimals: number; symbol: string; name: string; price?: number }> = {};
     
     for (const balance of railgunBalances) {
-      // Find the token in portfolio to get decimals
-      // Try to find a matching token in user's portfolio
+      const tokenAddressLower = balance.tokenAddress.toLowerCase();
+      const currentChainId = BigInt(chainId || 0);
+      
+      // Try to find a matching token in user's portfolio first
       let token = portfolio.tokens.find(
         (t) => 
-          t.chainId === BigInt(chainId || 0) && 
-          t.address.toLowerCase() === balance.tokenAddress.toLowerCase()
+          t.chainId === currentChainId && 
+          t.address.toLowerCase() === tokenAddressLower
       );
 
       // If not found, try to find it in pinnedTokens (global pinned list)
       if (!token && typeof window !== 'undefined' && (window as any).pinnedTokens) {
         token = (window as any).pinnedTokens.find(
           (t: any) =>
-            t.chainId === BigInt(chainId || 0) &&
-            t.address.toLowerCase() === balance.tokenAddress.toLowerCase()
+            t.chainId === currentChainId &&
+            t.address.toLowerCase() === tokenAddressLower
         );
       }
 
-      if (!token) {
-        continue;
+      // If still not found, check if it's a pinned token (from PINNED_TOKENS constant)
+      // For pinned tokens, we should show them even if not in current portfolio
+      const isPinned = PINNED_TOKENS.some(
+        (pinned) =>
+          pinned.chainId === currentChainId &&
+          pinned.address.toLowerCase() === tokenAddressLower
+      );
+
+      // If we have token metadata, use it
+      if (token) {
+        const tokenPrice = token.priceIn?.find((price) => price.baseCurrency === 'usd')?.price;
+        balanceMap[tokenAddressLower] = { 
+          amount: balance.amount,
+          decimals: token.decimals,
+          symbol: token.symbol,
+          name: token.name,
+          price: tokenPrice,
+        };
+      } else if (isPinned) {
+        // For pinned tokens without metadata, use fallback info
+        // Common token decimals: USDC/USDT = 6, most others = 18
+        const isUSDC = tokenAddressLower === '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' || // Mainnet USDC
+                       tokenAddressLower === '0x0b2c639c533813f4aa9d7837caf62653d097ff85' || // Optimism USDC
+                       tokenAddressLower === '0x1c7d4b196cb0c7b01d743fbc6116a902379c7238'; // Sepolia USDC
+        const isNative = tokenAddressLower === ZERO_ADDRESS.toLowerCase();
+        
+        balanceMap[tokenAddressLower] = {
+          amount: balance.amount,
+          decimals: isUSDC ? 6 : (isNative ? 18 : 18), // Default to 18, 6 for USDC
+          symbol: isNative ? 'ETH' : (isUSDC ? 'USDC' : 'Unknown'),
+          name: isNative ? 'Ethereum' : (isUSDC ? 'USD Coin' : 'Unknown Token'),
+          price: undefined, // No price available without portfolio data
+        };
       }
-
-      // Extract price from token's priceIn array if available
-      const tokenPrice = token.priceIn?.find((price) => price.baseCurrency === 'usd')?.price;
-
-      // Use lowercase address as key for consistent matching
-      balanceMap[balance.tokenAddress.toLowerCase()] = { 
-        amount: balance.amount,
-        decimals: token.decimals,
-        symbol: token.symbol,
-        name: token.name,
-        price: tokenPrice,
-      };
+      // If not found in portfolio, not in window.pinnedTokens, and not pinned, skip it
+      // This maintains the current behavior for non-pinned tokens
     }
     
     return balanceMap;

@@ -1,16 +1,22 @@
-import React, { useCallback, useEffect, useMemo } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Animated, FlatListProps, View } from 'react-native'
 
+import CopyIcon from '@common/assets/svg/CopyIcon'
 import Text from '@common/components/Text'
 import Spinner from '@common/components/Spinner'
 import { useTranslation } from '@common/config/localization'
 import useTheme from '@common/hooks/useTheme'
+import useToast from '@common/hooks/useToast'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
+import { setStringAsync } from '@common/utils/clipboard'
 import { getUiType } from '@web/utils/uiType'
+import useRailgunControllerState from '@web/hooks/useRailgunControllerState'
 import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import useRailgunForm from '@web/modules/railgun/hooks/useRailgunForm'
+import { getRailgunAddress } from '@kohaku-eth/railgun'
+import { useCustomHover, AnimatedPressable } from '@web/hooks/useHover'
 
 import DashboardPageScrollContainer from '../DashboardPageScrollContainer'
 import TabsAndSearch from '../TabsAndSearch'
@@ -44,6 +50,7 @@ const Tokens = ({
 }: Props) => {
   const { t } = useTranslation()
   const { theme } = useTheme()
+  const { addToast } = useToast()
   const { control, watch, setValue } = useForm({
     mode: 'all',
     defaultValues: {
@@ -55,6 +62,16 @@ const Tokens = ({
 
   const { ethPrice, totalApprovedBalance, isAccountLoaded, isReadyToLoad } = usePrivacyPoolsForm()
   const { totalApprovedBalance: railgunTotalApprovedBalance, isAccountLoaded: railgunIsAccountLoaded, totalPrivateBalancesFormatted } = useRailgunForm()
+  const { defaultRailgunKeys } = useRailgunControllerState()
+  const [railgunAddress, setRailgunAddress] = useState<string | null>(null)
+
+  const [bindCopyIconAnim, copyIconAnimStyle] = useCustomHover({
+    property: 'opacity',
+    values: {
+      from: 1,
+      to: 0.7
+    }
+  })
 
   // Create token-like objects for display - only approved tokens
   const privateTokens = useMemo(() => {
@@ -120,6 +137,35 @@ const Tokens = ({
 
   // New: decide if we should show the Railgun loading row
   const showRailgunLoadingRow = !railgunIsAccountLoaded
+
+  // Calculate railgun address from defaultRailgunKeys
+  useEffect(() => {
+    const calculateRailgunAddress = async () => {
+      if (defaultRailgunKeys) {
+        try {
+          const address = await getRailgunAddress({
+            type: 'key',
+            spendingKey: defaultRailgunKeys.spendingKey,
+            viewingKey: defaultRailgunKeys.viewingKey
+          })
+          setRailgunAddress(address)
+        } catch (error) {
+          console.error('Failed to calculate railgun address:', error)
+          setRailgunAddress(null)
+        }
+      } else {
+        setRailgunAddress(null)
+      }
+    }
+    calculateRailgunAddress()
+  }, [defaultRailgunKeys])
+
+  const handleCopyRailgunAddress = useCallback(async () => {
+    if (railgunAddress) {
+      await setStringAsync(railgunAddress)
+      addToast(t('Copied to clipboard!') as string, { timeout: 2500 })
+    }
+  }, [railgunAddress, addToast, t])
 
   const renderItem = useCallback(
     ({ item, index }: any) => {
@@ -208,6 +254,23 @@ const Tokens = ({
         ) : null
       }
 
+      if (item === 'railgun-address') {
+        return railgunAddress ? (
+          <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.phTy, spacings.ptSm, spacings.pbLg]}>
+            <Text fontSize={14} appearance="secondaryText" style={spacings.mrTy}>
+              Your Railgun Address: {railgunAddress.slice(0, 6)}...{railgunAddress.slice(-4)}
+            </Text>
+            <AnimatedPressable onPress={handleCopyRailgunAddress} style={copyIconAnimStyle} {...bindCopyIconAnim}>
+              <CopyIcon
+                width={16}
+                height={16}
+                color={theme.secondaryText}
+              />
+            </AnimatedPressable>
+          </View>
+        ) : null
+      }
+
       if (
         !initTab?.tokens ||
         !item ||
@@ -230,7 +293,12 @@ const Tokens = ({
       searchValue,
       dashboardNetworkFilterName,
       isAccountLoaded,
-      filteredTokens.length
+      filteredTokens.length,
+      railgunAddress,
+      handleCopyRailgunAddress,
+      copyIconAnimStyle,
+      bindCopyIconAnim,
+      theme.secondaryText
     ]
   )
 
@@ -261,7 +329,8 @@ const Tokens = ({
           : 'keep-this-to-avoid-key-warning-2',
         !filteredTokens.length && isAccountLoaded ? 'empty' : '',
         ...(showRailgunLoadingRow ? (['railgun-loading'] as const) : []),
-        'footer'
+        'footer',
+        'railgun-address'
       ]}
       renderItem={renderItem}
       keyExtractor={keyExtractor}
