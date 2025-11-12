@@ -571,15 +571,6 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
           console.log('[RailgunContext - LPA] processing checkpoint logs with skipMerkleTree: true')
           await indexer.processLogs(filteredRailgunLogs, { skipMerkleTree: true})
           currentLastSyncedBlock = sepoliaCheckpoint.endBlock
-          
-          // Log notes after checkpoint processing
-          // const notesAfterCheckpoint = account.getSerializedState().notebooks;
-          // const checkpointNotesCount = notesAfterCheckpoint.flat().filter(n => n !== null && n !== undefined).length;
-          // console.log('[RailgunContext - LPA] NOTES AFTER CHECKPOINT PROCESSING:', {
-          //   notebooksCount: notesAfterCheckpoint.length,
-          //   totalNotesCount: checkpointNotesCount,
-          //   checkpointEndBlock: sepoliaCheckpoint.endBlock
-          // });
 
           console.log('[RailgunContext - LPA] set first account cache')
           fireBg('RAILGUN_CONTROLLER_SET_ACCOUNT_CACHE', {
@@ -599,17 +590,7 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
           }
         } else {
           console.log('[RailgunContext - LPA] loading from cache, lastSyncedBlock:', cached.lastSyncedBlock)
-          // Safely check noteBooks structure - it might not be an array
-          // const noteBooksIsArray = Array.isArray(cached.noteBooks);
-          // const totalNotesCount = noteBooksIsArray 
-          //   ? cached.noteBooks.flat().filter((n: any) => n !== null && n !== undefined).length 
-          //   : (cached.noteBooks ? 'not an array' : 'null/undefined');
-          // console.log('[RailgunContext - LPA] cached noteBooks structure:', {
-          //   notebooksCount: noteBooksIsArray ? cached.noteBooks.length : 'N/A',
-          //   totalNotesCount: totalNotesCount,
-          //   noteBooksType: typeof cached.noteBooks,
-          //   isArray: noteBooksIsArray
-          // });
+
           indexer = await createRailgunIndexer({
             network: RAILGUN_CONFIG_BY_CHAIN_ID[chainId.toString() as keyof typeof RAILGUN_CONFIG_BY_CHAIN_ID],
             loadState: cached.merkleTrees,
@@ -621,14 +602,6 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
           });
           currentLastSyncedBlock = cached.lastSyncedBlock
           
-          // Log notes after loading from cache
-          // const notesAfterCacheLoad = account.getSerializedState().notebooks;
-          // const cacheNotesCount = notesAfterCacheLoad.flat().filter(n => n !== null && n !== undefined).length;
-          // console.log('[RailgunContext - LPA] NOTES AFTER CACHE LOAD:', {
-          //   notebooksCount: notesAfterCacheLoad.length,
-          //   totalNotesCount: cacheNotesCount,
-          //   cachedLastSyncedBlock: cached.lastSyncedBlock
-          // });
         }
 
         console.log('[RailgunContext - LPA] sync account with new logs')
@@ -638,21 +611,30 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
         }
         
         // Log notes BEFORE syncing new logs
-        // const notesBeforeSync = account.getSerializedState().notebooks;
-        // const notesCountBefore = notesBeforeSync.flat().filter(n => n !== null && n !== undefined).length;
-        // console.log('[RailgunContext - LPA] NOTES BEFORE SYNC:', {
-        //   notebooksCount: notesBeforeSync.length,
-        //   totalNotesCount: notesCountBefore,
-        //   notes: notesBeforeSync.flat()
-        //     .filter(n => n !== null && n !== undefined)
-        //     .map((note: any) => ({
-        //       tokenAddress: note?.tokenData?.tokenAddress,
-        //       value: note?.value?.toString(),
-        //       blockNumber: note?.blockNumber,
-        //       noteHash: note?.noteHash,
-        //       nullifier: note?.nullifier,
-        //     }))
-        // });
+        const notesBeforeSync = account.getSerializedState().notebooks;
+        const notesCountBefore = notesBeforeSync.flat().filter(n => n !== null && n !== undefined).length;
+        const notesBeforeByToken = notesBeforeSync.flat()
+          .filter(n => n !== null && n !== undefined)
+          .reduce((acc: any, note: any) => {
+            const tokenAddr = note?.tokenData?.tokenAddress?.toLowerCase() || 'unknown';
+            if (!acc[tokenAddr]) acc[tokenAddr] = [];
+            acc[tokenAddr].push({
+              value: note?.value?.toString(),
+              blockNumber: note?.blockNumber,
+              noteHash: note?.noteHash,
+            });
+            return acc;
+          }, {});
+        console.log('[RailgunContext - LPA] ========== NOTES BEFORE SYNC ==========');
+        console.log('[RailgunContext - LPA] Total notebooks:', notesBeforeSync.length);
+        console.log('[RailgunContext - LPA] Total notes count:', notesCountBefore);
+        console.log('[RailgunContext - LPA] Notes by token:', Object.keys(notesBeforeByToken).map(tokenAddr => ({
+          tokenAddress: tokenAddr,
+          isWETH: tokenAddr === weth?.toLowerCase(),
+          count: notesBeforeByToken[tokenAddr].length,
+          totalValue: notesBeforeByToken[tokenAddr].reduce((sum: bigint, n: any) => sum + BigInt(n.value || '0'), 0n).toString(),
+        })));
+        console.log('[RailgunContext - LPA] ===========================================');
         
         // Always sync from lastSyncedBlock + 1 to current block to ensure we don't miss any events
         // This is critical after withdrawals to pick up change UTXOs
@@ -666,114 +648,6 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
           console.log('[RailgunContext - LPA] fetched', logs.length, 'new logs')
           
           if (logs.length > 0) {
-          //   // Event signatures for Railgun events
-          //   const NULLIFIED_EVENT_SIG = '0x781745c57906dc2f175fec80a9c691744c91c48a34a83672c41c2604774eb11f';
-          //   const TRANSACT_EVENT_SIG = '0x56a618cda1e34057b7f849a5792f6c8587a2dbe11c83d0254e72cb3daffda7d1';
-            
-          //   // Log detailed information about each log to identify event types
-          //   console.log('[RailgunContext - LPA] ========== RAW LOGS ANALYSIS ==========');
-          //   const logsByTxHash: { [txHash: string]: Log[] } = {};
-          //   const eventSignatureCounts: { [signature: string]: number } = {};
-            
-          //   logs.forEach((log, idx) => {
-          //     const eventSignature = log.topics[0] || 'unknown';
-          //     const txHash = log.transactionHash || 'unknown';
-              
-          //     // Count event signatures
-          //     eventSignatureCounts[eventSignature] = (eventSignatureCounts[eventSignature] || 0) + 1;
-              
-          //     // Group by transaction hash
-          //     if (!logsByTxHash[txHash]) {
-          //       logsByTxHash[txHash] = [];
-          //     }
-          //     logsByTxHash[txHash].push(log);
-              
-          //     // Log individual log details
-          //     console.log(`[RailgunContext - LPA] Log ${idx + 1}/${logs.length}:`, {
-          //       blockNumber: log.blockNumber,
-          //       transactionHash: txHash,
-          //       transactionIndex: log.transactionIndex,
-          //       logIndex: log.index,
-          //       eventSignature: eventSignature,
-          //       topics: log.topics,
-          //       topicsCount: log.topics.length,
-          //       dataLength: log.data.length,
-          //       address: log.address
-          //     });
-          //   });
-            
-            // console.log('[RailgunContext - LPA] Event signature counts:', eventSignatureCounts);
-            // console.log('[RailgunContext - LPA] Logs grouped by transaction:', Object.keys(logsByTxHash).map(txHash => ({
-            //   txHash,
-            //   logCount: logsByTxHash[txHash].length,
-            //   blockNumber: logsByTxHash[txHash][0].blockNumber,
-            //   eventSignatures: logsByTxHash[txHash].map(l => l.topics[0] || 'unknown'),
-            //   logs: logsByTxHash[txHash].map(l => ({
-            //     logIndex: l.index,
-            //     eventSignature: l.topics[0] || 'unknown',
-            //     topics: l.topics
-            //   }))
-            // })));
-            
-            // Identify Nullified and Transact events using actual event signatures
-            // const nullifiedEvents = logs.filter(l => {
-            //   const sig = l.topics[0] || '';
-            //   return sig.toLowerCase() === NULLIFIED_EVENT_SIG.toLowerCase();
-            // });
-            
-            // const transactEvents = logs.filter(l => {
-            //   const sig = l.topics[0] || '';
-            //   return sig.toLowerCase() === TRANSACT_EVENT_SIG.toLowerCase();
-            // });
-            
-            // console.log('[RailgunContext - LPA] ========== EVENT TYPE IDENTIFICATION ==========');
-            // console.log('[RailgunContext - LPA] Nullified events found:', nullifiedEvents.length);
-            // nullifiedEvents.forEach((log, idx) => {
-            //   console.log(`[RailgunContext - LPA]   Nullified ${idx + 1}:`, {
-            //     blockNumber: log.blockNumber,
-            //     transactionHash: log.transactionHash,
-            //     logIndex: log.index,
-            //     topics: log.topics
-            //   });
-            // });
-            
-            // console.log('[RailgunContext - LPA] Transact events found:', transactEvents.length);
-            // transactEvents.forEach((log, idx) => {
-            //   console.log(`[RailgunContext - LPA]   Transact ${idx + 1}:`, {
-            //     blockNumber: log.blockNumber,
-            //     transactionHash: log.transactionHash,
-            //     logIndex: log.index,
-            //     topics: log.topics
-            //   });
-            // });
-            
-            // Check for transactions with both Nullified and Transact (withdrawal scenario)
-            // Object.entries(logsByTxHash).forEach(([txHash, txLogs]) => {
-            //   const hasNullified = txLogs.some(l => (l.topics[0] || '').toLowerCase() === NULLIFIED_EVENT_SIG.toLowerCase());
-            //   const hasTransact = txLogs.some(l => (l.topics[0] || '').toLowerCase() === TRANSACT_EVENT_SIG.toLowerCase());
-              
-            //   if (hasNullified && hasTransact) {
-            //     console.log(`[RailgunContext - LPA] ⚠️ WITHDRAWAL TRANSACTION DETECTED: ${txHash}`, {
-            //       blockNumber: txLogs[0].blockNumber,
-            //       hasNullified: true,
-            //       hasTransact: true,
-            //       nullifiedLogIndex: txLogs.find(l => (l.topics[0] || '').toLowerCase() === NULLIFIED_EVENT_SIG.toLowerCase())?.index,
-            //       transactLogIndex: txLogs.find(l => (l.topics[0] || '').toLowerCase() === TRANSACT_EVENT_SIG.toLowerCase())?.index,
-            //       totalLogsInTx: txLogs.length,
-            //       allEventSignatures: txLogs.map(l => l.topics[0] || 'unknown')
-            //     });
-            //   } else if (hasNullified || hasTransact) {
-            //     console.log(`[RailgunContext - LPA] Transaction ${txHash} has ${hasNullified ? 'Nullified' : 'Transact'} but not both:`, {
-            //       blockNumber: txLogs[0].blockNumber,
-            //       hasNullified,
-            //       hasTransact,
-            //       totalLogsInTx: txLogs.length
-            //     });
-            //   }
-            // });
-            
-            // console.log('[RailgunContext - LPA] All unique event signatures found:', Array.from(new Set(logs.map(l => l.topics[0] || 'unknown'))));
-            // console.log('[RailgunContext - LPA] ===========================================');
             
             const railgunLogs: RailgunLog[] = logs.map((log) => ({
               blockNumber: Number(log.blockNumber),
@@ -784,50 +658,7 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
             console.log('[RailgunContext - LPA] processing logs, blockNumbers:', railgunLogs.map(l => l.blockNumber))
             console.log('[RailgunContext - LPA] processing logs with skipMerkleTree: false (default)')
             
-            // Log notes count before processing logs
-            // const notesBeforeProcessLogs = account.getSerializedState().notebooks;
-            // const notesCountBeforeProcessLogs = notesBeforeProcessLogs.flat().filter(n => n !== null && n !== undefined).length;
-            // console.log('[RailgunContext - LPA] Notes count BEFORE processLogs:', notesCountBeforeProcessLogs);
-            
             await indexer.processLogs(railgunLogs);
-            
-            // Log notes count after processing logs
-            // const notesAfterProcessLogs = account.getSerializedState().notebooks;
-            // const notesCountAfterProcessLogs = notesAfterProcessLogs.flat().filter(n => n !== null && n !== undefined).length;
-            // console.log('[RailgunContext - LPA] Notes count AFTER processLogs:', notesCountAfterProcessLogs);
-            // console.log('[RailgunContext - LPA] Notes changed during processLogs:', notesCountAfterProcessLogs - notesCountBeforeProcessLogs);
-            
-            // Log summary of what was processed
-            // console.log('[RailgunContext - LPA] ========== PROCESS LOGS SUMMARY ==========');
-            // console.log('[RailgunContext - LPA] Total logs processed:', railgunLogs.length);
-            // console.log('[RailgunContext - LPA] Logs processed by block:', railgunLogs.reduce((acc, log) => {
-            //   acc[log.blockNumber] = (acc[log.blockNumber] || 0) + 1;
-            //   return acc;
-            // }, {} as Record<number, number>));
-            
-            // Re-check transactions with both Nullified and Transact to verify both were processed
-            // Object.entries(logsByTxHash).forEach(([txHash, txLogs]) => {
-            //   const hasNullified = txLogs.some(l => (l.topics[0] || '').toLowerCase() === NULLIFIED_EVENT_SIG.toLowerCase());
-            //   const hasTransact = txLogs.some(l => (l.topics[0] || '').toLowerCase() === TRANSACT_EVENT_SIG.toLowerCase());
-              
-            //   if (hasNullified && hasTransact) {
-            //     console.log(`[RailgunContext - LPA] ✅ Post-process check: Withdrawal transaction ${txHash} had both Nullified and Transact events - both should have been processed`);
-            //     console.log(`[RailgunContext - LPA]   Nullified log processed: ${hasNullified ? 'YES' : 'NO'}`);
-            //     console.log(`[RailgunContext - LPA]   Transact log processed: ${hasTransact ? 'YES' : 'NO'}`);
-            //     console.log(`[RailgunContext - LPA]   Total logs in transaction: ${txLogs.length}`);
-            //     console.log(`[RailgunContext - LPA]   Event signatures:`, txLogs.map(l => {
-            //       const sig = (l.topics[0] || '').toLowerCase();
-            //       if (sig === NULLIFIED_EVENT_SIG.toLowerCase()) return 'Nullified';
-            //       if (sig === TRANSACT_EVENT_SIG.toLowerCase()) return 'Transact';
-            //       return 'Other';
-            //     }));
-            //   } else if (txLogs.length > 1) {
-            //     console.log(`[RailgunContext - LPA] ✅ Post-process check: Transaction ${txHash} had ${txLogs.length} logs - all should have been processed`);
-            //     console.log(`[RailgunContext - LPA]   Event signatures in this tx:`, txLogs.map(l => l.topics[0] || 'unknown'));
-            //   }
-            // });
-            
-            // console.log('[RailgunContext - LPA] ===========================================');
             
             console.log('[RailgunContext - LPA] account synced with logs')
           } else {
@@ -864,45 +695,49 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
         const notes = account.getSerializedState().notebooks;
         
         // Log ALL notes after syncing - this is critical for debugging missing change notes
-        // const allNotes = notes.flat().filter(n => n !== null && n !== undefined);
-        // const notesCountAfter = allNotes.length;
-        // console.log('[RailgunContext - LPA] ========== ALL NOTES AFTER SYNC ==========');
-        // console.log('[RailgunContext - LPA] Total notebooks:', notes.length);
-        // console.log('[RailgunContext - LPA] Total notes count:', notesCountAfter);
-        // console.log('[RailgunContext - LPA] Notes count BEFORE sync:', notesCountBefore);
-        // console.log('[RailgunContext - LPA] Notes count AFTER sync:', notesCountAfter);
-        // console.log('[RailgunContext - LPA] Notes added/removed:', notesCountAfter - notesCountBefore);
-        // console.log('[RailgunContext - LPA] Full notebooks structure:', JSON.stringify(notes, null, 2));
-        // console.log('[RailgunContext - LPA] All notes details:', allNotes.map((note: any, idx: number) => {
-        //   try {
-        //     return {
-        //       index: idx,
-        //       tokenAddress: note?.tokenData?.tokenAddress,
-        //       value: note?.value?.toString(),
-        //       blockNumber: note?.blockNumber,
-        //       noteHash: note?.noteHash,
-        //       nullifier: note?.nullifier,
-        //       commitment: note?.commitment,
-        //       // Include any other relevant fields
-        //       fullNote: note
-        //     };
-        //   } catch (e) {
-        //     return { index: idx, error: 'Failed to parse note', raw: note };
-        //   }
-        // }));
-        // console.log('[RailgunContext - LPA] ===========================================');
+        const allNotes = notes.flat().filter(n => n !== null && n !== undefined);
+        const notesCountAfter = allNotes.length;
+        const notesAfterByToken = allNotes.reduce((acc: any, note: any) => {
+          const tokenAddr = note?.tokenData?.tokenAddress?.toLowerCase() || 'unknown';
+          if (!acc[tokenAddr]) acc[tokenAddr] = [];
+          acc[tokenAddr].push({
+            value: note?.value?.toString(),
+            blockNumber: note?.blockNumber,
+            noteHash: note?.noteHash,
+            nullifier: note?.nullifier,
+            commitment: note?.commitment,
+          });
+          return acc;
+        }, {});
+        
+        console.log('[RailgunContext - LPA] ========== ALL NOTES AFTER SYNC ==========');
+        console.log('[RailgunContext - LPA] Account zkAddress:', zkAddress);
+        console.log('[RailgunContext - LPA] Total notebooks:', notes.length);
+        console.log('[RailgunContext - LPA] Total notes count:', notesCountAfter);
+        console.log('[RailgunContext - LPA] Notes count BEFORE sync:', notesCountBefore);
+        console.log('[RailgunContext - LPA] Notes count AFTER sync:', notesCountAfter);
+        console.log('[RailgunContext - LPA] Notes added/removed:', notesCountAfter - notesCountBefore);
+        console.log('[RailgunContext - LPA] Notes by token:', Object.keys(notesAfterByToken).map(tokenAddr => ({
+          tokenAddress: tokenAddr,
+          isWETH: tokenAddr === weth?.toLowerCase(),
+          count: notesAfterByToken[tokenAddr].length,
+          totalValue: notesAfterByToken[tokenAddr].reduce((sum: bigint, n: any) => sum + BigInt(n.value || '0'), 0n).toString(),
+          notes: notesAfterByToken[tokenAddr],
+        })));
+        
+        console.log('[RailgunContext - LPA] ===========================================');
         const tokens = Array.from(
           new Set(
             notes
               .flat()
-              .map((note) => note ? note.tokenData.tokenAddress : undefined)
+              .map((note) => note ? note.tokenData.tokenAddress.toLowerCase() : undefined)
               .filter((token) => token !== undefined)
           )
         );
         const balances = [];
         for (const token of tokens) {
           const balance = await account.getBalance(token as `0x${string}`);
-          balances.push({ tokenAddress: token === weth ? ZERO_ADDRESS : token, amount: balance.toString() });
+          balances.push({ tokenAddress: token.toLowerCase() === weth.toLowerCase() ? ZERO_ADDRESS : token, amount: balance.toString() });
         }
 
         newAccountsMeta.push({
