@@ -14,6 +14,7 @@ import useTheme from '@common/hooks/useTheme'
 
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import { PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
+import { getTokenId } from '@web/utils/token'
 import Recipient from '../Recipient'
 
 import SendToken from '../SendToken'
@@ -69,12 +70,30 @@ const TransferForm = ({
 
   const ethBalance = totalApprovedBalance.total || 0n
 
+  // Get ETH token from portfolio for Privacy Pools
+  const availableTokens = useMemo(() => {
+    const tokens: any[] = []
+
+    if (portfolio?.tokens && portfolio.isReadyToVisualize) {
+      const ethToken = portfolio.tokens.find(
+        (token) => token.chainId === chainId && token.address === zeroAddress
+      )
+      if (ethToken) {
+        tokens.push(ethToken)
+      }
+    }
+
+    return tokens
+  }, [portfolio?.tokens, portfolio?.isReadyToVisualize, chainId])
+
   const handleChangeToken = useCallback(
     (value: string) => {
-      // const tokenToSelect = tokens.find((tokenRes: TokenResult) => getTokenId(tokenRes) === value)
-      handleUpdateForm({ selectedToken: value })
+      const tokenToSelect = availableTokens.find((token) => getTokenId(token) === value)
+      if (tokenToSelect) {
+        handleUpdateForm({ selectedToken: tokenToSelect, maxAmount: formatEther(ethBalance) })
+      }
     },
-    [handleUpdateForm]
+    [availableTokens, ethBalance, handleUpdateForm]
   )
 
   const setMaxAmount = useCallback(() => {
@@ -96,18 +115,52 @@ const TransferForm = ({
     return true
   }, [account, maxAmount, selectedToken?.address])
 
-  const ethTokenIcon = (
-    <TokenIcon
-      key="eth-sepolia"
-      containerHeight={30}
-      containerWidth={30}
-      networkSize={12}
-      withContainer
-      withNetworkIcon
-      address={zeroAddress}
-      chainId={chainId}
-    />
-  )
+  // Build token options for the selector
+  const tokenOptions = useMemo(() => {
+    return availableTokens.map((token) => {
+      const formattedBalance = formatEther(ethBalance)
+
+      return {
+        label: `${token.symbol} (${formattedBalance})`,
+        value: getTokenId(token),
+        icon: (
+          <TokenIcon
+            key={`${token.address}-${token.chainId}`}
+            containerHeight={30}
+            containerWidth={30}
+            networkSize={12}
+            withContainer
+            withNetworkIcon
+            address={token.address}
+            chainId={chainId}
+          />
+        )
+      }
+    })
+  }, [availableTokens, ethBalance, chainId])
+
+  const tokenSelectValue = useMemo(() => {
+    if (!selectedToken) return undefined
+
+    const formattedBalance = formatEther(ethBalance)
+
+    return {
+      label: `${selectedToken.symbol} (${formattedBalance})`,
+      value: getTokenId(selectedToken),
+      icon: (
+        <TokenIcon
+          key={`${selectedToken.address}-${selectedToken.chainId}`}
+          containerHeight={30}
+          containerWidth={30}
+          networkSize={12}
+          withContainer
+          withNetworkIcon
+          address={selectedToken.address}
+          chainId={chainId}
+        />
+      )
+    }
+  }, [selectedToken, ethBalance, chainId])
 
   // Initialize selectedToken with default ETH token if not set
   useEffect(() => {
@@ -126,6 +179,12 @@ const TransferForm = ({
     chainId
   ])
 
+  useEffect(() => {
+    if (ethBalance !== undefined) {
+      handleUpdateForm({ maxAmount: formatEther(ethBalance) })
+    }
+  }, [ethBalance, handleUpdateForm])
+
   return (
     <ScrollableWrapper contentContainerStyle={styles.container}>
       {!portfolio?.isReadyToVisualize ? (
@@ -137,18 +196,8 @@ const TransferForm = ({
         </View>
       ) : (
         <SendToken
-          fromTokenOptions={[
-            {
-              label: `ETH (${ethBalance ? formatEther(ethBalance) : '0'})`,
-              value: 'eth',
-              icon: ethTokenIcon
-            }
-          ]}
-          fromTokenValue={{
-            label: 'ETH',
-            value: 'eth',
-            icon: ethTokenIcon
-          }}
+          fromTokenOptions={tokenOptions}
+          fromTokenValue={tokenSelectValue}
           fromAmountValue={amountFieldValue}
           fromTokenAmountSelectDisabled={ethBalance === 0n}
           handleChangeFromToken={({ value }) => handleChangeToken(value as string)}

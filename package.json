@@ -81,6 +81,7 @@
     "@gnosis.pm/safe-apps-sdk": "6.2.0",
     "@gorhom/portal": "^1.0.11",
     "@kohaku-eth/railgun": "file:../kohaku/packages/railgun",
+    "@a16z/helios": "0.10.2",
     "@ledgerhq/context-module": "1.4.0",
     "@ledgerhq/device-management-kit": "0.7.0",
     "@ledgerhq/device-signer-kit-ethereum": "1.5.0",
