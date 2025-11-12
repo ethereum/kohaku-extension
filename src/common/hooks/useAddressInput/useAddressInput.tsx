@@ -18,6 +18,7 @@ interface Props {
   // together with react-hook-form. It is used to trigger the revalidation of the input.
   // !!! Must be memoized with useCallback
   handleRevalidate?: () => void
+  allowRailgunAddresses?: boolean
 }
 
 const useAddressInput = ({
@@ -26,7 +27,8 @@ const useAddressInput = ({
   overwriteError,
   overwriteValidLabel,
   handleCacheResolvedDomain,
-  handleRevalidate
+  handleRevalidate,
+  allowRailgunAddresses = false
 }: Props) => {
   const { dispatch } = useBackgroundService()
   const fieldValueRef = useRef(addressState.fieldValue)
@@ -45,7 +47,8 @@ const useAddressInput = ({
         isValidEns: !!addressState.ensAddress,
         hasDomainResolveFailed,
         overwriteError,
-        overwriteValidLabel
+        overwriteValidLabel,
+        allowRailgunAddresses
       }),
     [
       addressState.fieldValue,
@@ -53,7 +56,8 @@ const useAddressInput = ({
       addressState.ensAddress,
       hasDomainResolveFailed,
       overwriteError,
-      overwriteValidLabel
+      overwriteValidLabel,
+      allowRailgunAddresses
     ]
   )
 

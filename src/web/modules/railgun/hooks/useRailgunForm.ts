@@ -202,7 +202,7 @@ const useRailgunForm = () => {
   )
 
   const directBroadcastWithdrawal = useCallback(
-    async (params: { to: string; data: string; value: string; chainId: number }): Promise<void> => {
+    async (params: { to: string; data: string; value: string; chainId: number; isInternalTransfer?: boolean }): Promise<void> => {
       dispatch({
         type: 'RAILGUN_CONTROLLER_DIRECT_BROADCAST_WITHDRAWAL',
         params

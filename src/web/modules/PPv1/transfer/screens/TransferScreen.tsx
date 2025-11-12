@@ -364,7 +364,9 @@ const TransferScreen = () => {
     // Let useAddressInput handle validation internally
     overwriteError: '',
     overwriteValidLabel: '',
-    handleCacheResolvedDomain: handleRailgunCacheResolvedDomain
+    handleCacheResolvedDomain: handleRailgunCacheResolvedDomain,
+    // Allow Railgun 0zk addresses on the Railgun tab
+    allowRailgunAddresses: true
   })
 
   // Debug: Log validation messages
@@ -599,6 +601,7 @@ const TransferScreen = () => {
 
   const handleRailgunWithdrawal = useCallback(async () => {
     setIsSubmitting(true)
+    let isInternalTransfer = false
     try {
       // Use synced state values (current input values) instead of controller state
       // Controller state may be debounced and not updated yet
@@ -655,8 +658,12 @@ const TransferScreen = () => {
       const tokenDecimals = railgunSelectedToken.decimals || 18
       const amountBigInt = parseUnits(amount, tokenDecimals)
 
-      // Ensure address is properly formatted (checksummed)
-      const receiver = getAddress(address)
+      // Check if address is a 0zk Railgun address (starts with "0zk")
+      const isRailgunAddress = address.toLowerCase().startsWith('0zk')
+      
+      // For 0zk addresses, use the address as-is (no checksumming needed)
+      // For 0x addresses, ensure address is properly formatted (checksummed)
+      const receiver = isRailgunAddress ? address : getAddress(address)
 
       // Check if this is native ETH and user wants WETH instead
       // TODO: Get from checkbox state when WETH checkbox is implemented
@@ -665,22 +672,16 @@ const TransferScreen = () => {
       let txData
 
       try {
-        if (isNativeETH && !withdrawAsWETH) {
-          // Use native ETH unshield
-          console.log('Calling account.unshieldNative with:', {
-            amount: amountBigInt.toString(),
-            receiver
-          })
-          txData = await account.unshieldNative(amountBigInt, receiver)
-        } else {
+        if (isRailgunAddress) {
+          // This is a Private Internal Railgun Transfer (0zk address)
+          // Use transfer/transferNative instead of unshield/unshieldNative
+          isInternalTransfer = true
           let tokenAddress = railgunSelectedToken.address
-
-          // If native ETH but user wants WETH, use WETH address
-          if (isNativeETH && withdrawAsWETH) {
+          if (isNativeETH) {
             const networkConfig =
-              RAILGUN_CONFIG_BY_CHAIN_ID[
-                railgunChainId?.toString() as keyof typeof RAILGUN_CONFIG_BY_CHAIN_ID
-              ]
+            RAILGUN_CONFIG_BY_CHAIN_ID[
+              railgunChainId?.toString() as keyof typeof RAILGUN_CONFIG_BY_CHAIN_ID
+            ]
             if (!networkConfig?.WETH) {
               console.error('WETH address not found for chainId:', railgunChainId)
               setIsSubmitting(false)
@@ -688,42 +689,87 @@ const TransferScreen = () => {
             }
             tokenAddress = networkConfig.WETH
           }
-
-          console.log('Calling account.unshield with:', {
+          
+          console.log('Calling account.transfer for internal transfer with:', {
             tokenAddress,
             amount: amountBigInt.toString(),
             receiver
           })
-          txData = await account.unshield(tokenAddress, amountBigInt, receiver)
-        }
+          
+          // TODO: Verify that account.transfer exists and has the correct signature
+          // The receiver should be the 0zk address
+          txData = await account.transfer(tokenAddress, amountBigInt, receiver)
 
-        console.log('Unshield txData:', txData)
+          console.log('Internal transfer txData:', txData)
+        } else {
+          // This is a regular withdrawal (0x address) - use unshield
+          if (isNativeETH && !withdrawAsWETH) {
+            // Use native ETH unshield
+            console.log('Calling account.unshieldNative with:', {
+              amount: amountBigInt.toString(),
+              receiver
+            })
+            txData = await account.unshieldNative(amountBigInt, receiver)
+          } else {
+            let tokenAddress = railgunSelectedToken.address
+
+            // If native ETH but user wants WETH, use WETH address
+            if (isNativeETH && withdrawAsWETH) {
+              const networkConfig =
+                RAILGUN_CONFIG_BY_CHAIN_ID[
+                  railgunChainId?.toString() as keyof typeof RAILGUN_CONFIG_BY_CHAIN_ID
+                ]
+              if (!networkConfig?.WETH) {
+                console.error('WETH address not found for chainId:', railgunChainId)
+                setIsSubmitting(false)
+                return
+              }
+              tokenAddress = networkConfig.WETH
+            }
+
+            console.log('Calling account.unshield with:', {
+              tokenAddress,
+              amount: amountBigInt.toString(),
+              receiver
+            })
+            txData = await account.unshield(tokenAddress, amountBigInt, receiver)
+          }
+
+          console.log('Unshield txData:', txData)
+        }
       } catch (error) {
-        console.error('Error generating unshield transaction:', error)
+        console.error('Error generating transaction:', error)
         setIsSubmitting(false)
-        addToast('Unable to generate withdrawal transaction. Please try again.', {
+        const errorMessage = isInternalTransfer
+          ? 'Unable to generate internal transfer transaction. Please try again.'
+          : 'Unable to generate withdrawal transaction. Please try again.'
+        addToast(errorMessage, {
           type: 'error',
           timeout: 8000
         })
         return
       }
 
-      // Submit withdrawal directly to relayer (no estimation modal)
+      // Submit transaction directly to relayer (no estimation modal)
       // The controller will set latestBroadcastedAccountOp immediately, causing UI to show track screen
-      console.log('Submitting withdrawal to relayer...')
+      console.log(isInternalTransfer ? 'Submitting internal transfer to relayer...' : 'Submitting withdrawal to relayer...')
       await railgunForm.directBroadcastWithdrawal({
         to: txData.to,
         data: txData.data,
-        value: isNativeETH && !withdrawAsWETH ? txData.value : '0',
-        chainId: railgunChainId || 11155111
+        value: isNativeETH && !withdrawAsWETH ? (typeof txData.value === 'string' ? txData.value : txData.value.toString()) : '0',
+        chainId: railgunChainId || 11155111,
+        isInternalTransfer
       })
-      console.log('Withdrawal submitted successfully')
+      console.log(isInternalTransfer ? 'Internal transfer submitted successfully' : 'Withdrawal submitted successfully')
       // Note: isSubmitting will be reset when the transaction completes or fails
       // The UI will show the track screen immediately after directBroadcastWithdrawal is called
     } catch (error) {
-      console.error('Error submitting withdrawal:', error)
+      console.error('Error submitting transaction:', error)
       setIsSubmitting(false)
-      addToast('Unable to submit withdrawal. Please try again.', {
+      const errorMessage = isInternalTransfer
+        ? 'Unable to submit internal transfer. Please try again.'
+        : 'Unable to submit withdrawal. Please try again.'
+      addToast(errorMessage, {
         type: 'error',
         timeout: 8000
       })
@@ -891,7 +937,9 @@ const TransferScreen = () => {
           <InProgress
             title={
               activeTab === 'railgun'
-                ? t('Relaying withdrawal')
+                ? (submittedAccountOp?.meta as any)?.isRailgunInternalTransfer || (currentLatestBroadcastedAccountOp as any)?.meta?.isRailgunInternalTransfer
+                  ? t('Relaying internal transfer')
+                  : t('Relaying withdrawal')
                 : t('Confirming your transfer')
             }
           >
@@ -903,7 +951,13 @@ const TransferScreen = () => {
         {(submittedAccountOp?.status === AccountOpStatus.Success ||
           submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce) && (
           <Completed
-            title={t('Private Transfer done!')}
+            title={
+              activeTab === 'railgun' &&
+              ((submittedAccountOp?.meta as any)?.isRailgunInternalTransfer ||
+                (currentLatestBroadcastedAccountOp as any)?.meta?.isRailgunInternalTransfer)
+                ? t('Private Internal Transfer done!')
+                : t('Private Transfer done!')
+            }
             titleSecondary={t('{{symbol}} sent!', {
               symbol: currentLatestBroadcastedToken?.symbol || 'Token'
             })}

@@ -275,9 +275,19 @@ const RailgunTransferForm = ({
     handleUpdateForm
   ])
 
-  // Calculate 0.25% fee for Railgun withdrawals
+  // Calculate 0.25% fee for Railgun withdrawals (only for unshields, not internal transfers)
+  // Internal transfers (0zk addresses) have no fee
   const calculatedFee = useMemo(() => {
     if (!amountFieldValue || !selectedToken || parseFloat(amountFieldValue) <= 0) {
+      return { amount: 0n, formatted: '0' }
+    }
+    
+    // Check if this is an internal transfer (0zk address)
+    // Internal transfers have no fee - the 0.25% fee only applies to unshields (withdrawals to 0x addresses)
+    const addressValue = addressStateFieldValue || addressInputState.address || ''
+    const isInternalTransfer = addressValue.toLowerCase().startsWith('0zk')
+    
+    if (isInternalTransfer) {
       return { amount: 0n, formatted: '0' }
     }
     
@@ -290,7 +300,7 @@ const RailgunTransferForm = ({
     } catch (error) {
       return { amount: 0n, formatted: '0' }
     }
-  }, [amountFieldValue, selectedToken, selectedTokenDecimals])
+  }, [amountFieldValue, selectedToken, selectedTokenDecimals, addressStateFieldValue, addressInputState.address])
 
   // Calculate recipient gets (amount - fee)
   const recipientGets = useMemo(() => {

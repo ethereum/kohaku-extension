@@ -905,6 +905,7 @@ type RailgunControllerDirectBroadcastWithdrawalAction = {
     data: string
     value: string
     chainId: number
+    isInternalTransfer?: boolean
   }
 }
 

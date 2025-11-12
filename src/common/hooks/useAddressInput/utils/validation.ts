@@ -1,6 +1,6 @@
 import { getAddress } from 'ethers'
 
-import { isValidAddress } from '@ambire-common/services/address'
+import { isValidAddress, isValidRailgunAddress } from '@ambire-common/services/address'
 
 type AddressInputValidation = {
   address: string
@@ -9,6 +9,7 @@ type AddressInputValidation = {
   hasDomainResolveFailed: boolean
   overwriteError?: string | boolean
   overwriteValidLabel?: string
+  allowRailgunAddresses?: boolean
 }
 
 const getAddressInputValidation = ({
@@ -17,7 +18,8 @@ const getAddressInputValidation = ({
   hasDomainResolveFailed = false,
   isValidEns,
   overwriteError,
-  overwriteValidLabel
+  overwriteValidLabel,
+  allowRailgunAddresses = false
 }: AddressInputValidation): {
   message: any
   isError: boolean
@@ -62,6 +64,19 @@ const getAddressInputValidation = ({
       isError: false
     }
   }
+  
+  // Check for Railgun addresses if allowed
+  // Trim the address before validation to handle any whitespace
+  if (allowRailgunAddresses && address) {
+    const trimmedAddress = address.trim()
+    if (isValidRailgunAddress(trimmedAddress)) {
+      return {
+        message: 'Valid Railgun address',
+        isError: false
+      }
+    }
+  }
+  
   if (address && isValidAddress(address)) {
     try {
       getAddress(address)
