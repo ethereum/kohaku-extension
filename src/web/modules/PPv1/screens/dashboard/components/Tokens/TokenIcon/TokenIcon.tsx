@@ -127,7 +127,6 @@ const TokenIcon: React.FC<Props> = ({
   )
 
   // Determine which privacy protocol badge to display
-  // Priority: privacyProtocol prop > onGasTank prop (for backward compatibility)
   const shouldDisplayPrivacyPoolsBadge =
     withNetworkIcon && !onGasTank && privacyProtocol === PrivacyProtocolType.PRIVACY_POOLS
 
