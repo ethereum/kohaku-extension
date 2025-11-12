@@ -12,6 +12,8 @@ Icon
 
 .claude
 
+src/web/assets/circuits
+
 # Thumbnails
 ._*
 

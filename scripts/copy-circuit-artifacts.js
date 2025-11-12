@@ -4,12 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const sourcePath = path.join(__dirname, '..', 'node_modules', '@railgun-community', 'circuit-artifacts');
-const buildDirs = [
-  path.join(__dirname, '..', 'build', 'webkit-dev', 'assets', 'circuits'),
-  path.join(__dirname, '..', 'build', 'webkit-prod', 'assets', 'circuits'),
-  // path.join(__dirname, '..', 'build', 'gecko-dev', 'assets', 'circuits'),
-  // path.join(__dirname, '..', 'build', 'gecko-prod', 'assets', 'circuits'),
-];
+const destinationPath = path.join(__dirname, '..', 'src', 'web', 'assets', 'circuits');
 
 function copyRecursive(src, dest) {
   // Create destination directory if it doesn't exist
@@ -52,68 +47,40 @@ function copyCircuitArtifacts() {
     process.exit(1);
   }
 
-  let copiedCount = 0;
-  let skippedCount = 0;
+  console.log(`📦 Copying to src/web/assets/circuits/...`);
 
-  // Copy to each build directory
-  for (const destPath of buildDirs) {
-    const buildDir = path.dirname(path.dirname(path.dirname(destPath))); // Go up 3 levels to build dir
-    const buildName = path.basename(buildDir);
-
-    // Check if build directory exists
-    if (!fs.existsSync(buildDir)) {
-      console.log(`⏭️  Skipping ${buildName} (build directory doesn't exist)`);
-      skippedCount++;
-      continue;
+  try {
+    // Remove existing circuits directory if it exists
+    if (fs.existsSync(destinationPath)) {
+      fs.rmSync(destinationPath, { recursive: true, force: true });
     }
 
-    console.log(`📦 Copying to ${buildName}/assets/circuits/...`);
+    // Copy the circuit artifacts
+    copyRecursive(sourcePath, destinationPath);
 
-    try {
-      // Remove existing circuits directory if it exists
-      if (fs.existsSync(destPath)) {
-        fs.rmSync(destPath, { recursive: true, force: true });
-      }
-
-      // Copy the circuit artifacts
-      copyRecursive(sourcePath, destPath);
-
-      // Count files copied
-      const countFiles = (dir) => {
-        let count = 0;
-        const entries = fs.readdirSync(dir, { withFileTypes: true });
-        for (const entry of entries) {
-          const fullPath = path.join(dir, entry.name);
-          if (entry.isDirectory()) {
-            count += countFiles(fullPath);
-          } else {
-            count++;
-          }
+    // Count files copied
+    const countFiles = (dir) => {
+      let count = 0;
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          count += countFiles(fullPath);
+        } else {
+          count++;
         }
-        return count;
-      };
+      }
+      return count;
+    };
 
-      const fileCount = countFiles(destPath);
-      console.log(`   ✅ Copied ${fileCount} files`);
-      copiedCount++;
-    } catch (error) {
-      console.error(`   ❌ Error copying to ${buildName}:`, error.message);
-    }
-  }
-
-  console.log('\n📊 Summary:');
-  console.log(`   ✅ Successfully copied to ${copiedCount} build directory(ies)`);
-  if (skippedCount > 0) {
-    console.log(`   ⏭️  Skipped ${skippedCount} build directory(ies) (not found)`);
-  }
-
-  if (copiedCount > 0) {
-    console.log('\n✨ Circuit artifacts injection complete!');
-    process.exit(0);
-  } else {
-    console.log('\n⚠️  No build directories found. Make sure you have built the extension first.');
+    const fileCount = countFiles(destinationPath);
+    console.log(`   ✅ Copied ${fileCount} files`);
+  } catch (error) {
+    console.error(`   ❌ Error copying circuit artifacts:`, error.message);
     process.exit(1);
   }
+
+  console.log('\n✨ Circuit artifacts injection complete!');
 }
 
 // Run the script
