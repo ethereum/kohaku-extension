@@ -87,20 +87,33 @@ const TokenItem = ({ token }: { token: TokenResult }) => {
                   >
                     {symbol}
                   </Text>
-                  <Text
-                    selectable
-                    weight="regular"
-                    fontSize={12}
-                    numberOfLines={1}
+                  <View
+                    style={{ alignSelf: 'flex-start' }}
                     // @ts-ignore
                     dataSet={{
-                      tooltipId: `${tokenId}-balance`
+                      tooltipId: `${tokenId}-balance`,
+                      tooltipContent: String(balance)
                     }}
-                    testID={`token-balance-${tokenId}`}
                   >
-                    {balanceFormatted}
-                  </Text>
-                  <Tooltip content={String(balance)} id={`${tokenId}-balance`} />
+                    <Text
+                      selectable
+                      weight="regular"
+                      fontSize={12}
+                      numberOfLines={1}
+                      testID={`token-balance-${tokenId}`}
+                    >
+                      {balanceFormatted}
+                    </Text>
+                  </View>
+                  <Tooltip
+                    id={`${tokenId}-balance`}
+                    place="top"
+                    offset={5}
+                    style={{
+                      fontSize: 12,
+                      padding: '0.3rem'
+                    }}
+                  />
                 </View>
               </View>
             </View>
