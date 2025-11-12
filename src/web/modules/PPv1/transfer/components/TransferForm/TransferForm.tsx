@@ -179,6 +179,12 @@ const TransferForm = ({
     chainId
   ])
 
+  useEffect(() => {
+    if (ethBalance !== undefined) {
+      handleUpdateForm({ maxAmount: formatEther(ethBalance) })
+    }
+  }, [ethBalance, handleUpdateForm])
+
   return (
     <ScrollableWrapper contentContainerStyle={styles.container}>
       {!portfolio?.isReadyToVisualize ? (
