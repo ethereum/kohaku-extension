@@ -162,9 +162,10 @@ const DepositForm = ({
         })
       }
 
-      // Reset amount when changing accounts
+      // Reset amount and token when changing accounts to force refresh from new portfolio
       setDisplayAmount('')
-      handleUpdateForm({ depositAmount: '0' })
+      setMySelectedToken(null)
+      handleUpdateForm({ depositAmount: '', selectedToken: null })
     },
     [handleUpdateForm, selectedAccount?.addr, dispatch]
   )
@@ -178,7 +179,7 @@ const DepositForm = ({
         setMySelectedToken(tokenToSelect)
         // Reset amount when changing tokens
         setDisplayAmount('')
-        handleUpdateForm({ selectedToken: tokenToSelect, depositAmount: '0' })
+        handleUpdateForm({ selectedToken: tokenToSelect, depositAmount: '' })
       }
     },
     [availableTokens, handleUpdateForm]
@@ -187,7 +188,7 @@ const DepositForm = ({
   const handleSetMaxAmount = useCallback(() => {
     if (!currentSelectedToken || selectedTokenBalance <= 0n) {
       setDisplayAmount('')
-      handleUpdateForm({ depositAmount: '0' })
+      handleUpdateForm({ depositAmount: '' })
       return
     }
 
@@ -196,7 +197,10 @@ const DepositForm = ({
     setDisplayAmount(formattedAmount)
 
     // Store the amount in the smallest unit (wei for ETH, or token's smallest unit)
-    handleUpdateForm({ depositAmount: selectedTokenBalance.toString() })
+    handleUpdateForm({
+      depositAmount: selectedTokenBalance.toString(),
+      selectedToken: currentSelectedToken
+    })
   }, [currentSelectedToken, selectedTokenBalance, handleUpdateForm])
 
   const handleAmountChange = useCallback(
@@ -204,13 +208,13 @@ const DepositForm = ({
       setDisplayAmount(inputValue)
 
       if (!currentSelectedToken) {
-        handleUpdateForm({ depositAmount: '0' })
+        handleUpdateForm({ depositAmount: '' })
         return
       }
 
       try {
         if (inputValue === '') {
-          handleUpdateForm({ depositAmount: '0' })
+          handleUpdateForm({ depositAmount: '' })
           return
         }
 
@@ -225,7 +229,11 @@ const DepositForm = ({
 
         const decimals = currentSelectedToken.decimals || 18
         const tokenAmount = parseUnits(inputValue, decimals)
-        handleUpdateForm({ depositAmount: tokenAmount.toString() })
+        // Always update selectedToken with the current one from portfolio to ensure fresh balance
+        handleUpdateForm({
+          depositAmount: tokenAmount.toString(),
+          selectedToken: currentSelectedToken
+        })
       } catch (error) {
         // eslint-disable-next-line no-console
         console.warn('Invalid token amount entered:', inputValue)
