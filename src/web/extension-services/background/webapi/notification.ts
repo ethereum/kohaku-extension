@@ -10,7 +10,7 @@ export const notificationManager: NotificationManager = {
       // Await here to ensure notifications work correctly in a service_worker (MV3)
       await browser.notifications.create(nanoid(), {
         type: 'basic',
-        iconUrl: icon || browser.runtime.getURL('assets/images/xicon@96.png'),
+        iconUrl: icon || browser.runtime.getURL('assets/images/xicon_kohaku@96.png'),
         title,
         message
       })
