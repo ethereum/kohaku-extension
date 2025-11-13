@@ -18,6 +18,7 @@ import { getTokenId } from '@web/utils/token'
 import Recipient from '../Recipient'
 
 import SendToken from '../SendToken'
+import { formatAmount } from '../../utils/formatAmount'
 import getStyles from './styles'
 
 const TransferForm = ({
@@ -271,7 +272,7 @@ const TransferForm = ({
                 withNetworkIcon={false}
               />
               <Text fontSize={14} weight="light" style={spacings.mlMi}>
-                {formatEther(BigInt(quoteFee))} ETH
+                {formatAmount(formatEther(BigInt(quoteFee)))} ETH
               </Text>
             </View>
           )}
@@ -300,7 +301,9 @@ const TransferForm = ({
                 withNetworkIcon={false}
               />
               <Text fontSize={14} weight="light" style={spacings.mlMi}>
-                {(parseFloat(amountFieldValue) || 0) - parseFloat(formatEther(BigInt(quoteFee)))}{' '}
+                {formatAmount(
+                  (parseFloat(amountFieldValue) || 0) - parseFloat(formatEther(BigInt(quoteFee)))
+                )}{' '}
                 ETH
               </Text>
             </View>
