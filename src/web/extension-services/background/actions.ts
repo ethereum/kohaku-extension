@@ -6,7 +6,6 @@ import {
   ActionPosition,
   OpenActionWindowParams
 } from '@ambire-common/controllers/actions/actions'
-import { AddressStateOptional } from '@ambire-common/interfaces/domains'
 import { Filters, Pagination } from '@ambire-common/controllers/activity/activity'
 import { Contact } from '@ambire-common/controllers/addressBook/addressBook'
 import { FeeSpeed, SigningStatus } from '@ambire-common/controllers/signAccountOp/signAccountOp'
@@ -863,13 +862,6 @@ type RailgunControllerUpdateFormAction = {
     targetAddress?: string
     importedSecretNote?: string
     privacyProvider?: string
-    chainId?: number
-    selectedToken?: any
-    addressState?: AddressStateOptional
-    maxAmount?: string
-    shouldSetMaxAmount?: boolean
-    isRecipientAddressUnknownAgreed?: boolean
-    amountFieldMode?: 'token' | 'fiat'
   }
 }
 
