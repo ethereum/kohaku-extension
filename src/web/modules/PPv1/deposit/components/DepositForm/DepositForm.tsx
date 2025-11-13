@@ -23,6 +23,7 @@ import shortenAddress from '@ambire-common/utils/shortenAddress'
 import RailgunIcon from '@common/assets/svg/RailgunIcon'
 import useGetTokenSelectProps from '@common/hooks/useGetTokenSelectProps/useGetTokenSelectProps'
 import { getTokenId } from '@web/utils/token'
+import formatDecimals from '@ambire-common/utils/formatDecimals/formatDecimals'
 import SendToken from '../SendToken'
 import styles from './styles'
 
@@ -121,12 +122,36 @@ const DepositForm = ({
     isToToken: false
   })
 
-  const [selectedProvider, setSelectedProvider] = useState<SelectValue>(() => {
-    if (privacyProvider === 'railgun') {
-      return { value: 'railgun', label: t('Railgun') }
-    }
-    return { value: 'privacy-pools', label: t('Privacy Pools') }
-  })
+  // Create provider options with icons
+  const providerOptions = useMemo<SelectValue[]>(
+    () => [
+      {
+        label: (
+          <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+            <PrivacyIcon width={15} height={15} />
+            <Text fontSize={14} weight="light" style={spacings.mlMi}>
+              {t('Privacy Pools')}
+            </Text>
+          </View>
+        ),
+        value: 'privacy-pools'
+      },
+      {
+        label: (
+          <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+            <RailgunIcon width={15} height={15} />
+            <Text fontSize={14} weight="light">
+              {t('Railgun')}
+            </Text>
+          </View>
+        ),
+        value: 'railgun'
+      }
+    ],
+    [t]
+  )
+
+  const [selectedProvider, setSelectedProvider] = useState<SelectValue | null>(null)
 
   // Get balance for the currently selected token
   const selectedTokenBalance = useMemo(() => {
@@ -313,14 +338,14 @@ const DepositForm = ({
     }
   }, [depositAmount, currentSelectedToken])
 
-  // Sync local provider state with parent privacyProvider prop
+  // Initialize and sync local provider state with parent privacyProvider prop
   useEffect(() => {
-    if (privacyProvider === 'railgun') {
-      setSelectedProvider({ value: 'railgun', label: t('Railgun') })
-    } else {
-      setSelectedProvider({ value: 'privacy-pools', label: t('Privacy Pools') })
+    const providerValue = privacyProvider || 'privacy-pools'
+    const providerOption = providerOptions.find((opt) => opt.value === providerValue)
+    if (providerOption) {
+      setSelectedProvider(providerOption)
     }
-  }, [privacyProvider, t])
+  }, [privacyProvider, providerOptions])
 
   // Move useMemo BEFORE the early return to comply with Rules of Hooks
   const vettingFeeEth = useMemo(() => {
@@ -338,6 +363,42 @@ const DepositForm = ({
     }
     return vettingFeeEthValue
   }, [depositAmount])
+
+  // Calculate 0.25% fee for Railgun deposits
+  const railgunDepositFee = useMemo(() => {
+    if (!depositAmount || depositAmount === '0' || !currentSelectedToken || privacyProvider !== 'railgun') {
+      return { amount: 0n, formatted: '0' }
+    }
+    
+    try {
+      const decimals = currentSelectedToken.decimals || 18
+      const amount = BigInt(depositAmount)
+      // 0.25% = 0.0025 = 25 / 10000
+      const feeAmount = (amount * 25n) / 10000n
+      const feeFormatted = formatUnits(feeAmount, decimals)
+      return { amount: feeAmount, formatted: feeFormatted }
+    } catch (error) {
+      return { amount: 0n, formatted: '0' }
+    }
+  }, [depositAmount, currentSelectedToken, privacyProvider])
+
+  // Calculate amount user will receive after fee (for Railgun deposits)
+  const railgunDepositReceives = useMemo(() => {
+    if (!depositAmount || depositAmount === '0' || !currentSelectedToken || privacyProvider !== 'railgun') {
+      return '0'
+    }
+    
+    try {
+      const decimals = currentSelectedToken.decimals || 18
+      const amount = BigInt(depositAmount)
+      const feeAmount = railgunDepositFee.amount
+      const receivesAmount = amount - feeAmount
+      const receivesFormatted = formatUnits(receivesAmount, decimals)
+      return receivesFormatted
+    } catch (error) {
+      return '0'
+    }
+  }, [depositAmount, currentSelectedToken, privacyProvider, railgunDepositFee.amount])
 
   // Format max amount for display
   const maxFromAmountFormatted = useMemo(() => {
@@ -438,30 +499,7 @@ const DepositForm = ({
           <View style={[flexbox.directionRow, flexbox.alignCenter]}>
             {/* Dropdown for selecting provider */}
             <Select
-              options={[
-                {
-                  label: (
-                    <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-                      <PrivacyIcon width={15} height={15} />
-                      <Text fontSize={14} weight="light" style={spacings.mlMi}>
-                        {t('Privacy Pools')}
-                      </Text>
-                    </View>
-                  ),
-                  value: 'privacy-pools'
-                },
-                {
-                  label: (
-                    <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-                      <RailgunIcon width={15} height={15} />
-                      <Text fontSize={14} weight="light">
-                        {t('Railgun')}
-                      </Text>
-                    </View>
-                  ),
-                  value: 'railgun'
-                }
-              ]}
+              options={providerOptions}
               value={selectedProvider}
               setValue={handleProviderChange}
               selectStyle={{ minWidth: 150 }}
@@ -492,6 +530,53 @@ const DepositForm = ({
             </View>
           </View>
         </View>
+      )}
+
+      {/* Show fee and amount received for Railgun deposits */}
+      {privacyProvider === 'railgun' && currentSelectedToken && (
+        <>
+          <View style={spacings.mbLg}>
+            <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
+              <Text appearance="secondaryText" fontSize={14} weight="light">
+                {t('Fee')}
+              </Text>
+              <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+                <TokenIcon
+                  chainId={chainId}
+                  address={currentSelectedToken.address || zeroAddress}
+                  width={20}
+                  height={20}
+                  withNetworkIcon={false}
+                />
+                <Text fontSize={14} weight="light" style={spacings.mlMi}>
+                  {formatDecimals(parseFloat(railgunDepositFee.formatted), 'amount')}{' '}
+                  {currentSelectedToken.symbol || 'ETH'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={spacings.mbMi}>
+            <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
+              <Text appearance="secondaryText" fontSize={14} weight="light">
+                {t("You'll receive")}
+              </Text>
+              <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+                <TokenIcon
+                  chainId={chainId}
+                  address={currentSelectedToken.address || zeroAddress}
+                  width={20}
+                  height={20}
+                  withNetworkIcon={false}
+                />
+                <Text fontSize={14} weight="light" style={spacings.mlMi}>
+                  {formatDecimals(parseFloat(railgunDepositReceives), 'amount')}{' '}
+                  {currentSelectedToken.symbol || 'ETH'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </>
       )}
     </ScrollableWrapper>
   )

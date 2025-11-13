@@ -40,6 +40,9 @@ const TokenItem = ({ token }: { token: PrivateToken }) => {
     navigate(WEB_ROUTES.pp1TokenDetails)
   }, [navigate])
 
+  // Check if this is a Railgun token (symbol contains "(Railgun)")
+  const isRailgunToken = symbol.includes('(Railgun)')
+
   const [bindAnim, animStyle] = useCustomHover({
     property: 'backgroundColor',
     values: {
@@ -62,7 +65,7 @@ const TokenItem = ({ token }: { token: PrivateToken }) => {
     <AnimatedPressable
       style={[styles.container, animStyle]}
       {...bindAnim}
-      onPress={navigateToTokenDetails}
+      onPress={isRailgunToken ? undefined : navigateToTokenDetails}
     >
       <View style={flexboxStyles.flex1}>
         <View style={[flexboxStyles.directionRow, flexboxStyles.flex1]}>
