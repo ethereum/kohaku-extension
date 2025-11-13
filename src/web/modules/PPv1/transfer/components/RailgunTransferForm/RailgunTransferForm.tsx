@@ -21,6 +21,7 @@ import useRailgunControllerState from '@web/hooks/useRailgunControllerState'
 import Recipient from '../Recipient'
 
 import SendToken from '../SendToken'
+import { formatAmount } from '../../utils/formatAmount'
 import getStyles from '../TransferForm/styles'
 
 const RailgunTransferForm = ({
@@ -61,7 +62,10 @@ const RailgunTransferForm = ({
   addressState: any
   controllerAmount: string
   totalApprovedBalance: { total: bigint; accounts: [] }
-  totalPrivateBalancesFormatted: Record<string, { amount: string; decimals: number; symbol: string; name: string }>
+  totalPrivateBalancesFormatted: Record<
+    string,
+    { amount: string; decimals: number; symbol: string; name: string }
+  >
   chainId: number
 }) => {
   const { validation } = addressInputState
@@ -74,13 +78,13 @@ const RailgunTransferForm = ({
   const availableTokens = useMemo(() => {
     const tokens: any[] = []
     const addedAddresses = new Set<string>()
-    
+
     // Add tokens from portfolio
     if (portfolio?.tokens && portfolio.isReadyToVisualize) {
       portfolio.tokens.forEach((token) => {
         // Only include tokens on the current chain
         if (token.chainId !== BigInt(chainId)) return
-        
+
         // Check if token has a Railgun balance
         const tokenAddressLower = token.address.toLowerCase()
         if (tokenAddressLower in totalPrivateBalancesFormatted) {
@@ -89,28 +93,31 @@ const RailgunTransferForm = ({
         }
       })
     }
-    
+
     // Add tokens from pinnedTokens that have Railgun balances
     if (typeof window !== 'undefined' && (window as any).pinnedTokens) {
       const pinnedTokens = (window as any).pinnedTokens as any[]
       pinnedTokens.forEach((token) => {
         // Only include tokens on the current chain
         if (token.chainId !== BigInt(chainId)) return
-        
+
         // Check if token has a Railgun balance
         const tokenAddressLower = token.address.toLowerCase()
-        if (tokenAddressLower in totalPrivateBalancesFormatted && !addedAddresses.has(tokenAddressLower)) {
+        if (
+          tokenAddressLower in totalPrivateBalancesFormatted &&
+          !addedAddresses.has(tokenAddressLower)
+        ) {
           tokens.push(token)
           addedAddresses.add(tokenAddressLower)
         }
       })
     }
-    
+
     // Also add tokens directly from balances if they're not in portfolio or pinnedTokens
     // This ensures all tokens with balances are available
     Object.keys(totalPrivateBalancesFormatted).forEach((tokenAddressLower) => {
       if (addedAddresses.has(tokenAddressLower)) return
-      
+
       const balanceInfo = totalPrivateBalancesFormatted[tokenAddressLower]
       // Create a basic token object from the balance info
       const token: any = {
@@ -125,7 +132,7 @@ const RailgunTransferForm = ({
       tokens.push(token)
       addedAddresses.add(tokenAddressLower)
     })
-    
+
     return tokens
   }, [portfolio?.tokens, portfolio?.isReadyToVisualize, chainId, totalPrivateBalancesFormatted])
 
@@ -137,7 +144,7 @@ const RailgunTransferForm = ({
       const decimals = balanceInfo?.decimals || token.decimals || 18
       const formattedBalance = formatUnits(balance, decimals)
       const balanceFormatted = formatDecimals(Number(formattedBalance), 'amount')
-      
+
       return {
         label: `${token.symbol} (${balanceFormatted})`,
         value: getTokenId(token),
@@ -160,17 +167,17 @@ const RailgunTransferForm = ({
   // Get the selected token's Railgun balance
   const selectedTokenBalance = useMemo(() => {
     if (!selectedToken) return 0n
-    
+
     const balanceInfo = totalPrivateBalancesFormatted[selectedToken.address?.toLowerCase()]
     if (!balanceInfo) return 0n
-    
+
     return BigInt(balanceInfo.amount)
   }, [selectedToken, totalPrivateBalancesFormatted])
 
   // Get selected token's decimals
   const selectedTokenDecimals = useMemo(() => {
     if (!selectedToken) return 18
-    
+
     const balanceInfo = totalPrivateBalancesFormatted[selectedToken.address?.toLowerCase()]
     return balanceInfo?.decimals || selectedToken.decimals || 18
   }, [selectedToken, totalPrivateBalancesFormatted])
@@ -184,13 +191,13 @@ const RailgunTransferForm = ({
   // Token select value for SendToken component
   const tokenSelectValue = useMemo(() => {
     if (!selectedToken) return undefined
-    
+
     const balanceInfo = totalPrivateBalancesFormatted[selectedToken.address?.toLowerCase()]
     const balance = balanceInfo ? BigInt(balanceInfo.amount) : 0n
     const decimals = balanceInfo?.decimals || selectedToken.decimals || 18
     const formattedBalance = formatUnits(balance, decimals)
     const balanceFormatted = formatDecimals(Number(formattedBalance), 'amount')
-    
+
     return {
       label: `${selectedToken.symbol} (${balanceFormatted})`,
       value: getTokenId(selectedToken),
@@ -225,13 +232,19 @@ const RailgunTransferForm = ({
 
   const setMaxAmount = useCallback(() => {
     if (!selectedToken || selectedTokenBalance === 0n) return
-    
+
     const maxAmountFormatted = formatUnits(selectedTokenBalance, selectedTokenDecimals)
     // Update the input field directly
     setAmountFieldValue(maxAmountFormatted)
     // Also update the form state
     handleUpdateForm({ withdrawalAmount: maxAmountFormatted, maxAmount: maxAmountFormatted })
-  }, [selectedToken, selectedTokenBalance, selectedTokenDecimals, setAmountFieldValue, handleUpdateForm])
+  }, [
+    selectedToken,
+    selectedTokenBalance,
+    selectedTokenDecimals,
+    setAmountFieldValue,
+    handleUpdateForm
+  ])
 
   const onRecipientCheckboxClick = useCallback(() => {
     handleUpdateForm({ isRecipientAddressUnknownAgreed: true })
@@ -281,16 +294,16 @@ const RailgunTransferForm = ({
     if (!amountFieldValue || !selectedToken || parseFloat(amountFieldValue) <= 0) {
       return { amount: 0n, formatted: '0' }
     }
-    
+
     // Check if this is an internal transfer (0zk address)
     // Internal transfers have no fee - the 0.25% fee only applies to unshields (withdrawals to 0x addresses)
     const addressValue = addressStateFieldValue || addressInputState.address || ''
     const isInternalTransfer = addressValue.toLowerCase().startsWith('0zk')
-    
+
     if (isInternalTransfer) {
       return { amount: 0n, formatted: '0' }
     }
-    
+
     try {
       const amount = parseUnits(amountFieldValue, selectedTokenDecimals)
       // 0.25% = 0.0025 = 25 / 10000
@@ -300,14 +313,20 @@ const RailgunTransferForm = ({
     } catch (error) {
       return { amount: 0n, formatted: '0' }
     }
-  }, [amountFieldValue, selectedToken, selectedTokenDecimals, addressStateFieldValue, addressInputState.address])
+  }, [
+    amountFieldValue,
+    selectedToken,
+    selectedTokenDecimals,
+    addressStateFieldValue,
+    addressInputState.address
+  ])
 
   // Calculate recipient gets (amount - fee)
   const recipientGets = useMemo(() => {
     if (!amountFieldValue || parseFloat(amountFieldValue) <= 0) {
       return '0'
     }
-    
+
     try {
       const amount = parseFloat(amountFieldValue)
       const fee = parseFloat(calculatedFee.formatted)
@@ -332,7 +351,9 @@ const RailgunTransferForm = ({
           fromTokenOptions={tokenOptions}
           fromTokenValue={tokenSelectValue}
           fromAmountValue={amountFieldValue}
-          fromTokenAmountSelectDisabled={availableTokens.length === 0 || selectedTokenBalance === 0n}
+          fromTokenAmountSelectDisabled={
+            availableTokens.length === 0 || selectedTokenBalance === 0n
+          }
           handleChangeFromToken={({ value }) => handleChangeToken(value as string)}
           fromSelectedToken={selectedToken}
           fromAmount={controllerAmount}
@@ -409,7 +430,7 @@ const RailgunTransferForm = ({
               withNetworkIcon={false}
             />
             <Text fontSize={14} weight="light" style={spacings.mlMi}>
-              {calculatedFee.formatted} {selectedToken?.symbol || 'ETH'}
+              {formatAmount(calculatedFee.formatted)} {selectedToken?.symbol || 'ETH'}
             </Text>
           </View>
         </View>
@@ -429,7 +450,7 @@ const RailgunTransferForm = ({
               withNetworkIcon={false}
             />
             <Text fontSize={14} weight="light" style={spacings.mlMi}>
-              {formatDecimals(parseFloat(recipientGets), 'amount')} {selectedToken?.symbol || 'ETH'}
+              {formatAmount(recipientGets)} {selectedToken?.symbol || 'ETH'}
             </Text>
           </View>
         </View>
@@ -439,4 +460,3 @@ const RailgunTransferForm = ({
 }
 
 export default React.memo(RailgunTransferForm)
-
