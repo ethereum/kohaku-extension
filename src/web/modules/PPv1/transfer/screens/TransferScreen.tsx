@@ -437,10 +437,19 @@ const TransferScreen = () => {
   const railgunForm = useRailgunForm()
   const railgunTotalPrivateBalancesFormatted = railgunForm.totalPrivateBalancesFormatted
 
-  // Railgun amount error message
+  // Railgun amount error message - immediate validation for UX
   const railgunAmountErrorMessage = useMemo(() => {
-    if (!railgunAmountFieldValue || railgunAmountFieldValue.trim() === '') return ''
+    const amountToValidate = railgunAmountFieldMode === 'token' 
+      ? railgunAmountFieldValue 
+      : railgunWithdrawalAmount
+
+    if (!amountToValidate || amountToValidate.trim() === '') return ''
     if (!railgunSelectedToken) return ''
+
+    // First check controller's validation (format, non-zero) if available
+    if (railgunWithdrawalAmount && !railgunValidationFormMsgs.amount.success) {
+      return railgunValidationFormMsgs.amount.message
+    }
 
     try {
       // Get the balance for the selected token
@@ -452,7 +461,7 @@ const TransferScreen = () => {
       }
 
       const decimals = balanceInfo.decimals || railgunSelectedToken.decimals || 18
-      const amount = parseUnits(railgunAmountFieldValue, decimals)
+      const amount = parseUnits(amountToValidate, decimals)
       const availableBalance = BigInt(balanceInfo.amount)
 
       if (amount > availableBalance) {
@@ -463,24 +472,24 @@ const TransferScreen = () => {
     } catch (error) {
       return 'Invalid amount'
     }
-  }, [railgunAmountFieldValue, railgunSelectedToken, railgunTotalPrivateBalancesFormatted])
+  }, [
+    railgunAmountFieldValue,
+    railgunWithdrawalAmount,
+    railgunAmountFieldMode,
+    railgunValidationFormMsgs.amount,
+    railgunSelectedToken,
+    railgunTotalPrivateBalancesFormatted
+  ])
 
   // Railgun form validation
   const isRailgunTransferFormValid = useMemo(() => {
-    // Use the synced state value for address check, or fall back to controller state
-    const addressValue = railgunAddressStateFieldValue || railgunAddressState.fieldValue
-    const hasAmount =
-      railgunAmountFieldValue &&
-      railgunAmountFieldValue !== '0' &&
-      parseFloat(railgunAmountFieldValue) > 0
+    // Use controller's validation (with debounce) for proper validation
+    const hasAmount = !!railgunWithdrawalAmount && railgunWithdrawalAmount !== '0'
     const hasToken = !!railgunSelectedToken
-    const hasAddress = addressValue && addressValue.trim() !== ''
-
-    // For address validation, check if the address input state says it's valid
-    // OR if we have an address value and no explicit error
-    const addressIsValid =
-      !railgunAddressInputState.validation.isError ||
-      (hasAddress && !railgunAddressInputState.validation.message)
+    const hasAddress = !!railgunAddressState.fieldValue || !!railgunAddressState.ensAddress
+    
+    // Use controller's validation messages
+    const addressIsValid = railgunValidationFormMsgs.recipientAddress.success
     const noAmountError = !railgunAmountErrorMessage
 
     // Debug logging (can be removed later)
@@ -491,26 +500,23 @@ const TransferScreen = () => {
         hasAddress,
         addressIsValid,
         noAmountError,
-        amountFieldValue: railgunAmountFieldValue,
-        addressFieldValue: addressValue,
-        syncedAddressFieldValue: railgunAddressStateFieldValue,
-        controllerAddressFieldValue: railgunAddressState.fieldValue,
+        withdrawalAmount: railgunWithdrawalAmount,
+        addressFieldValue: railgunAddressState.fieldValue,
+        ensAddress: railgunAddressState.ensAddress,
         selectedToken: railgunSelectedToken?.symbol,
-        addressError: railgunAddressInputState.validation.isError,
-        addressValidationMessage: railgunAddressInputState.validation.message,
+        validationMsgs: railgunValidationFormMsgs,
         amountError: railgunAmountErrorMessage
       })
     }
 
     return !!(hasAmount && hasToken && hasAddress && addressIsValid && noAmountError)
   }, [
-    railgunAmountFieldValue,
+    railgunWithdrawalAmount,
     railgunAmountErrorMessage,
     railgunSelectedToken,
-    railgunAddressInputState.validation.isError,
-    railgunAddressInputState.validation.message,
-    railgunAddressStateFieldValue,
-    railgunAddressState.fieldValue
+    railgunValidationFormMsgs,
+    railgunAddressState.fieldValue,
+    railgunAddressState.ensAddress
   ])
 
   const onBack = useCallback(() => {
@@ -603,20 +609,17 @@ const TransferScreen = () => {
     setIsSubmitting(true)
     let isInternalTransfer = false
     try {
-      // Use synced state values (current input values) instead of controller state
-      // Controller state may be debounced and not updated yet
-      const amount = railgunAmountFieldValue || railgunWithdrawalAmount
-      // Prioritize synced state field value, then ENS resolved address, then addressInputState.address
+      const amount = railgunWithdrawalAmount
+      // Prioritize ENS resolved address, then synced state field value, then addressInputState.address
       const address =
-        railgunAddressStateFieldValue ||
         railgunAddressState.ensAddress ||
+        railgunAddressStateFieldValue ||
         railgunAddressInputState.address
 
       // Debug logging
       console.log('handleRailgunWithdrawal - Input values:', {
         amount,
         address,
-        amountFieldValue: railgunAmountFieldValue,
         withdrawalAmount: railgunWithdrawalAmount,
         addressStateFieldValue: railgunAddressStateFieldValue,
         addressInputStateAddress: railgunAddressInputState.address,
@@ -630,7 +633,6 @@ const TransferScreen = () => {
           token: railgunSelectedToken,
           amount,
           address,
-          amountFieldValue: railgunAmountFieldValue,
           withdrawalAmount: railgunWithdrawalAmount,
           addressInputState: railgunAddressInputState.address,
           addressStateFieldValue: railgunAddressStateFieldValue,
@@ -777,7 +779,6 @@ const TransferScreen = () => {
   }, [
     railgunForm,
     railgunSelectedToken,
-    railgunAmountFieldValue,
     railgunWithdrawalAmount,
     railgunAddressInputState.address,
     railgunAddressStateFieldValue,
