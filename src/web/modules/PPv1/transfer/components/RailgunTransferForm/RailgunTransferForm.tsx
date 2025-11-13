@@ -21,6 +21,7 @@ import useRailgunControllerState from '@web/hooks/useRailgunControllerState'
 import Recipient from '../Recipient'
 
 import SendToken from '../SendToken'
+import { formatAmount } from '../../utils/formatAmount'
 import getStyles from '../TransferForm/styles'
 
 const RailgunTransferForm = ({
@@ -429,7 +430,7 @@ const RailgunTransferForm = ({
               withNetworkIcon={false}
             />
             <Text fontSize={14} weight="light" style={spacings.mlMi}>
-              {calculatedFee.formatted} {selectedToken?.symbol || 'ETH'}
+              {formatAmount(calculatedFee.formatted)} {selectedToken?.symbol || 'ETH'}
             </Text>
           </View>
         </View>
@@ -449,7 +450,7 @@ const RailgunTransferForm = ({
               withNetworkIcon={false}
             />
             <Text fontSize={14} weight="light" style={spacings.mlMi}>
-              {formatDecimals(parseFloat(recipientGets), 'amount')} {selectedToken?.symbol || 'ETH'}
+              {formatAmount(recipientGets)} {selectedToken?.symbol || 'ETH'}
             </Text>
           </View>
         </View>

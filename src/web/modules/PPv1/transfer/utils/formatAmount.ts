@@ -5,6 +5,11 @@ const DECIMALS_FOR_LARGE = 2 // >= 100
 const VERY_SMALL_THRESHOLD = 0.0001
 const SMALL_THRESHOLD = 0.01
 const LARGE_THRESHOLD = 100
+const MAX_SAFE_NUMBER = 1e15 // 1 quadrillion - beyond this, likely a calculation error
+
+export const normalizeAmountString = (value: string | number): string | number => {
+  return typeof value === 'string' && value.startsWith('.') ? `0${value}` : value
+}
 
 /**
  * Formats a number or string amount to show a maximum of 5 decimals
@@ -13,13 +18,20 @@ const LARGE_THRESHOLD = 100
  * @returns Formatted string (max 5 decimals)
  */
 export const formatAmount = (value: string | number): string => {
-  const numValue = typeof value === 'string' ? parseFloat(value) : value
+  const normalizedValue = normalizeAmountString(value)
+
+  const numValue =
+    typeof normalizedValue === 'string' ? parseFloat(normalizedValue) : normalizedValue
 
   if (Number.isNaN(numValue) || !Number.isFinite(numValue) || numValue === 0) {
     return '0'
   }
 
   const absValue = Math.abs(numValue)
+
+  if (absValue > MAX_SAFE_NUMBER) {
+    return numValue.toExponential(2)
+  }
 
   const decimals =
     absValue < VERY_SMALL_THRESHOLD
