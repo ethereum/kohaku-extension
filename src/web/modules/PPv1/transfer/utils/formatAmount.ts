@@ -1,3 +1,11 @@
+const DECIMALS_FOR_VERY_SMALL = 5 // < 0.0001
+const DECIMALS_FOR_MEDIUM = 4 // 0.0001 - 99.99
+const DECIMALS_FOR_LARGE = 2 // >= 100
+
+const VERY_SMALL_THRESHOLD = 0.0001
+const SMALL_THRESHOLD = 0.01
+const LARGE_THRESHOLD = 100
+
 /**
  * Formats a number or string amount to show a maximum of 5 decimals
  *
@@ -13,11 +21,16 @@ export const formatAmount = (value: string | number): string => {
 
   const absValue = Math.abs(numValue)
 
-  const decimals = absValue < 0.0001 ? 5 : absValue < 100 ? 4 : 2
+  const decimals =
+    absValue < VERY_SMALL_THRESHOLD
+      ? DECIMALS_FOR_VERY_SMALL
+      : absValue < LARGE_THRESHOLD
+      ? DECIMALS_FOR_MEDIUM
+      : DECIMALS_FOR_LARGE
 
   const multiplier = 10 ** decimals
   const rounded =
-    absValue < 0.01
+    absValue < SMALL_THRESHOLD
       ? Math.ceil(numValue * multiplier) / multiplier
       : Math.round(numValue * multiplier) / multiplier
 
