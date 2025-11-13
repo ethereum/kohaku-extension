@@ -750,6 +750,12 @@ const TransferScreen = () => {
         return
       }
 
+      // Clear any old transaction state before submitting a new transaction
+      // This ensures old "Private Transfer Done!" states don't persist when starting a new withdrawal
+      dispatch({
+        type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+      })
+
       // Submit transaction directly to relayer (no estimation modal)
       // The controller will set latestBroadcastedAccountOp immediately, causing UI to show track screen
       console.log(isInternalTransfer ? 'Submitting internal transfer to relayer...' : 'Submitting withdrawal to relayer...')
