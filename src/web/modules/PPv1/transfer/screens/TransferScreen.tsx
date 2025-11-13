@@ -382,11 +382,11 @@ const TransferScreen = () => {
   }
 
   const amountErrorMessage = useMemo(() => {
-    if (!withdrawalAmount || withdrawalAmount.trim() === '') return ''
+    if (!amountFieldValue || amountFieldValue.trim() === '') return ''
     if (!poolInfo) return ''
 
     try {
-      const amount = parseUnits(withdrawalAmount, 18)
+      const amount = parseUnits(amountFieldValue, 18)
 
       if (amount < poolInfo.minWithdrawal) {
         return `Minimum transfer amount is ${formatUnits(poolInfo.minWithdrawal, 18)} ETH`
@@ -409,7 +409,7 @@ const TransferScreen = () => {
     } catch (error) {
       return 'Invalid amount'
     }
-  }, [withdrawalAmount, totalApprovedBalance.total, poolInfo, relayerQuote])
+  }, [amountFieldValue, totalApprovedBalance.total, poolInfo, relayerQuote])
 
   // Privacy Pools form validation
   const isTransferFormValid = useMemo(() => {
@@ -439,7 +439,7 @@ const TransferScreen = () => {
 
   // Railgun amount error message
   const railgunAmountErrorMessage = useMemo(() => {
-    if (!railgunWithdrawalAmount || railgunWithdrawalAmount.trim() === '') return ''
+    if (!railgunAmountFieldValue || railgunAmountFieldValue.trim() === '') return ''
     if (!railgunSelectedToken) return ''
 
     try {
@@ -452,7 +452,7 @@ const TransferScreen = () => {
       }
 
       const decimals = balanceInfo.decimals || railgunSelectedToken.decimals || 18
-      const amount = parseUnits(railgunWithdrawalAmount, decimals)
+      const amount = parseUnits(railgunAmountFieldValue, decimals)
       const availableBalance = BigInt(balanceInfo.amount)
 
       if (amount > availableBalance) {
@@ -463,7 +463,7 @@ const TransferScreen = () => {
     } catch (error) {
       return 'Invalid amount'
     }
-  }, [railgunWithdrawalAmount, railgunSelectedToken, railgunTotalPrivateBalancesFormatted])
+  }, [railgunAmountFieldValue, railgunSelectedToken, railgunTotalPrivateBalancesFormatted])
 
   // Railgun form validation
   const isRailgunTransferFormValid = useMemo(() => {
