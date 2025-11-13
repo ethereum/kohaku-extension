@@ -224,8 +224,10 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
     undefined
   )
   const [isLoadingAnonymitySet, setIsLoadingAnonymitySet] = useState(false)
-  const memoizedState = useDeepMemo(state, controller)
 
+  const [useHelium] = useState(false)
+
+  const memoizedState = useDeepMemo(state, controller)
   const { secret } = memoizedState
 
   // Load default private account if secret is provided and reset the secret in the controller state
@@ -308,7 +310,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       const accountServiceResult = await initializeAccountWithEvents(
         dataService,
         accountInitSource,
-        memoizedState.pools as PoolInfo[]
+        memoizedState.pools as unknown as PoolInfo[]
       )
 
       const { poolAccounts: poolAccountFromAccount } = await getPoolAccountsFromAccount(
@@ -604,6 +606,15 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
         const chainData = memoizedState.chainData?.[pool.chainId]
         const sdkRpcUrl = chainData?.sdkRpcUrl || ''
 
+        if (!useHelium) {
+          return {
+            chainId: pool.chainId,
+            privacyPoolAddress: pool.address,
+            startBlock: pool.deploymentBlock,
+            rpcUrl: sdkRpcUrl
+          }
+        }
+
         // Create a provider instance for this chain using UIProxyProvider
         const provider = getRpcProviderForUI(
           {
@@ -643,7 +654,8 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
     memoizedState,
     fetchMtData,
     dispatch,
-    sdk
+    sdk,
+    useHelium
   ])
 
   const value = useMemo(
