@@ -122,7 +122,7 @@ const TransferScreen = () => {
   )
 
   // Privacy Pools state
-  const controllerAmountFieldValue = amountFieldMode === 'token' ? withdrawalAmount : amountInFiat
+  const controllerAmountFieldValue = (amountFieldMode === 'token' ? withdrawalAmount : amountInFiat) || ''
   const [amountFieldValue, setAmountFieldValue] = useSyncedState<string>({
     backgroundState: controllerAmountFieldValue,
     updateBackgroundState: (newAmount) => {
@@ -131,7 +131,7 @@ const TransferScreen = () => {
     forceUpdateOnChangeList: [programmaticUpdateCounter, amountFieldMode]
   })
   const [addressStateFieldValue, setAddressStateFieldValue] = useSyncedState<string>({
-    backgroundState: addressState.fieldValue,
+    backgroundState: addressState.fieldValue || '',
     updateBackgroundState: (newAddress: string) => {
       handleUpdateForm({ addressState: { fieldValue: newAddress } })
     },
@@ -140,7 +140,7 @@ const TransferScreen = () => {
 
   // Railgun state syncing
   const railgunControllerAmountFieldValue =
-    railgunAmountFieldMode === 'token' ? railgunWithdrawalAmount : railgunAmountInFiat
+    (railgunAmountFieldMode === 'token' ? railgunWithdrawalAmount : railgunAmountInFiat) || ''
   const [railgunAmountFieldValue, setRailgunAmountFieldValue] = useSyncedState<string>({
     backgroundState: railgunControllerAmountFieldValue,
     updateBackgroundState: (newAmount) => {
@@ -149,7 +149,7 @@ const TransferScreen = () => {
     forceUpdateOnChangeList: [railgunProgrammaticUpdateCounter, railgunAmountFieldMode]
   })
   const [railgunAddressStateFieldValue, setRailgunAddressStateFieldValue] = useSyncedState<string>({
-    backgroundState: railgunAddressState.fieldValue,
+    backgroundState: railgunAddressState.fieldValue || '',
     updateBackgroundState: (newAddress: string) => {
       handleRailgunUpdateForm({ addressState: { fieldValue: newAddress } })
     },

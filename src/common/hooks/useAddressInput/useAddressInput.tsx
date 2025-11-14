@@ -133,7 +133,7 @@ const useAddressInput = ({
   ])
 
   useEffect(() => {
-    const trimmedAddress = fieldValue.trim()
+    const trimmedAddress = (fieldValue || '').trim()
     const dotIndexInAddress = trimmedAddress.indexOf('.')
     // There is a dot and it is not the first or last character
     const canBeDomain =
