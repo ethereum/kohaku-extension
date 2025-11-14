@@ -13,19 +13,25 @@ import flexboxStyles from '@common/styles/utils/flexbox'
 import { AnimatedPressable, useCustomHover } from '@web/hooks/useHover'
 import { getTokenId } from '@web/utils/token'
 import { THEME_TYPES } from '@common/styles/themeConfig'
+import { PrivacyProtocolType } from '@web/modules/PPv1/types/privacy'
 
 import useNavigation from '@common/hooks/useNavigation'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import TokenIcon from '../TokenIcon'
 import getStyles from './styles'
 
-const TokenItem = ({ token }: { token: TokenResult }) => {
+type PrivateToken = TokenResult & {
+  privacyProtocol: PrivacyProtocolType
+}
+
+const TokenItem = ({ token }: { token: PrivateToken }) => {
   const { styles, theme, themeType } = useTheme(getStyles)
 
   const {
     symbol,
     address,
     chainId,
+    privacyProtocol,
     flags: { onGasTank }
   } = token
 
@@ -70,6 +76,7 @@ const TokenItem = ({ token }: { token: TokenResult }) => {
                 address={address}
                 chainId={chainId}
                 onGasTank={onGasTank}
+                privacyProtocol={privacyProtocol}
                 containerHeight={40}
                 containerWidth={40}
                 width={28}
@@ -90,20 +97,33 @@ const TokenItem = ({ token }: { token: TokenResult }) => {
                   >
                     {symbol}
                   </Text>
-                  <Text
-                    selectable
-                    weight="regular"
-                    fontSize={12}
-                    numberOfLines={1}
+                  <View
+                    style={{ alignSelf: 'flex-start' }}
                     // @ts-ignore
                     dataSet={{
-                      tooltipId: `${tokenId}-balance`
+                      tooltipId: `${tokenId}-balance`,
+                      tooltipContent: String(balance)
                     }}
-                    testID={`token-balance-${tokenId}`}
                   >
-                    {balanceFormatted}
-                  </Text>
-                  <Tooltip content={String(balance)} id={`${tokenId}-balance`} />
+                    <Text
+                      selectable
+                      weight="regular"
+                      fontSize={12}
+                      numberOfLines={1}
+                      testID={`token-balance-${tokenId}`}
+                    >
+                      {balanceFormatted}
+                    </Text>
+                  </View>
+                  <Tooltip
+                    id={`${tokenId}-balance`}
+                    place="top"
+                    offset={5}
+                    style={{
+                      fontSize: 12,
+                      padding: '0.3rem'
+                    }}
+                  />
                 </View>
               </View>
             </View>
