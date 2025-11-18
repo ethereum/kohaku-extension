@@ -5,7 +5,6 @@ import { createPublicClient, http, parseAbiItem } from 'viem'
 import { sepolia } from 'viem/chains'
 
 const chainDataConfig = PPv1ChainData[sepolia.id]
-const HYPERSYNC_RPC_URL = `https://sepolia.rpc.hypersync.xyz/${HYPERSYNC_API_KEY}`
 
 /**
  * Get deposit events for a specific chain
@@ -19,6 +18,7 @@ export async function getDeposits(
   // eslint-disable-next-line @typescript-eslint/no-shadow
   chainData: typeof chainDataConfig = chainDataConfig
 ): Promise<DepositEvent[]> {
+  const HYPERSYNC_RPC_URL = `${chainData.sdkRpcUrl}${HYPERSYNC_API_KEY}`
   const client = createPublicClient({
     chain: sepolia,
     transport: http(HYPERSYNC_RPC_URL)
