@@ -1,9 +1,11 @@
 import { DepositEvent, Hash } from '@0xbow/privacy-pools-core-sdk'
 import { chainData as PPv1ChainData } from '@ambire-common/controllers/privacyPools/config'
+import { HYPERSYNC_API_KEY } from '@env'
 import { createPublicClient, http, parseAbiItem } from 'viem'
 import { sepolia } from 'viem/chains'
 
 const chainDataConfig = PPv1ChainData[sepolia.id]
+const HYPERSYNC_RPC_URL = `https://sepolia.rpc.hypersync.xyz/${HYPERSYNC_API_KEY}`
 
 /**
  * Get deposit events for a specific chain
@@ -19,7 +21,7 @@ export async function getDeposits(
 ): Promise<DepositEvent[]> {
   const client = createPublicClient({
     chain: sepolia,
-    transport: http(chainData.sdkRpcUrl)
+    transport: http(HYPERSYNC_RPC_URL)
   })
 
   const DEPOSIT_EVENT = parseAbiItem(
