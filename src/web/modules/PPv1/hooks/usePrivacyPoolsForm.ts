@@ -154,12 +154,17 @@ const usePrivacyPoolsForm = () => {
 
   useEffect(() => {
     const runNoteSelectionAlgorithm = async () => {
-      if (!withdrawalAmount || !poolAccounts || poolAccounts.length === 0 || !anonymitySetData) {
+      const allPoolAccounts = [...poolAccounts, ...importedPrivateAccounts.flat()]
+      if (
+        !withdrawalAmount ||
+        !allPoolAccounts ||
+        allPoolAccounts.length === 0 ||
+        !anonymitySetData
+      ) {
         setCalculatedBatchSize(1)
         setSelectedNotesCache(null)
         return
       }
-
       setLoadingSelectionAlgorithm(true)
 
       try {
@@ -368,7 +373,6 @@ const usePrivacyPoolsForm = () => {
     openEstimationModalAndDispatch,
     userAccount?.addr
   ])
-
   const handleMultipleWithdrawal = useCallback(async () => {
     if (
       !poolInfo ||

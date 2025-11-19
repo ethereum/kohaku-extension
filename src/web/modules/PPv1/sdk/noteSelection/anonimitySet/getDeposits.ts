@@ -1,5 +1,6 @@
 import { DepositEvent, Hash } from '@0xbow/privacy-pools-core-sdk'
 import { chainData as PPv1ChainData } from '@ambire-common/controllers/privacyPools/config'
+import { HYPERSYNC_API_KEY } from '@env'
 import { createPublicClient, http, parseAbiItem } from 'viem'
 import { sepolia } from 'viem/chains'
 
@@ -17,9 +18,10 @@ export async function getDeposits(
   // eslint-disable-next-line @typescript-eslint/no-shadow
   chainData: typeof chainDataConfig = chainDataConfig
 ): Promise<DepositEvent[]> {
+  const HYPERSYNC_RPC_URL = `${chainData.sdkRpcUrl}${HYPERSYNC_API_KEY}`
   const client = createPublicClient({
     chain: sepolia,
-    transport: http(chainData.sdkRpcUrl)
+    transport: http(HYPERSYNC_RPC_URL)
   })
 
   const DEPOSIT_EVENT = parseAbiItem(
