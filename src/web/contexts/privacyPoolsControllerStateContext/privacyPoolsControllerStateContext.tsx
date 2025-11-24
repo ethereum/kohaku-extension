@@ -225,7 +225,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   )
   const [isLoadingAnonymitySet, setIsLoadingAnonymitySet] = useState(false)
 
-  const [useHelium] = useState(false)
+  const useHelium = false // TODO: enable helios when ready
 
   const memoizedState = useDeepMemo(state, controller)
   const { secret } = memoizedState
