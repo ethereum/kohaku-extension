@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import { useCallback, useMemo, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
-import { formatEther, getAddress } from 'viem'
+import { formatEther, formatUnits, getAddress } from 'viem'
 import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
 import { Call } from '@ambire-common/libs/accountOp/types'
 import { randomId } from '@ambire-common/libs/humanizer/utils'
@@ -146,9 +146,18 @@ const useRailgunForm = () => {
   }, [])
 
   const totalPrivatePortfolio = useMemo(() => {
-    const ethAmount = Number(formatEther(totalApprovedBalance.total))
-    return ethAmount * (ethPrice || 0)
-  }, [totalApprovedBalance, ethPrice])
+    let totalUsdValue = 0
+    
+    for (const tokenAddress in totalPrivateBalancesFormatted) {
+      const token = totalPrivateBalancesFormatted[tokenAddress]
+      if (token.price !== undefined) {
+        const tokenAmount = Number(formatUnits(BigInt(token.amount), token.decimals))
+        totalUsdValue += tokenAmount * token.price
+      }
+    }
+    
+    return totalUsdValue
+  }, [totalPrivateBalancesFormatted])
 
   const ethPrivateBalance = useMemo(() => {
     return formatEther(totalApprovedBalance.total)

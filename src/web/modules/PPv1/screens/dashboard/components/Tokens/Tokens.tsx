@@ -17,13 +17,14 @@ import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import useRailgunForm from '@web/modules/railgun/hooks/useRailgunForm'
 import { getRailgunAddress } from '@kohaku-eth/railgun'
 import { useCustomHover, AnimatedPressable } from '@web/hooks/useHover'
+import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
+import { PrivacyProtocolType } from '@web/modules/PPv1/types/privacy'
 
 import DashboardPageScrollContainer from '../DashboardPageScrollContainer'
 import TabsAndSearch from '../TabsAndSearch'
 import { TabType } from '../TabsAndSearch/Tabs/Tab/Tab'
 import TokenItem from './TokenItem'
 import Skeleton from './TokensSkeleton'
-import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
 
 interface Props {
   openTab: TabType
@@ -61,7 +62,8 @@ const Tokens = ({
   const searchValue = watch('search')
 
   const { ethPrice, totalApprovedBalance, isAccountLoaded, isReadyToLoad } = usePrivacyPoolsForm()
-  const { totalApprovedBalance: railgunTotalApprovedBalance, isAccountLoaded: railgunIsAccountLoaded, totalPrivateBalancesFormatted } = useRailgunForm()
+  const { isAccountLoaded: railgunIsAccountLoaded, totalPrivateBalancesFormatted } =
+    useRailgunForm()
   const { defaultRailgunKeys } = useRailgunControllerState()
   const [railgunAddress, setRailgunAddress] = useState<string | null>(null)
 
@@ -91,16 +93,16 @@ const Tokens = ({
           onGasTank: false,
           rewardsType: null,
           canTopUpGasTank: false,
+          isFeeToken: false,
           isHidden: false,
           defiTokenType: null
         },
-        accounts: totalApprovedBalance.accounts
+        accounts: totalApprovedBalance.accounts,
+        privacyProtocol: PrivacyProtocolType.PRIVACY_POOLS
       })
     }
     Object.entries(totalPrivateBalancesFormatted).forEach(([tokenAddress, tokenInfo]) => {
-      if (
-        tokenInfo.amount !== '0'
-      ) {
+      if (tokenInfo.amount !== '0') {
         tokens.push({
           id: `approved-railgun-${tokenInfo.symbol.toLowerCase()}`,
           name: tokenInfo.name,
@@ -109,18 +111,25 @@ const Tokens = ({
           address: tokenAddress,
           chainId: 11155111,
           decimals: tokenInfo.decimals,
-          priceIn: [{ baseCurrency: 'usd', price: tokenAddress === ZERO_ADDRESS ? ethPrice : tokenInfo.price }],
+          priceIn: [
+            {
+              baseCurrency: 'usd',
+              price: tokenAddress === ZERO_ADDRESS ? ethPrice : tokenInfo.price
+            }
+          ],
           flags: {
             onGasTank: false,
             rewardsType: null,
             canTopUpGasTank: false,
+            isFeeToken: false,
             isHidden: false,
             defiTokenType: null
           },
-          accounts: []
-        });
+          accounts: [],
+          privacyProtocol: PrivacyProtocolType.RAILGUN
+        })
       }
-    });
+    })
 
     return tokens
   }, [totalApprovedBalance, totalPrivateBalancesFormatted, ethPrice])
@@ -256,16 +265,24 @@ const Tokens = ({
 
       if (item === 'railgun-address') {
         return railgunAddress ? (
-          <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.phTy, spacings.ptSm, spacings.pbLg]}>
+          <View
+            style={[
+              flexbox.directionRow,
+              flexbox.alignCenter,
+              spacings.phTy,
+              spacings.ptSm,
+              spacings.pbLg
+            ]}
+          >
             <Text fontSize={14} appearance="secondaryText" style={spacings.mrTy}>
               Your Railgun Address: {railgunAddress.slice(0, 6)}...{railgunAddress.slice(-4)}
             </Text>
-            <AnimatedPressable onPress={handleCopyRailgunAddress} style={copyIconAnimStyle} {...bindCopyIconAnim}>
-              <CopyIcon
-                width={16}
-                height={16}
-                color={theme.secondaryText}
-              />
+            <AnimatedPressable
+              onPress={handleCopyRailgunAddress}
+              style={copyIconAnimStyle}
+              {...bindCopyIconAnim}
+            >
+              <CopyIcon width={16} height={16} color={theme.secondaryText} />
             </AnimatedPressable>
           </View>
         ) : null
