@@ -11,6 +11,8 @@ import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountCont
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
+import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
+import type { PrivateAccountOption } from '@web/contexts/privacyPoolsControllerStateContext/privacyPoolsControllerStateContext'
 import { formatEther, formatUnits, parseUnits, zeroAddress } from 'viem'
 import { PoolInfo } from '@ambire-common/controllers/privacyPools/config'
 import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
@@ -52,6 +54,8 @@ const DepositForm = ({
   const { accounts } = useAccountsControllerState()
   const { networks } = useNetworksControllerState()
   const { dispatch } = useBackgroundService()
+  const { allPrivateAccounts, selectedDepositAccount, setSelectedDepositAccount } =
+    usePrivacyPoolsControllerState()
   const { t } = useTranslation()
   const [displayAmount, setDisplayAmount] = useState('')
   const [selectedAccountAddr, setSelectedAccountAddr] = useState<string | null>(null)
@@ -173,6 +177,44 @@ const DepositForm = ({
   const selectedAccountValue = useMemo(() => {
     return accountOptions.find((opt) => opt.value === selectedAccountAddr) || null
   }, [accountOptions, selectedAccountAddr])
+
+  // Create private account options for the deposit target selector
+  const privateAccountOptions: SelectValue[] = useMemo(() => {
+    return allPrivateAccounts.map((account: PrivateAccountOption) => ({
+      label: (
+        <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+          <PrivacyIcon width={15} height={15} />
+          <Text fontSize={14} weight="light" style={spacings.mlMi}>
+            {account.name}
+          </Text>
+        </View>
+      ),
+      value: account.id
+    }))
+  }, [allPrivateAccounts])
+
+  const selectedPrivateAccountValue = useMemo(() => {
+    if (!selectedDepositAccount) return null
+    return privateAccountOptions.find((opt) => opt.value === selectedDepositAccount.id) || null
+  }, [privateAccountOptions, selectedDepositAccount])
+
+  const handlePrivateAccountChange = useCallback(
+    (value: SelectValue) => {
+      const accountId = value.value as string
+      const account = allPrivateAccounts.find((acc: PrivateAccountOption) => acc.id === accountId)
+      if (account) {
+        setSelectedDepositAccount(account)
+      }
+    },
+    [allPrivateAccounts, setSelectedDepositAccount]
+  )
+
+  // Auto-select first private account if none selected
+  useEffect(() => {
+    if (!selectedDepositAccount && allPrivateAccounts.length > 0) {
+      setSelectedDepositAccount(allPrivateAccounts[0])
+    }
+  }, [selectedDepositAccount, allPrivateAccounts, setSelectedDepositAccount])
 
   const handleAccountChange = useCallback(
     (value: SelectValue) => {
@@ -465,6 +507,24 @@ const DepositForm = ({
           mode="bottomSheet"
         />
       </View>
+
+      {/* Only show private account selector for Privacy Pools */}
+      {privacyProvider === 'privacy-pools' && privateAccountOptions.length > 0 && (
+        <View>
+          <Text appearance="secondaryText" fontSize={14} weight="light">
+            {t('Deposit to')}
+          </Text>
+          <Select
+            setValue={handlePrivateAccountChange}
+            options={privateAccountOptions}
+            value={selectedPrivateAccountValue}
+            testID="private-account-select"
+            bottomSheetTitle={t('Select Private Account')}
+            emptyListPlaceholderText={t('No private accounts found.')}
+            mode="bottomSheet"
+          />
+        </View>
+      )}
 
       <View>
         <Text appearance="secondaryText" fontSize={14} weight="light">

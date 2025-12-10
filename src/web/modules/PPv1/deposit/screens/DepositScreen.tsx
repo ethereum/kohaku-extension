@@ -37,7 +37,7 @@ function TransferScreen() {
   const { addToast } = useToast()
 
   const { accountsOps } = useActivityControllerState()
-  const { selectedToken } = usePrivacyPoolsControllerState()
+  const { selectedToken, selectedDepositAccount } = usePrivacyPoolsControllerState()
 
   const {
     chainId,
@@ -48,13 +48,11 @@ function TransferScreen() {
     signAccountOpController,
     latestBroadcastedAccountOp,
     isLoading,
-    isAccountLoaded,
     validationFormMsgs,
     handleDeposit,
     handleUpdateForm,
     closeEstimationModal,
     refreshPrivateAccount,
-    loadPrivateAccount,
     privacyProvider
   } = useDepositForm()
 
@@ -173,15 +171,10 @@ function TransferScreen() {
     return 'transfer'
   }, [latestBroadcastedAccountOp])
 
-  useEffect(() => {
-    if (!isAccountLoaded) {
-      loadPrivateAccount().catch((error) => {
-        // eslint-disable-next-line no-console
-        console.error('Failed to load private account:', error)
-        addToast('Failed to load your privacy account. Please try again.', { type: 'error' })
-      })
-    }
-  }, [isAccountLoaded, loadPrivateAccount, addToast])
+  // Note: We no longer need to call loadPrivateAccount() here.
+  // Imported accounts are loaded automatically by the context in loadImportedPPv1Accounts,
+  // and deposits now use selectedDepositAccount which can be any account from allPrivateAccounts.
+  // This fixes the infinite loop that occurred when no default account existed.
 
   useEffect(() => {
     return () => {
@@ -238,9 +231,11 @@ function TransferScreen() {
   const isTransferFormValid = useMemo(() => {
     if (!depositAmount || depositAmount === '' || depositAmount === '0') return false
 
-    // For Privacy Pools, we need poolInfo; for Railgun, we don't
+    // For Privacy Pools, we need poolInfo and a selected deposit account
     if (privacyProvider === 'privacy-pools') {
-      if (isLoading || !isAccountLoaded) return false
+      if (isLoading) return false
+      // Check if a private account is selected and has an accountService
+      if (!selectedDepositAccount?.accountService) return false
       return !!poolInfo && !validationFormMsgs.amount.message
     }
 
@@ -251,7 +246,7 @@ function TransferScreen() {
     depositAmount,
     poolInfo,
     isLoading,
-    isAccountLoaded,
+    selectedDepositAccount,
     privacyProvider,
     validationFormMsgs.amount
   ])
@@ -282,10 +277,9 @@ function TransferScreen() {
   const formTitle = t('Deposit')
 
   const proceedBtnText = useMemo(() => {
-    if (isLoading && !isAccountLoaded && privacyProvider === 'privacy-pools')
-      return t('Loading account...')
+    if (isLoading && privacyProvider === 'privacy-pools') return t('Loading...')
     return t('Deposit')
-  }, [isLoading, privacyProvider, isAccountLoaded, t])
+  }, [isLoading, privacyProvider, t])
 
   const buttons = useMemo(() => {
     return (
