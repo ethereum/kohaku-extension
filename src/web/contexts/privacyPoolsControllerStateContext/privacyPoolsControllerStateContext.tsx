@@ -90,6 +90,16 @@ export type ImportedAccountWithName = {
   poolAccounts: PoolAccount[]
 }
 
+/**
+ * Represents a private account that can be used for deposits.
+ * This unifies both default/generated accounts and imported accounts.
+ */
+export type PrivateAccountOption = {
+  id: string // Unique identifier (e.g., "default" or account name)
+  name: string // Display name
+  accountService: AccountService | null
+}
+
 type EnhancedPrivacyPoolsControllerState = {
   chainId: number
   mtRoots: MtRootResponse | undefined
@@ -106,6 +116,9 @@ type EnhancedPrivacyPoolsControllerState = {
   importedAccountsWithNames: ImportedAccountWithName[]
   anonymitySetData: Record<number, number> | undefined
   isLoadingAnonymitySet: boolean
+  allPrivateAccounts: PrivateAccountOption[]
+  selectedDepositAccount: PrivateAccountOption | null
+  setSelectedDepositAccount: Dispatch<SetStateAction<PrivateAccountOption | null>>
   setIsAccountLoaded: Dispatch<SetStateAction<boolean>>
   loadPrivateAccount: () => Promise<void>
   refreshPrivateAccount: (refetchLeavesAndRoots?: boolean) => Promise<void>
@@ -220,6 +233,13 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   const [importedAccountServicesMap, setImportedAccountServicesMap] = useState<
     Map<string, AccountService>
   >(new Map())
+  // Map to store account services by account name for deposit dropdown
+  const [importedAccountServicesByName, setImportedAccountServicesByName] = useState<
+    Map<string, AccountService>
+  >(new Map())
+  const [selectedDepositAccount, setSelectedDepositAccount] = useState<PrivateAccountOption | null>(
+    null
+  )
   const [anonymitySetData, setAnonymitySetData] = useState<Record<number, number> | undefined>(
     undefined
   )
@@ -406,7 +426,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       poolAccounts: importedPoolAccounts[index] || []
     }))
 
-    // Store account services in map for quick lookup
+    // Store account services in map for quick lookup (by chainId-scope-poolAccountName)
     const newAccountServicesMap = new Map<string, AccountService>()
     importedPrivateAccountsResult.forEach((result) => {
       const poolAccountsArray = result.poolAccounts
@@ -417,11 +437,19 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       })
     })
 
+    // Store account services by account name for deposit dropdown
+    const newAccountServicesByName = new Map<string, AccountService>()
+    accounts.forEach((account, index) => {
+      const accountName = account.name || `Privacy Pools #${index + 1}`
+      newAccountServicesByName.set(accountName, importedPrivateAccountsResult[index].accountService)
+    })
+
     console.log('DEBUG:', { importedPrivateAccountsResult, accountsWithNames })
 
     setImportedPrivateAccounts(importedPoolAccounts)
     setImportedAccountsWithNames(accountsWithNames)
     setImportedAccountServicesMap(newAccountServicesMap)
+    setImportedAccountServicesByName(newAccountServicesByName)
   }, [loadPoolAccounts])
 
   const addImportedPrivateAccount = useCallback(
@@ -564,6 +592,32 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
     [sdk]
   )
 
+  // Computed list of all private accounts (default + imported) for deposit dropdown
+  const allPrivateAccounts = useMemo((): PrivateAccountOption[] => {
+    const accounts: PrivateAccountOption[] = []
+
+    // Add default account if loaded
+    if (isAccountLoaded && accountService) {
+      accounts.push({
+        id: 'default',
+        name: 'Default Account',
+        accountService
+      })
+    }
+
+    // Add imported accounts
+    importedAccountsWithNames.forEach((importedAccount) => {
+      const importedAccountService = importedAccountServicesByName.get(importedAccount.name)
+      accounts.push({
+        id: importedAccount.name,
+        name: importedAccount.name,
+        accountService: importedAccountService || null
+      })
+    })
+
+    return accounts
+  }, [isAccountLoaded, accountService, importedAccountsWithNames, importedAccountServicesByName])
+
   useEffect(() => {
     if (!Object.keys(state).length) {
       dispatch({ type: 'INIT_CONTROLLER_STATE', params: { controller } })
@@ -680,6 +734,9 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
         importedAccountsWithNames,
         anonymitySetData,
         isLoadingAnonymitySet,
+        allPrivateAccounts,
+        selectedDepositAccount,
+        setSelectedDepositAccount,
         proofsBatchSize: PROOFS_BATCH_SIZE,
         loadPrivateAccount,
         refreshPrivateAccount,
@@ -716,6 +773,8 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
       importedAccountsWithNames,
       anonymitySetData,
       isLoadingAnonymitySet,
+      allPrivateAccounts,
+      selectedDepositAccount,
       loadPrivateAccount,
       refreshPrivateAccount,
       loadImportedPPv1Accounts,

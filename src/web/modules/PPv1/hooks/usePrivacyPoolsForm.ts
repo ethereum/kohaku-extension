@@ -56,7 +56,8 @@ const usePrivacyPoolsForm = () => {
     setSelectedPoolAccount,
     generateWithdrawalProof,
     createWithdrawalSecrets,
-    createWithdrawalSecretsForImportedAccount
+    createWithdrawalSecretsForImportedAccount,
+    selectedDepositAccount
   } = usePrivacyPoolsControllerState()
 
   const { account: userAccount, portfolio } = useSelectedAccountControllerState()
@@ -284,7 +285,13 @@ const usePrivacyPoolsForm = () => {
   const handleDeposit = async () => {
     if (!depositAmount || !poolInfo) return
 
-    const secrets = createDepositSecrets(poolInfo.scope as Hash)
+    // Use the selected deposit account if available, otherwise fall back to default accountService
+    const depositAccountService = selectedDepositAccount?.accountService || accountService
+    if (!depositAccountService) {
+      throw new Error('No private account selected for deposit. Please select or create a private account.')
+    }
+
+    const secrets = depositAccountService.createDepositSecrets(poolInfo.scope as Hash)
 
     const data = encodeFunctionData({
       abi: entrypointAbi,
