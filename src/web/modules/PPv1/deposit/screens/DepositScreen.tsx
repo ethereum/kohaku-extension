@@ -13,6 +13,7 @@ import { ROUTES } from '@common/modules/router/constants/common'
 import useActivityControllerState from '@web/hooks/useActivityControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
+import useRailgunControllerState from '@web/hooks/useRailgunControllerState'
 import Estimation from '@web/modules/sign-account-op/components/OneClick/Estimation'
 import TrackProgress from '@web/modules/sign-account-op/components/OneClick/TrackProgress'
 import Completed from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/Completed'
@@ -37,7 +38,8 @@ function TransferScreen() {
   const { addToast } = useToast()
 
   const { accountsOps } = useActivityControllerState()
-  const { selectedToken } = usePrivacyPoolsControllerState()
+  const { selectedToken: privacyPoolsSelectedToken } = usePrivacyPoolsControllerState()
+  const { selectedToken: railgunSelectedToken, latestBroadcastedToken: railgunLatestBroadcastedToken } = useRailgunControllerState()
 
   const {
     chainId,
@@ -57,6 +59,17 @@ function TransferScreen() {
     loadPrivateAccount,
     privacyProvider
   } = useDepositForm()
+
+  // Get selectedToken from the appropriate controller based on privacy provider
+  // Use latestBroadcastedToken as fallback for railgun since selectedToken might be cleared after deposit
+  const selectedToken = useMemo(() => {
+    if (privacyProvider === 'railgun') {
+      // Prefer latestBroadcastedToken if available (set when deposit is broadcast)
+      // Otherwise fall back to selectedToken
+      return railgunLatestBroadcastedToken || railgunSelectedToken
+    }
+    return privacyPoolsSelectedToken
+  }, [privacyProvider, railgunSelectedToken, railgunLatestBroadcastedToken, privacyPoolsSelectedToken])
 
   const submittedAccountOp = useMemo(() => {
     if (!latestBroadcastedAccountOp?.signature) return
@@ -399,7 +412,11 @@ function TransferScreen() {
           submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce) && (
           <Completed
             title={t('Deposit complete!')}
-            titleSecondary={t('ETH deposited to privacy pool!')}
+            titleSecondary={t(
+              selectedToken?.symbol
+                ? `${selectedToken.symbol} deposited to privacy pool!`
+                : 'Token deposited to privacy pool!'
+            )}
             explorerLink={explorerLink}
             openExplorerText="View Deposit"
           />

@@ -304,7 +304,10 @@ const DepositForm = ({
   }
 
   useEffect(() => {
-    if (portfolio?.isReadyToVisualize && selectedAccountAddr) {
+    // Only auto-select ETH token if no token is currently selected
+    // This prevents resetting the token during background portfolio refreshes
+    // when the user has already selected a token (e.g., USDC)
+    if (portfolio?.isReadyToVisualize && selectedAccountAddr && !mySelectedToken) {
       const updatedToken = portfolio?.tokens.find(
         (token) => token.chainId === chainId && token.address === zeroAddress
       )
@@ -322,7 +325,8 @@ const DepositForm = ({
     portfolio?.tokens,
     chainId,
     handleUpdateForm,
-    selectedAccountPortfolio?.tokens
+    selectedAccountPortfolio?.tokens,
+    mySelectedToken
   ])
 
   useEffect(() => {

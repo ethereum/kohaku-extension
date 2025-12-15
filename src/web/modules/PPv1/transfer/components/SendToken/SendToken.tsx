@@ -166,7 +166,7 @@ const SendToken: FC<Props> = ({
                 disabled={maxAmountDisabled}
               />
             )}
-            {fromSelectedToken && fromSelectedToken.priceIn.length !== 0 ? (
+            {fromSelectedToken && fromSelectedToken.priceIn && fromSelectedToken.priceIn.length !== 0 ? (
               <Text
                 fontSize={12}
                 color={themeType === THEME_TYPES.DARK ? theme.linkText : theme.primary}

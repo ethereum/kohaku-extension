@@ -441,10 +441,11 @@ const TransferScreen = () => {
   const railgunAmountErrorMessage = useMemo(() => {
     if (!railgunWithdrawalAmount || railgunWithdrawalAmount.trim() === '') return ''
     if (!railgunSelectedToken) return ''
+    if (!railgunSelectedToken.address) return 'Token address not available'
 
     try {
       // Get the balance for the selected token
-      const tokenAddressLower = railgunSelectedToken.address?.toLowerCase()
+      const tokenAddressLower = railgunSelectedToken.address.toLowerCase()
       const balanceInfo = railgunTotalPrivateBalancesFormatted[tokenAddressLower]
 
       if (!balanceInfo) {
