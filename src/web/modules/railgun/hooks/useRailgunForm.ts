@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import { useCallback, useMemo, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
-import { formatEther, formatUnits, getAddress } from 'viem'
+import { formatEther, formatUnits, getAddress, parseUnits } from 'viem'
 import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
 import { Call } from '@ambire-common/libs/accountOp/types'
 import { randomId } from '@ambire-common/libs/humanizer/utils'
@@ -226,9 +226,79 @@ const useRailgunForm = () => {
     console.log('DEBUG: Chain ID:', chainId)
     console.log('DEBUG: User account:', userAccount?.addr)
     console.log('DEBUG: selectedToken:', selectedToken)
+    
+    // Validate required fields
+    if (!selectedToken) {
+      const errorMsg = 'No token selected. Please select a token before depositing.'
+      console.error('DEBUG:', errorMsg)
+      setMessage({ type: 'error', text: errorMsg })
+      return
+    }
+
+    if (!selectedToken.address) {
+      const errorMsg = 'Selected token is missing address. Please select a valid token.'
+      console.error('DEBUG:', errorMsg)
+      setMessage({ type: 'error', text: errorMsg })
+      return
+    }
+
+    if (!depositAmount || depositAmount === '0') {
+      const errorMsg = 'Deposit amount is required.'
+      console.error('DEBUG:', errorMsg)
+      setMessage({ type: 'error', text: errorMsg })
+      return
+    }
+
+    // Validate decimals are present
+    const tokenDecimals = selectedToken.decimals
+    if (tokenDecimals === undefined || tokenDecimals === null) {
+      const errorMsg = `Token ${selectedToken.symbol || 'unknown'} is missing decimals information. Cannot proceed with deposit.`
+      console.error('DEBUG:', errorMsg, selectedToken)
+      setMessage({ type: 'error', text: errorMsg })
+      return
+    }
+
+    // Determine if this is native ETH
+    const tokenAddressLower = selectedToken.address.toLowerCase()
+    const zeroAddressLower = ZERO_ADDRESS.toLowerCase()
+    const isEth = tokenAddressLower === zeroAddressLower
+    
+    // Sanity check: verify token address matches what we expect
+    if (isEth && tokenAddressLower !== zeroAddressLower) {
+      const errorMsg = `Token address mismatch: expected ETH (${ZERO_ADDRESS}) but got ${selectedToken.address}. Cannot proceed.`
+      console.error('DEBUG:', errorMsg)
+      setMessage({ type: 'error', text: errorMsg })
+      return
+    }
+
+    // Sanity check: ETH should have 18 decimals
+    if (isEth && tokenDecimals !== 18) {
+      const errorMsg = `Invalid decimals for ETH: expected 18 but got ${tokenDecimals}. This indicates a token configuration error.`
+      console.error('DEBUG:', errorMsg)
+      setMessage({ type: 'error', text: errorMsg })
+      return
+    }
+
+    // Parse deposit amount with correct decimals
+    let depositAmountBigInt: bigint
+    try {
+      depositAmountBigInt = parseUnits(depositAmount, tokenDecimals)
+      console.log('DEBUG: Parsed deposit amount:', depositAmountBigInt.toString(), 'with decimals:', tokenDecimals)
+    } catch (error: any) {
+      const errorMsg = `Failed to parse deposit amount "${depositAmount}" with ${tokenDecimals} decimals: ${error?.message || 'Unknown error'}`
+      console.error('DEBUG:', errorMsg, error)
+      setMessage({ type: 'error', text: errorMsg })
+      return
+    }
+
     if (!defaultRailgunKeys) {
-      console.log('DEBUG: No railgun keys found')
-    } else {
+      const errorMsg = 'No railgun keys found. Please ensure your account is properly set up.'
+      console.error('DEBUG:', errorMsg)
+      setMessage({ type: 'error', text: errorMsg })
+      return
+    }
+
+    try {
       const railgunAccount = await createRailgunAccount({
         credential: { type: 'key', spendingKey: defaultRailgunKeys?.spendingKey, viewingKey: defaultRailgunKeys?.viewingKey, ethKey: defaultRailgunKeys?.shieldKeySigner },
         indexer: await createRailgunIndexer({
@@ -236,28 +306,72 @@ const useRailgunForm = () => {
         }),
       });
 
-      console.log("try IsEth");
-      const isEth = selectedToken?.address ? selectedToken.address === ZERO_ADDRESS : true;
-      console.log("IsEth:", isEth)
-      const txData = isEth ? await railgunAccount?.shieldNative(BigInt(depositAmount)) : await railgunAccount?.shield(selectedToken.address, BigInt(depositAmount));
+      console.log("DEBUG: IsEth:", isEth)
+      console.log("DEBUG: Token address:", selectedToken.address)
+      console.log("DEBUG: Token decimals:", tokenDecimals)
+      console.log("DEBUG: Deposit amount (parsed):", depositAmountBigInt.toString())
 
-      console.log('DEBUG: isETH?', isEth)
+      // Create shield transaction
+      const txData = isEth 
+        ? await railgunAccount?.shieldNative(depositAmountBigInt)
+        : await railgunAccount?.shield(selectedToken.address, depositAmountBigInt);
+
+      if (!txData) {
+        const errorMsg = 'Failed to create shield transaction. Please try again.'
+        console.error('DEBUG:', errorMsg)
+        setMessage({ type: 'error', text: errorMsg })
+        return
+      }
+
       console.log('DEBUG: Created shield tx:', txData)
+      console.log('DEBUG: Shield tx to:', txData.to)
+
+      // Sanity check: verify the shield transaction is for the correct token
+      // For ERC20 tokens, the transaction value should be 0 (not native ETH)
+      if (!isEth) {
+        const txValue = BigInt(txData.value || '0')
+        if (txValue > 0n) {
+          const errorMsg = `Token mismatch detected: Selected ERC20 token ${selectedToken.symbol} (${selectedToken.address}) but shield transaction has non-zero ETH value (${txValue.toString()}). This suggests ETH is being used instead of the selected token. Aborting to prevent wrong token deposit.`
+          console.error('DEBUG:', errorMsg)
+          setMessage({ type: 'error', text: errorMsg })
+          return
+        }
+        
+        // Additional check: verify token address is not ETH address
+        if (selectedToken.address.toLowerCase() === ZERO_ADDRESS.toLowerCase()) {
+          const errorMsg = `Token configuration error: Selected token ${selectedToken.symbol} has ETH address (${ZERO_ADDRESS}) but is not marked as native ETH. Aborting.`
+          console.error('DEBUG:', errorMsg)
+          setMessage({ type: 'error', text: errorMsg })
+          return
+        }
+      } else {
+        // For ETH deposits, verify the value matches our deposit amount
+        const txValue = BigInt(txData.value || '0')
+        if (txValue !== depositAmountBigInt) {
+          const errorMsg = `Amount mismatch: Expected ${depositAmountBigInt.toString()} wei but shield transaction has ${txValue.toString()} wei. Aborting.`
+          console.error('DEBUG:', errorMsg)
+          setMessage({ type: 'error', text: errorMsg })
+          return
+        }
+      }
 
       let calls: Call[] = [];
       const requestId = randomId();
+      
       if (!isEth) {
+        // For ERC20 tokens, add approve call
         calls.push({
           to: getAddress(selectedToken.address),
-          data: ERC20.encodeFunctionData('approve', [txData.to, depositAmount]),
+          data: ERC20.encodeFunctionData('approve', [txData.to, depositAmountBigInt]),
           value: BigInt(0),
           fromUserRequestId: requestId
         })
       }
+      
       calls.push({
         to: getAddress(txData.to),
         data: txData.data,
-        value: isEth ? BigInt(txData.value) : BigInt(0),
+        value: isEth ? BigInt(txData.value || '0') : BigInt(0),
         fromUserRequestId: requestId
       })
 
@@ -265,6 +379,11 @@ const useRailgunForm = () => {
       console.log('DEBUG: About to open estimation modal')
       openEstimationModalAndDispatch()
       console.log('DEBUG: Estimation modal opened')
+      setMessage(null) // Clear any previous errors
+    } catch (error: any) {
+      const errorMsg = `Failed to create deposit transaction: ${error?.message || 'Unknown error'}`
+      console.error('DEBUG: Deposit error:', error)
+      setMessage({ type: 'error', text: errorMsg })
     }
   }
 
