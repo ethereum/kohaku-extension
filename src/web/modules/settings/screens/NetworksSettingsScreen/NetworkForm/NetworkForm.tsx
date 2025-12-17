@@ -173,6 +173,8 @@ const NetworkForm = ({
     defaultValues: {
       name: '',
       rpcUrl: '',
+      consensusRpcUrl: '',
+      heliosCheckpoint: '',
       chainId: '',
       nativeAssetSymbol: '',
       nativeAssetName: '',
@@ -184,6 +186,8 @@ const NetworkForm = ({
     values: {
       name: selectedNetwork?.name || '',
       rpcUrl: '',
+      consensusRpcUrl: selectedNetwork?.consensusRpcUrl || '',
+      heliosCheckpoint: selectedNetwork?.heliosCheckpoint || '',
       chainId: Number(selectedNetwork?.chainId) || '',
       nativeAssetSymbol: selectedNetwork?.nativeAssetSymbol || '',
       nativeAssetName: selectedNetwork?.nativeAssetName || '',
@@ -336,7 +340,7 @@ const NetworkForm = ({
     // when resetting the form.
     const subscription = watch(async (value, { name }) => {
       if (name && !value[name]) {
-        if (name !== 'rpcUrl') {
+        if (name !== 'rpcUrl' && name !== 'consensusRpcUrl' && name !== 'heliosCheckpoint') {
           setError(name, { type: 'custom-error', message: 'Field is required' })
           return
         }
@@ -404,6 +408,47 @@ const NetworkForm = ({
         clearErrors('explorerUrl')
       }
 
+      if (name === 'consensusRpcUrl') {
+        if (!value.consensusRpcUrl) {
+          clearErrors('consensusRpcUrl')
+          return
+        }
+
+        try {
+          const url = new URL(value.consensusRpcUrl)
+          if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+            setError('consensusRpcUrl', {
+              type: 'custom-error',
+              message: 'URL must start with http:// or https://'
+            })
+            return
+          }
+        } catch {
+          setError('consensusRpcUrl', { type: 'custom-error', message: 'Invalid URL' })
+          return
+        }
+        clearErrors('consensusRpcUrl')
+      }
+
+      if (name === 'heliosCheckpoint') {
+        if (!value.heliosCheckpoint) {
+          clearErrors('heliosCheckpoint')
+          return
+        }
+
+        // Validate that the checkpoint is a valid Ethereum block hash
+        const blockHashRegex = /^0x[0-9a-fA-F]{64}$/
+        if (!blockHashRegex.test(value.heliosCheckpoint)) {
+          setError('heliosCheckpoint', {
+            type: 'custom-error',
+            message: 'Must be a valid 32-byte hex string (0x followed by 64 hex characters)'
+          })
+          return
+        }
+
+        clearErrors('heliosCheckpoint')
+      }
+
       if (name === 'rpcUrl') {
         clearErrors('rpcUrl')
       }
@@ -444,8 +489,14 @@ const NetworkForm = ({
       if (selectedChainId === 'add-custom-network') {
         emptyFields = Object.keys(formFields).filter(
           (key) =>
-            !['rpcUrl', 'rpcUrls', 'coingeckoPlatformId', 'coingeckoNativeAssetId'].includes(key) &&
-            !formFields[key].length
+            ![
+              'rpcUrl',
+              'rpcUrls',
+              'coingeckoPlatformId',
+              'coingeckoNativeAssetId',
+              'consensusRpcUrl',
+              'heliosCheckpoint'
+            ].includes(key) && !formFields[key].length
         )
       } else {
         emptyFields = Object.keys(formFields).filter(
@@ -478,7 +529,8 @@ const NetworkForm = ({
             selectedRpcUrl,
             chainId: BigInt(networkFormValues.chainId),
             iconUrls: [],
-            useHelios: networkFormValues.useHelios
+            useHelios: networkFormValues.useHelios,
+            heliosCheckpoint: networkFormValues.heliosCheckpoint
           }
         })
       } else {
@@ -489,7 +541,9 @@ const NetworkForm = ({
               rpcUrls,
               selectedRpcUrl,
               explorerUrl: networkFormValues.explorerUrl,
-              useHelios: networkFormValues.useHelios
+              consensusRpcUrl: networkFormValues.consensusRpcUrl,
+              useHelios: networkFormValues.useHelios,
+              heliosCheckpoint: networkFormValues.heliosCheckpoint
             },
             chainId: BigInt(networkFormValues.chainId)
           }
@@ -663,7 +717,7 @@ const NetworkForm = ({
                       inputWrapperStyle={{ height: 40 }}
                       inputStyle={{ height: 40 }}
                       containerStyle={{ ...spacings.mb, ...spacings.mrTy, flex: 1 }}
-                      label={t('RPC URL')}
+                      label={t('Execution RPC URL')}
                       error={handleErrors(errors.rpcUrl)}
                     />
                     <View style={{ paddingTop: 27 }}>
@@ -691,7 +745,7 @@ const NetworkForm = ({
               />
 
               <Text appearance="secondaryText" fontSize={14} weight="regular" style={spacings.mbMi}>
-                {t('Select default RPC URL')}
+                {t('Select default execution RPC URL')}
               </Text>
               <ScrollableWrapper
                 style={styles.rpcUrlsContainer}
@@ -733,6 +787,42 @@ const NetworkForm = ({
                   </View>
                 )}
               </ScrollableWrapper>
+              <View style={[flexbox.flex1]}>
+                <Controller
+                  control={control}
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <Input
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      value={value}
+                      inputWrapperStyle={{ height: 40 }}
+                      inputStyle={{ height: 40 }}
+                      containerStyle={{ ...spacings.mb, flex: 1 }}
+                      label={t('Consensus RPC URL')}
+                      error={handleErrors(errors.consensusRpcUrl)}
+                    />
+                  )}
+                  name="consensusRpcUrl"
+                />
+              </View>
+              <View style={[flexbox.flex1]}>
+                <Controller
+                  control={control}
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <Input
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      value={value}
+                      inputWrapperStyle={{ height: 40 }}
+                      inputStyle={{ height: 40 }}
+                      containerStyle={{ ...spacings.mb, flex: 1 }}
+                      label={t('Weak subjectivity checkpoint')}
+                      error={handleErrors(errors.heliosCheckpoint)}
+                    />
+                  )}
+                  name="heliosCheckpoint"
+                />
+              </View>
               <View style={[flexbox.directionRow, flexbox.alignStart]}>
                 <Controller
                   control={control}
