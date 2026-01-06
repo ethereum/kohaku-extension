@@ -1,13 +1,15 @@
 import React, { FC, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Animated, Pressable, View } from 'react-native'
+import { Pressable, View } from 'react-native'
 
 import { Account as AccountInterface } from '@ambire-common/interfaces/account'
 import { getDappIdFromUrl } from '@ambire-common/libs/dapps/helpers'
 import Button from '@common/components/Button'
-import Checkbox from '@common/components/Checkbox'
 import Text from '@common/components/Text'
+import useTheme from '@common/hooks/useTheme'
 import spacings from '@common/styles/spacings'
+import common from '@common/styles/utils/common'
+import flexbox from '@common/styles/utils/flexbox'
 import useAccountPickerControllerState from '@web/hooks/useAccountPickerControllerState'
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
@@ -18,8 +20,6 @@ interface Props {
     responsiveSizeMultiplier: number
     selectedAccount: string | null
     setSelectedAccount: React.Dispatch<React.SetStateAction<string | null>>
-    saveDappAccountPreference: boolean
-    setSaveDappAccountPreference: React.Dispatch<React.SetStateAction<boolean>>
     onFullscreen?: (fullscreen: boolean) => void
     origin?: string
 }
@@ -30,71 +30,96 @@ interface AccountOptionProps {
     onSelect: () => void
 }
 
-interface SeedPhraseOptionProps {
+interface SeedPhraseGroupProps {
     label: string
-    isSelected: boolean
-    onSelect: () => void
+    seedId: string
+    onAddAccount: (seedId: string) => void
+    accounts?: AccountInterface[]
+    selectedAccount?: string | null
+    onSelectAccount?: (accountAddr: string) => void
 }
 
 interface AccountSelectorProps {
-    responsiveSizeMultiplier: number
     setSelectedAccount: (accountAddr: string) => void
     selectedAccount: string | null
-    saveDappAccountPreference: boolean
-    setSaveDappAccountPreference: React.Dispatch<React.SetStateAction<boolean>>
     onFullscreen?: (fullscreen: boolean) => void
-    onNewAccount: () => void
+    onNewAccount: (seedId: string) => void
     dappId?: string
 }
-``
-interface SeedPhraseSelectorProps {
-    onCancel: () => void
-    onSelect: (seedId: string) => void
+
+interface AccountGroup {
+    label: string
+    seedId?: string
+    accounts: AccountInterface[]
 }
 
-const AccountOption: FC<AccountOptionProps> = ({ account, isSelected, onSelect }) => {
-    const onAccountSelect = () => {
-        onSelect()
-    }
-
+const AccountOption: FC<AccountOptionProps> = ({ account, onSelect }) => {
     return (
-        <Pressable onPress={onAccountSelect}>
-            <Animated.View style={[isSelected && { backgroundColor: '#E0E0E0' }]}>
-                <Account
-                    account={account}
-                    isSelectable={false}
-                    withSettings={false}
-                />
-            </Animated.View>
-        </Pressable>
+        <Account
+            account={account}
+            withSettings={false}
+            withKeyType={false}
+            onSelect={(addr) => onSelect()}
+            maxAccountAddrLength={30}
+        />
     )
 }
 
-const SeedPhraseOption: FC<SeedPhraseOptionProps> = ({ label, isSelected, onSelect }) => {
+const SeedPhraseGroup: FC<SeedPhraseGroupProps> = ({
+    label,
+    seedId,
+    onAddAccount,
+    accounts,
+    selectedAccount,
+    onSelectAccount
+}) => {
+    const { theme } = useTheme()
+
     return (
-        <Pressable onPress={onSelect}>
-            <Animated.View style={[
-                { padding: 12, borderRadius: 8 },
-                isSelected && { backgroundColor: '#E0E0E0' }
-            ]}>
-                <Text weight="medium" numberOfLines={1}>{label}</Text>
-            </Animated.View>
-        </Pressable>
+        <View style={spacings.mbTy}>
+            <View
+                style={[
+                    flexbox.directionRow,
+                    flexbox.alignCenter,
+                    flexbox.justifySpaceBetween,
+                ]}
+            >
+                <Text weight="medium" appearance="secondaryText" numberOfLines={1} style={flexbox.flex1}>
+                    {label}
+                </Text>
+                <Pressable onPress={() => onAddAccount(seedId)} style={spacings.mlTy}>
+                    <Text fontSize={24} weight="medium" appearance="secondaryText" style={{ color: theme.primary }}>
+                        +
+                    </Text>
+                </Pressable>
+            </View>
+            {accounts && accounts.length > 0 && onSelectAccount && (
+                <View style={spacings.mtTy}>
+                    {accounts.map((account) => (
+                        <AccountOption
+                            key={account.addr}
+                            account={account}
+                            isSelected={selectedAccount === account.addr}
+                            onSelect={() => onSelectAccount(account.addr)}
+                        />
+                    ))}
+                </View>
+            )}
+        </View>
     )
 }
 
 const AccountSelector: FC<AccountSelectorProps> = ({
-    responsiveSizeMultiplier,
     setSelectedAccount,
     selectedAccount,
-    saveDappAccountPreference,
-    setSaveDappAccountPreference,
     onFullscreen,
     onNewAccount,
-    dappId
+    dappId,
 }) => {
     const { t } = useTranslation()
     const { accounts } = useAccountsControllerState()
+    const { keys, seeds } = useKeystoreControllerState()
+
     const [fullscreen, setFullscreen] = React.useState(false)
 
     const onPressAllAccounts = () => {
@@ -105,21 +130,55 @@ const AccountSelector: FC<AccountSelectorProps> = ({
 
     const recommendedAccounts = useMemo(() => {
         if (!dappId) return []
-        return accounts.filter(acc => acc.associatedDappIDs?.includes(dappId)) || []
+        const recommended = accounts.filter(acc => acc.associatedDappIDs?.includes(dappId)) || [];
+
+        if (recommended.length === 1) {
+            setSelectedAccount(recommended[0].addr)
+        }
+
+        return recommended
     }, [accounts, dappId])
 
-    const remainingAccounts = useMemo(() => {
-        return accounts.filter(acc => !recommendedAccounts?.includes(acc))
-    }, [accounts, recommendedAccounts])
+    const groupedAccounts = useMemo(() => {
+        const accountGroups: AccountGroup[] = []
+
+        accounts.forEach((acc) => {
+            if (recommendedAccounts.find(a => a.addr === acc.addr)) return
+
+            const associatedKeys = acc.associatedKeys;
+            const key = keys.find(k => associatedKeys.includes(k.addr))
+            if (!key) return
+
+            let label;
+            let seedId;
+            if (key.type === 'internal') {
+                const seed = seeds.find(s => s.id === key.meta.fromSeedId)
+                if (!seed) return
+                label = seed.label
+                seedId = seed.id
+            } else {
+                label = `${key.type}-${key.meta.deviceId}`
+            }
+
+            let group = accountGroups.find(g => g.label === label)
+            if (!group) {
+                group = { label, seedId, accounts: [] }
+                accountGroups.push(group)
+            }
+            group.accounts.push(acc)
+        });
+
+        return accountGroups
+    }, [accounts, keys, seeds, recommendedAccounts])
+
+    const seedPhraseGroups = useMemo(() => {
+        return groupedAccounts.filter(group => group.seedId)
+    }, [groupedAccounts])
 
     return (
         <View>
-            <Text fontSize={16} weight="medium" style={spacings.mbSm}>
-                {t('Select account to connect:')}
-            </Text>
-
             {recommendedAccounts.length > 0 && (
-                <View style={{ marginBottom: responsiveSizeMultiplier * 16 }}>
+                <View style={spacings.mb}>
                     {recommendedAccounts.map((account) => (
                         <AccountOption
                             key={account.addr}
@@ -131,42 +190,60 @@ const AccountSelector: FC<AccountSelectorProps> = ({
                 </View>
             )}
 
-            {fullscreen && (
+            {recommendedAccounts.length === 0 && !fullscreen && (
                 <View>
-                    {remainingAccounts.map((account) => (
-                        <AccountOption
-                            key={account.addr}
-                            account={account}
-                            isSelected={selectedAccount === account.addr}
-                            onSelect={() => setSelectedAccount(account.addr)}
+                    <Text weight="medium" appearance="primaryText" numberOfLines={1} style={spacings.mbSm}>
+                        {t('Create a new account:')}
+                    </Text>
+                    {seedPhraseGroups.map((group) => (
+                        <SeedPhraseGroup
+                            key={group.seedId}
+                            label={group.label}
+                            seedId={group.seedId!}
+                            onAddAccount={onNewAccount}
                         />
                     ))}
                 </View>
             )}
 
-            <View style={{ flexDirection: 'row', justifyContent: 'space-evenly', marginBottom: 16 }}>
-                {recommendedAccounts.length == 0 && !fullscreen && (
-                    <Button
-                        type="secondary"
-                        size="small"
-                        text="New Account"
-                        onPress={onNewAccount}
-                        style={{ flex: 1, marginHorizontal: 4 }}
-                    />
-                )}
-                {fullscreen && (
-                    <Checkbox
-                        label={t('Save Preference')}
-                        value={saveDappAccountPreference}
-                        onValueChange={setSaveDappAccountPreference}
-                        style={{ flex: 1, marginHorizontal: 4 }}
-                    />
-                )}
+            {fullscreen && (
+                <View>
+                    {groupedAccounts.map((group) => (
+                        group.seedId ? (
+                            <SeedPhraseGroup
+                                key={group.label}
+                                label={group.label}
+                                seedId={group.seedId}
+                                onAddAccount={onNewAccount}
+                                accounts={group.accounts}
+                                selectedAccount={selectedAccount}
+                                onSelectAccount={setSelectedAccount}
+                            />
+                        ) : (
+                            <View key={group.label} style={spacings.mbTy}>
+                                <Text weight="medium" appearance="secondaryText" numberOfLines={1} style={spacings.mbSm}>
+                                    {group.label}
+                                </Text>
+                                {group.accounts.map((account) => (
+                                    <AccountOption
+                                        key={account.addr}
+                                        account={account}
+                                        isSelected={selectedAccount === account.addr}
+                                        onSelect={() => setSelectedAccount(account.addr)}
+                                    />
+                                ))}
+                            </View>
+                        )
+                    ))}
+                </View>
+            )}
+
+            <View style={[flexbox.directionRow, spacings.mb]}>
                 <Button
                     type="secondary"
                     size="small"
                     text={fullscreen ? t('View Dapp Accounts') : t('View All Accounts')}
-                    style={{ flex: 1, marginHorizontal: 4 }}
+                    style={[flexbox.flex1, spacings.mhMi]}
                     onPress={onPressAllAccounts}
                 />
             </View>
@@ -174,65 +251,15 @@ const AccountSelector: FC<AccountSelectorProps> = ({
     )
 }
 
-const SeedPhraseSelector: FC<SeedPhraseSelectorProps> = ({
-    onCancel,
-    onSelect,
-}) => {
-    const { t } = useTranslation()
-    const { seeds } = useKeystoreControllerState()
-    const [selectedSeedId, setSelectedSeedId] = React.useState<string | null>(null)
-    return (
-        <View>
-            <Text fontSize={16} weight="medium" style={spacings.mbSm}>
-                {t('Add from stored recovery phrases:')}
-            </Text>
-
-            <View style={{ marginBottom: 16 }}>
-                {seeds.map((seed) => (
-                    <SeedPhraseOption
-                        key={seed.id}
-                        label={seed.label}
-                        isSelected={selectedSeedId === seed.id}
-                        onSelect={() => setSelectedSeedId(seed.id)}
-                    />
-                ))}
-            </View>
-
-            <View style={{ flexDirection: 'row', justifyContent: 'space-evenly', marginBottom: 16 }}>
-                <Button
-                    type="secondary"
-                    size="small"
-                    text={t('Cancel')}
-                    onPress={onCancel}
-                    style={{ flex: 1, marginHorizontal: 4 }}
-                />
-                <Button
-                    type="primary"
-                    size="small"
-                    text={t('Confirm Selection')}
-                    onPress={() => onSelect(selectedSeedId!)}
-                    disabled={!selectedSeedId}
-                    style={{ flex: 1, marginHorizontal: 4 }}
-                />
-            </View>
-
-        </View>
-    )
-}
-
 const DappAccountSelector: FC<Props> = ({
-    responsiveSizeMultiplier,
     selectedAccount,
     setSelectedAccount,
-    saveDappAccountPreference,
-    setSaveDappAccountPreference,
     onFullscreen,
     origin
 }) => {
     const { accounts } = useAccountsControllerState()
     const { subType, initParams } = useAccountPickerControllerState()
     const { dispatch } = useBackgroundService()
-    const [selectSeedPhraseModal, setSelectSeedPhraseModal] = React.useState(false)
     const [seedId, setSeedId] = React.useState<string | null>(null)
     const [accountPickerInitialized, setAccountPickerInitialized] = React.useState(false)
     const newlyAddedAccounts = useMemo(() => accounts.filter(acc => acc.newlyAdded), [accounts])
@@ -248,7 +275,6 @@ const DappAccountSelector: FC<Props> = ({
         })
 
         setSeedId(null)
-        setSelectSeedPhraseModal(false)
     }, [seedId, dispatch])
 
     // Trigger initialization of the new account
@@ -294,27 +320,16 @@ const DappAccountSelector: FC<Props> = ({
         dispatch({ type: 'MAIN_CONTROLLER_ACCOUNT_PICKER_RESET' })
     }, [newlyAddedAccounts, dispatch])
 
-    if (selectSeedPhraseModal) {
-        return (
-            <SeedPhraseSelector
-                onCancel={() => setSelectSeedPhraseModal(false)}
-                onSelect={(id: string) => {
-                    setSeedId(id)
-                    setSelectSeedPhraseModal(false)
-                }}
-            />
-        )
+    const handleNewAccount = (seedId: string) => {
+        setSeedId(seedId)
     }
 
     return (
         <AccountSelector
-            responsiveSizeMultiplier={responsiveSizeMultiplier}
             setSelectedAccount={setSelectedAccount}
             selectedAccount={selectedAccount}
-            setSaveDappAccountPreference={setSaveDappAccountPreference}
-            saveDappAccountPreference={saveDappAccountPreference}
             onFullscreen={onFullscreen}
-            onNewAccount={() => setSelectSeedPhraseModal(true)}
+            onNewAccount={handleNewAccount}
             dappId={dappId}
         />
     )

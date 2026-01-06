@@ -23,8 +23,6 @@ const DAppConnectBody: FC<{
   setConfirmedRiskCheckbox: React.Dispatch<React.SetStateAction<boolean>>
   selectedAccount: string | null
   setSelectedAccount: React.Dispatch<React.SetStateAction<string | null>>
-  saveDappAccountPreference: boolean
-  setSaveDappAccountPreference: React.Dispatch<React.SetStateAction<boolean>>
   responsiveSizeMultiplier: number
   securityCheck: 'BLACKLISTED' | 'NOT_BLACKLISTED' | 'LOADING'
   origin?: string
@@ -33,8 +31,6 @@ const DAppConnectBody: FC<{
   setConfirmedRiskCheckbox,
   selectedAccount,
   setSelectedAccount,
-  saveDappAccountPreference,
-  setSaveDappAccountPreference,
   securityCheck,
   responsiveSizeMultiplier,
   origin
@@ -134,8 +130,6 @@ const DAppConnectBody: FC<{
         <DAppAccountSelector
           selectedAccount={selectedAccount}
           setSelectedAccount={setSelectedAccount}
-          saveDappAccountPreference={saveDappAccountPreference}
-          setSaveDappAccountPreference={setSaveDappAccountPreference}
           responsiveSizeMultiplier={responsiveSizeMultiplier}
           onFullscreen={setFullscreenDappAccounts}
           origin={origin}
