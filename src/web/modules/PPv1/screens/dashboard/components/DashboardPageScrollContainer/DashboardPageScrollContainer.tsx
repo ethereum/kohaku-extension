@@ -8,6 +8,7 @@ import commonWebStyles from '@web/styles/utils/common'
 import { getUiType } from '@web/utils/uiType'
 
 import useBanners from '../../hooks/useBanners'
+import DashboardBanners from '../DashboardBanners'
 import { TabType } from '../TabsAndSearch/Tabs/Tab/Tab'
 
 interface Props extends FlatListProps<any> {
@@ -110,6 +111,7 @@ const DashboardPageScrollContainer: FC<Props> = ({
       bounces={false}
       alwaysBounceVertical={false}
       onContentSizeChange={handleContentSizeChange}
+      ListHeaderComponent={<DashboardBanners />}
       {...rest}
     />
   )

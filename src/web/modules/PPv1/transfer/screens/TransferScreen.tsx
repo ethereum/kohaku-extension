@@ -44,6 +44,7 @@ const { isActionWindow } = getUiType()
 
 const TransferScreen = () => {
   const hasRefreshedAccountRef = useRef(false)
+  const previousTabRef = useRef<TransferTabType>('privacy-pools')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [activeTab, setActiveTab] = useState<TransferTabType>('privacy-pools')
   const { dispatch } = useBackgroundService()
@@ -211,15 +212,13 @@ const TransferScreen = () => {
       navigate(ROUTES.pp1Home)
     }
 
-    if (activeTab === 'railgun') {
-      dispatch({
-        type: 'RAILGUN_CONTROLLER_RESET_FORM'
-      })
-    } else {
-      dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
-      })
-    }
+
+    dispatch({
+      type: 'RAILGUN_CONTROLLER_RESET_FORM'
+    })
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
+    })
   }, [dispatch, navigate, activeTab])
 
   // Determine which latestBroadcastedAccountOp to use based on active tab
@@ -240,15 +239,29 @@ const TransferScreen = () => {
     navigateOut
   })
 
+  // Helper to check if the submittedAccountOp matches the expected withdrawal type
+  const isMatchingWithdrawal = useMemo(() => {
+    if (!submittedAccountOp) return false
+    
+    const metaAny = submittedAccountOp.meta as any
+    if (activeTab === 'railgun') {
+      // For Railgun, must have isRailgunWithdrawal meta tag
+      return !!metaAny?.isRailgunWithdrawal
+    } else {
+      // For Privacy Pools, must have isPrivacyPoolsWithdrawal meta tag
+      return !!metaAny?.isPrivacyPoolsWithdrawal
+    }
+  }, [submittedAccountOp, activeTab])
+
   const explorerLink = useMemo(() => {
-    if (!submittedAccountOp) return
+    if (!submittedAccountOp || !isMatchingWithdrawal) return
 
     const { chainId: submittedChainId, identifiedBy, txnId } = submittedAccountOp
 
     if (!submittedChainId || !identifiedBy || !txnId) return
 
     return `https://sepolia.etherscan.io/tx/${txnId}`
-  }, [submittedAccountOp])
+  }, [submittedAccountOp, isMatchingWithdrawal])
 
   useEffect(() => {
     if (
@@ -283,6 +296,16 @@ const TransferScreen = () => {
       })
     }
   }, [dispatch])
+
+  // Destroy latest account op for railgun when navigating to railgun tab (switching from privacy pools)
+  useEffect(() => {
+    if (activeTab === 'railgun' && previousTabRef.current === 'privacy-pools') {
+      dispatch({
+        type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+      })
+    }
+    previousTabRef.current = activeTab
+  }, [activeTab, dispatch])
 
   // Used to resolve ENS, not to update the field value
   const setAddressState = useCallback(
@@ -515,15 +538,12 @@ const TransferScreen = () => {
   ])
 
   const onBack = useCallback(() => {
-    if (activeTab === 'privacy-pools') {
-      dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
-      })
-    } else {
-      dispatch({
-        type: 'RAILGUN_CONTROLLER_RESET_FORM'
-      })
-    }
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
+    })
+    dispatch({
+      type: 'RAILGUN_CONTROLLER_RESET_FORM'
+    })
     navigate(ROUTES.pp1Home)
   }, [navigate, dispatch, activeTab])
 
@@ -553,15 +573,12 @@ const TransferScreen = () => {
       })
 
       // Clean up state before navigating - use the appropriate controller based on active tab
-      if (activeTab === 'railgun') {
-        dispatch({
-          type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-        })
-      } else {
-        dispatch({
-          type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-        })
-      }
+      dispatch({
+        type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+      })
+      dispatch({
+        type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+      })
 
       // Reset hasProceeded for both controllers
       // to prevent double-click issue when withdrawing again
@@ -651,6 +668,12 @@ const TransferScreen = () => {
         setIsSubmitting(false)
         return
       }
+
+      // Clear any old transaction state before submitting a new transaction
+      // This ensures old "Private Transfer Done!" states don't persist when starting a new withdrawal
+      dispatch({
+        type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+      })
 
       const { account, indexer } = accountData
       console.log('Railgun account instance ready:', { account, indexer })
@@ -750,12 +773,6 @@ const TransferScreen = () => {
         })
         return
       }
-
-      // Clear any old transaction state before submitting a new transaction
-      // This ensures old "Private Transfer Done!" states don't persist when starting a new withdrawal
-      dispatch({
-        type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-      })
 
       // Submit transaction directly to relayer (no estimation modal)
       // The controller will set latestBroadcastedAccountOp immediately, causing UI to show track screen
@@ -910,16 +927,12 @@ const TransferScreen = () => {
       <TrackProgress
         onPrimaryButtonPress={handlePrimaryButtonPress}
         handleClose={() => {
-          // Clean up the appropriate controller based on active tab
-          if (activeTab === 'railgun') {
-            dispatch({
-              type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-            })
-          } else {
-            dispatch({
-              type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-            })
-          }
+          dispatch({
+            type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+          })
+          dispatch({
+            type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+          })
 
           // Reset hasProceeded for both controllers
           // to prevent double-click issue when withdrawing again
@@ -940,7 +953,10 @@ const TransferScreen = () => {
         }}
       >
         {(submittedAccountOp?.status === AccountOpStatus.BroadcastedButNotConfirmed ||
-          (!submittedAccountOp?.status && currentLatestBroadcastedAccountOp)) && (
+          (!submittedAccountOp?.status && currentLatestBroadcastedAccountOp) ||
+          ((submittedAccountOp?.status === AccountOpStatus.Success ||
+            submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce) &&
+            !isMatchingWithdrawal)) && (
           <InProgress
             title={
               activeTab === 'railgun'
@@ -956,7 +972,8 @@ const TransferScreen = () => {
           </InProgress>
         )}
         {(submittedAccountOp?.status === AccountOpStatus.Success ||
-          submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce) && (
+          submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce) &&
+          isMatchingWithdrawal && (
           <Completed
             title={
               activeTab === 'railgun' &&
