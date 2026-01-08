@@ -107,16 +107,12 @@ function TransferScreen() {
       navigate(ROUTES.dashboard)
     }
 
-    // Unload the appropriate controller based on privacy provider
-    if (privacyProvider === 'railgun') {
-      dispatch({
-        type: 'RAILGUN_CONTROLLER_UNLOAD_SCREEN'
-      })
-    } else {
-      dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN'
-      })
-    }
+    dispatch({
+      type: 'RAILGUN_CONTROLLER_UNLOAD_SCREEN'
+    })
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN'
+    })
   }, [dispatch, navigate, privacyProvider])
 
   // Use 'transfer' sessionId for Railgun, 'privacyPools' for Privacy Pools
@@ -132,15 +128,28 @@ function TransferScreen() {
     navigateOut
   })
 
+  // Helper to check if the submittedAccountOp matches a deposit (not a withdrawal)
+  const isMatchingDeposit = useMemo(() => {
+    if (!submittedAccountOp) return false
+    
+    const metaAny = submittedAccountOp.meta as any
+    // Withdrawals have meta.isRailgunWithdrawal or meta.isPrivacyPoolsWithdrawal
+    // If it has withdrawal meta tags, it's not a deposit
+    if (metaAny?.isRailgunWithdrawal || metaAny?.isPrivacyPoolsWithdrawal) {
+      return false
+    }
+    return true
+  }, [submittedAccountOp])
+
   const explorerLink = useMemo(() => {
-    if (!submittedAccountOp) return
+    if (!submittedAccountOp || !isMatchingDeposit) return
 
     const { chainId: submittedChainId, identifiedBy, txnId } = submittedAccountOp
 
     if (!submittedChainId || !identifiedBy || !txnId) return
 
     return `https://sepolia.etherscan.io/tx/${txnId}`
-  }, [submittedAccountOp])
+  }, [submittedAccountOp, isMatchingDeposit])
 
   useEffect(() => {
     // Optimization: Don't apply filtration if we don't have a recent broadcasted account op
@@ -273,6 +282,9 @@ function TransferScreen() {
     dispatch({
       type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
     })
+    dispatch({
+      type: 'RAILGUN_CONTROLLER_RESET_FORM'
+    })
 
     navigate(ROUTES.dashboard)
 
@@ -335,16 +347,12 @@ function TransferScreen() {
         }
       })
 
-      // Clean up state before navigating - use the appropriate controller based on provider
-      if (privacyProvider === 'railgun') {
-        dispatch({
-          type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-        })
-      } else {
-        dispatch({
-          type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-        })
-      }
+      dispatch({
+        type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+      })
+      dispatch({
+        type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+      })
 
       // Reset hasProceeded for the currently selected controller
       // to prevent double-click issue when depositing again
@@ -374,16 +382,12 @@ function TransferScreen() {
       <TrackProgress
         onPrimaryButtonPress={handlePrimaryButtonPress}
         handleClose={() => {
-          // Clean up the appropriate controller based on provider
-          if (privacyProvider === 'railgun') {
-            dispatch({
-              type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-            })
-          } else {
-            dispatch({
-              type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-            })
-          }
+          dispatch({
+            type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+          })
+          dispatch({
+            type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+          })
 
           // Reset hasProceeded for the currently selected controller
           // to prevent double-click issue when depositing again
@@ -401,7 +405,10 @@ function TransferScreen() {
           })
         }}
       >
-        {submittedAccountOp?.status === AccountOpStatus.BroadcastedButNotConfirmed && (
+        {(submittedAccountOp?.status === AccountOpStatus.BroadcastedButNotConfirmed ||
+          ((submittedAccountOp?.status === AccountOpStatus.Success ||
+            submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce) &&
+            !isMatchingDeposit)) && (
           <InProgress title={t('Confirming your deposit')}>
             <Text fontSize={16} weight="medium" appearance="secondaryText">
               {t('Almost there!')}
@@ -409,7 +416,8 @@ function TransferScreen() {
           </InProgress>
         )}
         {(submittedAccountOp?.status === AccountOpStatus.Success ||
-          submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce) && (
+          submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce) &&
+          isMatchingDeposit && (
           <Completed
             title={t('Deposit complete!')}
             titleSecondary={t(
