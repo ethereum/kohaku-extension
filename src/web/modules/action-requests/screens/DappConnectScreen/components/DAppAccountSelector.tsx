@@ -9,6 +9,7 @@ import Button from '@common/components/Button'
 import Text from '@common/components/Text'
 import useTheme from '@common/hooks/useTheme'
 import spacings from '@common/styles/spacings'
+import common from '@common/styles/utils/common'
 import flexbox from '@common/styles/utils/flexbox'
 import useAccountPickerControllerState from '@web/hooks/useAccountPickerControllerState'
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
@@ -57,6 +58,7 @@ const SeedPhraseGroup: FC<{
     onSelectAccount
 }) => {
         const { theme } = useTheme()
+        const [hovered, setHovered] = React.useState(false)
 
         return (
             <View style={spacings.mbTy}>
@@ -70,8 +72,13 @@ const SeedPhraseGroup: FC<{
                     <Text weight="medium" appearance="secondaryText" numberOfLines={1} style={flexbox.flex1}>
                         {label}
                     </Text>
-                    <Pressable onPress={() => onAddAccount(seedId)} style={spacings.mlTy}>
-                        <Text fontSize={24} weight="medium" appearance="secondaryText" style={{ color: theme.primary }}>
+                    <Pressable
+                        onPress={() => onAddAccount(seedId)}
+                        onHoverIn={() => setHovered(true)}
+                        onHoverOut={() => setHovered(false)}
+                        style={[spacings.mhTy, common.borderRadiusPrimary, spacings.pvTy, spacings.phTy, hovered && { backgroundColor: theme.secondaryBackground }]}
+                    >
+                        <Text fontSize={24} weight="medium" appearance="secondaryText" style={{ color: theme.primary, lineHeight: 24, includeFontPadding: false }}>
                             +
                         </Text>
                     </Pressable>
