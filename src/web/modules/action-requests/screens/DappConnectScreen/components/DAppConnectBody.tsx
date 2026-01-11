@@ -21,20 +21,14 @@ import DAppPermissions from './DAppPermissions'
 const DAppConnectBody: FC<{
   confirmedRiskCheckbox: boolean
   setConfirmedRiskCheckbox: React.Dispatch<React.SetStateAction<boolean>>
-  selectedAccount: string | null
   setSelectedAccount: React.Dispatch<React.SetStateAction<string | null>>
-  saveDappAccountPreference: boolean
-  setSaveDappAccountPreference: React.Dispatch<React.SetStateAction<boolean>>
   responsiveSizeMultiplier: number
   securityCheck: 'BLACKLISTED' | 'NOT_BLACKLISTED' | 'LOADING'
   origin?: string
 }> = ({
   confirmedRiskCheckbox,
   setConfirmedRiskCheckbox,
-  selectedAccount,
   setSelectedAccount,
-  saveDappAccountPreference,
-  setSaveDappAccountPreference,
   securityCheck,
   responsiveSizeMultiplier,
   origin
@@ -56,7 +50,7 @@ const DAppConnectBody: FC<{
     }, [setConfirmedRiskCheckbox])
 
     return (
-      <View style={[styles.contentBody, spacingsStyle]}>
+      <View style={[styles.contentBody, spacingsStyle, { flex: 1 }]}>
         {!fullscreenDappAccounts && (<>
           <View
             style={[
@@ -132,11 +126,7 @@ const DAppConnectBody: FC<{
           <DAppPermissions responsiveSizeMultiplier={responsiveSizeMultiplier} />
         </>)}
         <DAppAccountSelector
-          selectedAccount={selectedAccount}
           setSelectedAccount={setSelectedAccount}
-          saveDappAccountPreference={saveDappAccountPreference}
-          setSaveDappAccountPreference={setSaveDappAccountPreference}
-          responsiveSizeMultiplier={responsiveSizeMultiplier}
           onFullscreen={setFullscreenDappAccounts}
           origin={origin}
         />
