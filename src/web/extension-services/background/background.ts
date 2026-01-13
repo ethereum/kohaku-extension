@@ -98,6 +98,66 @@ const debugLogs: {
   value: object
 }[] = []
 
+type PrivacySetting = {
+  set: ((details: { value: any }) => Promise<void>) | ((details: { value: any }, callback: () => void) => void)
+}
+
+// Chrome exposes the same APIs under the global `chrome` namespace instead of the standard `browser` polyfill.
+const getChromeApi = () => (globalThis as any)?.chrome
+
+// Normalise privacy API usage across Chrome/Firefox where the same setter may be promise- or callback-based.
+const setPrivacySetting = async (setting: PrivacySetting | undefined, value: any, label: string) => {
+  if (!setting || typeof setting.set !== 'function') return
+
+  try {
+    if (setting.set.length > 1) {
+      await new Promise<void>((resolve, reject) => {
+        try {
+          ;(setting.set as (details: { value: any }, callback: () => void) => void)(
+            { value },
+            () => {
+              const lastError = getChromeApi()?.runtime?.lastError
+              if (lastError) {
+                reject(new Error(lastError.message))
+                return
+              }
+              resolve()
+            }
+          )
+        } catch (error) {
+          reject(error)
+        }
+      })
+      return
+    }
+
+    await (setting.set as (details: { value: any }) => Promise<void>)({ value })
+  } catch (error) {
+    console.warn(`Failed to set privacy setting ${label}`, error)
+  }
+}
+
+// Force WebRTC to keep traffic off the local interfaces so IPs do not leak when privacy mode is on.
+const hardenWebRtcPrivacy = async () => {
+  try {
+    const privacy = (browser?.privacy ?? getChromeApi()?.privacy) as any
+    if (!privacy?.network) return
+
+    const tasks: Promise<void>[] = []
+    const register = (setting: PrivacySetting | undefined, value: any, label: string) => {
+      tasks.push(setPrivacySetting(setting, value, label))
+    }
+
+    register(privacy.network.webRTCIPHandlingPolicy, 'disable_non_proxied_udp', 'webRTCIPHandlingPolicy')
+    register(privacy.network.webRTCMultipleRoutesEnabled, false, 'webRTCMultipleRoutesEnabled')
+    register(privacy.network.webRTCNonProxiedUdpEnabled, false, 'webRTCNonProxiedUdpEnabled')
+
+    await Promise.allSettled(tasks)
+  } catch (error) {
+    console.warn('Failed to enforce WebRTC privacy settings', error)
+  }
+}
+
 function stateDebug(
   logLevel: LOG_LEVELS,
   stateToLog: object,
@@ -167,6 +227,8 @@ let walletStateCtrl: WalletStateController
 // eslint-disable-next-line @typescript-eslint/no-floating-promises
 handleRegisterScripts()
 handleKeepAlive()
+// eslint-disable-next-line @typescript-eslint/no-floating-promises
+hardenWebRtcPrivacy()
 
 // eslint-disable-next-line @typescript-eslint/no-floating-promises
 providerRequestTransport.reply(async ({ method, id, params }, meta) => {
