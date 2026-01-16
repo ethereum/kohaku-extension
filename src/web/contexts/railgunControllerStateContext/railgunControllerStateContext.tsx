@@ -394,7 +394,8 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
   useEffect(() => {
     if (isRunningRef.current) {
       pendingResetRef.current = true
-      console.log('[RailgunContext][AutoLoad] defer reset (sync in progress)', {
+      console.log('[RailgunContext][Guards] DEFERRED reset (sync in progress)', {
+        isRunningRef: isRunningRef.current,
         account: selectedAccount?.addr,
         chainId,
       })
@@ -403,16 +404,18 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
 
     hasLoadedOnceRef.current = false
     hasAttemptedAutoLoadRef.current = false
-    console.log('[RailgunContext][AutoLoad] reset guards', {
+    console.log('[RailgunContext][Guards] RESET for account/chain change', {
       account: selectedAccount?.addr,
       chainId,
+      hasLoadedOnce: hasLoadedOnceRef.current,
+      hasAttemptedAutoLoad: hasAttemptedAutoLoadRef.current,
     })
   }, [selectedAccount?.addr, chainId])
 
   useEffect(() => {
     if (isUnlocked) {
       hasAttemptedAutoLoadRef.current = false
-      console.log('[RailgunContext][AutoLoad] unlocked, allow auto-load')
+      console.log('[RailgunContext][Guards] RESET hasAttemptedAutoLoad on unlock')
     }
   }, [isUnlocked])
 
@@ -511,32 +514,43 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
   // Core load (single-flight, minimal transitions)
   // ───────────────────────────────────────────────────────────────────────────
   const loadPrivateAccount = useCallback(async (force = false) => {
-    console.log('[RailgunContext] loadPrivateAccount invoked', { force })
+    console.log('[RailgunContext][LPA] invoked', { 
+      force,
+      isUnlocked,
+      isRunningRef: isRunningRef.current,
+      status: railgunAccountsState.status,
+      hasLoadedOnce: hasLoadedOnceRef.current,
+      hasSelectedAccount: !!selectedAccount,
+      selectedAccountAddr: selectedAccount?.addr,
+    })
+    
     if (!isUnlocked) {
-      console.log('[RailgunContext] load skipped — keystore locked');
+      console.log('[RailgunContext][LPA] SKIPPED: keystore is locked (isUnlocked=false)');
       return;
     }
     
     // Strict single-flight guard - check and set atomically
     if (isRunningRef.current) {
-      console.log('[RailgunContext] load skipped — already running (isRunningRef)');
+      console.log('[RailgunContext][LPA] SKIPPED: sync already in progress (isRunningRef=true)');
       return;
     }
     if (railgunAccountsState.status === 'running') {
-      console.log('[RailgunContext] load skipped — already running (status)');
+      console.log('[RailgunContext][LPA] SKIPPED: sync already in progress (status="running")');
       return;
     }
 
     // If already loaded once and not forced, skip (only allow manual refresh)
     if (!force && hasLoadedOnceRef.current) {
-      console.log('[RailgunContext] load skipped — already loaded once (use refreshPrivateAccount to reload)');
+      console.log('[RailgunContext][LPA] SKIPPED: already loaded once and force=false (hasLoadedOnce=true). Use refreshPrivateAccount() to reload.');
       return;
     }
 
     if (!selectedAccount) {
-      console.log('[RailgunContext] load skipped — no selected account')
+      console.log('[RailgunContext][LPA] SKIPPED: no selected account (selectedAccount=null)')
       return
     }
+    
+    console.log('[RailgunContext][LPA] STARTING sync for account:', selectedAccount.addr)
 
     // Set running flag immediately to prevent race conditions
     isRunningRef.current = true
@@ -877,7 +891,7 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
         pendingResetRef.current = false
         hasLoadedOnceRef.current = false
         hasAttemptedAutoLoadRef.current = false
-        console.log('[RailgunContext][AutoLoad] applied deferred reset')
+        console.log('[RailgunContext][Guards] APPLIED deferred reset (account/chain changed during sync)')
       }
     }
   }, [selectedAccount, chainId, isUnlocked, railgunAccountsState.status, getDerivedKeysFromBg, getAccountCacheFromBg, fireBg])
@@ -887,15 +901,24 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
   // Public refresh: bypasses "already loaded" check and runs immediately
   // ───────────────────────────────────────────────────────────────────────────
   const refreshPrivateAccount = useCallback(async () => {
+    console.log('[RailgunContext][Refresh] invoked', {
+      isRunningRef: isRunningRef.current,
+      status: railgunAccountsState.status,
+    })
+    
     if (isRunningRef.current || railgunAccountsState.status === 'running') {
-    console.log('[RailgunContext][Refresh] skipped — run already in progress')
+      console.log('[RailgunContext][Refresh] SKIPPED: sync already in progress', {
+        isRunningRef: isRunningRef.current,
+        status: railgunAccountsState.status,
+      })
       return
     }
 
-    console.log('[RailgunContext][Refresh] called - forcing full reload')
+    console.log('[RailgunContext][Refresh] STARTING forced reload')
     // Force reload by passing true - this will resync from cache to latest block
     await loadPrivateAccount(true)
-  }, [loadPrivateAccount])
+    console.log('[RailgunContext][Refresh] COMPLETED')
+  }, [loadPrivateAccount, railgunAccountsState.status])
 
   // ───────────────────────────────────────────────────────────────────────────
   // init background controller state if missing
@@ -910,20 +933,35 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
   // Auto-load exactly once on startup (when selectedAccount becomes available)
   // ───────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    console.log('[RailgunContext][AutoLoad] effect check', {
+    const guards = {
       isUnlocked,
       hasSelectedAccount: !!selectedAccount,
+      selectedAccountAddr: selectedAccount?.addr,
       hasLoadedOnce: hasLoadedOnceRef.current,
       hasAttemptedAutoLoad: hasAttemptedAutoLoadRef.current,
-    })
-    if (!isUnlocked) return
-    if (!selectedAccount || hasLoadedOnceRef.current || hasAttemptedAutoLoadRef.current) return
+    }
+    console.log('[RailgunContext][AutoLoad] effect triggered', guards)
+    
+    if (!isUnlocked) {
+      console.log('[RailgunContext][AutoLoad] SKIPPED: keystore locked (isUnlocked=false)')
+      return
+    }
+    if (!selectedAccount) {
+      console.log('[RailgunContext][AutoLoad] SKIPPED: no selected account')
+      return
+    }
+    if (hasLoadedOnceRef.current) {
+      console.log('[RailgunContext][AutoLoad] SKIPPED: already loaded once (hasLoadedOnce=true)')
+      return
+    }
+    if (hasAttemptedAutoLoadRef.current) {
+      console.log('[RailgunContext][AutoLoad] SKIPPED: already attempted (hasAttemptedAutoLoad=true)')
+      return
+    }
 
-    console.log('[RailgunContext][AutoLoad] scheduled', {
-      account: selectedAccount?.addr,
-      chainId,
-    })
+    console.log('[RailgunContext][AutoLoad] SCHEDULING load in 100ms for account:', selectedAccount.addr)
     const t = setTimeout(() => {
+      console.log('[RailgunContext][AutoLoad] EXECUTING scheduled load')
       hasAttemptedAutoLoadRef.current = true
       void loadPrivateAccount(false)
     }, 100)
