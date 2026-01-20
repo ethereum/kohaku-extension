@@ -627,7 +627,10 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
             setSyncedDefaultRailgunIndexer(indexer)
           }
         } else {
-          console.log('[RailgunContext - LPA] loading from cache, lastSyncedBlock:', cached.lastSyncedBlock, 'incompleteLogsBlock:', cached.incompleteLogsBlock, 'incompleteLogsDetectedAt:', cached.incompleteLogsDetectedAt)
+          console.log('[RailgunContext - LPA] loading from cache', {
+            lastSyncedBlock: cached.lastSyncedBlock,
+            incompleteLogsBlock: cached.incompleteLogsBlock,
+          })
 
           indexer = await createRailgunIndexer({
             network: RAILGUN_CONFIG_BY_CHAIN_ID[chainId.toString() as keyof typeof RAILGUN_CONFIG_BY_CHAIN_ID],
@@ -639,21 +642,16 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
             loadState: cached.noteBooks,
           });
           
-          // Handle incomplete logs retry logic
-          const INCOMPLETE_LOGS_RETRY_WINDOW_MS = 60_000 // 1 minute
-          if (cached.incompleteLogsBlock && cached.incompleteLogsDetectedAt) {
-            const elapsed = Date.now() - cached.incompleteLogsDetectedAt
-            if (elapsed < INCOMPLETE_LOGS_RETRY_WINDOW_MS) {
-              // Retry from the incomplete block
-              currentLastSyncedBlock = cached.incompleteLogsBlock - 1
-              console.log('[RailgunContext - LPA] retrying from incomplete logs block:', cached.incompleteLogsBlock, '(elapsed:', elapsed, 'ms)')
-            } else {
-              // Too much time passed, skip the incomplete block and move on
-              currentLastSyncedBlock = cached.lastSyncedBlock
-              console.log('[RailgunContext - LPA] skipping incomplete logs block (elapsed:', elapsed, 'ms > 1 minute), starting from:', cached.lastSyncedBlock + 1)
-            }
+          // If there were incomplete logs AND they're ahead of lastSyncedBlock, retry from that block
+          // Otherwise, start from lastSyncedBlock (the incomplete logs were processed in a later run)
+          if (cached.incompleteLogsBlock && cached.incompleteLogsBlock > cached.lastSyncedBlock) {
+            currentLastSyncedBlock = cached.incompleteLogsBlock - 1
+            console.log('[RailgunContext - LPA] retrying from incomplete logs block:', cached.incompleteLogsBlock, '(ahead of lastSyncedBlock:', cached.lastSyncedBlock, ')')
           } else {
             currentLastSyncedBlock = cached.lastSyncedBlock
+            if (cached.incompleteLogsBlock) {
+              console.log('[RailgunContext - LPA] ignoring stale incompleteLogsBlock:', cached.incompleteLogsBlock, '(already past lastSyncedBlock:', cached.lastSyncedBlock, ')')
+            }
           }
         }
 
@@ -757,17 +755,23 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
           : toBlock
         
         // Always update cache with current state
-        console.log('[RailgunContext - LPA] updating account cache, lastSyncedBlock:', effectiveLastSyncedBlock, 'incompleteLogsBlock:', firstIncompleteLogsBlock)
+        // If no incomplete logs this run, clear any previous incompleteLogsBlock
+        const cacheUpdate = {
+          merkleTrees: indexer.getSerializedState(),
+          noteBooks: account.getSerializedState(),
+          lastSyncedBlock: effectiveLastSyncedBlock,
+          // Explicitly set to undefined to clear previous value if logs are now complete
+          incompleteLogsBlock: firstIncompleteLogsBlock ?? undefined,
+        }
+        console.log('[RailgunContext - LPA] updating account cache', {
+          lastSyncedBlock: effectiveLastSyncedBlock,
+          incompleteLogsBlock: firstIncompleteLogsBlock,
+          clearingIncompleteBlock: firstIncompleteLogsBlock === undefined,
+        })
         fireBg('RAILGUN_CONTROLLER_SET_ACCOUNT_CACHE', {
           zkAddress,
           chainId,
-          cache: {
-            merkleTrees: indexer.getSerializedState(),
-            noteBooks: account.getSerializedState(),
-            lastSyncedBlock: effectiveLastSyncedBlock,
-            incompleteLogsBlock: firstIncompleteLogsBlock,
-            incompleteLogsDetectedAt: firstIncompleteLogsBlock !== undefined ? Date.now() : undefined,
-          },
+          cache: cacheUpdate,
         })
 
         // Update stored account instance after sync (only for default account, index 0)
