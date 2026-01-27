@@ -216,7 +216,7 @@ module.exports = async function (env, argv) {
     // existing fallbacks you already have:
     stream: require.resolve('stream-browserify'),
     crypto: false,
-    fs: require.resolve('@kohaku-eth/railgun/global'),
+    fs: require.resolve('@kohaku-eth/railgun/webpack'),
 
     // Added: explicitly avoid bundling Node's 'module' in web
     module: false,
