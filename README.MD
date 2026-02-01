@@ -19,7 +19,7 @@ Today, it's still a somewhat manual process to configure and run the extension. 
 
 2. **Initialize submodules**: Run `git submodule init` and then `git submodule update`.
 
-3. **Create and fill in .env file**: Create a `.env` file in this repo root. See `.env-sample` for helpful example. E.g. run `cp .env .env.sample`
+3. **Create and fill in .env file**: Create a `.env` file in this repo root. See `.env-sample` for helpful example. E.g. run `cp .env-sample .env`
 
    | Variable                         | Description                                                                                             |
    |----------------------------------|---------------------------------------------------------------------------------------------------------|
