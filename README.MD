@@ -24,7 +24,7 @@ Today, it's still a somewhat manual process to configure and run the extension. 
    | Variable                         | Description                                                                                             |
    |----------------------------------|---------------------------------------------------------------------------------------------------------|
    | **SEPOLIA_RPC_URL**              | Must be able to handle heavy requests load and read `eth_getLogs` requests with up to a 10 block range. |
-   | **USE_HELIOS**                   | Keep `true` if you want to use the Helios light client.                                                 |
+   | **RPC_PROVIDER**                 | Choose the RPC provider: `rpc`, `helios`, or `colibri`.                                                 |
    | **PRIVACY_POOLS_ASP_URL**        | Already set.                                                                                           |
    | **PRIVACY_POOLS_RELAYER_URL**        | **NOTE: FOR NOW YOU NEED TO GET THIS ENDPOINT URL FROM SOMEONE WHO HAS IT FOR THE "PRIVATE ACCOUNT" TO LOAD SUCCESSFULLY**                                                                                        |
    | **HYPERSYNC_API_KEY**            | You can generate your API Key [here](https://envio.dev/app/api-tokens).                                 |
@@ -48,6 +48,6 @@ Today, it's still a somewhat manual process to configure and run the extension. 
 
 Make sure your `SEPOLIA_RPC_URL` is a strong RPC that can handle heavy load. If using a free tier RPC, we recommend **Infura**.
 
-`USE_HELIOS` env flag is set to true by default. If you're having issues with lag on the extension or with syncing chain data consider setting it to `false`
+`RPC_PROVIDER` defaults to `helios`. If you're having issues with lag on the extension or with syncing chain data consider setting it to `rpc`
 
 `PRIVACY_POOLS_RELAYER_URL` is needed if you want to test private withdrawals/transfers with privacy pools. You have to get this env secret out of band. Railgun mock relayer works out of the box.
