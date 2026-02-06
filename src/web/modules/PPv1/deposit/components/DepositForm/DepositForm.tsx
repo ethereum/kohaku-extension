@@ -24,6 +24,7 @@ import RailgunIcon from '@common/assets/svg/RailgunIcon'
 import useGetTokenSelectProps from '@common/hooks/useGetTokenSelectProps/useGetTokenSelectProps'
 import { getTokenId } from '@web/utils/token'
 import formatDecimals from '@ambire-common/utils/formatDecimals/formatDecimals'
+import PrivacyProtocolSelector from '@web/components/PrivacyProtocols'
 import SendToken from '../SendToken'
 import styles from './styles'
 
@@ -496,21 +497,10 @@ const DepositForm = ({
       </View>
 
       <View style={spacings.mbLg}>
-        <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
-          <Text appearance="secondaryText" fontSize={14} weight="light">
-            {t('Provider')}
-          </Text>
-          <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-            {/* Dropdown for selecting provider */}
-            <Select
-              options={providerOptions}
-              value={selectedProvider}
-              setValue={handleProviderChange}
-              selectStyle={{ minWidth: 150 }}
-              testID="provider-dropdown"
-            />
-          </View>
-        </View>
+        <PrivacyProtocolSelector
+          selectedProtocol={selectedProvider}
+          changeProtocol={handleProviderChange}
+        />
       </View>
 
       {/* Only show vetting fee for Privacy Pools */}

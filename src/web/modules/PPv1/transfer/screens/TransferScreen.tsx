@@ -12,6 +12,7 @@ import { Key } from '@ambire-common/interfaces/keystore'
 
 import BackButton from '@common/components/BackButton'
 import Text from '@common/components/Text'
+import { SelectValue } from '@common/components/Select/types'
 import useAddressInput from '@common/hooks/useAddressInput'
 import useNavigation from '@common/hooks/useNavigation'
 import useToast from '@common/hooks/useToast'
@@ -36,17 +37,23 @@ import { View } from 'react-native'
 import flexbox from '@common/styles/utils/flexbox'
 import { Wrapper, Content, Form } from '@web/components/TransactionsScreen'
 import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
+import PrivacyProtocolSelector, {
+  getPrivacyProtocolOptions
+} from '@web/components/PrivacyProtocols'
 import TransferForm from '../components/TransferForm/TransferForm'
 import RailgunTransferForm from '../components/RailgunTransferForm/RailgunTransferForm'
-import Tabs, { TransferTabType } from '../components/Tabs/Tabs'
+import { TransferTabType } from '../components/Tabs/Tabs'
 
 const { isActionWindow } = getUiType()
 
 const TransferScreen = () => {
+  const { t } = useTranslation()
   const hasRefreshedAccountRef = useRef(false)
-  const previousTabRef = useRef<TransferTabType>('privacy-pools')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [activeTab, setActiveTab] = useState<TransferTabType>('privacy-pools')
+  const [selectedPrivacyProtocol, setSelectedPrivacyProtocol] = useState<SelectValue>(
+    getPrivacyProtocolOptions(t)[0]
+  )
+  const activeProtocol = selectedPrivacyProtocol.value as TransferTabType
   const { dispatch } = useBackgroundService()
   const {
     chainId,
@@ -76,7 +83,6 @@ const TransferScreen = () => {
   } = usePrivacyPoolsControllerState()
 
   const { navigate } = useNavigation()
-  const { t } = useTranslation()
   const { accountsOps } = useActivityControllerState()
   const { addToast } = useToast()
 
@@ -98,6 +104,20 @@ const TransferScreen = () => {
     latestBroadcastedAccountOp: railgunLatestBroadcastedAccountOp,
     latestBroadcastedToken: railgunLatestBroadcastedToken
   } = useRailgunControllerState()
+
+  const changeProtocol = (protocol: SelectValue) => {
+    const newProtocol = (protocol.value || 'privacy-pools') as TransferTabType
+
+    if (newProtocol === selectedPrivacyProtocol.value) return
+
+    if (newProtocol === 'railgun') {
+      dispatch({
+        type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+      })
+    }
+
+    setSelectedPrivacyProtocol(protocol)
+  }
 
   const railgunTotalApprovedBalance = useMemo(() => {
     if (railgunAccountsState.balances.length > 0) {
@@ -159,7 +179,7 @@ const TransferScreen = () => {
 
   const submittedAccountOp = useMemo(() => {
     // For Railgun withdrawals, check accountsOps.transfer
-    if (activeTab === 'railgun') {
+    if (activeProtocol === 'railgun') {
       if (!railgunLatestBroadcastedAccountOp) return
 
       // First, try to find it in accountsOps (this will have the most up-to-date status)
@@ -197,7 +217,7 @@ const TransferScreen = () => {
     accountsOps.transfer,
     latestBroadcastedAccountOp,
     railgunLatestBroadcastedAccountOp,
-    activeTab
+    activeProtocol
   ])
 
   const navigateOut = useCallback(() => {
@@ -219,17 +239,19 @@ const TransferScreen = () => {
     dispatch({
       type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
     })
-  }, [dispatch, navigate, activeTab])
+  }, [dispatch, navigate, activeProtocol])
 
-  // Determine which latestBroadcastedAccountOp to use based on active tab
+  // Determine which latestBroadcastedAccountOp to use based on active protocol
   const currentLatestBroadcastedAccountOp = useMemo(() => {
-    return activeTab === 'railgun' ? railgunLatestBroadcastedAccountOp : latestBroadcastedAccountOp
-  }, [activeTab, railgunLatestBroadcastedAccountOp, latestBroadcastedAccountOp])
+    return activeProtocol === 'railgun'
+      ? railgunLatestBroadcastedAccountOp
+      : latestBroadcastedAccountOp
+  }, [activeProtocol, railgunLatestBroadcastedAccountOp, latestBroadcastedAccountOp])
 
   // Use 'transfer' sessionId for Railgun, 'privacyPools' for Privacy Pools
   const sessionId = useMemo(() => {
-    return activeTab === 'railgun' ? 'transfer' : 'privacyPools'
-  }, [activeTab])
+    return activeProtocol === 'railgun' ? 'transfer' : 'privacyPools'
+  }, [activeProtocol])
 
   const { sessionHandler, onPrimaryButtonPress } = useTrackAccountOp({
     address: currentLatestBroadcastedAccountOp?.accountAddr,
@@ -244,14 +266,14 @@ const TransferScreen = () => {
     if (!submittedAccountOp) return false
     
     const metaAny = submittedAccountOp.meta as any
-    if (activeTab === 'railgun') {
+    if (activeProtocol === 'railgun') {
       // For Railgun, must have isRailgunWithdrawal meta tag
       return !!metaAny?.isRailgunWithdrawal
     } else {
       // For Privacy Pools, must have isPrivacyPoolsWithdrawal meta tag
       return !!metaAny?.isPrivacyPoolsWithdrawal
     }
-  }, [submittedAccountOp, activeTab])
+  }, [submittedAccountOp, activeProtocol])
 
   const explorerLink = useMemo(() => {
     if (!submittedAccountOp || !isMatchingWithdrawal) return
@@ -296,16 +318,6 @@ const TransferScreen = () => {
       })
     }
   }, [dispatch])
-
-  // Destroy latest account op for railgun when navigating to railgun tab (switching from privacy pools)
-  useEffect(() => {
-    if (activeTab === 'railgun' && previousTabRef.current === 'privacy-pools') {
-      dispatch({
-        type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-      })
-    }
-    previousTabRef.current = activeTab
-  }, [activeTab, dispatch])
 
   // Used to resolve ENS, not to update the field value
   const setAddressState = useCallback(
@@ -388,7 +400,7 @@ const TransferScreen = () => {
     overwriteError: '',
     overwriteValidLabel: '',
     handleCacheResolvedDomain: handleRailgunCacheResolvedDomain,
-    // Allow Railgun 0zk addresses on the Railgun tab
+    // Allow Railgun 0zk addresses on the Railgun protocol
     allowRailgunAddresses: true
   })
 
@@ -545,15 +557,15 @@ const TransferScreen = () => {
       type: 'RAILGUN_CONTROLLER_RESET_FORM'
     })
     navigate(ROUTES.pp1Home)
-  }, [navigate, dispatch, activeTab])
+  }, [navigate, dispatch, activeProtocol])
 
   const headerTitle = t('Private Transfer')
   const formTitle = t('Send')
 
-  // Determine which latestBroadcastedToken to use based on active tab
+  // Determine which latestBroadcastedToken to use based on active protocol
   const currentLatestBroadcastedToken = useMemo(() => {
-    return activeTab === 'railgun' ? railgunLatestBroadcastedToken : latestBroadcastedToken
-  }, [activeTab, railgunLatestBroadcastedToken, latestBroadcastedToken])
+    return activeProtocol === 'railgun' ? railgunLatestBroadcastedToken : latestBroadcastedToken
+  }, [activeProtocol, railgunLatestBroadcastedToken, latestBroadcastedToken])
 
   const handlePrimaryButtonPress = useCallback(() => {
     // If transaction is successful, navigate immediately
@@ -572,7 +584,7 @@ const TransferScreen = () => {
         }
       })
 
-      // Clean up state before navigating - use the appropriate controller based on active tab
+      // Clean up state before navigating - use the appropriate controller based on active protocol
       dispatch({
         type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
       })
@@ -601,7 +613,7 @@ const TransferScreen = () => {
       // For other states, use the original logic
       onPrimaryButtonPress()
     }
-  }, [submittedAccountOp, dispatch, navigateOut, onPrimaryButtonPress, activeTab])
+  }, [submittedAccountOp, dispatch, navigateOut, onPrimaryButtonPress, activeProtocol])
 
   const handleWithdrawal = useCallback(async () => {
     setIsSubmitting(true)
@@ -843,7 +855,7 @@ const TransferScreen = () => {
   )
 
   const buttons = useMemo(() => {
-    if (activeTab === 'railgun') {
+    if (activeProtocol === 'railgun') {
       return (
         <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
           <BackButton onPress={onBack} />
@@ -881,7 +893,7 @@ const TransferScreen = () => {
     isRefreshing,
     handleWithdrawal,
     handleRailgunWithdrawal,
-    activeTab
+    activeProtocol
   ])
 
   // Refresh merkle tree and private account after successful withdrawal
@@ -893,7 +905,7 @@ const TransferScreen = () => {
     ) {
       hasRefreshedAccountRef.current = true
 
-      if (activeTab === 'railgun') {
+      if (activeProtocol === 'railgun') {
         // For Railgun, use railgunForm's refreshPrivateAccount
         railgunForm
           .refreshPrivateAccount()
@@ -920,7 +932,7 @@ const TransferScreen = () => {
           })
       }
     }
-  }, [submittedAccountOp?.status, refreshPrivateAccount, railgunForm, addToast, activeTab])
+  }, [submittedAccountOp?.status, refreshPrivateAccount, railgunForm, addToast, activeProtocol])
 
   if (displayedView === 'track') {
     return (
@@ -959,7 +971,7 @@ const TransferScreen = () => {
             !isMatchingWithdrawal)) && (
           <InProgress
             title={
-              activeTab === 'railgun'
+              activeProtocol === 'railgun'
                 ? (submittedAccountOp?.meta as any)?.isRailgunInternalTransfer || (currentLatestBroadcastedAccountOp as any)?.meta?.isRailgunInternalTransfer
                   ? t('Relaying internal transfer')
                   : t('Relaying withdrawal')
@@ -976,7 +988,7 @@ const TransferScreen = () => {
           isMatchingWithdrawal && (
           <Completed
             title={
-              activeTab === 'railgun' &&
+              activeProtocol === 'railgun' &&
               ((submittedAccountOp?.meta as any)?.isRailgunInternalTransfer ||
                 (currentLatestBroadcastedAccountOp as any)?.meta?.isRailgunInternalTransfer)
                 ? t('Private Internal Transfer done!')
@@ -1007,8 +1019,12 @@ const TransferScreen = () => {
     <Wrapper title={headerTitle} buttons={buttons}>
       <Content buttons={buttons}>
         <Form>
-          <Tabs activeTab={activeTab} onTabChange={setActiveTab} />
-          {activeTab === 'privacy-pools' ? (
+          <PrivacyProtocolSelector
+            selectedProtocol={selectedPrivacyProtocol}
+            changeProtocol={changeProtocol}
+          />
+
+          {activeProtocol === 'privacy-pools' ? (
             <TransferForm
               addressInputState={addressInputState}
               amountErrorMessage={amountErrorMessage}
