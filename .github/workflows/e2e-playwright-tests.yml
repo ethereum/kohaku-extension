@@ -16,6 +16,15 @@ jobs:
     environment: testing
     if: secrets.DEPLOY_KEY != ''
 
+  e2e-tests-skipped:
+    runs-on: ubuntu-latest
+    if: secrets.DEPLOY_KEY == ''
+    steps:
+      - name: Tests skipped
+        run: |
+          echo "E2E tests were skipped because DEPLOY_KEY secret is not configured."
+          echo "This is expected behavior when the secret is not available."
+
     env:
       IS_TESTING: 'true'
       E2E_DEBUG: ${{ vars.E2E_DEBUG }}
