@@ -216,7 +216,7 @@ module.exports = async function (env, argv) {
     // existing fallbacks you already have:
     stream: require.resolve('stream-browserify'),
     crypto: false,
-    fs: require.resolve('@kohaku-eth/railgun/webpack'),
+    fs: false,
 
     // Added: explicitly avoid bundling Node's 'module' in web
     module: false,
@@ -402,18 +402,6 @@ module.exports = async function (env, argv) {
         from: 'node_modules/snarkjs/dist/*.wasm',
         to: 'assets/snarkjs/[name][ext]',
         noErrorOnMissing: true
-      },
-      // Copy circuit-artifacts to assets/circuits preserving directory structure
-      // Files will be accessible at: /assets/circuits/{circuit-name}/{filename}
-      // Example: /assets/circuits/1x1/vkey.json, /assets/circuits/1x1/wasm.br, etc.
-      {
-        from: 'node_modules/@railgun-community/circuit-artifacts',
-        to: 'assets/circuits',
-        noErrorOnMissing: true,
-        globOptions: {
-          // Copy all files recursively, preserving directory structure
-          ignore: ['**/node_modules/**', '**/package.json', '**/README.md']
-        }
       }
     ]
 

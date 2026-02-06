@@ -48,8 +48,7 @@
     "eas:secret:list": "eas secret:list",
     "eas:secret:push": "eas secret:push --scope project --env-file .env",
     "test": "jest --config=./jest.config.js --passWithNoTests",
-    "postinstall": "patch-package && node scripts/copy-circuit-artifacts.js",
-    "copy:circuit-artifacts": "node scripts/copy-circuit-artifacts.js"
+    "postinstall": "patch-package"
   },
   "engines": {
     "node": ">=22.12.0 <23.0.0",
@@ -91,7 +90,6 @@
     "@metamask/obs-store": "^6.0.2",
     "@noble/hashes": "^1.8.0",
     "@otplib/preset-default": "^12.0.1",
-    "@railgun-community/circuit-artifacts": "https://npm.railgun.org/railgun-community-circuit-artifacts-0.0.1.tgz",
     "@raugfer/jazzicon": "^1.0.6",
     "@react-native-async-storage/async-storage": "~1.17.3",
     "@react-native-community/checkbox": "^0.5.12",
