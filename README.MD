@@ -50,4 +50,4 @@ Make sure your `SEPOLIA_RPC_URL` is a strong RPC that can handle heavy load. If 
 
 `USE_HELIOS` env flag is set to true by default. If you're having issues with lag on the extension or with syncing chain data consider setting it to `false`
 
-`PRIVACY_POOLS_RELAYER_URL` is needed if you want to test private withdrawals/transfers with privacy pools. You have to get this env secret out of band. Railgun mock relayer works out of the box.
+`PRIVACY_POOLS_RELAYER_URL` is needed if you want to test private withdrawals/transfers. You have to get this env secret out of band.
