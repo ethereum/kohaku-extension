@@ -14,7 +14,9 @@ export class LocalRateLimiter {
     const elapsed = now - this.lastCallAt
     const waitFor = this.minSpacingMs - elapsed
     if (waitFor > 0) {
-      await new Promise((r) => setTimeout(r, waitFor))
+      await new Promise((r) => {
+        setTimeout(r, waitFor)
+      })
     }
     this.lastCallAt = Date.now()
   }

@@ -5,17 +5,18 @@ import type {
 } from '@ambire-common/controllers/railgun/railgun'
 
 export class BackgroundService {
-  private latestBgStateRef: React.MutableRefObject<any>
+  private getLatestBgState: () => any
 
   private dispatch: any
 
-  constructor(latestBgStateRef: React.MutableRefObject<any>, dispatch: any) {
-    this.latestBgStateRef = latestBgStateRef
+  constructor(getLatestBgState: () => any, dispatch: any) {
+    this.getLatestBgState = getLatestBgState
     this.dispatch = dispatch
   }
 
   fireBg(type: string, params?: any) {
     if (!this.dispatch) throw new Error('Background dispatch not available')
+    // eslint-disable-next-line no-void
     void this.dispatch({ type: type as keyof typeof this.dispatch, params })
   }
 
@@ -24,7 +25,7 @@ export class BackgroundService {
     { timeoutMs = 6000, intervalMs = 150 }: { timeoutMs?: number; intervalMs?: number } = {}
   ): Promise<T> {
     const start = Date.now()
-    const immediate = selector(this.latestBgStateRef.current)
+    const immediate = selector(this.getLatestBgState())
     if (immediate !== undefined && immediate !== null) return immediate
 
     return new Promise<T>((resolve, reject) => {
@@ -34,7 +35,7 @@ export class BackgroundService {
           reject(new Error('Timed out waiting for background value'))
           return
         }
-        const v = selector(this.latestBgStateRef.current)
+        const v = selector(this.getLatestBgState())
         if (v !== undefined && v !== null) {
           clearInterval(timer)
           resolve(v)
@@ -44,7 +45,7 @@ export class BackgroundService {
   }
 
   async getDerivedKeysFromBg(index: number): Promise<RailgunAccountKeys> {
-    const s = this.latestBgStateRef.current
+    const s = this.getLatestBgState()
     if (index === 0 && s.defaultRailgunKeys) return s.defaultRailgunKeys as RailgunAccountKeys
     if (s.derivedRailgunKeysByIndex?.[index]) {
       return s.derivedRailgunKeysByIndex[index] as RailgunAccountKeys
@@ -61,7 +62,7 @@ export class BackgroundService {
     zkAddress: string,
     chainId: number
   ): Promise<RailgunAccountCache | null> {
-    const s = this.latestBgStateRef.current
+    const s = this.getLatestBgState()
     const last = s.lastFetchedRailgunAccountCache
     // Check if we have a cached value that matches (cache can be null if account doesn't exist yet)
     if (last && last.zkAddress === zkAddress && last.chainId === chainId) {
