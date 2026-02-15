@@ -10,6 +10,7 @@ import Checkbox from '@common/components/Checkbox'
 import Spinner from '@common/components/Spinner'
 import Text from '@common/components/Text'
 import useTheme from '@common/hooks/useTheme'
+import text from '@common/styles/utils/text'
 import spacings, { SPACING, SPACING_LG, SPACING_MI } from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { openInTab } from '@web/extension-services/background/webapi/tab'
@@ -17,6 +18,8 @@ import { openInTab } from '@web/extension-services/background/webapi/tab'
 import getStyles from '../styles'
 import DAppAccountSelector from './DAppAccountSelector'
 import DAppPermissions from './DAppPermissions'
+import DappCreateNewAccount from './DappCreateNewAccount'
+import { ScreenMode } from './interface'
 
 const DAppConnectBody: FC<{
   confirmedRiskCheckbox: boolean
@@ -35,7 +38,7 @@ const DAppConnectBody: FC<{
 }) => {
   const { t } = useTranslation()
   const { styles, theme } = useTheme(getStyles)
-  const [fullscreenDappAccounts, setFullscreenDappAccounts] = React.useState(false)
+  const [screenMode, setScreenMode] = React.useState<ScreenMode>('all')
 
   const spacingsStyle = useMemo(() => {
     return {
@@ -51,7 +54,7 @@ const DAppConnectBody: FC<{
 
   return (
     <View style={[styles.contentBody, spacingsStyle, { flex: 1 }]}>
-      {!fullscreenDappAccounts && (
+      {screenMode === 'all' && (
         <>
           <View
             style={[
@@ -127,11 +130,32 @@ const DAppConnectBody: FC<{
           <DAppPermissions responsiveSizeMultiplier={responsiveSizeMultiplier} />
         </>
       )}
-      <DAppAccountSelector
-        setSelectedAccount={setSelectedAccount}
-        onFullscreen={setFullscreenDappAccounts}
-        origin={origin}
-      />
+      {(screenMode === 'all' || screenMode === 'new-account') && (
+        <DappCreateNewAccount
+          screenMode={screenMode}
+          origin={origin}
+          setSelectedAccount={setSelectedAccount}
+          setScreenMode={setScreenMode}
+        />
+      )}
+      {screenMode === 'all' && (
+        <Text
+          style={{ ...spacings.mvMi, ...text.center, opacity: 0.64 }}
+          fontSize={14 * responsiveSizeMultiplier}
+          weight="medium"
+          appearance="tertiaryText"
+        >
+          {t('Or use existing account')}
+        </Text>
+      )}
+
+      {(screenMode === 'all' || screenMode === 'view-accounts') && (
+        <DAppAccountSelector
+          setSelectedAccount={setSelectedAccount}
+          setScreenMode={setScreenMode}
+          origin={origin}
+        />
+      )}
       {securityCheck === 'BLACKLISTED' ? (
         <Alert type="warning" size="sm" withIcon={false}>
           <Checkbox

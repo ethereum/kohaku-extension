@@ -167,7 +167,7 @@ const DappConnectScreen = () => {
         />
       }
     >
-      <View style={[styles.container, { flex: 1, marginBottom: '40px' }]}>
+      <View style={[styles.container, { flex: 1, marginBottom: '20px' }]}>
         <View style={[styles.content, { flex: 1 }]}>
           <View style={{ flexShrink: 0 }}>
             <DAppConnectHeader
