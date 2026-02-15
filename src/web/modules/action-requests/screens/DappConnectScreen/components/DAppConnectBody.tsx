@@ -33,25 +33,26 @@ const DAppConnectBody: FC<{
   responsiveSizeMultiplier,
   origin
 }) => {
-    const { t } = useTranslation()
-    const { styles, theme } = useTheme(getStyles)
-    const [fullscreenDappAccounts, setFullscreenDappAccounts] = React.useState(false)
+  const { t } = useTranslation()
+  const { styles, theme } = useTheme(getStyles)
+  const [fullscreenDappAccounts, setFullscreenDappAccounts] = React.useState(false)
 
-    const spacingsStyle = useMemo(() => {
-      return {
-        paddingHorizontal: SPACING_LG * responsiveSizeMultiplier,
-        paddingTop: SPACING_LG * responsiveSizeMultiplier,
-        paddingBottom: SPACING_LG * responsiveSizeMultiplier
-      }
-    }, [responsiveSizeMultiplier])
+  const spacingsStyle = useMemo(() => {
+    return {
+      paddingHorizontal: SPACING_LG * responsiveSizeMultiplier,
+      paddingTop: SPACING_LG * responsiveSizeMultiplier,
+      paddingBottom: SPACING_LG * responsiveSizeMultiplier
+    }
+  }, [responsiveSizeMultiplier])
 
-    const handleRiskCheckboxPress = useCallback(() => {
-      setConfirmedRiskCheckbox((p) => !p)
-    }, [setConfirmedRiskCheckbox])
+  const handleRiskCheckboxPress = useCallback(() => {
+    setConfirmedRiskCheckbox((p) => !p)
+  }, [setConfirmedRiskCheckbox])
 
-    return (
-      <View style={[styles.contentBody, spacingsStyle, { flex: 1 }]}>
-        {!fullscreenDappAccounts && (<>
+  return (
+    <View style={[styles.contentBody, spacingsStyle, { flex: 1 }]}>
+      {!fullscreenDappAccounts && (
+        <>
           <View
             style={[
               styles.securityChecksContainer,
@@ -124,47 +125,48 @@ const DAppConnectBody: FC<{
             )}
           </View>
           <DAppPermissions responsiveSizeMultiplier={responsiveSizeMultiplier} />
-        </>)}
-        <DAppAccountSelector
-          setSelectedAccount={setSelectedAccount}
-          onFullscreen={setFullscreenDappAccounts}
-          origin={origin}
-        />
-        {securityCheck === 'BLACKLISTED' ? (
-          <Alert type="warning" size="sm" withIcon={false}>
-            <Checkbox
-              value={confirmedRiskCheckbox}
-              style={{ ...spacings.mb0 }}
-              onValueChange={handleRiskCheckboxPress}
-              uncheckedBorderColor={theme.warningDecorative}
-              checkedColor={theme.warningDecorative}
-            >
-              <Text
-                fontSize={16 * responsiveSizeMultiplier}
-                appearance="errorText"
-                weight="semiBold"
-                style={{ lineHeight: 20 }}
-                onPress={handleRiskCheckboxPress}
-              >
-                {t('I have read and understood the risks')}
-              </Text>
-            </Checkbox>
-          </Alert>
-        ) : (
-          <Text
-            style={{
-              opacity: 0.64,
-              marginHorizontal: 'auto'
-            }}
-            fontSize={14 * responsiveSizeMultiplier}
-            weight="medium"
-            appearance="tertiaryText"
+        </>
+      )}
+      <DAppAccountSelector
+        setSelectedAccount={setSelectedAccount}
+        onFullscreen={setFullscreenDappAccounts}
+        origin={origin}
+      />
+      {securityCheck === 'BLACKLISTED' ? (
+        <Alert type="warning" size="sm" withIcon={false}>
+          <Checkbox
+            value={confirmedRiskCheckbox}
+            style={{ ...spacings.mb0 }}
+            onValueChange={handleRiskCheckboxPress}
+            uncheckedBorderColor={theme.warningDecorative}
+            checkedColor={theme.warningDecorative}
           >
-            {t('Only connect with sites you trust')}
-          </Text>
-        )}
-      </View>
-    )
-  }
+            <Text
+              fontSize={16 * responsiveSizeMultiplier}
+              appearance="errorText"
+              weight="semiBold"
+              style={{ lineHeight: 20 }}
+              onPress={handleRiskCheckboxPress}
+            >
+              {t('I have read and understood the risks')}
+            </Text>
+          </Checkbox>
+        </Alert>
+      ) : (
+        <Text
+          style={{
+            opacity: 0.64,
+            marginHorizontal: 'auto'
+          }}
+          fontSize={14 * responsiveSizeMultiplier}
+          weight="medium"
+          appearance="tertiaryText"
+        >
+          {t('Only connect with sites you trust')}
+        </Text>
+      )}
+    </View>
+  )
+}
 
 export default React.memo(DAppConnectBody)

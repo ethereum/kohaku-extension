@@ -50,7 +50,7 @@ const DappConnectScreen = () => {
 
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    ; (async () => {
+    ;(async () => {
       if (!userRequest?.session?.origin) return
       if (securityCheckCalled.current) return
 
@@ -109,7 +109,7 @@ const DappConnectScreen = () => {
   }, [dappAction, dappAccount, dispatch])
 
   // Automatically resolve the request once the dispatched `MAIN_CONTROLLER_SELECT_ACCOUNT`
-  // from `handleAuthorizeButtonPress` has updated the selected account to match 
+  // from `handleAuthorizeButtonPress` has updated the selected account to match
   // the one chosen for the dApp connection.
   useEffect(() => {
     if (!isAuthorizing || !dappAction) return
@@ -167,7 +167,7 @@ const DappConnectScreen = () => {
         />
       }
     >
-      <View style={[styles.container, { flex: 1, marginBottom: "40px" }]}>
+      <View style={[styles.container, { flex: 1, marginBottom: '40px' }]}>
         <View style={[styles.content, { flex: 1 }]}>
           <View style={{ flexShrink: 0 }}>
             <DAppConnectHeader
