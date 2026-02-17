@@ -14,6 +14,7 @@ import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
 import useAccountPickerControllerState from '@web/hooks/useAccountPickerControllerState'
+import Spinner from '@common/components/Spinner'
 import { ScreenMode } from './interface'
 
 interface Props {
@@ -32,9 +33,16 @@ const SeedPhraseGroup: FC<{
   label: string
   seedId: string
   onAddAccount: (seedId: string) => void
-}> = ({ label, seedId, onAddAccount }) => {
+  isAdding?: boolean
+}> = ({ label, seedId, onAddAccount, isAdding }) => {
   const { theme } = useTheme()
   const [hovered, setHovered] = React.useState(false)
+
+  const selectSeed = () => {
+    if (isAdding) return
+
+    onAddAccount(seedId)
+  }
 
   return (
     <View style={spacings.mbTy}>
@@ -43,7 +51,7 @@ const SeedPhraseGroup: FC<{
           {label}
         </Text>
         <Pressable
-          onPress={() => onAddAccount(seedId)}
+          onPress={selectSeed}
           onHoverIn={() => setHovered(true)}
           onHoverOut={() => setHovered(false)}
           style={[
@@ -54,14 +62,24 @@ const SeedPhraseGroup: FC<{
             hovered && { backgroundColor: theme.secondaryBackground }
           ]}
         >
-          <Text
-            fontSize={24}
-            weight="medium"
-            appearance="secondaryText"
-            style={{ color: theme.primary, lineHeight: 24, includeFontPadding: false }}
-          >
-            +
-          </Text>
+          {isAdding ? (
+            <Spinner
+              variant="gradient"
+              style={{
+                width: 24,
+                height: 24
+              }}
+            />
+          ) : (
+            <Text
+              fontSize={24}
+              weight="medium"
+              appearance="secondaryText"
+              style={{ color: theme.primary, lineHeight: 24, includeFontPadding: false }}
+            >
+              +
+            </Text>
+          )}
         </Pressable>
       </View>
     </View>
@@ -97,8 +115,6 @@ const DappCreateNewAccount: FC<Props> = ({
       type: 'MAIN_CONTROLLER_ACCOUNT_PICKER_INIT_FROM_SAVED_SEED_PHRASE',
       params: { id: seedId }
     })
-
-    setSeedId(null)
   }, [seedId, dispatch])
 
   // Trigger initialization of the new account
@@ -149,6 +165,7 @@ const DappCreateNewAccount: FC<Props> = ({
     dispatch({ type: 'MAIN_CONTROLLER_ACCOUNT_PICKER_RESET' })
 
     setScreenMode('all')
+    setSeedId(null)
   }, [newlyAddedAccounts, dispatch])
 
   const toggleFullscreen = () =>
@@ -209,6 +226,7 @@ const DappCreateNewAccount: FC<Props> = ({
                   label={group.label}
                   seedId={group.seedId}
                   onAddAccount={onAddAccount}
+                  isAdding={group.seedId === seedId}
                 />
               ))
             ) : (
