@@ -21,6 +21,7 @@ import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import DAppConnectBody from './components/DAppConnectBody'
 import DAppConnectHeader from './components/DAppConnectHeader'
 import getStyles from './styles'
+import { DappAccount } from './components/interface'
 
 // Screen for dApps authorization to connect to extension - will be triggered on dApp connect request
 const DappConnectScreen = () => {
@@ -36,7 +37,7 @@ const DappConnectScreen = () => {
     'LOADING'
   )
   const [confirmedRiskCheckbox, setConfirmedRiskCheckbox] = useState(false)
-  const [dappAccount, setDappAccount] = useState<{ isNew: boolean; address: string } | null>(null)
+  const [dappAccount, setDappAccount] = useState<DappAccount | null>(null)
 
   const dappAction = useMemo(
     () => (isDappRequestAction(state.currentAction) ? state.currentAction : null),
@@ -88,27 +89,36 @@ const DappConnectScreen = () => {
     })
   }, [dappAction, t, dispatch])
 
-  const handleAuthorizeButtonPress = useCallback(() => {
-    if (!dappAccount || !dappAction) return
+  const handleAuthorizeButtonPress = useCallback(
+    (newAccount?: DappAccount) => {
+      const account = newAccount || dappAccount
+      if (!account || !dappAction) return
 
-    const dappId = getDappIdFromUrl(userRequest?.session?.origin || '')
+      const dappId = getDappIdFromUrl(userRequest?.session?.origin || '')
 
-    setIsAuthorizing(true)
-    const dappUrls = selectedAccount?.account?.associatedDappIDs || []
-    dappUrls.push(dappId)
-    dispatch({
-      type: 'ACCOUNTS_CONTROLLER_SET_ASSOCIATED_DAPPS',
-      params: {
-        addr: dappAccount.address,
-        dappUrls
-      }
-    })
+      setIsAuthorizing(true)
+      const dappUrls = selectedAccount?.account?.associatedDappIDs || []
+      dappUrls.push(dappId)
+      dispatch({
+        type: 'ACCOUNTS_CONTROLLER_SET_ASSOCIATED_DAPPS',
+        params: {
+          addr: account.address,
+          dappUrls
+        }
+      })
 
-    dispatch({
-      type: 'MAIN_CONTROLLER_SELECT_ACCOUNT',
-      params: { accountAddr: dappAccount.address }
-    })
-  }, [dappAction, dappAccount?.address, dispatch])
+      dispatch({
+        type: 'MAIN_CONTROLLER_SELECT_ACCOUNT',
+        params: { accountAddr: account.address }
+      })
+    },
+    [dappAction, dappAccount?.address, dispatch]
+  )
+
+  const autoConnect = (account: DappAccount) => {
+    setDappAccount(account)
+    handleAuthorizeButtonPress(account)
+  }
 
   // Automatically resolve the request once the dispatched `MAIN_CONTROLLER_SELECT_ACCOUNT`
   // from `handleAuthorizeButtonPress` has updated the selected account to match
@@ -202,6 +212,7 @@ const DappConnectScreen = () => {
             setConfirmedRiskCheckbox={setConfirmedRiskCheckbox}
             origin={userRequest?.session?.origin}
             setSelectedAccount={setDappAccount}
+            autoConnect={autoConnect}
           />
         </View>
       </View>

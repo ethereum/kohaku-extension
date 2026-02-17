@@ -19,27 +19,24 @@ import getStyles from '../styles'
 import DAppAccountSelector from './DAppAccountSelector'
 import DAppPermissions from './DAppPermissions'
 import DappCreateNewAccount from './DappCreateNewAccount'
-import { ScreenMode } from './interface'
+import { DappAccount, ScreenMode } from './interface'
 
 const DAppConnectBody: FC<{
   confirmedRiskCheckbox: boolean
   setConfirmedRiskCheckbox: React.Dispatch<React.SetStateAction<boolean>>
-  setSelectedAccount: React.Dispatch<
-    React.SetStateAction<{
-      isNew: boolean
-      address: string
-    } | null>
-  >
+  setSelectedAccount: React.Dispatch<React.SetStateAction<DappAccount | null>>
   responsiveSizeMultiplier: number
   securityCheck: 'BLACKLISTED' | 'NOT_BLACKLISTED' | 'LOADING'
   origin?: string
+  autoConnect: (account: DappAccount) => void
 }> = ({
   confirmedRiskCheckbox,
   setConfirmedRiskCheckbox,
   setSelectedAccount,
   securityCheck,
   responsiveSizeMultiplier,
-  origin
+  origin,
+  autoConnect
 }) => {
   const { t } = useTranslation()
   const { styles, theme } = useTheme(getStyles)
@@ -139,7 +136,7 @@ const DAppConnectBody: FC<{
         <DappCreateNewAccount
           screenMode={screenMode}
           origin={origin}
-          setSelectedAccount={setSelectedAccount}
+          autoConnect={autoConnect}
           setScreenMode={setScreenMode}
         />
       )}

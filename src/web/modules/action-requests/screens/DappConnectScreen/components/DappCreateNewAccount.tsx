@@ -15,18 +15,13 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
 import useAccountPickerControllerState from '@web/hooks/useAccountPickerControllerState'
 import Spinner from '@common/components/Spinner'
-import { ScreenMode } from './interface'
+import { DappAccount, ScreenMode } from './interface'
 
 interface Props {
   origin?: string
   screenMode: ScreenMode
   setScreenMode: React.Dispatch<React.SetStateAction<ScreenMode>>
-  setSelectedAccount: React.Dispatch<
-    React.SetStateAction<{
-      isNew: boolean
-      address: string
-    } | null>
-  >
+  autoConnect: (account: DappAccount) => void
 }
 
 const SeedPhraseGroup: FC<{
@@ -86,12 +81,7 @@ const SeedPhraseGroup: FC<{
   )
 }
 
-const DappCreateNewAccount: FC<Props> = ({
-  screenMode,
-  setSelectedAccount,
-  setScreenMode,
-  origin
-}) => {
+const DappCreateNewAccount: FC<Props> = ({ screenMode, setScreenMode, origin, autoConnect }) => {
   const { t } = useTranslation()
   const { accounts } = useAccountsControllerState()
   const { subType, initParams } = useAccountPickerControllerState()
@@ -157,7 +147,7 @@ const DappCreateNewAccount: FC<Props> = ({
         ]
       })
 
-      setSelectedAccount({ isNew: true, address: acc.addr })
+      autoConnect({ isNew: true, address: acc.addr })
     })
 
     // Reset state
