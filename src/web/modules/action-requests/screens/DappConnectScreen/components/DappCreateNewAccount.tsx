@@ -20,7 +20,12 @@ interface Props {
   origin?: string
   screenMode: ScreenMode
   setScreenMode: React.Dispatch<React.SetStateAction<ScreenMode>>
-  setSelectedAccount: React.Dispatch<React.SetStateAction<string | null>>
+  setSelectedAccount: React.Dispatch<
+    React.SetStateAction<{
+      isNew: boolean
+      address: string
+    } | null>
+  >
 }
 
 const SeedPhraseGroup: FC<{
@@ -136,7 +141,7 @@ const DappCreateNewAccount: FC<Props> = ({
         ]
       })
 
-      setSelectedAccount(acc.addr)
+      setSelectedAccount({ isNew: true, address: acc.addr })
     })
 
     // Reset state
@@ -177,8 +182,6 @@ const DappCreateNewAccount: FC<Props> = ({
 
     return groups
   }, [accounts, keys, seeds])
-
-  console.log('__ NEWLY ADDED ACCOUNTS __', newlyAddedAccounts)
 
   return (
     <View style={{ width: '100%' }}>

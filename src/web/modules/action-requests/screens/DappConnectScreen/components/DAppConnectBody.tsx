@@ -24,7 +24,12 @@ import { ScreenMode } from './interface'
 const DAppConnectBody: FC<{
   confirmedRiskCheckbox: boolean
   setConfirmedRiskCheckbox: React.Dispatch<React.SetStateAction<boolean>>
-  setSelectedAccount: React.Dispatch<React.SetStateAction<string | null>>
+  setSelectedAccount: React.Dispatch<
+    React.SetStateAction<{
+      isNew: boolean
+      address: string
+    } | null>
+  >
   responsiveSizeMultiplier: number
   securityCheck: 'BLACKLISTED' | 'NOT_BLACKLISTED' | 'LOADING'
   origin?: string

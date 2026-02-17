@@ -48,6 +48,8 @@ const { isActionWindow } = getUiType()
 
 const TransferScreen = () => {
   const { t } = useTranslation()
+  const { navigate, searchParams } = useNavigation()
+  const addressFromParams = searchParams.get('address') ?? ''
   const hasRefreshedAccountRef = useRef(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedPrivacyProtocol, setSelectedPrivacyProtocol] = useState<SelectValue>(
@@ -82,7 +84,6 @@ const TransferScreen = () => {
     isRefreshing
   } = usePrivacyPoolsControllerState()
 
-  const { navigate } = useNavigation()
   const { accountsOps } = useActivityControllerState()
   const { addToast } = useToast()
 
@@ -142,6 +143,22 @@ const TransferScreen = () => {
     [dispatch]
   )
 
+  const hasInitializedAddressRef = useRef(false)
+  if (!hasInitializedAddressRef.current && addressFromParams && !addressState.fieldValue) {
+    hasInitializedAddressRef.current = true
+    handleUpdateForm({ addressState: { fieldValue: addressFromParams } })
+  }
+
+  const hasInitializedRailgunAddressRef = useRef(false)
+  if (
+    !hasInitializedRailgunAddressRef.current &&
+    addressFromParams &&
+    !railgunAddressState.fieldValue
+  ) {
+    hasInitializedRailgunAddressRef.current = true
+    handleRailgunUpdateForm({ addressState: { fieldValue: addressFromParams } })
+  }
+
   // Privacy Pools state
   const controllerAmountFieldValue = amountFieldMode === 'token' ? withdrawalAmount : amountInFiat
   const [amountFieldValue, setAmountFieldValue] = useSyncedState<string>({
@@ -152,7 +169,7 @@ const TransferScreen = () => {
     forceUpdateOnChangeList: [programmaticUpdateCounter, amountFieldMode]
   })
   const [addressStateFieldValue, setAddressStateFieldValue] = useSyncedState<string>({
-    backgroundState: addressState.fieldValue,
+    backgroundState: addressState.fieldValue || addressFromParams,
     updateBackgroundState: (newAddress: string) => {
       handleUpdateForm({ addressState: { fieldValue: newAddress } })
     },
@@ -170,7 +187,7 @@ const TransferScreen = () => {
     forceUpdateOnChangeList: [railgunProgrammaticUpdateCounter, railgunAmountFieldMode]
   })
   const [railgunAddressStateFieldValue, setRailgunAddressStateFieldValue] = useSyncedState<string>({
-    backgroundState: railgunAddressState.fieldValue,
+    backgroundState: railgunAddressState.fieldValue || addressFromParams,
     updateBackgroundState: (newAddress: string) => {
       handleRailgunUpdateForm({ addressState: { fieldValue: newAddress } })
     },
@@ -232,7 +249,6 @@ const TransferScreen = () => {
       navigate(ROUTES.pp1Home)
     }
 
-
     dispatch({
       type: 'RAILGUN_CONTROLLER_RESET_FORM'
     })
@@ -264,7 +280,7 @@ const TransferScreen = () => {
   // Helper to check if the submittedAccountOp matches the expected withdrawal type
   const isMatchingWithdrawal = useMemo(() => {
     if (!submittedAccountOp) return false
-    
+
     const metaAny = submittedAccountOp.meta as any
     if (activeProtocol === 'railgun') {
       // For Railgun, must have isRailgunWithdrawal meta tag
@@ -696,7 +712,7 @@ const TransferScreen = () => {
 
       // Check if address is a 0zk Railgun address (starts with "0zk")
       const isRailgunAddress = address.toLowerCase().startsWith('0zk')
-      
+
       // For 0zk addresses, use the address as-is (no checksumming needed)
       // For 0x addresses, ensure address is properly formatted (checksummed)
       const receiver = isRailgunAddress ? address : getAddress(address)
@@ -725,13 +741,13 @@ const TransferScreen = () => {
             }
             tokenAddress = networkConfig.WETH
           }
-          
+
           console.log('Calling account.transfer for internal transfer with:', {
             tokenAddress,
             amount: amountBigInt.toString(),
             receiver
           })
-          
+
           // TODO: Verify that account.transfer exists and has the correct signature
           // The receiver should be the 0zk address
           txData = await account.transfer(tokenAddress, amountBigInt, receiver)

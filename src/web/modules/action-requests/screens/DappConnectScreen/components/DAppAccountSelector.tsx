@@ -16,7 +16,12 @@ import Account from '@web/modules/account-select/components/Account'
 import { ScreenMode } from './interface'
 
 interface Props {
-  setSelectedAccount: React.Dispatch<React.SetStateAction<string | null>>
+  setSelectedAccount: React.Dispatch<
+    React.SetStateAction<{
+      isNew: boolean
+      address: string
+    } | null>
+  >
   setScreenMode: React.Dispatch<React.SetStateAction<ScreenMode>>
   origin?: string
 }
@@ -45,17 +50,15 @@ const AccountOption: FC<{
 type ViewMode = 'buttons' | 'dapp-accounts' | 'all-accounts'
 
 const AccountSelector: FC<{
-  setSelectedAccount: (accountAddr: string) => void
-  //   onFullscreen?: (fullscreen: boolean) => void
-  //   onNewAccount: (seedId: string) => void
+  setSelectedAccount: React.Dispatch<
+    React.SetStateAction<{
+      isNew: boolean
+      address: string
+    } | null>
+  >
   dappId?: string
   setScreenMode: React.Dispatch<React.SetStateAction<ScreenMode>>
-}> = ({
-  setSelectedAccount,
-  setScreenMode,
-  // onNewAccount,
-  dappId
-}) => {
+}> = ({ setSelectedAccount, setScreenMode, dappId }) => {
   const { t } = useTranslation()
   const { theme } = useTheme()
   const { accounts } = useAccountsControllerState()
@@ -117,7 +120,7 @@ const AccountSelector: FC<{
   }
 
   const handleSelectAccount = (accountAddr: string) => {
-    setSelectedAccount(accountAddr)
+    setSelectedAccount({ isNew: false, address: accountAddr })
   }
 
   if (viewMode === 'buttons') {
