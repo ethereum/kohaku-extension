@@ -15,6 +15,7 @@ import useTheme from '@common/hooks/useTheme'
 import formatDecimals from '@ambire-common/utils/formatDecimals/formatDecimals'
 import { getTokenId } from '@web/utils/token'
 import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
+import { TokenResult } from '@ambire-common/libs/portfolio'
 
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import useRailgunControllerState from '@web/hooks/useRailgunControllerState'
@@ -23,6 +24,22 @@ import Recipient from '../Recipient'
 import SendToken from '../SendToken'
 import { formatAmount } from '../../utils/formatAmount'
 import getStyles from '../TransferForm/styles'
+
+const defaultEthToken: TokenResult = {
+  address: ZERO_ADDRESS,
+  chainId: BigInt(10111),
+  symbol: 'ETH',
+  name: 'Ethereum',
+  decimals: 18,
+  amount: 0n,
+  flags: {
+    onGasTank: false,
+    rewardsType: null,
+    canTopUpGasTank: false,
+    isFeeToken: false
+  },
+  priceIn: []
+}
 
 const RailgunTransferForm = ({
   addressInputState,
@@ -43,7 +60,8 @@ const RailgunTransferForm = ({
   controllerAmount,
   totalApprovedBalance,
   totalPrivateBalancesFormatted,
-  chainId
+  chainId,
+  defaultTokenToEth
 }: {
   addressInputState: ReturnType<typeof useAddressInput>
   amountErrorMessage: string
@@ -67,6 +85,7 @@ const RailgunTransferForm = ({
     { amount: string; decimals: number; symbol: string; name: string }
   >
   chainId: number
+  defaultTokenToEth?: boolean
 }) => {
   const { validation } = addressInputState
   const { account, portfolio } = useSelectedAccountControllerState()
@@ -132,6 +151,11 @@ const RailgunTransferForm = ({
       tokens.push(token)
       addedAddresses.add(tokenAddressLower)
     })
+
+    if (defaultTokenToEth) {
+      tokens.unshift(defaultEthToken)
+      addedAddresses.add('eth')
+    }
 
     return tokens
   }, [portfolio?.tokens, portfolio?.isReadyToVisualize, chainId, totalPrivateBalancesFormatted])

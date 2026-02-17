@@ -137,7 +137,7 @@ const DappConnectScreen = () => {
     if (dappAccount?.isNew) {
       timerId = setTimeout(() => {
         openInTab({
-          url: `tab.html#/${WEB_ROUTES.pp1Transfer}?address=${dappAccount.address}`,
+          url: `tab.html#/${WEB_ROUTES.pp1Transfer}?address=${dappAccount.address}&protocol=railgun&token=eth`,
           shouldCloseCurrentWindow: false
         })
       }, 450)

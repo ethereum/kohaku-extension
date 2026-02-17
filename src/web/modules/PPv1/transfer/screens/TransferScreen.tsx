@@ -50,10 +50,12 @@ const TransferScreen = () => {
   const { t } = useTranslation()
   const { navigate, searchParams } = useNavigation()
   const addressFromParams = searchParams.get('address') ?? ''
+  const protocolFromParams = searchParams.get('protocol') ?? ''
+  const tokenFromParams = searchParams.get('token') ?? ''
   const hasRefreshedAccountRef = useRef(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedPrivacyProtocol, setSelectedPrivacyProtocol] = useState<SelectValue>(
-    getPrivacyProtocolOptions(t)[0]
+    getPrivacyProtocolOptions(t)[protocolFromParams === 'railgun' ? 1 : 0]
   )
   const activeProtocol = selectedPrivacyProtocol.value as TransferTabType
   const { dispatch } = useBackgroundService()
@@ -1084,6 +1086,7 @@ const TransferScreen = () => {
               totalApprovedBalance={railgunTotalApprovedBalance}
               totalPrivateBalancesFormatted={railgunTotalPrivateBalancesFormatted}
               chainId={railgunChainId || 11155111}
+              defaultTokenToEth={tokenFromParams === 'eth'}
             />
           )}
         </Form>
