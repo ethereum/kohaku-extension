@@ -46,7 +46,7 @@ import {
   RAILGUN_RELAYER_URL,
   ALCHEMY_API_KEY,
   SEPOLIA_RPC_URL,
-  USE_HELIOS,
+  RPC_PROVIDER,
   HELIOS_CHECKPOINT,
 } from '@env'
 import * as Sentry from '@sentry/browser'

@@ -1262,6 +1262,11 @@
   resolved "https://registry.yarnpkg.com/@bcoe/v8-coverage/-/v8-coverage-0.2.3.tgz#75a2e8b51cb758a7553d6804a5932d7aace75c39"
   integrity sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==
 
+"@corpus-core/colibri-stateless@^1.1.1":
+  version "1.1.1"
+  resolved "https://registry.yarnpkg.com/@corpus-core/colibri-stateless/-/colibri-stateless-1.1.1.tgz#c643f8368bb7f5a40eb52fc39e4c283f68806935"
+  integrity sha512-OrNKRhERLscBhbIPFlw+7oSjDYUeKxYZB/y0SgqNjEJdg444GCC4W//L34aNXfEqWk1J0cKeT1RWGxKVuye66g==
+
 "@craftzdog/react-native-buffer@^6.0.4":
   version "6.1.1"
   resolved "https://registry.yarnpkg.com/@craftzdog/react-native-buffer/-/react-native-buffer-6.1.1.tgz#46afcb6b539a9a3e4dc836ebceb1a9b46f374056"

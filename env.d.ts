@@ -21,8 +21,12 @@ declare module '@env' {
     PRIVACY_POOLS_RELAYER_URL: string
     HYPERSYNC_API_KEY: string
     RAILGUN_RELAYER_URL: string
-    USE_HELIOS: string
+    RPC_PROVIDER: string
     HELIOS_CHECKPOINT: string
+    USE_COLIBRI: string
+    COLIBRI_PROVER_URLS: string
+    COLIBRI_TRUSTED_CHECKPOINT: string
+    COLIBRI_DEBUG: string
   }
 
   /**
@@ -141,12 +145,35 @@ declare module '@env' {
   export const INFURA_API_KEY: EnvTypes['INFURA_API_KEY']
 
   /**
-   * Whether to use Helios
+   * Select which RPC provider implementation to use.
+   * Allowed values: "rpc", "helios", "colibri".
    */
-  export const USE_HELIOS: EnvTypes['USE_HELIOS']
+  export const RPC_PROVIDER: EnvTypes['RPC_PROVIDER']
 
   /**
    * Custom Helios checkpoint
    */
   export const HELIOS_CHECKPOINT: EnvTypes['HELIOS_CHECKPOINT']
+
+  /**
+   * Colibri (stateless) verified RPC provider feature gate.
+   * The accepted value is 'true' to enable the feature.
+   */
+  export const USE_COLIBRI: string
+
+  /**
+   * Comma-separated list of Colibri prover URLs.
+   */
+  export const COLIBRI_PROVER_URLS: string
+
+  /**
+   * Optional trusted checkpoint (beacon block root) for Colibri bootstrapping.
+   */
+  export const COLIBRI_TRUSTED_CHECKPOINT: string
+
+  /**
+   * Enable Colibri debug logs.
+   * The accepted value is 'true' to enable debug logs.
+   */
+  export const COLIBRI_DEBUG: string
 }

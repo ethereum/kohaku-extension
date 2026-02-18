@@ -177,4 +177,28 @@ export class SettingsPage extends BasePage {
     // assert button name changed
     await this.compareText(selectors.disableNetworkButton, 'Enable')
   }
+
+  async setRpcProviderForNetwork(networkName: string, provider: 'rpc' | 'helios' | 'colibri') {
+    await this.openNetworkPage()
+
+    await this.entertext(selectors.searchInput, networkName)
+    await this.page.locator(`//div[contains(text(),"${networkName}")]`).first().click()
+
+    await this.page.locator(selectors.networkDetailEditButton).click()
+    await this.page.locator(selectors.editNetworkModalTitle).isVisible()
+
+    const optionSelector =
+      provider === 'rpc'
+        ? selectors.rpcProviderOptionRpc
+        : provider === 'helios'
+          ? selectors.rpcProviderOptionHelios
+          : selectors.rpcProviderOptionColibri
+
+    await this.page.locator(optionSelector).click()
+
+    await this.page.locator(selectors.editNetworkSaveButton).click()
+    await expect(this.page.locator(selectors.networkSettingsSavedSnackbar(networkName))).toHaveText(
+      `${networkName} settings saved!`
+    )
+  }
 }
