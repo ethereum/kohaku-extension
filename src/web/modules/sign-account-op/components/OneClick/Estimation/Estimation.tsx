@@ -17,6 +17,8 @@ import useTheme from '@common/hooks/useTheme'
 import spacings from '@common/styles/spacings'
 import { THEME_TYPES } from '@common/styles/themeConfig'
 import flexbox from '@common/styles/utils/flexbox'
+import useColibriSimulation from '@web/hooks/useColibriSimulation'
+import ColibriSimulationResult from '@web/modules/sign-account-op/components/ColibriSimulationResult'
 import Estimation from '@web/modules/sign-account-op/components/Estimation'
 import Modals from '@web/modules/sign-account-op/components/Modals/Modals'
 import SigningKeySelect from '@web/modules/sign-message/components/SignKeySelect'
@@ -75,7 +77,8 @@ const OneClickEstimation = ({
     acknowledgeWarning,
     slowPaymasterRequest,
     primaryButtonText,
-    bundlerNonceDiscrepancy
+    bundlerNonceDiscrepancy,
+    network
   } = useSign({
     signAccountOpState: signAccountOpController,
     handleBroadcast: handleBroadcastAccountOp,
@@ -83,6 +86,14 @@ const OneClickEstimation = ({
     handleUpdateStatus,
     isOneClickSign: true
   })
+
+  const {
+    isLoading: isSimulating,
+    result: simulationResult,
+    error: simulationError,
+    isColibriAvailable,
+    simulate: handleSimulate
+  } = useColibriSimulation(network, signAccountOpController?.accountOp)
 
   return (
     <>
@@ -135,6 +146,14 @@ const OneClickEstimation = ({
                 </Text>
               </View>
             )}
+
+            <ColibriSimulationResult
+              isLoading={isSimulating}
+              result={simulationResult}
+              error={simulationError}
+              isColibriAvailable={isColibriAvailable}
+            />
+
             <View
               style={{
                 height: 1,
@@ -152,13 +171,24 @@ const OneClickEstimation = ({
                 disabled={isSignLoading}
                 style={{ width: 98 }}
               />
-              <ButtonWithLoader
-                testID="sign-button"
-                text={primaryButtonText}
-                isLoading={isSignLoading}
-                disabled={isSignDisabled || signingErrors.length > 0}
-                onPress={onSignButtonClick}
-              />
+              <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+                <Button
+                  testID="simulate-button"
+                  type="outline"
+                  text={isSimulating ? t('Simulating...') : t('Simulate')}
+                  onPress={handleSimulate}
+                  disabled={!hasEstimation || isSignLoading || isSimulating}
+                  hasBottomSpacing={false}
+                  style={{ minWidth: 100, ...spacings.mrTy }}
+                />
+                <ButtonWithLoader
+                  testID="sign-button"
+                  text={primaryButtonText}
+                  isLoading={isSignLoading}
+                  disabled={isSignDisabled || signingErrors.length > 0}
+                  onPress={onSignButtonClick}
+                />
+              </View>
             </View>
           </View>
         )}
