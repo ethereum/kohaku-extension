@@ -18,6 +18,8 @@ const NumberInput = ({ onChangeText, precision, disabled, allowHex, ...rest }: P
       if (!value) return onChangeText('')
       // eslint-disable-next-line no-param-reassign
       value = value.replace(',', '.')
+      // eslint-disable-next-line no-param-reassign
+      if (value.startsWith('.')) value = `0${value}`
       const afterDecimals = value?.split('.')[1]
       if (afterDecimals && afterDecimals.length > precision) return
 
