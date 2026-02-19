@@ -35,7 +35,7 @@ const { isActionWindow } = getUiType()
 function TransferScreen() {
   const hasRefreshedAccountRef = useRef(false)
   const { dispatch } = useBackgroundService()
-  const { navigate, searchParams } = useNavigation()
+  const { navigate } = useNavigation()
   const location = useLocation()
   const { t } = useTranslation()
   const { addToast } = useToast()
@@ -43,7 +43,10 @@ function TransferScreen() {
 
   const { accountsOps } = useActivityControllerState()
   const { selectedToken: privacyPoolsSelectedToken } = usePrivacyPoolsControllerState()
-  const { selectedToken: railgunSelectedToken, latestBroadcastedToken: railgunLatestBroadcastedToken } = useRailgunControllerState()
+  const {
+    selectedToken: railgunSelectedToken,
+    latestBroadcastedToken: railgunLatestBroadcastedToken
+  } = useRailgunControllerState()
 
   const {
     chainId,
@@ -73,9 +76,13 @@ function TransferScreen() {
       return railgunLatestBroadcastedToken || railgunSelectedToken
     }
     return privacyPoolsSelectedToken
-  }, [privacyProvider, railgunSelectedToken, railgunLatestBroadcastedToken, privacyPoolsSelectedToken])
+  }, [
+    privacyProvider,
+    railgunSelectedToken,
+    railgunLatestBroadcastedToken,
+    privacyPoolsSelectedToken
+  ])
 
-  console.log("__ SELECTED TOKEN __", selectedToken)
   const submittedAccountOp = useMemo(() => {
     if (!latestBroadcastedAccountOp?.signature) return
 
@@ -157,16 +164,6 @@ function TransferScreen() {
   }, [submittedAccountOp, isMatchingDeposit])
 
   useEffect(() => {
-    if (!defaultToken) return
-
-    handleUpdateForm({
-      selectedToken: defaultToken,
-      depositAmount: '',
-      privacyProvider: 'railgun'
-    })
-  }, [defaultToken?.symbol])
-
-  useEffect(() => {
     // Optimization: Don't apply filtration if we don't have a recent broadcasted account op
     if (!latestBroadcastedAccountOp?.accountAddr || !latestBroadcastedAccountOp?.chainId) return
 
@@ -198,11 +195,6 @@ function TransferScreen() {
       hasRefreshedAccountRef.current = false
     }
   }, [])
-
-  // Reset deposit amount when switching between providers
-  useEffect(() => {
-    handleUpdateForm({ depositAmount: '' })
-  }, [privacyProvider, handleUpdateForm])
 
   const displayedView: 'transfer' | 'track' = useMemo(() => {
     if (latestBroadcastedAccountOp) return 'track'
@@ -433,17 +425,17 @@ function TransferScreen() {
         {(submittedAccountOp?.status === AccountOpStatus.Success ||
           submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce) &&
           isMatchingDeposit && (
-          <Completed
-            title={t('Deposit complete!')}
-            titleSecondary={t(
-              selectedToken?.symbol
-                ? `${selectedToken.symbol} deposited to privacy pool!`
-                : 'Token deposited to privacy pool!'
-            )}
-            explorerLink={explorerLink}
-            openExplorerText="View Deposit"
-          />
-        )}
+            <Completed
+              title={t('Deposit complete!')}
+              titleSecondary={t(
+                selectedToken?.symbol
+                  ? `${selectedToken.symbol} deposited to privacy pool!`
+                  : 'Token deposited to privacy pool!'
+              )}
+              explorerLink={explorerLink}
+              openExplorerText="View Deposit"
+            />
+          )}
         {(submittedAccountOp?.status === AccountOpStatus.Failure ||
           submittedAccountOp?.status === AccountOpStatus.Rejected ||
           submittedAccountOp?.status === AccountOpStatus.BroadcastButStuck) && (
@@ -466,6 +458,7 @@ function TransferScreen() {
             poolInfo={poolInfo}
             depositAmount={depositAmount}
             selectedToken={selectedToken}
+            defaultToken={defaultToken}
             amountErrorMessage={validationFormMsgs.amount.message || ''}
             formTitle={formTitle}
             handleUpdateForm={handleUpdateForm}

@@ -25,6 +25,7 @@ import useGetTokenSelectProps from '@common/hooks/useGetTokenSelectProps/useGetT
 import { getTokenId } from '@web/utils/token'
 import formatDecimals from '@ambire-common/utils/formatDecimals/formatDecimals'
 import PrivacyProtocolSelector from '@web/components/PrivacyProtocols'
+import { TokenResult } from '@ambire-common/libs/portfolio'
 import SendToken from '../SendToken'
 import styles from './styles'
 
@@ -34,7 +35,8 @@ const DepositForm = ({
   amountErrorMessage,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   formTitle,
-  selectedToken,
+  selectedToken: mySelectedToken,
+  defaultToken = null,
   handleUpdateForm,
   chainId,
   privacyProvider
@@ -42,6 +44,7 @@ const DepositForm = ({
   poolInfo?: PoolInfo
   depositAmount?: string
   selectedToken: any
+  defaultToken?: TokenResult | null
   amountErrorMessage: string
   formTitle: string | ReactNode
   handleUpdateForm: (params: { [key: string]: any }) => void
@@ -55,26 +58,12 @@ const DepositForm = ({
   const { dispatch } = useBackgroundService()
   const { t } = useTranslation()
   const [displayAmount, setDisplayAmount] = useState('')
-  const [selectedAccountAddr, setSelectedAccountAddr] = useState<string | null>(null)
-  const [mySelectedToken, setMySelectedToken] = useState<any>(null)
 
   // Filter out private account (zeroAddress)
   const regularAccounts = useMemo(
     () => accounts.filter((acc) => acc.addr !== zeroAddress),
     [accounts]
   )
-
-  // Set initial selected account
-  useEffect(() => {
-    if (!selectedAccountAddr && selectedAccount && selectedAccount.addr !== zeroAddress) {
-      setSelectedAccountAddr(selectedAccount.addr)
-    }
-  }, [selectedAccount, selectedAccountAddr])
-
-  // Set initial selected token
-  useEffect(() => {
-    setMySelectedToken(selectedToken)
-  }, [selectedToken])
 
   // Get portfolio for the currently selected account
   // When user selects a different account in the dropdown, we immediately switch to it
@@ -152,7 +141,12 @@ const DepositForm = ({
     [t]
   )
 
-  const [selectedProvider, setSelectedProvider] = useState<SelectValue | null>(null)
+  const selectedProvider = useMemo(() => {
+    const providerValue = privacyProvider || 'privacy-pools'
+    const providerOption = providerOptions.find((opt) => opt.value === providerValue)
+
+    return providerOption || null
+  }, [privacyProvider])
 
   // Get balance for the currently selected token
   const selectedTokenBalance = useMemo(() => {
@@ -172,13 +166,12 @@ const DepositForm = ({
   }, [regularAccounts])
 
   const selectedAccountValue = useMemo(() => {
-    return accountOptions.find((opt) => opt.value === selectedAccountAddr) || null
-  }, [accountOptions, selectedAccountAddr])
+    return accountOptions.find((opt) => opt.value === selectedAccount?.addr) || null
+  }, [accountOptions, selectedAccount])
 
   const handleAccountChange = useCallback(
     (value: SelectValue) => {
       const newAccountAddr = value.value as string
-      setSelectedAccountAddr(newAccountAddr)
 
       // Switch to the selected account immediately to load its portfolio
       if (selectedAccount?.addr !== newAccountAddr) {
@@ -190,7 +183,6 @@ const DepositForm = ({
 
       // Reset amount and token when changing accounts to force refresh from new portfolio
       setDisplayAmount('')
-      setMySelectedToken(null)
       handleUpdateForm({ depositAmount: '', selectedToken: null })
     },
     [handleUpdateForm, selectedAccount?.addr, dispatch]
@@ -202,7 +194,6 @@ const DepositForm = ({
       const tokenToSelect = availableTokens.find((token) => getTokenId(token) === tokenId)
 
       if (tokenToSelect) {
-        setMySelectedToken(tokenToSelect)
         // Reset amount when changing tokens
         setDisplayAmount('')
         handleUpdateForm({ selectedToken: tokenToSelect, depositAmount: '' })
@@ -270,28 +261,42 @@ const DepositForm = ({
 
   // Initialize selectedToken with default ETH token if not set
   useEffect(() => {
-    if (!mySelectedToken && portfolio?.isReadyToVisualize && availableTokens.length > 0) {
-      // Default to native token (ETH) if available, otherwise use first token
-      const defaultToken =
-        availableTokens.find((token) => token.address === zeroAddress) || availableTokens[0]
+    if (mySelectedToken) return
+    if (!portfolio?.isReadyToVisualize || availableTokens.length === 0) return
 
-      if (defaultToken) {
-        const defaultTokenBalance = getTokenAmount(defaultToken)
-        const args =
-          privacyProvider === 'railgun'
-            ? { selectedToken: defaultToken }
-            : {
-                selectedToken: defaultToken,
-                maxAmount:
-                  defaultToken.decimals !== undefined
-                    ? formatUnits(defaultTokenBalance, defaultToken.decimals)
-                    : formatEther(defaultTokenBalance)
-              }
-        handleUpdateForm(args)
-      }
-    }
+    const tokenToSelect = defaultToken
+      ? availableTokens.find(
+          (token) =>
+            token.chainId === defaultToken.chainId &&
+            token.address.toLowerCase() === defaultToken.address.toLowerCase()
+        ) ??
+        availableTokens.find((token) => token.address === zeroAddress) ??
+        availableTokens[0]
+      : availableTokens.find((token) => token.address === zeroAddress) ?? availableTokens[0]
+
+    if (!tokenToSelect) return
+
+    const tokenBalance = getTokenAmount(tokenToSelect)
+
+    // Force to railgun if there is a default token
+    const providerOverride = defaultToken ? { privacyProvider: 'railgun' } : {}
+
+    const args =
+      privacyProvider === 'railgun' || defaultToken
+        ? { selectedToken: tokenToSelect, ...providerOverride }
+        : {
+            selectedToken: tokenToSelect,
+            ...providerOverride,
+            maxAmount:
+              tokenToSelect.decimals !== undefined
+                ? formatUnits(tokenBalance, tokenToSelect.decimals)
+                : formatEther(tokenBalance)
+          }
+
+    handleUpdateForm(args)
   }, [
     mySelectedToken,
+    defaultToken,
     portfolio?.isReadyToVisualize,
     availableTokens,
     handleUpdateForm,
@@ -299,36 +304,8 @@ const DepositForm = ({
   ])
 
   const handleProviderChange = (provider: SelectValue) => {
-    setSelectedProvider(provider)
-    setMySelectedToken(null)
-    handleUpdateForm({ privacyProvider: provider.value, selectedToken: null })
+    handleUpdateForm({ privacyProvider: provider.value, selectedToken: null, depositAmount: '' })
   }
-
-  useEffect(() => {
-    // Only auto-select ETH token if no token is currently selected
-    // This prevents resetting the token during background portfolio refreshes
-    // when the user has already selected a token (e.g., USDC)
-    if (portfolio?.isReadyToVisualize && selectedAccountAddr && !mySelectedToken) {
-      const updatedToken = portfolio?.tokens.find(
-        (token) => token.chainId === chainId && token.address === zeroAddress
-      )
-      const ethBalance =
-        selectedAccountPortfolio?.tokens.find((token) => token.address === zeroAddress)?.amount ||
-        0n
-
-      if (updatedToken) {
-        handleUpdateForm({ selectedToken: updatedToken, maxAmount: formatEther(ethBalance) })
-      }
-    }
-  }, [
-    selectedAccountAddr,
-    portfolio?.isReadyToVisualize,
-    portfolio?.tokens,
-    chainId,
-    handleUpdateForm,
-    selectedAccountPortfolio?.tokens,
-    mySelectedToken
-  ])
 
   useEffect(() => {
     if (depositAmount && depositAmount !== '0') {
@@ -342,15 +319,6 @@ const DepositForm = ({
       setDisplayAmount('')
     }
   }, [depositAmount, currentSelectedToken])
-
-  // Initialize and sync local provider state with parent privacyProvider prop
-  useEffect(() => {
-    const providerValue = privacyProvider || 'privacy-pools'
-    const providerOption = providerOptions.find((opt) => opt.value === providerValue)
-    if (providerOption) {
-      setSelectedProvider(providerOption)
-    }
-  }, [privacyProvider, providerOptions])
 
   // Move useMemo BEFORE the early return to comply with Rules of Hooks
   const vettingFeeEth = useMemo(() => {
@@ -371,10 +339,15 @@ const DepositForm = ({
 
   // Calculate 0.25% fee for Railgun deposits
   const railgunDepositFee = useMemo(() => {
-    if (!depositAmount || depositAmount === '0' || !currentSelectedToken || privacyProvider !== 'railgun') {
+    if (
+      !depositAmount ||
+      depositAmount === '0' ||
+      !currentSelectedToken ||
+      privacyProvider !== 'railgun'
+    ) {
       return { amount: 0n, formatted: '0' }
     }
-    
+
     try {
       const decimals = currentSelectedToken.decimals || 18
       const amount = BigInt(depositAmount)
@@ -389,10 +362,15 @@ const DepositForm = ({
 
   // Calculate amount user will receive after fee (for Railgun deposits)
   const railgunDepositReceives = useMemo(() => {
-    if (!depositAmount || depositAmount === '0' || !currentSelectedToken || privacyProvider !== 'railgun') {
+    if (
+      !depositAmount ||
+      depositAmount === '0' ||
+      !currentSelectedToken ||
+      privacyProvider !== 'railgun'
+    ) {
       return '0'
     }
-    
+
     try {
       const decimals = currentSelectedToken.decimals || 18
       const amount = BigInt(depositAmount)
