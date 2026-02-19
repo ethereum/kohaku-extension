@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { View } from 'react-native'
+import { ScrollView, View } from 'react-native'
 
 import {
   SignAccountOpController,
@@ -111,7 +111,7 @@ const OneClickEstimation = ({
         shouldBeClosableOnDrag={false}
       >
         {!!signAccountOpController && (
-          <View>
+          <View style={{ maxHeight: 420 }}>
             <SigningKeySelect
               isVisible={isChooseSignerShown}
               isSigning={isSignLoading || !signAccountOpController.readyToSign}
@@ -120,39 +120,41 @@ const OneClickEstimation = ({
               handleChooseSigningKey={handleChangeSigningKey}
               account={signAccountOpController.account}
             />
-            <Estimation
-              updateType={updateType}
-              signAccountOpState={signAccountOpController}
-              disabled={signAccountOpController.status?.type !== SigningStatus.ReadyToSign}
-              hasEstimation={!!hasEstimation}
-              // TODO<oneClickSwap>
-              slowRequest={false}
-              // TODO<oneClickSwap>
-              isViewOnly={isViewOnly}
-              isSponsored={signAccountOpController ? signAccountOpController.isSponsored : false}
-              sponsor={signAccountOpController ? signAccountOpController.sponsor : undefined}
-            />
-            {signingErrors.length > 0 && (
-              <View style={[flexbox.directionRow, flexbox.alignEnd, spacings.mt]}>
-                <Text fontSize={12} appearance="errorText">
-                  {t(signingErrors[0].title)}
-                </Text>
-              </View>
-            )}
-            {bundlerNonceDiscrepancy && (
-              <View style={[flexbox.directionRow, flexbox.alignEnd, spacings.mt]}>
-                <Text fontSize={12} appearance="warningText">
-                  {t(bundlerNonceDiscrepancy.title)}
-                </Text>
-              </View>
-            )}
+            <ScrollView style={flexbox.flex1} showsVerticalScrollIndicator>
+              <Estimation
+                updateType={updateType}
+                signAccountOpState={signAccountOpController}
+                disabled={signAccountOpController.status?.type !== SigningStatus.ReadyToSign}
+                hasEstimation={!!hasEstimation}
+                // TODO<oneClickSwap>
+                slowRequest={false}
+                // TODO<oneClickSwap>
+                isViewOnly={isViewOnly}
+                isSponsored={signAccountOpController ? signAccountOpController.isSponsored : false}
+                sponsor={signAccountOpController ? signAccountOpController.sponsor : undefined}
+              />
+              {signingErrors.length > 0 && (
+                <View style={[flexbox.directionRow, flexbox.alignEnd, spacings.mt]}>
+                  <Text fontSize={12} appearance="errorText">
+                    {t(signingErrors[0].title)}
+                  </Text>
+                </View>
+              )}
+              {bundlerNonceDiscrepancy && (
+                <View style={[flexbox.directionRow, flexbox.alignEnd, spacings.mt]}>
+                  <Text fontSize={12} appearance="warningText">
+                    {t(bundlerNonceDiscrepancy.title)}
+                  </Text>
+                </View>
+              )}
 
-            <ColibriSimulationResult
-              isLoading={isSimulating}
-              result={simulationResult}
-              error={simulationError}
-              isColibriAvailable={isColibriAvailable}
-            />
+              <ColibriSimulationResult
+                isLoading={isSimulating}
+                result={simulationResult}
+                error={simulationError}
+                isColibriAvailable={isColibriAvailable}
+              />
+            </ScrollView>
 
             <View
               style={{

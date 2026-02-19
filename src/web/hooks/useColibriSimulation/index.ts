@@ -3,5 +3,6 @@ export type {
   ColibriSimulationState,
   EnrichedSimulationResult,
   EnrichedLog,
-  EnrichedLogInput
+  EnrichedLogInput,
+  SummarySegment
 } from './useColibriSimulation'

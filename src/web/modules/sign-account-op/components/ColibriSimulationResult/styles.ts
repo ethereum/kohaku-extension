@@ -1,4 +1,4 @@
-import { StyleSheet, ViewStyle } from 'react-native'
+import { StyleSheet, TextStyle, ViewStyle } from 'react-native'
 
 import spacings from '@common/styles/spacings'
 import { THEME_TYPES, ThemeProps, ThemeType } from '@common/styles/themeConfig'
@@ -8,11 +8,13 @@ interface Style {
   container: ViewStyle
   logCard: ViewStyle
   logInputRow: ViewStyle
+  typeLabel: TextStyle
   statusBadge: ViewStyle
   statusSuccess: ViewStyle
   statusReverted: ViewStyle
   tokenBadge: ViewStyle
   rawDataContainer: ViewStyle
+  summaryLine: ViewStyle
 }
 
 const getStyles = (theme: ThemeProps, themeType: ThemeType) =>
@@ -31,12 +33,17 @@ const getStyles = (theme: ThemeProps, themeType: ThemeType) =>
       borderColor: theme.secondaryBorder
     },
     logInputRow: {
-      ...spacings.pvTy
+      ...spacings.pvMi
+    },
+    typeLabel: {
+      color: themeType === THEME_TYPES.DARK ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)'
     },
     statusBadge: {
       ...common.borderRadiusPrimary,
       ...spacings.phTy,
-      ...spacings.pvMi
+      ...spacings.pvMi,
+      flexDirection: 'row',
+      alignItems: 'center'
     },
     statusSuccess: {
       backgroundColor: 'rgba(22, 163, 74, 0.1)'
@@ -58,6 +65,9 @@ const getStyles = (theme: ThemeProps, themeType: ThemeType) =>
       ...spacings.pTy,
       ...spacings.mtTy,
       backgroundColor: theme.tertiaryBackground
+    },
+    summaryLine: {
+      ...spacings.pvMi
     }
   })
 

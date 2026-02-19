@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 
-import { Contract, formatUnits } from 'ethers'
+import { AbiCoder, Contract, formatUnits } from 'ethers'
 
 import { Network } from '@ambire-common/interfaces/network'
 import { AccountOp } from '@ambire-common/libs/accountOp/accountOp'
@@ -40,7 +40,14 @@ export interface EnrichedLogInput {
   rawValue: string
   displayValue: string
   addressBookName?: string
+  isAddress?: boolean
 }
+
+export type SummarySegment =
+  | { kind: 'event'; text: string }
+  | { kind: 'amount'; text: string }
+  | { kind: 'label'; text: string }
+  | { kind: 'address'; text: string; rawAddress: string }
 
 export interface EnrichedLog {
   name: string
@@ -52,6 +59,7 @@ export interface EnrichedLog {
   tokenSymbol?: string
   tokenName?: string
   tokenDecimals?: number
+  summarySegments?: SummarySegment[]
 }
 
 export interface EnrichedSimulationResult {
@@ -61,6 +69,8 @@ export interface EnrichedSimulationResult {
   status: string
   statusLabel: 'success' | 'reverted'
   returnValue: string
+  decodedError: string | null
+  explorerUrl: string
 }
 
 export interface ColibriSimulationState {
@@ -71,6 +81,27 @@ export interface ColibriSimulationState {
 }
 
 const TOKEN_EVENTS = new Set(['Deposit', 'Transfer', 'Mint', 'Burn', 'Withdrawal'])
+
+function decodeRevertReason(returnValue: string): string | null {
+  if (!returnValue || returnValue === '0x') return null
+  try {
+    // Error(string) selector: 0x08c379a2
+    if (returnValue.startsWith('0x08c379a2')) {
+      const abiCoder = AbiCoder.defaultAbiCoder()
+      const [reason] = abiCoder.decode(['string'], `0x${returnValue.slice(10)}`)
+      return reason
+    }
+    // Panic(uint256) selector: 0x4e487b71
+    if (returnValue.startsWith('0x4e487b71')) {
+      const abiCoder = AbiCoder.defaultAbiCoder()
+      const [code] = abiCoder.decode(['uint256'], `0x${returnValue.slice(10)}`)
+      return `Panic: code ${code.toString()}`
+    }
+    return null
+  } catch {
+    return null
+  }
+}
 
 const ERC20_METADATA_ABI = [
   'function name() view returns(string)',
@@ -97,7 +128,8 @@ function formatInputValue(input: SimulationLogInput, contacts: Contact[]): Enric
       type,
       rawValue: value,
       displayValue: bookName ? `${bookName} (${shortenAddress(value)})` : shortenAddress(value),
-      addressBookName: bookName
+      addressBookName: bookName,
+      isAddress: true
     }
   }
 
@@ -157,6 +189,47 @@ function formatTokenAmount(
   })
 }
 
+function buildSummarySegments(
+  eventName: string,
+  inputs: EnrichedLogInput[]
+): SummarySegment[] {
+  const amountInput = inputs.find(
+    (i) => /^u?int\d*$/.test(i.type) && ['wad', 'amount', 'value', 'tokens'].includes(i.name.toLowerCase())
+  )
+  const segments: SummarySegment[] = [{ kind: 'event', text: eventName }]
+
+  if (amountInput) {
+    segments.push({ kind: 'amount', text: amountInput.displayValue })
+  }
+
+  if (eventName === 'Transfer') {
+    const from = inputs.find((i) => i.name === 'from' || i.name === 'src')
+    const to = inputs.find((i) => i.name === 'to' || i.name === 'dst')
+    if (from) {
+      segments.push({ kind: 'label', text: 'from' })
+      segments.push({ kind: 'address', text: from.displayValue, rawAddress: from.rawValue })
+    }
+    if (to) {
+      segments.push({ kind: 'label', text: 'to' })
+      segments.push({ kind: 'address', text: to.displayValue, rawAddress: to.rawValue })
+    }
+  } else if (eventName === 'Deposit' || eventName === 'Mint') {
+    const dst = inputs.find((i) => i.type === 'address')
+    if (dst) {
+      segments.push({ kind: 'label', text: 'for' })
+      segments.push({ kind: 'address', text: dst.displayValue, rawAddress: dst.rawValue })
+    }
+  } else if (eventName === 'Withdrawal' || eventName === 'Burn') {
+    const src = inputs.find((i) => i.type === 'address')
+    if (src) {
+      segments.push({ kind: 'label', text: 'from' })
+      segments.push({ kind: 'address', text: src.displayValue, rawAddress: src.rawValue })
+    }
+  }
+
+  return segments
+}
+
 export default function useColibriSimulation(
   network: Network | undefined,
   accountOp: AccountOp | undefined
@@ -203,6 +276,8 @@ export default function useColibriSimulation(
 
           enrichedInputs = formatTokenAmount(enrichedInputs, meta.tokenDecimals, meta.tokenSymbol)
 
+          const summarySegments = buildSummarySegments(log.name, enrichedInputs)
+
           enrichedLogs.push({
             name: log.name,
             contractAddress: contractAddr,
@@ -212,7 +287,8 @@ export default function useColibriSimulation(
             isTokenEvent: true,
             tokenSymbol: meta.tokenSymbol ?? undefined,
             tokenName: meta.tokenName ?? undefined,
-            tokenDecimals: meta.tokenDecimals ?? undefined
+            tokenDecimals: meta.tokenDecimals ?? undefined,
+            summarySegments
           })
         } else {
           enrichedLogs.push({
@@ -270,13 +346,18 @@ export default function useColibriSimulation(
 
       const gasUsedDecimal = BigInt(rawResult.gasUsed).toString()
 
+      const isReverted = rawResult.status !== '0x1'
+      const decodedError = isReverted ? decodeRevertReason(rawResult.returnValue) : null
+
       const enrichedResult: EnrichedSimulationResult = {
         gasUsed: rawResult.gasUsed,
         gasUsedDecimal,
         logs: enrichedLogs,
         status: rawResult.status,
-        statusLabel: rawResult.status === '0x1' ? 'success' : 'reverted',
-        returnValue: rawResult.returnValue
+        statusLabel: isReverted ? 'reverted' : 'success',
+        returnValue: rawResult.returnValue,
+        decodedError,
+        explorerUrl: network.explorerUrl
       }
 
       setState({ isLoading: false, result: enrichedResult, error: null, isColibriAvailable: true })
