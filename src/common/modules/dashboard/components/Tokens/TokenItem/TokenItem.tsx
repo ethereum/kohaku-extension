@@ -1,9 +1,10 @@
 import React, { useCallback, useMemo } from 'react'
-import { View } from 'react-native'
+import { Pressable, View } from 'react-native'
 import { useModalize } from 'react-native-modalize'
 
 import { TokenResult } from '@ambire-common/libs/portfolio'
 import BatchIcon from '@common/assets/svg/BatchIcon'
+import useNavigation from '@common/hooks/useNavigation'
 import PendingToBeConfirmedIcon from '@common/assets/svg/PendingToBeConfirmedIcon'
 import RewardsIcon from '@common/assets/svg/RewardsIcon'
 import BottomSheet from '@common/components/BottomSheet'
@@ -13,10 +14,12 @@ import TokenIcon from '@common/components/TokenIcon'
 import Tooltip from '@common/components/Tooltip'
 import { useTranslation } from '@common/config/localization'
 import useTheme from '@common/hooks/useTheme'
+import KohakuLogo from '@common/components/HokahuLogo'
 import getAndFormatTokenDetails from '@common/modules/dashboard/helpers/getTokenDetails'
 import spacings, { SPACING_2XL, SPACING_TY } from '@common/styles/spacings'
 import { THEME_TYPES } from '@common/styles/themeConfig'
 import flexboxStyles from '@common/styles/utils/flexbox'
+import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import { AnimatedPressable, useCustomHover } from '@web/hooks/useHover'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
@@ -31,6 +34,10 @@ import getStyles from './styles'
 const { isPopup } = getUiType()
 
 const TokenItem = ({ token }: { token: TokenResult }) => {
+  const { navigate } = useNavigation()
+  const shieldToken = () => {
+    navigate(`${WEB_ROUTES.pp1Deposit}`, { state: { token } })
+  }
   const { portfolio } = useSelectedAccountControllerState()
   const {
     symbol,
@@ -188,6 +195,11 @@ const TokenItem = ({ token }: { token: TokenResult }) => {
                     text={t('Claim')}
                     onPress={sendVestingTransaction}
                   />
+                )}
+                {Number(balance) > 0 && (
+                  <Pressable onPress={shieldToken}>
+                    <KohakuLogo height={20} width={20} />
+                  </Pressable>
                 )}
               </View>
             </View>

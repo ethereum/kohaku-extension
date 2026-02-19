@@ -19,7 +19,7 @@ const Routes = ({ openReceiveModal }: { openReceiveModal: () => void }) => {
     {
       testID: 'dashboard-button-privacy-pools',
       icon: PrivateDepositIcon,
-      label: t('Deposit to Private'),
+      label: t('Shield funds'),
       route: WEB_ROUTES.pp1Deposit,
       isExternal: false,
       scale: 1.08,

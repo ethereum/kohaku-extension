@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
+import { useLocation } from 'react-router-dom'
 
 import { SigningStatus } from '@ambire-common/controllers/signAccountOp/signAccountOp'
 import { Key } from '@ambire-common/interfaces/keystore'
@@ -26,6 +27,7 @@ import useDepositForm from '@web/hooks/useDepositForm'
 import { getUiType } from '@web/utils/uiType'
 import flexbox from '@common/styles/utils/flexbox'
 import { Content } from '@web/components/TransactionsScreen'
+import { TokenResult } from '@ambire-common/libs/portfolio'
 import { Form, Wrapper } from '../components/TransactionsScreen'
 
 const { isActionWindow } = getUiType()
@@ -33,9 +35,11 @@ const { isActionWindow } = getUiType()
 function TransferScreen() {
   const hasRefreshedAccountRef = useRef(false)
   const { dispatch } = useBackgroundService()
-  const { navigate } = useNavigation()
+  const { navigate, searchParams } = useNavigation()
+  const location = useLocation()
   const { t } = useTranslation()
   const { addToast } = useToast()
+  const defaultToken = ((location.state as any)?.token as TokenResult) ?? null
 
   const { accountsOps } = useActivityControllerState()
   const { selectedToken: privacyPoolsSelectedToken } = usePrivacyPoolsControllerState()
@@ -71,6 +75,7 @@ function TransferScreen() {
     return privacyPoolsSelectedToken
   }, [privacyProvider, railgunSelectedToken, railgunLatestBroadcastedToken, privacyPoolsSelectedToken])
 
+  console.log("__ SELECTED TOKEN __", selectedToken)
   const submittedAccountOp = useMemo(() => {
     if (!latestBroadcastedAccountOp?.signature) return
 
@@ -131,7 +136,7 @@ function TransferScreen() {
   // Helper to check if the submittedAccountOp matches a deposit (not a withdrawal)
   const isMatchingDeposit = useMemo(() => {
     if (!submittedAccountOp) return false
-    
+
     const metaAny = submittedAccountOp.meta as any
     // Withdrawals have meta.isRailgunWithdrawal or meta.isPrivacyPoolsWithdrawal
     // If it has withdrawal meta tags, it's not a deposit
@@ -150,6 +155,16 @@ function TransferScreen() {
 
     return `https://sepolia.etherscan.io/tx/${txnId}`
   }, [submittedAccountOp, isMatchingDeposit])
+
+  useEffect(() => {
+    if (!defaultToken) return
+
+    handleUpdateForm({
+      selectedToken: defaultToken,
+      depositAmount: '',
+      privacyProvider: 'railgun'
+    })
+  }, [defaultToken?.symbol])
 
   useEffect(() => {
     // Optimization: Don't apply filtration if we don't have a recent broadcasted account op
