@@ -10,6 +10,7 @@ import Checkbox from '@common/components/Checkbox'
 import Spinner from '@common/components/Spinner'
 import Text from '@common/components/Text'
 import useTheme from '@common/hooks/useTheme'
+import text from '@common/styles/utils/text'
 import spacings, { SPACING, SPACING_LG, SPACING_MI } from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { openInTab } from '@web/extension-services/background/webapi/tab'
@@ -17,41 +18,46 @@ import { openInTab } from '@web/extension-services/background/webapi/tab'
 import getStyles from '../styles'
 import DAppAccountSelector from './DAppAccountSelector'
 import DAppPermissions from './DAppPermissions'
+import DappCreateNewAccount from './DappCreateNewAccount'
+import { DappAccount, ScreenMode } from './interface'
 
 const DAppConnectBody: FC<{
   confirmedRiskCheckbox: boolean
   setConfirmedRiskCheckbox: React.Dispatch<React.SetStateAction<boolean>>
-  setSelectedAccount: React.Dispatch<React.SetStateAction<string | null>>
+  setSelectedAccount: React.Dispatch<React.SetStateAction<DappAccount | null>>
   responsiveSizeMultiplier: number
   securityCheck: 'BLACKLISTED' | 'NOT_BLACKLISTED' | 'LOADING'
   origin?: string
+  autoConnect: (account: DappAccount) => void
 }> = ({
   confirmedRiskCheckbox,
   setConfirmedRiskCheckbox,
   setSelectedAccount,
   securityCheck,
   responsiveSizeMultiplier,
-  origin
+  origin,
+  autoConnect
 }) => {
-    const { t } = useTranslation()
-    const { styles, theme } = useTheme(getStyles)
-    const [fullscreenDappAccounts, setFullscreenDappAccounts] = React.useState(false)
+  const { t } = useTranslation()
+  const { styles, theme } = useTheme(getStyles)
+  const [screenMode, setScreenMode] = React.useState<ScreenMode>('all')
 
-    const spacingsStyle = useMemo(() => {
-      return {
-        paddingHorizontal: SPACING_LG * responsiveSizeMultiplier,
-        paddingTop: SPACING_LG * responsiveSizeMultiplier,
-        paddingBottom: SPACING_LG * responsiveSizeMultiplier
-      }
-    }, [responsiveSizeMultiplier])
+  const spacingsStyle = useMemo(() => {
+    return {
+      paddingHorizontal: SPACING_LG * responsiveSizeMultiplier,
+      paddingTop: SPACING_LG * responsiveSizeMultiplier,
+      paddingBottom: SPACING_LG * responsiveSizeMultiplier
+    }
+  }, [responsiveSizeMultiplier])
 
-    const handleRiskCheckboxPress = useCallback(() => {
-      setConfirmedRiskCheckbox((p) => !p)
-    }, [setConfirmedRiskCheckbox])
+  const handleRiskCheckboxPress = useCallback(() => {
+    setConfirmedRiskCheckbox((p) => !p)
+  }, [setConfirmedRiskCheckbox])
 
-    return (
-      <View style={[styles.contentBody, spacingsStyle, { flex: 1 }]}>
-        {!fullscreenDappAccounts && (<>
+  return (
+    <View style={[styles.contentBody, spacingsStyle, { flex: 1 }]}>
+      {screenMode === 'all' && (
+        <>
           <View
             style={[
               styles.securityChecksContainer,
@@ -124,47 +130,69 @@ const DAppConnectBody: FC<{
             )}
           </View>
           <DAppPermissions responsiveSizeMultiplier={responsiveSizeMultiplier} />
-        </>)}
+        </>
+      )}
+      {(screenMode === 'all' || screenMode === 'new-account') && (
+        <DappCreateNewAccount
+          screenMode={screenMode}
+          origin={origin}
+          autoConnect={autoConnect}
+          setScreenMode={setScreenMode}
+        />
+      )}
+      {screenMode === 'all' && (
+        <Text
+          style={{ ...spacings.mvMi, ...text.center, opacity: 0.64 }}
+          fontSize={14 * responsiveSizeMultiplier}
+          weight="medium"
+          appearance="tertiaryText"
+        >
+          {t('Or use existing account')}
+        </Text>
+      )}
+
+      {(screenMode === 'all' || screenMode === 'view-accounts') && (
         <DAppAccountSelector
           setSelectedAccount={setSelectedAccount}
-          onFullscreen={setFullscreenDappAccounts}
+          setScreenMode={setScreenMode}
           origin={origin}
         />
-        {securityCheck === 'BLACKLISTED' ? (
-          <Alert type="warning" size="sm" withIcon={false}>
-            <Checkbox
-              value={confirmedRiskCheckbox}
-              style={{ ...spacings.mb0 }}
-              onValueChange={handleRiskCheckboxPress}
-              uncheckedBorderColor={theme.warningDecorative}
-              checkedColor={theme.warningDecorative}
-            >
-              <Text
-                fontSize={16 * responsiveSizeMultiplier}
-                appearance="errorText"
-                weight="semiBold"
-                style={{ lineHeight: 20 }}
-                onPress={handleRiskCheckboxPress}
-              >
-                {t('I have read and understood the risks')}
-              </Text>
-            </Checkbox>
-          </Alert>
-        ) : (
-          <Text
-            style={{
-              opacity: 0.64,
-              marginHorizontal: 'auto'
-            }}
-            fontSize={14 * responsiveSizeMultiplier}
-            weight="medium"
-            appearance="tertiaryText"
+      )}
+      {securityCheck === 'BLACKLISTED' ? (
+        <Alert type="warning" size="sm" withIcon={false}>
+          <Checkbox
+            value={confirmedRiskCheckbox}
+            style={{ ...spacings.mb0 }}
+            onValueChange={handleRiskCheckboxPress}
+            uncheckedBorderColor={theme.warningDecorative}
+            checkedColor={theme.warningDecorative}
           >
-            {t('Only connect with sites you trust')}
-          </Text>
-        )}
-      </View>
-    )
-  }
+            <Text
+              fontSize={16 * responsiveSizeMultiplier}
+              appearance="errorText"
+              weight="semiBold"
+              style={{ lineHeight: 20 }}
+              onPress={handleRiskCheckboxPress}
+            >
+              {t('I have read and understood the risks')}
+            </Text>
+          </Checkbox>
+        </Alert>
+      ) : (
+        <Text
+          style={{
+            opacity: 0.64,
+            marginHorizontal: 'auto'
+          }}
+          fontSize={14 * responsiveSizeMultiplier}
+          weight="medium"
+          appearance="tertiaryText"
+        >
+          {t('Only connect with sites you trust')}
+        </Text>
+      )}
+    </View>
+  )
+}
 
 export default React.memo(DAppConnectBody)

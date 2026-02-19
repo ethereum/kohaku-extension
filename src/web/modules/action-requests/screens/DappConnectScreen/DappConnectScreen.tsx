@@ -16,9 +16,12 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import ActionFooter from '@web/modules/action-requests/components/ActionFooter'
 
+import { openInTab } from '@web/extension-services/background/webapi/tab'
+import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import DAppConnectBody from './components/DAppConnectBody'
 import DAppConnectHeader from './components/DAppConnectHeader'
 import getStyles from './styles'
+import { DappAccount } from './components/interface'
 
 // Screen for dApps authorization to connect to extension - will be triggered on dApp connect request
 const DappConnectScreen = () => {
@@ -34,7 +37,7 @@ const DappConnectScreen = () => {
     'LOADING'
   )
   const [confirmedRiskCheckbox, setConfirmedRiskCheckbox] = useState(false)
-  const [dappAccount, setDappAccount] = useState<string | null>(null)
+  const [dappAccount, setDappAccount] = useState<DappAccount | null>(null)
 
   const dappAction = useMemo(
     () => (isDappRequestAction(state.currentAction) ? state.currentAction : null),
@@ -50,7 +53,7 @@ const DappConnectScreen = () => {
 
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    ; (async () => {
+    ;(async () => {
       if (!userRequest?.session?.origin) return
       if (securityCheckCalled.current) return
 
@@ -86,40 +89,64 @@ const DappConnectScreen = () => {
     })
   }, [dappAction, t, dispatch])
 
-  const handleAuthorizeButtonPress = useCallback(() => {
-    if (!dappAccount || !dappAction) return
+  const handleAuthorizeButtonPress = useCallback(
+    (newAccount?: DappAccount) => {
+      const account = newAccount || dappAccount
+      if (!account || !dappAction) return
 
-    const dappId = getDappIdFromUrl(userRequest?.session?.origin || '')
+      const dappId = getDappIdFromUrl(userRequest?.session?.origin || '')
 
-    setIsAuthorizing(true)
-    const dappUrls = selectedAccount?.account?.associatedDappIDs || []
-    dappUrls.push(dappId)
-    dispatch({
-      type: 'ACCOUNTS_CONTROLLER_SET_ASSOCIATED_DAPPS',
-      params: {
-        addr: dappAccount,
-        dappUrls
-      }
-    })
+      setIsAuthorizing(true)
+      const dappUrls = selectedAccount?.account?.associatedDappIDs || []
+      dappUrls.push(dappId)
+      dispatch({
+        type: 'ACCOUNTS_CONTROLLER_SET_ASSOCIATED_DAPPS',
+        params: {
+          addr: account.address,
+          dappUrls
+        }
+      })
 
-    dispatch({
-      type: 'MAIN_CONTROLLER_SELECT_ACCOUNT',
-      params: { accountAddr: dappAccount }
-    })
-  }, [dappAction, dappAccount, dispatch])
+      dispatch({
+        type: 'MAIN_CONTROLLER_SELECT_ACCOUNT',
+        params: { accountAddr: account.address }
+      })
+    },
+    [dappAction, dappAccount?.address, dispatch]
+  )
+
+  const autoConnect = (account: DappAccount) => {
+    setDappAccount(account)
+    handleAuthorizeButtonPress(account)
+  }
 
   // Automatically resolve the request once the dispatched `MAIN_CONTROLLER_SELECT_ACCOUNT`
-  // from `handleAuthorizeButtonPress` has updated the selected account to match 
+  // from `handleAuthorizeButtonPress` has updated the selected account to match
   // the one chosen for the dApp connection.
   useEffect(() => {
     if (!isAuthorizing || !dappAction) return
-    if (selectedAccount?.account?.addr !== dappAccount) return
+    if (selectedAccount?.account?.addr !== dappAccount?.address) return
 
     dispatch({
       type: 'REQUESTS_CONTROLLER_RESOLVE_USER_REQUEST',
       params: { data: null, id: dappAction.id }
     })
-  }, [isAuthorizing, selectedAccount?.account?.addr, dappAccount, dappAction, dispatch])
+
+    let timerId: NodeJS.Timeout
+
+    if (dappAccount?.isNew) {
+      timerId = setTimeout(() => {
+        openInTab({
+          url: `tab.html#/${WEB_ROUTES.pp1Transfer}?address=${dappAccount.address}&protocol=railgun&token=eth`,
+          shouldCloseCurrentWindow: false
+        })
+      }, 450)
+    }
+
+    return () => {
+      if (timerId) clearTimeout(timerId)
+    }
+  }, [isAuthorizing, selectedAccount?.account?.addr, dappAccount?.address, dappAction, dispatch])
 
   const responsiveSizeMultiplier = useMemo(() => {
     if (minHeightSize(690)) return 0.75
@@ -167,7 +194,7 @@ const DappConnectScreen = () => {
         />
       }
     >
-      <View style={[styles.container, { flex: 1, marginBottom: "40px" }]}>
+      <View style={[styles.container, { flex: 1, marginBottom: '20px' }]}>
         <View style={[styles.content, { flex: 1 }]}>
           <View style={{ flexShrink: 0 }}>
             <DAppConnectHeader
@@ -185,6 +212,7 @@ const DappConnectScreen = () => {
             setConfirmedRiskCheckbox={setConfirmedRiskCheckbox}
             origin={userRequest?.session?.origin}
             setSelectedAccount={setDappAccount}
+            autoConnect={autoConnect}
           />
         </View>
       </View>
