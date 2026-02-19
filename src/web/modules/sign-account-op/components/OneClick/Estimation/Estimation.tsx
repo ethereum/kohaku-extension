@@ -92,6 +92,7 @@ const OneClickEstimation = ({
     result: simulationResult,
     error: simulationError,
     isColibriAvailable,
+    isSimulationEnabled,
     simulate: handleSimulate
   } = useColibriSimulation(network, signAccountOpController?.accountOp)
 
@@ -148,12 +149,14 @@ const OneClickEstimation = ({
                 </View>
               )}
 
-              <ColibriSimulationResult
-                isLoading={isSimulating}
-                result={simulationResult}
-                error={simulationError}
-                isColibriAvailable={isColibriAvailable}
-              />
+              {isSimulationEnabled && (
+                <ColibriSimulationResult
+                  isLoading={isSimulating}
+                  result={simulationResult}
+                  error={simulationError}
+                  isColibriAvailable={isColibriAvailable}
+                />
+              )}
             </ScrollView>
 
             <View
@@ -174,15 +177,17 @@ const OneClickEstimation = ({
                 style={{ width: 98 }}
               />
               <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-                <Button
-                  testID="simulate-button"
-                  type="outline"
-                  text={isSimulating ? t('Simulating...') : t('Simulate')}
-                  onPress={handleSimulate}
-                  disabled={!hasEstimation || isSignLoading || isSimulating}
-                  hasBottomSpacing={false}
-                  style={{ minWidth: 100, ...spacings.mrTy }}
-                />
+                {!!handleSimulate && (
+                  <Button
+                    testID="simulate-button"
+                    type="outline"
+                    text={isSimulating ? t('Simulating...') : t('Simulate')}
+                    onPress={handleSimulate}
+                    disabled={!hasEstimation || isSignLoading || isSimulating}
+                    hasBottomSpacing={false}
+                    style={{ minWidth: 100, ...spacings.mrTy }}
+                  />
+                )}
                 <ButtonWithLoader
                   testID="sign-button"
                   text={primaryButtonText}

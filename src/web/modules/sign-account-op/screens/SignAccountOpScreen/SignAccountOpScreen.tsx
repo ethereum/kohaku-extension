@@ -123,6 +123,7 @@ const SignAccountOpScreen = () => {
     result: simulationResult,
     error: simulationError,
     isColibriAvailable,
+    isSimulationEnabled,
     simulate: handleSimulate
   } = useColibriSimulation(network, signAccountOpState?.accountOp)
 
@@ -294,12 +295,14 @@ const SignAccountOpScreen = () => {
                   bundlerNonceDiscrepancy={bundlerNonceDiscrepancy}
                 />
 
-                <ColibriSimulationResult
-                  isLoading={isSimulating}
-                  result={simulationResult}
-                  error={simulationError}
-                  isColibriAvailable={isColibriAvailable}
-                />
+                {isSimulationEnabled && (
+                  <ColibriSimulationResult
+                    isLoading={isSimulating}
+                    result={simulationResult}
+                    error={simulationError}
+                    isColibriAvailable={isColibriAvailable}
+                  />
+                )}
 
                 <View
                   style={{

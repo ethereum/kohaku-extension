@@ -230,6 +230,8 @@ function buildSummarySegments(
   return segments
 }
 
+const isSimulationEnabled = (process.env.ENABLE_COLIBRI_SIMULATION || 'true') === 'true'
+
 export default function useColibriSimulation(
   network: Network | undefined,
   accountOp: AccountOp | undefined
@@ -267,11 +269,18 @@ export default function useColibriSimulation(
         let enrichedInputs = log.inputs.map((input) => formatInputValue(input, contacts))
 
         if (isTokenEvent) {
-          let meta = tokenMetadataCache.get(contractAddr.toLowerCase())
-          if (!meta) {
-            // eslint-disable-next-line no-await-in-loop
-            meta = await fetchTokenMetadata(contractAddr, provider)
-            tokenMetadataCache.set(contractAddr.toLowerCase(), meta)
+          const isNativeEth = /^0x0+$/.test(contractAddr)
+          let meta: { tokenName: string | null; tokenSymbol: string | null; tokenDecimals: number | null }
+
+          if (isNativeEth) {
+            meta = { tokenName: 'ETH', tokenSymbol: 'ETH', tokenDecimals: 18 }
+          } else {
+            meta = tokenMetadataCache.get(contractAddr.toLowerCase()) ?? null!
+            if (!meta) {
+              // eslint-disable-next-line no-await-in-loop
+              meta = await fetchTokenMetadata(contractAddr, provider)
+              tokenMetadataCache.set(contractAddr.toLowerCase(), meta)
+            }
           }
 
           enrichedInputs = formatTokenAmount(enrichedInputs, meta.tokenDecimals, meta.tokenSymbol)
@@ -378,7 +387,8 @@ export default function useColibriSimulation(
   return {
     ...state,
     isColibriAvailable,
-    simulate,
+    isSimulationEnabled,
+    simulate: isSimulationEnabled ? simulate : undefined,
     clear
   }
 }
