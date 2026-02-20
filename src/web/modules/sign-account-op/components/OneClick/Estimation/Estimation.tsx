@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { View } from 'react-native'
+import { ScrollView, View } from 'react-native'
 
 import {
   SignAccountOpController,
@@ -17,6 +17,8 @@ import useTheme from '@common/hooks/useTheme'
 import spacings from '@common/styles/spacings'
 import { THEME_TYPES } from '@common/styles/themeConfig'
 import flexbox from '@common/styles/utils/flexbox'
+import useColibriSimulation from '@web/hooks/useColibriSimulation'
+import ColibriSimulationResult from '@web/modules/sign-account-op/components/ColibriSimulationResult'
 import Estimation from '@web/modules/sign-account-op/components/Estimation'
 import Modals from '@web/modules/sign-account-op/components/Modals/Modals'
 import SigningKeySelect from '@web/modules/sign-message/components/SignKeySelect'
@@ -75,7 +77,8 @@ const OneClickEstimation = ({
     acknowledgeWarning,
     slowPaymasterRequest,
     primaryButtonText,
-    bundlerNonceDiscrepancy
+    bundlerNonceDiscrepancy,
+    network
   } = useSign({
     signAccountOpState: signAccountOpController,
     handleBroadcast: handleBroadcastAccountOp,
@@ -83,6 +86,15 @@ const OneClickEstimation = ({
     handleUpdateStatus,
     isOneClickSign: true
   })
+
+  const {
+    isLoading: isSimulating,
+    result: simulationResult,
+    error: simulationError,
+    isColibriAvailable,
+    isSimulationEnabled,
+    simulate: handleSimulate
+  } = useColibriSimulation(network, signAccountOpController?.accountOp)
 
   return (
     <>
@@ -100,7 +112,7 @@ const OneClickEstimation = ({
         shouldBeClosableOnDrag={false}
       >
         {!!signAccountOpController && (
-          <View>
+          <View style={{ maxHeight: 420 }}>
             <SigningKeySelect
               isVisible={isChooseSignerShown}
               isSigning={isSignLoading || !signAccountOpController.readyToSign}
@@ -109,32 +121,44 @@ const OneClickEstimation = ({
               handleChooseSigningKey={handleChangeSigningKey}
               account={signAccountOpController.account}
             />
-            <Estimation
-              updateType={updateType}
-              signAccountOpState={signAccountOpController}
-              disabled={signAccountOpController.status?.type !== SigningStatus.ReadyToSign}
-              hasEstimation={!!hasEstimation}
-              // TODO<oneClickSwap>
-              slowRequest={false}
-              // TODO<oneClickSwap>
-              isViewOnly={isViewOnly}
-              isSponsored={signAccountOpController ? signAccountOpController.isSponsored : false}
-              sponsor={signAccountOpController ? signAccountOpController.sponsor : undefined}
-            />
-            {signingErrors.length > 0 && (
-              <View style={[flexbox.directionRow, flexbox.alignEnd, spacings.mt]}>
-                <Text fontSize={12} appearance="errorText">
-                  {t(signingErrors[0].title)}
-                </Text>
-              </View>
-            )}
-            {bundlerNonceDiscrepancy && (
-              <View style={[flexbox.directionRow, flexbox.alignEnd, spacings.mt]}>
-                <Text fontSize={12} appearance="warningText">
-                  {t(bundlerNonceDiscrepancy.title)}
-                </Text>
-              </View>
-            )}
+            <ScrollView style={flexbox.flex1} showsVerticalScrollIndicator>
+              <Estimation
+                updateType={updateType}
+                signAccountOpState={signAccountOpController}
+                disabled={signAccountOpController.status?.type !== SigningStatus.ReadyToSign}
+                hasEstimation={!!hasEstimation}
+                // TODO<oneClickSwap>
+                slowRequest={false}
+                // TODO<oneClickSwap>
+                isViewOnly={isViewOnly}
+                isSponsored={signAccountOpController ? signAccountOpController.isSponsored : false}
+                sponsor={signAccountOpController ? signAccountOpController.sponsor : undefined}
+              />
+              {signingErrors.length > 0 && (
+                <View style={[flexbox.directionRow, flexbox.alignEnd, spacings.mt]}>
+                  <Text fontSize={12} appearance="errorText">
+                    {t(signingErrors[0].title)}
+                  </Text>
+                </View>
+              )}
+              {bundlerNonceDiscrepancy && (
+                <View style={[flexbox.directionRow, flexbox.alignEnd, spacings.mt]}>
+                  <Text fontSize={12} appearance="warningText">
+                    {t(bundlerNonceDiscrepancy.title)}
+                  </Text>
+                </View>
+              )}
+
+              {isSimulationEnabled && (
+                <ColibriSimulationResult
+                  isLoading={isSimulating}
+                  result={simulationResult}
+                  error={simulationError}
+                  isColibriAvailable={isColibriAvailable}
+                />
+              )}
+            </ScrollView>
+
             <View
               style={{
                 height: 1,
@@ -152,13 +176,26 @@ const OneClickEstimation = ({
                 disabled={isSignLoading}
                 style={{ width: 98 }}
               />
-              <ButtonWithLoader
-                testID="sign-button"
-                text={primaryButtonText}
-                isLoading={isSignLoading}
-                disabled={isSignDisabled || signingErrors.length > 0}
-                onPress={onSignButtonClick}
-              />
+              <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+                {!!handleSimulate && (
+                  <Button
+                    testID="simulate-button"
+                    type="outline"
+                    text={isSimulating ? t('Simulating...') : t('Simulate')}
+                    onPress={handleSimulate}
+                    disabled={!hasEstimation || isSignLoading || isSimulating}
+                    hasBottomSpacing={false}
+                    style={{ minWidth: 100, ...spacings.mrTy }}
+                  />
+                )}
+                <ButtonWithLoader
+                  testID="sign-button"
+                  text={primaryButtonText}
+                  isLoading={isSignLoading}
+                  disabled={isSignDisabled || signingErrors.length > 0}
+                  onPress={onSignButtonClick}
+                />
+              </View>
             </View>
           </View>
         )}

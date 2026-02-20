@@ -27,7 +27,9 @@ import { closeCurrentWindow } from '@web/extension-services/background/webapi/wi
 import useActionsControllerState from '@web/hooks/useActionsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useMainControllerState from '@web/hooks/useMainControllerState'
+import useColibriSimulation from '@web/hooks/useColibriSimulation'
 import useSignAccountOpControllerState from '@web/hooks/useSignAccountOpControllerState'
+import ColibriSimulationResult from '@web/modules/sign-account-op/components/ColibriSimulationResult'
 import Estimation from '@web/modules/sign-account-op/components/Estimation'
 import Footer from '@web/modules/sign-account-op/components/Footer'
 import Modals from '@web/modules/sign-account-op/components/Modals/Modals'
@@ -115,6 +117,15 @@ const SignAccountOpScreen = () => {
     handleUpdate: updateController,
     handleBroadcast
   })
+
+  const {
+    isLoading: isSimulating,
+    result: simulationResult,
+    error: simulationError,
+    isColibriAvailable,
+    isSimulationEnabled,
+    simulate: handleSimulate
+  } = useColibriSimulation(network, signAccountOpState?.accountOp)
 
   const accountOpAction = useMemo(() => {
     if (actionsState.currentAction?.type !== 'accountOp') return undefined
@@ -284,6 +295,15 @@ const SignAccountOpScreen = () => {
                   bundlerNonceDiscrepancy={bundlerNonceDiscrepancy}
                 />
 
+                {isSimulationEnabled && (
+                  <ColibriSimulationResult
+                    isLoading={isSimulating}
+                    result={simulationResult}
+                    error={simulationError}
+                    isColibriAvailable={isColibriAvailable}
+                  />
+                )}
+
                 <View
                   style={{
                     height: 1,
@@ -305,6 +325,9 @@ const SignAccountOpScreen = () => {
               }
               isSignLoading={isSignLoading}
               isSignDisabled={isSignDisabled || !hasReachedBottom}
+              onSimulate={handleSimulate}
+              isSimulating={isSimulating}
+              isSimulateDisabled={!hasEstimation || isSignLoading}
               buttonTooltipText={
                 typeof hasReachedBottom === 'boolean' && !hasReachedBottom
                   ? t('Scroll to the bottom of the transaction overview to sign.')

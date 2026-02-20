@@ -417,7 +417,8 @@ module.exports = async function (env, argv) {
       // Added: define NODE_ENV for any conditional checks without requiring a global 'process'
       new webpack.DefinePlugin({
         'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
-        'process.env.REACT_APP_PIMLICO_API_KEY': JSON.stringify(process.env.REACT_APP_PIMLICO_API_KEY)
+        'process.env.REACT_APP_PIMLICO_API_KEY': JSON.stringify(process.env.REACT_APP_PIMLICO_API_KEY),
+        'process.env.ENABLE_COLIBRI_SIMULATION': JSON.stringify(process.env.ENABLE_COLIBRI_SIMULATION || 'true')
       }),
 
       new webpack.IgnorePlugin({ resourceRegExp: /^dotenv(\/config)?$/, }),
