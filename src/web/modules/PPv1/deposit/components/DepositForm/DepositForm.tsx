@@ -305,6 +305,7 @@ const DepositForm = ({
   ])
 
   const handleProviderChange = (provider: SelectValue) => {
+    if (provider.value === privacyProvider) return
     handleUpdateForm({ privacyProvider: provider.value, selectedToken: null, depositAmount: '' })
   }
 
