@@ -18,6 +18,7 @@ import KohakuLogo from '@common/components/HokahuLogo'
 import getAndFormatTokenDetails from '@common/modules/dashboard/helpers/getTokenDetails'
 import spacings, { SPACING_2XL, SPACING_TY } from '@common/styles/spacings'
 import { THEME_TYPES } from '@common/styles/themeConfig'
+import { BORDER_RADIUS_PRIMARY } from '@common/styles/utils/common'
 import flexboxStyles from '@common/styles/utils/flexbox'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import useBackgroundService from '@web/hooks/useBackgroundService'
@@ -121,7 +122,7 @@ const TokenItem = ({ token }: { token: TokenResult }) => {
       </BottomSheet>
       <View style={flexboxStyles.flex1}>
         <View style={[flexboxStyles.directionRow, flexboxStyles.flex1]}>
-          <View style={[flexboxStyles.directionRow, { flex: 1.5 }]}>
+          <View style={[flexboxStyles.directionRow, { flex: 1.5, minWidth: 0 }]}>
             <View style={[spacings.mr, flexboxStyles.justifyCenter]}>
               {isRewards || isVesting ? (
                 <View style={styles.tokenButtonIconWrapper}>
@@ -141,8 +142,8 @@ const TokenItem = ({ token }: { token: TokenResult }) => {
               )}
             </View>
             <View style={[flexboxStyles.alignCenter]}>
-              <View style={[flexboxStyles.flex1, flexboxStyles.directionRow]}>
-                <View>
+              <View style={[flexboxStyles.directionRow, flexboxStyles.alignStart]}>
+                <View style={{ flex: 1, minWidth: 0 }}>
                   <Text
                     selectable
                     style={spacings.mrTy}
@@ -150,6 +151,7 @@ const TokenItem = ({ token }: { token: TokenResult }) => {
                     fontSize={16}
                     weight="number_bold"
                     numberOfLines={1}
+                    ellipsizeMode="tail"
                     // @ts-ignore
                     dataSet={{
                       tooltipId: `${tokenId}-balance`
@@ -197,9 +199,32 @@ const TokenItem = ({ token }: { token: TokenResult }) => {
                   />
                 )}
                 {Number(balance) > 0 && (
-                  <Pressable onPress={shieldToken}>
-                    <KohakuLogo height={20} width={20} />
-                  </Pressable>
+                  <View style={{ marginLeft: 8, flexShrink: 0 }}>
+                    <Pressable
+                      onPress={shieldToken}
+                      style={({ hovered }: any) => [
+                        flexboxStyles.directionRow,
+                        flexboxStyles.alignCenter,
+                        {
+                          paddingVertical: 5,
+                          paddingHorizontal: 9,
+                          borderRadius: BORDER_RADIUS_PRIMARY,
+                          backgroundColor: hovered ? '#2a2a2a' : '#000',
+                          transform: [{ scale: hovered ? 1.06 : 1 }]
+                        }
+                      ]}
+                    >
+                      <Text
+                        weight="regular"
+                        fontSize={11}
+                        color="#fff"
+                        style={spacings.mrMi}
+                      >
+                        {t('Shield It!')}
+                      </Text>
+                      <KohakuLogo height={13} width={13} />
+                    </Pressable>
+                  </View>
                 )}
               </View>
             </View>

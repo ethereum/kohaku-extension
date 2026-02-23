@@ -310,8 +310,8 @@ function TransferScreen() {
     })
   }, [navigate, dispatch])
 
-  const headerTitle = t('Deposit')
-  const formTitle = t('Deposit')
+  const headerTitle = t('Shield Funds')
+  const formTitle = t('Shield Funds')
 
   const proceedBtnText = useMemo(() => {
     if (isLoading && !isAccountLoaded && privacyProvider === 'privacy-pools')
