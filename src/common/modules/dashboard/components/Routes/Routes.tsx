@@ -9,8 +9,8 @@ import { useTranslation } from '@common/config/localization'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import flexbox from '@common/styles/utils/flexbox'
 
-import PrivateDepositIcon from '@common/assets/svg/PrivateDeposit'
 import RouteItem from './RouteItem'
+import KohakuLogo from '@common/components/HokahuLogo'
 
 const Routes = ({ openReceiveModal }: { openReceiveModal: () => void }) => {
   const { t } = useTranslation()
@@ -18,8 +18,10 @@ const Routes = ({ openReceiveModal }: { openReceiveModal: () => void }) => {
   const routeItems = [
     {
       testID: 'dashboard-button-privacy-pools',
-      icon: PrivateDepositIcon,
-      label: t('Shield funds'),
+      icon: () => (
+        <KohakuLogo height={28} width={28} />
+      ),
+      label: t('Shield Funds'),
       route: WEB_ROUTES.pp1Deposit,
       isExternal: false,
       scale: 1.08,
