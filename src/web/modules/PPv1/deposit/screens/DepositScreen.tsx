@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
+import { useLocation } from 'react-router-dom'
 
 import { SigningStatus } from '@ambire-common/controllers/signAccountOp/signAccountOp'
 import { Key } from '@ambire-common/interfaces/keystore'
@@ -26,6 +27,7 @@ import useDepositForm from '@web/hooks/useDepositForm'
 import { getUiType } from '@web/utils/uiType'
 import flexbox from '@common/styles/utils/flexbox'
 import { Content } from '@web/components/TransactionsScreen'
+import { TokenResult } from '@ambire-common/libs/portfolio'
 import { Form, Wrapper } from '../components/TransactionsScreen'
 
 const { isActionWindow } = getUiType()
@@ -34,12 +36,17 @@ function TransferScreen() {
   const hasRefreshedAccountRef = useRef(false)
   const { dispatch } = useBackgroundService()
   const { navigate } = useNavigation()
+  const location = useLocation()
   const { t } = useTranslation()
   const { addToast } = useToast()
+  const defaultToken = ((location.state as any)?.token as TokenResult) ?? null
 
   const { accountsOps } = useActivityControllerState()
   const { selectedToken: privacyPoolsSelectedToken } = usePrivacyPoolsControllerState()
-  const { selectedToken: railgunSelectedToken, latestBroadcastedToken: railgunLatestBroadcastedToken } = useRailgunControllerState()
+  const {
+    selectedToken: railgunSelectedToken,
+    latestBroadcastedToken: railgunLatestBroadcastedToken
+  } = useRailgunControllerState()
 
   const {
     chainId,
@@ -69,7 +76,12 @@ function TransferScreen() {
       return railgunLatestBroadcastedToken || railgunSelectedToken
     }
     return privacyPoolsSelectedToken
-  }, [privacyProvider, railgunSelectedToken, railgunLatestBroadcastedToken, privacyPoolsSelectedToken])
+  }, [
+    privacyProvider,
+    railgunSelectedToken,
+    railgunLatestBroadcastedToken,
+    privacyPoolsSelectedToken
+  ])
 
   const submittedAccountOp = useMemo(() => {
     if (!latestBroadcastedAccountOp?.signature) return
@@ -131,7 +143,7 @@ function TransferScreen() {
   // Helper to check if the submittedAccountOp matches a deposit (not a withdrawal)
   const isMatchingDeposit = useMemo(() => {
     if (!submittedAccountOp) return false
-    
+
     const metaAny = submittedAccountOp.meta as any
     // Withdrawals have meta.isRailgunWithdrawal or meta.isPrivacyPoolsWithdrawal
     // If it has withdrawal meta tags, it's not a deposit
@@ -183,11 +195,6 @@ function TransferScreen() {
       hasRefreshedAccountRef.current = false
     }
   }, [])
-
-  // Reset deposit amount when switching between providers
-  useEffect(() => {
-    handleUpdateForm({ depositAmount: '' })
-  }, [privacyProvider, handleUpdateForm])
 
   const displayedView: 'transfer' | 'track' = useMemo(() => {
     if (latestBroadcastedAccountOp) return 'track'
@@ -418,17 +425,17 @@ function TransferScreen() {
         {(submittedAccountOp?.status === AccountOpStatus.Success ||
           submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce) &&
           isMatchingDeposit && (
-          <Completed
-            title={t('Deposit complete!')}
-            titleSecondary={t(
-              selectedToken?.symbol
-                ? `${selectedToken.symbol} deposited to privacy pool!`
-                : 'Token deposited to privacy pool!'
-            )}
-            explorerLink={explorerLink}
-            openExplorerText="View Deposit"
-          />
-        )}
+            <Completed
+              title={t('Deposit complete!')}
+              titleSecondary={t(
+                selectedToken?.symbol
+                  ? `${selectedToken.symbol} deposited to privacy pool!`
+                  : 'Token deposited to privacy pool!'
+              )}
+              explorerLink={explorerLink}
+              openExplorerText="View Deposit"
+            />
+          )}
         {(submittedAccountOp?.status === AccountOpStatus.Failure ||
           submittedAccountOp?.status === AccountOpStatus.Rejected ||
           submittedAccountOp?.status === AccountOpStatus.BroadcastButStuck) && (
@@ -451,6 +458,7 @@ function TransferScreen() {
             poolInfo={poolInfo}
             depositAmount={depositAmount}
             selectedToken={selectedToken}
+            defaultToken={defaultToken}
             amountErrorMessage={validationFormMsgs.amount.message || ''}
             formTitle={formTitle}
             handleUpdateForm={handleUpdateForm}
