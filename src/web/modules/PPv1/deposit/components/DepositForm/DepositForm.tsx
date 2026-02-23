@@ -281,7 +281,9 @@ const DepositForm = ({
     // Force to railgun if there is a default token
     const providerOverride = defaultToken ? { privacyProvider: 'railgun' } : {}
 
-    if (defaultToken && tokenBalance > 0n) {
+    const isNonNativeDefaultToken = defaultToken && tokenToSelect.address !== zeroAddress
+
+    if (isNonNativeDefaultToken && tokenBalance > 0n) {
       const decimals = tokenToSelect.decimals || 18
       const formattedAmount = formatUnits(tokenBalance, decimals)
       setDisplayAmount(formattedAmount)
@@ -303,6 +305,7 @@ const DepositForm = ({
   ])
 
   const handleProviderChange = (provider: SelectValue) => {
+    if (provider.value === privacyProvider) return
     handleUpdateForm({ privacyProvider: provider.value, selectedToken: null, depositAmount: '' })
   }
 

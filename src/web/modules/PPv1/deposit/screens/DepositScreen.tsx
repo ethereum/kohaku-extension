@@ -103,10 +103,6 @@ function TransferScreen() {
     privacyProvider
   ])
 
-  const handleGoBack = useCallback(() => {
-    navigate(ROUTES.dashboard)
-  }, [navigate])
-
   const navigateOut = useCallback(async () => {
     if (isActionWindow) {
       dispatch({
@@ -215,6 +211,27 @@ function TransferScreen() {
   useEffect(() => {
     return () => {
       dispatch({ type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN' })
+
+      dispatch({
+        type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
+      })
+      dispatch({
+        type: 'RAILGUN_CONTROLLER_RESET_FORM'
+      })
+
+      // Reset hasProceeded for the currently selected controller when navigating back
+      dispatch({
+        type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
+        params: {
+          proceeded: false
+        }
+      })
+      dispatch({
+        type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED',
+        params: {
+          proceeded: false
+        }
+      })
     }
   }, [dispatch])
 
@@ -286,28 +303,7 @@ function TransferScreen() {
   ])
 
   const onBack = useCallback(() => {
-    dispatch({
-      type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
-    })
-    dispatch({
-      type: 'RAILGUN_CONTROLLER_RESET_FORM'
-    })
-
     navigate(ROUTES.dashboard)
-
-    // Reset hasProceeded for the currently selected controller when navigating back
-    dispatch({
-      type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
-      params: {
-        proceeded: false
-      }
-    })
-    dispatch({
-      type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED',
-      params: {
-        proceeded: false
-      }
-    })
   }, [navigate, dispatch])
 
   const headerTitle = t('Shield Funds')
@@ -451,7 +447,7 @@ function TransferScreen() {
   }
 
   return (
-    <Wrapper title={headerTitle} handleGoBack={handleGoBack} buttons={buttons}>
+    <Wrapper title={headerTitle} handleGoBack={onBack} buttons={buttons}>
       <Content buttons={buttons}>
         <Form>
           <DepositForm
