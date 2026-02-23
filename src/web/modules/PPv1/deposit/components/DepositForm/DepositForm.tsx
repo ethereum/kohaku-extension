@@ -281,19 +281,18 @@ const DepositForm = ({
     // Force to railgun if there is a default token
     const providerOverride = defaultToken ? { privacyProvider: 'railgun' } : {}
 
-    const args =
-      privacyProvider === 'railgun' || defaultToken
-        ? { selectedToken: tokenToSelect, ...providerOverride }
-        : {
-            selectedToken: tokenToSelect,
-            ...providerOverride,
-            maxAmount:
-              tokenToSelect.decimals !== undefined
-                ? formatUnits(tokenBalance, tokenToSelect.decimals)
-                : formatEther(tokenBalance)
-          }
-
-    handleUpdateForm(args)
+    if (defaultToken && tokenBalance > 0n) {
+      const decimals = tokenToSelect.decimals || 18
+      const formattedAmount = formatUnits(tokenBalance, decimals)
+      setDisplayAmount(formattedAmount)
+      handleUpdateForm({
+        selectedToken: tokenToSelect,
+        depositAmount: tokenBalance.toString(),
+        ...providerOverride
+      })
+    } else {
+      handleUpdateForm({ selectedToken: tokenToSelect, ...providerOverride })
+    }
   }, [
     mySelectedToken,
     defaultToken,
