@@ -133,7 +133,7 @@ const DappCreateNewAccount: FC<Props> = ({ screenMode, setScreenMode, origin, au
         }
       })
 
-      const label = `${new URL(origin || '').hostname} Dapp Account`
+      const label = `${new URL(origin || '').hostname} Account`
       dispatch({
         type: 'ACCOUNTS_CONTROLLER_UPDATE_ACCOUNT_PREFERENCES',
         params: [
