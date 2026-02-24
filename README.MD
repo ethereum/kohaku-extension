@@ -19,15 +19,15 @@ Here are the steps to build and run the kohaku extension yourself:
 
 2. **Initialize submodules**: Run `git submodule init` and then `git submodule update`.
 
-3. **Create and fill in .env file**: Create a `.env` file in this repo root e.g. run `cp .env-sample .env`. See below for description of env vars you have to fill in yourself:
+3. **Create and fill in .env file**: Create a `.env` file in this repo root e.g. run `cp .env-sample .env`. See below for description of REQUIRED env vars to fill in yourself:
 
    | Variable                         | Description                                                                                             |
    |----------------------------------|---------------------------------------------------------------------------------------------------------|
    | **SEPOLIA_RPC_URL**              | Must be able to handle heavy requests load and read `eth_getLogs` requests with up to a 10 block range. |
+   | **ALCHEMY_API_KEY**              | An [alchemy](https://alchemy.com) api key that supports sepolia testnet |
    | **HYPERSYNC_API_KEY**            | You can generate your API Key [here](https://envio.dev/app/api-tokens).                                 |
    | **BROWSER_EXTENSION_PUBLIC_KEY** | For development, generate `key.pem` as explained [here](https://stackoverflow.com/a/46739698/1333836).  |
    | **REACT_APP_PIMLICO_API_KEY**    | You can generate your API Key [here](https://dashboard.pimlico.io).           |
-   | **RPC_PROVIDER**                 | Choose the RPC provider type: `rpc`, `helios`, or `colibri`. (default is `colibri` lightclient) |
 
 4. **Install dependencies**: Run `yarn install` to install all kohaku-extension dependencies.
 
@@ -39,6 +39,4 @@ Here are the steps to build and run the kohaku extension yourself:
 
 Make sure your `SEPOLIA_RPC_URL` is a strong RPC that can handle heavy load. If using a free tier RPC, we recommend **Infura**.
 
-`PRIVACY_POOLS_RELAYER_URL` is needed if you want to test private withdrawals/transfers. You have to get this env secret out of band.
-
-`RPC_PROVIDER` defaults to `colibri`. If you're having any issues related to the rpc syncing chain data consider setting it to `rpc`
+`RPC_PROVIDER` defaults to `colibri`. If you're having any issues related to the rpc syncing chain data consider setting it to `rpc` (no lightclient)
