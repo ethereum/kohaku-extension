@@ -11,6 +11,7 @@ import { SigningStatus } from '@ambire-common/controllers/signAccountOp/signAcco
 import { Key } from '@ambire-common/interfaces/keystore'
 
 import BackButton from '@common/components/BackButton'
+import Banner from '@common/components/Banner'
 import Text from '@common/components/Text'
 import { SelectValue } from '@common/components/Select/types'
 import useAddressInput from '@common/hooks/useAddressInput'
@@ -52,6 +53,7 @@ const TransferScreen = () => {
   const addressFromParams = searchParams.get('address') ?? ''
   const protocolFromParams = searchParams.get('protocol') ?? ''
   const tokenFromParams = searchParams.get('token') ?? ''
+  const showFundFreshAccountBanner = searchParams.get('fundBanner') === '1'
   const hasRefreshedAccountRef = useRef(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedPrivacyProtocol, setSelectedPrivacyProtocol] = useState<SelectValue>(
@@ -1036,6 +1038,13 @@ const TransferScreen = () => {
   return (
     <Wrapper title={headerTitle} buttons={buttons}>
       <Content buttons={buttons}>
+        {showFundFreshAccountBanner && (
+          <Banner
+            type="success"
+            title={t('Fund your freshly generated account with private ETH')}
+            style={{ marginBottom: 12 }}
+          />
+        )}
         <Form>
           <PrivacyProtocolSelector
             selectedProtocol={selectedPrivacyProtocol}

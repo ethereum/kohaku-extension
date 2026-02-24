@@ -133,7 +133,7 @@ const AccountSelectScreen = () => {
         <View style={[spacings.ptSm, flexbox.directionRow, { width: '100%' }]}>
           <Button
             testID="button-add-private-account"
-            text={t('Add private account')}
+            text={t('Import private balance')}
             type="secondary"
             hasBottomSpacing={false}
             onPress={() => navigate(ROUTES.pp1Import)}

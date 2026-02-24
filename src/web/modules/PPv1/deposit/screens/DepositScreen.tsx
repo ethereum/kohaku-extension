@@ -312,7 +312,7 @@ function TransferScreen() {
   const proceedBtnText = useMemo(() => {
     if (isLoading && !isAccountLoaded && privacyProvider === 'privacy-pools')
       return t('Loading account...')
-    return t('Deposit')
+    return t('Shield')
   }, [isLoading, privacyProvider, isAccountLoaded, t])
 
   const buttons = useMemo(() => {
@@ -422,11 +422,11 @@ function TransferScreen() {
           submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce) &&
           isMatchingDeposit && (
             <Completed
-              title={t('Deposit complete!')}
+              title={t('Shield complete!')}
               titleSecondary={t(
                 selectedToken?.symbol
-                  ? `${selectedToken.symbol} deposited to privacy pool!`
-                  : 'Token deposited to privacy pool!'
+                  ? `${selectedToken.symbol} deposited to privacy protocol!`
+                  : 'Token deposited to privacy protocol!'
               )}
               explorerLink={explorerLink}
               openExplorerText="View Deposit"
