@@ -32,6 +32,7 @@ import {
 import { TransferUpdate } from '@ambire-common/interfaces/transfer'
 import { Message, UserRequest } from '@ambire-common/interfaces/userRequest'
 import { AccountOp } from '@ambire-common/libs/accountOp/accountOp'
+import { Call } from '@ambire-common/libs/accountOp/types'
 import { FullEstimation } from '@ambire-common/libs/estimate/interfaces'
 import { GasRecommendation } from '@ambire-common/libs/gasPrice/gasPrice'
 import { TokenResult } from '@ambire-common/libs/portfolio'
@@ -41,6 +42,8 @@ import { LOG_LEVELS } from '@web/utils/logger'
 
 import { AUTO_LOCK_TIMES } from './controllers/auto-lock'
 import { controllersMapping } from './types'
+
+import type { RailgunAccountCache } from '@ambire-common/controllers/railgun/railgun'
 
 type UpdateNavigationUrl = {
   type: 'UPDATE_PORT_URL'
@@ -159,6 +162,13 @@ type AccountsControllerUpdateAccountState = {
 }
 type AccountsControllerResetAccountsNewlyAddedStateAction = {
   type: 'ACCOUNTS_CONTROLLER_RESET_ACCOUNTS_NEWLY_ADDED_STATE'
+}
+type AccountsControllerSetAssociatedDapps = {
+  type: 'ACCOUNTS_CONTROLLER_SET_ASSOCIATED_DAPPS'
+  params: {
+    addr: string;
+    dappUrls: string[];
+  }
 }
 
 type SettingsControllerSetNetworkToAddOrUpdate = {
@@ -360,9 +370,9 @@ type MainControllerSignAccountOpUpdateMainDepsAction = {
 }
 type MainControllerSignAccountOpUpdateAction = {
   type:
-    | 'MAIN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
-    | 'SWAP_AND_BRIDGE_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
-    | 'TRANSFER_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
+  | 'MAIN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
+  | 'SWAP_AND_BRIDGE_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
+  | 'TRANSFER_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
   params: {
     accountOp?: AccountOp
     gasPrices?: GasRecommendation[]
@@ -378,7 +388,7 @@ type MainControllerSignAccountOpUpdateAction = {
 type SignAccountOpUpdateAction = {
   type: 'SIGN_ACCOUNT_OP_UPDATE'
   params: {
-    updateType: 'Main' | 'Swap&Bridge' | 'Transfer&TopUp'
+    updateType: 'Main' | 'Swap&Bridge' | 'Transfer&TopUp' | 'PrivacyPools' | 'Railgun'
     accountOp?: AccountOp
     gasPrices?: GasRecommendation[]
     estimation?: FullEstimation
@@ -392,9 +402,10 @@ type SignAccountOpUpdateAction = {
 }
 type MainControllerSignAccountOpUpdateStatus = {
   type:
-    | 'MAIN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
-    | 'SWAP_AND_BRIDGE_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
-    | 'TRANSFER_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
+  | 'MAIN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
+  | 'SWAP_AND_BRIDGE_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
+  | 'TRANSFER_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
+  | 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
   params: {
     status: SigningStatus
   }
@@ -402,7 +413,7 @@ type MainControllerSignAccountOpUpdateStatus = {
 type MainControllerHandleSignAndBroadcastAccountOp = {
   type: 'MAIN_CONTROLLER_HANDLE_SIGN_AND_BROADCAST_ACCOUNT_OP'
   params: {
-    updateType: 'Main' | 'Swap&Bridge' | 'Transfer&TopUp'
+    updateType: 'Main' | 'Swap&Bridge' | 'Transfer&TopUp' | 'PrivacyPools' | 'Railgun'
   }
 }
 
@@ -748,6 +759,196 @@ type DismissBanner = {
   }
 }
 
+type PrivacyControllerInitializeSdkAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_SDK_LOADED'
+}
+
+type PrivacyControllerUpdateFormAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM'
+  params: {
+    depositAmount?: string
+    withdrawalAmount?: string
+    seedPhrase?: string
+    targetAddress?: string
+    importedSecretNote?: string
+    privacyProvider?: string
+  }
+}
+
+type PrivacyControllerUnloadScreenAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN'
+}
+
+type PrivacyControllerSignAccountOpUpdateAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
+  params: {
+    status: SigningStatus
+  }
+}
+
+type PrivacyControllerHasUserProceededAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED'
+  params: {
+    proceeded: boolean
+  }
+}
+
+type PrivacyControllerDestroySignAccountOpAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_SIGN_ACCOUNT_OP'
+}
+
+type PrivacyControllerDestroyLatestBroadcastedAccountOpAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+}
+
+type PrivacyControllerSyncSignAccountOpAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_SYNC_SIGN_ACCOUNT_OP'
+  params: {
+    calls: Call[]
+  }
+}
+
+type PrivacyControllerGeneratePPv1KeysAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_PPV1_KEYS'
+}
+
+type PrivacyControllerGenerateSecretAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_GENERATE_SECRET'
+  params: {
+    appInfo: string
+  }
+}
+
+type PrivacyControllerResetFormAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
+}
+type PrivacyControllerResetSecretAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_RESET_SECRET'
+}
+
+type PrivacyControllerDirectBroadcastWithdrawalAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_DIRECT_BROADCAST_WITHDRAWAL'
+  params: {
+    chainId: number
+    poolAddress: string
+    withdrawal: {
+      processooor: string
+      data: string
+    }
+    proofs: {
+      publicSignals: bigint[]
+      proof: {
+        pi_a: [bigint, bigint]
+        pi_b: [readonly [bigint, bigint], readonly [bigint, bigint]]
+        pi_c: [bigint, bigint]
+      }
+    }[]
+  }
+}
+
+type PrivacyControllerAddImportedAccountToActivityControllerAction = {
+  type: 'PRIVACY_POOLS_CONTROLLER_ADD_IMPORTED_ACCOUNT_TO_ACTIVITY_CONTROLLER'
+  params: {
+    accountName: string
+  }
+}
+
+type RailgunControllerUpdateFormAction = {
+  type: 'RAILGUN_CONTROLLER_UPDATE_FORM'
+  params: {
+    depositAmount?: string
+    withdrawalAmount?: string
+    seedPhrase?: string
+    targetAddress?: string
+    importedSecretNote?: string
+    privacyProvider?: string
+  }
+}
+
+type RailgunControllerUnloadScreenAction = {
+  type: 'RAILGUN_CONTROLLER_UNLOAD_SCREEN'
+}
+
+type RailgunControllerSignAccountOpUpdateAction = {
+  type: 'RAILGUN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
+  params: {
+    status: SigningStatus
+  }
+}
+
+type RailgunControllerHasUserProceededAction = {
+  type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED'
+  params: {
+    proceeded: boolean
+  }
+}
+
+type RailgunControllerDestroySignAccountOpAction = {
+  type: 'RAILGUN_CONTROLLER_DESTROY_SIGN_ACCOUNT_OP'
+}
+
+type RailgunControllerDestroyLatestBroadcastedAccountOpAction = {
+  type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+}
+
+type RailgunControllerSyncSignAccountOpAction = {
+  type: 'RAILGUN_CONTROLLER_SYNC_SIGN_ACCOUNT_OP'
+  params: {
+    calls: Call[]
+  }
+}
+
+type RailgunControllerDirectBroadcastWithdrawalAction = {
+  type: 'RAILGUN_CONTROLLER_DIRECT_BROADCAST_WITHDRAWAL'
+  params: {
+    to: string
+    data: string
+    value: string
+    chainId: number
+    isInternalTransfer?: boolean
+  }
+}
+
+type RailgunControllerResetFormAction = {
+  type: 'RAILGUN_CONTROLLER_RESET_FORM'
+}
+
+type RailgunControllerDeriveRailgunKeysAction = {
+  type: 'RAILGUN_CONTROLLER_DERIVE_RAILGUN_KEYS'
+  params: {
+    index: number
+  }
+}
+
+type RailgunControllerGetDefaultRailgunKeysAction = {
+  type: 'RAILGUN_CONTROLLER_GET_DEFAULT_RAILGUN_KEYS'
+}
+
+type RailgunControllerGetAccountCacheAction = {
+  type: 'RAILGUN_CONTROLLER_GET_ACCOUNT_CACHE'
+  params: {
+    zkAddress: string
+    chainId: number
+  }
+}
+type RailgunControllerSetAccountCacheAction = {
+  type: 'RAILGUN_CONTROLLER_SET_ACCOUNT_CACHE'
+  params: {
+    zkAddress: string
+    chainId: number
+    cache: RailgunAccountCache
+  }
+}
+type ProviderRpcRequestAction = {
+  type: 'PROVIDER_RPC_REQUEST'
+  params: {
+    requestId: string
+    chainId: bigint
+    method: string
+    params: any[]
+  }
+}
+
 export type Action =
   | UpdateNavigationUrl
   | InitControllerStateAction
@@ -767,12 +968,12 @@ export type Action =
   | AccountsControllerUpdateAccountPreferences
   | AccountsControllerUpdateAccountState
   | AccountsControllerResetAccountsNewlyAddedStateAction
+  | AccountsControllerSetAssociatedDapps
   | SettingsControllerSetNetworkToAddOrUpdate
   | SettingsControllerResetNetworkToAddOrUpdate
   | MainControllerAddNetwork
   | KeystoreControllerUpdateKeyPreferencesAction
   | MainControllerUpdateNetworkAction
-  | MainControllerUpdateNetworksAction
   | MainControllerAccountPickerSetPageAction
   | MainControllerAccountPickerSetHdPathTemplateAction
   | MainControllerAccountPickerAddAccounts
@@ -887,3 +1088,31 @@ export type Action =
   | SetLogLevelTypeAction
   | SetCrashAnalyticsAction
   | DismissBanner
+  | PrivacyControllerInitializeSdkAction
+  | PrivacyControllerUpdateFormAction
+  | PrivacyControllerUnloadScreenAction
+  | PrivacyControllerSignAccountOpUpdateAction
+  | PrivacyControllerHasUserProceededAction
+  | PrivacyControllerDestroySignAccountOpAction
+  | PrivacyControllerDestroyLatestBroadcastedAccountOpAction
+  | PrivacyControllerSyncSignAccountOpAction
+  | PrivacyControllerGenerateSecretAction
+  | PrivacyControllerResetFormAction
+  | PrivacyControllerDirectBroadcastWithdrawalAction
+  | PrivacyControllerResetSecretAction
+  | PrivacyControllerGeneratePPv1KeysAction
+  | PrivacyControllerAddImportedAccountToActivityControllerAction
+  | RailgunControllerUpdateFormAction
+  | RailgunControllerUnloadScreenAction
+  | RailgunControllerSignAccountOpUpdateAction
+  | RailgunControllerHasUserProceededAction
+  | RailgunControllerDestroySignAccountOpAction
+  | RailgunControllerDestroyLatestBroadcastedAccountOpAction
+  | RailgunControllerSyncSignAccountOpAction
+  | RailgunControllerDirectBroadcastWithdrawalAction
+  | RailgunControllerResetFormAction
+  | RailgunControllerDeriveRailgunKeysAction
+  | RailgunControllerGetDefaultRailgunKeysAction
+  | RailgunControllerGetAccountCacheAction
+  | RailgunControllerSetAccountCacheAction
+  | ProviderRpcRequestAction

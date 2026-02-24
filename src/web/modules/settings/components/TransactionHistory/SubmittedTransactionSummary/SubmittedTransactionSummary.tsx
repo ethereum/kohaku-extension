@@ -8,6 +8,7 @@ import {
   SubmittedAccountOp
 } from '@ambire-common/libs/accountOp/submittedAccountOp'
 import { humanizeAccountOp } from '@ambire-common/libs/humanizer'
+import { humanizePrivacyPoolsAccountOp } from '@ambire-common/libs/privacyPools/humanizer'
 import { IrCall } from '@ambire-common/libs/humanizer/interfaces'
 import SkeletonLoader from '@common/components/SkeletonLoader'
 import useTheme from '@common/hooks/useTheme'
@@ -44,18 +45,32 @@ const SubmittedTransactionSummaryInner = ({
   )
 
   const calls = useMemo(
-    () =>
-      humanizeAccountOp(submittedAccountOp, { network }).map((call, index) => ({
+    () => {
+      // Special handling for Privacy Pools related operations
+      // These include PrivacyPoolsRelayer transactions and ImportedAccount records
+      // Both have empty calls arrays, so humanizeAccountOp returns empty array
+      // which causes skeleton to show. Use custom humanizer instead.
+      if (
+        submittedAccountOp.identifiedBy?.type === 'PrivacyPoolsRelayer' ||
+        submittedAccountOp.identifiedBy?.type === 'ImportedAccount'
+      ) {
+        return humanizePrivacyPoolsAccountOp(submittedAccountOp)
+      }
+
+      return humanizeAccountOp(submittedAccountOp, { network }).map((call, index) => ({
         ...call,
-        // It's okay to use index as:
-        // 1. The calls aren't reordered
-        // 2. We are building the calls only once
         id: call.id || String(index)
-      })),
+      }))
+    },
     // Humanize the calls only once. Because submittedAccountOp is an object
     // it causes rerenders on every activity update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [submittedAccountOp.txnId, submittedAccountOp.calls.length, network]
+    [
+      submittedAccountOp.txnId,
+      submittedAccountOp.calls.length,
+      submittedAccountOp.identifiedBy?.type,
+      network
+    ]
   )
 
   if (!network) return null
@@ -104,7 +119,7 @@ const SubmittedTransactionSummaryInner = ({
       <Footer
         size={size}
         network={network}
-        rawCalls={submittedAccountOp.calls}
+        // rawCalls={submittedAccountOp.calls}
         txnId={submittedAccountOp.txnId}
         identifiedBy={submittedAccountOp.identifiedBy}
         accountAddr={submittedAccountOp.accountAddr}

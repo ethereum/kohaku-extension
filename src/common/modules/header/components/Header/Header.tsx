@@ -1,8 +1,6 @@
 import React, { ReactNode, useEffect, useMemo, useState } from 'react'
 import { Image, View, ViewStyle } from 'react-native'
 
-import AmbireLogoHorizontal from '@common/components/AmbireLogoHorizontal'
-import AmbireLogoHorizontalWithOG from '@common/components/AmbireLogoHorizontalWithOG'
 import Text from '@common/components/Text'
 import { titleChangeEventStream } from '@common/hooks/useNavigation'
 import useRoute from '@common/hooks/useRoute'
@@ -15,6 +13,7 @@ import flexbox from '@common/styles/utils/flexbox'
 import { tabLayoutWidths } from '@web/components/TabLayoutWrapper'
 import { getUiType } from '@web/utils/uiType'
 
+import KohakuLogo from '@common/components/HokahuLogo'
 import getStyles from './styles'
 
 interface Props {
@@ -120,11 +119,7 @@ const Header = ({
           {/* Middle content end */}
           {!!withAmbireLogo && (
             <View style={[styles.sideContainer, flexbox.alignEnd]}>
-              {withOG ? (
-                <AmbireLogoHorizontalWithOG width={72} />
-              ) : (
-                <AmbireLogoHorizontal width={72} />
-              )}
+              <KohakuLogo width={72} />
             </View>
           )}
         </View>

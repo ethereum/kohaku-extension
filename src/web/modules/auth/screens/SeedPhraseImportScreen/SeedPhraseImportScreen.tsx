@@ -12,7 +12,7 @@ import Panel from '@common/components/Panel'
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
 import Text from '@common/components/Text'
 import TextArea from '@common/components/TextArea'
-import Toggle from '@common/components/Toggle'
+// import Toggle from '@common/components/Toggle'
 import { useTranslation } from '@common/config/localization'
 import useTheme from '@common/hooks/useTheme'
 import useOnboardingNavigation from '@common/modules/auth/hooks/useOnboardingNavigation'
@@ -51,7 +51,7 @@ const SeedPhraseImportScreen = () => {
   })
   const [importButtonPressed, setImportButtonPressed] = useState(false)
 
-  const [enablePassphrase, setEnablePassphrase] = useState(false)
+  const [enablePassphrase] = useState(false)
   const [seedPhraseStatus, setSeedPhraseStatus] = useState<'incomplete' | 'valid' | 'invalid'>(
     'incomplete'
   )
@@ -226,7 +226,7 @@ const SeedPhraseImportScreen = () => {
                   )
                 }}
               />
-              <Toggle
+              {/* <Toggle
                 testID="enable-passphrase-toggle"
                 isOn={enablePassphrase}
                 onToggle={() => setEnablePassphrase((prev) => !prev)}
@@ -237,7 +237,7 @@ const SeedPhraseImportScreen = () => {
                   appearance: 'secondaryText'
                 }}
                 style={flexbox.alignSelfStart}
-              />
+              /> */}
               {enablePassphrase ? (
                 <View style={styles.passphraseContainer}>
                   <Controller

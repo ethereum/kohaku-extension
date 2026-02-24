@@ -39,7 +39,15 @@ import {
   BROWSER_EXTENSION_LOG_UPDATED_CONTROLLER_STATE_ONLY,
   LI_FI_API_KEY,
   RELAYER_URL,
-  VELCRO_URL
+  VELCRO_URL,
+  PRIVACY_POOLS_ASP_URL,
+  PRIVACY_POOLS_RELAYER_URL,
+  HYPERSYNC_API_KEY,
+  RAILGUN_RELAYER_URL,
+  ALCHEMY_API_KEY,
+  SEPOLIA_RPC_URL,
+  RPC_PROVIDER,
+  HELIOS_CHECKPOINT,
 } from '@env'
 import * as Sentry from '@sentry/browser'
 import { browser, platform } from '@web/constants/browserapi'
@@ -83,6 +91,7 @@ import {
   setBackgroundExtraContext,
   setBackgroundUserContext
 } from './CrashAnalytics'
+import { handleDappAccountSwitching } from './handlers/handleDappAccountSwitching'
 
 const debugLogs: {
   key: string
@@ -216,7 +225,7 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
 }
 
 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-;(async () => {
+; (async () => {
   // Init sentry
   if (CONFIG.SENTRY_DSN_BROWSER_EXTENSION) {
     Sentry.init({
@@ -363,7 +372,12 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
     fetch: fetchWithAnalytics,
     relayerUrl: RELAYER_URL,
     velcroUrl: VELCRO_URL,
+    privacyPoolsAspUrl: PRIVACY_POOLS_ASP_URL,
+    privacyPoolsRelayerUrl: PRIVACY_POOLS_RELAYER_URL,
+    railgunRelayerUrl: RAILGUN_RELAYER_URL,
+    alchemyApiKey: ALCHEMY_API_KEY,
     swapApiKey: LI_FI_API_KEY,
+    hypersyncApiKey: HYPERSYNC_API_KEY,
     featureFlags: {},
     keystoreSigners: {
       internal: KeystoreSigner,
@@ -410,6 +424,8 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
     },
     notificationManager
   })
+
+  handleDappAccountSwitching(mainCtrl)
 
   walletStateCtrl = new WalletStateController({
     onLogLevelUpdateCallback: async (nextLogLevel: LOG_LEVELS) => {
@@ -670,9 +686,10 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
     const networksToUpdate = mainCtrl.activity.broadcastedButNotConfirmed
       .map((op) => op.chainId)
       .filter((chainId, index, self) => self.indexOf(chainId) === index)
+    // Switched to 'latest' instead of 'pending' because a light client can't fetch the pending state
     await mainCtrl.accounts.updateAccountState(
       mainCtrl.selectedAccount.account.addr,
-      'pending',
+      'latest',
       networksToUpdate
     )
 
@@ -682,9 +699,10 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
         return
       }
 
+      // Switched to 'latest' instead of 'pending' because a light client can't fetch the pending state.
       await mainCtrl.accounts.updateAccountState(
         mainCtrl.selectedAccount.account.addr,
-        'pending',
+        'latest',
         chainIds
       )
 
@@ -909,9 +927,7 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
                 if (backgroundState.isUnlocked && !controller.isUnlocked) {
                   await mainCtrl.dapps.broadcastDappSessionEvent('lock')
                 } else if (!backgroundState.isUnlocked && controller.isUnlocked) {
-                  await mainCtrl.dapps.broadcastDappSessionEvent('unlock', [
-                    mainCtrl.selectedAccount.account?.addr
-                  ])
+                  await mainCtrl.handleBroadcastUnlock()
                 }
                 backgroundState.isUnlocked = controller.isUnlocked
               }
@@ -1169,4 +1185,4 @@ browser.runtime.onInstalled.addListener(({ reason }: any) => {
 // TODO: Found the root cause of this! Event handler of 'disconnect' event must be added on the initial
 // evaluation of worker script. More info: https://developer.chrome.com/docs/extensions/mv3/service_workers/events/
 // Would be tricky to replace this workaround with different logic, but it's doable.
-if ('hid' in navigator) navigator.hid.addEventListener('disconnect', () => {})
+if ('hid' in navigator) navigator.hid.addEventListener('disconnect', () => { })

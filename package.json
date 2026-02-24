@@ -55,12 +55,14 @@
     "yarn": ">=1.22.0 <2.0.0"
   },
   "dependencies": {
+    "@0xbow/privacy-pools-core-sdk": "0.1.22",
     "@ambire/signature-validator": "^1.0.3",
     "@babel/plugin-proposal-decorators": "~7.22.7",
     "@babel/plugin-proposal-private-methods": "~7.18.6",
     "@babel/plugin-transform-typescript": "^7.23.3",
     "@babel/preset-react": "^7.24.7",
     "@babel/runtime": "^7.20.6",
+    "@corpus-core/colibri-stateless": "^1.1.1",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",
@@ -78,6 +80,8 @@
     "@fortawesome/react-fontawesome": "^0.2.2",
     "@gnosis.pm/safe-apps-sdk": "6.2.0",
     "@gorhom/portal": "^1.0.11",
+    "@kohaku-eth/railgun": "0.0.1-alpha.4",
+    "@a16z/helios": "0.10.2",
     "@ledgerhq/context-module": "1.4.0",
     "@ledgerhq/device-management-kit": "0.7.0",
     "@ledgerhq/device-signer-kit-ethereum": "1.5.0",
@@ -167,6 +171,7 @@
     "lottie-react": "^2.3.1",
     "lottie-react-native": "^5.1.4",
     "lru-cache": "6.0.0",
+    "maci-crypto": "2.5.0",
     "mini-css-extract-plugin": "^2.7.6",
     "nanoid": "4.0.0",
     "p-queue": "^7.3.4",
@@ -220,6 +225,7 @@
     "secp256k1": "^5.0.1",
     "sentry-expo": "~6.0.0",
     "setimmediate": "^1.0.5",
+    "snarkjs": "^0.7.5",
     "stream-browserify": "^3.0.0",
     "string_decoder": "~0.10.25",
     "swiper": "^11.1.14",
@@ -232,15 +238,17 @@
     "util": "~0.10.3",
     "uuid": "9.0.0",
     "validator": "^13.7.0",
-    "viem": "^2.33.3",
+    "viem": "2.33.3",
     "vm-browserify": "0.0.4",
     "webextension-polyfill": "^0.10.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.2",
+    "@babel/plugin-proposal-export-namespace-from": "7.18.9",
     "@babel/preset-env": "^7.22.5",
     "@babel/preset-typescript": "^7.23.3",
     "@expo/webpack-config": "^18.0.4",
+    "@types/aes-js": "3.1.4",
     "@types/chrome": "^0.0.212",
     "@types/crypto-js": "^4.1.1",
     "@types/debounce": "1.2.1",
@@ -296,5 +304,6 @@
     "@babel/core": "^7.20.2",
     "babel-loader": "8.3.0"
   },
-  "private": true
+  "private": true,
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

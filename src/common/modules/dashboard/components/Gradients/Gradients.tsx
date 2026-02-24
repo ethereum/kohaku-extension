@@ -1,8 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 import { Animated } from 'react-native'
 
-import useTheme from '@common/hooks/useTheme'
-import { getAvatarColors } from '@common/utils/avatars'
 import { getUiType } from '@web/utils/uiType'
 
 import Gradient from './Gradient/Gradient.web'
@@ -46,16 +44,7 @@ const ANIMATION_STEPS = [
   }
 ]
 
-const Gradients = ({
-  width,
-  height,
-  selectedAccount
-}: {
-  width: number
-  height: number
-  selectedAccount: string | null
-}) => {
-  const avatarColors = getAvatarColors(selectedAccount || '')
+const Gradients = ({ width, height }: { width: number; height: number }) => {
   const left = useRef(new Animated.Value(0)).current
   const top = useRef(new Animated.Value(0)).current
 
@@ -106,7 +95,7 @@ const Gradients = ({
           style={{
             width: '100%',
             height: '100%',
-            backgroundColor: shadeColor(avatarColors[0], -90)
+            backgroundColor: '#F9F6E9'
           }}
         />
       </Animated.View>
@@ -132,7 +121,7 @@ const Gradients = ({
           style={{
             width: '100%',
             height: '100%',
-            backgroundColor: shadeColor(avatarColors[1], 40)
+            backgroundColor: '#D01C15'
           }}
         />
       </Animated.View>

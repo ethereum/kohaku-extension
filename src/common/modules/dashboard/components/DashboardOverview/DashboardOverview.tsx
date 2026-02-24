@@ -21,14 +21,14 @@ import useHover, { AnimatedPressable } from '@web/hooks/useHover'
 import useMainControllerState from '@web/hooks/useMainControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 
-import GasTankButton from '../DashboardHeader/GasTankButton'
+import Spinner from '@common/components/Spinner'
 import BalanceAffectingErrors from './BalanceAffectingErrors'
 import RefreshIcon from './RefreshIcon'
 import getStyles from './styles'
 
 interface Props {
   openReceiveModal: () => void
-  openGasTankModal: () => void
+  openGasTankModal?: () => void
   animatedOverviewHeight: Animated.Value
   dashboardOverviewSize: {
     width: number
@@ -41,6 +41,9 @@ interface Props {
     width: number
     height: number
   }) => void
+  isPrivateAccountLoading?: boolean
+  privateAccountLoadingError?: string | null
+  onRetryLoadPrivateAccount?: () => void
 }
 
 // We create a reusable height constant for both the Balance line-height and the Balance skeleton.
@@ -49,11 +52,13 @@ const BALANCE_HEIGHT = 34
 
 const DashboardOverview: FC<Props> = ({
   openReceiveModal,
-  openGasTankModal,
   animatedOverviewHeight,
   dashboardOverviewSize,
   setDashboardOverviewSize,
-  onGasTankButtonPosition
+  onGasTankButtonPosition,
+  isPrivateAccountLoading,
+  privateAccountLoadingError,
+  onRetryLoadPrivateAccount
 }) => {
   const { dispatch } = useBackgroundService()
   const { t } = useTranslation()
@@ -145,11 +150,7 @@ const DashboardOverview: FC<Props> = ({
             })
           }}
         >
-          <Gradients
-            width={dashboardOverviewSize.width}
-            height={dashboardOverviewSize.height}
-            selectedAccount={account?.addr || null}
-          />
+          <Gradients width={dashboardOverviewSize.width} height={dashboardOverviewSize.height} />
           <View style={{ zIndex: 2 }}>
             <DashboardHeader />
             <Animated.View
@@ -240,12 +241,74 @@ const DashboardOverview: FC<Props> = ({
                 </View>
 
                 <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-                  <GasTankButton
-                    onPress={openGasTankModal}
-                    onPosition={onGasTankButtonPositionWrapped}
-                    portfolio={portfolio}
-                    account={account}
-                  />
+                  {isPrivateAccountLoading && !privateAccountLoadingError && (
+                    <>
+                      <Spinner
+                        variant="white"
+                        style={{
+                          width: 24,
+                          height: 24
+                        }}
+                      />
+                      <Text
+                        fontSize={16}
+                        shouldScale={false}
+                        weight="number_bold"
+                        color={theme.primaryBackground}
+                        style={spacings.mlTy}
+                      >
+                        Loading Private Account
+                      </Text>
+                    </>
+                  )}
+                  {privateAccountLoadingError && onRetryLoadPrivateAccount && (
+                    <Pressable
+                      onPress={onRetryLoadPrivateAccount}
+                      testID="retry-load-private-account-button"
+                    >
+                      {({ hovered }: any) => (
+                        <View
+                          style={{
+                            height: 32,
+                            paddingHorizontal: 12,
+                            borderRadius: 6,
+                            backgroundColor: hovered
+                              ? themeType === THEME_TYPES.DARK
+                                ? '#1b2b2c'
+                                : '#141833CC'
+                              : themeType === THEME_TYPES.DARK
+                              ? theme.primaryBackground
+                              : theme.primaryText,
+                            ...flexbox.directionRow,
+                            ...flexbox.alignCenter,
+                            ...flexbox.justifyCenter
+                          }}
+                        >
+                          <Text
+                            color={
+                              themeType === THEME_TYPES.DARK
+                                ? theme.primaryBackgroundInverted
+                                : theme.primaryBackground
+                            }
+                            weight="regular"
+                            fontSize={12}
+                            style={{ marginRight: 6 }}
+                          >
+                            Retry Loading Private Account
+                          </Text>
+                          <RefreshIcon
+                            color={
+                              themeType === THEME_TYPES.DARK
+                                ? theme.primaryBackgroundInverted
+                                : theme.primaryBackground
+                            }
+                            width={16}
+                            height={16}
+                          />
+                        </View>
+                      )}
+                    </Pressable>
+                  )}
                   <BalanceAffectingErrors
                     reloadAccount={reloadAccount}
                     networksWithErrors={networksWithErrors}

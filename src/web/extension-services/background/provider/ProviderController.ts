@@ -21,6 +21,7 @@ import {
   fetchTxnId,
   isIdentifiedByMultipleTxn
 } from '@ambire-common/libs/accountOp/submittedAccountOp'
+import { getDappIdFromUrl } from '@ambire-common/libs/dapps/helpers'
 import { getBundlerByName, getDefaultBundler } from '@ambire-common/services/bundlers/getBundler'
 import { getRpcProvider } from '@ambire-common/services/provider'
 import { getBenzinUrlParams } from '@ambire-common/utils/benzin'
@@ -71,7 +72,7 @@ export class ProviderController {
       : true
   }
 
-  _internalGetAccounts = (origin: string) => {
+  _internalGetAccounts = (origin: string): string[] => {
     if (ORIGINS_WHITELISTED_TO_ALL_ACCOUNTS.includes(origin)) {
       const allOtherAccountAddresses = this.mainCtrl.accounts.accounts.reduce((prevValue, acc) => {
         if (acc.addr !== this.mainCtrl.selectedAccount.account?.addr) {
@@ -82,12 +83,16 @@ export class ProviderController {
       }, [] as string[])
 
       // Selected account goes first in the list
-      return [this.mainCtrl.selectedAccount.account?.addr, ...allOtherAccountAddresses]
+      const selected = this.mainCtrl.selectedAccount.account?.addr;
+      if (!selected) return allOtherAccountAddresses
+      return [selected, ...allOtherAccountAddresses]
     }
 
-    return this.mainCtrl.selectedAccount.account?.addr
-      ? [this.mainCtrl.selectedAccount.account?.addr]
-      : []
+    const dappId = getDappIdFromUrl(origin)
+    const dapp = this.mainCtrl.dapps.getDapp(dappId)
+    const account = dapp?.account;
+    if (!account) return []
+    return [account]
   }
 
   getDappNetwork = (id: string) => {
@@ -129,8 +134,7 @@ export class ProviderController {
     }
 
     const account = this._internalGetAccounts(origin)
-
-    await this.mainCtrl.dapps.broadcastDappSessionEvent('accountsChanged', account)
+    await this.mainCtrl.handleBroadcastAccountsChanged()
 
     return account
   }
@@ -437,10 +441,10 @@ export class ProviderController {
     )[0]
     const accOp = this.mainCtrl.selectedAccount.account
       ? this.mainCtrl.activity.findByIdentifiedBy(
-          identifiedBy,
-          this.mainCtrl.selectedAccount.account.addr,
-          network.chainId
-        )
+        identifiedBy,
+        this.mainCtrl.selectedAccount.account.addr,
+        network.chainId
+      )
       : undefined
     const version = getVersion(accOp)
 
@@ -463,7 +467,7 @@ export class ProviderController {
 
     const isMultipleTxn = isIdentifiedByMultipleTxn(identifiedBy)
     const txnId = txnIdData.txnId as string
-    const provider = getRpcProvider(network.rpcUrls, network.chainId, network.selectedRpcUrl)
+    const provider = getRpcProvider(network)
     const isUserOp = identifiedBy.type === 'UserOperation'
     const bundler = bundlerName ? getBundlerByName(bundlerName) : getDefaultBundler(network)
 
@@ -608,13 +612,13 @@ export class ProviderController {
 
     if (dapp?.chainId !== chainId) {
       this.mainCtrl.dapps.updateDapp(id, { chainId })
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      ;(async () => {
-        await notificationManager.create({
-          title: 'Successfully switched network',
-          message: `Network switched to ${network.name} for ${name || origin}.`
-        })
-      })()
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        ; (async () => {
+          await notificationManager.create({
+            title: 'Successfully switched network',
+            message: `Network switched to ${network.name} for ${name || origin}.`
+          })
+        })()
       await this.mainCtrl.dapps.broadcastDappSessionEvent(
         'chainChanged',
         {

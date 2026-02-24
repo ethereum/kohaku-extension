@@ -63,62 +63,90 @@ jobs:
       PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS: '1'
 
     steps:
+      - name: Check if DEPLOY_KEY is configured
+        id: check-secret
+        run: |
+          if [ -z "${{ secrets.DEPLOY_KEY }}" ]; then
+            echo "DEPLOY_KEY secret is not configured. Skipping E2E tests."
+            echo "skipped=true" >> $GITHUB_OUTPUT
+            exit 0
+          else
+            echo "DEPLOY_KEY is configured. Proceeding with E2E tests."
+            echo "skipped=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout full Git history
+        if: steps.check-secret.outputs.skipped != 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Fixes GitCommitInfo timeout
 
       - name: Add SSH key to checkout a private repo
+        if: steps.check-secret.outputs.skipped != 'true'
         uses: webfactory/ssh-agent@v0.5.4
         with:
           ssh-private-key: ${{ secrets.DEPLOY_KEY }}
+        continue-on-error: true
 
       - name: Git submodules init
+        if: steps.check-secret.outputs.skipped != 'true'
         run: git submodule init
         shell: bash
+        continue-on-error: true
 
       - name: Git submodules update
+        if: steps.check-secret.outputs.skipped != 'true'
         run: git submodule update
         shell: bash
+        continue-on-error: true
 
       - name: Set up Docker
+        if: steps.check-secret.outputs.skipped != 'true'
         uses: docker/setup-buildx-action@v2
 
       - name: Use Node.js
+        if: steps.check-secret.outputs.skipped != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22.12.0
 
       - name: Install root dependencies
+        if: steps.check-secret.outputs.skipped != 'true'
         run: yarn install --frozen-lockfile
         shell: bash
 
       - name: Build webkit extension
+        if: steps.check-secret.outputs.skipped != 'true'
         run: yarn build:web:webkit
 
       - name: Start trezor-emulator container
+        if: steps.check-secret.outputs.skipped != 'true'
         run: |
           docker pull ghcr.io/trezor/trezor-user-env
           docker compose -f ./docker-compose-mac.yml up --force-recreate -d
 
       - name: Install e2e test dependencies
+        if: steps.check-secret.outputs.skipped != 'true'
         working-directory: ./e2e-playwright-tests
         run: npm ci
 
       - name: Install Playwright browsers
+        if: steps.check-secret.outputs.skipped != 'true'
         working-directory: ./e2e-playwright-tests
         run: npx playwright install --with-deps chromium
 
       - name: Run Balance Check test for SA and BA
+        if: steps.check-secret.outputs.skipped != 'true'
         working-directory: ./e2e-playwright-tests
         run: npm run balance:test
 
       - name: Run Playwright tests
+        if: steps.check-secret.outputs.skipped != 'true'
         working-directory: ./e2e-playwright-tests
         run: npm run test
 
       - name: Upload HTML report
-        if: always()
+        if: always() && steps.check-secret.outputs.skipped != 'true'
         working-directory: ./e2e-playwright-tests
         run: |
           mkdir -p playwright-report
@@ -126,8 +154,15 @@ jobs:
         continue-on-error: true
 
       - name: Save test report as artifact
-        if: always()
+        if: always() && steps.check-secret.outputs.skipped != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: ./e2e-playwright-tests/playwright-report.zip
+
+  workflow-status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check workflow status
+        run: |
+          echo "Workflow completed. E2E tests run conditionally based on DEPLOY_KEY secret availability."

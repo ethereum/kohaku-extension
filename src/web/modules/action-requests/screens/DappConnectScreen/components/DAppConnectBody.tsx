@@ -10,26 +10,37 @@ import Checkbox from '@common/components/Checkbox'
 import Spinner from '@common/components/Spinner'
 import Text from '@common/components/Text'
 import useTheme from '@common/hooks/useTheme'
+import text from '@common/styles/utils/text'
 import spacings, { SPACING, SPACING_LG, SPACING_MI } from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { openInTab } from '@web/extension-services/background/webapi/tab'
 
 import getStyles from '../styles'
+import DAppAccountSelector from './DAppAccountSelector'
 import DAppPermissions from './DAppPermissions'
+import DappCreateNewAccount from './DappCreateNewAccount'
+import { DappAccount, ScreenMode } from './interface'
 
 const DAppConnectBody: FC<{
   confirmedRiskCheckbox: boolean
   setConfirmedRiskCheckbox: React.Dispatch<React.SetStateAction<boolean>>
+  setSelectedAccount: React.Dispatch<React.SetStateAction<DappAccount | null>>
   responsiveSizeMultiplier: number
   securityCheck: 'BLACKLISTED' | 'NOT_BLACKLISTED' | 'LOADING'
+  origin?: string
+  autoConnect: (account: DappAccount) => void
 }> = ({
   confirmedRiskCheckbox,
   setConfirmedRiskCheckbox,
+  setSelectedAccount,
   securityCheck,
-  responsiveSizeMultiplier
+  responsiveSizeMultiplier,
+  origin,
+  autoConnect
 }) => {
   const { t } = useTranslation()
   const { styles, theme } = useTheme(getStyles)
+  const [screenMode, setScreenMode] = React.useState<ScreenMode>('all')
 
   const spacingsStyle = useMemo(() => {
     return {
@@ -44,79 +55,109 @@ const DAppConnectBody: FC<{
   }, [setConfirmedRiskCheckbox])
 
   return (
-    <View style={[styles.contentBody, spacingsStyle]}>
-      <View
-        style={[
-          styles.securityChecksContainer,
-          {
-            marginBottom: SPACING * responsiveSizeMultiplier
-          },
-          securityCheck === 'BLACKLISTED' && { borderColor: theme.errorDecorative }
-        ]}
-      >
-        <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
-          <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-            <Text fontSize={14} weight="medium" style={spacings.mr} appearance="secondaryText">
-              {t('Security checks')}
-            </Text>
-          </View>
-          {securityCheck === 'LOADING' && <Spinner style={{ width: 18, height: 18 }} />}
-          {securityCheck === 'NOT_BLACKLISTED' && (
-            <Badge type="success" text={t('Passed')} testId="dapp-security-check-passed">
-              <CheckIcon
-                width={12}
-                height={12}
-                style={{ marginRight: -SPACING_MI, marginLeft: SPACING_MI }}
-              />
-            </Badge>
-          )}
-          {securityCheck === 'BLACKLISTED' && (
-            <Badge type="error" text={t('Danger')}>
-              <ErrorIcon
-                width={12}
-                height={12}
-                color={theme.errorDecorative}
-                style={{ marginRight: -SPACING_MI, marginLeft: SPACING_MI }}
-              />
-            </Badge>
-          )}
-        </View>
-        {securityCheck === 'BLACKLISTED' && (
-          <View style={spacings.ptTy}>
-            <Text
-              fontSize={20 * responsiveSizeMultiplier}
-              weight="semiBold"
-              color={theme.errorDecorative}
-              style={[{ lineHeight: 18 * responsiveSizeMultiplier }, spacings.mbTy]}
-            >
-              {t('Potential danger!')}
-            </Text>
-            <Trans>
-              <Text
-                fontSize={14 * responsiveSizeMultiplier}
-                color={theme.errorDecorative}
-                style={{ lineHeight: 18 * responsiveSizeMultiplier }}
-              >
-                {
-                  "This website didn't pass our safety checks and is blacklisted. It might trick you into signing malicious transactions, asking you to reveal sensitive information, or be dangerous otherwise. If you believe we have blocked it in error, please "
-                }
-                <Text
-                  fontSize={14 * responsiveSizeMultiplier}
-                  color={theme.errorDecorative}
-                  style={{ lineHeight: 18 * responsiveSizeMultiplier }}
-                  underline
-                  onPress={() =>
-                    openInTab({ url: 'https://help.ambire.com/hc/en-us/requests/new' })
-                  }
-                >
-                  let us know.
+    <View style={[styles.contentBody, spacingsStyle, { flex: 1 }]}>
+      {screenMode === 'all' && (
+        <>
+          <View
+            style={[
+              styles.securityChecksContainer,
+              {
+                marginBottom: SPACING * responsiveSizeMultiplier
+              },
+              securityCheck === 'BLACKLISTED' && { borderColor: theme.errorDecorative }
+            ]}
+          >
+            <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
+              <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+                <Text fontSize={14} weight="medium" style={spacings.mr} appearance="secondaryText">
+                  {t('Security checks')}
                 </Text>
-              </Text>
-            </Trans>
+              </View>
+              {securityCheck === 'LOADING' && <Spinner style={{ width: 18, height: 18 }} />}
+              {securityCheck === 'NOT_BLACKLISTED' && (
+                <Badge type="success" text={t('Passed')} testId="dapp-security-check-passed">
+                  <CheckIcon
+                    width={12}
+                    height={12}
+                    style={{ marginRight: -SPACING_MI, marginLeft: SPACING_MI }}
+                  />
+                </Badge>
+              )}
+              {securityCheck === 'BLACKLISTED' && (
+                <Badge type="error" text={t('Danger')}>
+                  <ErrorIcon
+                    width={12}
+                    height={12}
+                    color={theme.errorDecorative}
+                    style={{ marginRight: -SPACING_MI, marginLeft: SPACING_MI }}
+                  />
+                </Badge>
+              )}
+            </View>
+            {securityCheck === 'BLACKLISTED' && (
+              <View style={spacings.ptTy}>
+                <Text
+                  fontSize={20 * responsiveSizeMultiplier}
+                  weight="semiBold"
+                  color={theme.errorDecorative}
+                  style={[{ lineHeight: 18 * responsiveSizeMultiplier }, spacings.mbTy]}
+                >
+                  {t('Potential danger!')}
+                </Text>
+                <Trans>
+                  <Text
+                    fontSize={14 * responsiveSizeMultiplier}
+                    color={theme.errorDecorative}
+                    style={{ lineHeight: 18 * responsiveSizeMultiplier }}
+                  >
+                    {
+                      "This website didn't pass our safety checks and is blacklisted. It might trick you into signing malicious transactions, asking you to reveal sensitive information, or be dangerous otherwise. If you believe we have blocked it in error, please "
+                    }
+                    <Text
+                      fontSize={14 * responsiveSizeMultiplier}
+                      color={theme.errorDecorative}
+                      style={{ lineHeight: 18 * responsiveSizeMultiplier }}
+                      underline
+                      onPress={() =>
+                        openInTab({ url: 'https://help.ambire.com/hc/en-us/requests/new' })
+                      }
+                    >
+                      let us know.
+                    </Text>
+                  </Text>
+                </Trans>
+              </View>
+            )}
           </View>
-        )}
-      </View>
-      <DAppPermissions responsiveSizeMultiplier={responsiveSizeMultiplier} />
+          <DAppPermissions responsiveSizeMultiplier={responsiveSizeMultiplier} />
+        </>
+      )}
+      {(screenMode === 'all' || screenMode === 'new-account') && (
+        <DappCreateNewAccount
+          screenMode={screenMode}
+          origin={origin}
+          autoConnect={autoConnect}
+          setScreenMode={setScreenMode}
+        />
+      )}
+      {screenMode === 'all' && (
+        <Text
+          style={{ ...spacings.mvMi, ...text.center, opacity: 0.64 }}
+          fontSize={14 * responsiveSizeMultiplier}
+          weight="medium"
+          appearance="tertiaryText"
+        >
+          {t('Or use existing account')}
+        </Text>
+      )}
+
+      {(screenMode === 'all' || screenMode === 'view-accounts') && (
+        <DAppAccountSelector
+          setSelectedAccount={setSelectedAccount}
+          setScreenMode={setScreenMode}
+          origin={origin}
+        />
+      )}
       {securityCheck === 'BLACKLISTED' ? (
         <Alert type="warning" size="sm" withIcon={false}>
           <Checkbox

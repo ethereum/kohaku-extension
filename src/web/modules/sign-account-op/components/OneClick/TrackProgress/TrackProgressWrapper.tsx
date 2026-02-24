@@ -18,7 +18,7 @@ const { isActionWindow } = getUiType()
 type TrackProgressProps = {
   handleClose: () => void
   onPrimaryButtonPress: () => void
-  secondaryButtonText: string
+  secondaryButtonText?: string
   children: React.ReactNode
   routeStatus?: SwapAndBridgeActiveRoute['routeStatus']
 }
@@ -78,7 +78,7 @@ const TrackProgressWrapper: FC<TrackProgressProps> = ({
               isActionWindow && spacings.pt2Xl
             ]}
           >
-            {!isActionWindow ? (
+            {!isActionWindow && secondaryButtonText ? (
               <Button
                 onPress={handleClose}
                 hasBottomSpacing={false}

@@ -20,8 +20,11 @@ type Props = {
   onReject: () => void
   onAddToCart: () => void
   onSign: () => void
+  onSimulate?: () => void
   isSignLoading: boolean
   isSignDisabled: boolean
+  isSimulateDisabled?: boolean
+  isSimulating?: boolean
   isAddToCartDisplayed: boolean
   isAddToCartDisabled: boolean
   inProgressButtonText: string
@@ -33,8 +36,11 @@ const Footer = ({
   onReject,
   onAddToCart,
   onSign,
+  onSimulate,
   isSignLoading,
   isSignDisabled,
+  isSimulateDisabled,
+  isSimulating,
   buttonTooltipText,
   isAddToCartDisplayed,
   isAddToCartDisabled,
@@ -96,6 +102,19 @@ const Footer = ({
           >
             <BatchIcon style={spacings.mlTy} />
           </Button>
+        )}
+        {!!onSimulate && (
+          <Button
+            testID="transaction-button-simulate"
+            type="outline"
+            accentColor={theme.primary}
+            text={isSimulating ? t('Simulating...') : t('Simulate')}
+            onPress={onSimulate}
+            disabled={!!isSimulateDisabled || !!isSimulating || isSignLoading}
+            hasBottomSpacing={false}
+            style={{ minWidth: 100, ...spacings.mrTy }}
+            size="large"
+          />
         )}
         {/* @ts-ignore */}
         <View dataSet={{ tooltipId: 'sign-button-tooltip' }}>

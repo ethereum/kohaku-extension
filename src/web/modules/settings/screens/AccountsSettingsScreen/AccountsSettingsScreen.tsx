@@ -6,6 +6,7 @@ import { useModalize } from 'react-native-modalize'
 
 import { Account as AccountInterface } from '@ambire-common/interfaces/account'
 import DragIndicatorIcon from '@common/assets/svg/DragIndicatorIcon'
+import AccountDappAssociationBottomSheet from '@common/components/AccountDappAccessBottomSheet'
 import AccountKeysBottomSheet from '@common/components/AccountKeysBottomSheet'
 import BottomSheet from '@common/components/BottomSheet'
 import Button from '@common/components/Button'
@@ -53,6 +54,11 @@ const AccountsSettingsScreen = () => {
     open: openAccountSmartSettings,
     close: closeAccountSmartSettings
   } = useModalize()
+  const {
+    ref: sheetRefAccountDappAccess,
+    open: openAccountDappAccess,
+    close: closeAccountDappAccess
+  } = useModalize()
 
   useEffect(() => {
     setCurrentSettingsPage('accounts')
@@ -61,6 +67,7 @@ const AccountsSettingsScreen = () => {
   const [exportImportAccount, setExportImportAccount] = useState<AccountInterface | null>(null)
   const [accountToRemove, setAccountToRemove] = useState<AccountInterface | null>(null)
   const [smartSettingsAccount, setSmartSettingsAccount] = useState<AccountInterface | null>(null)
+  const [accountDappAccess, setAccountDappAccess] = useState<AccountInterface | null>(null)
   const [localAccounts, setLocalAccounts] = useState<AccountInterface[]>([...accounts])
 
   useEffect(() => {
@@ -101,6 +108,10 @@ const AccountsSettingsScreen = () => {
     if (smartSettingsAccount) openAccountSmartSettings()
   }, [openAccountSmartSettings, smartSettingsAccount])
 
+  useEffect(() => {
+    if (accountDappAccess) openAccountDappAccess()
+  }, [openAccountDappAccess, accountDappAccess])
+
   const shortenAccountAddr = useCallback(() => {
     if (maxElementWidthSize(800)) return undefined
     if (maxElementWidthSize(700) && minElementWidthSize(800)) return 32
@@ -114,9 +125,10 @@ const AccountsSettingsScreen = () => {
       withOptionsButton: true,
       setAccountToImportOrExport: setExportImportAccount,
       setSmartSettingsAccount,
-      setAccountToRemove
+      setAccountToRemove,
+      setAccountDappAccess
     }),
-    [setExportImportAccount, setSmartSettingsAccount, setAccountToRemove]
+    [setExportImportAccount, setSmartSettingsAccount, setAccountToRemove, setAccountDappAccess]
   )
 
   const removeAccount = useCallback(() => {
@@ -228,6 +240,14 @@ const AccountsSettingsScreen = () => {
         }}
         openAddAccountBottomSheet={openBottomSheet}
         showExportImport
+      />
+      <AccountDappAssociationBottomSheet
+        sheetRef={sheetRefAccountDappAccess}
+        closeBottomSheet={() => {
+          setAccountDappAccess(null)
+          closeAccountDappAccess()
+        }}
+        account={accountDappAccess}
       />
       <BottomSheet
         id="remove-account-seed-sheet"

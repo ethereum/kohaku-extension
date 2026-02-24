@@ -1,9 +1,10 @@
 import React, { useCallback, useMemo } from 'react'
-import { View } from 'react-native'
+import { Pressable, View } from 'react-native'
 import { useModalize } from 'react-native-modalize'
 
 import { TokenResult } from '@ambire-common/libs/portfolio'
 import BatchIcon from '@common/assets/svg/BatchIcon'
+import useNavigation from '@common/hooks/useNavigation'
 import PendingToBeConfirmedIcon from '@common/assets/svg/PendingToBeConfirmedIcon'
 import RewardsIcon from '@common/assets/svg/RewardsIcon'
 import BottomSheet from '@common/components/BottomSheet'
@@ -13,10 +14,13 @@ import TokenIcon from '@common/components/TokenIcon'
 import Tooltip from '@common/components/Tooltip'
 import { useTranslation } from '@common/config/localization'
 import useTheme from '@common/hooks/useTheme'
+import KohakuLogo from '@common/components/HokahuLogo'
 import getAndFormatTokenDetails from '@common/modules/dashboard/helpers/getTokenDetails'
 import spacings, { SPACING_2XL, SPACING_TY } from '@common/styles/spacings'
 import { THEME_TYPES } from '@common/styles/themeConfig'
+import { BORDER_RADIUS_PRIMARY } from '@common/styles/utils/common'
 import flexboxStyles from '@common/styles/utils/flexbox'
+import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import { AnimatedPressable, useCustomHover } from '@web/hooks/useHover'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
@@ -31,6 +35,10 @@ import getStyles from './styles'
 const { isPopup } = getUiType()
 
 const TokenItem = ({ token }: { token: TokenResult }) => {
+  const { navigate } = useNavigation()
+  const shieldToken = () => {
+    navigate(`${WEB_ROUTES.pp1Deposit}`, { state: { token } })
+  }
   const { portfolio } = useSelectedAccountControllerState()
   const {
     symbol,
@@ -114,7 +122,7 @@ const TokenItem = ({ token }: { token: TokenResult }) => {
       </BottomSheet>
       <View style={flexboxStyles.flex1}>
         <View style={[flexboxStyles.directionRow, flexboxStyles.flex1]}>
-          <View style={[flexboxStyles.directionRow, { flex: 1.5 }]}>
+          <View style={[flexboxStyles.directionRow, { flex: 1.5, minWidth: 0 }]}>
             <View style={[spacings.mr, flexboxStyles.justifyCenter]}>
               {isRewards || isVesting ? (
                 <View style={styles.tokenButtonIconWrapper}>
@@ -134,8 +142,8 @@ const TokenItem = ({ token }: { token: TokenResult }) => {
               )}
             </View>
             <View style={[flexboxStyles.alignCenter]}>
-              <View style={[flexboxStyles.flex1, flexboxStyles.directionRow]}>
-                <View>
+              <View style={[flexboxStyles.directionRow, flexboxStyles.alignStart]}>
+                <View style={{ flex: 1, minWidth: 0 }}>
                   <Text
                     selectable
                     style={spacings.mrTy}
@@ -143,6 +151,7 @@ const TokenItem = ({ token }: { token: TokenResult }) => {
                     fontSize={16}
                     weight="number_bold"
                     numberOfLines={1}
+                    ellipsizeMode="tail"
                     // @ts-ignore
                     dataSet={{
                       tooltipId: `${tokenId}-balance`
@@ -188,6 +197,34 @@ const TokenItem = ({ token }: { token: TokenResult }) => {
                     text={t('Claim')}
                     onPress={sendVestingTransaction}
                   />
+                )}
+                {Number(balance) > 0 && (
+                  <View style={{ marginLeft: 8, flexShrink: 0 }}>
+                    <Pressable
+                      onPress={shieldToken}
+                      style={({ hovered }: any) => [
+                        flexboxStyles.directionRow,
+                        flexboxStyles.alignCenter,
+                        {
+                          paddingVertical: 5,
+                          paddingHorizontal: 9,
+                          borderRadius: BORDER_RADIUS_PRIMARY,
+                          backgroundColor: hovered ? '#2a2a2a' : '#000',
+                          transform: [{ scale: hovered ? 1.06 : 1 }]
+                        }
+                      ]}
+                    >
+                      <Text
+                        weight="regular"
+                        fontSize={11}
+                        color="#fff"
+                        style={spacings.mrMi}
+                      >
+                        {t('Shield It!')}
+                      </Text>
+                      <KohakuLogo height={13} width={13} />
+                    </Pressable>
+                  </View>
                 )}
               </View>
             </View>

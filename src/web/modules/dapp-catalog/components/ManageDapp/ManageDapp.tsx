@@ -160,7 +160,7 @@ const ManageDapp = ({
           containerStyle={{ width: 230 }}
           selectStyle={{ height: 40 }}
           options={networksOptions}
-          value={networksOptions.filter((opt) => opt.value === network.name)[0]}
+          value={networksOptions.filter((opt) => opt.value === network?.name)[0]}
         />
       </View>
       {!!shouldShowRemoveDappFromCatalog && (

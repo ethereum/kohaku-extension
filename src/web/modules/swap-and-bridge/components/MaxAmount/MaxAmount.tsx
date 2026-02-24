@@ -53,7 +53,7 @@ const MaxAmount = ({
           onPress={onMaxButtonPress}
           disabled={disabled}
         >
-          <Text fontSize={12} weight="medium" appearance="primary" testID='max-amount-button'>
+          <Text fontSize={12} weight="medium" appearance="primary" testID="max-amount-button">
             {t('Max')}
           </Text>
         </Pressable>

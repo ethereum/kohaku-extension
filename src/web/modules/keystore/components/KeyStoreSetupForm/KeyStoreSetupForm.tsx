@@ -35,10 +35,14 @@ const KeyStoreSetupForm = ({ agreedWithTerms, children }: Props) => {
     if (isKeystoreReady) goToNextRoute()
   }, [isKeystoreReady, goToNextRoute])
 
-  const handleCreateButtonPress = useCallback(async () => {
+  const isFormDisabled =
+    formState.isSubmitting || isKeystoreSetupLoading || !formState.isValid || !agreedWithTerms
+
+  const handleSubmit = useCallback(async () => {
+    if (isFormDisabled) return
     await storage.set('termsState', { version: TERMS_VERSION, acceptedAt: Date.now() })
     await handleKeystoreSetup()
-  }, [handleKeystoreSetup])
+  }, [handleKeystoreSetup, isFormDisabled])
 
   return (
     <>
@@ -61,7 +65,6 @@ const KeyStoreSetupForm = ({ agreedWithTerms, children }: Props) => {
                 (t('Your password must be unique and at least 8 characters long.') as string)
               }
               containerStyle={spacings.mbTy}
-              onSubmitEditing={handleCreateButtonPress}
             />
           )}
           name="password"
@@ -84,7 +87,7 @@ const KeyStoreSetupForm = ({ agreedWithTerms, children }: Props) => {
               secureTextEntry
               error={formState.errors.confirmPassword && (t("Passwords don't match.") as string)}
               autoCorrect={false}
-              onSubmitEditing={handleKeystoreSetup}
+              onSubmitEditing={handleSubmit}
             />
           )}
           name="confirmPassword"
@@ -95,14 +98,9 @@ const KeyStoreSetupForm = ({ agreedWithTerms, children }: Props) => {
         <Button
           testID="create-keystore-pass-btn"
           size="large"
-          disabled={
-            formState.isSubmitting ||
-            isKeystoreSetupLoading ||
-            !formState.isValid ||
-            !agreedWithTerms
-          }
+          disabled={isFormDisabled}
           text={formState.isSubmitting || isKeystoreSetupLoading ? t('Loading...') : t('Confirm')}
-          onPress={handleKeystoreSetup}
+          onPress={handleSubmit}
           hasBottomSpacing={false}
         />
       </View>

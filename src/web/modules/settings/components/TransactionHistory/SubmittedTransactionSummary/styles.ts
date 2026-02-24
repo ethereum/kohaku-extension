@@ -9,6 +9,7 @@ interface Style {
   container: ViewStyle
   summaryItem: ViewStyle
   footer: ViewStyle
+  feeColumn: ViewStyle
 }
 
 const getStyles = (theme: ThemeProps, themeType: ThemeType) =>
@@ -32,6 +33,10 @@ const getStyles = (theme: ThemeProps, themeType: ThemeType) =>
       borderTopColor: theme.secondaryBorder,
       borderTopWidth: 1,
       ...spacings.pvSm
+    },
+    feeColumn: {
+      width: 100,
+      ...spacings.mrMd
     }
   })
 
