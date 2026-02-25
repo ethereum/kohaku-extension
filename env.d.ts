@@ -116,7 +116,7 @@ declare module '@env' {
   export const SENTRY_DSN_BROWSER_EXTENSION: EnvTypes['SENTRY_DSN_BROWSER_EXTENSION']
 
   /**
-   * The API key for Alchemy
+   * The Sepolia RPC URL
    */
   export const SEPOLIA_RPC_URL: EnvTypes['SEPOLIA_RPC_URL']
 
@@ -126,7 +126,7 @@ declare module '@env' {
   export const PRIVACY_POOLS_ASP_URL: EnvTypes['PRIVACY_POOLS_ASP_URL']
 
   /**
-   * The API key for Alchemy
+   * The PrivacyPools Relayer URL
    */
   export const PRIVACY_POOLS_RELAYER_URL: EnvTypes['PRIVACY_POOLS_RELAYER_URL']
 
@@ -140,9 +140,9 @@ declare module '@env' {
   export const RAILGUN_RELAYER_URL: EnvTypes['RAILGUN_RELAYER_URL']
 
   /**
-   * The Infura API key
+   * The Alchemy API key
    */
-  export const INFURA_API_KEY: EnvTypes['INFURA_API_KEY']
+  export const ALCHEMY_API_KEY: EnvTypes['ALCHEMY_API_KEY']
 
   /**
    * Select which RPC provider implementation to use.

@@ -20,8 +20,8 @@ const useDepositForm = () => {
   const railgunForm = useRailgunForm()
 
   // Route to the appropriate hook based on the selected provider
-  // Default to privacy-pools if not set
-  const activeProvider = privacyProvider || 'privacy-pools'
+  // Default to railgun if not set
+  const activeProvider = privacyProvider || 'railgun'
 
   if (activeProvider === 'railgun') {
     return railgunForm

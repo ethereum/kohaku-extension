@@ -142,7 +142,7 @@ const DepositForm = ({
   )
 
   const selectedProvider = useMemo(() => {
-    const providerValue = privacyProvider || 'privacy-pools'
+    const providerValue = privacyProvider || 'railgun'
     const providerOption = providerOptions.find((opt) => opt.value === providerValue)
 
     return providerOption || null

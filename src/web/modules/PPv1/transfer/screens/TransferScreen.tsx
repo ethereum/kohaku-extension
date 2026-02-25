@@ -57,7 +57,7 @@ const TransferScreen = () => {
   const hasRefreshedAccountRef = useRef(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedPrivacyProtocol, setSelectedPrivacyProtocol] = useState<SelectValue>(
-    getPrivacyProtocolOptions(t)[protocolFromParams === 'railgun' ? 1 : 0]
+    getPrivacyProtocolOptions(t)[protocolFromParams === 'privacy-pools' ? 1 : 0]
   )
   const activeProtocol = selectedPrivacyProtocol.value as TransferTabType
   const { dispatch } = useBackgroundService()
@@ -111,7 +111,7 @@ const TransferScreen = () => {
   } = useRailgunControllerState()
 
   const changeProtocol = (protocol: SelectValue) => {
-    const newProtocol = (protocol.value || 'privacy-pools') as TransferTabType
+    const newProtocol = (protocol.value || 'railgun') as TransferTabType
 
     if (newProtocol === selectedPrivacyProtocol.value) return
 
