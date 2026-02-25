@@ -14,24 +14,24 @@ export const getPrivacyProtocolOptions = (t: TFunction<'translation', undefined>
   {
     label: (
       <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-        <PrivacyIcon width={15} height={15} />
-        <Text fontSize={14} weight="light" style={spacings.mlMi}>
-          {t('Privacy Pools')}
-        </Text>
-      </View>
-    ),
-    value: 'privacy-pools'
-  },
-  {
-    label: (
-      <View style={[flexbox.directionRow, flexbox.alignCenter]}>
         <RailgunIcon width={15} height={15} />
-        <Text fontSize={14} weight="light">
+        <Text fontSize={14} weight="light" style={spacings.mlMi}>
           {t('Railgun')}
         </Text>
       </View>
     ),
     value: 'railgun'
+  },
+  {
+    label: (
+      <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+        <PrivacyIcon width={15} height={15} />
+        <Text fontSize={14} weight="light">
+          {t('Privacy Pools')}
+        </Text>
+      </View>
+    ),
+    value: 'privacy-pools'
   }
 ]
 
@@ -54,7 +54,7 @@ const PrivacyProtocolSelector = ({
   return (
     <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
       <Text appearance="secondaryText" fontSize={14} weight="light">
-        {t('Provider')}
+        {t('Privacy Protocol')}
       </Text>
       <View style={[flexbox.directionRow, flexbox.alignCenter, viewStyle]}>
         <Select

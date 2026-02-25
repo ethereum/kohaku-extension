@@ -127,7 +127,7 @@ const ImportScreen = () => {
     setTrackProgress(AccountOpStatus.Success)
   }, [isDuplicate, accountName, addImportedPrivateAccount, seedPhrase, dispatch])
 
-  const headerTitle = 'Import from Privacy Protocol'
+  const headerTitle = 'Import Private Acct'
 
   const handleGoBackPress = useCallback(() => {
     navigate(ROUTES.pp1Home)

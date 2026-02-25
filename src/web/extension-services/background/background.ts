@@ -44,10 +44,7 @@ import {
   PRIVACY_POOLS_RELAYER_URL,
   HYPERSYNC_API_KEY,
   RAILGUN_RELAYER_URL,
-  ALCHEMY_API_KEY,
-  SEPOLIA_RPC_URL,
-  RPC_PROVIDER,
-  HELIOS_CHECKPOINT,
+  ALCHEMY_API_KEY
 } from '@env'
 import * as Sentry from '@sentry/browser'
 import { browser, platform } from '@web/constants/browserapi'
