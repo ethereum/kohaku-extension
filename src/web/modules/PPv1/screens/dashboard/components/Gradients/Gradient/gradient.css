@@ -1,0 +1,5 @@
+#gradient {
+  filter: blur(50px);
+  border-radius: 50%;
+  opacity: 0.45;
+}

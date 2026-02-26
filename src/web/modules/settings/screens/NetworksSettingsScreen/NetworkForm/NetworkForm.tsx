@@ -5,10 +5,11 @@ import { useTranslation } from 'react-i18next'
 import { Pressable, View, ViewStyle } from 'react-native'
 
 import { getFeatures } from '@ambire-common/libs/networks/networks'
-import { getRpcProvider } from '@ambire-common/services/provider'
+import { isColibriSupportedChain } from '@ambire-common/services/provider'
 import { isValidURL } from '@ambire-common/services/validations'
 import CopyIcon from '@common/assets/svg/CopyIcon'
 import Button from '@common/components/Button'
+import Checkbox from '@common/components/Checkbox'
 import Input from '@common/components/Input'
 import NetworkIcon from '@common/components/NetworkIcon'
 import NumberInput from '@common/components/NumberInput'
@@ -29,6 +30,7 @@ import {
   getAreDefaultsChanged,
   handleErrors
 } from '@web/modules/settings/screens/NetworksSettingsScreen/NetworkForm/helpers'
+import { getRpcProviderForUI } from '@web/services/provider'
 
 import getStyles from './styles'
 
@@ -43,6 +45,45 @@ type RpcSelectorItemType = {
   onPress: (url: string) => void
   onRemove?: (url: string) => void
 }
+
+type RpcProviderOptionValue = 'rpc' | 'helios' | 'colibri'
+type RpcProviderSelectorItemType = {
+  index: number
+  value: RpcProviderOptionValue
+  label: string
+  isSelected: boolean
+  itemsLength: number
+  disabled?: boolean
+  onSelect: (value: RpcProviderOptionValue) => void
+  style?: ViewStyle
+  testID?: string
+}
+
+type NetworkFormValues = {
+  name: string
+  rpcUrl: string
+  rpcUrls?: string[]
+  selectedRpcUrl?: string
+  consensusRpcUrl: string
+  heliosCheckpoint: string
+  proverRpcUrl: string
+  chainId: string
+  rpcProvider: RpcProviderOptionValue
+  nativeAssetSymbol: string
+  nativeAssetName: string
+  explorerUrl: string
+  coingeckoPlatformId: string
+  coingeckoNativeAssetId: string
+}
+
+type ControllerRenderArgs = {
+  field: {
+    onChange: (value: any) => void
+    onBlur: () => void
+    value: any
+  }
+}
+
 
 export const RpcSelectorItem = React.memo(
   ({
@@ -133,6 +174,55 @@ export const RpcSelectorItem = React.memo(
   }
 )
 
+export const RpcProviderSelectorItem = React.memo(
+  ({
+    index,
+    value,
+    label,
+    isSelected,
+    itemsLength,
+    disabled,
+    onSelect,
+    style,
+    testID
+  }: RpcProviderSelectorItemType) => {
+    const { styles, theme } = useTheme(getStyles)
+    const [hovered, setHovered] = useState(false)
+
+    return (
+      <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+        <Pressable
+          testID={testID}
+          style={[
+            styles.selectRpcItem,
+            index !== itemsLength - 1 && styles.selectRpcItemBorder,
+            style,
+            hovered && !disabled && { backgroundColor: theme.tertiaryBackground },
+            disabled && { opacity: 0.5 }
+          ]}
+          onPress={() => {
+            if (disabled) return
+            if (!isSelected) onSelect(value)
+          }}
+        >
+          <View
+            style={[
+              styles.radio,
+              isSelected && styles.radioSelected,
+              hovered && !disabled && styles.radioHovered
+            ]}
+          >
+            {!!isSelected && <View style={styles.radioSelectedInner} />}
+          </View>
+          <Text fontSize={14} weight="medium" appearance="secondaryText">
+            {label}
+          </Text>
+        </Pressable>
+      </div>
+    )
+  }
+)
+
 const NetworkForm = ({
   selectedChainId = 'add-custom-network',
   onCancel,
@@ -167,12 +257,16 @@ const NetworkForm = ({
     handleSubmit,
     setValue,
     formState: { errors, touchedFields }
-  } = useForm({
+  } = useForm<NetworkFormValues>({
     mode: 'onSubmit',
     defaultValues: {
       name: '',
       rpcUrl: '',
+      consensusRpcUrl: '',
+      heliosCheckpoint: '',
+      proverRpcUrl: '',
       chainId: '',
+      rpcProvider: 'rpc',
       nativeAssetSymbol: '',
       nativeAssetName: '',
       explorerUrl: '',
@@ -182,7 +276,11 @@ const NetworkForm = ({
     values: {
       name: selectedNetwork?.name || '',
       rpcUrl: '',
-      chainId: Number(selectedNetwork?.chainId) || '',
+      consensusRpcUrl: selectedNetwork?.consensusRpcUrl || '',
+      heliosCheckpoint: selectedNetwork?.heliosCheckpoint || '',
+      proverRpcUrl: selectedNetwork?.proverRpcUrl || '',
+      chainId: selectedNetwork?.chainId ? selectedNetwork.chainId.toString() : '',
+      rpcProvider: selectedNetwork?.rpcProvider || 'rpc',
       nativeAssetSymbol: selectedNetwork?.nativeAssetSymbol || '',
       nativeAssetName: selectedNetwork?.nativeAssetName || '',
       explorerUrl: selectedNetwork?.explorerUrl || '',
@@ -193,12 +291,27 @@ const NetworkForm = ({
   const [rpcUrls, setRpcUrls] = useState(selectedNetwork?.rpcUrls || [])
   const [selectedRpcUrl, setSelectedRpcUrl] = useState(selectedNetwork?.selectedRpcUrl)
   const networkFormValues = watch()
+  const chainIdValue = watch('chainId')
+  const rpcProviderValue = watch('rpcProvider') as RpcProviderOptionValue
   const errorCount = Object.keys(errors).length
 
   const isSomethingUpdated = useMemo(() => {
     if (selectedRpcUrl !== selectedNetwork?.selectedRpcUrl) return true
     return getAreDefaultsChanged({ ...networkFormValues, rpcUrls }, selectedNetwork)
   }, [networkFormValues, rpcUrls, selectedNetwork, selectedRpcUrl])
+
+  const canUseHelios = useMemo(() => !!selectedNetwork?.consensusRpcUrl, [selectedNetwork?.consensusRpcUrl])
+  const canUseColibri = useMemo(() => {
+    try {
+      if (!chainIdValue) return false
+      return isColibriSupportedChain(BigInt(chainIdValue))
+    } catch {
+      return false
+    }
+  }, [chainIdValue])
+
+  const shouldShowHeliosFields = rpcProviderValue === 'helios'
+  const shouldShowColibriFields = rpcProviderValue === 'colibri'
 
   const features = useMemo(
     () =>
@@ -254,7 +367,13 @@ const NetworkForm = ({
 
       try {
         if (!rpcUrl) throw new Error('No RPC URL provided')
-        const rpc = getRpcProvider([rpcUrl], chainId ? Number(chainId) : undefined)
+        const rpc = getRpcProviderForUI(
+          {
+            rpcUrls: [rpcUrl],
+            chainId: chainId ? BigInt(chainId) : undefined
+          },
+          dispatch
+        )
         const network = await rpc.getNetwork()
         rpc.destroy()
 
@@ -325,80 +444,127 @@ const NetworkForm = ({
     // We can't just validate using a custom validate rule, because getNetwork is async
     // and resetting the form doesn't wait for the validation to finish so we get an error
     // when resetting the form.
-    const subscription = watch(async (value, { name }) => {
+    const subscription = watch(
+      async (value: Partial<NetworkFormValues>, { name }: { name?: keyof NetworkFormValues }) => {
       if (name && !value[name]) {
-        if (name !== 'rpcUrl') {
-          setError(name, { type: 'custom-error', message: 'Field is required' })
-          return
-        }
-      }
-
-      if (name === 'name') {
         if (
-          selectedChainId === 'add-custom-network' &&
-          allNetworks.some((n) => n.name.toLowerCase() === value.name?.toLowerCase())
+          name !== 'rpcUrl' &&
+          name !== 'consensusRpcUrl' &&
+          name !== 'heliosCheckpoint' &&
+          name !== 'proverRpcUrl'
         ) {
-          setError('name', {
-            type: 'custom-error',
-            message: `Network with name: ${value.name} already added`
-          })
-          return
-        }
-        clearErrors('name')
-      }
-
-      if (name === 'nativeAssetSymbol') {
-        clearErrors('nativeAssetSymbol')
-      }
-
-      if (name === 'nativeAssetName') {
-        clearErrors('nativeAssetName')
-      }
-
-      if (name === 'chainId') {
-        if (
-          selectedChainId === 'add-custom-network' &&
-          allNetworks.some((n) => Number(n.chainId) === Number(value.chainId))
-        ) {
-          setError('chainId', {
-            type: 'custom-error',
-            message: `Network with chainID: ${value.chainId} already added`
-          })
-          return
-        }
-        clearErrors('chainId')
-      }
-
-      if (name === 'chainId') {
-        await validateRpcUrlAndRecalculateFeatures(undefined, value.chainId)
-      }
-
-      if (name === 'explorerUrl') {
-        if (!value.explorerUrl) {
-          setError('explorerUrl', { type: 'custom-error', message: 'URL cannot be empty' })
-          return
+            setError(name, { type: 'custom-error', message: 'Field is required' })
+            return
+          }
         }
 
-        try {
-          const url = new URL(value.explorerUrl)
-          if (url.protocol !== 'https:') {
-            setError('explorerUrl', {
+        if (name === 'name') {
+          if (
+            selectedChainId === 'add-custom-network' &&
+            allNetworks.some((n) => n.name.toLowerCase() === value.name?.toLowerCase())
+          ) {
+            setError('name', {
               type: 'custom-error',
-              message: 'URL must start with https://'
+              message: `Network with name: ${value.name} already added`
             })
             return
           }
-        } catch {
-          setError('explorerUrl', { type: 'custom-error', message: 'Invalid URL' })
-          return
+          clearErrors('name')
         }
-        clearErrors('explorerUrl')
-      }
 
-      if (name === 'rpcUrl') {
-        clearErrors('rpcUrl')
-      }
-    })
+        if (name === 'nativeAssetSymbol') {
+          clearErrors('nativeAssetSymbol')
+        }
+
+        if (name === 'nativeAssetName') {
+          clearErrors('nativeAssetName')
+        }
+
+        if (name === 'chainId') {
+          if (
+            selectedChainId === 'add-custom-network' &&
+            allNetworks.some((n) => Number(n.chainId) === Number(value.chainId))
+          ) {
+            setError('chainId', {
+              type: 'custom-error',
+              message: `Network with chainID: ${value.chainId} already added`
+            })
+            return
+          }
+          clearErrors('chainId')
+        }
+
+        if (name === 'chainId') {
+          await validateRpcUrlAndRecalculateFeatures(undefined, value.chainId)
+        }
+
+        if (name === 'explorerUrl') {
+          if (!value.explorerUrl) {
+            setError('explorerUrl', { type: 'custom-error', message: 'URL cannot be empty' })
+            return
+          }
+
+          try {
+            const url = new URL(value.explorerUrl)
+            if (url.protocol !== 'https:') {
+              setError('explorerUrl', {
+                type: 'custom-error',
+                message: 'URL must start with https://'
+              })
+              return
+            }
+          } catch {
+            setError('explorerUrl', { type: 'custom-error', message: 'Invalid URL' })
+            return
+          }
+          clearErrors('explorerUrl')
+        }
+
+        if (name === 'consensusRpcUrl') {
+          if (!value.consensusRpcUrl) {
+            clearErrors('consensusRpcUrl')
+            return
+          }
+
+          try {
+            const url = new URL(value.consensusRpcUrl)
+            if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+              setError('consensusRpcUrl', {
+                type: 'custom-error',
+                message: 'URL must start with http:// or https://'
+              })
+              return
+            }
+          } catch {
+            setError('consensusRpcUrl', { type: 'custom-error', message: 'Invalid URL' })
+            return
+          }
+          clearErrors('consensusRpcUrl')
+        }
+
+        if (name === 'heliosCheckpoint') {
+          if (!value.heliosCheckpoint) {
+            clearErrors('heliosCheckpoint')
+            return
+          }
+
+          // Validate that the checkpoint is a valid Ethereum block hash
+          const blockHashRegex = /^0x[0-9a-fA-F]{64}$/
+          if (!blockHashRegex.test(value.heliosCheckpoint)) {
+            setError('heliosCheckpoint', {
+              type: 'custom-error',
+              message: 'Must be a valid 32-byte hex string (0x followed by 64 hex characters)'
+            })
+            return
+          }
+
+          clearErrors('heliosCheckpoint')
+        }
+
+        if (name === 'rpcUrl') {
+          clearErrors('rpcUrl')
+        }
+      })
 
     return () => {
       subscription?.unsubscribe()
@@ -435,8 +601,14 @@ const NetworkForm = ({
       if (selectedChainId === 'add-custom-network') {
         emptyFields = Object.keys(formFields).filter(
           (key) =>
-            !['rpcUrl', 'rpcUrls', 'coingeckoPlatformId', 'coingeckoNativeAssetId'].includes(key) &&
-            !formFields[key].length
+            ![
+              'rpcUrl',
+              'rpcUrls',
+              'coingeckoPlatformId',
+              'coingeckoNativeAssetId',
+              'consensusRpcUrl',
+              'heliosCheckpoint'
+            ].includes(key) && !formFields[key].length
         )
       } else {
         emptyFields = Object.keys(formFields).filter(
@@ -468,7 +640,11 @@ const NetworkForm = ({
             rpcUrls,
             selectedRpcUrl,
             chainId: BigInt(networkFormValues.chainId),
-            iconUrls: []
+            iconUrls: [],
+            rpcProvider: networkFormValues.rpcProvider,
+            consensusRpcUrl: networkFormValues.consensusRpcUrl,
+            heliosCheckpoint: networkFormValues.heliosCheckpoint,
+            proverRpcUrl: networkFormValues.proverRpcUrl
           }
         })
       } else {
@@ -478,7 +654,11 @@ const NetworkForm = ({
             network: {
               rpcUrls,
               selectedRpcUrl,
-              explorerUrl: networkFormValues.explorerUrl
+              explorerUrl: networkFormValues.explorerUrl,
+              consensusRpcUrl: networkFormValues.consensusRpcUrl,
+              rpcProvider: networkFormValues.rpcProvider,
+              heliosCheckpoint: networkFormValues.heliosCheckpoint,
+              proverRpcUrl: networkFormValues.proverRpcUrl
             },
             chainId: BigInt(networkFormValues.chainId)
           }
@@ -589,7 +769,7 @@ const NetworkForm = ({
             <ScrollableWrapper contentContainerStyle={{ flexGrow: 1 }}>
               <Controller
                 control={control}
-                render={({ field: { onChange, onBlur, value } }) => (
+                render={({ field: { onChange, onBlur, value } }: ControllerRenderArgs) => (
                   <Input
                     onBlur={onBlur}
                     onChangeText={onChange}
@@ -607,7 +787,7 @@ const NetworkForm = ({
               <View style={[flexbox.directionRow, flexbox.alignStart]}>
                 <Controller
                   control={control}
-                  render={({ field: { onChange, onBlur, value } }) => (
+                  render={({ field: { onChange, onBlur, value } }: ControllerRenderArgs) => (
                     <Input
                       onBlur={onBlur}
                       onChangeText={onChange}
@@ -624,7 +804,7 @@ const NetworkForm = ({
                 />
                 <Controller
                   control={control}
-                  render={({ field: { onChange, onBlur, value } }) => (
+                  render={({ field: { onChange, onBlur, value } }: ControllerRenderArgs) => (
                     <Input
                       onBlur={onBlur}
                       onChangeText={onChange}
@@ -643,7 +823,7 @@ const NetworkForm = ({
 
               <Controller
                 control={control}
-                render={({ field: { onChange, onBlur, value } }) => (
+                render={({ field: { onChange, onBlur, value } }: ControllerRenderArgs) => (
                   <View style={[flexbox.directionRow, flexbox.alignStart]}>
                     <Input
                       onBlur={onBlur}
@@ -652,7 +832,7 @@ const NetworkForm = ({
                       inputWrapperStyle={{ height: 40 }}
                       inputStyle={{ height: 40 }}
                       containerStyle={{ ...spacings.mb, ...spacings.mrTy, flex: 1 }}
-                      label={t('RPC URL')}
+                      label={t('Execution RPC URL')}
                       error={handleErrors(errors.rpcUrl)}
                     />
                     <View style={{ paddingTop: 27 }}>
@@ -680,7 +860,7 @@ const NetworkForm = ({
               />
 
               <Text appearance="secondaryText" fontSize={14} weight="regular" style={spacings.mbMi}>
-                {t('Select default RPC URL')}
+                {t('Select default execution RPC URL')}
               </Text>
               <ScrollableWrapper
                 style={styles.rpcUrlsContainer}
@@ -699,8 +879,8 @@ const NetworkForm = ({
                         shouldShowRemove={
                           isPredefinedNetwork
                             ? !allNetworks
-                                .filter((n) => n.predefined)
-                                .find((n) => n.rpcUrls.includes(url))
+                              .filter((n) => n.predefined)
+                              .find((n) => n.rpcUrls.includes(url))
                             : true
                         }
                         onRemove={handleRemoveRpcUrl}
@@ -722,10 +902,104 @@ const NetworkForm = ({
                   </View>
                 )}
               </ScrollableWrapper>
+              <Text appearance="secondaryText" fontSize={14} weight="regular" style={spacings.mbMi}>
+                {t('RPC verifier')}
+              </Text>
+              <View style={[styles.rpcUrlsContainer, spacings.mb]}>
+                <RpcProviderSelectorItem
+                  index={0}
+                  itemsLength={3}
+                  value="rpc"
+                  label={t('Unverified (not trustless)')}
+                  isSelected={rpcProviderValue === 'rpc'}
+                  onSelect={(v) => setValue('rpcProvider', v, { shouldDirty: true })}
+                  testID="rpc-provider-option-rpc"
+                />
+                <RpcProviderSelectorItem
+                  index={1}
+                  itemsLength={3}
+                  value="helios"
+                  label={t('verified by Helios (LightClient)')}
+                  disabled={!canUseHelios}
+                  isSelected={rpcProviderValue === 'helios'}
+                  onSelect={(v) => setValue('rpcProvider', v, { shouldDirty: true })}
+                  testID="rpc-provider-option-helios"
+                />
+                <RpcProviderSelectorItem
+                  index={2}
+                  itemsLength={3}
+                  value="colibri"
+                  label={t('verified by Colibri (Stateless Client)')}
+                  disabled={!canUseColibri}
+                  isSelected={rpcProviderValue === 'colibri'}
+                  onSelect={(v) => setValue('rpcProvider', v, { shouldDirty: true })}
+                  testID="rpc-provider-option-colibri"
+                />
+              </View>
+              {shouldShowHeliosFields && (
+                <>
+                  <View style={[flexbox.flex1]}>
+                    <Controller
+                      control={control}
+                      render={({ field: { onChange, onBlur, value } }: ControllerRenderArgs) => (
+                        <Input
+                          onBlur={onBlur}
+                          onChangeText={onChange}
+                          value={value}
+                          inputWrapperStyle={{ height: 40 }}
+                          inputStyle={{ height: 40 }}
+                          containerStyle={{ ...spacings.mb, flex: 1 }}
+                          label={t('Consensus RPC URL')}
+                          error={handleErrors(errors.consensusRpcUrl)}
+                        />
+                      )}
+                      name="consensusRpcUrl"
+                    />
+                  </View>
+                  <View style={[flexbox.flex1]}>
+                    <Controller
+                      control={control}
+                      render={({ field: { onChange, onBlur, value } }: ControllerRenderArgs) => (
+                        <Input
+                          onBlur={onBlur}
+                          onChangeText={onChange}
+                          value={value}
+                          inputWrapperStyle={{ height: 40 }}
+                          inputStyle={{ height: 40 }}
+                          containerStyle={{ ...spacings.mb, flex: 1 }}
+                          label={t('Weak subjectivity checkpoint')}
+                          error={handleErrors(errors.heliosCheckpoint)}
+                        />
+                      )}
+                      name="heliosCheckpoint"
+                    />
+                  </View>
+                </>
+              )}
+              {shouldShowColibriFields && (
+                <View style={[flexbox.flex1]}>
+                  <Controller
+                    control={control}
+                    render={({ field: { onChange, onBlur, value } }: ControllerRenderArgs) => (
+                      <Input
+                        onBlur={onBlur}
+                        onChangeText={onChange}
+                        value={value}
+                        inputWrapperStyle={{ height: 40 }}
+                        inputStyle={{ height: 40 }}
+                        containerStyle={{ ...spacings.mb, flex: 1 }}
+                        label={t('Prover RPC URL')}
+                        error={handleErrors(errors.proverRpcUrl)}
+                      />
+                    )}
+                    name="proverRpcUrl"
+                  />
+                </View>
+              )}
               <View style={[flexbox.directionRow, flexbox.alignStart]}>
                 <Controller
                   control={control}
-                  render={({ field: { onChange, onBlur, value } }) => (
+                  render={({ field: { onChange, onBlur, value } }: ControllerRenderArgs) => (
                     <NumberInput
                       onBlur={onBlur}
                       onChangeText={onChange}
@@ -742,7 +1016,7 @@ const NetworkForm = ({
                 />
                 <Controller
                   control={control}
-                  render={({ field: { onChange, onBlur, value } }) => (
+                  render={({ field: { onChange, onBlur, value } }: ControllerRenderArgs) => (
                     <Input
                       onBlur={onBlur}
                       onChangeText={onChange}
@@ -760,7 +1034,7 @@ const NetworkForm = ({
               <View style={[flexbox.directionRow, flexbox.alignStart]}>
                 <Controller
                   control={control}
-                  render={({ field: { onChange, onBlur, value } }) => (
+                  render={({ field: { onChange, onBlur, value } }: ControllerRenderArgs) => (
                     <NumberInput
                       onBlur={onBlur}
                       onChangeText={onChange}
@@ -778,7 +1052,7 @@ const NetworkForm = ({
                 />
                 <Controller
                   control={control}
-                  render={({ field: { onChange, onBlur, value } }) => (
+                  render={({ field: { onChange, onBlur, value } }: ControllerRenderArgs) => (
                     <Input
                       onBlur={onBlur}
                       onChangeText={onChange}

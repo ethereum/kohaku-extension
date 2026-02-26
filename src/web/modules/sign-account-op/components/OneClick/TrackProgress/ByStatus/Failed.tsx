@@ -40,7 +40,7 @@ const Failed: FC<FailedProps> = ({ title, errorMessage, handleClose, toToken, am
       <View
         style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifyCenter, spacings.mbLg]}
       >
-        <AlertVertical size="md" title={title} text={errorMessage}>
+        <AlertVertical size="md" title={title} text={errorMessage} style={{ width: '100%' }}>
           {!!toToken && (
             <AnimatedPressable
               style={{

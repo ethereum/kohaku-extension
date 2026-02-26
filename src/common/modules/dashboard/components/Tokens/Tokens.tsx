@@ -285,11 +285,11 @@ const Tokens = ({
                 <RightArrowIcon height={12} color={theme.secondaryText} />
               </Pressable>
             )}
-            <Button
+            { <Button
               type="secondary"
               text={t('+ Add custom token')}
               onPress={navigateToAddCustomToken}
-            />
+            />}
           </View>
         ) : null
       }
@@ -320,7 +320,7 @@ const Tokens = ({
       sortedTokens.length,
       hiddenTokensCount,
       dashboardNetworkFilter,
-      navigateToAddCustomToken,
+      // navigateToAddCustomToken,
       navigate
     ]
   )

@@ -6,7 +6,7 @@ import { estimateEOA } from '@ambire-common/libs/estimate/estimateEOA'
 import { getGasPriceRecommendations } from '@ambire-common/libs/gasPrice/gasPrice'
 import { TokenResult } from '@ambire-common/libs/portfolio'
 import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
-import { getRpcProvider } from '@ambire-common/services/provider'
+import { getRpcProviderForUI } from '@web/services/provider'
 import Recipient from '@common/components/Recipient'
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
 import SendToken from '@common/components/SendToken'
@@ -188,7 +188,7 @@ const SendForm = ({
     if (!networkData || isSmartAccount || !account || !selectedToken?.chainId) return
 
     const rpcUrl = networkData.selectedRpcUrl
-    const provider = getRpcProvider([rpcUrl], selectedToken.chainId)
+    const provider = getRpcProviderForUI({ ...networkData, rpcUrls: [rpcUrl] }, dispatch)
     const nonce = accountStates?.[account.addr]?.[selectedToken.chainId.toString()]?.nonce
 
     if (typeof nonce !== 'bigint') return
@@ -261,7 +261,7 @@ const SendForm = ({
     return () => {
       provider?.destroy()
     }
-  }, [accountStates, estimation, isSmartAccount, networks, account, selectedToken])
+  }, [accountStates, estimation, isSmartAccount, networks, account, selectedToken, dispatch])
 
   return (
     <ScrollableWrapper

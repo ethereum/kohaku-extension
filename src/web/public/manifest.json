@@ -1,7 +1,7 @@
 {
-  "name": "Ambire Web3 Wallet",
-  "short_name": "Ambire",
-  "author": "https://www.ambire.com",
+  "name": "Kohaku Web3 Wallet",
+  "short_name": "Kohaku",
+  "author": "https://ethereum.foundation/",
   "version": "SYNCED_WITH_THE_APP_VERSION_VIA_THE_WEBPACK_CONFIG",
   "manifest_version": 3,
   "permissions": ["storage", "tabs", "unlimitedStorage", "activeTab", "notifications"],
@@ -9,13 +9,13 @@
     "service_worker": "background.js"
   },
   "icons": {
-    "16": "assets/images/xicon@16.png",
-    "48": "assets/images/xicon@48.png",
-    "96": "assets/images/xicon@96.png",
-    "128": "assets/images/xicon@128.png"
+    "16": "assets/images/xicon_kohaku@16.png",
+    "48": "assets/images/xicon_kohaku@48.png",
+    "96": "assets/images/xicon_kohaku@96.png",
+    "128": "assets/images/xicon_kohaku@128.png"
   },
   "action": {
-    "default_title": "Ambire",
+    "default_title": "Kohaku",
     "default_popup": "index.html"
   },
   "host_permissions": ["http://*/*", "https://*/*", "file://*/*", "wss://*/*"],

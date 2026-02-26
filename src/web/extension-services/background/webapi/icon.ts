@@ -5,9 +5,9 @@ export const setExtensionIcon = (type: 'default' | 'locked') => {
   const icons = [16, 48, 96, 128].reduce((res: { [key: number]: string }, size: number) => {
     const fileNameSuffix = `${size}${isDev ? '-dev-build-ONLY' : ''}`
     if (type === 'locked') {
-      res[size] = `assets/images/xicon_locked@${fileNameSuffix}.png`
+      res[size] = `assets/images/xicon_kohaku_locked@${fileNameSuffix}.png`
     } else {
-      res[size] = `assets/images/xicon@${fileNameSuffix}.png`
+      res[size] = `assets/images/xicon_kohaku@${fileNameSuffix}.png`
     }
 
     return res

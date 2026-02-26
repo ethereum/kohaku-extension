@@ -10,6 +10,9 @@
 # Icon must end with two \r
 Icon
 
+.claude
+
+src/web/assets/circuits
 
 # Thumbnails
 ._*
@@ -497,3 +500,6 @@ e2e-playwright-tests/run-tests.sh
 e2e-playwright-tests/.vscode
 run-tests-logs
 run-tests.sh
+
+.direnv
+.envrc
