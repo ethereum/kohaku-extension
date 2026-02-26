@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { View } from 'react-native'
+import { TouchableOpacity, View } from 'react-native'
 import { useModalize } from 'react-native-modalize'
+import { zeroAddress } from 'viem'
 
 import { Account as AccountType } from '@ambire-common/interfaces/account'
 import AddIcon from '@common/assets/svg/AddIcon'
@@ -20,14 +21,17 @@ import Header from '@common/modules/header/components/Header'
 import { ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
+import commnonStyles from '@common/styles/utils/common'
 import { TabLayoutContainer } from '@web/components/TabLayoutWrapper/TabLayoutWrapper'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import Account from '@web/modules/account-select/components/Account'
 import AddAccount from '@web/modules/account-select/components/AddAccount'
 import { getUiType } from '@web/utils/uiType'
+import DownArrowIcon from '@common/assets/svg/DownArrowIcon'
 
-import { zeroAddress } from 'viem'
 import getStyles from './styles'
+
+type AccountItem = { type: 'account'; account: AccountType }
 
 const extractTriggerAddAccountSheetParam = (search: string | undefined): boolean | null => {
   if (!search) return null
@@ -52,9 +56,29 @@ const extractTriggerAddAccountSheetParam = (search: string | undefined): boolean
 const AccountSelectScreen = () => {
   const { styles, theme } = useTheme(getStyles)
   const flatlistRef = useRef(null)
-  const { accounts, control, keyExtractor, getItemLayout, shouldDisplayAccounts } = useAccountsList(
-    { flatlistRef }
+  const {
+    accounts: [privateAccount, ...filteredAccounts],
+    control,
+    getItemLayout,
+    shouldDisplayAccounts
+  } = useAccountsList({ flatlistRef, privateFirst: true })
+
+  const [isMyAccountsSectionCollapsed, setIsMyAccountsSectionCollapsed] = useState(true)
+  const toggleMyAccountsSection = useCallback(
+    () => setIsMyAccountsSectionCollapsed((prev) => !prev),
+    []
   )
+
+  const listData = useMemo<AccountItem[]>(
+    () =>
+      !isMyAccountsSectionCollapsed
+        ? filteredAccounts.map((acc): AccountItem => ({ type: 'account', account: acc }))
+        : [],
+    [filteredAccounts, isMyAccountsSectionCollapsed]
+  )
+
+  const keyExtractor = useCallback((item: AccountItem) => item.account.addr, [])
+
   const { search: routeParams } = useRoute()
   const { navigate } = useNavigation()
   const { account } = useSelectedAccountControllerState()
@@ -82,9 +106,18 @@ const AccountSelectScreen = () => {
     []
   )
 
-  const renderItem = ({ item: acc }: { item: AccountType }) => {
-    return <Account onSelect={onAccountSelect} key={acc.addr} account={acc} withSettings={false} />
-  }
+  const renderItem = useCallback(
+    // eslint-disable-next-line react/no-unused-prop-types
+    ({ item }: { item: AccountItem }) => (
+      <Account
+        onSelect={onAccountSelect}
+        key={item.account.addr}
+        account={item.account}
+        withSettings={false}
+      />
+    ),
+    [onAccountSelect]
+  )
 
   useEffect(() => {
     // Navigate to the dashboard after the account is selected to avoid showing the dashboard
@@ -115,21 +148,83 @@ const AccountSelectScreen = () => {
           placeholder="Search for account"
           style={styles.searchBar}
         />
-        <ScrollableWrapper
-          type={WRAPPER_TYPES.FLAT_LIST}
+        {/* <TouchableOpacity
+          onPress={() => navigate(ROUTES.dashboard)}
           style={[
-            styles.container,
-            {
-              opacity: shouldDisplayAccounts ? 1 : 0
-            }
+            flexbox.directionRow,
+            flexbox.alignCenter,
+            flexbox.justifySpaceBetween,
+            spacings.phSm,
+            spacings.pvSm,
+            spacings.mtSm,
+            commnonStyles.borderRadiusPrimary,
+            { backgroundColor: theme.secondaryBackground }
           ]}
-          wrapperRef={flatlistRef}
-          data={accounts}
-          renderItem={renderItem}
-          getItemLayout={getItemLayout}
-          keyExtractor={keyExtractor}
-          ListEmptyComponent={<Text>{t('No accounts found')}</Text>}
+        >
+          <Text fontSize={16} weight="semiBold">
+            {t('Home')}
+          </Text>
+          <DownArrowIcon color={theme.primary} style={{ transform: [{ rotate: '90deg' }] }} />
+        </TouchableOpacity> */}
+        <Account
+          onSelect={onAccountSelect}
+          account={privateAccount}
+          withSettings={false}
+          containerStyle={spacings.mtTy}
         />
+        <TouchableOpacity
+          onPress={toggleMyAccountsSection}
+          style={[
+            flexbox.directionRow,
+            flexbox.alignCenter,
+            flexbox.justifySpaceBetween,
+            spacings.phSm,
+            spacings.pvSm,
+            spacings.mbSm,
+            commnonStyles.borderRadiusPrimary,
+            { backgroundColor: theme.secondaryBackground }
+          ]}
+        >
+          <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+            <Text fontSize={16} weight="semiBold">
+              {t('My Accounts')}
+            </Text>
+            <View
+              style={[
+                spacings.phTy,
+                spacings.pvMi,
+                spacings.mlTy,
+                flexbox.directionRow,
+                flexbox.alignCenter,
+                flexbox.justifyCenter,
+                {
+                  borderRadius: 9999,
+                  backgroundColor: theme.tertiaryBackground
+                }
+              ]}
+            >
+              <Text fontSize={13}>{filteredAccounts.length}</Text>
+            </View>
+          </View>
+          <DownArrowIcon
+            color={theme.primary}
+            style={{ transform: [{ rotate: isMyAccountsSectionCollapsed ? '-90deg' : '0deg' }] }}
+          />
+        </TouchableOpacity>
+        <View style={[flexbox.flex1, { opacity: shouldDisplayAccounts ? 1 : 0 }]}>
+          <ScrollableWrapper
+            type={WRAPPER_TYPES.FLAT_LIST}
+            style={styles.container}
+            wrapperRef={flatlistRef}
+            data={listData}
+            renderItem={renderItem}
+            getItemLayout={getItemLayout}
+            keyExtractor={keyExtractor}
+            ListEmptyComponent={
+              isMyAccountsSectionCollapsed ? null : <Text>{t('No accounts found')}</Text>
+            }
+          />
+        </View>
         <View style={[spacings.ptSm, flexbox.directionRow, { width: '100%' }]}>
           <Button
             testID="button-add-private-account"
