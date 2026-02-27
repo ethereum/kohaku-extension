@@ -282,6 +282,14 @@ const ColibriSimulationResult = ({ isLoading, result, error, isColibriAvailable 
         </View>
       </View>
 
+      {result.batchCallCount > 1 && (
+        <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mtMi]}>
+          <Text fontSize={12} appearance="secondaryText">
+            {t('Batch transaction ({{count}} calls)', { count: result.batchCallCount })}
+          </Text>
+        </View>
+      )}
+
       <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween, spacings.mtMi]}>
         <View style={[flexbox.directionRow, flexbox.alignCenter]}>
           <Text fontSize={12} appearance="secondaryText">
