@@ -1,9 +1,11 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 
-import { AbiCoder, Contract, formatUnits } from 'ethers'
+import { AbiCoder, Contract, formatUnits, Interface } from 'ethers'
 
+import { AmbireAccount as AmbireAccountABI } from '@ambire-common/libs/humanizer/const/abis/AmbireAccount'
 import { Network } from '@ambire-common/interfaces/network'
-import { AccountOp } from '@ambire-common/libs/accountOp/accountOp'
+import { AccountOp, callToTuple, toSingletonCall } from '@ambire-common/libs/accountOp/accountOp'
+import { getEoaSimulationStateOverride } from '@ambire-common/utils/simulationStateOverride'
 import { Contact } from '@ambire-common/controllers/addressBook/addressBook'
 import useAddressBookControllerState from '@web/hooks/useAddressBookControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
@@ -71,6 +73,7 @@ export interface EnrichedSimulationResult {
   returnValue: string
   decodedError: string | null
   explorerUrl: string
+  batchCallCount: number
 }
 
 export interface ColibriSimulationState {
@@ -262,11 +265,13 @@ export default function useColibriSimulation(
       const enrichedLogs: EnrichedLog[] = []
 
       for (const log of logs) {
+        if (!log.raw) continue
+
         const isTokenEvent = TOKEN_EVENTS.has(log.name)
         const contractAddr = log.raw.address
         const contractAddressBookName = resolveAddressBookName(contractAddr, contacts)
 
-        let enrichedInputs = log.inputs.map((input) => formatInputValue(input, contacts))
+        let enrichedInputs = (log.inputs || []).map((input) => formatInputValue(input, contacts))
 
         if (isTokenEvent) {
           const isNativeEth = /^0x0+$/.test(contractAddr)
@@ -338,18 +343,35 @@ export default function useColibriSimulation(
       }
       const provider = providerRef.current
 
-      const call = accountOp.calls[0]
-      const txParams = {
-        from: accountOp.accountAddr,
-        to: call.to,
-        data: call.data || '0x',
-        value: call.value ? `0x${call.value.toString(16)}` : '0x0'
+      let txParams: { from: string; to: string; data: string; value: string }
+      let stateOverride: Record<string, unknown> | undefined
+      if (accountOp.calls.length === 1) {
+        const call = accountOp.calls[0]
+        txParams = {
+          from: accountOp.accountAddr,
+          to: call.to,
+          data: call.data || '0x',
+          value: call.value ? `0x${call.value.toString(16)}` : '0x0'
+        }
+      } else {
+        const ambireAccountIface = new Interface(AmbireAccountABI)
+        const callTuples = accountOp.calls.map(toSingletonCall).map(callToTuple)
+        txParams = {
+          from: accountOp.accountAddr,
+          to: accountOp.accountAddr,
+          data: ambireAccountIface.encodeFunctionData('executeBySender', [callTuples]),
+          value: '0x0'
+        }
+        stateOverride = getEoaSimulationStateOverride(accountOp.accountAddr)
       }
 
-      const rawResult: SimulationRawResult = await provider.send('colibri_simulateTransaction', [
-        txParams,
-        'latest'
-      ])
+      const simulateParams: unknown[] = [txParams, 'latest']
+      if (stateOverride) simulateParams.push(stateOverride)
+
+      const rawResult: SimulationRawResult = await provider.send(
+        'colibri_simulateTransaction',
+        simulateParams
+      )
 
       const enrichedLogs = await enrichLogs(rawResult.logs || [], provider)
 
@@ -366,7 +388,8 @@ export default function useColibriSimulation(
         statusLabel: isReverted ? 'reverted' : 'success',
         returnValue: rawResult.returnValue,
         decodedError,
-        explorerUrl: network.explorerUrl
+        explorerUrl: network.explorerUrl,
+        batchCallCount: accountOp.calls.length
       }
 
       setState({ isLoading: false, result: enrichedResult, error: null, isColibriAvailable: true })
