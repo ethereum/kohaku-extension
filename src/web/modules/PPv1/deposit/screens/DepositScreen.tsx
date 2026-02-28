@@ -34,6 +34,7 @@ const { isActionWindow } = getUiType()
 
 function TransferScreen() {
   const hasRefreshedAccountRef = useRef(false)
+  const lastSelectedTokenRef = useRef<TokenResult | null>(null) // controllers clear selectedToken after broadcast. Use this to keep track
   const { dispatch } = useBackgroundService()
   const { navigate } = useNavigation()
   const location = useLocation()
@@ -70,12 +71,20 @@ function TransferScreen() {
   // Get selectedToken from the appropriate controller based on privacy provider
   // Use latestBroadcastedToken as fallback for railgun since selectedToken might be cleared after deposit
   const selectedToken = useMemo(() => {
+    let token: TokenResult | null | undefined
+
     if (privacyProvider === 'railgun') {
       // Prefer latestBroadcastedToken if available (set when deposit is broadcast)
       // Otherwise fall back to selectedToken
-      return railgunLatestBroadcastedToken || railgunSelectedToken
+      token = railgunLatestBroadcastedToken || railgunSelectedToken
+    } else {
+      token = privacyPoolsSelectedToken
     }
-    return privacyPoolsSelectedToken
+
+    if (token) lastSelectedTokenRef.current = token
+
+    // fallback to cache. Use to display the deposited token
+    return token ?? lastSelectedTokenRef.current
   }, [
     privacyProvider,
     railgunSelectedToken,
@@ -424,9 +433,7 @@ function TransferScreen() {
             <Completed
               title={t('Shield complete!')}
               titleSecondary={t(
-                selectedToken?.symbol
-                  ? `${selectedToken.symbol} deposited to privacy protocol!`
-                  : 'Token deposited to privacy protocol!'
+                `${selectedToken?.symbol || 'Token'} deposited to privacy protocol!`
               )}
               explorerLink={explorerLink}
               openExplorerText="View Deposit"
