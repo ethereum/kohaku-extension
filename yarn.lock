@@ -19,10 +19,10 @@
     typescript "^5.7.3"
     viem "2.22.14"
 
-"@a16z/helios@0.10.2":
-  version "0.10.2"
-  resolved "https://registry.yarnpkg.com/@a16z/helios/-/helios-0.10.2.tgz#5d514c7c735f0fb0202b71d11cdd8af15f05053a"
-  integrity sha512-FEHJ+LlDgua6MKMZ8eEbs2ZiPeBFCHtkC1OVFzuuhXORFPbCKoeqxhZLz7R+NJXz2+hiXt4PKe6bkgJrbb7Tqg==
+"@a16z/helios@0.11.1":
+  version "0.11.1"
+  resolved "https://registry.yarnpkg.com/@a16z/helios/-/helios-0.11.1.tgz#58aa22c5eb81324dc10bb22774f0783a2a3eb5f8"
+  integrity sha512-rd+RNnhKcDDRJsEOeHQ7I5FcSG2sZ1dKblCA7tI+tFdhQ5Fdox6ZwIQYdyn7s2YKVx+bnyrLociWxNvmAuaK/Q==
   dependencies:
     eventemitter3 "^5.0.1"
     uuid "^11.0.5"
