@@ -16,6 +16,7 @@ import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountCont
 import { getUiType } from '@web/utils/uiType'
 
 import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
+import useRailgunForm from '@web/modules/railgun/hooks/useRailgunForm'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import useNavigation from '@common/hooks/useNavigation'
 import DAppFooter from '../components/DAppFooter'
@@ -54,6 +55,10 @@ const DashboardScreen = () => {
     isReadyToLoad,
     loadingError
   } = usePrivacyPoolsForm()
+
+  const {
+    isAccountLoaded: isAccountLoadedRailgun,
+  } = useRailgunForm()
 
   const handleRetryLoadPrivateAccount = useCallback(() => {
     // Use refreshPrivateAccount with refetchLeavesAndRoots=true to retry fetching MT data first
@@ -167,6 +172,7 @@ const DashboardScreen = () => {
             setDashboardOverviewSize={setDashboardOverviewSize}
             onGasTankButtonPosition={handleGasTankButtonPosition}
             isPrivateAccountLoading={!isAccountLoaded}
+            isRailgunAccountLoading={!isAccountLoadedRailgun}
             privateAccountLoadingError={loadingError}
             onRetryLoadPrivateAccount={handleRetryLoadPrivateAccount}
           />

@@ -5,14 +5,14 @@
  * This allows both protocols to maintain independent state and prevents
  * mixing of concerns between different privacy protocols.
  */
-import usePrivacyPoolsControllerState from './usePrivacyPoolsControllerState'
+import useRailgunControllerState from './useRailgunControllerState'
 import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import useRailgunForm from '@web/modules/railgun/hooks/useRailgunForm'
 
 const useDepositForm = () => {
   // Get the privacy provider setting from Privacy Pools controller
   // (both controllers share this setting)
-  const { privacyProvider } = usePrivacyPoolsControllerState()
+  const { privacyProvider } = useRailgunControllerState()
 
   // IMPORTANT: Always call both hooks unconditionally to maintain consistent hook order
   // This prevents React's "Hooks called in different order" error
