@@ -42,6 +42,7 @@ interface Props {
     height: number
   }) => void
   isPrivateAccountLoading?: boolean
+  isRailgunAccountLoading?: boolean
   privateAccountLoadingError?: string | null
   onRetryLoadPrivateAccount?: () => void
 }
@@ -57,6 +58,7 @@ const DashboardOverview: FC<Props> = ({
   setDashboardOverviewSize,
   onGasTankButtonPosition,
   isPrivateAccountLoading,
+  isRailgunAccountLoading,
   privateAccountLoadingError,
   onRetryLoadPrivateAccount
 }) => {
@@ -241,7 +243,7 @@ const DashboardOverview: FC<Props> = ({
                 </View>
 
                 <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-                  {isPrivateAccountLoading && !privateAccountLoadingError && (
+                  {(isPrivateAccountLoading || isRailgunAccountLoading) && !privateAccountLoadingError && (
                     <>
                       <Spinner
                         variant="white"

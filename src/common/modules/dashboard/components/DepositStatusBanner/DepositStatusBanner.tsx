@@ -7,6 +7,7 @@ import Text from '@common/components/Text'
 import ClockIcon from '@common/assets/svg/ClockIcon'
 import useTheme from '@common/hooks/useTheme'
 import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
+import useRailgunForm from '@web/modules/railgun/hooks/useRailgunForm'
 import Button from '@common/components/Button'
 import spacings from '@common/styles/spacings'
 import Tooltip from '@common/components/Tooltip'
@@ -32,6 +33,7 @@ const DepositStatusBanner = ({ onWithdrawBack, onDeposit }: DepositStatusBannerP
     isAccountLoaded,
     loadingError
   } = usePrivacyPoolsForm()
+  const { totalApprovedBalance: totalApprovedBalanceRailgun, isAccountLoaded: isAccountLoadedRailgun } = useRailgunForm()
 
   const [selectedTab, setSelectedTab] = useState<TabType>(() => {
     const hasRejected = totalDeclinedBalance.accounts.length > 0
@@ -70,16 +72,17 @@ const DepositStatusBanner = ({ onWithdrawBack, onDeposit }: DepositStatusBannerP
   const zeroBalance =
     totalDeclinedBalance.total === 0n &&
     totalPendingBalance.total === 0n &&
-    totalApprovedBalance.total === 0n
+    totalApprovedBalance.total === 0n &&
+    totalApprovedBalanceRailgun.total === 0n
 
   const onlyApprovedBalance =
     totalDeclinedBalance.total === 0n &&
     totalPendingBalance.total === 0n &&
-    totalApprovedBalance.total > 0n
+    (totalApprovedBalance.total > 0n || totalApprovedBalanceRailgun.total > 0n)
 
-  if (!isAccountLoaded || onlyApprovedBalance || loadingError) return null
+  if (!isAccountLoaded || !isAccountLoadedRailgun || onlyApprovedBalance || loadingError) return null
 
-  if (zeroBalance && isAccountLoaded) {
+  if (zeroBalance && isAccountLoaded && isAccountLoadedRailgun) {
     return (
       <View style={spacings.phSm}>
         <View style={[styles.contentContainer]}>
@@ -87,10 +90,10 @@ const DepositStatusBanner = ({ onWithdrawBack, onDeposit }: DepositStatusBannerP
             <View style={styles.leftContent}>
               <View style={styles.zeroBalanceContainer}>
                 <Text fontSize={14} weight="semiBold" color={theme.primaryText}>
-                  Zero private balance
+                  Zero private ETH balance
                 </Text>
                 <Text fontSize={13} weight="light" color={theme.primaryText}>
-                  Deposit some ETHs into Privacy Pools
+                  Shield ETH into your Private Account
                 </Text>
               </View>
             </View>
@@ -100,7 +103,7 @@ const DepositStatusBanner = ({ onWithdrawBack, onDeposit }: DepositStatusBannerP
                 size="small"
                 accentColor={theme.depositPendingText}
                 onPress={onDeposit}
-                text="Deposit"
+                text="Shield"
                 testID="withdraw-back-button"
                 style={styles.depositButton}
               />
