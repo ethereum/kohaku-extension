@@ -11,9 +11,7 @@ import { type RailgunAccount, type Indexer } from '@kohaku-eth/railgun'
 import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
 
 import type { RailgunAccountCache } from '@ambire-common/controllers/railgun/railgun'
-// import { getRpcProviderForUI, UIProxyProvider } from '@web/services/provider'
 
-import { JsonRpcProvider } from 'ethers'
 import {
   EnhancedRailgunControllerState,
   RailgunBalance,
@@ -21,7 +19,7 @@ import {
   TrackedRailgunAccount
 } from './types'
 import { DEFAULT_CHAIN_ID, DEFAULT_TRACKED_ACCOUNTS } from './constants'
-import { getProvider } from './utils/provider'
+import { getProvider, type RailgunProviders } from './utils/provider'
 import { BackgroundService } from './utils/backgroundService'
 import { syncSingleAccount } from './utils/accountSyn'
 import { aggregateBalances } from './utils/balances'
@@ -73,13 +71,15 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
 
   const chainId = memoizedBgState.chainId || DEFAULT_CHAIN_ID
 
-  const providerRef = useRef<JsonRpcProvider | null>(null)
+  const providerRef = useRef<RailgunProviders | null>(null)
   useEffect(() => {
-    providerRef.current = getProvider(chainId)
+    if (!dispatch) return
+
+    providerRef.current = getProvider(chainId, dispatch)
     return () => {
       providerRef.current = null
     }
-  }, [chainId])
+  }, [chainId, dispatch])
 
   const bgService = useMemo(() => {
     if (!dispatch) return null
@@ -190,9 +190,9 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
         let earliestLastSyncedBlock: number = 0
 
         console.log('[RailgunContext - LPA] sync account with new logs')
-        const provider = providerRef.current!
-        if (!provider) {
-          throw new Error('Provider not available')
+        const providers = providerRef.current!
+        if (!providers) {
+          throw new Error('Railgun providers are not available')
         }
 
         // ——— per-account init ———
@@ -205,7 +205,8 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
           const syncSingleAccountResult = await syncSingleAccount({
             item,
             chainId,
-            provider,
+            logsProvider: providers.logsProvider,
+            verificationProvider: providers.verificationProvider,
             bgService
           })
 

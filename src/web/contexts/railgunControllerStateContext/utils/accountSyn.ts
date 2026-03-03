@@ -5,6 +5,7 @@ import {
   type RailgunAccount,
   type Indexer
 } from '@kohaku-eth/railgun'
+import type { UIProxyProvider } from '@web/services/provider/UIProxyProvider'
 import type { JsonRpcProvider } from 'ethers'
 import { initializeAccountFromCheckpoint, initializeAccountFromCache } from './accountInitializer'
 import { getAllLogs } from './getAllLogs'
@@ -13,11 +14,13 @@ import { BackgroundService } from './backgroundService'
 import { RailgunBalance, TrackedRailgunAccount } from '../types'
 import { logNotesAfterSync, logNotesBeforeSync } from './notes'
 import { calculateBalances } from './balances'
+import { verifyMerkleRoot, verifyNullifiers } from './verification'
 
 export interface SyncAccountParams {
   item: { kind: 'derived'; index: number }
   chainId: number
-  provider: JsonRpcProvider
+  logsProvider: JsonRpcProvider
+  verificationProvider: UIProxyProvider
   bgService: BackgroundService
 }
 
@@ -30,7 +33,7 @@ export interface SyncAccountResult {
 }
 
 export async function syncSingleAccount(params: SyncAccountParams): Promise<SyncAccountResult> {
-  const { item, chainId, provider, bgService } = params
+  const { item, chainId, logsProvider, verificationProvider, bgService } = params
 
   const keys = await bgService.getDerivedKeysFromBg(item.index)
 
@@ -75,8 +78,8 @@ export async function syncSingleAccount(params: SyncAccountParams): Promise<Sync
   }
 
   console.log('[RailgunContext - LPA] sync account with new logs')
-  if (!provider) {
-    throw new Error('Provider not available')
+  if (!logsProvider) {
+    throw new Error('Log provider not available')
   }
 
   // Log notes BEFORE syncing new logs
@@ -85,7 +88,7 @@ export async function syncSingleAccount(params: SyncAccountParams): Promise<Sync
   // Always sync from lastSyncedBlock + 1 to current block to ensure we don't miss any events
   // This is critical after withdrawals to pick up change UTXOs
   const fromBlock = currentLastSyncedBlock + 1
-  const toBlock = await provider.getBlockNumber()
+  const toBlock = await verificationProvider.getBlockNumber()
   console.log(
     '[RailgunContext - LPA] syncing from block',
     fromBlock,
@@ -101,7 +104,7 @@ export async function syncSingleAccount(params: SyncAccountParams): Promise<Sync
 
   // Only fetch logs if we need to (fromBlock <= toBlock)
   if (fromBlock <= toBlock) {
-    const logs = await getAllLogs(provider, railgunAddress, fromBlock, toBlock)
+    const logs = await getAllLogs(logsProvider, railgunAddress, fromBlock, toBlock)
     console.log('[RailgunContext - LPA] fetched', logs.length, 'new logs')
 
     if (logs.length > 0) {
@@ -140,10 +143,36 @@ export async function syncSingleAccount(params: SyncAccountParams): Promise<Sync
   }
 
   // Determine the effective lastSyncedBlock:
-  // If we found incomplete logs, only mark as synced up to the block before the first incomplete log
-  // This ensures we'll retry those blocks on next sync
-  const effectiveLastSyncedBlock =
-    firstIncompleteLogsBlock !== undefined ? firstIncompleteLogsBlock - 1 : toBlock
+  // - If provider reports a block behind our cache, preserve existing sync position
+  // - If we found incomplete logs, only mark as synced up to the block before the first incomplete log
+  // - Otherwise, mark as synced up to toBlock
+  let effectiveLastSyncedBlock: number
+  if (fromBlock > toBlock) {
+    effectiveLastSyncedBlock = currentLastSyncedBlock
+  } else if (firstIncompleteLogsBlock !== undefined) {
+    effectiveLastSyncedBlock = firstIncompleteLogsBlock - 1
+  } else {
+    effectiveLastSyncedBlock = toBlock
+  }
+
+  // Only verify when we actually fetched new data — local state must be consistent
+  // with the block we're verifying against.  When fromBlock > toBlock the provider
+  // is behind our cache and verification would compare mismatched states.
+  if (fromBlock <= toBlock) {
+    await verifyMerkleRoot({
+      account,
+      verificationProvider,
+      railgunAddress,
+      toBlock: effectiveLastSyncedBlock
+    })
+    await verifyNullifiers({
+      account,
+      indexer,
+      verificationProvider,
+      railgunAddress,
+      toBlock: effectiveLastSyncedBlock
+    })
+  }
 
   // Always update cache with current state
   // If no incomplete logs this run, clear any previous incompleteLogsBlock
@@ -176,7 +205,7 @@ export async function syncSingleAccount(params: SyncAccountParams): Promise<Sync
     index: item.index,
     zkAddress,
     balances,
-    lastSyncedBlock: toBlock
+    lastSyncedBlock: effectiveLastSyncedBlock
   }
 
   console.log('[RailgunContext - LPA] completed account run', item, 'balances:', balances)
