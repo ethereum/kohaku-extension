@@ -6,7 +6,7 @@ import { UIProxyProvider } from '@web/services/provider/UIProxyProvider'
 
 export type RailgunProviders = {
   logsProvider: JsonRpcProvider
-  verificationProvider: UIProxyProvider | null
+  verificationProvider: UIProxyProvider
 }
 
 export const getProvider = (chainId: number, dispatch: (action: any) => void): RailgunProviders => {
@@ -27,10 +27,6 @@ export const getProvider = (chainId: number, dispatch: (action: any) => void): R
       batchStallTime: 0
     }
   )
-
-  if (networkConfig.rpcProvider !== 'helios') {
-    return { logsProvider, verificationProvider: null }
-  }
 
   const verificationProvider = getRpcProviderForUI(networkConfig, dispatch)
 

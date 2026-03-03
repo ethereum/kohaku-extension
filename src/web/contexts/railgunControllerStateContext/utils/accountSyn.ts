@@ -20,7 +20,7 @@ export interface SyncAccountParams {
   item: { kind: 'derived'; index: number }
   chainId: number
   logsProvider: JsonRpcProvider
-  verificationProvider: UIProxyProvider | null
+  verificationProvider: UIProxyProvider
   bgService: BackgroundService
 }
 
@@ -88,16 +88,7 @@ export async function syncSingleAccount(params: SyncAccountParams): Promise<Sync
   // Always sync from lastSyncedBlock + 1 to current block to ensure we don't miss any events
   // This is critical after withdrawals to pick up change UTXOs
   const fromBlock = currentLastSyncedBlock + 1
-  let toBlock: number
-  if (verificationProvider) {
-    try {
-      toBlock = await verificationProvider.getBlockNumber()
-    } catch (error) {
-      throw new Error('Logs could not be verified -- Helios is unavailable or not synced')
-    }
-  } else {
-    toBlock = await logsProvider.getBlockNumber()
-  }
+  const toBlock = await verificationProvider.getBlockNumber()
   console.log(
     '[RailgunContext - LPA] syncing from block',
     fromBlock,
@@ -167,7 +158,7 @@ export async function syncSingleAccount(params: SyncAccountParams): Promise<Sync
   // Only verify when we actually fetched new data — local state must be consistent
   // with the block we're verifying against.  When fromBlock > toBlock the provider
   // is behind our cache and verification would compare mismatched states.
-  if (verificationProvider && fromBlock <= toBlock) {
+  if (fromBlock <= toBlock) {
     await verifyMerkleRoot({
       account,
       verificationProvider,
