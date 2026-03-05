@@ -22,6 +22,7 @@ import useMainControllerState from '@web/hooks/useMainControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 
 import Spinner from '@common/components/Spinner'
+import NetworkVerificationBadge from '@web/components/NetworkVerificationBadge'
 import BalanceAffectingErrors from './BalanceAffectingErrors'
 import RefreshIcon from './RefreshIcon'
 import getStyles from './styles'
@@ -242,27 +243,28 @@ const DashboardOverview: FC<Props> = ({
                   </AnimatedPressable>
                 </View>
 
-                <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-                  {(isPrivateAccountLoading || isRailgunAccountLoading) && !privateAccountLoadingError && (
-                    <>
-                      <Spinner
-                        variant="white"
-                        style={{
-                          width: 24,
-                          height: 24
-                        }}
-                      />
-                      <Text
-                        fontSize={16}
-                        shouldScale={false}
-                        weight="number_bold"
-                        color={theme.primaryBackground}
-                        style={spacings.mlTy}
-                      >
-                        Loading Private Account
-                      </Text>
-                    </>
-                  )}
+                <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mbMi]}>
+                  {(isPrivateAccountLoading || isRailgunAccountLoading) &&
+                    !privateAccountLoadingError && (
+                      <>
+                        <Spinner
+                          variant="white"
+                          style={{
+                            width: 24,
+                            height: 24
+                          }}
+                        />
+                        <Text
+                          fontSize={16}
+                          shouldScale={false}
+                          weight="number_bold"
+                          color={theme.primaryBackground}
+                          style={spacings.mlTy}
+                        >
+                          Loading Private Account
+                        </Text>
+                      </>
+                    )}
                   {privateAccountLoadingError && onRetryLoadPrivateAccount && (
                     <Pressable
                       onPress={onRetryLoadPrivateAccount}
@@ -322,6 +324,7 @@ const DashboardOverview: FC<Props> = ({
                     isLoadingTakingTooLong={isLoadingTakingTooLong}
                   />
                 </View>
+                <NetworkVerificationBadge testID="rpc-verification-badge" />
               </View>
               <Routes openReceiveModal={openReceiveModal} />
             </Animated.View>

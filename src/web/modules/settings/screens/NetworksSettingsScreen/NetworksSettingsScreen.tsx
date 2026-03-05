@@ -51,6 +51,12 @@ const NetworksSettingsScreen = () => {
     return parsedSearchParams.has('addNetwork')
   }, [searchParams])
 
+  const shouldAutoOpenEditForm = useMemo(() => {
+    const parsedSearchParams = new URLSearchParams(searchParams)
+
+    return parsedSearchParams.has('chainId') && parsedSearchParams.has('openEditForm')
+  }, [searchParams])
+
   const selectedNetwork = useMemo(
     () => allNetworks.find((n) => n.chainId === selectedChainId),
     [allNetworks, selectedChainId]
@@ -186,6 +192,7 @@ const NetworksSettingsScreen = () => {
                 nativeAssetName={selectedNetwork?.nativeAssetName || '-'}
                 explorerUrl={selectedNetwork?.explorerUrl || '-'}
                 allowRemoveNetwork
+                autoOpenEditForm={shouldAutoOpenEditForm}
               />
             </View>
             {!!selectedNetwork && !!selectedChainId && (

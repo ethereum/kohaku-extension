@@ -36,6 +36,7 @@ type Props = {
   nativeAssetSymbol: string
   nativeAssetName: string
   allowRemoveNetwork?: boolean
+  autoOpenEditForm?: boolean
   style?: ViewStyle
   type?: 'vertical' | 'horizontal'
 }
@@ -50,6 +51,7 @@ const NetworkDetails = ({
   nativeAssetSymbol,
   nativeAssetName,
   allowRemoveNetwork,
+  autoOpenEditForm,
   style,
   type = 'horizontal'
 }: Props) => {
@@ -346,6 +348,7 @@ const NetworkDetails = ({
           themeType === THEME_TYPES.DARK ? 'secondaryBackground' : 'primaryBackground'
         }
         style={{ ...spacings.ph0, ...spacings.pv0, overflow: 'hidden' }}
+        autoOpen={autoOpenEditForm}
       >
         <NetworkForm
           selectedChainId={chainId.toString()}

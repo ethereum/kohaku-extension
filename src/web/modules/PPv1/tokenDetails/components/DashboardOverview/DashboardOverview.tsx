@@ -17,6 +17,7 @@ import useHover, { AnimatedPressable } from '@web/hooks/useHover'
 import useMainControllerState from '@web/hooks/useMainControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
+import NetworkVerificationBadge from '@web/components/NetworkVerificationBadge'
 
 import RefreshIcon from './RefreshIcon'
 import getStyles from './styles'
@@ -207,6 +208,7 @@ const DashboardOverview: FC<Props> = ({
                     </Text>
                   </View>
                 </View>
+                <NetworkVerificationBadge testID="rpc-verification-badge" />
               </View>
             </Animated.View>
           </View>
