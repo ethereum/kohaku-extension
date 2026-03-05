@@ -137,7 +137,7 @@ function TransferScreen() {
     return privacyProvider === 'railgun' ? 'transfer' : 'privacyPools'
   }, [privacyProvider])
 
-  const { sessionHandler, onPrimaryButtonPress } = useTrackAccountOp({
+  const { sessionHandler } = useTrackAccountOp({
     address: latestBroadcastedAccountOp?.accountAddr,
     chainId: latestBroadcastedAccountOp?.chainId,
     sessionId,
@@ -340,93 +340,57 @@ function TransferScreen() {
     )
   }, [onBack, handleDeposit, proceedBtnText, isTransferFormValid, isLoading])
 
-  // Create a wrapper for onPrimaryButtonPress that ensures navigation happens
-  // This must be defined before conditional returns to comply with Rules of Hooks
-  const handlePrimaryButtonPress = useCallback(() => {
-    // If transaction is successful, navigate immediately
-    // The banner hiding logic in onPrimaryButtonPress might not work reliably
+  const resetScreen = useCallback(() => {
     if (
       submittedAccountOp &&
       (submittedAccountOp.status === AccountOpStatus.Success ||
         submittedAccountOp.status === AccountOpStatus.UnknownButPastNonce)
     ) {
-      // Hide the banner first
       dispatch({
         type: 'ACTIVITY_CONTROLLER_HIDE_BANNER',
-        params: {
-          ...submittedAccountOp,
-          addr: submittedAccountOp.accountAddr
-        }
+        params: { ...submittedAccountOp, addr: submittedAccountOp.accountAddr }
       })
-
-      dispatch({
-        type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-      })
-      dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-      })
-
-      // Reset hasProceeded for the currently selected controller
-      // to prevent double-click issue when depositing again
-      dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
-        params: {
-          proceeded: false
-        }
-      })
-      dispatch({
-        type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED',
-        params: {
-          proceeded: false
-        }
-      })
-
-      // Navigate immediately instead of waiting for the flag
-      navigateOut()
-    } else {
-      // For other states, use the original logic
-      onPrimaryButtonPress()
     }
-  }, [submittedAccountOp, dispatch, navigateOut, onPrimaryButtonPress, privacyProvider])
+
+    dispatch({
+      type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+    })
+
+    dispatch({ type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP' })
+    dispatch({ type: 'RAILGUN_CONTROLLER_UNLOAD_SCREEN' })
+    dispatch({ type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN' })
+    dispatch({ type: 'RAILGUN_CONTROLLER_RESET_FORM' })
+    dispatch({ type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM' })
+
+    // Reset hasProceeded for the currently selected controller
+    // to prevent double-click issue when depositing again
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
+      params: {
+        proceeded: false
+      }
+    })
+    dispatch({
+      type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED',
+      params: {
+        proceeded: false
+      }
+    })
+  }, [submittedAccountOp, dispatch])
 
   if (displayedView === 'track') {
     return (
-      <TrackProgress
-        onPrimaryButtonPress={handlePrimaryButtonPress}
-        handleClose={() => {
-          dispatch({
-            type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-          })
-          dispatch({
-            type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-          })
-
-          // Reset hasProceeded for the currently selected controller
-          // to prevent double-click issue when depositing again
-          dispatch({
-            type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
-            params: {
-              proceeded: false
-            }
-          })
-          dispatch({
-            type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED',
-            params: {
-              proceeded: false
-            }
-          })
-        }}
-      >
+      <TrackProgress onPrimaryButtonPress={resetScreen} handleClose={() => {}}>
         {(submittedAccountOp?.status === AccountOpStatus.BroadcastedButNotConfirmed ||
           ((submittedAccountOp?.status === AccountOpStatus.Success ||
             submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce) &&
             !isMatchingDeposit)) && (
-          <InProgress title={t('Confirming your deposit')}>
-            <Text fontSize={16} weight="medium" appearance="secondaryText">
-              {t('Almost there!')}
-            </Text>
-          </InProgress>
-        )}
+            <InProgress title={t('Confirming your deposit')}>
+              <Text fontSize={16} weight="medium" appearance="secondaryText">
+                {t('Almost there!')}
+              </Text>
+            </InProgress>
+          )}
         {(submittedAccountOp?.status === AccountOpStatus.Success ||
           submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce) &&
           isMatchingDeposit && (
@@ -442,13 +406,13 @@ function TransferScreen() {
         {(submittedAccountOp?.status === AccountOpStatus.Failure ||
           submittedAccountOp?.status === AccountOpStatus.Rejected ||
           submittedAccountOp?.status === AccountOpStatus.BroadcastButStuck) && (
-          <Failed
-            title={t('Something went wrong!')}
-            errorMessage={t(
-              "We couldn't complete your deposit. Please try again later or contact Kohaku support."
-            )}
-          />
-        )}
+            <Failed
+              title={t('Something went wrong!')}
+              errorMessage={t(
+                "We couldn't complete your deposit. Please try again later or contact Kohaku support."
+              )}
+            />
+          )}
       </TrackProgress>
     )
   }
