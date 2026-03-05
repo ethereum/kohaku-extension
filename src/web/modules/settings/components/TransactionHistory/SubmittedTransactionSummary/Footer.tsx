@@ -34,12 +34,14 @@ type Props = {
   network: Network
   size: 'sm' | 'md' | 'lg'
   // rawCalls?: SubmittedAccountOp['calls']
+  feeLabel?: string
 } & Pick<
   SubmittedAccountOp,
   'txnId' | 'identifiedBy' | 'accountAddr' | 'gasFeePayment' | 'status' | 'timestamp'
 >
 
 const Footer: FC<Props> = ({
+  feeLabel,
   network,
   txnId,
   // rawCalls,
@@ -177,7 +179,7 @@ const Footer: FC<Props> = ({
               </Text>
             ) : (
               <Text fontSize={textSize} appearance="secondaryText" numberOfLines={2}>
-                {feeFormattedValue || (
+                {feeLabel || feeFormattedValue || (
                   <SkeletonLoader width={80} height={21} appearance="tertiaryBackground" />
                 )}
               </Text>

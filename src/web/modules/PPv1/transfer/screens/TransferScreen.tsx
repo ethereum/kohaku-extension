@@ -809,12 +809,24 @@ const TransferScreen = () => {
       // Submit transaction directly to relayer (no estimation modal)
       // The controller will set latestBroadcastedAccountOp immediately, causing UI to show track screen
       console.log(isInternalTransfer ? 'Submitting internal transfer to relayer...' : 'Submitting withdrawal to relayer...')
+
+      // 0.25% fee for unshields, none for internal transfers
+      const feeFormatted = isInternalTransfer
+        ? '0'
+        : `${formatUnits((amountBigInt * 25n) / 10000n, tokenDecimals)} ${
+            railgunSelectedToken.symbol || 'ETH'
+          }`
+
       await railgunForm.directBroadcastWithdrawal({
         to: txData.to,
         data: txData.data,
         value: isNativeETH && !withdrawAsWETH ? (typeof txData.value === 'string' ? txData.value : txData.value.toString()) : '0',
         chainId: railgunChainId || 11155111,
-        isInternalTransfer
+        isInternalTransfer,
+        tokenAddress: railgunSelectedToken.address,
+        amount: amountBigInt.toString(),
+        recipient: receiver,
+        feeFormatted
       })
       console.log(isInternalTransfer ? 'Internal transfer submitted successfully' : 'Withdrawal submitted successfully')
       // Note: isSubmitting will be reset when the transaction completes or fails

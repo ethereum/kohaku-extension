@@ -9,6 +9,7 @@ import {
 } from '@ambire-common/libs/accountOp/submittedAccountOp'
 import { humanizeAccountOp } from '@ambire-common/libs/humanizer'
 import { humanizePrivacyPoolsAccountOp } from '@ambire-common/libs/privacyPools/humanizer'
+import { humanizeRailgunAccountOp } from '@ambire-common/libs/railgun/humanizer'
 import { IrCall } from '@ambire-common/libs/humanizer/interfaces'
 import SkeletonLoader from '@common/components/SkeletonLoader'
 import useTheme from '@common/hooks/useTheme'
@@ -57,6 +58,13 @@ const SubmittedTransactionSummaryInner = ({
         return humanizePrivacyPoolsAccountOp(submittedAccountOp)
       }
 
+      if (
+        (submittedAccountOp.meta as any)?.isRailgunWithdrawal ||
+        (submittedAccountOp.meta as any)?.isRailgunInternalTransfer
+      ) {
+        return humanizeRailgunAccountOp(submittedAccountOp)
+      }
+
       return humanizeAccountOp(submittedAccountOp, { network }).map((call, index) => ({
         ...call,
         id: call.id || String(index)
@@ -69,6 +77,8 @@ const SubmittedTransactionSummaryInner = ({
       submittedAccountOp.txnId,
       submittedAccountOp.calls.length,
       submittedAccountOp.identifiedBy?.type,
+      (submittedAccountOp.meta as any)?.isRailgunWithdrawal,
+      (submittedAccountOp.meta as any)?.isRailgunInternalTransfer,
       network
     ]
   )
@@ -126,6 +136,7 @@ const SubmittedTransactionSummaryInner = ({
         gasFeePayment={submittedAccountOp.gasFeePayment}
         status={submittedAccountOp.status}
         timestamp={submittedAccountOp.timestamp}
+        feeLabel={(submittedAccountOp.meta as any)?.withdrawalData?.feeFormatted ?? undefined}
       />
     </View>
   )
