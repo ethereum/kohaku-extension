@@ -2,6 +2,7 @@ import React, { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Route, Routes, useLocation } from 'react-router-dom'
 
+import DashboardScreen from '@common/modules/dashboard/screens'
 import NoConnectionScreen from '@common/modules/no-connection/screens/NoConnectionScreen'
 import routesConfig from '@common/modules/router/config/routesConfig'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
@@ -164,6 +165,7 @@ const MainRoutes = () => {
 
       <Route element={<KeystoreUnlockedRoute />}>
         <Route element={<AuthenticatedRoute />}>
+          <Route path={WEB_ROUTES.public} element={<DashboardScreen />} />
           <Route path={WEB_ROUTES.transfer} element={<TransferScreen />} />
 
           {/* Privacy Pools V1 */}

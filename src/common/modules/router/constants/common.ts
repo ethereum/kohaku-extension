@@ -14,6 +14,7 @@ const WEB_ROUTES = {
   getStarted: 'get-started',
   accountPicker: 'account-picker',
   dashboard: 'dashboard',
+  mainDashboard: 'main-dashboard',
   earn: 'earn',
   transfer: 'transfer',
   topUpGasTank: 'top-up-gas-tank',
@@ -62,6 +63,8 @@ const WEB_ROUTES = {
   recoveryPhrasesSettings: 'settings/recovery-phrases',
   securityAndPrivacy: 'settings/security-and-privacy',
   onboardingCompleted: 'wallet-setup-completed',
+
+  public: 'public',
 
   // Privacy Pools V1 routes
   pp1Home: 'PPv1Home',

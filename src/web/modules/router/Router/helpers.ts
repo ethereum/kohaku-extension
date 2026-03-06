@@ -89,7 +89,7 @@ const getInitialRoute = ({
       }
       return ROUTES.transfer
     }
-    return ROUTES.dashboard
+    return ROUTES.mainDashboard
   }
 
   return null
