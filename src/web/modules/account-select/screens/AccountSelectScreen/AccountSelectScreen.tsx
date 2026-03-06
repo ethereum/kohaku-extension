@@ -151,8 +151,8 @@ const AccountSelectScreen = () => {
           placeholder="Search for account"
           style={styles.searchBar}
         />
-        {/* <TouchableOpacity
-          onPress={() => navigate(ROUTES.dashboard)}
+        <TouchableOpacity
+          onPress={() => navigate(ROUTES.mainDashboard)}
           style={[
             flexbox.directionRow,
             flexbox.alignCenter,
@@ -165,10 +165,10 @@ const AccountSelectScreen = () => {
           ]}
         >
           <Text fontSize={16} weight="semiBold">
-            {t('Home')}
+            {t('Back to Dashboard')}
           </Text>
           <DownArrowIcon color={theme.primary} style={{ transform: [{ rotate: '90deg' }] }} />
-        </TouchableOpacity> */}
+        </TouchableOpacity>
         <Account
           onSelect={onAccountSelect}
           account={privateAccount}
@@ -217,7 +217,7 @@ const AccountSelectScreen = () => {
         <View style={[flexbox.flex1, { opacity: shouldDisplayAccounts ? 1 : 0 }]}>
           <ScrollableWrapper
             type={WRAPPER_TYPES.FLAT_LIST}
-            style={styles.container}
+            // style={styles.container}
             wrapperRef={flatlistRef}
             data={listData}
             renderItem={renderItem}
