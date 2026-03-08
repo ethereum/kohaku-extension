@@ -23,7 +23,6 @@ declare module '@env' {
     RAILGUN_RELAYER_URL: string
     RPC_PROVIDER: string
     HELIOS_CHECKPOINT: string
-    USE_COLIBRI: string
     COLIBRI_PROVER_URLS: string
     COLIBRI_TRUSTED_CHECKPOINT: string
     COLIBRI_DEBUG: string
@@ -134,7 +133,7 @@ declare module '@env' {
    * The API key for sdk RPC (Hypersync from Envio)
    */
   export const HYPERSYNC_API_KEY: EnvTypes['HYPERSYNC_API_KEY']
-  
+
   /** The Railgun Relayer URL
    */
   export const RAILGUN_RELAYER_URL: EnvTypes['RAILGUN_RELAYER_URL']
@@ -154,12 +153,6 @@ declare module '@env' {
    * Custom Helios checkpoint
    */
   export const HELIOS_CHECKPOINT: EnvTypes['HELIOS_CHECKPOINT']
-
-  /**
-   * Colibri (stateless) verified RPC provider feature gate.
-   * The accepted value is 'true' to enable the feature.
-   */
-  export const USE_COLIBRI: string
 
   /**
    * Comma-separated list of Colibri prover URLs.
