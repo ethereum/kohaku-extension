@@ -14,7 +14,7 @@ import { BackgroundService } from './backgroundService'
 import { RailgunBalance, TrackedRailgunAccount } from '../types'
 import { logNotesAfterSync, logNotesBeforeSync } from './notes'
 import { calculateBalances } from './balances'
-import { verifyMerkleRoot, verifyNullifiers } from './verification'
+import { verifyMerkleRoot } from './verification'
 
 export interface SyncAccountParams {
   item: { kind: 'derived'; index: number }
@@ -156,18 +156,11 @@ export async function syncSingleAccount(params: SyncAccountParams): Promise<Sync
   }
 
   // Only verify when we actually fetched new data — local state must be consistent
-  // with the block we're verifying against.  When fromBlock > toBlock the provider
-  // is behind our cache and verification would compare mismatched states.
+  // with the block we're verifying against. When fromBlock > toBlock the provider
+  // is behind our cache and merkle-root verification would compare mismatched states.
   if (fromBlock <= toBlock) {
     await verifyMerkleRoot({
       account,
-      verificationProvider,
-      railgunAddress,
-      toBlock: effectiveLastSyncedBlock
-    })
-    await verifyNullifiers({
-      account,
-      indexer,
       verificationProvider,
       railgunAddress,
       toBlock: effectiveLastSyncedBlock
