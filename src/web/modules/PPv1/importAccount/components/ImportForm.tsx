@@ -6,6 +6,8 @@ import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import TextArea from '@common/components/TextArea'
 import Input from '@common/components/Input'
+import PrivacyProtocolSelector from '@web/components/PrivacyProtocols'
+import { SelectValue } from '@common/components/Select/types'
 import usePrivacyPoolsForm from '../../hooks/usePrivacyPoolsForm'
 import { validateSeedPhrase } from '../../utils/validation'
 
@@ -15,12 +17,16 @@ type Props = {
   isCheckingDuplicate: boolean
   accountName: string
   onAccountNameChange: (name: string) => void
+  changeProtocol: (protocol: SelectValue) => void
+  selectedProtocol: SelectValue
 }
 
 const ImportForm: FC<Props> = ({
   handleImportSecretNote,
   isDuplicate,
   isCheckingDuplicate,
+  changeProtocol,
+  selectedProtocol,
   accountName,
   onAccountNameChange
 }) => {
@@ -45,7 +51,15 @@ const ImportForm: FC<Props> = ({
 
   return (
     <View>
+      <PrivacyProtocolSelector
+        changeProtocol={changeProtocol}
+        selectedProtocol={selectedProtocol}
+        direction="column"
+        labelWeight="regular"
+        containerStyle={[spacings.mbMi]}
+      />
       <Input
+        disabled={selectedProtocol.value === 'railgun'}
         value={accountName}
         onChangeText={onAccountNameChange}
         label={t('Account Name')}
@@ -54,9 +68,14 @@ const ImportForm: FC<Props> = ({
         containerStyle={spacings.mbXl}
       />
       <TextArea
+        disabled={selectedProtocol.value === 'railgun'}
         onChangeText={onInputChange}
         label={t('Recovery Phrase')}
-        placeholder={t('Write or paste your Privacy Pool recovery phrase')}
+        placeholder={t(
+          `Write or paste your ${
+            selectedProtocol.value === 'railgun' ? 'Railgun' : 'Privacy Pool'
+          } recovery phrase`
+        )}
         multiline
         numberOfLines={4}
         style={{ minHeight: 80 }}
@@ -70,8 +89,8 @@ const ImportForm: FC<Props> = ({
         }
       />
       <ButtonWithLoader
-        disabled={isButtonDisabled}
-        text={t('Import Account')}
+        disabled={selectedProtocol.value === 'railgun' || isButtonDisabled}
+        text={t(selectedProtocol.value === 'railgun' ? 'Railgun coming soon' : 'Import Account')}
         isLoading={isCheckingDuplicate}
         style={{ ...spacings.ml0 }}
         onPress={handleImportSecretNote}
