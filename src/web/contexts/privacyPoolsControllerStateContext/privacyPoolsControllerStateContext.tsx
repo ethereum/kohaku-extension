@@ -6,6 +6,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState
 } from 'react'
 
@@ -56,10 +57,14 @@ import {
   convertToAlgorithmFormat
 } from '@web/modules/PPv1/sdk/noteSelection/anonimitySet/anonymitySetGeneration'
 import { getRpcProviderForUI } from '@web/services/provider'
+import type { UIProxyProvider } from '@web/services/provider/UIProxyProvider'
 import {
   createDataServiceWithProviders,
   type ExtendedChainConfig
 } from '@web/services/privacyPools'
+import { verifyPoolData } from '@web/modules/PPv1/utils/verification'
+
+const shouldVerifyPrivacyPools = process.env.ENABLE_PRIVACY_POOLS_VERIFICATION === 'true'
 
 export enum ReviewStatus {
   PENDING = 'pending',
@@ -225,7 +230,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   )
   const [isLoadingAnonymitySet, setIsLoadingAnonymitySet] = useState(false)
 
-  const useHelium = false // TODO: enable helios when ready
+  const verificationProviderRef = useRef<UIProxyProvider | null>(null)
 
   const memoizedState = useDeepMemo(state, controller)
   const { secret } = memoizedState
@@ -257,6 +262,28 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
         aspClient.fetchMtRoots(aspUrl, chainId, scope),
         aspClient.fetchMtLeaves(aspUrl, chainId, scope)
       ])
+
+      if (shouldVerifyPrivacyPools) {
+        const verificationProvider = verificationProviderRef.current
+        if (verificationProvider == null) {
+          throw new Error(
+            'Privacy Pools verification is enabled (ENABLE_PRIVACY_POOLS_VERIFICATION) but no verification provider is set. ' +
+              'Ensure verificationProviderRef is assigned before loading pool data.'
+          )
+        }
+        console.log('DEBUG: Verifying pool data...')
+        await verifyPoolData({
+          verificationProvider,
+          poolAddress: firstPool.address,
+          entrypointAddress: firstPool.entryPointAddress,
+          aspReportedOnchainRoot: rootsData.onchainMtRoot,
+          stateTreeLeaves: leavesData.stateTreeLeaves,
+          aspReportedMtRoot: rootsData.mtRoot,
+          aspReportedTimestamp: rootsData.createdAt,
+          aspLeaves: leavesData.aspLeaves
+        })
+        console.log('DEBUG: Pool data verified successfully')
+      }
 
       setMtRoots(rootsData)
       setMtLeaves(leavesData)
@@ -599,6 +626,20 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
   useEffect(() => {
     if (memoizedState.initialPromiseLoaded && memoizedState.chainData && !sdk) {
       const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+      const verificationChainData = memoizedState.chainData[chainId]
+
+      if (shouldVerifyPrivacyPools && verificationChainData?.rpcUrl) {
+        verificationProviderRef.current = getRpcProviderForUI(
+          {
+            chainId,
+            rpcUrls: [verificationChainData.rpcUrl],
+            selectedRpcUrl: verificationChainData.rpcUrl
+          },
+          dispatch
+        )
+      } else {
+        verificationProviderRef.current = null
+      }
 
       const circuits = new Circuits({ baseUrl })
 
@@ -606,31 +647,11 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
         const chainData = memoizedState.chainData?.[pool.chainId]
         const sdkRpcUrl = chainData?.sdkRpcUrl || ''
 
-        if (!useHelium) {
-          return {
-            chainId: pool.chainId,
-            privacyPoolAddress: pool.address,
-            startBlock: pool.deploymentBlock,
-            rpcUrl: sdkRpcUrl
-          }
-        }
-
-        // Create a provider instance for this chain using UIProxyProvider
-        const provider = getRpcProviderForUI(
-          {
-            chainId: BigInt(pool.chainId),
-            rpcUrls: [sdkRpcUrl],
-            selectedRpcUrl: sdkRpcUrl
-          },
-          dispatch
-        )
-
         return {
           chainId: pool.chainId,
           privacyPoolAddress: pool.address,
           startBlock: pool.deploymentBlock,
-          rpcUrl: sdkRpcUrl,
-          provider
+          rpcUrl: sdkRpcUrl
         }
       })
 
@@ -654,8 +675,7 @@ const PrivacyPoolsControllerStateProvider: React.FC<any> = ({ children }) => {
     memoizedState,
     fetchMtData,
     dispatch,
-    sdk,
-    useHelium
+    sdk
   ])
 
   const value = useMemo(
