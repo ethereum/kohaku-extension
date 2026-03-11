@@ -13,13 +13,15 @@ import flexbox from '@common/styles/utils/flexbox'
 import { setStringAsync } from '@common/utils/clipboard'
 import { getUiType } from '@web/utils/uiType'
 import useRailgunControllerState from '@web/hooks/useRailgunControllerState'
-import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import useRailgunForm from '@web/modules/railgun/hooks/useRailgunForm'
 import { getRailgunAddress } from '@kohaku-eth/railgun'
 import { useCustomHover, AnimatedPressable } from '@web/hooks/useHover'
 import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
 import { PrivacyProtocolType } from '@web/modules/PPv1/types/privacy'
+import { toHex } from 'viem'
 
+import { usePrivacyPoolsDepositForm } from '@web/hooks/useDepositForm'
+import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import DashboardPageScrollContainer from '../DashboardPageScrollContainer'
 import TabsAndSearch from '../TabsAndSearch'
 import { TabType } from '../TabsAndSearch/Tabs/Tab/Tab'
@@ -61,7 +63,9 @@ const Tokens = ({
 
   const searchValue = watch('search')
 
-  const { ethPrice, totalApprovedBalance, isAccountLoaded, isReadyToLoad } = usePrivacyPoolsForm()
+  const { ethPrice, totalApprovedBalance, isAccountLoaded, isReadyToLoad } =
+    usePrivacyPoolsDepositForm()
+  const { portfolio } = useSelectedAccountControllerState()
   const { isAccountLoaded: railgunIsAccountLoaded, totalPrivateBalancesFormatted } =
     useRailgunForm()
   const { defaultRailgunKeys } = useRailgunControllerState()
@@ -75,32 +79,56 @@ const Tokens = ({
     }
   })
 
-  // Create token-like objects for display - only approved tokens
+  // Create token-like objects for display - only approved tokens, grouped by asset
   const privateTokens = useMemo(() => {
     const tokens: any[] = []
 
-    if (totalApprovedBalance.total > 0n) {
-      tokens.push({
-        id: 'approved-eth',
-        name: 'Ethereum',
-        symbol: 'ETH (Privacy Pools)',
-        amount: totalApprovedBalance.total.toString(),
-        address: '0x0000000000000000000000000000000000000000',
-        chainId: 11155111,
-        decimals: 18,
-        priceIn: [{ baseCurrency: 'usd', price: ethPrice }],
-        flags: {
-          onGasTank: false,
-          rewardsType: null,
-          canTopUpGasTank: false,
-          isFeeToken: false,
-          isHidden: false,
-          defiTokenType: null
-        },
-        accounts: totalApprovedBalance.accounts,
-        privacyProtocol: PrivacyProtocolType.PRIVACY_POOLS
+    // Group approved notes by asset address
+    const notesByAsset = totalApprovedBalance.accounts.reduce<Record<string, bigint>>(
+      (acc, note) => {
+        const address = toHex(note.assetAddress, { size: 20 }).toLowerCase()
+        return { ...acc, [address]: (acc[address] ?? 0n) + note.balance }
+      },
+      {}
+    )
+
+    Object.entries(notesByAsset)
+      .filter(([, total]) => total > 0n)
+      .forEach(([address, total]) => {
+        const portfolioToken = portfolio?.tokens.find(
+          (token) => token.address.toLowerCase() === address
+        )
+        const isNative = address === ZERO_ADDRESS.toLowerCase()
+        tokens.push({
+          id: `approved-pp-${address}`,
+          name: portfolioToken?.name ?? (isNative ? 'Ethereum' : address),
+          symbol: `${portfolioToken?.symbol ?? (isNative ? 'ETH' : address)} (Privacy Pools)`,
+          amount: total.toString(),
+          address,
+          chainId: portfolioToken?.chainId ?? 11155111,
+          decimals: portfolioToken?.decimals ?? 18,
+          priceIn: [
+            {
+              baseCurrency: 'usd',
+              price: isNative
+                ? ethPrice
+                : portfolioToken?.priceIn.find((p) => p.baseCurrency === 'usd')?.price
+            }
+          ],
+          flags: {
+            onGasTank: false,
+            rewardsType: null,
+            canTopUpGasTank: false,
+            isFeeToken: false,
+            isHidden: false,
+            defiTokenType: null
+          },
+          accounts: totalApprovedBalance.accounts.filter(
+            (note) => toHex(note.assetAddress, { size: 20 }).toLowerCase() === address
+          ),
+          privacyProtocol: PrivacyProtocolType.PRIVACY_POOLS
+        })
       })
-    }
     Object.entries(totalPrivateBalancesFormatted).forEach(([tokenAddress, tokenInfo]) => {
       if (tokenInfo.amount !== '0') {
         tokens.push({
@@ -132,7 +160,7 @@ const Tokens = ({
     })
 
     return tokens
-  }, [totalApprovedBalance, totalPrivateBalancesFormatted, ethPrice])
+  }, [totalApprovedBalance, totalPrivateBalancesFormatted, ethPrice, portfolio?.tokens])
 
   const filteredTokens = useMemo(() => {
     if (!searchValue) return privateTokens

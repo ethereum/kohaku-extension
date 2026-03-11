@@ -375,7 +375,9 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
     alchemyApiKey: ALCHEMY_API_KEY,
     swapApiKey: LI_FI_API_KEY,
     hypersyncApiKey: HYPERSYNC_API_KEY,
-    featureFlags: {},
+    featureFlags: {
+      testnetMode: true
+    },
     keystoreSigners: {
       internal: KeystoreSigner,
       // TODO: there is a mismatch in hw signer types, it's not a big deal

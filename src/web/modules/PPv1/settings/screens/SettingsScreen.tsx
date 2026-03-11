@@ -13,6 +13,7 @@ import AccountsIcon from '@common/assets/svg/AccountsIcon'
 import SendIcon from '@common/assets/svg/SendIcon'
 import { AnimatedPressable, useCustomHover } from '@web/hooks/useHover'
 import usePrivacyPoolsForm from '../../hooks/usePrivacyPoolsForm'
+import usePrivacyPools from '@web/hooks/usePrivacyPools/usePrivacyPools'
 
 const SettingsOption = ({
   label,
@@ -68,7 +69,7 @@ const SettingsOption = ({
 const SettingsScreen = () => {
   const headerTitle = 'Settings'
   const { navigate } = useNavigation()
-  const { totalPendingBalance, totalDeclinedBalance } = usePrivacyPoolsForm()
+  const { totalPendingBalance, totalDeclinedBalance } = usePrivacyPools()
 
   const handleGoBack = useCallback(() => {
     navigate(ROUTES.pp1Home)

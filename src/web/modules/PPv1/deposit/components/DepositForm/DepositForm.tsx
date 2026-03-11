@@ -12,7 +12,6 @@ import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import { formatEther, formatUnits, parseUnits, zeroAddress } from 'viem'
-import { PoolInfo } from '@ambire-common/controllers/privacyPools/config'
 import { getTokenAmount } from '@ambire-common/libs/portfolio/helpers'
 import PrivacyIcon from '@common/assets/svg/PrivacyIcon'
 import Select from '@common/components/Select'
@@ -30,23 +29,22 @@ import SendToken from '../SendToken'
 import styles from './styles'
 
 const DepositForm = ({
-  poolInfo,
+  poolAvailable,
   depositAmount,
   amountErrorMessage,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  formTitle,
+  supportedTokens,
   selectedToken: mySelectedToken,
   defaultToken = null,
   handleUpdateForm,
   chainId,
   privacyProvider
 }: {
-  poolInfo?: PoolInfo
+  poolAvailable?: boolean
+  supportedTokens?: Set<string>
   depositAmount?: string
   selectedToken: any
   defaultToken?: TokenResult | null
   amountErrorMessage: string
-  formTitle: string | ReactNode
   handleUpdateForm: (params: { [key: string]: any }) => void
   chainId: bigint
   privacyProvider?: string
@@ -73,23 +71,20 @@ const DepositForm = ({
   const availableTokens = useMemo(() => {
     if (!portfolio?.tokens || !networks) return []
 
-    return portfolio.tokens.filter((token) => {
-      // Filter by chainId
-      if (token.chainId !== chainId) return false
+    const tokensToUse =
+      privacyProvider === 'privacy-pools'
+        ? portfolio.tokens.filter(({ address }) => supportedTokens?.has(address.toLowerCase()))
+        : portfolio.tokens.filter((token) => token.chainId === chainId)
 
+    return tokensToUse.filter((token) => {
       // Exclude gas tank tokens and rewards tokens
       if (token.flags.onGasTank || token.flags.rewardsType) return false
 
-      // For Privacy Pools, only allow native ETH
-      const isNative = token.address === zeroAddress
-      if (privacyProvider === 'privacy-pools' && !isNative) return false
-
-      // Include tokens with balance > 0 or native token
       const hasAmount = getTokenAmount(token) > 0n
 
-      return hasAmount || isNative
+      return hasAmount
     })
-  }, [portfolio?.tokens, chainId, networks, privacyProvider])
+  }, [portfolio?.tokens, chainId, networks, privacyProvider, supportedTokens])
 
   // Get the currently selected token from portfolio
   const currentSelectedToken = useMemo(() => {
@@ -146,7 +141,7 @@ const DepositForm = ({
     const providerOption = providerOptions.find((opt) => opt.value === providerValue)
 
     return providerOption || null
-  }, [privacyProvider])
+  }, [privacyProvider, providerOptions])
 
   // Get balance for the currently selected token
   const selectedTokenBalance = useMemo(() => {
@@ -403,25 +398,8 @@ const DepositForm = ({
     }
   }, [depositAmount, currentSelectedToken])
 
-  // Validate that only native ETH is used for privacy pools
-  const privacyPoolsTokenError = useMemo(() => {
-    if (privacyProvider === 'privacy-pools' && currentSelectedToken) {
-      const isNativeToken = currentSelectedToken.address === zeroAddress
-      if (!isNativeToken) {
-        return 'Only native ETH deposits for privacyPools'
-      }
-    }
-    return ''
-  }, [privacyProvider, currentSelectedToken])
-
-  // Combine existing error message with privacy pools token validation
-  const combinedErrorMessage = useMemo(() => {
-    if (privacyPoolsTokenError) return privacyPoolsTokenError
-    return amountErrorMessage
-  }, [privacyPoolsTokenError, amountErrorMessage])
-
   // Only check for poolInfo when using Privacy Pools
-  if (privacyProvider === 'privacy-pools' && !poolInfo) {
+  if (privacyProvider === 'privacy-pools' && !poolAvailable) {
     return (
       <ScrollableWrapper contentContainerStyle={styles.container}>
         <View style={spacings.mbLg}>
@@ -466,7 +444,7 @@ const DepositForm = ({
           fromAmountInFiat="0"
           fromAmountFieldMode="token"
           maxFromAmount={maxFromAmountFormatted}
-          validateFromAmount={{ success: !combinedErrorMessage, message: combinedErrorMessage }}
+          validateFromAmount={{ success: !amountErrorMessage, message: amountErrorMessage }}
           onFromAmountChange={handleAmountChange}
           handleSetMaxFromAmount={handleSetMaxAmount}
           inputTestId="amount-field"

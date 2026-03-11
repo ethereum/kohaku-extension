@@ -8,6 +8,7 @@ import {
   SIGN_ACCOUNT_OP_SWAP,
   SIGN_ACCOUNT_OP_TRANSFER,
   SIGN_ACCOUNT_OP_PRIVACY_POOLS,
+  SIGN_ACCOUNT_OP_PRIVACY_POOLS_V1,
   SIGN_ACCOUNT_OP_RAILGUN,
   SignAccountOpType
 } from '@ambire-common/controllers/signAccountOp/helper'
@@ -289,6 +290,8 @@ export const handleActions = async (
         signAccountOpType = SIGN_ACCOUNT_OP_SWAP
       } else if (params.updateType === 'PrivacyPools') {
         signAccountOpType = SIGN_ACCOUNT_OP_PRIVACY_POOLS
+      } else if (params.updateType === 'PrivacyPoolsV1') {
+        signAccountOpType = SIGN_ACCOUNT_OP_PRIVACY_POOLS_V1
       } else if (params.updateType === 'Railgun') {
         signAccountOpType = SIGN_ACCOUNT_OP_RAILGUN
       } else {
@@ -331,6 +334,10 @@ export const handleActions = async (
 
       if (params.updateType === 'PrivacyPools') {
         return mainCtrl?.privacyPools?.signAccountOpController?.update(params)
+      }
+
+      if (params.updateType === 'PrivacyPoolsV1') {
+        return mainCtrl?.privacyPoolsV1?.signAccountOpController?.update(params)
       }
 
       if (params.updateType === 'Railgun') {
@@ -460,19 +467,19 @@ export const handleActions = async (
     case 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN':
       return mainCtrl.privacyPools.unloadScreen()
     case 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE':
-      return mainCtrl.privacyPools?.signAccountOpController?.update(params)
+      return mainCtrl.privacyPoolsV1?.signAccountOpController?.update(params)
     case 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS':
-      return mainCtrl.privacyPools?.signAccountOpController?.updateStatus(params.status)
+      return mainCtrl.privacyPoolsV1?.signAccountOpController?.updateStatus(params.status)
     case 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED':
-      return mainCtrl.privacyPools.setUserProceeded(params.proceeded)
+      return mainCtrl.privacyPoolsV1.setUserProceeded(params.proceeded)
     case 'PRIVACY_POOLS_CONTROLLER_RESET_FORM':
       return mainCtrl.privacyPools.resetForm()
     case 'PRIVACY_POOLS_CONTROLLER_DESTROY_SIGN_ACCOUNT_OP':
-      return mainCtrl.privacyPools.destroySignAccountOp()
+      return mainCtrl.privacyPoolsV1.destroySignAccountOp()
     case 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP':
-      return mainCtrl.privacyPools.destroyLatestBroadcastedAccountOp()
+      return mainCtrl.privacyPoolsV1.destroyLatestBroadcastedAccountOp()
     case 'PRIVACY_POOLS_CONTROLLER_SYNC_SIGN_ACCOUNT_OP':
-      return mainCtrl.privacyPools.syncSignAccountOp(params.calls)
+      return mainCtrl.privacyPoolsV1.syncSignAccountOp(params.calls)
     case 'PRIVACY_POOLS_CONTROLLER_GENERATE_PPV1_KEYS':
       return mainCtrl.privacyPools.generatePPv1Keys()
     case 'PRIVACY_POOLS_CONTROLLER_GENERATE_SECRET':
@@ -484,6 +491,26 @@ export const handleActions = async (
     case 'PRIVACY_POOLS_CONTROLLER_ADD_IMPORTED_ACCOUNT_TO_ACTIVITY_CONTROLLER': {
       return await mainCtrl.privacyPools.addImportedAccountToActivityController(params.accountName)
     }
+    case 'PRIVACY_POOLS_V1_CONTROLLER_INIT':
+      return mainCtrl.privacyPoolsV1.init()
+    case 'PRIVACY_POOLS_V1_CONTROLLER_SYNC':
+      return mainCtrl.privacyPoolsV1.sync()
+    case 'PRIVACY_POOLS_V1_CONTROLLER_SHIELD':
+      return mainCtrl.privacyPoolsV1.prepareShield(params.asset)
+    case 'PRIVACY_POOLS_V1_CONTROLLER_PREPARE_SHIELD':
+      return mainCtrl.privacyPoolsV1.prepareShield(params.asset)
+    case 'PRIVACY_POOLS_V1_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE':
+      return mainCtrl.privacyPoolsV1?.signAccountOpController?.update(params)
+    case 'PRIVACY_POOLS_V1_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS':
+      return mainCtrl.privacyPoolsV1?.signAccountOpController?.updateStatus(params.status)
+    case 'PRIVACY_POOLS_V1_CONTROLLER_HAS_USER_PROCEEDED':
+      return mainCtrl.privacyPoolsV1.setUserProceeded(params.proceeded)
+    case 'PRIVACY_POOLS_V1_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP':
+      return mainCtrl.privacyPoolsV1.destroyLatestBroadcastedAccountOp()
+    case 'PRIVACY_POOLS_V1_CONTROLLER_PREPARE_UNSHIELD':
+      return mainCtrl.privacyPoolsV1.prepareUnshield(params.asset, params.to)
+    case 'PRIVACY_POOLS_V1_CONTROLLER_UNSHIELD':
+      return mainCtrl.privacyPoolsV1.unshield()
     case 'RAILGUN_CONTROLLER_SDK_LOADED':
       return mainCtrl.railgun.setSdkInitialized()
     case 'RAILGUN_CONTROLLER_UPDATE_FORM':

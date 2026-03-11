@@ -40,10 +40,9 @@ import { CustomToken, TokenPreference } from '@ambire-common/libs/portfolio/cust
 import { THEME_TYPES } from '@common/styles/themeConfig'
 import { LOG_LEVELS } from '@web/utils/logger'
 
+import type { RailgunAccountCache } from '@ambire-common/controllers/railgun/railgun'
 import { AUTO_LOCK_TIMES } from './controllers/auto-lock'
 import { controllersMapping } from './types'
-
-import type { RailgunAccountCache } from '@ambire-common/controllers/railgun/railgun'
 
 type UpdateNavigationUrl = {
   type: 'UPDATE_PORT_URL'
@@ -166,8 +165,8 @@ type AccountsControllerResetAccountsNewlyAddedStateAction = {
 type AccountsControllerSetAssociatedDapps = {
   type: 'ACCOUNTS_CONTROLLER_SET_ASSOCIATED_DAPPS'
   params: {
-    addr: string;
-    dappUrls: string[];
+    addr: string
+    dappUrls: string[]
   }
 }
 
@@ -370,9 +369,9 @@ type MainControllerSignAccountOpUpdateMainDepsAction = {
 }
 type MainControllerSignAccountOpUpdateAction = {
   type:
-  | 'MAIN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
-  | 'SWAP_AND_BRIDGE_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
-  | 'TRANSFER_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
+    | 'MAIN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
+    | 'SWAP_AND_BRIDGE_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
+    | 'TRANSFER_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
   params: {
     accountOp?: AccountOp
     gasPrices?: GasRecommendation[]
@@ -388,7 +387,13 @@ type MainControllerSignAccountOpUpdateAction = {
 type SignAccountOpUpdateAction = {
   type: 'SIGN_ACCOUNT_OP_UPDATE'
   params: {
-    updateType: 'Main' | 'Swap&Bridge' | 'Transfer&TopUp' | 'PrivacyPools' | 'Railgun'
+    updateType:
+      | 'Main'
+      | 'Swap&Bridge'
+      | 'Transfer&TopUp'
+      | 'PrivacyPools'
+      | 'PrivacyPoolsV1'
+      | 'Railgun'
     accountOp?: AccountOp
     gasPrices?: GasRecommendation[]
     estimation?: FullEstimation
@@ -402,10 +407,10 @@ type SignAccountOpUpdateAction = {
 }
 type MainControllerSignAccountOpUpdateStatus = {
   type:
-  | 'MAIN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
-  | 'SWAP_AND_BRIDGE_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
-  | 'TRANSFER_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
-  | 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
+    | 'MAIN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
+    | 'SWAP_AND_BRIDGE_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
+    | 'TRANSFER_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
+    | 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
   params: {
     status: SigningStatus
   }
@@ -413,7 +418,13 @@ type MainControllerSignAccountOpUpdateStatus = {
 type MainControllerHandleSignAndBroadcastAccountOp = {
   type: 'MAIN_CONTROLLER_HANDLE_SIGN_AND_BROADCAST_ACCOUNT_OP'
   params: {
-    updateType: 'Main' | 'Swap&Bridge' | 'Transfer&TopUp' | 'PrivacyPools' | 'Railgun'
+    updateType:
+      | 'Main'
+      | 'Swap&Bridge'
+      | 'Transfer&TopUp'
+      | 'PrivacyPools'
+      | 'Railgun'
+      | 'PrivacyPoolsV1'
   }
 }
 
@@ -943,6 +954,62 @@ type RailgunControllerSetAccountCacheAction = {
     cache: RailgunAccountCache
   }
 }
+type PrivacyPoolsV1ControllerInitAction = {
+  type: 'PRIVACY_POOLS_V1_CONTROLLER_INIT'
+  params: {
+    chainId: number
+  }
+}
+
+type PrivacyPoolsV1ControllerSyncAction = {
+  type: 'PRIVACY_POOLS_V1_CONTROLLER_SYNC'
+}
+
+type PrivacyPoolsV1ControllerShieldAction = {
+  type: 'PRIVACY_POOLS_V1_CONTROLLER_SHIELD'
+  params: {
+    asset: { asset: { __type: 'erc20'; contract: `0x${string}` }; amount: bigint }
+  }
+}
+
+type PrivacyPoolsV1ControllerPrepareUnshieldAction = {
+  type: 'PRIVACY_POOLS_V1_CONTROLLER_PREPARE_UNSHIELD'
+  params: {
+    asset: { asset: { __type: 'erc20'; contract: `0x${string}` }; amount: bigint }
+    to: `0x${string}`
+  }
+}
+
+type PrivacyPoolsV1ControllerUnshieldAction = {
+  type: 'PRIVACY_POOLS_V1_CONTROLLER_UNSHIELD'
+}
+
+type PrivacyPoolsV1ControllerPrepareShieldAction = {
+  type: 'PRIVACY_POOLS_V1_CONTROLLER_PREPARE_SHIELD'
+  params: {
+    asset: { asset: { __type: 'erc20'; contract: `0x${string}` }; amount: bigint }
+  }
+}
+
+type PrivacyPoolsV1ControllerSignAccountOpUpdateAction = {
+  type: 'PRIVACY_POOLS_V1_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
+  params: { [key: string]: any }
+}
+
+type PrivacyPoolsV1ControllerSignAccountOpUpdateStatusAction = {
+  type: 'PRIVACY_POOLS_V1_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
+  params: { status: any }
+}
+
+type PrivacyPoolsV1ControllerHasUserProceededAction = {
+  type: 'PRIVACY_POOLS_V1_CONTROLLER_HAS_USER_PROCEEDED'
+  params: { proceeded: boolean }
+}
+
+type PrivacyPoolsV1ControllerDestroyLatestBroadcastedAccountOpAction = {
+  type: 'PRIVACY_POOLS_V1_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+}
+
 type ProviderRpcRequestAction = {
   type: 'PROVIDER_RPC_REQUEST'
   params: {
@@ -1119,4 +1186,14 @@ export type Action =
   | RailgunControllerGetDefaultRailgunKeysAction
   | RailgunControllerGetAccountCacheAction
   | RailgunControllerSetAccountCacheAction
+  | PrivacyPoolsV1ControllerInitAction
+  | PrivacyPoolsV1ControllerSyncAction
+  | PrivacyPoolsV1ControllerShieldAction
+  | PrivacyPoolsV1ControllerPrepareUnshieldAction
+  | PrivacyPoolsV1ControllerUnshieldAction
+  | PrivacyPoolsV1ControllerPrepareShieldAction
+  | PrivacyPoolsV1ControllerSignAccountOpUpdateAction
+  | PrivacyPoolsV1ControllerSignAccountOpUpdateStatusAction
+  | PrivacyPoolsV1ControllerHasUserProceededAction
+  | PrivacyPoolsV1ControllerDestroyLatestBroadcastedAccountOpAction
   | ProviderRpcRequestAction
