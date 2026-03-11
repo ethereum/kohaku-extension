@@ -47,6 +47,14 @@ import { TransferTabType } from '../components/Tabs/Tabs'
 
 const { isActionWindow } = getUiType()
 
+const TERMINAL_STATUSES = [
+  AccountOpStatus.Success,
+  AccountOpStatus.UnknownButPastNonce,
+  AccountOpStatus.Failure,
+  AccountOpStatus.Rejected,
+  AccountOpStatus.BroadcastButStuck
+]
+
 const TransferScreen = () => {
   const { t } = useTranslation()
   const { navigate, searchParams } = useNavigation()
@@ -124,6 +132,30 @@ const TransferScreen = () => {
     setSelectedPrivacyProtocol(protocol)
   }
 
+  const cleanUp = useCallback(() => {
+    // Clean up state before navigating - use the appropriate controller based on active protocol
+    dispatch({ type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP' })
+    dispatch({ type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP' })
+
+    // Reset hasProceeded for both controllers
+    // to prevent double-click issue when withdrawing again
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
+      params: { proceeded: false }
+    })
+    dispatch({
+      type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED',
+      params: { proceeded: false }
+    })
+
+    dispatch({
+      type: 'RAILGUN_CONTROLLER_RESET_FORM'
+    })
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
+    })
+  }, [dispatch])
+
   const railgunTotalApprovedBalance = useMemo(() => {
     if (railgunAccountsState.balances.length > 0) {
       let balance = BigInt(0)
@@ -162,6 +194,16 @@ const TransferScreen = () => {
     hasInitializedRailgunAddressRef.current = true
     handleRailgunUpdateForm({ addressState: { fieldValue: addressFromParams } })
   }
+
+  const hasStaleTerminalOpRef = useRef(
+    (() => {
+      const prevOp =
+        activeProtocol === 'railgun'
+          ? railgunLatestBroadcastedAccountOp
+          : latestBroadcastedAccountOp
+      return !!(prevOp?.status && TERMINAL_STATUSES.includes(prevOp.status))
+    })()
+  )
 
   // Privacy Pools state
   const controllerAmountFieldValue = amountFieldMode === 'token' ? withdrawalAmount : amountInFiat
@@ -252,13 +294,6 @@ const TransferScreen = () => {
     } else {
       navigate(ROUTES.pp1Home)
     }
-
-    dispatch({
-      type: 'RAILGUN_CONTROLLER_RESET_FORM'
-    })
-    dispatch({
-      type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
-    })
   }, [dispatch, navigate, activeProtocol])
 
   // Determine which latestBroadcastedAccountOp to use based on active protocol
@@ -323,13 +358,30 @@ const TransferScreen = () => {
   ])
 
   const displayedView: 'transfer' | 'track' = useMemo(() => {
+    if (hasStaleTerminalOpRef.current) return 'transfer'
     if (currentLatestBroadcastedAccountOp) return 'track'
 
     return 'transfer'
   }, [currentLatestBroadcastedAccountOp])
 
   useEffect(() => {
+    if (!currentLatestBroadcastedAccountOp) {
+      hasStaleTerminalOpRef.current = false
+    }
+  }, [currentLatestBroadcastedAccountOp])
+
+  useEffect(() => {
+    // On mount: if a previous op is in a terminal state, clear it so we
+    // never land on the track screen when returning after a tab close.
+    const prevOp =
+      activeProtocol === 'railgun' ? railgunLatestBroadcastedAccountOp : latestBroadcastedAccountOp
+
+    if (prevOp?.status && TERMINAL_STATUSES.includes(prevOp.status)) {
+      cleanUp()
+    }
+
     return () => {
+      cleanUp()
       dispatch({
         type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN'
       })
@@ -337,7 +389,8 @@ const TransferScreen = () => {
         type: 'RAILGUN_CONTROLLER_UNLOAD_SCREEN'
       })
     }
-  }, [dispatch])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Used to resolve ENS, not to update the field value
   const setAddressState = useCallback(
@@ -570,12 +623,6 @@ const TransferScreen = () => {
   ])
 
   const onBack = useCallback(() => {
-    dispatch({
-      type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
-    })
-    dispatch({
-      type: 'RAILGUN_CONTROLLER_RESET_FORM'
-    })
     navigate(ROUTES.pp1Home)
   }, [navigate, dispatch, activeProtocol])
 
@@ -604,28 +651,7 @@ const TransferScreen = () => {
         }
       })
 
-      // Clean up state before navigating - use the appropriate controller based on active protocol
-      dispatch({
-        type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-      })
-      dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-      })
-
-      // Reset hasProceeded for both controllers
-      // to prevent double-click issue when withdrawing again
-      dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
-        params: {
-          proceeded: false
-        }
-      })
-      dispatch({
-        type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED',
-        params: {
-          proceeded: false
-        }
-      })
+      cleanUp()
 
       // Navigate immediately instead of waiting for the flag
       navigateOut()
@@ -809,12 +835,24 @@ const TransferScreen = () => {
       // Submit transaction directly to relayer (no estimation modal)
       // The controller will set latestBroadcastedAccountOp immediately, causing UI to show track screen
       console.log(isInternalTransfer ? 'Submitting internal transfer to relayer...' : 'Submitting withdrawal to relayer...')
+
+      // 0.25% fee for unshields, none for internal transfers
+      const feeFormatted = isInternalTransfer
+        ? '0'
+        : `${formatUnits((amountBigInt * 25n) / 10000n, tokenDecimals)} ${
+            railgunSelectedToken.symbol || 'ETH'
+          }`
+
       await railgunForm.directBroadcastWithdrawal({
         to: txData.to,
         data: txData.data,
         value: isNativeETH && !withdrawAsWETH ? (typeof txData.value === 'string' ? txData.value : txData.value.toString()) : '0',
         chainId: railgunChainId || 11155111,
-        isInternalTransfer
+        isInternalTransfer,
+        tokenAddress: railgunSelectedToken.address,
+        amount: amountBigInt.toString(),
+        recipient: receiver,
+        feeFormatted
       })
       console.log(isInternalTransfer ? 'Internal transfer submitted successfully' : 'Withdrawal submitted successfully')
       // Note: isSubmitting will be reset when the transaction completes or fails
@@ -959,27 +997,7 @@ const TransferScreen = () => {
       <TrackProgress
         onPrimaryButtonPress={handlePrimaryButtonPress}
         handleClose={() => {
-          dispatch({
-            type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-          })
-          dispatch({
-            type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-          })
-
-          // Reset hasProceeded for both controllers
-          // to prevent double-click issue when withdrawing again
-          dispatch({
-            type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
-            params: {
-              proceeded: false
-            }
-          })
-          dispatch({
-            type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED',
-            params: {
-              proceeded: false
-            }
-          })
+          cleanUp()
 
           navigateOut()
         }}

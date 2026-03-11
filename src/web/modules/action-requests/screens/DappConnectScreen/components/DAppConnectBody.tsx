@@ -133,12 +133,7 @@ const DAppConnectBody: FC<{
         </>
       )}
       {(screenMode === 'all' || screenMode === 'new-account') && (
-        <DappCreateNewAccount
-          screenMode={screenMode}
-          origin={origin}
-          autoConnect={autoConnect}
-          setScreenMode={setScreenMode}
-        />
+        <DappCreateNewAccount origin={origin} autoConnect={autoConnect} />
       )}
       {screenMode === 'all' && (
         <Text

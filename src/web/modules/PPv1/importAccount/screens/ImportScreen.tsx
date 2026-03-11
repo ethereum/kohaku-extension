@@ -9,6 +9,7 @@ import { Content, Wrapper } from '@web/components/TransactionsScreen'
 import useActivityControllerState from '@web/hooks/useActivityControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useTransferControllerState from '@web/hooks/useTransferControllerState'
+import { SelectValue } from '@common/components/Select/types'
 import TrackProgress from '@web/modules/sign-account-op/components/OneClick/TrackProgress'
 import Completed from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/Completed'
 import Failed from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/Failed'
@@ -17,6 +18,7 @@ import useTrackAccountOp from '@web/modules/sign-account-op/hooks/OneClick/useTr
 import { getUiType } from '@web/utils/uiType'
 import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
 import { getPPv1Accounts } from '@web/modules/PPv1/sdk/misc'
+import { getPrivacyProtocolOptions } from '@web/components/PrivacyProtocols'
 import AddChainScreen from '../components/ImportForm'
 
 const { isActionWindow } = getUiType()
@@ -69,11 +71,17 @@ const ImportScreen = () => {
   const [trackProgress, setTrackProgress] = useState<AccountOpStatus>(AccountOpStatus.Pending)
   const [isDuplicate, setIsDuplicate] = useState(false)
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false)
+  const [selectedProtocol, setSelectedProtocol] = useState<SelectValue>(
+    getPrivacyProtocolOptions(t)[1]
+  )
+  const selectedProtocolLabel = selectedProtocol.value === 'railgun' ? 'Railgun' : 'Privacy Pool'
 
   const defaultAccountName = useMemo(() => {
     const existingCount = importedPrivateAccounts.filter((accounts) => accounts.length > 0).length
-    return `Privacy Pools #${existingCount + 1}`
-  }, [importedPrivateAccounts])
+    return `${selectedProtocol.value === 'railgun' ? 'Railgun' : 'Privacy Pools'} #${
+      existingCount + 1
+    }`
+  }, [importedPrivateAccounts, selectedProtocol.value])
 
   const [accountName, setAccountName] = useState(defaultAccountName)
 
@@ -144,7 +152,7 @@ const ImportScreen = () => {
         }}
       >
         {trackProgress === AccountOpStatus.Pending && (
-          <InProgress title={t('Importing your Privacy Pool account')}>
+          <InProgress title={t(`Importing your ${selectedProtocolLabel} account`)}>
             <Text fontSize={16} weight="medium" appearance="secondaryText">
               {t('Fetching account deposit details...')}
             </Text>
@@ -154,7 +162,7 @@ const ImportScreen = () => {
           trackProgress === AccountOpStatus.UnknownButPastNonce) && (
           <Completed
             title={t('Private account imported successfully!')}
-            titleSecondary={t('Your Privacy Pool account is ready to use')}
+            titleSecondary={t(`Your ${selectedProtocolLabel} account is ready to use`)}
             openExplorerText="View Transaction"
           />
         )}
@@ -165,7 +173,7 @@ const ImportScreen = () => {
           <Failed
             title={t('Import failed')}
             errorMessage={t(
-              "We couldn't import your Privacy Pool account. Please verify your mnemonic and try again, or contact Kohaku support."
+              `We couldn't import your ${selectedProtocolLabel} account. Please verify your mnemonic and try again, or contact Kohaku support.`
             )}
           />
         )}
@@ -174,7 +182,7 @@ const ImportScreen = () => {
   }
 
   return (
-    <Wrapper title={headerTitle} handleGoBack={handleGoBackPress} buttons={<>,</>}>
+    <Wrapper title={headerTitle} handleGoBack={handleGoBackPress} buttons={undefined}>
       <Content buttons={<> </>}>
         <AddChainScreen
           handleImportSecretNote={handleImportSecretNote}
@@ -182,6 +190,8 @@ const ImportScreen = () => {
           isCheckingDuplicate={isCheckingDuplicate}
           accountName={accountName}
           onAccountNameChange={setAccountName}
+          selectedProtocol={selectedProtocol}
+          changeProtocol={setSelectedProtocol}
         />
       </Content>
     </Wrapper>

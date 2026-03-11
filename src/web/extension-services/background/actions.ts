@@ -906,6 +906,10 @@ type RailgunControllerDirectBroadcastWithdrawalAction = {
     value: string
     chainId: number
     isInternalTransfer?: boolean
+    tokenAddress: string
+    amount: string
+    recipient: string
+    feeFormatted: string | null
   }
 }
 

@@ -34,6 +34,7 @@ const { isActionWindow } = getUiType()
 
 function TransferScreen() {
   const hasRefreshedAccountRef = useRef(false)
+  const lastSelectedTokenRef = useRef<TokenResult | null>(null) // controllers clear selectedToken after broadcast. Use this to keep track
   const { dispatch } = useBackgroundService()
   const { navigate } = useNavigation()
   const location = useLocation()
@@ -70,12 +71,20 @@ function TransferScreen() {
   // Get selectedToken from the appropriate controller based on privacy provider
   // Use latestBroadcastedToken as fallback for railgun since selectedToken might be cleared after deposit
   const selectedToken = useMemo(() => {
+    let token: TokenResult | null | undefined
+
     if (privacyProvider === 'railgun') {
       // Prefer latestBroadcastedToken if available (set when deposit is broadcast)
       // Otherwise fall back to selectedToken
-      return railgunLatestBroadcastedToken || railgunSelectedToken
+      token = railgunLatestBroadcastedToken || railgunSelectedToken
+    } else {
+      token = privacyPoolsSelectedToken
     }
-    return privacyPoolsSelectedToken
+
+    if (token) lastSelectedTokenRef.current = token
+
+    // fallback to cache. Use to display the deposited token
+    return token ?? lastSelectedTokenRef.current
   }, [
     privacyProvider,
     railgunSelectedToken,
@@ -128,7 +137,7 @@ function TransferScreen() {
     return privacyProvider === 'railgun' ? 'transfer' : 'privacyPools'
   }, [privacyProvider])
 
-  const { sessionHandler, onPrimaryButtonPress } = useTrackAccountOp({
+  const { sessionHandler } = useTrackAccountOp({
     address: latestBroadcastedAccountOp?.accountAddr,
     chainId: latestBroadcastedAccountOp?.chainId,
     sessionId,
@@ -331,102 +340,64 @@ function TransferScreen() {
     )
   }, [onBack, handleDeposit, proceedBtnText, isTransferFormValid, isLoading])
 
-  // Create a wrapper for onPrimaryButtonPress that ensures navigation happens
-  // This must be defined before conditional returns to comply with Rules of Hooks
-  const handlePrimaryButtonPress = useCallback(() => {
-    // If transaction is successful, navigate immediately
-    // The banner hiding logic in onPrimaryButtonPress might not work reliably
+  const resetScreen = useCallback(() => {
     if (
       submittedAccountOp &&
       (submittedAccountOp.status === AccountOpStatus.Success ||
         submittedAccountOp.status === AccountOpStatus.UnknownButPastNonce)
     ) {
-      // Hide the banner first
       dispatch({
         type: 'ACTIVITY_CONTROLLER_HIDE_BANNER',
-        params: {
-          ...submittedAccountOp,
-          addr: submittedAccountOp.accountAddr
-        }
+        params: { ...submittedAccountOp, addr: submittedAccountOp.accountAddr }
       })
-
-      dispatch({
-        type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-      })
-      dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-      })
-
-      // Reset hasProceeded for the currently selected controller
-      // to prevent double-click issue when depositing again
-      dispatch({
-        type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
-        params: {
-          proceeded: false
-        }
-      })
-      dispatch({
-        type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED',
-        params: {
-          proceeded: false
-        }
-      })
-
-      // Navigate immediately instead of waiting for the flag
-      navigateOut()
-    } else {
-      // For other states, use the original logic
-      onPrimaryButtonPress()
     }
-  }, [submittedAccountOp, dispatch, navigateOut, onPrimaryButtonPress, privacyProvider])
+
+    dispatch({
+      type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+    })
+
+    dispatch({ type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP' })
+    dispatch({ type: 'RAILGUN_CONTROLLER_UNLOAD_SCREEN' })
+    dispatch({ type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN' })
+    dispatch({ type: 'RAILGUN_CONTROLLER_RESET_FORM' })
+    dispatch({ type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM' })
+
+    // Reset hasProceeded for the currently selected controller
+    // to prevent double-click issue when depositing again
+    dispatch({
+      type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
+      params: {
+        proceeded: false
+      }
+    })
+    dispatch({
+      type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED',
+      params: {
+        proceeded: false
+      }
+    })
+  }, [submittedAccountOp, dispatch])
 
   if (displayedView === 'track') {
     return (
-      <TrackProgress
-        onPrimaryButtonPress={handlePrimaryButtonPress}
-        handleClose={() => {
-          dispatch({
-            type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-          })
-          dispatch({
-            type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
-          })
-
-          // Reset hasProceeded for the currently selected controller
-          // to prevent double-click issue when depositing again
-          dispatch({
-            type: 'PRIVACY_POOLS_CONTROLLER_HAS_USER_PROCEEDED',
-            params: {
-              proceeded: false
-            }
-          })
-          dispatch({
-            type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED',
-            params: {
-              proceeded: false
-            }
-          })
-        }}
-      >
+      <TrackProgress onPrimaryButtonPress={resetScreen} handleClose={() => {}}>
         {(submittedAccountOp?.status === AccountOpStatus.BroadcastedButNotConfirmed ||
           ((submittedAccountOp?.status === AccountOpStatus.Success ||
             submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce) &&
             !isMatchingDeposit)) && (
-          <InProgress title={t('Confirming your deposit')}>
-            <Text fontSize={16} weight="medium" appearance="secondaryText">
-              {t('Almost there!')}
-            </Text>
-          </InProgress>
-        )}
+            <InProgress title={t('Confirming your deposit')}>
+              <Text fontSize={16} weight="medium" appearance="secondaryText">
+                {t('Almost there!')}
+              </Text>
+            </InProgress>
+          )}
         {(submittedAccountOp?.status === AccountOpStatus.Success ||
           submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce) &&
           isMatchingDeposit && (
             <Completed
               title={t('Shield complete!')}
               titleSecondary={t(
-                selectedToken?.symbol
-                  ? `${selectedToken.symbol} deposited to privacy protocol!`
-                  : 'Token deposited to privacy protocol!'
+                `${selectedToken?.symbol || 'Token'} deposited to privacy protocol!`
               )}
               explorerLink={explorerLink}
               openExplorerText="View Deposit"
@@ -435,13 +406,13 @@ function TransferScreen() {
         {(submittedAccountOp?.status === AccountOpStatus.Failure ||
           submittedAccountOp?.status === AccountOpStatus.Rejected ||
           submittedAccountOp?.status === AccountOpStatus.BroadcastButStuck) && (
-          <Failed
-            title={t('Something went wrong!')}
-            errorMessage={t(
-              "We couldn't complete your deposit. Please try again later or contact Kohaku support."
-            )}
-          />
-        )}
+            <Failed
+              title={t('Something went wrong!')}
+              errorMessage={t(
+                "We couldn't complete your deposit. Please try again later or contact Kohaku support."
+              )}
+            />
+          )}
       </TrackProgress>
     )
   }

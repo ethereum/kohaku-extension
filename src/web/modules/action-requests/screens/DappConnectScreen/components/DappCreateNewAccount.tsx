@@ -1,87 +1,23 @@
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pressable, View } from 'react-native'
-import { ScrollView } from 'react-native-gesture-handler'
+import { View } from 'react-native'
 
 import { getDappIdFromUrl } from '@ambire-common/libs/dapps/helpers'
 import Button from '@common/components/Button'
-import Text from '@common/components/Text'
-import useTheme from '@common/hooks/useTheme'
 import spacings from '@common/styles/spacings'
-import common from '@common/styles/utils/common'
-import flexbox from '@common/styles/utils/flexbox'
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
 import useAccountPickerControllerState from '@web/hooks/useAccountPickerControllerState'
 import Spinner from '@common/components/Spinner'
-import { DappAccount, ScreenMode } from './interface'
+import { DappAccount } from './interface'
 
 interface Props {
   origin?: string
-  screenMode: ScreenMode
-  setScreenMode: React.Dispatch<React.SetStateAction<ScreenMode>>
   autoConnect: (account: DappAccount) => void
 }
 
-const SeedPhraseGroup: FC<{
-  label: string
-  seedId: string
-  onAddAccount: (seedId: string) => void
-  isAdding?: boolean
-}> = ({ label, seedId, onAddAccount, isAdding }) => {
-  const { theme } = useTheme()
-  const [hovered, setHovered] = React.useState(false)
-
-  const selectSeed = () => {
-    if (isAdding) return
-
-    onAddAccount(seedId)
-  }
-
-  return (
-    <View style={spacings.mbTy}>
-      <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
-        <Text weight="medium" appearance="secondaryText" numberOfLines={1} style={flexbox.flex1}>
-          {label}
-        </Text>
-        <Pressable
-          onPress={selectSeed}
-          onHoverIn={() => setHovered(true)}
-          onHoverOut={() => setHovered(false)}
-          style={[
-            spacings.mhTy,
-            common.borderRadiusPrimary,
-            spacings.pvTy,
-            spacings.phTy,
-            hovered && { backgroundColor: theme.secondaryBackground }
-          ]}
-        >
-          {isAdding ? (
-            <Spinner
-              variant="gradient"
-              style={{
-                width: 24,
-                height: 24
-              }}
-            />
-          ) : (
-            <Text
-              fontSize={24}
-              weight="medium"
-              appearance="secondaryText"
-              style={{ color: theme.primary, lineHeight: 24, includeFontPadding: false }}
-            >
-              +
-            </Text>
-          )}
-        </Pressable>
-      </View>
-    </View>
-  )
-}
-
-const DappCreateNewAccount: FC<Props> = ({ screenMode, setScreenMode, origin, autoConnect }) => {
+const DappCreateNewAccount: FC<Props> = ({ origin, autoConnect }) => {
   const { t } = useTranslation()
   const { accounts } = useAccountsControllerState()
   const { subType, initParams } = useAccountPickerControllerState()
@@ -154,12 +90,9 @@ const DappCreateNewAccount: FC<Props> = ({ screenMode, setScreenMode, origin, au
     dispatch({ type: 'ACCOUNTS_CONTROLLER_RESET_ACCOUNTS_NEWLY_ADDED_STATE' })
     dispatch({ type: 'MAIN_CONTROLLER_ACCOUNT_PICKER_RESET' })
 
-    setScreenMode('all')
+    // setScreenMode('all')
     setSeedId(null)
   }, [newlyAddedAccounts, dispatch])
-
-  const toggleFullscreen = () =>
-    setScreenMode((prev) => (prev === 'new-account' ? 'all' : 'new-account'))
 
   const onAddAccount = useCallback((_seedId: string) => {
     setSeedId(_seedId)
@@ -190,55 +123,26 @@ const DappCreateNewAccount: FC<Props> = ({ screenMode, setScreenMode, origin, au
     return groups
   }, [accounts, keys, seeds])
 
+  const handleGenerateFreshAccount = useCallback(() => {
+    if (!seedPhraseGroups.length || seedId) return
+    onAddAccount(seedPhraseGroups[0].seedId)
+  }, [seedPhraseGroups, seedId, onAddAccount])
+
   return (
     <View style={{ width: '100%' }}>
-      {screenMode === 'new-account' && (
-        <ScrollView style={{ flex: 1 }}>
-          <View style={spacings.mt}>
-            <View
-              style={[
-                flexbox.directionRow,
-                flexbox.alignCenter,
-                flexbox.justifySpaceBetween,
-                spacings.mbSm
-              ]}
-            >
-              <Text fontSize={16} weight="semiBold" appearance="primaryText">
-                {t('Select a seed phrase')}
-              </Text>
-              <Button text={t('Back')} size="small" onPress={() => setScreenMode('all')} />
-            </View>
-
-            {seedPhraseGroups.length > 0 ? (
-              seedPhraseGroups.map((group) => (
-                <SeedPhraseGroup
-                  key={group.seedId}
-                  label={group.label}
-                  seedId={group.seedId}
-                  onAddAccount={onAddAccount}
-                  isAdding={group.seedId === seedId}
-                />
-              ))
-            ) : (
-              <Text
-                appearance="secondaryText"
-                style={{ textAlign: 'center', opacity: 0.7, ...spacings.ph }}
-              >
-                {t('No seed phrases available. Create one first.')}
-              </Text>
-            )}
-          </View>
-        </ScrollView>
-      )}
-
       <Button
-        type={screenMode === 'new-account' ? 'secondary' : 'success'}
+        type="success"
         size="small"
-        text={screenMode === 'new-account' ? t('Back') : t('Generate Fresh Account')}
+        text={seedId ? undefined : t('Generate Fresh Account')}
         hasBottomSpacing={false}
-        style={[spacings.mhMi, spacings.mtTy]}
-        onPress={toggleFullscreen}
-      />
+        style={[spacings.mhMi, spacings.mtTy, seedId ? { backgroundColor: 'transparent' } : {}]}
+        onPress={handleGenerateFreshAccount}
+        disabled={!!seedId || !seedPhraseGroups.length}
+      >
+        {!!seedId && (
+          <Spinner variant="gradient" style={{ width: 16, height: 16, marginRight: 6 }} />
+        )}
+      </Button>
     </View>
   )
 }
