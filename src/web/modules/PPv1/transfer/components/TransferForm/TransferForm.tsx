@@ -1,6 +1,6 @@
 import React, { ReactNode, useCallback, useEffect, useMemo } from 'react'
 import { View } from 'react-native'
-import { formatEther, zeroAddress } from 'viem'
+import { formatUnits, toHex, zeroAddress } from 'viem'
 
 import TokenIcon from '@common/components/TokenIcon'
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
@@ -15,6 +15,7 @@ import useTheme from '@common/hooks/useTheme'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import { PoolAccount } from '@web/contexts/privacyPoolsControllerStateContext'
 import { getTokenId } from '@web/utils/token'
+import { SelectedAccountPortfolioTokenResult } from '@ambire-common/interfaces/selectedAccount'
 import Recipient from '../Recipient'
 
 import SendToken from '../SendToken'
@@ -40,8 +41,7 @@ const TransferForm = ({
   controllerAmount,
   quoteFee,
   totalApprovedBalance,
-  updateQuoteStatus,
-  chainId
+  updateQuoteStatus
 }: {
   addressInputState: ReturnType<typeof useAddressInput>
   amountErrorMessage: string
@@ -62,44 +62,54 @@ const TransferForm = ({
   quoteFee: string
   updateQuoteStatus: 'INITIAL' | 'LOADING' | undefined
   totalApprovedBalance: { total: bigint; accounts: PoolAccount[] }
-  chainId: bigint
 }) => {
   const { validation } = addressInputState
   const { account, portfolio } = useSelectedAccountControllerState()
   const { t } = useTranslation()
   const { styles } = useTheme(getStyles)
 
-  const ethBalance = totalApprovedBalance.total || 0n
+  // Compute per-token approved balance from notes
+  const balanceByAsset = useMemo(() => {
+    return totalApprovedBalance.accounts.reduce<Record<string, bigint>>((acc, note: any) => {
+      const address = toHex(note.assetAddress, { size: 20 }).toLowerCase()
+      return { ...acc, [address]: (acc[address] ?? 0n) + note.balance }
+    }, {})
+  }, [totalApprovedBalance.accounts])
 
-  // Get ETH token from portfolio for Privacy Pools
-  const availableTokens = useMemo(() => {
-    const tokens: any[] = []
+  // All tokens the user has approved private balance for
+  const availableTokens = useMemo((): SelectedAccountPortfolioTokenResult[] => {
+    if (!portfolio?.tokens || !portfolio.isReadyToVisualize) return []
+    return portfolio.tokens.filter((token) => {
+      const bal = balanceByAsset[token.address.toLowerCase()] ?? 0n
+      return bal > 0n
+    })
+  }, [portfolio?.tokens, portfolio?.isReadyToVisualize, balanceByAsset])
 
-    if (portfolio?.tokens && portfolio.isReadyToVisualize) {
-      const ethToken = portfolio.tokens.find(
-        (token) => token.chainId === chainId && token.address === zeroAddress
-      )
-      if (ethToken) {
-        tokens.push(ethToken)
-      }
-    }
+  const chainId = availableTokens.at(0)?.chainId || 1n
 
-    return tokens
-  }, [portfolio?.tokens, portfolio?.isReadyToVisualize, chainId])
+  // Balance of the currently selected token
+  const selectedTokenBalance = useMemo(() => {
+    if (!selectedToken) return 0n
+    return balanceByAsset[selectedToken.address.toLowerCase()] ?? 0n
+  }, [balanceByAsset, selectedToken])
 
   const handleChangeToken = useCallback(
     (value: string) => {
       const tokenToSelect = availableTokens.find((token) => getTokenId(token) === value)
       if (tokenToSelect) {
-        handleUpdateForm({ selectedToken: tokenToSelect, maxAmount: formatEther(ethBalance) })
+        const tokenBal = balanceByAsset[tokenToSelect.address.toLowerCase()] ?? 0n
+        handleUpdateForm({
+          selectedToken: tokenToSelect,
+          maxAmount: formatUnits(tokenBal, tokenToSelect.decimals)
+        })
       }
     },
-    [availableTokens, ethBalance, handleUpdateForm]
+    [availableTokens, balanceByAsset, handleUpdateForm]
   )
 
   const setMaxAmount = useCallback(() => {
-    handleUpdateForm({ shouldSetMaxAmount: true })
-  }, [handleUpdateForm])
+    handleUpdateForm({ withdrawalAmount: maxAmount })
+  }, [handleUpdateForm, maxAmount])
 
   const onRecipientCheckboxClick = useCallback(() => {
     handleUpdateForm({ isRecipientAddressUnknownAgreed: true })
@@ -108,18 +118,14 @@ const TransferForm = ({
   const isMaxAmountEnabled = useMemo(() => {
     if (!maxAmount) return false
     if (account && account.associatedKeys && account.associatedKeys.length > 0) return true
-
-    const isNativeSelected = selectedToken?.address === zeroAddress
-
-    if (!isNativeSelected) return true
-
     return true
-  }, [account, maxAmount, selectedToken?.address])
+  }, [account, maxAmount])
 
   // Build token options for the selector
   const tokenOptions = useMemo(() => {
     return availableTokens.map((token) => {
-      const formattedBalance = formatEther(ethBalance)
+      const bal = balanceByAsset[token.address.toLowerCase()] ?? 0n
+      const formattedBalance = formatUnits(bal, token.decimals)
 
       return {
         label: `${token.symbol} (${formattedBalance})`,
@@ -138,12 +144,12 @@ const TransferForm = ({
         )
       }
     })
-  }, [availableTokens, ethBalance, chainId])
+  }, [availableTokens, balanceByAsset, chainId])
 
   const tokenSelectValue = useMemo(() => {
     if (!selectedToken) return undefined
 
-    const formattedBalance = formatEther(ethBalance)
+    const formattedBalance = formatUnits(selectedTokenBalance, selectedToken.decimals ?? 18)
 
     return {
       label: `${selectedToken.symbol} (${formattedBalance})`,
@@ -161,30 +167,35 @@ const TransferForm = ({
         />
       )
     }
-  }, [selectedToken, ethBalance, chainId])
+  }, [selectedToken, selectedTokenBalance, chainId])
 
-  // Initialize selectedToken with default ETH token if not set
+  // Initialize selectedToken with first available token if not set
   useEffect(() => {
-    if (!selectedToken && portfolio?.isReadyToVisualize && ethBalance !== undefined) {
-      const defaultToken = portfolio?.tokens.find(
-        (token) => token.chainId === chainId && token.address === zeroAddress
-      )
-      handleUpdateForm({ selectedToken: defaultToken, maxAmount: formatEther(ethBalance) })
+    if (!selectedToken && portfolio?.isReadyToVisualize && availableTokens.length > 0) {
+      const defaultToken =
+        availableTokens.find((token) => token.address === zeroAddress) ?? availableTokens[0]
+      const tokenBal = balanceByAsset[defaultToken.address.toLowerCase()] ?? 0n
+      handleUpdateForm({
+        selectedToken: defaultToken,
+        maxAmount: formatUnits(tokenBal, defaultToken.decimals)
+      })
     }
   }, [
     selectedToken,
     portfolio?.isReadyToVisualize,
-    portfolio?.tokens,
-    ethBalance,
-    handleUpdateForm,
-    chainId
+    availableTokens,
+    balanceByAsset,
+    handleUpdateForm
   ])
 
+  // Update maxAmount when selected token balance changes
   useEffect(() => {
-    if (ethBalance !== undefined) {
-      handleUpdateForm({ maxAmount: formatEther(ethBalance) })
+    if (selectedToken && selectedTokenBalance !== undefined) {
+      handleUpdateForm({
+        maxAmount: formatUnits(selectedTokenBalance, selectedToken.decimals ?? 18)
+      })
     }
-  }, [ethBalance, handleUpdateForm])
+  }, [selectedTokenBalance, selectedToken, handleUpdateForm])
 
   return (
     <ScrollableWrapper contentContainerStyle={styles.container}>
@@ -200,7 +211,7 @@ const TransferForm = ({
           fromTokenOptions={tokenOptions}
           fromTokenValue={tokenSelectValue}
           fromAmountValue={amountFieldValue}
-          fromTokenAmountSelectDisabled={ethBalance === 0n}
+          fromTokenAmountSelectDisabled={selectedTokenBalance === 0n}
           handleChangeFromToken={({ value }) => handleChangeToken(value as string)}
           fromSelectedToken={selectedToken}
           fromAmount={controllerAmount}
@@ -232,7 +243,7 @@ const TransferForm = ({
 
       <View>
         <Recipient
-          disabled={ethBalance === 0n}
+          disabled={selectedTokenBalance === 0n}
           address={addressStateFieldValue}
           setAddress={setAddressStateFieldValue}
           validation={validation}
@@ -272,7 +283,7 @@ const TransferForm = ({
                 withNetworkIcon={false}
               />
               <Text fontSize={14} weight="light" style={spacings.mlMi}>
-                {formatAmount(formatEther(BigInt(quoteFee)))} ETH
+                {quoteFee} ETH
               </Text>
             </View>
           )}
@@ -295,16 +306,14 @@ const TransferForm = ({
             <View style={[flexbox.directionRow, flexbox.alignCenter]}>
               <TokenIcon
                 chainId={chainId}
-                address={zeroAddress}
+                address={selectedToken?.address ?? zeroAddress}
                 width={20}
                 height={20}
                 withNetworkIcon={false}
               />
               <Text fontSize={14} weight="light" style={spacings.mlMi}>
-                {formatAmount(
-                  (parseFloat(amountFieldValue) || 0) - parseFloat(formatEther(BigInt(quoteFee)))
-                )}{' '}
-                ETH
+                {formatAmount((parseFloat(amountFieldValue) || 0) - parseFloat(quoteFee))}{' '}
+                {selectedToken?.symbol ?? 'ETH'}
               </Text>
             </View>
           )}

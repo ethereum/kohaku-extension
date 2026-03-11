@@ -13,7 +13,6 @@ import useToast from '@common/hooks/useToast'
 import { ROUTES } from '@common/modules/router/constants/common'
 import useActivityControllerState from '@web/hooks/useActivityControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
-import usePrivacyPoolsControllerState from '@web/hooks/usePrivacyPoolsControllerState'
 import useRailgunControllerState from '@web/hooks/useRailgunControllerState'
 import Estimation from '@web/modules/sign-account-op/components/OneClick/Estimation'
 import TrackProgress from '@web/modules/sign-account-op/components/OneClick/TrackProgress'
@@ -34,7 +33,6 @@ const { isActionWindow } = getUiType()
 
 function TransferScreen() {
   const hasRefreshedAccountRef = useRef(false)
-  const lastSelectedTokenRef = useRef<TokenResult | null>(null) // controllers clear selectedToken after broadcast. Use this to keep track
   const { dispatch } = useBackgroundService()
   const { navigate } = useNavigation()
   const location = useLocation()
@@ -43,7 +41,6 @@ function TransferScreen() {
   const defaultToken = ((location.state as any)?.token as TokenResult) ?? null
 
   const { accountsOps } = useActivityControllerState()
-  const { selectedToken: privacyPoolsSelectedToken } = usePrivacyPoolsControllerState()
   const {
     selectedToken: railgunSelectedToken,
     latestBroadcastedToken: railgunLatestBroadcastedToken
@@ -51,7 +48,6 @@ function TransferScreen() {
 
   const {
     chainId,
-    poolInfo,
     depositAmount,
     hasProceeded,
     estimationModalRef,
@@ -63,9 +59,13 @@ function TransferScreen() {
     handleDeposit,
     handleUpdateForm,
     closeEstimationModal,
+    resetForm,
     refreshPrivateAccount,
     loadPrivateAccount,
-    privacyProvider
+    privacyProvider,
+    isReady,
+    selectedToken: depositFormSelectedToken,
+    supportedAssets
   } = useDepositForm()
 
   // Get selectedToken from the appropriate controller based on privacy provider
@@ -78,18 +78,14 @@ function TransferScreen() {
       // Otherwise fall back to selectedToken
       token = railgunLatestBroadcastedToken || railgunSelectedToken
     } else {
-      token = privacyPoolsSelectedToken
+      token = depositFormSelectedToken
     }
-
-    if (token) lastSelectedTokenRef.current = token
-
-    // fallback to cache. Use to display the deposited token
-    return token ?? lastSelectedTokenRef.current
+    return token
   }, [
     privacyProvider,
     railgunSelectedToken,
     railgunLatestBroadcastedToken,
-    privacyPoolsSelectedToken
+    depositFormSelectedToken
   ])
 
   const submittedAccountOp = useMemo(() => {
@@ -245,7 +241,7 @@ function TransferScreen() {
   }, [dispatch])
 
   const handleBroadcastAccountOp = useCallback(() => {
-    const updateType = privacyProvider === 'railgun' ? 'Railgun' : 'PrivacyPools'
+    const updateType = privacyProvider === 'railgun' ? 'Railgun' : 'PrivacyPoolsV1'
     dispatch({
       type: 'MAIN_CONTROLLER_HANDLE_SIGN_AND_BROADCAST_ACCOUNT_OP',
       params: {
@@ -296,7 +292,7 @@ function TransferScreen() {
     // For Privacy Pools, we need poolInfo; for Railgun, we don't
     if (privacyProvider === 'privacy-pools') {
       if (isLoading || !isAccountLoaded) return false
-      return !!poolInfo && !validationFormMsgs.amount.message
+      return isReady && !validationFormMsgs.amount.message
     }
 
     console.log('DEBUG: validationFormMsgs:', validationFormMsgs.amount)
@@ -304,7 +300,7 @@ function TransferScreen() {
     return !validationFormMsgs.amount.message
   }, [
     depositAmount,
-    poolInfo,
+    isReady,
     isLoading,
     isAccountLoaded,
     privacyProvider,
@@ -376,7 +372,8 @@ function TransferScreen() {
         proceeded: false
       }
     })
-  }, [submittedAccountOp, dispatch])
+    resetForm()
+  }, [submittedAccountOp, dispatch, resetForm])
 
   if (displayedView === 'track') {
     return (
@@ -422,12 +419,12 @@ function TransferScreen() {
       <Content buttons={buttons}>
         <Form>
           <DepositForm
-            poolInfo={poolInfo}
+            poolAvailable={isReady}
             depositAmount={depositAmount}
+            supportedTokens={supportedAssets}
             selectedToken={selectedToken}
             defaultToken={defaultToken}
             amountErrorMessage={validationFormMsgs.amount.message || ''}
-            formTitle={formTitle}
             handleUpdateForm={handleUpdateForm}
             chainId={BigInt(chainId)}
             privacyProvider={privacyProvider}
@@ -436,7 +433,7 @@ function TransferScreen() {
       </Content>
 
       <Estimation
-        updateType={privacyProvider === 'railgun' ? 'Railgun' : 'PrivacyPools'}
+        updateType={privacyProvider === 'railgun' ? 'Railgun' : 'PrivacyPoolsV1'}
         estimationModalRef={estimationModalRef}
         closeEstimationModal={closeEstimationModal}
         updateController={updateController}

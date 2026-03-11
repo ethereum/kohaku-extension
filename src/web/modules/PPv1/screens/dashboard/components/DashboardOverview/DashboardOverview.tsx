@@ -19,7 +19,7 @@ import flexbox from '@common/styles/utils/flexbox'
 import useHover, { AnimatedPressable } from '@web/hooks/useHover'
 import useMainControllerState from '@web/hooks/useMainControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
-import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
+import usePrivacyPools from '@web/hooks/usePrivacyPools/usePrivacyPools'
 import useRailgunForm from '@web/modules/railgun/hooks/useRailgunForm'
 
 import BalanceAffectingErrors from './BalanceAffectingErrors'
@@ -56,10 +56,13 @@ const DashboardOverview: FC<Props> = ({
   const { theme, styles, themeType } = useTheme(getStyles)
   const { isOffline } = useMainControllerState()
   const { portfolio } = useSelectedAccountControllerState()
-  const { isLoading, isAccountLoaded, totalPrivatePortfolio, refreshPrivateAccount } =
-    usePrivacyPoolsForm()
 
-  const { totalPrivatePortfolio: totalPrivatePortfolioRailgun, refreshPrivateAccount: refreshPrivateAccountRailgun } = useRailgunForm()
+  const { isSynced, sync, totalPrivatePortfolio } = usePrivacyPools()
+
+  const {
+    totalPrivatePortfolio: totalPrivatePortfolioRailgun,
+    refreshPrivateAccount: refreshPrivateAccountRailgun
+  } = useRailgunForm()
 
   const [bindRefreshButtonAnim, refreshButtonAnimStyle] = useHover({
     preset: 'opacity'
@@ -74,7 +77,7 @@ const DashboardOverview: FC<Props> = ({
     networksWithErrors
   } = useBalanceAffectingErrors()
 
-  const totalPrivatePortfolioMixed = totalPrivatePortfolio + totalPrivatePortfolioRailgun;
+  const totalPrivatePortfolioMixed = totalPrivatePortfolio + totalPrivatePortfolioRailgun
 
   const [totalPrivatePortfolioInteger, totalPrivatePortfolioDecimal] = formatDecimals(
     totalPrivatePortfolioMixed,
@@ -102,10 +105,9 @@ const DashboardOverview: FC<Props> = ({
     }
   }, [buttonPosition, onGasTankButtonPositionWrapped])
 
-  const doRefreshPrivateAccounts = useCallback(() => {
-    refreshPrivateAccount(true)
-    refreshPrivateAccountRailgun()
-  }, [refreshPrivateAccount, refreshPrivateAccountRailgun])
+  const doRefreshPrivateAccounts = useCallback(async () => {
+    await Promise.all([sync(), refreshPrivateAccountRailgun()])
+  }, [sync, refreshPrivateAccountRailgun])
 
   return (
     <View style={[spacings.phSm, spacings.mbMi]}>
@@ -152,7 +154,7 @@ const DashboardOverview: FC<Props> = ({
             >
               <View>
                 <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mbTy]}>
-                  {isLoading || !isAccountLoaded ? (
+                  {!isSynced ? (
                     <SkeletonLoader
                       lowOpacity
                       width={200}
@@ -240,7 +242,7 @@ const DashboardOverview: FC<Props> = ({
                     </Text>
                   )} */}
                   <BalanceAffectingErrors
-                    reloadAccount={refreshPrivateAccount}
+                    reloadAccount={sync ?? (() => Promise.resolve())}
                     networksWithErrors={networksWithErrors}
                     sheetRef={sheetRef}
                     balanceAffectingErrorsSnapshot={balanceAffectingErrorsSnapshot}
