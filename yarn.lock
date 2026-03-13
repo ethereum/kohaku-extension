@@ -2514,7 +2514,7 @@
 
 "@fatsolutions/privacy-pools-core-circuits@1.0.5":
   version "1.0.5"
-  resolved "http://localhost:4873/@fatsolutions/privacy-pools-core-circuits/-/privacy-pools-core-circuits-1.0.5.tgz#e4b7f809a461b4341021492d2fe85dac3747ac80"
+  resolved "https://registry.yarnpkg.com/@fatsolutions/privacy-pools-core-circuits/-/privacy-pools-core-circuits-1.0.5.tgz#e4b7f809a461b4341021492d2fe85dac3747ac80"
   integrity sha512-0E15p9wmWkUXEpPLuw7crpp301xNhLzCnjrvIzqIy/xE85FIsdbTdgWGW0Y9TwwjpxGsLjaCimyTujYbtza4ZA==
   dependencies:
     snarkjs "0.7.5"
@@ -3019,52 +3019,30 @@
 
 "@kohaku-eth/plugins@0.0.1-alpha.1":
   version "0.0.1-alpha.1"
-  resolved "http://localhost:4873/@kohaku-eth/plugins/-/plugins-0.0.1-alpha.1.tgz#159d4f707ff4215fc04a3e77c455dc0da925c9f7"
-  integrity sha512-L/18JGrEeWjlCwPlTtW4YKIp/5URdIdPPHAP2qFoX/yF/ghrfVp29EelK5NbpYBlpQomqAKzVIMtQwdnDrCFPg==
+  resolved "https://registry.yarnpkg.com/@kohaku-eth/plugins/-/plugins-0.0.1-alpha.1.tgz#152cd35ea82102f7f0bd494fa9d41ecb0657f9ec"
+  integrity sha512-e4pZ9OdVS2toRz86FgZIqlqjxxPc9qHMxacQ/wUzNnf+j1pCpkH4ZwiNyRdZzFfYmv/8HEdZXHrL7Leg0adB6w==
   dependencies:
-    "@kohaku-eth/provider" "0.0.5"
+    "@kohaku-eth/provider" "0.0.1-alpha.2"
     ox "^0.12.0"
 
-"@kohaku-eth/plugins@^0.0.5":
-  version "0.0.5"
-  resolved "http://localhost:4873/@kohaku-eth/plugins/-/plugins-0.0.5.tgz#f08574b05ba90de44c0ab9d6fe38c7ca924e9f8b"
-  integrity sha512-Vua04bQPcj5OtxZJeLrGTEz/grRdOlI+IzQ7K+EE3UVAjkF6jX6xXQE3DQgLuk/4J8FFTiEdEMGZjOBFYjytaw==
-  dependencies:
-    "@kohaku-eth/provider" "0.0.6"
-    ox "^0.12.0"
-
-"@kohaku-eth/privacy-pools@^0.0.15":
-  version "0.0.15"
-  resolved "http://localhost:4873/@kohaku-eth/privacy-pools/-/privacy-pools-0.0.15.tgz#d7a00bd442bd5f25aa5db2cd6d4d45cafe0129b0"
-  integrity sha512-okQjhtF2Xd5A1Jqz6eqeFufWozv6vWbuNqm0jjAHiN/vTAIRKywjDgflPxgAaVa59sIkRF/UJuTw7Lf2uShkkg==
+"@kohaku-eth/privacy-pools@0.0.1":
+  version "0.0.1"
+  resolved "https://registry.yarnpkg.com/@kohaku-eth/privacy-pools/-/privacy-pools-0.0.1.tgz#cb3093eb5f364494432991e3cb9f08214f62bfe2"
+  integrity sha512-gNxotckKXQLcVn+d3kB/5EJnWSvQhbU+8gZ20V6oRnJXPUU9KXZNqlLiO2PtT6rNqCzbwfkB9bBS7FMQ2Cgelg==
   dependencies:
     "@fatsolutions/privacy-pools-core-circuits" "1.0.5"
     "@kohaku-eth/plugins" "0.0.1-alpha.1"
-    "@kohaku-eth/provider" "0.0.5"
+    "@kohaku-eth/provider" "0.0.1-alpha.2"
     "@reduxjs/toolkit" "^2.11.2"
     "@zk-kit/lean-imt" "^2.2.4"
     maci-crypto "2.5.0"
     ox "^0.12.0"
     viem "^2.37.9"
 
-"@kohaku-eth/provider@0.0.1-alpha.2":
+"@kohaku-eth/provider@0.0.1-alpha.2", "@kohaku-eth/provider@^0.0.6":
   version "0.0.1-alpha.2"
   resolved "https://registry.yarnpkg.com/@kohaku-eth/provider/-/provider-0.0.1-alpha.2.tgz#bd24c38afd2e6014a462fe354a0ac6ec8a765f4e"
   integrity sha512-PBq2lirSg+nzlYJy8aRB7bd1Y0kb7eq+CXkgyQserQ3Nn49Sp/FXcvlWXySFFYqlRwa7PCxqLxVc1WyfEjdOvg==
-
-"@kohaku-eth/provider@0.0.5":
-  version "0.0.5"
-  resolved "http://localhost:4873/@kohaku-eth/provider/-/provider-0.0.5.tgz#a4b63320a57f1b13d6970d1cb83fbec5e4d45d2a"
-  integrity sha512-fLrgzy6NcuH6+6yOjNiqO9+flXhnpzylcKWVkLgZg+g65XSpuB0PdNXoBxs+f6hiBy1N/pKR9b7F3n3LcMqgKQ==
-  dependencies:
-    ox "^0.12.0"
-
-"@kohaku-eth/provider@0.0.6", "@kohaku-eth/provider@^0.0.6":
-  version "0.0.6"
-  resolved "http://localhost:4873/@kohaku-eth/provider/-/provider-0.0.6.tgz#eeb0e6b12a6aa9dfc78e6edd7ac445e645a0edba"
-  integrity sha512-TGwY6oWRuxy9x3jRJSLi+HyDsMhbEsjJ361y75a+gpA9xNvphw0NUu3/YY7L6AXFOwgkaviv2eQerFQJxcH8xg==
-  dependencies:
-    ox "^0.12.0"
 
 "@kohaku-eth/railgun@0.0.1-alpha.4":
   version "0.0.1-alpha.4"
@@ -3309,7 +3287,7 @@
 
 "@noble/curves@1.9.1":
   version "1.9.1"
-  resolved "http://localhost:4873/@noble/curves/-/curves-1.9.1.tgz#9654a0bc6c13420ae252ddcf975eaf0f58f0a35c"
+  resolved "https://registry.yarnpkg.com/@noble/curves/-/curves-1.9.1.tgz#9654a0bc6c13420ae252ddcf975eaf0f58f0a35c"
   integrity sha512-k11yZxZg+t+gWvBbIswW0yoJlu8cHOC7dhunwOzoWH/mXGBiYyR4YY6hAEK/3EUs4UpB8la1RfdRpeGsFHkWsA==
   dependencies:
     "@noble/hashes" "1.8.0"
@@ -4010,7 +3988,7 @@
 
 "@reduxjs/toolkit@^2.11.2":
   version "2.11.2"
-  resolved "http://localhost:4873/@reduxjs/toolkit/-/toolkit-2.11.2.tgz#582225acea567329ca6848583e7dd72580d38e82"
+  resolved "https://registry.yarnpkg.com/@reduxjs/toolkit/-/toolkit-2.11.2.tgz#582225acea567329ca6848583e7dd72580d38e82"
   integrity sha512-Kd6kAHTA6/nUpp8mySPqj3en3dm0tdMIgbttnQ1xFMVpufoj+ADi8pXLBsd4xzTRHQa7t/Jv8W5UnCuW4kuWMQ==
   dependencies:
     "@standard-schema/spec" "^1.0.0"
@@ -4870,12 +4848,12 @@
 
 "@standard-schema/spec@^1.0.0":
   version "1.1.0"
-  resolved "http://localhost:4873/@standard-schema/spec/-/spec-1.1.0.tgz#a79b55dbaf8604812f52d140b2c9ab41bc150bb8"
+  resolved "https://registry.yarnpkg.com/@standard-schema/spec/-/spec-1.1.0.tgz#a79b55dbaf8604812f52d140b2c9ab41bc150bb8"
   integrity sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==
 
 "@standard-schema/utils@^0.3.0":
   version "0.3.0"
-  resolved "http://localhost:4873/@standard-schema/utils/-/utils-0.3.0.tgz#3d5e608f16c2390c10528e98e59aef6bf73cae7b"
+  resolved "https://registry.yarnpkg.com/@standard-schema/utils/-/utils-0.3.0.tgz#3d5e608f16c2390c10528e98e59aef6bf73cae7b"
   integrity sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==
 
 "@stellar/js-xdr@^3.1.2":
@@ -6187,7 +6165,7 @@ abitype@1.0.8:
 
 abitype@1.2.3, abitype@^1.2.3:
   version "1.2.3"
-  resolved "http://localhost:4873/abitype/-/abitype-1.2.3.tgz#bec3e09dea97d99ef6c719140bee663a329ad1f4"
+  resolved "https://registry.yarnpkg.com/abitype/-/abitype-1.2.3.tgz#bec3e09dea97d99ef6c719140bee663a329ad1f4"
   integrity sha512-Ofer5QUnuUdTFsBRwARMoWKOH1ND5ehwYhJ3OJ/BQO+StkwQjHw0XyVh4vDttzHB7QOFhPHa/o413PJ82gU/Tg==
 
 abitype@^1.0.6, abitype@^1.0.8:
@@ -11822,7 +11800,7 @@ immediate@~3.0.5:
 
 immer@^11.0.0:
   version "11.1.4"
-  resolved "http://localhost:4873/immer/-/immer-11.1.4.tgz#37aee86890b134a8f1a2fadd44361fb86c6ae67e"
+  resolved "https://registry.yarnpkg.com/immer/-/immer-11.1.4.tgz#37aee86890b134a8f1a2fadd44361fb86c6ae67e"
   integrity sha512-XREFCPo6ksxVzP4E0ekD5aMdf8WMwmdNaz6vuvxgI40UaEiu6q3p8X52aU6GdyvLY3XXX/8R7JOTXStz/nBbRw==
 
 immutable@^5.0.2:
@@ -15104,7 +15082,7 @@ own-keys@^1.0.1:
 
 ox@0.14.0:
   version "0.14.0"
-  resolved "http://localhost:4873/ox/-/ox-0.14.0.tgz#e9f58515dbcb95a74cd5017293380ddce700e401"
+  resolved "https://registry.yarnpkg.com/ox/-/ox-0.14.0.tgz#e9f58515dbcb95a74cd5017293380ddce700e401"
   integrity sha512-WLOB7IKnmI3Ol6RAqY7CJdZKl8QaI44LN91OGF1061YIeN6bL5IsFcdp7+oQShRyamE/8fW/CBRWhJAOzI35Dw==
   dependencies:
     "@adraffy/ens-normalize" "^1.11.0"
@@ -15145,7 +15123,7 @@ ox@0.8.6:
 
 ox@^0.12.0:
   version "0.12.4"
-  resolved "http://localhost:4873/ox/-/ox-0.12.4.tgz#469a1b3cfb033d92bc615567875942173a2ddeb5"
+  resolved "https://registry.yarnpkg.com/ox/-/ox-0.12.4.tgz#469a1b3cfb033d92bc615567875942173a2ddeb5"
   integrity sha512-+P+C7QzuwPV8lu79dOwjBKfB2CbnbEXe/hfyyrff1drrO1nOOj3Hc87svHfcW1yneRr3WXaKr6nz11nq+/DF9Q==
   dependencies:
     "@adraffy/ens-normalize" "^1.11.0"
@@ -16761,12 +16739,12 @@ redeyed@~2.1.0:
 
 redux-thunk@^3.1.0:
   version "3.1.0"
-  resolved "http://localhost:4873/redux-thunk/-/redux-thunk-3.1.0.tgz#94aa6e04977c30e14e892eae84978c1af6058ff3"
+  resolved "https://registry.yarnpkg.com/redux-thunk/-/redux-thunk-3.1.0.tgz#94aa6e04977c30e14e892eae84978c1af6058ff3"
   integrity sha512-NW2r5T6ksUKXCabzhL9z+h206HQw/NJkcLm1GPImRQ8IzfXwRGqjVhKJGauHirT0DAuyy6hjdnMZaRoAcy0Klw==
 
 redux@^5.0.1:
   version "5.0.1"
-  resolved "http://localhost:4873/redux/-/redux-5.0.1.tgz#97fa26881ce5746500125585d5642c77b6e9447b"
+  resolved "https://registry.yarnpkg.com/redux/-/redux-5.0.1.tgz#97fa26881ce5746500125585d5642c77b6e9447b"
   integrity sha512-M9/ELqF6fy8FwmkpnF0S3YKOqMyoWJ4+CS5Efg2ct3oY9daQvd/Pc71FpGZsVsbl3Cpb+IIcjBDUnnyBdQbq4w==
 
 reflect-metadata@0.2.2:
@@ -16956,7 +16934,7 @@ reselect@^4.0.0:
 
 reselect@^5.1.0:
   version "5.1.1"
-  resolved "http://localhost:4873/reselect/-/reselect-5.1.1.tgz#c766b1eb5d558291e5e550298adb0becc24bb72e"
+  resolved "https://registry.yarnpkg.com/reselect/-/reselect-5.1.1.tgz#c766b1eb5d558291e5e550298adb0becc24bb72e"
   integrity sha512-K/BG6eIky/SBpzfHZv/dd+9JBFiS4SWV7FIujVyJRux6e45+73RaUHXLmIR1f7WOMaQ0U1km6qwklRQxpJJY0w==
 
 resolve-alpn@^1.0.0, resolve-alpn@^1.2.0:
@@ -17988,7 +17966,7 @@ string-length@^5.0.1:
 
 string-replace-loader@^3.3.0:
   version "3.3.0"
-  resolved "http://localhost:4873/string-replace-loader/-/string-replace-loader-3.3.0.tgz#db560185471d4be1566321fa736669a4667cf3dc"
+  resolved "https://registry.yarnpkg.com/string-replace-loader/-/string-replace-loader-3.3.0.tgz#db560185471d4be1566321fa736669a4667cf3dc"
   integrity sha512-AZ3y7ktSHhd/Ebipczkp6vdfp01d2kQVwFujCGAgmogTB8t4dRhbsRGDKnyZAYqBbIA9QW7+D/IsACVJOOpcBg==
   dependencies:
     schema-utils "^4"
@@ -19354,9 +19332,9 @@ viem@2.33.3:
     ws "8.18.2"
 
 viem@^2.37.9:
-  version "2.47.0"
-  resolved "http://localhost:4873/viem/-/viem-2.47.0.tgz#de169885384419d64fd86bf9f5b687e088ce5839"
-  integrity sha512-jU5e1E1s5E5M1y+YrELDnNar/34U8NXfVcRfxtVETigs2gS1vvW2ngnBoQUGBwLnNr0kNv+NUu4m10OqHByoFw==
+  version "2.47.2"
+  resolved "https://registry.yarnpkg.com/viem/-/viem-2.47.2.tgz#8aa767f1f1f621a75ee913e4fa800fa06c6e342b"
+  integrity sha512-etDIwDgmDiGaPg8rUbJtUFuC3/nAJCbhMYyfh5dOcqNNkzBWTNcS2VluPSM5JVo+9U3b2hle2RkBEq3+xyvlvg==
   dependencies:
     "@noble/curves" "1.9.1"
     "@noble/hashes" "1.8.0"
