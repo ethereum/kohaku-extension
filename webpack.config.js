@@ -16,7 +16,7 @@ const { validateEnvVariables } = require('./scripts/validateEnv')
 const appJSON = require('./app.json')
 const AssetReplacePlugin = require('./plugins/AssetReplacePlugin')
 
-const IgnorePlugin = webpack.IgnorePlugin;
+const IgnorePlugin = webpack.IgnorePlugin
 
 const isWebkit = process.env.WEB_ENGINE?.startsWith('webkit')
 const isGecko = process.env.WEB_ENGINE === 'gecko'
@@ -199,7 +199,7 @@ module.exports = async function (env, argv) {
   config.resolve.alias = {
     ...(config.resolve.alias || {}),
     // DEBUG: Removed '@railgun-community/circuit-artifacts': false to let webpack bundle it normally
-    'dotenv': false,
+    dotenv: false,
     'dotenv/config': false,
     '@ambire-common': path.resolve(__dirname, 'src/ambire-common/src'),
     '@contracts': path.resolve(__dirname, 'src/ambire-common/contracts'),
@@ -417,11 +417,15 @@ module.exports = async function (env, argv) {
       // Added: define NODE_ENV for any conditional checks without requiring a global 'process'
       new webpack.DefinePlugin({
         'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
-        'process.env.REACT_APP_PIMLICO_API_KEY': JSON.stringify(process.env.REACT_APP_PIMLICO_API_KEY),
-        'process.env.ENABLE_COLIBRI_SIMULATION': JSON.stringify(process.env.ENABLE_COLIBRI_SIMULATION || 'true')
+        'process.env.REACT_APP_PIMLICO_API_KEY': JSON.stringify(
+          process.env.REACT_APP_PIMLICO_API_KEY
+        ),
+        'process.env.ENABLE_COLIBRI_SIMULATION': JSON.stringify(
+          process.env.ENABLE_COLIBRI_SIMULATION || 'true'
+        )
       }),
 
-      new webpack.IgnorePlugin({ resourceRegExp: /^dotenv(\/config)?$/, }),
+      new webpack.IgnorePlugin({ resourceRegExp: /^dotenv(\/config)?$/ }),
 
       new HtmlWebpackPlugin({
         template: './src/web/public/index.html',
@@ -454,6 +458,17 @@ module.exports = async function (env, argv) {
     config.module.rules.push({
       test: /\.cjs$/,
       type: 'javascript/auto'
+    })
+
+    // Turns out ffjavascript (used by snarkjs) does not work in service workers.
+    // This workaround makes it work
+    config.module.rules.push({
+      test: /ffjavascript\/build\/browser\.esm\.js$/,
+      loader: 'string-replace-loader',
+      options: {
+        search: 'globalThis?.Blob',
+        replace: 'undefined'
+      }
     })
 
     if (isWebkit) {
@@ -685,4 +700,3 @@ module.exports = async function (env, argv) {
 
   throw new Error('Invalid WEBPACK_BUILD_OUTPUT_PATH')
 }
-

@@ -8,18 +8,18 @@ import usePrivacyPoolsForm from '../hooks/usePrivacyPoolsForm'
 const HomeScreen = () => {
   const { dispatch } = useBackgroundService()
   const { addToast } = useToast()
-  const { isAccountLoaded, isReadyToLoad, loadPrivateAccount } = usePrivacyPoolsForm()
+  // const { isAccountLoaded, isReadyToLoad, loadPrivateAccount } = usePrivacyPoolsForm()
   const hasLoadedRef = useRef(false)
 
-  useEffect(() => {
-    if (!isAccountLoaded && !hasLoadedRef.current && isReadyToLoad) {
-      hasLoadedRef.current = true
-      loadPrivateAccount().catch((error) => {
-        console.error('Failed to load private account:', error)
-        addToast('Failed to load your privacy account. Please try again.', { type: 'error' })
-      })
-    }
-  }, [isAccountLoaded, isReadyToLoad, loadPrivateAccount, addToast])
+  // useEffect(() => {
+  //   if (!isAccountLoaded && !hasLoadedRef.current && isReadyToLoad) {
+  //     hasLoadedRef.current = true
+  //     loadPrivateAccount().catch((error) => {
+  //       console.error('Failed to load private account:', error)
+  //       addToast('Failed to load your privacy account. Please try again.', { type: 'error' })
+  //     })
+  //   }
+  // }, [isAccountLoaded, isReadyToLoad, loadPrivateAccount, addToast])
 
   useEffect(() => {
     return () => {

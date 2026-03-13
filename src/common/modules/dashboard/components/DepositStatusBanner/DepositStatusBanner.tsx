@@ -1,17 +1,19 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { View, TouchableOpacity } from 'react-native'
-import { formatEther } from 'viem'
+import { formatUnits, toHex } from 'viem'
 
 import formatDecimals from '@ambire-common/utils/formatDecimals/formatDecimals'
 import Text from '@common/components/Text'
 import ClockIcon from '@common/assets/svg/ClockIcon'
 import useTheme from '@common/hooks/useTheme'
-import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import useRailgunForm from '@web/modules/railgun/hooks/useRailgunForm'
 import Button from '@common/components/Button'
 import spacings from '@common/styles/spacings'
 import Tooltip from '@common/components/Tooltip'
 
+import usePrivacyPools from '@web/hooks/usePrivacyPools/usePrivacyPools'
+import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
+import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
 import CloseIconWithCircle from './CloseIconWithCircle'
 import getStyles from './styles'
 
@@ -25,64 +27,86 @@ interface DepositStatusBannerProps {
 const DepositStatusBanner = ({ onWithdrawBack, onDeposit }: DepositStatusBannerProps) => {
   const { theme } = useTheme()
   const styles = getStyles(theme)
+  const { isSynced, pendingNotes, approvedNotes } = usePrivacyPools()
+  const { portfolio } = useSelectedAccountControllerState()
   const {
-    totalDeclinedBalance,
-    totalPendingBalance,
-    totalApprovedBalance,
-    ethPrice,
-    isAccountLoaded,
-    loadingError
-  } = usePrivacyPoolsForm()
-  const { totalApprovedBalance: totalApprovedBalanceRailgun, isAccountLoaded: isAccountLoadedRailgun } = useRailgunForm()
+    totalApprovedBalance: totalApprovedBalanceRailgun,
+    isAccountLoaded: isAccountLoadedRailgun
+  } = useRailgunForm()
+
+  // Group pending notes by asset address
+  const pendingByAsset = useMemo(() => {
+    return pendingNotes.reduce<Record<string, bigint>>((acc, note) => {
+      const address = toHex(note.assetAddress, { size: 20 }).toLowerCase()
+      return { ...acc, [address]: (acc[address] ?? 0n) + note.balance }
+    }, {})
+  }, [pendingNotes])
+
+  // Group approved notes by asset address
+  const approvedByAsset = useMemo(() => {
+    return approvedNotes.reduce<Record<string, bigint>>((acc, note) => {
+      const address = toHex(note.assetAddress, { size: 20 }).toLowerCase()
+      return { ...acc, [address]: (acc[address] ?? 0n) + note.balance }
+    }, {})
+  }, [approvedNotes])
+
+  const totalPendingBalance = useMemo(
+    () => Object.values(pendingByAsset).reduce((sum, v) => sum + v, 0n),
+    [pendingByAsset]
+  )
+  const totalApprovedBalance = useMemo(
+    () => Object.values(approvedByAsset).reduce((sum, v) => sum + v, 0n),
+    [approvedByAsset]
+  )
 
   const [selectedTab, setSelectedTab] = useState<TabType>(() => {
-    const hasRejected = totalDeclinedBalance.accounts.length > 0
-    const hasPending = totalPendingBalance.accounts.length > 0
-
-    if (hasRejected) return 'rejected'
-    if (hasPending) return 'pending'
-    return 'rejected' // fallback
+    if (pendingNotes.length > 0) return 'pending'
+    return 'rejected'
   })
 
-  // Update selected tab when data changes and current tab has no items
   useEffect(() => {
-    const rejectedCount = totalDeclinedBalance.accounts.length
-    const pendingCount = totalPendingBalance.accounts.length
-
-    // If current selected tab has no items, switch to the tab that has items
-    if (selectedTab === 'rejected' && rejectedCount === 0 && pendingCount > 0) {
+    const pendingCount = pendingNotes.length
+    if (selectedTab === 'rejected' && pendingCount > 0) {
       setSelectedTab('pending')
-    } else if (selectedTab === 'pending' && pendingCount === 0 && rejectedCount > 0) {
+    } else if (selectedTab === 'pending' && pendingCount === 0) {
       setSelectedTab('rejected')
     }
-  }, [totalDeclinedBalance.accounts.length, totalPendingBalance.accounts.length, selectedTab])
+  }, [pendingNotes, selectedTab])
 
   const isRejectedSelected = selectedTab === 'rejected'
   const isPendingSelected = selectedTab === 'pending'
 
-  const currentBalance = isRejectedSelected ? totalDeclinedBalance : totalPendingBalance
-  const ethAmount = formatEther(currentBalance.total)
-  const formattedEthAmount = formatDecimals(Number(ethAmount), 'amount')
+  const rejectedCount = 0
+  const pendingCount = pendingNotes.length
 
-  const usdValue = isPendingSelected ? Number(ethAmount) * (ethPrice || 0) : null
-  const formattedUsdValue = usdValue ? formatDecimals(usdValue, 'value') : null
-
-  const rejectedCount = totalDeclinedBalance.accounts.length
-  const pendingCount = totalPendingBalance.accounts.length
   const zeroBalance =
-    totalDeclinedBalance.total === 0n &&
-    totalPendingBalance.total === 0n &&
-    totalApprovedBalance.total === 0n &&
+    totalPendingBalance === 0n &&
+    totalApprovedBalance === 0n &&
     totalApprovedBalanceRailgun.total === 0n
 
   const onlyApprovedBalance =
-    totalDeclinedBalance.total === 0n &&
-    totalPendingBalance.total === 0n &&
-    (totalApprovedBalance.total > 0n || totalApprovedBalanceRailgun.total > 0n)
+    totalPendingBalance === 0n &&
+    (totalApprovedBalance > 0n || totalApprovedBalanceRailgun.total > 0n)
 
-  if (!isAccountLoaded || !isAccountLoadedRailgun || onlyApprovedBalance || loadingError) return null
+  // Build per-asset rows for the pending view
+  const pendingAssetRows = useMemo(() => {
+    return Object.entries(pendingByAsset)
+      .filter(([, total]) => total > 0n)
+      .map(([address, total]) => {
+        const isNative = address === ZERO_ADDRESS.toLowerCase()
+        const portfolioToken = portfolio?.tokens.find((t) => t.address.toLowerCase() === address)
+        const symbol = portfolioToken?.symbol ?? (isNative ? 'ETH' : address.slice(0, 6))
+        const decimals = portfolioToken?.decimals ?? 18
+        const price = portfolioToken?.priceIn.find((p) => p.baseCurrency === 'usd')?.price
+        const formatted = formatUnits(total, decimals)
+        const usdValue = price ? Number(formatted) * price : null
+        return { address, symbol, formatted, usdValue }
+      })
+  }, [pendingByAsset, portfolio?.tokens])
 
-  if (zeroBalance && isAccountLoaded && isAccountLoadedRailgun) {
+  if (!isSynced || !isAccountLoadedRailgun || onlyApprovedBalance) return null
+
+  if (zeroBalance && isSynced && isAccountLoadedRailgun) {
     return (
       <View style={spacings.phSm}>
         <View style={[styles.contentContainer]}>
@@ -90,10 +114,10 @@ const DepositStatusBanner = ({ onWithdrawBack, onDeposit }: DepositStatusBannerP
             <View style={styles.leftContent}>
               <View style={styles.zeroBalanceContainer}>
                 <Text fontSize={14} weight="semiBold" color={theme.primaryText}>
-                  Zero private ETH balance
+                  Zero private balance
                 </Text>
                 <Text fontSize={13} weight="light" color={theme.primaryText}>
-                  Shield ETH into your Private Account
+                  Shield tokens into your Private Account
                 </Text>
               </View>
             </View>
@@ -147,19 +171,27 @@ const DepositStatusBanner = ({ onWithdrawBack, onDeposit }: DepositStatusBannerP
               )}
             </View>
             <View style={styles.amountContainer}>
-              <Text fontSize={14} weight="semiBold" color={theme.primaryText}>
-                {formattedEthAmount} ETH in Privacy Pools
-              </Text>
-              {formattedUsdValue && (
-                <Text
-                  fontSize={12}
-                  weight="medium"
-                  color={theme.secondaryText}
-                  style={{ marginLeft: 4 }}
-                >
-                  ({formattedUsdValue})
-                </Text>
-              )}
+              <View style={{ flexDirection: 'column' }}>
+                {isPendingSelected
+                  ? pendingAssetRows.map(({ address, symbol, formatted, usdValue }) => (
+                      <View key={address} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text fontSize={14} weight="semiBold" color={theme.primaryText}>
+                          {formatDecimals(Number(formatted), 'amount')} {symbol} in Privacy Pools
+                        </Text>
+                        {usdValue ? (
+                          <Text
+                            fontSize={12}
+                            weight="medium"
+                            color={theme.secondaryText}
+                            style={{ marginLeft: 4 }}
+                          >
+                            ({formatDecimals(usdValue, 'value')})
+                          </Text>
+                        ) : null}
+                      </View>
+                    ))
+                  : null}
+              </View>
             </View>
           </View>
 
