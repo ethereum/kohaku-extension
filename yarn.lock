@@ -3017,21 +3017,21 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
-"@kohaku-eth/plugins@0.0.1-alpha.1":
-  version "0.0.1-alpha.1"
-  resolved "https://registry.yarnpkg.com/@kohaku-eth/plugins/-/plugins-0.0.1-alpha.1.tgz#152cd35ea82102f7f0bd494fa9d41ecb0657f9ec"
-  integrity sha512-e4pZ9OdVS2toRz86FgZIqlqjxxPc9qHMxacQ/wUzNnf+j1pCpkH4ZwiNyRdZzFfYmv/8HEdZXHrL7Leg0adB6w==
+"@kohaku-eth/plugins@0.0.1-alpha.2":
+  version "0.0.1-alpha.2"
+  resolved "https://registry.yarnpkg.com/@kohaku-eth/plugins/-/plugins-0.0.1-alpha.2.tgz#4c8882a9f88ed39bc46e7b8beb5580bf6373e5f1"
+  integrity sha512-yPbT/su4pepkfddRpBynE7oyjaU78GUUzUwjSmHgwgCNOQRyNmAyoWE/kn/Dhqm4MUJPznTIFlOio5+quIIfNQ==
   dependencies:
     "@kohaku-eth/provider" "0.0.1-alpha.2"
     ox "^0.12.0"
 
-"@kohaku-eth/privacy-pools@0.0.1":
-  version "0.0.1"
-  resolved "https://registry.yarnpkg.com/@kohaku-eth/privacy-pools/-/privacy-pools-0.0.1.tgz#cb3093eb5f364494432991e3cb9f08214f62bfe2"
-  integrity sha512-gNxotckKXQLcVn+d3kB/5EJnWSvQhbU+8gZ20V6oRnJXPUU9KXZNqlLiO2PtT6rNqCzbwfkB9bBS7FMQ2Cgelg==
+"@kohaku-eth/privacy-pools@0.0.2-alpha.1":
+  version "0.0.2-alpha.1"
+  resolved "https://registry.yarnpkg.com/@kohaku-eth/privacy-pools/-/privacy-pools-0.0.2-alpha.1.tgz#0666dc40a677145e80a47b06cab12889e3aa9dd3"
+  integrity sha512-lkrMnJnL2NWe2t2w7ka51kCOKHSvR9diNCxXzFS+jtYsPnKNLX8bih3RSznPFw8aWyWPwO1Do4gSx8hctQCDTA==
   dependencies:
     "@fatsolutions/privacy-pools-core-circuits" "1.0.5"
-    "@kohaku-eth/plugins" "0.0.1-alpha.1"
+    "@kohaku-eth/plugins" "0.0.1-alpha.2"
     "@kohaku-eth/provider" "0.0.1-alpha.2"
     "@reduxjs/toolkit" "^2.11.2"
     "@zk-kit/lean-imt" "^2.2.4"
@@ -3044,11 +3044,12 @@
   resolved "https://registry.yarnpkg.com/@kohaku-eth/provider/-/provider-0.0.1-alpha.2.tgz#bd24c38afd2e6014a462fe354a0ac6ec8a765f4e"
   integrity sha512-PBq2lirSg+nzlYJy8aRB7bd1Y0kb7eq+CXkgyQserQ3Nn49Sp/FXcvlWXySFFYqlRwa7PCxqLxVc1WyfEjdOvg==
 
-"@kohaku-eth/railgun@0.0.1-alpha.4":
-  version "0.0.1-alpha.4"
-  resolved "https://registry.yarnpkg.com/@kohaku-eth/railgun/-/railgun-0.0.1-alpha.4.tgz#e13e50dfaf2dc4fca7fd3b6a716e7a2046044318"
-  integrity sha512-h0wHNgRiSy99GBW8q0BUtyuSwD+BR+p1NIWRFDUKbzwyBwnt80mLdaMvZrPB/1NlWQFvIs0qRTTo2la90GKr8Q==
+"@kohaku-eth/railgun@0.0.1-alpha.5":
+  version "0.0.1-alpha.5"
+  resolved "https://registry.yarnpkg.com/@kohaku-eth/railgun/-/railgun-0.0.1-alpha.5.tgz#6fcbdf56a7161ca83f5aeba65522a47fd0b8d640"
+  integrity sha512-YL6aHD0NyV1/iuye3HtQKzy4XhjbA3rmFf5h8E1HHAw1RCU/W0uOmtHkZXHkvwav74mn6XyDg7rKNIERK2aCdg==
   dependencies:
+    "@kohaku-eth/plugins" "0.0.1-alpha.2"
     "@kohaku-eth/provider" "0.0.1-alpha.2"
     "@noble/ciphers" "^1.0.0"
     "@noble/ed25519" "^1.7.1"
