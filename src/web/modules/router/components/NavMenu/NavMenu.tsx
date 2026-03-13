@@ -167,7 +167,7 @@ const NavMenu = () => {
                       hasBottomSpacing={false}
                       onPress={() =>
                         openInTab({
-                          url: `tab.html#/${WEB_ROUTES.dashboard}`,
+                          url: `tab.html#/${WEB_ROUTES.mainDashboard}`,
                           shouldCloseCurrentWindow: true
                         })
                       }

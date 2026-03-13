@@ -8,7 +8,6 @@ import useRoute from '@common/hooks/useRoute'
 import useTheme from '@common/hooks/useTheme'
 import { AUTH_STATUS } from '@common/modules/auth/constants/authStatus'
 import useAuth from '@common/modules/auth/hooks/useAuth'
-import DashboardScreen from '@common/modules/dashboard/screens'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import flexbox from '@common/styles/utils/flexbox'
 import Splash from '@web/components/Splash'
@@ -22,6 +21,8 @@ import KeyStoreUnlockScreen from '@web/modules/keystore/screens/KeyStoreUnlockSc
 import AuthenticatedRoute from '@web/modules/router/components/AuthenticatedRoute'
 import KeystoreUnlockedRoute from '@web/modules/router/components/KeystoreUnlockedRoute'
 
+import DashboardScreen from '@common/modules/dashboard/screens'
+import KohakuDashboardScreen from '@web/modules/PPv1/screens/dashboard/screens/KohakuDashboardScreen'
 import { getInitialRoute } from './helpers'
 import getStyles from './styles'
 
@@ -79,6 +80,7 @@ const Router = () => {
         <Route element={<KeystoreUnlockedRoute />}>
           <Route element={<AuthenticatedRoute />}>
             <Route path={WEB_ROUTES.dashboard} element={<DashboardScreen />} />
+            <Route path={WEB_ROUTES.mainDashboard} element={<KohakuDashboardScreen />} />
           </Route>
         </Route>
         <Route path={WEB_ROUTES.keyStoreUnlock} element={<KeyStoreUnlockScreen />} />
