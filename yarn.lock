@@ -3039,10 +3039,17 @@
     ox "^0.12.0"
     viem "^2.37.9"
 
-"@kohaku-eth/provider@0.0.1-alpha.2", "@kohaku-eth/provider@^0.0.6":
+"@kohaku-eth/provider@0.0.1-alpha.2":
   version "0.0.1-alpha.2"
   resolved "https://registry.yarnpkg.com/@kohaku-eth/provider/-/provider-0.0.1-alpha.2.tgz#bd24c38afd2e6014a462fe354a0ac6ec8a765f4e"
   integrity sha512-PBq2lirSg+nzlYJy8aRB7bd1Y0kb7eq+CXkgyQserQ3Nn49Sp/FXcvlWXySFFYqlRwa7PCxqLxVc1WyfEjdOvg==
+
+"@kohaku-eth/provider@0.1.0-alpha.3":
+  version "0.1.0-alpha.3"
+  resolved "https://registry.yarnpkg.com/@kohaku-eth/provider/-/provider-0.1.0-alpha.3.tgz#0d231a514d9f929f286c00632a358471eb49f885"
+  integrity sha512-nfcFzsqNIKx4y2vRo9DojNE1fFFVeTj8Bj8sXo+x8U7Y9shxh3aThrQdJq+AKNPn9ttrEcU/CPuaHjJdT9BkTw==
+  dependencies:
+    ox "^0.12.0"
 
 "@kohaku-eth/railgun@0.0.1-alpha.5":
   version "0.0.1-alpha.5"
