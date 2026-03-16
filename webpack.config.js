@@ -467,7 +467,7 @@ module.exports = async function (env, argv) {
       loader: 'string-replace-loader',
       options: {
         search: 'globalThis?.Blob',
-        replace: 'undefined'
+        replace: 'globalThis?.Blob && URL?.createObjectURL'
       }
     })
 
