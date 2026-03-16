@@ -64,18 +64,9 @@ const AccountSelectScreen = () => {
     shouldDisplayAccounts
   } = useAccountsList({ flatlistRef, privateFirst: true })
 
-  const [isMyAccountsSectionCollapsed, setIsMyAccountsSectionCollapsed] = useState(true)
-  const toggleMyAccountsSection = useCallback(
-    () => setIsMyAccountsSectionCollapsed((prev) => !prev),
-    []
-  )
-
   const listData = useMemo<AccountItem[]>(
-    () =>
-      !isMyAccountsSectionCollapsed
-        ? filteredAccounts.map((acc): AccountItem => ({ type: 'account', account: acc }))
-        : [],
-    [filteredAccounts, isMyAccountsSectionCollapsed]
+    () => filteredAccounts.map((acc): AccountItem => ({ type: 'account', account: acc })),
+    [filteredAccounts]
   )
 
   const keyExtractor = useCallback((item: AccountItem) => item.account.addr, [])
@@ -175,56 +166,16 @@ const AccountSelectScreen = () => {
           withSettings={false}
           containerStyle={spacings.mtTy}
         />
-        <TouchableOpacity
-          onPress={toggleMyAccountsSection}
-          style={[
-            flexbox.directionRow,
-            flexbox.alignCenter,
-            flexbox.justifySpaceBetween,
-            spacings.phSm,
-            spacings.pvSm,
-            spacings.mbSm,
-            commnonStyles.borderRadiusPrimary,
-            { backgroundColor: theme.secondaryBackground }
-          ]}
-        >
-          <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-            <Text fontSize={16} weight="semiBold">
-              {t('My Accounts')}
-            </Text>
-            <View
-              style={[
-                spacings.phTy,
-                spacings.pvMi,
-                spacings.mlTy,
-                flexbox.directionRow,
-                flexbox.alignCenter,
-                flexbox.justifyCenter,
-                {
-                  borderRadius: 9999,
-                  backgroundColor: theme.tertiaryBackground
-                }
-              ]}
-            >
-              <Text fontSize={13}>{filteredAccounts.length}</Text>
-            </View>
-          </View>
-          <DownArrowIcon
-            color={theme.primary}
-            style={{ transform: [{ rotate: isMyAccountsSectionCollapsed ? '-90deg' : '0deg' }] }}
-          />
-        </TouchableOpacity>
         <View style={[flexbox.flex1, { opacity: shouldDisplayAccounts ? 1 : 0 }]}>
           <ScrollableWrapper
             type={WRAPPER_TYPES.FLAT_LIST}
-            // style={styles.container}
             wrapperRef={flatlistRef}
             data={listData}
             renderItem={renderItem}
             getItemLayout={getItemLayout}
             keyExtractor={keyExtractor}
             ListEmptyComponent={
-              isMyAccountsSectionCollapsed ? null : <Text>{t('No accounts found')}</Text>
+              <Text style={{ textAlign: 'center' }}>{t('No accounts found')}</Text>
             }
           />
         </View>
