@@ -40,6 +40,10 @@ const TokenItem = ({ token }: { token: PrivateToken }) => {
     navigate(WEB_ROUTES.pp1TokenDetails)
   }, [navigate])
 
+  const navigateToTransfer = useCallback(() => {
+    navigate(WEB_ROUTES.pp1Transfer, { state: { token, defaultTab: 'withdraw' } })
+  }, [navigate, token])
+
   // Check if this is a Railgun token (symbol contains "(Railgun)")
   const isRailgunToken = symbol.includes('(Railgun)')
 
@@ -65,7 +69,7 @@ const TokenItem = ({ token }: { token: PrivateToken }) => {
     <AnimatedPressable
       style={[styles.container, animStyle]}
       {...bindAnim}
-      onPress={isRailgunToken ? undefined : navigateToTokenDetails}
+      onPress={isRailgunToken ? navigateToTransfer : navigateToTokenDetails}
     >
       <View style={flexboxStyles.flex1}>
         <View style={[flexboxStyles.directionRow, flexboxStyles.flex1]}>

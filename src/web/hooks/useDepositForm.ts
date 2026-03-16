@@ -369,6 +369,7 @@ const useDepositForm = () => {
   // Get the privacy provider setting from Privacy Pools controller
   // (both controllers share this setting)
   const { privacyProvider } = useRailgunControllerState()
+  const { dispatch } = useBackgroundService()
 
   // IMPORTANT: Always call both hooks unconditionally to maintain consistent hook order
   // This prevents React's "Hooks called in different order" error
@@ -379,16 +380,46 @@ const useDepositForm = () => {
   // Default to railgun if not set
   const activeProvider = privacyProvider || 'railgun'
 
+  // Wrap handleUpdateForm to intercept privacyProvider changes
+  const wrappedHandleUpdateForm = useCallback(
+    (params: any) => {
+      // If privacyProvider is being updated, dispatch to both controllers
+      if (params.privacyProvider !== undefined) {
+        dispatch({
+          type: 'RAILGUN_CONTROLLER_UPDATE_FORM',
+          params: { privacyProvider: params.privacyProvider }
+        })
+        dispatch({
+          type: 'PRIVACY_POOLS_CONTROLLER_UPDATE_FORM',
+          params: { privacyProvider: params.privacyProvider }
+        })
+      }
+
+      // Call the original handleUpdateForm from the appropriate form
+      // We need to determine which form to use based on the current provider
+      if ((privacyProvider || 'railgun') === 'railgun') {
+        railgunForm.handleUpdateForm(params)
+      } else {
+        privacyPoolsForm.handleUpdateForm(params)
+      }
+    },
+    [dispatch, privacyProvider, railgunForm, privacyPoolsForm]
+  )
+
   if (activeProvider === 'railgun') {
     return {
       ...railgunForm,
+      handleUpdateForm: wrappedHandleUpdateForm,
       supportedAssets: new Set<string>(),
       // eslint-disable-next-line @typescript-eslint/no-empty-function
       resetForm: () => {}
     }
   }
 
-  return privacyPoolsForm
+  return {
+    ...privacyPoolsForm,
+    handleUpdateForm: wrappedHandleUpdateForm
+  }
 }
 
 export default useDepositForm
