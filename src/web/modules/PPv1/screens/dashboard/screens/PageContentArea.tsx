@@ -11,15 +11,13 @@ type ActiveView = 'public' | 'private'
 
 interface Props {
   activeView: ActiveView
+  isLoadingPublicBalances: boolean
 }
 
-const PageContentArea = ({ activeView }: Props) => {
+const PageContentArea = ({ activeView, isLoadingPublicBalances }: Props) => {
   const { navigate } = useNavigation()
   const animatedOverviewHeight = useRef(new Animated.Value(0)).current
-  const noop = useCallback(
-    () => {},
-    []
-  ) as (e: NativeSyntheticEvent<NativeScrollEvent>) => void
+  const noop = useCallback(() => {}, []) as (e: NativeSyntheticEvent<NativeScrollEvent>) => void
 
   const onWithdrawBack = useCallback(() => navigate(WEB_ROUTES.pp1Ragequit), [navigate])
   const onDeposit = useCallback(() => navigate(WEB_ROUTES.pp1Deposit), [navigate])
@@ -27,7 +25,7 @@ const PageContentArea = ({ activeView }: Props) => {
   return (
     <>
       <DepositStatusBanner onWithdrawBack={onWithdrawBack} onDeposit={onDeposit} />
-      {activeView === 'public' && (
+      {activeView === 'public' && !isLoadingPublicBalances && (
         <DashboardPages onScroll={noop} animatedOverviewHeight={animatedOverviewHeight} />
       )}
       {activeView === 'private' && (

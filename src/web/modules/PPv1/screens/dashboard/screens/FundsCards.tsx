@@ -109,7 +109,10 @@ const AccountItem = ({
           style={[
             styles.accountRow,
             pressed && onPress && styles.accountRowPressed,
-            { backgroundColor: selected ? theme.primaryBackground : 'transparent' }
+            {
+              backgroundColor:
+                selected && !isLoadingPublicBalances ? theme.primaryBackground : 'transparent'
+            }
           ]}
         >
           <Text type="small" weight="medium" appearance="secondaryText">

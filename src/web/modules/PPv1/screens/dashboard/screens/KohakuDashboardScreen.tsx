@@ -247,24 +247,29 @@ const KohakuDashboardScreen = () => {
             {(activeView === 'public' || activeView === 'private') && (
               <>
                 <View style={{ height: 1.5, backgroundColor: theme.primaryBackgroundInverted }} />
-                <SelectedAccountInfo
-                  activeView={activeView}
-                  accountLabel={account?.preferences.label}
-                  accountAddr={account?.addr}
-                  defaultRailgunKeys={defaultRailgunKeys}
-                  selectedInteger={selectedInteger}
-                  selectedDecimal={selectedDecimal}
-                  privateInteger={privateInteger}
-                  privateDecimal={privateDecimal}
-                />
+                {!isLoadingPublicBalances && (
+                  <SelectedAccountInfo
+                    activeView={activeView}
+                    accountLabel={account?.preferences.label}
+                    accountAddr={account?.addr}
+                    defaultRailgunKeys={defaultRailgunKeys}
+                    selectedInteger={selectedInteger}
+                    selectedDecimal={selectedDecimal}
+                    privateInteger={privateInteger}
+                    privateDecimal={privateDecimal}
+                  />
+                )}
 
                 <ActionButtons activeView={activeView} onReceive={openReceiveModal} />
 
-                <View style={styles.divider} />
+                {!isLoadingPublicBalances && <View style={styles.divider} />}
               </>
             )}
 
-            <PageContentArea activeView={activeView} />
+            <PageContentArea
+              activeView={activeView}
+              isLoadingPublicBalances={isLoadingPublicBalances}
+            />
           </View>
         </ScrollView>
         <DAppFooter />
