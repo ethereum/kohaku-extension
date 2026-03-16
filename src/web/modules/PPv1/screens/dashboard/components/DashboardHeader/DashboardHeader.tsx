@@ -11,6 +11,7 @@ import useHover from '@web/hooks/useHover'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import commonWebStyles from '@web/styles/utils/common'
 
+import { THEME_TYPES } from '@common/styles/themeConfig'
 import AccountButton from './AccountButton'
 import getStyles from './styles'
 
@@ -18,7 +19,7 @@ const DashboardHeader = () => {
   const { account } = useSelectedAccountControllerState()
   const [bindDashboardAnim, dashboardAnimStyle] = useHover({ preset: 'opacity' })
   const { navigate } = useNavigation()
-  useTheme(getStyles)
+  const { theme, themeType } = useTheme(getStyles)
 
   if (!account) return null
 
@@ -42,7 +43,16 @@ const DashboardHeader = () => {
           {...bindDashboardAnim}
         >
           <Animated.View style={dashboardAnimStyle}>
-            <Text fontSize={14} weight="medium" appearance="secondaryText">
+            <Text
+              fontSize={14}
+              weight="medium"
+              appearance="secondaryText"
+              color={
+                themeType === THEME_TYPES.DARK
+                  ? theme.primaryBackgroundInverted
+                  : theme.primaryBackground
+              }
+            >
               Back To Dashboard
             </Text>
           </Animated.View>
