@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-floating-promises */
 import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useModalize } from 'react-native-modalize'
 import { ScrollView, StyleSheet, View, ViewStyle } from 'react-native'
@@ -78,14 +79,12 @@ const KohakuDashboardScreen = () => {
   const cachedPrivateBalanceRef = useRef<number>(0)
 
   const privacyPoolsForm = usePrivacyPoolsForm()
-
   const railgunForm = useRailgunForm()
+
   const handleRetryLoadPrivateAccount = useCallback(() => {
-    privacyPoolsForm.refreshPrivateAccount(true).catch((error) => {
-      // eslint-disable-next-line no-console
-      console.error('Failed to load private account:', error)
-    })
-  }, [privacyPoolsForm.refreshPrivateAccount])
+    privacyPoolsForm.refreshPrivateAccount(true)
+    railgunForm.refreshPrivateAccount()
+  }, [privacyPoolsForm.refreshPrivateAccount, railgunForm.refreshPrivateAccount])
 
   const { balanceCache, isLoadingPublicBalances, refreshPublicBalances } = usePublicBalanceCache({
     accounts,
@@ -95,13 +94,14 @@ const KohakuDashboardScreen = () => {
   })
 
   const handleRefreshAll = useCallback(() => {
-    privacyPoolsForm.refreshPrivateAccount(true).catch((error) => {
-      // eslint-disable-next-line no-console
-      console.error('Failed to refresh private account:', error)
-    })
+    privacyPoolsForm.refreshPrivateAccount(true)
     railgunForm.refreshPrivateAccount()
     refreshPublicBalances()
-  }, [privacyPoolsForm.refreshPrivateAccount, refreshPublicBalances])
+  }, [
+    privacyPoolsForm.refreshPrivateAccount,
+    railgunForm.refreshPrivateAccount,
+    refreshPublicBalances
+  ])
 
   const totalPublicBalance = useMemo(
     () => Object.values(balanceCache).reduce((sum, bal) => sum + bal, 0),
@@ -112,7 +112,8 @@ const KohakuDashboardScreen = () => {
     (privacyPoolsForm.totalPrivatePortfolio || 0) + (railgunForm.totalPrivatePortfolio || 0)
   const isPrivateLoading =
     privacyPoolsForm.isLoading ||
-    (!privacyPoolsForm.isAccountLoaded && !privacyPoolsForm.loadingError)
+    (!privacyPoolsForm.isAccountLoaded && !privacyPoolsForm.loadingError) ||
+    railgunForm.isLoading
 
   if (livePrivateBalance > 0) cachedPrivateBalanceRef.current = livePrivateBalance
 
@@ -182,10 +183,15 @@ const KohakuDashboardScreen = () => {
         addToast('Failed to load your privacy account. Please try again.', { type: 'error' })
       })
     }
+    if (!railgunForm.isAccountLoaded && !railgunForm.isLoading) {
+      railgunForm.loadPrivateAccount()
+    }
   }, [
     privacyPoolsForm.loadPrivateAccount,
     privacyPoolsForm.isAccountLoaded,
     privacyPoolsForm.isReadyToLoad,
+    railgunForm.isAccountLoaded,
+    railgunForm.isLoading,
     addToast
   ])
 
