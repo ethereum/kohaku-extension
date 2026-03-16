@@ -56,7 +56,7 @@ const TERMINAL_STATUSES = [
 
 const TransferScreen = () => {
   const { t } = useTranslation()
-  const { navigate, searchParams } = useNavigation()
+  const { navigate, searchParams, goBack, canGoBack } = useNavigation()
   const addressFromParams = searchParams.get('address') ?? ''
   const protocolFromParams = searchParams.get('protocol') ?? ''
   const tokenFromParams = searchParams.get('token') ?? ''
@@ -295,7 +295,7 @@ const TransferScreen = () => {
         }
       })
     } else {
-      navigate(ROUTES.pp1Home)
+      navigate(ROUTES.mainDashboard)
     }
   }, [dispatch, navigate, activeProtocol])
 
@@ -624,8 +624,12 @@ const TransferScreen = () => {
   ])
 
   const onBack = useCallback(() => {
-    navigate(ROUTES.pp1Home)
-  }, [navigate, dispatch, activeProtocol])
+    if (canGoBack) {
+      goBack()
+    } else {
+      navigate(ROUTES.mainDashboard)
+    }
+  }, [navigate, goBack, canGoBack])
 
   const headerTitle = t('Private Transfer')
 
