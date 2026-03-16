@@ -247,6 +247,8 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.2",
+    "@babel/helper-function-name": "^7.24.7",
+    "@babel/helper-hoist-variables": "^7.24.7",
     "@babel/plugin-proposal-export-namespace-from": "7.18.9",
     "@babel/preset-env": "^7.22.5",
     "@babel/preset-typescript": "^7.23.3",
