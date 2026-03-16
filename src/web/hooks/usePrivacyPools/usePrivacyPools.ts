@@ -3,10 +3,16 @@ import { useContext, useMemo } from 'react'
 import type { PPv1Address, PPv1AssetAmount, PPv1AssetBalance } from '@kohaku-eth/privacy-pools'
 
 import { PrivacyPoolsV1ControllerStateContext } from '@web/contexts/privacyPoolsV1ControllerStateContext/privacyPoolsV1ControllerStateContext'
-import { INote, OpStatus, PendingUnshieldOperation, State } from '@ambire-common/controllers/privacyPools/privacyPoolsV1'
+import {
+  INote,
+  OpStatus,
+  PendingUnshieldOperation,
+  State
+} from '@ambire-common/controllers/privacyPools/privacyPoolsV1'
 import { SignAccountOpController } from '@ambire-common/controllers/signAccountOp/signAccountOp'
 import { AccountOp } from '@ambire-common/libs/accountOp/accountOp'
-import { toHex } from 'viem'
+import { formatUnits, toHex } from 'viem'
+import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState/useSelectedAccountControllerState'
 
 type SyncState = 'unsynced' | 'syncing' | 'synced'
 
@@ -37,6 +43,7 @@ type UsePrivacyPoolsReturn = {
   pendingBalance: PPv1AssetBalance[]
   approvedNotes: INote[]
   pendingNotes: INote[]
+  totalPrivatePortfolio: number
   getAssetBalances: (assetAddress: string) => {
     approved: bigint
     pending: bigint
@@ -63,6 +70,7 @@ const usePrivacyPools = (): UsePrivacyPoolsReturn => {
     signAccountOpController,
     latestBroadcastedAccountOp
   } = useContext(PrivacyPoolsV1ControllerStateContext)
+  const { portfolio } = useSelectedAccountControllerState()
   const isSynced = useMemo(() => syncState === 'synced', [syncState])
   const isShielding = useMemo(() => state === 'shielding', [state])
   const isPreparingUnshield = useMemo(() => state === 'preparing-unshield', [state])
@@ -103,6 +111,35 @@ const usePrivacyPools = (): UsePrivacyPoolsReturn => {
       [approvedBalance, pendingBalance, approvedNotes, pendingNotes, assetAddress]
     )
 
+  const totalPrivatePortfolio = useMemo(() => {
+    if (!portfolio?.tokens) return 0
+
+    // Group approved notes by asset address and sum their balances
+    const balancesByAsset = approvedNotes.reduce<Record<string, bigint>>((acc, note) => {
+      const address = toHex(note.assetAddress, { size: 20 }).toLowerCase()
+      return { ...acc, [address]: (acc[address] ?? 0n) + note.balance }
+    }, {})
+
+    // Calculate USD value for each asset
+    return Object.entries(balancesByAsset).reduce((totalUSD, [address, amount]) => {
+      // Find the matching token in portfolio
+      const portfolioToken = portfolio.tokens.find(
+        (token) => token.address.toLowerCase() === address
+      )
+
+      if (!portfolioToken) return totalUSD
+
+      // Convert amount from bigint to number using token decimals
+      const tokenAmount = Number(formatUnits(amount, portfolioToken.decimals))
+
+      // Get USD price
+      const usdPrice = portfolioToken.priceIn.find((p) => p.baseCurrency === 'usd')?.price ?? 0
+
+      // Add to total
+      return totalUSD + tokenAmount * usdPrice
+    }, 0)
+  }, [approvedNotes, portfolio?.tokens])
+
   return {
     hasProceeded,
     signAccountOpController,
@@ -130,6 +167,7 @@ const usePrivacyPools = (): UsePrivacyPoolsReturn => {
     notes,
     approvedNotes,
     pendingNotes,
+    totalPrivatePortfolio,
     getAssetBalances
   }
 }
