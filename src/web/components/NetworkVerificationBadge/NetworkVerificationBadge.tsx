@@ -46,10 +46,18 @@ const NetworkVerificationBadge = ({ style, testID }: Props) => {
         // @ts-ignore missing type, but prop is valid
         dataSet={{ tooltipId }}
       >
-        <View style={dotStyle} />
-        <Text fontSize={12} weight="medium" style={styles.label}>
-          {badge.label}
-        </Text>
+        {({ hovered }: { hovered?: boolean }) => (
+          <>
+            <View style={dotStyle} />
+            <Text
+              fontSize={12}
+              weight="medium"
+              style={[styles.label, hovered && styles.labelHovered]}
+            >
+              {badge.label}
+            </Text>
+          </>
+        )}
       </Pressable>
       <Tooltip id={tooltipId} content={badge.tooltip} />
     </>
