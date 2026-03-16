@@ -24,7 +24,6 @@ const getStyles = (theme: ThemeProps) =>
     actionButton: {
       width: 80,
       height: 60,
-      backgroundColor: theme.secondaryBackground,
       borderRadius: BORDER_RADIUS_PRIMARY,
       borderWidth: 1,
       borderColor: theme.primaryBorder,
@@ -62,7 +61,7 @@ const ActionButtons = ({ activeView, onReceive }: Props) => {
   const actions = activeView === 'private' ? privateActions : publicActions
 
   return (
-    <View style={[flexbox.directionRow, flexbox.justifyCenter, spacings.phMd, spacings.pvSm]}>
+    <View style={[flexbox.directionRow, flexbox.justifyEnd, spacings.pvSm]}>
       {actions.map((action) => {
         const onPress =
           actionsFn[(action.id || action.label.toLowerCase()) as keyof typeof actionsFn]
@@ -70,7 +69,7 @@ const ActionButtons = ({ activeView, onReceive }: Props) => {
         return (
           <Pressable
             key={action.label}
-            style={[styles.actionButton, spacings.mrSm]}
+            style={[styles.actionButton, spacings.mlSm]}
             onPress={onPress}
           >
             <action.Icon width={20} height={20} />

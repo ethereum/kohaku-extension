@@ -10,12 +10,13 @@ import { ThemeProps } from '@common/styles/themeConfig'
 import { BORDER_RADIUS_SECONDARY } from '@common/styles/utils/common'
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
-import useRailgunControllerState from '@web/hooks/useRailgunControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import useRailgunForm from '@web/modules/railgun/hooks/useRailgunForm'
 import { getUiType } from '@web/utils/uiType'
 import ReceiveModal from '@web/components/ReceiveModal'
+import flexbox from '@common/styles/utils/flexbox'
+import spacings from '@common/styles/spacings'
 import PendingActionWindowModal from '../components/PendingActionWindowModal'
 import DAppFooter from '../components/DAppFooter'
 
@@ -24,8 +25,9 @@ import DashboardHeader from './DashboardHeader'
 import FundsCards from './FundsCards'
 import HoldingsSection from './HoldingsSection'
 import PageContentArea from './PageContentArea'
-import SelectedAccountInfo from './SelectedAccountInfo'
 import usePublicBalanceCache from './usePublicBalanceCache'
+import { SelectedPrivateBalance, SelectedPublicBalance } from './SelectedAccountBalance'
+import { SelctedAccountAddress } from './SelctedAccountAddress'
 
 const { isPopup } = getUiType()
 
@@ -78,8 +80,6 @@ const KohakuDashboardScreen = () => {
   const privacyPoolsForm = usePrivacyPoolsForm()
 
   const railgunForm = useRailgunForm()
-  const { defaultRailgunKeys } = useRailgunControllerState()
-
   const handleRetryLoadPrivateAccount = useCallback(() => {
     privacyPoolsForm.refreshPrivateAccount(true).catch((error) => {
       // eslint-disable-next-line no-console
@@ -247,22 +247,42 @@ const KohakuDashboardScreen = () => {
             {(activeView === 'public' || activeView === 'private') && (
               <>
                 <View style={{ height: 1.5, backgroundColor: theme.primaryBackgroundInverted }} />
-                {!isLoadingPublicBalances && (
-                  <SelectedAccountInfo
-                    activeView={activeView}
-                    accountLabel={account?.preferences.label}
-                    accountAddr={account?.addr}
-                    defaultRailgunKeys={defaultRailgunKeys}
-                    selectedInteger={selectedInteger}
-                    selectedDecimal={selectedDecimal}
-                    privateInteger={privateInteger}
-                    privateDecimal={privateDecimal}
-                  />
+
+                <View
+                  style={[
+                    flexbox.directionRow,
+                    flexbox.alignStart,
+                    flexbox.justifySpaceBetween,
+                    spacings.phMd
+                  ]}
+                >
+                  <View>
+                    {activeView === 'private' ? (
+                      <SelectedPrivateBalance
+                        integerValue={privateInteger}
+                        decimalValue={privateDecimal}
+                      />
+                    ) : !isLoadingPublicBalances ? (
+                      <SelectedPublicBalance
+                        label={account?.preferences.label || ''}
+                        integerValue={selectedInteger}
+                        decimalValue={selectedDecimal}
+                      />
+                    ) : null}
+                  </View>
+
+                  <View style={[{ flexDirection: 'column' }, flexbox.alignEnd]}>
+                    {activeView === 'private' ? (
+                      <SelctedAccountAddress address="" activeView="private" />
+                    ) : !isLoadingPublicBalances ? (
+                      <SelctedAccountAddress address={account?.addr || ''} activeView="public" />
+                    ) : null}
+                    <ActionButtons activeView={activeView} onReceive={openReceiveModal} />
+                  </View>
+                </View>
+                {(activeView === 'private' || !isLoadingPublicBalances) && (
+                  <View style={styles.divider} />
                 )}
-
-                <ActionButtons activeView={activeView} onReceive={openReceiveModal} />
-
-                {!isLoadingPublicBalances && <View style={styles.divider} />}
               </>
             )}
 
