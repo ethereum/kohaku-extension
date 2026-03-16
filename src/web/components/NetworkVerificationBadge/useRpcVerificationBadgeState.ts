@@ -36,33 +36,33 @@ export default function useRpcVerificationBadgeState(): VerificationBadgeState {
 
     if (hasVerified && hasUnverified) {
       kind = 'mixed'
-      label = t('Mixed verification')
+      label = t('RPC: Mixed verification')
       tooltip = t(
         'Some active networks use verified RPC providers, while others use unverified RPC providers.'
       )
     } else if (hasVerified) {
       if (verifiedKinds.length === 1 && verifiedKinds[0] === 'helios') {
         kind = 'helios'
-        label = t('Verified by Helios')
+        label = t('RPC: Verified by Helios')
         tooltip = t(
           'RPC requests are routed through Helios light client. Safety note: Some requests may still fall back to an unverified RPC provider.'
         )
       } else if (verifiedKinds.length === 1 && verifiedKinds[0] === 'colibri') {
         kind = 'colibri'
-        label = t('Verified by Colibri')
+        label = t('RPC: Verified by Colibri')
         tooltip = t(
           'RPC requests are routed through Colibri stateless client. Safety note: Some requests may still fall back to an unverified RPC provider.'
         )
       } else {
         kind = 'verified'
-        label = t('Verified RPC')
+        label = t('RPC: Verified')
         tooltip = t(
           'All active networks use verified RPC providers (Helios or Colibri). Safety note: Some requests may still fall back to an unverified RPC provider.'
         )
       }
     } else {
       kind = 'rpc'
-      label = t('Unverified RPC')
+      label = t('RPC: Unverified')
       tooltip = t('All active networks use unverified RPC providers.')
     }
 
