@@ -75,26 +75,17 @@ const KohakuDashboardScreen = () => {
   const scrollTimeout = useRef<NodeJS.Timeout>()
   const cachedPrivateBalanceRef = useRef<number>(0)
 
-  const {
-    loadPrivateAccount,
-    refreshPrivateAccount,
-    isAccountLoaded,
-    isReadyToLoad,
-    isLoading: isPrivateAccountLoading,
-    loadingError,
-    totalPrivatePortfolio
-  } = usePrivacyPoolsForm()
+  const privacyPoolsForm = usePrivacyPoolsForm()
 
-  const { totalPrivatePortfolio: totalPrivatePortfolioRailgun, isLoading: isLoadingRailgun } =
-    useRailgunForm()
+  const railgunForm = useRailgunForm()
   const { defaultRailgunKeys } = useRailgunControllerState()
 
   const handleRetryLoadPrivateAccount = useCallback(() => {
-    refreshPrivateAccount(true).catch((error) => {
+    privacyPoolsForm.refreshPrivateAccount(true).catch((error) => {
       // eslint-disable-next-line no-console
       console.error('Failed to load private account:', error)
     })
-  }, [refreshPrivateAccount])
+  }, [privacyPoolsForm.refreshPrivateAccount])
 
   const { balanceCache, isLoadingPublicBalances, refreshPublicBalances } = usePublicBalanceCache({
     accounts,
@@ -104,20 +95,24 @@ const KohakuDashboardScreen = () => {
   })
 
   const handleRefreshAll = useCallback(() => {
-    refreshPrivateAccount(true).catch((error) => {
+    privacyPoolsForm.refreshPrivateAccount(true).catch((error) => {
       // eslint-disable-next-line no-console
       console.error('Failed to refresh private account:', error)
     })
+    railgunForm.refreshPrivateAccount()
     refreshPublicBalances()
-  }, [refreshPrivateAccount, refreshPublicBalances])
+  }, [privacyPoolsForm.refreshPrivateAccount, refreshPublicBalances])
 
   const totalPublicBalance = useMemo(
     () => Object.values(balanceCache).reduce((sum, bal) => sum + bal, 0),
     [balanceCache]
   )
 
-  const livePrivateBalance = (totalPrivatePortfolio || 0) + (totalPrivatePortfolioRailgun || 0)
-  const isPrivateLoading = isPrivateAccountLoading || (!isAccountLoaded && !loadingError)
+  const livePrivateBalance =
+    (privacyPoolsForm.totalPrivatePortfolio || 0) + (railgunForm.totalPrivatePortfolio || 0)
+  const isPrivateLoading =
+    privacyPoolsForm.isLoading ||
+    (!privacyPoolsForm.isAccountLoaded && !privacyPoolsForm.loadingError)
 
   if (livePrivateBalance > 0) cachedPrivateBalanceRef.current = livePrivateBalance
 
@@ -180,23 +175,28 @@ const KohakuDashboardScreen = () => {
   }, [setSearchParams])
 
   useEffect(() => {
-    if (!isAccountLoaded && isReadyToLoad) {
-      loadPrivateAccount().catch((error) => {
+    if (!privacyPoolsForm.isAccountLoaded && privacyPoolsForm.isReadyToLoad) {
+      privacyPoolsForm.loadPrivateAccount().catch((error) => {
         // eslint-disable-next-line no-console
         console.error('Failed to load private account:', error)
         addToast('Failed to load your privacy account. Please try again.', { type: 'error' })
       })
     }
-  }, [loadPrivateAccount, isAccountLoaded, isReadyToLoad, addToast])
+  }, [
+    privacyPoolsForm.loadPrivateAccount,
+    privacyPoolsForm.isAccountLoaded,
+    privacyPoolsForm.isReadyToLoad,
+    addToast
+  ])
 
   useEffect(() => {
-    if (isLoadingRailgun && isLoadingPublicBalances) return
+    if (railgunForm.isLoading && isLoadingPublicBalances) return
     if (isPopup) autoScroll()
 
     return () => {
       if (scrollTimeout.current) clearTimeout(scrollTimeout.current)
     }
-  }, [isLoadingRailgun, isLoadingPublicBalances])
+  }, [railgunForm.isLoading, isLoadingPublicBalances])
 
   return (
     <>
@@ -220,7 +220,7 @@ const KohakuDashboardScreen = () => {
               displayedDecimal={displayedDecimal}
               isPrivateLoading={isPrivateLoading}
               isLoadingPublicBalances={isLoadingPublicBalances}
-              loadingError={loadingError}
+              loadingError={privacyPoolsForm.loadingError}
               onRefresh={handleRefreshAll}
               onRetry={handleRetryLoadPrivateAccount}
             />
