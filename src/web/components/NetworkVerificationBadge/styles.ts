@@ -8,6 +8,7 @@ interface Style {
   container: ViewStyle
   dot: ViewStyle
   label: TextStyle
+  labelHovered: TextStyle
   verifiedContainer: ViewStyle
   verifiedDot: ViewStyle
   unverifiedContainer: ViewStyle
@@ -40,6 +41,9 @@ const getStyles = (theme: ThemeProps) =>
     dot: baseDot,
     label: {
       color: '#fff'
+    },
+    labelHovered: {
+      textDecorationLine: 'underline'
     },
     verifiedContainer: baseContainer,
     verifiedDot: {
