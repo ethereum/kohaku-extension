@@ -80,7 +80,7 @@ function RagequitScreen() {
         }
       })
     } else {
-      navigate(ROUTES.dashboard)
+      navigate(ROUTES.mainDashboard)
     }
 
     dispatch({
@@ -170,7 +170,7 @@ function RagequitScreen() {
   }, [ragequitableAccounts.length, poolInfo, isLoading])
 
   const onBack = useCallback(() => {
-    navigate(ROUTES.dashboard)
+    navigate(ROUTES.mainDashboard)
   }, [navigate])
 
   const headerTitle = t('Public Exit')

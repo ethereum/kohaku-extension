@@ -87,7 +87,7 @@ const TrackProgress: FC<Props> = ({ handleClose }) => {
         }
       })
     } else {
-      navigate(WEB_ROUTES.dashboard)
+      navigate(WEB_ROUTES.mainDashboard)
     }
   }, [dispatch, navigate])
 

@@ -72,7 +72,7 @@ const TransferScreen = ({ isTopUpScreen }: { isTopUpScreen?: boolean }) => {
     amountInFiat
   } = state
 
-  const { navigate } = useNavigation()
+  const { navigate, dashGoBack } = useNavigation()
   const { t } = useTranslation()
   const { theme } = useTheme()
   const { visibleActionsQueue } = useActionsControllerState()
@@ -148,7 +148,7 @@ const TransferScreen = ({ isTopUpScreen }: { isTopUpScreen?: boolean }) => {
         }
       })
     } else {
-      navigate(WEB_ROUTES.dashboard)
+      navigate(WEB_ROUTES.mainDashboard)
     }
 
     dispatch({
@@ -328,7 +328,7 @@ const TransferScreen = ({ isTopUpScreen }: { isTopUpScreen?: boolean }) => {
     dispatch({
       type: 'TRANSFER_CONTROLLER_RESET_FORM'
     })
-    navigate(ROUTES.dashboard)
+    dashGoBack()
   }, [navigate, dispatch])
 
   const resetTransferForm = useCallback(() => {
@@ -507,14 +507,14 @@ const TransferScreen = ({ isTopUpScreen }: { isTopUpScreen?: boolean }) => {
     dispatch({
       type: 'TRANSFER_CONTROLLER_RESET_FORM'
     })
-    navigate(ROUTES.dashboard)
+    navigate(ROUTES.mainDashboard)
   }, [navigate, dispatch])
 
   const onBatchAddedPrimaryButtonPress = useCallback(() => {
     dispatch({
       type: 'TRANSFER_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
     })
-    navigate(WEB_ROUTES.dashboard)
+    navigate(WEB_ROUTES.mainDashboard)
   }, [dispatch, navigate])
   const onBatchAddedSecondaryButtonPress = useCallback(() => {
     dispatch({
