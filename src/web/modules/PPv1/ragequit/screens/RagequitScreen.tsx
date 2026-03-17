@@ -23,6 +23,7 @@ import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import { getUiType } from '@web/utils/uiType'
 import { View } from 'react-native'
 import flexbox from '@common/styles/utils/flexbox'
+import { usePrivacyPoolsDepositForm } from '@web/hooks/useDepositForm';
 import { Content, Form } from '@web/components/TransactionsScreen'
 import { Wrapper } from '../components/TransactionsScreen'
 
@@ -51,13 +52,14 @@ function RagequitScreen() {
     handleMultipleRagequit,
     closeEstimationModal,
     refreshPrivateAccount
-  } = usePrivacyPoolsForm()
+  } = usePrivacyPoolsDepositForm()
 
   const ragequitableAccounts = useMemo(() => {
     return [
       // ...totalPendingBalance.accounts,
       ...totalDeclinedBalance.accounts
-    ].filter((account) => !account.ragequit)
+    ]
+    // .filter((account) => !account.ragequit)
   }, [
     // totalPendingBalance.accounts,
     totalDeclinedBalance.accounts

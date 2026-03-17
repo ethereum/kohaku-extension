@@ -12,12 +12,12 @@ import { BORDER_RADIUS_SECONDARY } from '@common/styles/utils/common'
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
-import usePrivacyPoolsForm from '@web/modules/PPv1/hooks/usePrivacyPoolsForm'
 import useRailgunForm from '@web/modules/railgun/hooks/useRailgunForm'
 import { getUiType } from '@web/utils/uiType'
 import ReceiveModal from '@web/components/ReceiveModal'
 import flexbox from '@common/styles/utils/flexbox'
 import spacings from '@common/styles/spacings'
+import { usePrivacyPoolsDepositForm } from '@web/hooks/useDepositForm'
 import PendingActionWindowModal from '../components/PendingActionWindowModal'
 import DAppFooter from '../components/DAppFooter'
 
@@ -78,11 +78,11 @@ const KohakuDashboardScreen = () => {
   const scrollTimeout = useRef<NodeJS.Timeout>()
   const cachedPrivateBalanceRef = useRef<number>(0)
 
-  const privacyPoolsForm = usePrivacyPoolsForm()
+  const privacyPoolsForm = usePrivacyPoolsDepositForm()
   const railgunForm = useRailgunForm()
 
   const handleRetryLoadPrivateAccount = useCallback(() => {
-    privacyPoolsForm.refreshPrivateAccount(true)
+    privacyPoolsForm.refreshPrivateAccount()
     railgunForm.refreshPrivateAccount()
   }, [privacyPoolsForm.refreshPrivateAccount, railgunForm.refreshPrivateAccount])
 
@@ -94,7 +94,7 @@ const KohakuDashboardScreen = () => {
   })
 
   const handleRefreshAll = useCallback(() => {
-    privacyPoolsForm.refreshPrivateAccount(true)
+    privacyPoolsForm.refreshPrivateAccount()
     railgunForm.refreshPrivateAccount()
     refreshPublicBalances()
   }, [
