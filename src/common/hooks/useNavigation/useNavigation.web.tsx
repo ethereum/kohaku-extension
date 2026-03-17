@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { Subject } from 'rxjs'
+import { WEB_ROUTES } from '@common/modules/router/constants/common'
 
 import { TitleChangeEventStreamType, UseNavigationReturnType } from './types'
 
@@ -60,13 +61,25 @@ const useNavigation = (): UseNavigationReturnType => {
     return currentRoute.state.prevRoute
   }, [currentRoute])
 
+  const dashGoBack = useCallback(
+    (routes = WEB_ROUTES) => {
+      if (prevRoute) {
+        goBack()
+      } else {
+        navigate(routes.mainDashboard)
+      }
+    },
+    [goBack, navigate, prevRoute]
+  )
+
   return {
     navigate,
     setOptions,
     setSearchParams,
     goBack,
     searchParams,
-    canGoBack: !!prevRoute
+    canGoBack: !!prevRoute,
+    dashGoBack
   }
 }
 

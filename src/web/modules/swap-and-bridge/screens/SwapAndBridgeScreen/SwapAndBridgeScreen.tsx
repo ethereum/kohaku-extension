@@ -36,7 +36,7 @@ const { isTab, isActionWindow } = getUiType()
 
 const SwapAndBridgeScreen = () => {
   const { t } = useTranslation()
-  const { navigate, dashGoBack } = useNavigation()
+  const { navigate } = useNavigation()
   const {
     sessionId,
     fromAmountValue,
