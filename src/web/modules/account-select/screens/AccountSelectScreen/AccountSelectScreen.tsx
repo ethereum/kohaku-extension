@@ -11,6 +11,7 @@ import Button from '@common/components/Button'
 import ScrollableWrapper, { WRAPPER_TYPES } from '@common/components/ScrollableWrapper'
 import Search from '@common/components/Search'
 import Text from '@common/components/Text'
+import Tooltip from '@common/components/Tooltip'
 import useAccountsList from '@common/hooks/useAccountsList'
 import useNavigation from '@common/hooks/useNavigation'
 import useRoute from '@common/hooks/useRoute'
@@ -62,6 +63,8 @@ const AccountSelectScreen = () => {
   const { t } = useTranslation()
   const accountsContainerRef = useRef(null)
   const [pendingToBeSetSelectedAccount, setPendingToBeSetSelectedAccount] = useState('')
+
+  const importPrivateBalanceTooltipId = 'import-private-balance-not-supported'
 
   const shouldTriggerAddAccountSheetFromSearch = useMemo(
     () => extractTriggerAddAccountSheetParam(routeParams),
@@ -131,17 +134,31 @@ const AccountSelectScreen = () => {
           ListEmptyComponent={<Text>{t('No accounts found')}</Text>}
         />
         <View style={[spacings.ptSm, flexbox.directionRow, { width: '100%' }]}>
-          <Button
-            testID="button-add-private-account"
-            text={t('Import private balance')}
-            type="secondary"
-            hasBottomSpacing={false}
-            onPress={() => navigate(ROUTES.pp1Import)}
-            childrenPosition="left"
+          <View
             style={[{ flex: 1 }, spacings.mrSm]}
+            // react-tooltip integrates with RN-web via `dataSet={{ tooltipId }}`.
+            dataSet={{ tooltipId: importPrivateBalanceTooltipId }}
           >
-            <AddIcon color={theme.primary} style={spacings.mrTy} />
-          </Button>
+            <Button
+              testID="button-add-private-account"
+              text={t('Import private balance')}
+              type="secondary"
+              hasBottomSpacing={false}
+              onPress={() => navigate(ROUTES.pp1Import)}
+              disabled
+              childrenPosition="left"
+              style={{ flex: 1 }}
+            >
+              <AddIcon color={theme.primary} style={spacings.mrTy} />
+            </Button>
+          </View>
+          <Tooltip id={importPrivateBalanceTooltipId}>
+            <View>
+              <Text fontSize={14} appearance="secondaryText">
+                {t('Imports not yet supported')}
+              </Text>
+            </View>
+          </Tooltip>
           <Button
             testID="button-add-account"
             text={t('Add account')}
