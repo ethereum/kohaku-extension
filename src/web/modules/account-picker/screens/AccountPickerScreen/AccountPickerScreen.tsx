@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 
@@ -41,6 +41,7 @@ const AccountPickerScreen = () => {
   const { accounts } = useAccountsControllerState()
   const { isReady, onImportReady, setPage } = useAccountPicker()
   const { goToPrevRoute } = useOnboardingNavigation()
+  const [isScanComplete, setIsScanComplete] = useState(false)
 
   const isLoading = useMemo(
     () =>
@@ -57,10 +58,12 @@ const AccountPickerScreen = () => {
 
   const isImportDisabled = useMemo(
     () =>
+      !isScanComplete ||
       isLoading ||
       accountPickerState.accountsLoading ||
       (!accountPickerState.selectedAccounts.length && !accounts.length),
     [
+      isScanComplete,
       isLoading,
       accountPickerState.accountsLoading,
       accountPickerState.selectedAccounts.length,
@@ -134,7 +137,8 @@ const AccountPickerScreen = () => {
             setPage={setPage}
             subType={accountPickerState.subType}
             isLoading={isLoading}
-            lookingForLinkedAccounts={accountPickerState.linkedAccountsLoading}
+            isScanComplete={isScanComplete}
+            onScanComplete={() => setIsScanComplete(true)}
           >
             <Button
               testID="button-import-account"
@@ -143,7 +147,7 @@ const AccountPickerScreen = () => {
               size="large"
               disabled={isImportDisabled}
               text={
-                isLoading
+                isLoading || !isScanComplete
                   ? t('Importing...')
                   : !accountPickerState.selectedAccounts.length
                   ? t('Continue')

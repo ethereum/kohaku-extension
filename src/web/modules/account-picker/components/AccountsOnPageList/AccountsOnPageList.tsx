@@ -1,7 +1,8 @@
 import { uniqBy } from 'lodash'
 import groupBy from 'lodash/groupBy'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { NativeScrollEvent, View } from 'react-native'
+import { createPublicClient, http } from 'viem'
 
 import AccountPickerController from '@ambire-common/controllers/accountPicker/accountPicker'
 import {
@@ -41,7 +42,8 @@ type Props = {
   setPage: (page: number) => void
   subType: AccountPickerController['subType']
   isLoading: boolean
-  lookingForLinkedAccounts: boolean
+  isScanComplete: boolean
+  onScanComplete: () => void
   children?: any
 }
 
@@ -50,7 +52,8 @@ const AccountsOnPageList = ({
   setPage,
   subType,
   isLoading,
-  // lookingForLinkedAccounts,
+  isScanComplete,
+  onScanComplete,
   children
 }: Props) => {
   // const { t } = useTranslation()
@@ -88,6 +91,78 @@ const AccountsOnPageList = ({
   //   [state.accountsOnPage]
   // )
 
+  const [accountUsageMap, setAccountUsageMap] = useState<Record<string, boolean>>({})
+  const [usageCheckComplete, setUsageCheckComplete] = useState(false)
+
+  const scanStateRef = useRef<{
+    phase: 'scanning' | 'at-target' | 'done'
+    lastUsedPage: number | null
+    pageAdvanceInitiated: boolean
+  }>({ phase: 'scanning', lastUsedPage: null, pageAdvanceInitiated: false })
+
+  const finishScan = useCallback(() => {
+    scanStateRef.current.phase = 'done'
+    onScanComplete?.()
+  }, [onScanComplete])
+
+  useEffect(() => {
+    // scan is skipped when sub is priate key
+    if (subType === 'private-key') onScanComplete?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    scanStateRef.current.pageAdvanceInitiated = false
+    setUsageCheckComplete(false)
+
+    if (!networks.length || !state.accountsOnPage.length) return
+
+    let cancelled = false
+
+    const checkUsage = async () => {
+      const results: Record<string, boolean> = {}
+
+      await Promise.all(
+        state.accountsOnPage.map(async (acc) => {
+          const address = acc.account.addr as `0x${string}`
+
+          const isUsed = await networks.reduce(async (prevPromise, network) => {
+            const alreadyUsed = await prevPromise
+            if (alreadyUsed) return true
+            try {
+              const client = createPublicClient({ transport: http(network.selectedRpcUrl) })
+              // console.log({ selectedRpcUrl: network.selectedRpcUrl, address })
+              const [nonce, balance] = await Promise.all([
+                client.getTransactionCount({ address }),
+                client.getBalance({ address })
+              ])
+              return nonce > 0 || balance > 0n
+            } catch {
+              return false
+            }
+          }, Promise.resolve(false))
+
+          console.log({ isUsed, address, acc })
+
+          if (isUsed) results[address] = true
+        })
+      )
+
+      if (!cancelled) {
+        setAccountUsageMap(results)
+        setUsageCheckComplete(true)
+      }
+    }
+
+    checkUsage().catch(() => {
+      if (!cancelled) setUsageCheckComplete(true)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [state.accountsOnPage, networks])
+
   const handleSelectAccount = useCallback(
     (account: AccountInterface) => {
       dispatch({
@@ -107,6 +182,65 @@ const AccountsOnPageList = ({
     },
     [dispatch]
   )
+
+  useEffect(() => {
+    if (!usageCheckComplete || state.accountsLoading || isLoading) return
+    if (subType === 'private-key') return
+
+    const scan = scanStateRef.current
+    if (scan.phase === 'done') return
+
+    const sortedAccounts = [...state.accountsOnPage]
+      .filter((a) => !a.isLinked)
+      .sort((a, b) => a.slot - b.slot)
+
+    if (scan.phase === 'scanning') {
+      if (scan.pageAdvanceInitiated) return
+
+      const hasUsed = sortedAccounts.some((a) => accountUsageMap[a.account.addr])
+
+      if (hasUsed) {
+        sortedAccounts.forEach((acc) => {
+          const alreadySelected = state.selectedAccounts.some(
+            (s) => s.account.addr === acc.account.addr
+          )
+          if (!alreadySelected) handleSelectAccount(acc.account)
+        })
+        scan.lastUsedPage = state.page
+        scan.pageAdvanceInitiated = true
+        setPage(state.page + 1)
+      } else if (scan.lastUsedPage !== null) {
+        scan.phase = 'at-target'
+        scan.pageAdvanceInitiated = true
+        setPage(scan.lastUsedPage)
+      } else {
+        finishScan()
+      }
+    } else if (scan.phase === 'at-target') {
+      // Find the last used account by slot order and select everything up to it
+      const lastUsedIdx = sortedAccounts.reduce(
+        (lastIdx, acc, i) => (accountUsageMap[acc.account.addr] ? i : lastIdx),
+        -1
+      )
+
+      if (lastUsedIdx === -1) {
+        finishScan()
+        return
+      }
+
+      sortedAccounts.forEach((acc, i) => {
+        const isSelected = state.selectedAccounts.some((s) => s.account.addr === acc.account.addr)
+        if (i <= lastUsedIdx && !isSelected) {
+          handleSelectAccount(acc.account)
+        } else if (i > lastUsedIdx && isSelected) {
+          handleDeselectAccount(acc.account)
+        }
+      })
+
+      finishScan()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usageCheckComplete, state.accountsLoading, isLoading])
 
   const getType = useCallback((acc: any) => {
     if (!acc.account.creation) return 'basic'
@@ -132,7 +266,7 @@ const AccountsOnPageList = ({
 
       return filteredAccounts.map((acc, i: number) => {
         const hasBottomSpacing = !(isLastSlot && i === filteredAccounts.length - 1)
-        const isUnused = !acc.account.usedOnNetworks.length
+        const isUnused = !accountUsageMap[acc.account.addr]
         const isSelected = state.selectedAccounts.some(
           (selectedAcc) => selectedAcc.account.addr === acc.account.addr
         )
@@ -163,7 +297,7 @@ const AccountsOnPageList = ({
         )
       })
     },
-    [getType, state.selectedAccounts, handleSelectAccount, handleDeselectAccount]
+    [getType, state.selectedAccounts, handleSelectAccount, handleDeselectAccount, accountUsageMap]
   )
 
   const networkNamesWithAccountStateError = useMemo(() => {
@@ -248,7 +382,7 @@ const AccountsOnPageList = ({
               setPage={setPage}
             />
           )}
-          {state.accountsLoading || !!isLoading ? (
+          {state.accountsLoading || !!isLoading || !isScanComplete ? (
             <View style={[flexbox.flex1, flexbox.center, spacings.mt2Xl]}>
               <Spinner style={styles.spinner} />
             </View>
@@ -357,7 +491,7 @@ const AccountsOnPageList = ({
             page={state.page}
             maxPages={1000}
             setPage={setPage}
-            isDisabled={state.isPageLocked}
+            isDisabled={state.isPageLocked || !isScanComplete}
             hideLastPage
           />
         )}
