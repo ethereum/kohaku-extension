@@ -3,6 +3,7 @@ import { useCallback, useMemo, useRef } from 'react'
 import { navigationRef } from '@common/services/navigation'
 import { useNavigation as useReactNavigation } from '@react-navigation/native'
 
+import { ROUTES } from '@common/modules/router/constants/common'
 import { TitleChangeEventStreamType, UseNavigationReturnType } from './types'
 
 export const titleChangeEventStream: TitleChangeEventStreamType = null
@@ -34,10 +35,23 @@ const useNavigation = (): UseNavigationReturnType => {
 
   const canGoBack = useMemo(() => nav.canGoBack(), [nav])
 
+  // Created this to avoid overriding the current goBack
+  const dashGoBack = useCallback(
+    (routes = ROUTES) => {
+      if (canGoBack) {
+        nav.goBack()
+      } else {
+        navigate(routes.mainDashboard)
+      }
+    },
+    [canGoBack, nav, navigate]
+  )
+
   return {
     ...nav,
     navigate,
-    canGoBack
+    canGoBack,
+    dashGoBack
   }
 }
 

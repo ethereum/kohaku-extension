@@ -10,9 +10,11 @@ import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountCont
 import { zeroAddress } from 'viem'
 
 const useAccountsList = ({
-  flatlistRef
+  flatlistRef,
+  privateFirst = false
 }: {
   flatlistRef?: React.RefObject<FlatList<AccountType>> | null
+  privateFirst?: boolean
 } = {}) => {
   const { control, watch } = useForm({
     mode: 'all',
@@ -119,7 +121,9 @@ const useAccountsList = ({
     usedOnNetworks: []
   }
 
-  const allAccounts = [...filteredAccounts, privateAccount]
+  const allAccounts = privateFirst
+    ? [privateAccount, ...filteredAccounts]
+    : [...filteredAccounts, privateAccount]
 
   useEffect(() => {
     scrollToSelectedAccount()

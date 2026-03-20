@@ -78,7 +78,7 @@ const KeystoreResetForm: FC<Props> = ({
         )}
         name="confirmPassword"
       />
-      <PasswordSetModal modalRef={modalRef} onPress={() => navigate(ROUTES.dashboard)} />
+      <PasswordSetModal modalRef={modalRef} onPress={() => navigate(ROUTES.mainDashboard)} />
     </>
   )
 }
