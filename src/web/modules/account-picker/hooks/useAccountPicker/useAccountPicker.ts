@@ -8,19 +8,11 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 
 const useAccountPicker = () => {
   const { goToNextRoute, goToPrevRoute } = useOnboardingNavigation()
-  const {
-    pageSize,
-    subType,
-    isInitialized,
-    initParams,
-    selectedAccountsFromCurrentSession,
-    addAccountsStatus
-  } = useAccountPickerControllerState()
+  const { pageSize, subType, isInitialized, initParams } = useAccountPickerControllerState()
   const prevIsInitialized = usePrevious(isInitialized)
   const shouldResetAccountsSelectionOnUnmount = useRef(true)
   const { dispatch } = useBackgroundService()
   const [isReady, setIsReady] = useState(false)
-  const [onImportPressed, setOnImportPressed] = useState(false)
 
   const ACCOUNT_PICKER_PAGE_SIZE = useMemo(() => {
     return subType === 'private-key' ? 1 : 5
@@ -64,21 +56,11 @@ const useAccountPicker = () => {
     }
   }, [pageSize, isReady, ACCOUNT_PICKER_PAGE_SIZE])
 
-  // it will enter here only if onImportReady is called with selectedAccountsFromCurrentSession.length = 0
-  useEffect(() => {
-    if (onImportPressed && addAccountsStatus === 'SUCCESS') {
-      goToNextRoute(WEB_ROUTES.accountPersonalize)
-    }
-  }, [addAccountsStatus, goToNextRoute, onImportPressed])
-
   const onImportReady = useCallback(() => {
     shouldResetAccountsSelectionOnUnmount.current = false
-    setOnImportPressed(true)
     dispatch({ type: 'MAIN_CONTROLLER_ACCOUNT_PICKER_ADD_ACCOUNTS' })
-    if (selectedAccountsFromCurrentSession.length) {
-      goToNextRoute(WEB_ROUTES.accountPersonalize)
-    }
-  }, [goToNextRoute, dispatch, selectedAccountsFromCurrentSession])
+    goToNextRoute(WEB_ROUTES.accountPersonalize)
+  }, [goToNextRoute, dispatch])
 
   useEffect(() => {
     return () => {

@@ -129,15 +129,22 @@ const OnboardingNavigationProvider = ({ children }: { children: React.ReactNode 
           ]
         : [
             new RouteNode(
-              WEB_ROUTES.accountPersonalize,
+              WEB_ROUTES.accountPicker,
               [
                 new RouteNode(
-                  WEB_ROUTES.onboardingCompleted,
-                  [new RouteNode('/')],
-                  isSetupComplete || !accounts?.length
+                  WEB_ROUTES.accountPersonalize,
+                  [
+                    new RouteNode(
+                      WEB_ROUTES.onboardingCompleted,
+                      [new RouteNode('/')],
+                      isSetupComplete || !accounts?.length
+                    ),
+                    new RouteNode('/')
+                  ],
+                  false,
+                  false
                 ),
-                new RouteNode('/'),
-                new RouteNode(WEB_ROUTES.accountPicker, [new RouteNode('/')], false, false)
+                new RouteNode('/')
               ],
               false,
               false
@@ -344,7 +351,8 @@ const OnboardingNavigationProvider = ({ children }: { children: React.ReactNode 
 
     const shouldResetAccountPicker = ![
       WEB_ROUTES.accountPersonalize,
-      WEB_ROUTES.accountPicker
+      WEB_ROUTES.accountPicker,
+      WEB_ROUTES.keyStoreSetup
     ].some((r) => currentRoute.includes(r))
 
     if (shouldResetAccountPicker) {
