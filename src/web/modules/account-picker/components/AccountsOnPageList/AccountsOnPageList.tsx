@@ -1,4 +1,4 @@
-import { uniqBy } from 'lodash'
+// import { uniqBy } from 'lodash'
 import groupBy from 'lodash/groupBy'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { NativeScrollEvent, View } from 'react-native'
@@ -7,8 +7,8 @@ import { createPublicClient, http } from 'viem'
 import AccountPickerController from '@ambire-common/controllers/accountPicker/accountPicker'
 import {
   Account as AccountInterface,
-  AccountOnPage,
-  ImportStatus
+  AccountOnPage
+  // ImportStatus
 } from '@ambire-common/interfaces/account'
 // import WarningFilledIcon from '@common/assets/svg/WarningFilledIcon'
 import Alert from '@common/components/Alert'
@@ -18,7 +18,7 @@ import ScrollableWrapper from '@common/components/ScrollableWrapper'
 import Spinner from '@common/components/Spinner'
 // import Text from '@common/components/Text'
 // import Tooltip from '@common/components/Tooltip'
-import { useTranslation } from '@common/config/localization'
+// import { useTranslation } from '@common/config/localization'
 import useTheme from '@common/hooks/useTheme'
 import spacings from '@common/styles/spacings'
 // import { THEME_TYPES } from '@common/styles/themeConfig'
@@ -70,18 +70,9 @@ const AccountsOnPageList = ({
   } = useTheme(getStyles)
 
   const slots = useMemo(() => {
+    // Only basic accounts.
     return groupBy(
-      [
-        ...state.accountsOnPage.filter((a) => !a.isLinked),
-        // A linked account with the same address could have multiple Basic accounts
-        // added as keys. Therefore, it could appear multiple times in the list.
-        // In this case, show it only one time. When it gets selected, all keys
-        // will get selected (and later on, imported) below the hood.
-        ...uniqBy(
-          state.accountsOnPage.filter((a) => a.isLinked),
-          (a) => a.account.addr
-        )
-      ],
+      state.accountsOnPage.filter((a) => !a.isLinked && !a.account.creation),
       'slot'
     )
   }, [state.accountsOnPage])
@@ -191,7 +182,7 @@ const AccountsOnPageList = ({
     if (scan.phase === 'done') return
 
     const sortedAccounts = [...state.accountsOnPage]
-      .filter((a) => !a.isLinked)
+      .filter((a) => !a.isLinked && !a.account.creation)
       .sort((a, b) => a.slot - b.slot)
 
     if (scan.phase === 'scanning') {
@@ -242,30 +233,19 @@ const AccountsOnPageList = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usageCheckComplete, state.accountsLoading, isLoading])
 
-  const getType = useCallback((acc: any) => {
-    if (!acc.account.creation) return 'basic'
-    if (acc.isLinked) return 'linked'
-
-    return 'smart'
-  }, [])
-
   const isImportingFromPrivateKey = subType === 'private-key'
 
   const getAccounts = useCallback(
     ({
       accounts,
-      isLastSlot = false,
-      byType = ['basic', 'smart']
+      isLastSlot = false
     }: {
       accounts: AccountOnPage[]
       isLastSlot?: boolean
       slotIndex?: number
-      byType?: ('basic' | 'linked' | 'smart')[]
     }) => {
-      const filteredAccounts = accounts.filter((a) => byType.includes(getType(a)))
-
-      return filteredAccounts.map((acc, i: number) => {
-        const hasBottomSpacing = !(isLastSlot && i === filteredAccounts.length - 1)
+      return accounts.map((acc, i: number) => {
+        const hasBottomSpacing = !(isLastSlot && i === accounts.length - 1)
         const isUnused = !accountUsageMap[acc.account.addr]
         const isSelected = state.selectedAccounts.some(
           (selectedAcc) => selectedAcc.account.addr === acc.account.addr
@@ -275,7 +255,7 @@ const AccountsOnPageList = ({
           <Account
             key={acc.account.addr}
             account={acc.account}
-            type={getType(acc)}
+            type="basic"
             withBottomSpacing={hasBottomSpacing}
             unused={isUnused}
             isSelected={isSelected}
@@ -283,21 +263,13 @@ const AccountsOnPageList = ({
             onSelect={handleSelectAccount}
             onDeselect={handleDeselectAccount}
             displayTypeBadge={false}
-            displayTypePill={getType(acc) === 'linked'}
-            // Only show "new" badge for the last unused smart account.
-            // Otherwise, multiple smart accounts could be displayed as "new",
-            // because they could have identity on the Relayer, but still be unused.
-            shouldBeDisplayedAsNew={
-              isLastSlot &&
-              getType(acc) === 'smart' &&
-              isUnused &&
-              acc.importStatus === ImportStatus.NotImported
-            }
+            displayTypePill={false}
+            shouldBeDisplayedAsNew={false}
           />
         )
       })
     },
-    [getType, state.selectedAccounts, handleSelectAccount, handleDeselectAccount, accountUsageMap]
+    [state.selectedAccounts, handleSelectAccount, handleDeselectAccount, accountUsageMap]
   )
 
   const networkNamesWithAccountStateError = useMemo(() => {
@@ -395,8 +367,7 @@ const AccountsOnPageList = ({
                       {getAccounts({
                         accounts: slots[key],
                         isLastSlot: i === Object.keys(slots).length - 1,
-                        slotIndex: 1,
-                        byType: ['basic']
+                        slotIndex: 1
                       })}
                     </View>
                   )
