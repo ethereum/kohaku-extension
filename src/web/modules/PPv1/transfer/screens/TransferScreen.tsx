@@ -623,7 +623,24 @@ const TransferScreen = () => {
     railgunAddressState.fieldValue
   ])
 
-  const headerTitle = t('Private Transfer')
+  // Dynamic title: "Private Send" when recipient is a 0zk Railgun address, "Withdrawal" otherwise
+  const headerTitle = useMemo(() => {
+    const currentAddress =
+      activeProtocol === 'railgun'
+        ? railgunAddressStateFieldValue || railgunAddressState.fieldValue
+        : addressStateFieldValue || addressState.fieldValue
+    if (currentAddress && currentAddress.toLowerCase().startsWith('0zk')) {
+      return t('Private Send')
+    }
+    return t('Withdrawal')
+  }, [
+    activeProtocol,
+    railgunAddressStateFieldValue,
+    railgunAddressState.fieldValue,
+    addressStateFieldValue,
+    addressState.fieldValue,
+    t
+  ])
 
   // Determine which latestBroadcastedToken to use based on active protocol
   const currentLatestBroadcastedToken = useMemo(() => {
