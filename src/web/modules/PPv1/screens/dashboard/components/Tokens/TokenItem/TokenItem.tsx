@@ -36,16 +36,10 @@ const TokenItem = ({ token }: { token: PrivateToken }) => {
   } = token
 
   const { navigate } = useNavigation()
-  const navigateToTokenDetails = useCallback(() => {
-    navigate(WEB_ROUTES.pp1TokenDetails)
-  }, [navigate])
-
   const navigateToTransfer = useCallback(() => {
-    navigate(WEB_ROUTES.pp1Transfer, { state: { token, defaultTab: 'withdraw' } })
-  }, [navigate, token])
-
-  // Check if this is a Railgun token (symbol contains "(Railgun)")
-  const isRailgunToken = symbol.includes('(Railgun)')
+    const protocol = symbol.includes('(Railgun)') ? 'railgun' : 'privacy-pools'
+    navigate(`${WEB_ROUTES.pp1Transfer}?protocol=${protocol}`)
+  }, [navigate, symbol])
 
   const [bindAnim, animStyle] = useCustomHover({
     property: 'backgroundColor',
@@ -69,7 +63,7 @@ const TokenItem = ({ token }: { token: PrivateToken }) => {
     <AnimatedPressable
       style={[styles.container, animStyle]}
       {...bindAnim}
-      onPress={isRailgunToken ? navigateToTransfer : navigateToTokenDetails}
+      onPress={navigateToTransfer}
     >
       <View style={flexboxStyles.flex1}>
         <View style={[flexboxStyles.directionRow, flexboxStyles.flex1]}>

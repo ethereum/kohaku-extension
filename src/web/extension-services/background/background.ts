@@ -948,11 +948,7 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
             if (ctrlName === 'providers') {
               initFrequentLatestAccountStateContinuousUpdateIfNeeded()
             }
-            if (ctrlName === 'swapAndBridge') {
-              initActiveRoutesContinuousUpdate(controller?.activeRoutesInProgress)
-              initSwapAndBridgeQuoteContinuousUpdate()
-              backgroundState.swapAndBridgeQuoteStatus = controller.updateQuoteStatus
-            }
+            // Swap & Bridge polling disabled for this build
             if (ctrlName === 'selectedAccount') {
               if (controller?.account?.addr) {
                 setBackgroundExtraContext('account', controller.account.addr)

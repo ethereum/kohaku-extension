@@ -122,31 +122,7 @@ const TokenDetails = ({
         strokeWidth: 1.5,
         testID: 'token-send'
       },
-      {
-        id: 'swap-or-bridge',
-        text: t('Swap or Bridge'),
-        icon: SwapAndBridgeIcon,
-        iconWidth: 86,
-        onPress: ({ chainId, address }: TokenResult) =>
-          navigate(WEB_ROUTES.swapAndBridge, {
-            state: {
-              preselectedFromToken: {
-                address,
-                chainId
-              }
-            }
-          }),
-        isDisabled: shouldDisableSwapAndBridge,
-        tooltipText: isNetworkNotSupportedForSwapAndBridge
-          ? t(
-              'Unavailable. {{network}} network is not supported by our Swap & Bridge service provider.',
-              { network: network?.name || t('This') }
-            )
-          : isGasTankOrRewardsToken
-          ? unavailableBecauseGasTankOrRewardsTokenTooltipText
-          : undefined,
-        strokeWidth: 1.5
-      },
+      // Swap & Bridge disabled for this build
       // TODO: Temporarily hidden as of v4.49.0, because displaying it disabled
       // causes confusion. It's planned to be displayed again when the feature is implemented.
       // {

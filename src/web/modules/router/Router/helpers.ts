@@ -52,7 +52,7 @@ const getInitialRoute = ({
 
     if (actionType === 'signMessage') return ROUTES.signMessage
 
-    if (actionType === 'swapAndBridge') return ROUTES.swapAndBridge
+    // Swap & Bridge disabled for this build
 
     // TODO: This navigation occurs when signing with Trezor.
     // Currently, Gas Top-Ups are not supported by Trezor.
@@ -76,13 +76,6 @@ const getInitialRoute = ({
   } else if (!isActionWindow) {
     // TODO: Always redirects to Dashboard, which for initial extension load is okay, but
     // for other scenarios, ideally, it should be the last route before the keystore got locked.
-    const hasSwapAndBridgePersistentSession = swapAndBridgeState.sessionIds.some(
-      (id) => id === 'popup' || id === 'action-window'
-    )
-
-    if (hasSwapAndBridgePersistentSession) {
-      return ROUTES.swapAndBridge
-    }
     if (transferState?.hasPersistedState) {
       if (transferState.isTopUp) {
         return ROUTES.topUpGasTank

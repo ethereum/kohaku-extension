@@ -53,7 +53,7 @@ export default function useBanners(): [BannerInterface[], BannerInterface[]] {
       ...requestBanners,
       ...actionBanners,
       ...(isOffline && portfolio.isAllReady ? [OFFLINE_BANNER] : []),
-      ...(isOffline ? [] : [...swapAndBridgeBanners]),
+      // Swap & Bridge banners disabled for this build
       ...activityBanners,
       ...getCurrentAccountBanners(emailVaultBanners, account?.addr),
       ...selectedAccountBanners,

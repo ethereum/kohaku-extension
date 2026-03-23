@@ -1,7 +1,8 @@
 import React, { ReactNode, useCallback, useEffect, useMemo } from 'react'
-import { View } from 'react-native'
+import { Linking, View } from 'react-native'
 import { formatUnits, parseUnits, zeroAddress } from 'viem'
 
+import Alert from '@common/components/Alert'
 import TokenIcon from '@common/components/TokenIcon'
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
 import SkeletonLoader from '@common/components/SkeletonLoader'
@@ -406,6 +407,28 @@ const RailgunTransferForm = ({
           </Text>
         </View>
       </View>
+
+      <Alert type="warning" title={t('Privacy notice')} size="sm" style={spacings.mbSm}>
+        <Alert.Text size="sm" type="warning">
+          {t(
+            'This is a testnet demo; Private Proofs of Innocence (PPOI) are not enforced here. On mainnet, PPOI imposes a 1-hour standby period after shielding during which you can only unshield back to the original address. This gives list providers time to flag illicit sources before funds can move privately.'
+          )}
+          {'\n\n'}
+          {t(
+            'Beyond PPOI, good privacy hygiene matters: avoid unshielding the exact amount you shielded, and consider splitting or rounding amounts to reduce timing and value correlation between your shield and unshield transactions.'
+          )}{' '}
+          <Text
+            fontSize={12}
+            weight="semiBold"
+            appearance="warningText"
+            onPress={() =>
+              Linking.openURL('https://docs.railgun.org/wiki/assurance/private-proofs-of-innocence')
+            }
+          >
+            {t('Learn more')}
+          </Text>
+        </Alert.Text>
+      </Alert>
 
       <View>
         <Recipient

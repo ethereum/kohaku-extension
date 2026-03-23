@@ -43,7 +43,10 @@ const publicActions = [
   { label: 'RECEIVE', Icon: ReceiveIcon }
 ]
 
-const privateActions = [{ label: 'PRIVATE SEND', Icon: SendIcon, id: 'send' }]
+const privateActions = [
+  { label: 'SHIELD', Icon: KohakuLogo },
+  { label: 'PRIVATE SEND', Icon: SendIcon, id: 'send' }
+]
 
 const ActionButtons = ({ activeView, onReceive }: Props) => {
   const { styles } = useTheme(getStyles)
