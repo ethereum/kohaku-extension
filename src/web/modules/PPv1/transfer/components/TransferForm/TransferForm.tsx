@@ -1,7 +1,8 @@
 import React, { ReactNode, useCallback, useEffect, useMemo } from 'react'
-import { View } from 'react-native'
+import { Linking, View } from 'react-native'
 import { formatUnits, toHex, zeroAddress } from 'viem'
 
+import Alert from '@common/components/Alert'
 import TokenIcon from '@common/components/TokenIcon'
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
 import SkeletonLoader from '@common/components/SkeletonLoader'
@@ -240,6 +241,22 @@ const TransferForm = ({
           </Text>
         </View>
       </View>
+
+      <Alert type="warning" title={t('Privacy notice')} size="sm" style={spacings.mbSm}>
+        <Alert.Text size="sm" type="warning">
+          {t(
+            'On mainnet, the ASP must approve your deposit before you can withdraw privately, until then, you can only ragequit back to your original address, which is public. Avoid withdrawing the exact amount you deposited; rounding or splitting helps prevent linking your deposit to your withdrawal.'
+          )}{' '}
+          <Text
+            fontSize={12}
+            weight="semiBold"
+            appearance="warningText"
+            onPress={() => Linking.openURL('https://docs.privacypools.com/protocol/withdrawal')}
+          >
+            {t('Learn more')}
+          </Text>
+        </Alert.Text>
+      </Alert>
 
       <View>
         <Recipient
