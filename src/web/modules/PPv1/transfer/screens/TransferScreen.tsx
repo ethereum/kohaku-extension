@@ -56,7 +56,7 @@ const TERMINAL_STATUSES = [
 
 const TransferScreen = () => {
   const { t } = useTranslation()
-  const { navigate, searchParams } = useNavigation()
+  const { navigate, searchParams, dashGoBack } = useNavigation()
   const addressFromParams = searchParams.get('address') ?? ''
   const protocolFromParams = searchParams.get('protocol') ?? ''
   const tokenFromParams = searchParams.get('token') ?? ''
@@ -295,7 +295,7 @@ const TransferScreen = () => {
         }
       })
     } else {
-      navigate(ROUTES.pp1Home)
+      navigate(ROUTES.mainDashboard)
     }
   }, [dispatch, navigate, activeProtocol])
 
@@ -623,10 +623,6 @@ const TransferScreen = () => {
     railgunAddressState.fieldValue
   ])
 
-  const onBack = useCallback(() => {
-    navigate(ROUTES.pp1Home)
-  }, [navigate, dispatch, activeProtocol])
-
   const headerTitle = t('Private Transfer')
 
   // Determine which latestBroadcastedToken to use based on active protocol
@@ -945,7 +941,7 @@ const TransferScreen = () => {
     if (activeProtocol === 'railgun') {
       return (
         <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
-          <BackButton onPress={onBack} />
+          <BackButton onPress={dashGoBack} />
           <Buttons
             handleSubmitForm={handleRailgunWithdrawal}
             proceedBtnText={t('Send')}
@@ -960,7 +956,7 @@ const TransferScreen = () => {
 
     return (
       <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
-        <BackButton onPress={onBack} />
+        <BackButton onPress={dashGoBack} />
         <Buttons
           handleSubmitForm={handleWithdrawal}
           proceedBtnText={isRefreshing ? t('Updating...') : t('Send')}
@@ -972,7 +968,7 @@ const TransferScreen = () => {
       </View>
     )
   }, [
-    onBack,
+    dashGoBack,
     isTransferFormValid,
     isRailgunTransferFormValid,
     t,

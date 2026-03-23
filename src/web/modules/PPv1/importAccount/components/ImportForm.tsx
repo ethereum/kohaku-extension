@@ -7,8 +7,8 @@ import spacings from '@common/styles/spacings'
 import TextArea from '@common/components/TextArea'
 import Input from '@common/components/Input'
 import PrivacyProtocolSelector from '@web/components/PrivacyProtocols'
+import { usePrivacyPoolsDepositForm } from '@web/hooks/useDepositForm'
 import { SelectValue } from '@common/components/Select/types'
-import usePrivacyPoolsForm from '../../hooks/usePrivacyPoolsForm'
 import { validateSeedPhrase } from '../../utils/validation'
 
 type Props = {
@@ -31,16 +31,14 @@ const ImportForm: FC<Props> = ({
   onAccountNameChange
 }) => {
   const { t } = useTranslation()
-  const { seedPhrase, handleUpdateForm } = usePrivacyPoolsForm()
+  const { seedPhrase, handleUpdateForm } = usePrivacyPoolsDepositForm()
 
   const seedPhraseValidation = useMemo(() => validateSeedPhrase(seedPhrase), [seedPhrase])
 
-  const onInputChange = useCallback(
-    (value: string) => {
-      handleUpdateForm({ seedPhrase: value })
-    },
-    [handleUpdateForm]
-  )
+  // TODO: mnemonics are currently not supported
+  const onInputChange = useCallback(() => {
+    // handleUpdateForm({ seedPhrase: value })
+  }, [handleUpdateForm])
 
   const isButtonDisabled =
     !seedPhrase ||

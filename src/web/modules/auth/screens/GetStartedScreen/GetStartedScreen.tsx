@@ -48,7 +48,7 @@ const GetStartedScreen = () => {
 
   useEffect(() => {
     if (authStatus === AUTH_STATUS.AUTHENTICATED) {
-      navigate(ROUTES.dashboard)
+      navigate(ROUTES.mainDashboard)
       return
     }
 

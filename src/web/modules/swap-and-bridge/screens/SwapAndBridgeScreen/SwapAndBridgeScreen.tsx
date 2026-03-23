@@ -114,7 +114,7 @@ const SwapAndBridgeScreen = () => {
   }, [formStatus, isLoading])
 
   const onBatchAddedPrimaryButtonPress = useCallback(() => {
-    navigate(WEB_ROUTES.dashboard)
+    navigate(WEB_ROUTES.mainDashboard)
   }, [navigate])
   const onBatchAddedSecondaryButtonPress = useCallback(() => {
     setShowAddedToBatch(false)
@@ -133,7 +133,7 @@ const SwapAndBridgeScreen = () => {
         }
       })
     } else {
-      navigate(ROUTES.dashboard)
+      navigate(ROUTES.mainDashboard)
     }
   }, [dispatch, navigate, sessionId])
 

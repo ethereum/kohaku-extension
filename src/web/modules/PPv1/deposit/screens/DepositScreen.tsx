@@ -34,7 +34,7 @@ const { isActionWindow } = getUiType()
 function TransferScreen() {
   const hasRefreshedAccountRef = useRef(false)
   const { dispatch } = useBackgroundService()
-  const { navigate } = useNavigation()
+  const { navigate, dashGoBack } = useNavigation()
   const location = useLocation()
   const { t } = useTranslation()
   const { addToast } = useToast()
@@ -117,7 +117,7 @@ function TransferScreen() {
         }
       })
     } else {
-      navigate(ROUTES.dashboard)
+      dashGoBack()
     }
 
     dispatch({
@@ -308,7 +308,7 @@ function TransferScreen() {
   ])
 
   const onBack = useCallback(() => {
-    navigate(ROUTES.dashboard)
+    dashGoBack()
   }, [navigate, dispatch])
 
   const headerTitle = t('Shield Funds')

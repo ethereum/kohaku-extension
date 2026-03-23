@@ -151,7 +151,7 @@ const useSwapAndBridgeForm = () => {
             type: 'swapAndBridge'
           }
         })
-        navigate(ROUTES.dashboard)
+        navigate(ROUTES.mainDashboard)
 
         return
       }

@@ -304,7 +304,7 @@ export const usePrivacyPoolsDepositForm = () => {
     message,
     poolInfo: null,
     chainData: null,
-    seedPhrase: null,
+    seedPhrase: '',
     poolAccounts: [],
     hasProceeded,
     depositAmount,
