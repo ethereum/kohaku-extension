@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react'
 import { Animated, Pressable, ScrollView, StyleSheet, View, ViewStyle } from 'react-native'
 
 import formatDecimals from '@ambire-common/utils/formatDecimals/formatDecimals'
-import LockIcon from '@common/assets/svg/LockIcon/LockIcon'
+import VendettaMaskIcon from '@common/assets/svg/VendettaMaskIcon/VendettaMaskIcon'
 import Text from '@common/components/Text/Text'
 import useTheme from '@common/hooks/useTheme'
 import spacings, { SPACING, SPACING_SM, SPACING_TY } from '@common/styles/spacings'
@@ -204,7 +204,7 @@ const FundsCards = ({
             }}
             pointerEvents="none"
           >
-            <LockIcon width={120} height={170} color={theme.featureDecorative} />
+            <VendettaMaskIcon width={120} height={170} color={theme.featureDecorative} />
           </View>
           <View style={styles.fundsLabel}>
             <Text
