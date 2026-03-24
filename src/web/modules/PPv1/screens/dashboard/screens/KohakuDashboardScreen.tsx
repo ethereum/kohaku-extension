@@ -111,9 +111,7 @@ const KohakuDashboardScreen = () => {
   const livePrivateBalance =
     (privacyPoolsForm.totalPrivatePortfolio || 0) + (railgunForm.totalPrivatePortfolio || 0)
   const isPrivateLoading =
-    privacyPoolsForm.isLoading ||
-    (!privacyPoolsForm.isAccountLoaded && !privacyPoolsForm.loadingError) ||
-    railgunForm.isLoading
+    privacyPoolsForm.isLoading || privacyPoolsForm.syncState === 'syncing' || railgunForm.isLoading
 
   if (livePrivateBalance > 0) cachedPrivateBalanceRef.current = livePrivateBalance
 
@@ -176,24 +174,20 @@ const KohakuDashboardScreen = () => {
   }, [setSearchParams])
 
   useEffect(() => {
-    if (!privacyPoolsForm.isAccountLoaded && privacyPoolsForm.isReadyToLoad) {
-      privacyPoolsForm.loadPrivateAccount().catch((error) => {
+    if (privacyPoolsForm.syncState === 'unsynced' && privacyPoolsForm.isReady) {
+      privacyPoolsForm.loadPrivateAccount('dashboard -> useEffect').catch((error) => {
         // eslint-disable-next-line no-console
         console.error('Failed to load private account:', error)
         addToast('Failed to load your privacy account. Please try again.', { type: 'error' })
       })
     }
+  }, [privacyPoolsForm.syncState, privacyPoolsForm.syncState])
+
+  useEffect(() => {
     if (!railgunForm.isAccountLoaded && !railgunForm.isLoading) {
       railgunForm.loadPrivateAccount()
     }
-  }, [
-    privacyPoolsForm.loadPrivateAccount,
-    privacyPoolsForm.isAccountLoaded,
-    privacyPoolsForm.isReadyToLoad,
-    railgunForm.isAccountLoaded,
-    railgunForm.isLoading,
-    addToast
-  ])
+  }, [railgunForm.isAccountLoaded, railgunForm.isLoading])
 
   useEffect(() => {
     if (railgunForm.isLoading && isLoadingPublicBalances) return

@@ -257,6 +257,13 @@ type MainControllerUpdateSelectedAccountPortfolio = {
   }
 }
 
+type PortfolioControllerLoadAccountsTotalBalances = {
+  type: 'PORTFOLIO_LOAD_ACCOUNTS_TOTAL_BALANCES'
+  params: {
+    accountAddrs: string[]
+  }
+}
+
 type RequestsControllerAddUserRequestAction = {
   type: 'REQUESTS_CONTROLLER_ADD_USER_REQUEST'
   params: {
@@ -1196,4 +1203,5 @@ export type Action =
   | PrivacyPoolsV1ControllerSignAccountOpUpdateStatusAction
   | PrivacyPoolsV1ControllerHasUserProceededAction
   | PrivacyPoolsV1ControllerDestroyLatestBroadcastedAccountOpAction
+  | PortfolioControllerLoadAccountsTotalBalances
   | ProviderRpcRequestAction

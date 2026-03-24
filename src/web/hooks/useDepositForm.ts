@@ -47,7 +47,8 @@ export const usePrivacyPoolsDepositForm = () => {
     pendingUnshieldOperation,
     hasProceeded,
     latestBroadcastedAccountOp,
-    signAccountOpController
+    signAccountOpController,
+    syncState
   } = usePrivacyPools()
 
   const { portfolio } = useSelectedAccountControllerState()
@@ -310,6 +311,7 @@ export const usePrivacyPoolsDepositForm = () => {
     depositAmount,
     selectedToken,
     accountService: null,
+    syncState,
     withdrawalAmount,
     privacyProvider: 'privacy-pools' as const,
     showAddedToBatch: false,

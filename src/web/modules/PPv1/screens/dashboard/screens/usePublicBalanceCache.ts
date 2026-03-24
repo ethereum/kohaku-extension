@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import useBackgroundService from '@web/hooks/useBackgroundService'
+import eventBus from '@web/extension-services/event/eventBus'
 
 const usePublicBalanceCache = ({
   accounts,
@@ -15,11 +16,10 @@ const usePublicBalanceCache = ({
 }) => {
   const { dispatch } = useBackgroundService()
   const [balanceCache, setBalanceCache] = useState<{ [addr: string]: number }>({})
-  const loadQueueRef = useRef<string[]>([])
-  const originalAccountRef = useRef<string | null>(null)
   const [isLoadingPublicBalances, setIsLoadingPublicBalances] = useState(true)
+  const hasRequestedRef = useRef(false)
 
-  // Update cache whenever the selected account's portfolio is ready
+  // Always keep the current account's balance up to date from its live portfolio
   useEffect(() => {
     if (accountAddr && portfolioIsAllReady && portfolioTotalBalance != null) {
       setBalanceCache((prev) => {
@@ -29,54 +29,51 @@ const usePublicBalanceCache = ({
     }
   }, [accountAddr, portfolioIsAllReady, portfolioTotalBalance])
 
-  // On mount, queue all accounts for balance loading
+  // On mount, request all account balances in parallel
   useEffect(() => {
-    if (!accounts.length || !accountAddr) return
-    if (originalAccountRef.current) return
+    if (!accounts.length || !accountAddr || hasRequestedRef.current) return
 
-    originalAccountRef.current = accountAddr
+    hasRequestedRef.current = true
     const otherAddrs = accounts.map((a) => a.addr).filter((addr) => addr !== accountAddr)
-    loadQueueRef.current = otherAddrs
 
-    if (!otherAddrs.length) setIsLoadingPublicBalances(false)
-  }, [accounts, accountAddr])
-
-  // Process the load queue: when portfolio is ready, select the next account
-  useEffect(() => {
-    if (!portfolioIsAllReady || !accountAddr) return
-    if (!loadQueueRef.current.length) {
-      if (
-        originalAccountRef.current &&
-        accountAddr !== originalAccountRef.current &&
-        isLoadingPublicBalances
-      ) {
-        dispatch({
-          type: 'MAIN_CONTROLLER_SELECT_ACCOUNT',
-          params: { accountAddr: originalAccountRef.current }
-        })
-      }
+    if (!otherAddrs.length) {
       setIsLoadingPublicBalances(false)
       return
     }
 
-    const timer = setTimeout(() => {
-      const nextAddr = loadQueueRef.current.shift()
-      if (nextAddr) {
-        dispatch({ type: 'MAIN_CONTROLLER_SELECT_ACCOUNT', params: { accountAddr: nextAddr } })
-      }
-    }, 1500)
+    dispatch({
+      type: 'PORTFOLIO_LOAD_ACCOUNTS_TOTAL_BALANCES',
+      params: { accountAddrs: otherAddrs }
+    })
+  }, [accounts, accountAddr, dispatch])
 
-    return () => clearTimeout(timer)
-  }, [portfolioIsAllReady, accountAddr, dispatch, isLoadingPublicBalances])
+  // Listen for the parallel-loaded results from the background
+  useEffect(() => {
+    const handler = (balances: { [addr: string]: number }) => {
+      setBalanceCache((prev) => ({ ...prev, ...balances }))
+      setIsLoadingPublicBalances(false)
+    }
+
+    eventBus.addEventListener('accountTotalBalances', handler)
+    return () => eventBus.removeEventListener('accountTotalBalances', handler)
+  }, [])
 
   const refreshPublicBalances = useCallback(() => {
     if (!accounts.length || !accountAddr) return
     setBalanceCache({})
     setIsLoadingPublicBalances(true)
+    hasRequestedRef.current = false
+
     const otherAddrs = accounts.map((a) => a.addr).filter((addr) => addr !== accountAddr)
-    loadQueueRef.current = otherAddrs
-    originalAccountRef.current = accountAddr
-    dispatch({ type: 'MAIN_CONTROLLER_SELECT_ACCOUNT', params: { accountAddr } })
+    if (!otherAddrs.length) {
+      setIsLoadingPublicBalances(false)
+      return
+    }
+
+    dispatch({
+      type: 'PORTFOLIO_LOAD_ACCOUNTS_TOTAL_BALANCES',
+      params: { accountAddrs: otherAddrs }
+    })
   }, [accounts, accountAddr, dispatch])
 
   return { balanceCache, isLoadingPublicBalances, refreshPublicBalances }
