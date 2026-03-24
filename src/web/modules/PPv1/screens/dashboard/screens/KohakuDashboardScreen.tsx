@@ -176,13 +176,23 @@ const KohakuDashboardScreen = () => {
   }, [setSearchParams])
 
   useEffect(() => {
-    if (!privacyPoolsForm.isAccountLoaded && privacyPoolsForm.isReadyToLoad) {
-      privacyPoolsForm.loadPrivateAccount().catch((error) => {
+    if (
+      !privacyPoolsForm.isAccountLoaded &&
+      privacyPoolsForm.isReadyToLoad &&
+      !privacyPoolsForm.isLoading &&
+      !privacyPoolsForm.isRefreshing
+    ) {
+      privacyPoolsForm.loadPrivateAccount('dashboard').catch((error) => {
         // eslint-disable-next-line no-console
         console.error('Failed to load private account:', error)
         addToast('Failed to load your privacy account. Please try again.', { type: 'error' })
       })
     }
+
+    // we suspected RPC is getting overloaded by loading different accounts (railgun and public addrs) details simultaneously.
+    // delay loading of railgun till privacy-pools is done
+    // if (!privacyPoolsForm.isAccountLoaded) return
+
     if (!railgunForm.isAccountLoaded && !railgunForm.isLoading) {
       railgunForm.loadPrivateAccount()
     }

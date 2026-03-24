@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import useBackgroundService from '@web/hooks/useBackgroundService'
+import { usePrivacyPoolsDepositForm } from '@web/hooks/useDepositForm'
 
 const usePublicBalanceCache = ({
   accounts,
@@ -13,6 +14,7 @@ const usePublicBalanceCache = ({
   portfolioIsAllReady: boolean | undefined
   portfolioTotalBalance: number | null | undefined
 }) => {
+  const privacyPoolsForm = usePrivacyPoolsDepositForm()
   const { dispatch } = useBackgroundService()
   const [balanceCache, setBalanceCache] = useState<{ [addr: string]: number }>({})
   const loadQueueRef = useRef<string[]>([])
@@ -21,13 +23,17 @@ const usePublicBalanceCache = ({
 
   // Update cache whenever the selected account's portfolio is ready
   useEffect(() => {
+    // we suspected RPC is getting overloaded by loading different accounts (railgun and public addrs) details simultaneously.
+    // delay loading of address' details till privacy-pools is done
+    if (!privacyPoolsForm.isAccountLoaded) return
+
     if (accountAddr && portfolioIsAllReady && portfolioTotalBalance != null) {
       setBalanceCache((prev) => {
         if (prev[accountAddr] === portfolioTotalBalance) return prev
         return { ...prev, [accountAddr]: portfolioTotalBalance }
       })
     }
-  }, [accountAddr, portfolioIsAllReady, portfolioTotalBalance])
+  }, [privacyPoolsForm.isAccountLoaded, accountAddr, portfolioIsAllReady, portfolioTotalBalance])
 
   // On mount, queue all accounts for balance loading
   useEffect(() => {
@@ -43,6 +49,7 @@ const usePublicBalanceCache = ({
 
   // Process the load queue: when portfolio is ready, select the next account
   useEffect(() => {
+    if (!privacyPoolsForm.isAccountLoaded) return
     if (!portfolioIsAllReady || !accountAddr) return
     if (!loadQueueRef.current.length) {
       if (
@@ -67,7 +74,13 @@ const usePublicBalanceCache = ({
     }, 1500)
 
     return () => clearTimeout(timer)
-  }, [portfolioIsAllReady, accountAddr, dispatch, isLoadingPublicBalances])
+  }, [
+    privacyPoolsForm.isAccountLoaded,
+    portfolioIsAllReady,
+    accountAddr,
+    dispatch,
+    isLoadingPublicBalances
+  ])
 
   const refreshPublicBalances = useCallback(() => {
     if (!accounts.length || !accountAddr) return
