@@ -3,22 +3,17 @@ import type { RailgunAccount } from '@kohaku-eth/railgun'
 
 export function logNotesBeforeSync(account: RailgunAccount, weth: string): number {
   const notesBeforeSync = account.getSerializedState().notebooks
-  const notesCountBefore = notesBeforeSync
-    .flat()
-    .filter((n) => n !== null && n !== undefined).length
-  const notesBeforeByToken = notesBeforeSync
-    .flat()
-    .filter((n) => n !== null && n !== undefined)
-    .reduce((acc: any, note: any) => {
-      const tokenAddr = note?.tokenData?.tokenAddress?.toLowerCase() || 'unknown'
-      if (!acc[tokenAddr]) acc[tokenAddr] = []
-      acc[tokenAddr].push({
-        value: note?.value?.toString(),
-        blockNumber: note?.blockNumber,
-        noteHash: note?.noteHash
-      })
-      return acc
-    }, {})
+  const allNotesBefore = notesBeforeSync.flat().filter((n) => n !== null && n !== undefined)
+  const notesCountBefore = allNotesBefore.length
+  const notesBeforeByToken = allNotesBefore.reduce((acc: any, note: any) => {
+    const tokenAddr = note?.tokenData?.tokenAddress?.toLowerCase() || 'unknown'
+    if (!acc[tokenAddr]) {
+      acc[tokenAddr] = { count: 0, totalValue: 0n }
+    }
+    acc[tokenAddr].count += 1
+    acc[tokenAddr].totalValue += BigInt(note?.value?.toString() || '0')
+    return acc
+  }, {})
   console.log('[RailgunContext - LPA] ========== NOTES BEFORE SYNC ==========')
   console.log('[RailgunContext - LPA] Total notebooks:', notesBeforeSync.length)
   console.log('[RailgunContext - LPA] Total notes count:', notesCountBefore)
@@ -27,10 +22,8 @@ export function logNotesBeforeSync(account: RailgunAccount, weth: string): numbe
     Object.keys(notesBeforeByToken).map((tokenAddr) => ({
       tokenAddress: tokenAddr,
       isWETH: tokenAddr === weth?.toLowerCase(),
-      count: notesBeforeByToken[tokenAddr].length,
-      totalValue: notesBeforeByToken[tokenAddr]
-        .reduce((sum: bigint, n: any) => sum + BigInt(n.value || '0'), 0n)
-        .toString()
+      count: notesBeforeByToken[tokenAddr].count,
+      totalValue: notesBeforeByToken[tokenAddr].totalValue.toString()
     }))
   )
   console.log('[RailgunContext - LPA] ===========================================')
@@ -45,19 +38,15 @@ export function logNotesAfterSync(
 ): void {
   const notes = account.getSerializedState().notebooks
 
-  // Log ALL notes after syncing - this is critical for debugging missing change notes
   const allNotes = notes.flat().filter((n) => n !== null && n !== undefined)
   const notesCountAfter = allNotes.length
   const notesAfterByToken = allNotes.reduce((acc: any, note: any) => {
     const tokenAddr = note?.tokenData?.tokenAddress?.toLowerCase() || 'unknown'
-    if (!acc[tokenAddr]) acc[tokenAddr] = []
-    acc[tokenAddr].push({
-      value: note?.value?.toString(),
-      blockNumber: note?.blockNumber,
-      noteHash: note?.noteHash,
-      nullifier: note?.nullifier,
-      commitment: note?.commitment
-    })
+    if (!acc[tokenAddr]) {
+      acc[tokenAddr] = { count: 0, totalValue: 0n }
+    }
+    acc[tokenAddr].count += 1
+    acc[tokenAddr].totalValue += BigInt(note?.value?.toString() || '0')
     return acc
   }, {})
 
@@ -73,11 +62,8 @@ export function logNotesAfterSync(
     Object.keys(notesAfterByToken).map((tokenAddr) => ({
       tokenAddress: tokenAddr,
       isWETH: tokenAddr === weth?.toLowerCase(),
-      count: notesAfterByToken[tokenAddr].length,
-      totalValue: notesAfterByToken[tokenAddr]
-        .reduce((sum: bigint, n: any) => sum + BigInt(n.value || '0'), 0n)
-        .toString(),
-      notes: notesAfterByToken[tokenAddr]
+      count: notesAfterByToken[tokenAddr].count,
+      totalValue: notesAfterByToken[tokenAddr].totalValue.toString()
     }))
   )
 

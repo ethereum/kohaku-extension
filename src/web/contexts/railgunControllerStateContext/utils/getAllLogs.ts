@@ -19,8 +19,8 @@ export const getAllLogs = async (
   const MIN_BATCH = 250
   let batch = Math.min(2000, Math.max(MIN_BATCH, endBlock - startBlock + 1))
 
-  // Base spacing between requests (in addition to limiter). Keep your original intent but slightly slower.
-  const BASE_DELAY_MS = 1200
+  // Base spacing between requests (in addition to limiter).
+  const BASE_DELAY_MS = 350
 
   // Exponential backoff window when we hit 429. Resets on any success.
   let backoffMs = 0

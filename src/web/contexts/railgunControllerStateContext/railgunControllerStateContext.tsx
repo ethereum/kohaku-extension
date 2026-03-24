@@ -238,7 +238,11 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
           accounts: newAccountsMeta,
           lastSyncedBlock: earliestLastSyncedBlock
         }))
-        console.log('[RailgunContext - LPA] FINISHED LPA !!! balances:', aggregatedBalances)
+        console.log(
+          '[RailgunContext - LPA] FINISHED LPA',
+          'balancesCount:',
+          aggregatedBalances.length
+        )
       } catch (err: any) {
         console.error('[RailgunContext] load failed', err)
         // isRunningRef.current = false

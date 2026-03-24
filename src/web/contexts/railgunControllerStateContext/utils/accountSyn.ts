@@ -121,11 +121,15 @@ export async function syncSingleAccount(params: SyncAccountParams): Promise<Sync
       }
 
       if (completeLogs.length > 0) {
+        const firstLogBlock = completeLogs[0]?.blockNumber
+        const lastLogBlock = completeLogs[completeLogs.length - 1]?.blockNumber
         console.log(
           '[RailgunContext - LPA] processing',
           completeLogs.length,
-          'complete logs, blockNumbers:',
-          completeLogs.map((l) => l.blockNumber)
+          'complete logs, blockRange:',
+          firstLogBlock,
+          '->',
+          lastLogBlock
         )
         console.log('[RailgunContext - LPA] processing logs with skipMerkleTree: false (default)')
 
@@ -201,7 +205,12 @@ export async function syncSingleAccount(params: SyncAccountParams): Promise<Sync
     lastSyncedBlock: effectiveLastSyncedBlock
   }
 
-  console.log('[RailgunContext - LPA] completed account run', item, 'balances:', balances)
+  console.log(
+    '[RailgunContext - LPA] completed account run',
+    { index: item.index, kind: item.kind },
+    'balancesCount:',
+    balances.length
+  )
 
   return {
     accountMeta,
