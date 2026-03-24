@@ -56,7 +56,7 @@ const PrivacyPoolsV1ControllerStateProvider: React.FC<{ children: React.ReactNod
   const { dispatch } = useBackgroundService()
 
   useEffect(() => {
-    if (!Object.keys(state).length)
+    if (!state || !Object.keys(state).length)
       dispatch({ type: 'INIT_CONTROLLER_STATE', params: { controller } })
   }, [dispatch, state])
 
@@ -93,22 +93,22 @@ const PrivacyPoolsV1ControllerStateProvider: React.FC<{ children: React.ReactNod
 
   const value = useMemo<PrivacyPoolsV1ControllerStateContextType>(
     () => ({
-      balance: memoizedState.balance,
-      syncState: memoizedState.syncState,
-      isInitialized: memoizedState.isInitialized,
-      initializationError: memoizedState.initializationError,
-      state: memoizedState.state,
-      lastOp: memoizedState.lastOperation,
+      balance: memoizedState?.balance ?? [],
+      syncState: memoizedState?.syncState ?? 'unsynced',
+      isInitialized: memoizedState?.isInitialized ?? false,
+      initializationError: memoizedState?.initializationError ?? null,
+      state: memoizedState?.state ?? 'idle',
+      lastOp: memoizedState?.lastOperation ?? null,
       init,
       sync,
       shield,
       prepareUnshield,
       unshield,
-      notes: memoizedState.notes,
-      signAccountOpController: memoizedState.signAccountOpController ?? null,
-      latestBroadcastedAccountOp: memoizedState.latestBroadcastedAccountOp ?? null,
-      hasProceeded: memoizedState.hasProceeded ?? false,
-      pendingUnshieldOperation: memoizedState.pendingUnshieldOperation ?? null
+      notes: memoizedState?.notes ?? [],
+      signAccountOpController: memoizedState?.signAccountOpController ?? null,
+      latestBroadcastedAccountOp: memoizedState?.latestBroadcastedAccountOp ?? null,
+      hasProceeded: memoizedState?.hasProceeded ?? false,
+      pendingUnshieldOperation: memoizedState?.pendingUnshieldOperation ?? null
     }),
     [memoizedState, init, sync, shield, prepareUnshield, unshield]
   )

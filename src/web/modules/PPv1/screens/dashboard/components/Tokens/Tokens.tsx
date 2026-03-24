@@ -26,7 +26,7 @@ import DashboardPageScrollContainer from '../DashboardPageScrollContainer'
 import TabsAndSearch from '../TabsAndSearch'
 import { TabType } from '../TabsAndSearch/Tabs/Tab/Tab'
 import TokenItem from './TokenItem'
-import Skeleton from './TokensSkeleton'
+
 
 interface Props {
   openTab: TabType
@@ -270,13 +270,6 @@ const Tokens = ({
         )
       }
 
-      if (item === 'skeleton')
-        return (
-          <View style={spacings.ptTy}>
-            <Skeleton amount={3} withHeader={false} />
-          </View>
-        )
-
       if (item === 'footer') {
         return isAccountLoaded && index === filteredTokens.length + 4 ? (
           <View style={spacings.ptSm}>
@@ -365,13 +358,7 @@ const Tokens = ({
       animatedOverviewHeight={animatedOverviewHeight}
       data={[
         'header',
-        !filteredTokens.length && !isAccountLoaded && isReadyToLoad
-          ? 'skeleton'
-          : 'keep-this-to-avoid-key-warning',
         ...(initTab?.tokens ? filteredTokens : []),
-        filteredTokens.length && !isAccountLoaded && isReadyToLoad
-          ? 'skeleton'
-          : 'keep-this-to-avoid-key-warning-2',
         !filteredTokens.length && isAccountLoaded ? 'empty' : '',
         ...(showRailgunLoadingRow ? (['railgun-loading'] as const) : []),
         'footer',
