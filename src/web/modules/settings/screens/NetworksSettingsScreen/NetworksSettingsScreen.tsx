@@ -30,7 +30,7 @@ const NetworksSettingsScreen = () => {
   const { t } = useTranslation()
   const { search: searchParams } = useRoute()
   const { control, watch } = useForm({ defaultValues: { search: '' } })
-  const { ref: sheetRef, close: closeBottomSheet } = useModalize()
+  const { ref: sheetRef, /*open: openBottomSheet,*/ close: closeBottomSheet } = useModalize()
   const { maxWidthSize } = useWindowSize()
   const { allNetworks } = useNetworksControllerState()
 
@@ -86,6 +86,10 @@ const NetworksSettingsScreen = () => {
   const handleSelectNetwork = useCallback((chainId: bigint) => {
     setSelectedChainId(chainId)
   }, [])
+
+  // const navigateToChainlist = useCallback(async () => {
+  //   await openInTab({ url: 'https://chainlist.org/' })
+  // }, [])
 
   return (
     <>
