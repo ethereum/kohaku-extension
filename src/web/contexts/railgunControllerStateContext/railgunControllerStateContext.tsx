@@ -87,10 +87,9 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
     return new BackgroundService(() => memoizedBgState, dispatch)
   }, [dispatch, memoizedBgState])
 
-  // Reset hasLoadedOnceRef when account or chainId changes (allows loading for new account/chain)
+  // Reset hasLoadedOnceRef when ChainId changes (allows loading for new chain)
   useEffect(() => {
-    console.log('[RailgunContext][Reset] Account or chain changed', {
-      account: selectedAccount?.addr,
+    console.log('[RailgunContext][Reset] Chain changed', {
       chainId
     })
 
@@ -107,7 +106,7 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
       status: 'idle',
       error: undefined
     }))
-  }, [selectedAccount?.addr, chainId])
+  }, [chainId])
 
   useEffect(() => {
     if (isUnlocked) {

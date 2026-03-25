@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
-import React, { useCallback, useEffect, useMemo, useRef } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useModalize } from 'react-native-modalize'
 import { ScrollView, StyleSheet, View, ViewStyle } from 'react-native'
 
@@ -80,8 +80,10 @@ const KohakuDashboardScreen = () => {
 
   const privacyPoolsForm = usePrivacyPoolsDepositForm()
   const railgunForm = useRailgunForm()
+  const [hasPPLoaded, setHasPPLoaded] = useState(false)
 
   const handleRetryLoadPrivateAccount = useCallback(() => {
+    setHasPPLoaded(false)
     privacyPoolsForm.refreshPrivateAccount()
     railgunForm.refreshPrivateAccount()
   }, [privacyPoolsForm.refreshPrivateAccount, railgunForm.refreshPrivateAccount])
@@ -94,6 +96,7 @@ const KohakuDashboardScreen = () => {
   })
 
   const handleRefreshAll = useCallback(() => {
+    setHasPPLoaded(false)
     privacyPoolsForm.refreshPrivateAccount()
     railgunForm.refreshPrivateAccount()
     refreshPublicBalances()
@@ -111,7 +114,8 @@ const KohakuDashboardScreen = () => {
   const livePrivateBalance =
     (privacyPoolsForm.totalPrivatePortfolio || 0) + (railgunForm.totalPrivatePortfolio || 0)
   const isPrivateLoading =
-    privacyPoolsForm.isLoading || privacyPoolsForm.syncState === 'syncing' || railgunForm.isLoading
+    railgunForm.isLoading ||
+    (hasPPLoaded ? false : privacyPoolsForm.isLoading || privacyPoolsForm.syncState === 'syncing')
 
   if (livePrivateBalance > 0) cachedPrivateBalanceRef.current = livePrivateBalance
 
@@ -174,14 +178,20 @@ const KohakuDashboardScreen = () => {
   }, [setSearchParams])
 
   useEffect(() => {
-    if (privacyPoolsForm.syncState === 'unsynced' && privacyPoolsForm.isReady) {
-      privacyPoolsForm.loadPrivateAccount('dashboard -> useEffect').catch((error) => {
+    // safe not to check sync state because the base function (sync) checks this
+    if (privacyPoolsForm.isReady && !hasPPLoaded) {
+      privacyPoolsForm.loadPrivateAccount().catch((error) => {
         // eslint-disable-next-line no-console
         console.error('Failed to load private account:', error)
         addToast('Failed to load your privacy account. Please try again.', { type: 'error' })
       })
     }
-  }, [privacyPoolsForm.syncState, privacyPoolsForm.syncState])
+  }, [privacyPoolsForm.isReady])
+
+  // even tho pp.isReady is similar to pp.isAccountLoaded, pp.isAccountLoaded specifically track when the pp is synced
+  useEffect(() => {
+    if (privacyPoolsForm.isAccountLoaded) setHasPPLoaded(true)
+  }, [privacyPoolsForm.isAccountLoaded])
 
   useEffect(() => {
     if (!railgunForm.isAccountLoaded && !railgunForm.isLoading) {
