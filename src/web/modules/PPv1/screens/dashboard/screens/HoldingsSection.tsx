@@ -6,12 +6,15 @@ import Spinner from '@common/components/Spinner'
 import Text from '@common/components/Text/Text'
 import useTheme from '@common/hooks/useTheme'
 import spacings, { SPACING_TY } from '@common/styles/spacings'
+import { THEME_TYPES } from '@common/styles/themeConfig'
 import { BORDER_RADIUS_PRIMARY } from '@common/styles/utils/common'
 import flexbox from '@common/styles/utils/flexbox'
 import NetworkVerificationBadge from '@web/components/NetworkVerificationBadge'
 
 const RED_ACCENT = '#D01C15'
 const RED_BG = '#D01C1520'
+
+const WARNING_TEXT = 'sepolia testnet ONLY, ethereum mainnet support coming soon'
 
 interface Props {
   displayedInteger: string
@@ -32,10 +35,37 @@ const HoldingsSection = ({
   onRefresh,
   onRetry
 }: Props) => {
-  const { styles, theme } = useTheme()
+  const { styles, themeType, theme } = useTheme()
 
   return (
     <View style={[flexbox.alignCenter, spacings.pvLg]}>
+      <View
+        style={[
+          {
+            alignSelf: 'stretch',
+            borderWidth: 1,
+            borderRadius: 12,
+            paddingVertical: 10,
+            paddingHorizontal: 12,
+            borderColor: themeType === THEME_TYPES.DARK ? '#6b4a00' : '#ffe08a',
+            backgroundColor: themeType === THEME_TYPES.DARK ? '#2b210e' : '#fff7d6'
+          },
+          spacings.mbSm
+        ]}
+      >
+        <Text
+          weight="medium"
+          fontSize={14}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          style={{
+            textAlign: 'center',
+            color: themeType === THEME_TYPES.DARK ? '#ffd166' : '#7a5a00'
+          }}
+        >
+          {WARNING_TEXT}
+        </Text>
+      </View>
       <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mbSm]}>
         <Text
           type="caption"
