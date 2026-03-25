@@ -4,10 +4,10 @@ import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 import { useModalize } from 'react-native-modalize'
 
-import AddIcon from '@common/assets/svg/AddIcon'
-import ChainlistIcon from '@common/assets/svg/ChainlistIcon'
+// import AddIcon from '@common/assets/svg/AddIcon'
+// import ChainlistIcon from '@common/assets/svg/ChainlistIcon'
+// import Button from '@common/components/Button'
 import BottomSheet from '@common/components/BottomSheet'
-import Button from '@common/components/Button'
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
 import Search from '@common/components/Search'
 import Text from '@common/components/Text'
@@ -20,7 +20,6 @@ import flexbox from '@common/styles/utils/flexbox'
 import text from '@common/styles/utils/text'
 import NetworkAvailableFeatures from '@web/components/NetworkAvailableFeatures'
 import NetworkDetails from '@web/components/NetworkDetails'
-import { openInTab } from '@web/extension-services/background/webapi/tab'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import SettingsPageHeader from '@web/modules/settings/components/SettingsPageHeader'
 import { SettingsRoutesContext } from '@web/modules/settings/contexts/SettingsRoutesContext'
@@ -31,7 +30,7 @@ const NetworksSettingsScreen = () => {
   const { t } = useTranslation()
   const { search: searchParams } = useRoute()
   const { control, watch } = useForm({ defaultValues: { search: '' } })
-  const { ref: sheetRef, open: openBottomSheet, close: closeBottomSheet } = useModalize()
+  const { ref: sheetRef, /*open: openBottomSheet,*/ close: closeBottomSheet } = useModalize()
   const { maxWidthSize } = useWindowSize()
   const { allNetworks } = useNetworksControllerState()
 
@@ -88,9 +87,9 @@ const NetworksSettingsScreen = () => {
     setSelectedChainId(chainId)
   }, [])
 
-  const navigateToChainlist = useCallback(async () => {
-    await openInTab({ url: 'https://chainlist.org/' })
-  }, [])
+  // const navigateToChainlist = useCallback(async () => {
+  //   await openInTab({ url: 'https://chainlist.org/' })
+  // }, [])
 
   return (
     <>
@@ -147,29 +146,54 @@ const NetworksSettingsScreen = () => {
             )}
           </ScrollableWrapper>
           <View style={spacings.pt}>
-            <Button
-              type="primary"
-              size="small"
-              text={t('Add network from Chainlist')}
-              testID="add-network-from-chainlist"
-              onPress={navigateToChainlist}
-              style={{ height: 48, ...spacings.mbTy }}
-              childrenPosition="left"
+            {/*
+              <Button
+                type="primary"
+                size="small"
+                text={t('Add network from Chainlist')}
+                testID="add-network-from-chainlist"
+                onPress={navigateToChainlist}
+                style={{ height: 48, ...spacings.mbTy }}
+                childrenPosition="left"
+              >
+                <ChainlistIcon width={20} height={20} color={theme.primary} style={spacings.mrTy} />
+              </Button>
+              <Button
+                type="secondary"
+                size="small"
+                text={t('Add network manually')}
+                testID="add-network-manually"
+                onPress={openBottomSheet as any}
+                hasBottomSpacing={false}
+                style={{ height: 48 }}
+                childrenPosition="left"
+              >
+                <AddIcon color={theme.primary} style={spacings.mrTy} />
+              </Button>
+            */}
+            <View
+              style={[
+                {
+                  borderWidth: 1,
+                  borderRadius: 12,
+                  paddingVertical: 10,
+                  paddingHorizontal: 12,
+                  borderColor: themeType === THEME_TYPES.DARK ? '#6b4a00' : '#ffe08a',
+                  backgroundColor: themeType === THEME_TYPES.DARK ? '#2b210e' : '#fff7d6'
+                }
+              ]}
             >
-              <ChainlistIcon width={20} height={20} color={theme.primary} style={spacings.mrTy} />
-            </Button>
-            <Button
-              type="secondary"
-              size="small"
-              text={t('Add network manually')}
-              testID="add-network-manually"
-              onPress={openBottomSheet as any}
-              hasBottomSpacing={false}
-              style={{ height: 48 }}
-              childrenPosition="left"
-            >
-              <AddIcon color={theme.primary} style={spacings.mrTy} />
-            </Button>
+              <Text
+                weight="medium"
+                fontSize={14}
+                style={[
+                  text.center,
+                  { color: themeType === THEME_TYPES.DARK ? '#ffd166' : '#7a5a00' }
+                ]}
+              >
+                {t('sepolia testnet ONLY, ethereum mainnet support coming soon')}
+              </Text>
+            </View>
           </View>
         </View>
 
