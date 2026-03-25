@@ -63,8 +63,13 @@ const Tokens = ({
 
   const searchValue = watch('search')
 
-  const { ethPrice, totalApprovedBalance, isAccountLoaded, isReadyToLoad } =
-    usePrivacyPoolsDepositForm()
+  const {
+    ethPrice,
+    totalApprovedBalance,
+    isAccountLoaded,
+    isReadyToLoad,
+    isLoading: privacyPoolsIsLoading
+  } = usePrivacyPoolsDepositForm()
   const { portfolio } = useSelectedAccountControllerState()
   const { isAccountLoaded: railgunIsAccountLoaded, totalPrivateBalancesFormatted } =
     useRailgunForm()
@@ -174,6 +179,7 @@ const Tokens = ({
 
   // New: decide if we should show the Railgun loading row
   const showRailgunLoadingRow = !railgunIsAccountLoaded
+  const showPrivacyPoolsLoadingRow = privacyPoolsIsLoading && !isAccountLoaded
 
   // Calculate railgun address from defaultRailgunKeys
   useEffect(() => {
@@ -247,6 +253,23 @@ const Tokens = ({
             <Spinner style={{ width: 24, height: 24 }} />
             <Text fontSize={14} style={spacings.mtXs}>
               {t('Loading Railgun Balances...')}
+            </Text>
+          </View>
+        )
+      }
+
+      if (item === 'privacy-pools-loading') {
+        return (
+          <View
+            style={[
+              spacings.pvTy,
+              spacings.phTy,
+              { alignItems: 'center', justifyContent: 'center' }
+            ]}
+          >
+            <Spinner style={{ width: 24, height: 24 }} />
+            <Text fontSize={14} style={spacings.mtXs}>
+              {t('Loading Privacy Pools Balances...')}
             </Text>
           </View>
         )
@@ -365,11 +388,15 @@ const Tokens = ({
       animatedOverviewHeight={animatedOverviewHeight}
       data={[
         'header',
-        !filteredTokens.length && !isAccountLoaded && isReadyToLoad
+        ...(showPrivacyPoolsLoadingRow ? (['privacy-pools-loading'] as const) : []),
+        !filteredTokens.length && !isAccountLoaded && isReadyToLoad && !showPrivacyPoolsLoadingRow
           ? 'skeleton'
           : 'keep-this-to-avoid-key-warning',
         ...(initTab?.tokens ? filteredTokens : []),
-        filteredTokens.length && !isAccountLoaded && isReadyToLoad
+        filteredTokens.length &&
+        !isAccountLoaded &&
+        isReadyToLoad &&
+        !showPrivacyPoolsLoadingRow
           ? 'skeleton'
           : 'keep-this-to-avoid-key-warning-2',
         !filteredTokens.length && isAccountLoaded ? 'empty' : '',
