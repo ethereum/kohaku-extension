@@ -35,20 +35,20 @@ const RailgunControllerStateContext = createContext<EnhancedRailgunControllerSta
 const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
   const controller = 'railgun'
 
-  // 1) snapshot of background state (what controller.toJSON() returns)
+  // snapshot of background state (what controller.toJSON() returns)
   const bgState = useControllerState(controller)
   const memoizedBgState = useDeepMemo(bgState, controller)
 
   const keystoreState = useControllerState('keystore')
   const isUnlocked = !!keystoreState?.isUnlocked
 
-  // 2) background dispatcher
+  // background dispatcher
   const { dispatch } = useBackgroundService()
 
-  // 3) currently selected account (avoid syncing when none is selected)
+  // currently selected account (avoid syncing when none is selected)
   const { account: selectedAccount } = useSelectedAccountControllerState()
 
-  // 4) local react-only railgun sync state (simple)
+  // local react-only railgun sync state (simple)
   const [railgunAccountsState, setRailgunAccountsState] = useState<RailgunReactState>({
     status: 'idle',
     error: undefined,
@@ -58,16 +58,17 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
     lastSyncedBlock: 0
   })
 
-  // 5) Store synced account instance for direct access (created during loadPrivateAccount)
+  // Store synced account instance for direct access (created during loadPrivateAccount)
   const [syncedDefaultRailgunAccount, setSyncedDefaultRailgunAccount] =
     useState<RailgunAccount | null>(null)
   const [syncedDefaultRailgunIndexer, setSyncedDefaultRailgunIndexer] = useState<Indexer | null>(
     null
   )
 
-  // 6) refs to avoid re-entrancy & track initial load
+  // refs to avoid re-entrancy & track initial load
   const hasLoadedOnceRef = useRef<boolean>(false) // track if we've loaded once on startup
   const abortControllerRef = useRef<AbortController | null>(null)
+  const isRunningRef = useRef(false)
 
   const chainId = memoizedBgState.chainId || DEFAULT_CHAIN_ID
 
@@ -135,8 +136,7 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
       console.log('[RailgunContext][LPA] invoked', {
         force,
         isUnlocked,
-        // isRunningRef: isRunningRef.current,
-        status: railgunAccountsState.status,
+        isRunningRef: isRunningRef.current,
         hasLoadedOnce: hasLoadedOnceRef.current,
         hasSelectedAccount: !!selectedAccount,
         selectedAccountAddr: selectedAccount?.addr
@@ -147,7 +147,7 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
         return
       }
 
-      if (railgunAccountsState.status === 'running') {
+      if (isRunningRef.current) {
         console.log('[RailgunContext][LPA] SKIPPED: sync already in progress (status="running")')
         return
       }
@@ -173,6 +173,7 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
       console.log('[RailgunContext][LPA] STARTING sync for account:', selectedAccount.addr)
 
       abortControllerRef.current = new AbortController()
+      isRunningRef.current = true
 
       setRailgunAccountsState((prev) => ({
         ...prev,
@@ -228,8 +229,7 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
 
         const aggregatedBalances = aggregateBalances(balancesForAggregation)
 
-        // isRunningRef.current = false
-        hasLoadedOnceRef.current = true // Mark as loaded
+        hasLoadedOnceRef.current = true
         setRailgunAccountsState((prev) => ({
           ...prev,
           status: 'ready',
@@ -240,7 +240,6 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
         console.log('[RailgunContext - LPA] FINISHED LPA !!! balances:', aggregatedBalances)
       } catch (err: any) {
         console.error('[RailgunContext] load failed', err)
-        // isRunningRef.current = false
         // Don't mark as loaded on error, so it can retry
         if (err?.message !== 'Sync aborted') {
           setRailgunAccountsState((prev) => ({
@@ -251,18 +250,10 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
         }
       } finally {
         abortControllerRef.current = null
+        isRunningRef.current = false
       }
     },
-    [
-      selectedAccount,
-      chainId,
-      isUnlocked,
-      railgunAccountsState.status,
-      bgService
-      // getDerivedKeysFromBg,
-      // getAccountCacheFromBg,
-      // fireBg
-    ]
+    [selectedAccount, chainId, isUnlocked, bgService]
   )
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -270,20 +261,13 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
   // ───────────────────────────────────────────────────────────────────────────
   const refreshPrivateAccount = useCallback(async () => {
     console.log('[RailgunContext][Refresh] invoked', {
-      // isRunningRef: isRunningRef.current,
-      status: railgunAccountsState.status
+      isRunningRef: isRunningRef.current
     })
 
-    // if (isRunningRef.current || railgunAccountsState.status === 'running') {
-    //   console.log('[RailgunContext][Refresh] SKIPPED: sync already in progress', {
-    //     isRunningRef: isRunningRef.current,
-    //     status: railgunAccountsState.status
-    //   })
-    //   return
-    // }
-
-    if (railgunAccountsState.status === 'running') {
-      console.log('[RailgunContext][Refresh] SKIPPED: sync already in progress')
+    if (isRunningRef.current) {
+      console.log('[RailgunContext][Refresh] SKIPPED: sync already in progress', {
+        isRunningRef: isRunningRef.current
+      })
       return
     }
 
@@ -291,7 +275,7 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
     // Force reload by passing true - this will resync from cache to latest block
     await loadPrivateAccount(true)
     console.log('[RailgunContext][Refresh] COMPLETED')
-  }, [loadPrivateAccount, railgunAccountsState.status])
+  }, [loadPrivateAccount])
 
   // ───────────────────────────────────────────────────────────────────────────
   // init background controller state if missing
@@ -311,7 +295,6 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
       hasSelectedAccount: !!selectedAccount,
       selectedAccountAddr: selectedAccount?.addr,
       hasLoadedOnce: hasLoadedOnceRef.current
-      // hasAttemptedAutoLoad: hasAttemptedAutoLoadRef.current
     }
     console.log('[RailgunContext][AutoLoad] effect triggered', guards)
 
@@ -327,14 +310,11 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
       console.log('[RailgunContext][AutoLoad] SKIPPED: already loaded once (hasLoadedOnce=true)')
       return
     }
-    // if (hasAttemptedAutoLoadRef.current) {
-    //   console.log(
-    //     '[RailgunContext][AutoLoad] SKIPPED: already attempted (hasAttemptedAutoLoad=true)'
-    //   )
-    //   return
-    // }
-    if (railgunAccountsState.status === 'running') {
-      console.log('[RailgunContext][AutoLoad] SKIPPED: already running')
+    if (railgunAccountsState.status !== 'idle') {
+      console.log(
+        '[RailgunContext][AutoLoad] SKIPPED: not idle, already attempted',
+        railgunAccountsState.status
+      )
       return
     }
 
@@ -349,7 +329,7 @@ const RailgunControllerStateProvider: React.FC<any> = ({ children }) => {
       void loadPrivateAccount(false)
     }, 100)
     return () => clearTimeout(t)
-  }, [isUnlocked, selectedAccount, loadPrivateAccount, railgunAccountsState.status])
+  }, [isUnlocked, selectedAccount])
 
   // ───────────────────────────────────────────────────────────────────────────
   // derive “view model” for UI
