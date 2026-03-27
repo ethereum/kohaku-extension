@@ -157,16 +157,11 @@ export const usePrivacyPoolsDepositForm = () => {
     if (!selectedToken || approvedNotes.length === 0) return '0'
 
     const selectedAddress = selectedToken.address.toLowerCase()
-    const notesForToken = approvedNotes.filter(
-      (note) => toHex(note.assetAddress, { size: 20 }).toLowerCase() === selectedAddress
-    )
-    if (notesForToken.length === 0) return '0'
+    const totalBalance = approvedNotes
+      .filter((note) => toHex(note.assetAddress, { size: 20 }).toLowerCase() === selectedAddress)
+      .reduce((sum, note) => sum + note.balance, 0n)
 
-    const biggestNote = notesForToken.reduce(
-      (biggest, note) => (note.balance > biggest.balance ? note : biggest),
-      notesForToken[0]
-    )
-    return formatUnits(biggestNote.balance, selectedToken.decimals)
+    return formatUnits(totalBalance, selectedToken.decimals)
   }, [approvedNotes, selectedToken])
 
   // amountInFiat: withdrawal amount converted to USD
