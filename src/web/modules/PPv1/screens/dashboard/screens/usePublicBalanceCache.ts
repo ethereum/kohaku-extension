@@ -60,7 +60,7 @@ const usePublicBalanceCache = ({
 
   const refreshPublicBalances = useCallback(() => {
     if (!accounts.length || !accountAddr) return
-    setBalanceCache({})
+    setBalanceCache((prev) => ({ [accountAddr]: prev[accountAddr] }))
     setIsLoadingPublicBalances(true)
     hasRequestedRef.current = false
 
