@@ -127,25 +127,17 @@ const DappConnectScreen = () => {
     if (!isAuthorizing || !dappAction) return
     if (selectedAccount?.account?.addr !== dappAccount?.address) return
 
+    if (dappAccount?.isNew) {
+      openInTab({
+        url: `tab.html#/${WEB_ROUTES.pp1Transfer}?address=${dappAccount.address}&protocol=railgun&token=eth&fundBanner=1`,
+        shouldCloseCurrentWindow: false
+      })
+    }
+
     dispatch({
       type: 'REQUESTS_CONTROLLER_RESOLVE_USER_REQUEST',
       params: { data: null, id: dappAction.id }
     })
-
-    let timerId: NodeJS.Timeout
-
-    if (dappAccount?.isNew) {
-      timerId = setTimeout(() => {
-        openInTab({
-          url: `tab.html#/${WEB_ROUTES.pp1Transfer}?address=${dappAccount.address}&protocol=railgun&token=eth&fundBanner=1`,
-          shouldCloseCurrentWindow: false
-        })
-      }, 450)
-    }
-
-    return () => {
-      if (timerId) clearTimeout(timerId)
-    }
   }, [isAuthorizing, selectedAccount?.account?.addr, dappAccount?.address, dappAction, dispatch])
 
   const responsiveSizeMultiplier = useMemo(() => {
