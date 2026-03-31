@@ -11,7 +11,18 @@ Kohaku Wallet is a fork of [Ambire Wallet](https://github.com/AmbireTech/extensi
 
 It's a work in progress and currently under active development. The only network it supports is Sepolia Testnet.
 
-## Demo Kohaku Wallet
+## Demo
+
+Demo the latest version of the kohaku demo.
+
+1. Download the zip file here: https://ipfs.io/ipfs/bafybeicf45pmqwoyoa7fdwpeg2tzfugchosbelwvkkg7dp6am6lguwzod4 and then unzip it.
+
+2. Open Chrome browser and navigate to: `chrome://extensions/`
+
+3. Select `Developer mode` in the upper right corner then click `Load unpacked` and select the unzipped folder to load the Kohaku Extension Demo (sepolia testnet ONLY)
+
+
+## Develop
 
 Here are the steps to build and run the kohaku extension yourself:
 
