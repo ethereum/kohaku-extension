@@ -13,13 +13,13 @@ It's a work in progress and currently under active development. The only network
 
 ## Demo
 
-Demo the latest version of the kohaku demo.
+Demo a pre-built version (March 2026) of the Kohaku Wallet on sepolia testnet.
 
-1. Download the zip file here: https://ipfs.io/ipfs/bafybeicf45pmqwoyoa7fdwpeg2tzfugchosbelwvkkg7dp6am6lguwzod4 and then unzip it.
+1. Download the zip file here: https://ipfs.io/ipfs/bafybeicf45pmqwoyoa7fdwpeg2tzfugchosbelwvkkg7dp6am6lguwzod4 and then unzip it (folder will be called `webkit-dev`)
 
 2. Open Chrome browser and navigate to: `chrome://extensions/`
 
-3. Select `Developer mode` in the upper right corner then click `Load unpacked` and select the unzipped folder to load the Kohaku Extension Demo (sepolia testnet ONLY)
+3. Select `Developer mode` in the upper right corner then click `Load unpacked` and select the `webkit-dev` folder to load the Kohaku Wallet Demo
 
 
 ## Develop
