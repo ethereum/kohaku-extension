@@ -1,7 +1,7 @@
 {
-  "name": "Kohaku Web3 Wallet",
-  "short_name": "Kohaku",
-  "author": "https://ethereum.foundation/",
+  "name": "UBAMM Wallet",
+  "short_name": "UBAMM Wallet",
+  "author": "UBAMM",
   "version": "SYNCED_WITH_THE_APP_VERSION_VIA_THE_WEBPACK_CONFIG",
   "manifest_version": 3,
   "permissions": ["storage", "tabs", "unlimitedStorage", "activeTab", "notifications"],
@@ -9,19 +9,16 @@
     "service_worker": "background.js"
   },
   "icons": {
-    "16": "assets/images/xicon_kohaku@16.png",
-    "48": "assets/images/xicon_kohaku@48.png",
-    "96": "assets/images/xicon_kohaku@96.png",
-    "128": "assets/images/xicon_kohaku@128.png"
+    "16": "assets/images/xicon_ubamm@16.png",
+    "48": "assets/images/xicon_ubamm@48.png",
+    "96": "assets/images/xicon_ubamm@96.png",
+    "128": "assets/images/xicon_ubamm@128.png"
   },
   "action": {
-    "default_title": "Kohaku",
+    "default_title": "UBAMM Wallet",
     "default_popup": "index.html"
   },
-  "host_permissions": ["http://*/*", "https://*/*", "file://*/*", "wss://*/*"],
-  "externally_connectable": {
-    "ids": ["*"]
-  },
+  "host_permissions": ["http://*/*", "https://*/*"],
   "content_scripts": [
     {
       "matches": ["*://connect.trezor.io/*/popup.html", "https://connect.onekey.so/popup.html"],

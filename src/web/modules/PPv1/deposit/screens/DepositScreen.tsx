@@ -113,7 +113,7 @@ function TransferScreen() {
       dispatch({
         type: 'CLOSE_SIGNING_ACTION_WINDOW',
         params: {
-          type: 'transfer'
+          type: privacyProvider === 'railgun' ? 'transfer' : 'privacyPoolsV1'
         }
       })
     } else {
@@ -126,7 +126,7 @@ function TransferScreen() {
     dispatch({
       type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN'
     })
-  }, [dispatch, navigate, privacyProvider])
+  }, [dashGoBack, dispatch, privacyProvider])
 
   // Use 'transfer' sessionId for Railgun, 'privacyPools' for Privacy Pools
   const sessionId = useMemo(() => {
@@ -406,7 +406,7 @@ function TransferScreen() {
             <Failed
               title={t('Something went wrong!')}
               errorMessage={t(
-                "We couldn't complete your deposit. Please try again later or contact Kohaku support."
+                "We couldn't complete your deposit. Please try again later or contact UBAMM Wallet support."
               )}
             />
           )}

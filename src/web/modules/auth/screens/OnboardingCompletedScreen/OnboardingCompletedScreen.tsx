@@ -58,11 +58,11 @@ const OnboardingCompletedScreen = () => {
                 weight="semiBold"
                 fontSize={20}
               >
-                {t('Kohaku is ready to use')}
+                {t('UBAMM Wallet is ready to use')}
               </Text>
               {!isPinned ? (
                 <Text appearance="secondaryText" weight="medium" style={[text.center]}>
-                  {t('Pin the Kohaku Extension to your toolbar for easy access.')}
+                  {t('Pin the UBAMM Wallet Extension to your toolbar for easy access.')}
                 </Text>
               ) : (
                 <Text appearance="secondaryText" weight="medium" style={[text.center]}>

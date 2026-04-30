@@ -25,6 +25,7 @@ const DelegationHumanization: FC<Props> = ({ setDelegation, delegatedContract, i
   }, [delegatedContract])
 
   const fontSize = isBorderless ? 14 : 16
+  const showDelegatedContract = !!delegatedContract && delegatedContract !== ZERO_ADDRESS
 
   return (
     <View>
@@ -42,8 +43,14 @@ const DelegationHumanization: FC<Props> = ({ setDelegation, delegatedContract, i
                     {t('Enable')}{' '}
                   </Text>
                   <Text fontSize={fontSize}>
-                    {t('the Ambire EIP-7702 Delegation for this account')}
+                    {t('the')} {delegatorName ? `${delegatorName} ` : ''}
+                    {t('EIP-7702 Delegation for this account')}
                   </Text>
+                  {!delegatorName && showDelegatedContract && (
+                    <Text fontSize={fontSize} weight="semiBold">
+                      : {delegatedContract}
+                    </Text>
+                  )}
                 </>
               ) : (
                 <>
@@ -54,7 +61,7 @@ const DelegationHumanization: FC<Props> = ({ setDelegation, delegatedContract, i
                     {t('the')} {delegatorName ? `${delegatorName} ` : ''}
                     {t('EIP-7702 Delegation for this account')}
                   </Text>
-                  {!delegatorName && delegatedContract !== ZERO_ADDRESS && (
+                  {!delegatorName && showDelegatedContract && (
                     <Text fontSize={fontSize} weight="semiBold">
                       : {delegatedContract}
                     </Text>

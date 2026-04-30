@@ -6,7 +6,7 @@ import DiagonalRightArrowIcon from '@common/assets/svg/DiagonalRightArrowIcon'
 // import ImportJsonIcon from '@common/assets/svg/ImportJsonIcon'
 // import LatticeWithBorderIcon from '@common/assets/svg/LatticeWithBorderIcon'
 // import LedgerIcon from '@common/assets/svg/LedgerIcon'
-// import PrivateKeyIcon from '@common/assets/svg/PrivateKeyIcon'
+import PrivateKeyIcon from '@common/assets/svg/PrivateKeyIcon'
 import RightArrowIcon from '@common/assets/svg/RightArrowIcon'
 import SeedPhraseIcon from '@common/assets/svg/SeedPhraseIcon'
 // import TrezorIcon from '@common/assets/svg/TrezorIcon'
@@ -55,13 +55,13 @@ const ImportExistingAccountSelectorScreen = () => {
 
   const buttons: ButtonType[] = useMemo(
     () => [
-      // {
-      //   title: 'Private key',
-      //   onPress: () => {
-      //     goToNextRoute(WEB_ROUTES.importPrivateKey)
-      //   },
-      //   icon: PrivateKeyIcon
-      // },
+      {
+        title: 'Private key',
+        onPress: () => {
+          goToNextRoute(WEB_ROUTES.importPrivateKey)
+        },
+        icon: PrivateKeyIcon
+      },
       {
         title: 'Recovery phrase',
         onPress: () => {

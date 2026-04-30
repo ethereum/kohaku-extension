@@ -32,7 +32,7 @@ type Props = Pick<
 > & {
   signAccountOpState: SignAccountOpController | null
   autoOpen?: 'warnings'
-  actionType?: 'swapAndBridge' | 'transfer'
+  actionType?: 'swapAndBridge' | 'transfer' | 'privacyPoolsV1'
 }
 
 const Modals: FC<Props> = ({

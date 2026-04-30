@@ -91,5 +91,6 @@ export const ETH_RPC_METHODS_AMBIRE_MUST_HANDLE = [
   'wallet_getCapabilities',
   'wallet_sendCalls',
   'wallet_getCallsStatus',
-  'wallet_showCallsStatus'
+  'wallet_showCallsStatus',
+  'wallet_signAuthorization'
 ]

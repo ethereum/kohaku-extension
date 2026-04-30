@@ -221,7 +221,13 @@ const OneClickEstimation = ({
             ? 'warnings'
             : undefined
         }
-        actionType={updateType === 'Swap&Bridge' ? 'swapAndBridge' : 'transfer'}
+        actionType={
+          updateType === 'Swap&Bridge'
+            ? 'swapAndBridge'
+            : updateType === 'PrivacyPoolsV1'
+            ? 'privacyPoolsV1'
+            : 'transfer'
+        }
       />
     </>
   )

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Image, ImageStyle, StyleProp } from 'react-native'
-import kohakuLogoHorizontal from '../../../web/assets/kohaku-horizontal.png'
+import kohakuLogoHorizontal from '../../../web/assets/ubamm-wallet.png'
 
 type AmbireLogoHorizontalProps = {
   width?: number

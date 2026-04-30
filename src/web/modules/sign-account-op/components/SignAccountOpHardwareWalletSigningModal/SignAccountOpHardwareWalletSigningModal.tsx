@@ -27,7 +27,7 @@ interface Props {
   } | null
   signedTransactionsCount?: number | null
   accountOp: AccountOp
-  actionType?: 'swapAndBridge' | 'transfer'
+  actionType?: 'swapAndBridge' | 'transfer' | 'privacyPoolsV1'
 }
 
 const SignAccountOpHardwareWalletSigningModal: React.FC<Props> = ({

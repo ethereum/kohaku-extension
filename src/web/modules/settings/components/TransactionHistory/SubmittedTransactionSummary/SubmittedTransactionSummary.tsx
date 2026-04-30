@@ -7,10 +7,13 @@ import {
   isIdentifiedByMultipleTxn,
   SubmittedAccountOp
 } from '@ambire-common/libs/accountOp/submittedAccountOp'
+import { get7702DelegationToggleState } from '@ambire-common/libs/accountOp/delegation'
+import { getContractImplementation } from '@ambire-common/libs/7702/7702'
 import { humanizeAccountOp } from '@ambire-common/libs/humanizer'
 import { humanizePrivacyPoolsAccountOp } from '@ambire-common/libs/privacyPools/humanizer'
 import { humanizeRailgunAccountOp } from '@ambire-common/libs/railgun/humanizer'
 import { IrCall } from '@ambire-common/libs/humanizer/interfaces'
+import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
 import SkeletonLoader from '@common/components/SkeletonLoader'
 import useTheme from '@common/hooks/useTheme'
 import { SPACING_SM } from '@common/styles/spacings'
@@ -44,6 +47,8 @@ const SubmittedTransactionSummaryInner = ({
     () => networks.find((n) => n.chainId === submittedAccountOp.chainId),
     [networks, submittedAccountOp.chainId]
   )
+  const isRailgunWithdrawal = (submittedAccountOp.meta as any)?.isRailgunWithdrawal
+  const isRailgunInternalTransfer = (submittedAccountOp.meta as any)?.isRailgunInternalTransfer
 
   const calls = useMemo(
     () => {
@@ -58,10 +63,7 @@ const SubmittedTransactionSummaryInner = ({
         return humanizePrivacyPoolsAccountOp(submittedAccountOp)
       }
 
-      if (
-        (submittedAccountOp.meta as any)?.isRailgunWithdrawal ||
-        (submittedAccountOp.meta as any)?.isRailgunInternalTransfer
-      ) {
+      if (isRailgunWithdrawal || isRailgunInternalTransfer) {
         return humanizeRailgunAccountOp(submittedAccountOp)
       }
 
@@ -77,8 +79,8 @@ const SubmittedTransactionSummaryInner = ({
       submittedAccountOp.txnId,
       submittedAccountOp.calls.length,
       submittedAccountOp.identifiedBy?.type,
-      (submittedAccountOp.meta as any)?.isRailgunWithdrawal,
-      (submittedAccountOp.meta as any)?.isRailgunInternalTransfer,
+      isRailgunWithdrawal,
+      isRailgunInternalTransfer,
       network
     ]
   )
@@ -93,8 +95,11 @@ const SubmittedTransactionSummaryInner = ({
     )
   }
 
-  const isDelegationTxn =
-    submittedAccountOp.meta && submittedAccountOp.meta.setDelegation !== undefined
+  const delegationToggleState = get7702DelegationToggleState(submittedAccountOp)
+  const isDelegationTxn = delegationToggleState !== undefined
+  const delegationTarget =
+    submittedAccountOp.meta?.delegation?.address ||
+    (delegationToggleState ? getContractImplementation(submittedAccountOp.chainId) : ZERO_ADDRESS)
 
   return (
     <View
@@ -121,8 +126,8 @@ const SubmittedTransactionSummaryInner = ({
         ))}
       {isDelegationTxn && (
         <DelegationHumanization
-          setDelegation={submittedAccountOp.meta?.setDelegation}
-          delegatedContract={submittedAccountOp.meta?.delegation?.address}
+          setDelegation={delegationToggleState}
+          delegatedContract={delegationTarget}
           isBorderless
         />
       )}

@@ -94,10 +94,9 @@ module.exports = async function (env, argv) {
 
     if (isGecko) {
       manifest.background = { page: 'background.html' }
-      manifest.host_permissions = [...manifest.host_permissions, '<all_urls>']
       manifest.browser_specific_settings = {
         gecko: {
-          id: 'wallet@ambire.com',
+          id: process.env.FIREFOX_EXTENSION_ID || 'ubamm-wallet@ubamm.local',
           strict_min_version: '115.0'
         }
       }
@@ -122,7 +121,11 @@ module.exports = async function (env, argv) {
     // in Chrome Web Store and can't be changed.
     // {@link https://developer.chrome.com/extensions/manifest/key}
     // TODO: key not supported in gecko browsers
-    if (isWebkit && process.env.BROWSER_EXTENSION_PUBLIC_KEY) {
+    if (
+      isWebkit &&
+      process.env.BROWSER_EXTENSION_PUBLIC_KEY &&
+      (config.mode === 'development' || process.env.INCLUDE_EXTENSION_PUBLIC_KEY === 'true')
+    ) {
       manifest.key = process.env.BROWSER_EXTENSION_PUBLIC_KEY
     }
 

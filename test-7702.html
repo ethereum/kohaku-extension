@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Kohaku wallet_signAuthorization smoke test</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: monospace; background: #0f0f0f; color: #e0e0e0; padding: 24px; }
+    h1 { font-size: 18px; color: #fff; margin-bottom: 24px; }
+    h2 { font-size: 13px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .card.success { border-color: #2a5c2a; background: #0f1f0f; }
+    .card.error   { border-color: #5c2a2a; background: #1f0f0f; }
+    .card.pending { border-color: #5c4a1a; background: #1f180a; }
+
+    button {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-family: monospace;
+      font-size: 13px;
+      cursor: pointer;
+      margin-right: 8px;
+      margin-top: 8px;
+    }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button:hover:not(:disabled) { background: #1d4ed8; }
+
+    .label { font-size: 11px; color: #888; margin-bottom: 4px; }
+    .value {
+      font-size: 12px;
+      color: #a3e6a3;
+      word-break: break-all;
+      background: #111;
+      border-radius: 4px;
+      padding: 8px;
+      margin-top: 4px;
+      white-space: pre-wrap;
+    }
+    .value.warn { color: #f6c90e; }
+    .value.err  { color: #f87171; }
+
+    .row { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; }
+    .field { flex: 1; min-width: 200px; }
+    input {
+      width: 100%;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 6px 8px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #e0e0e0;
+      margin-top: 4px;
+    }
+
+    .step-num {
+      display: inline-block;
+      background: #2563eb;
+      color: #fff;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      text-align: center;
+      line-height: 20px;
+      font-size: 11px;
+      margin-right: 8px;
+    }
+    .step-num.done { background: #16a34a; }
+    .step-num.fail { background: #dc2626; }
+  </style>
+</head>
+<body>
+
+<h1>Kohaku — wallet_signAuthorization smoke test</h1>
+
+<!-- Step 1: Connect -->
+<div class="card" id="card-connect">
+  <h2><span class="step-num" id="num-1">1</span>Connect wallet</h2>
+  <button id="btn-connect">Connect Kohaku</button>
+  <div id="out-connect"></div>
+</div>
+
+<!-- Step 2: wallet_signAuthorization -->
+<div class="card" id="card-sign7702">
+  <h2><span class="step-num" id="num-2">2</span>wallet_signAuthorization</h2>
+  <div class="row">
+    <div class="field">
+      <div class="label">contract address (delegation target)</div>
+      <input id="in-contractAddr" value="0x5A7FC11397E9a8AD41BF10bf13F22B0a63f96f6d" />
+    </div>
+    <div class="field">
+      <div class="label">chainId (0 = use connected chain)</div>
+      <input id="in-chainId" value="0" />
+    </div>
+    <div class="field">
+      <div class="label">nonce (leave 0 to fetch live)</div>
+      <input id="in-nonce" value="" placeholder="auto" />
+    </div>
+  </div>
+  <button id="btn-sign7702" disabled>Sign authorization</button>
+  <div id="out-sign7702"></div>
+</div>
+
+<!-- Step 3: eth_signTypedData_v4 (ZeroDev-style) -->
+<div class="card" id="card-typeddata">
+  <h2><span class="step-num" id="num-3">3</span>eth_signTypedData_v4 (verifyingContract = EOA)</h2>
+  <p style="font-size:12px;color:#888;margin-bottom:8px;">
+    Simulates the ZeroDev permission-account payload where the verifyingContract is the user's own EOA.
+    MetaMask blocks this; Kohaku should not.
+  </p>
+  <button id="btn-typeddata" disabled>Sign typed data</button>
+  <div id="out-typeddata"></div>
+</div>
+
+<!-- Summary -->
+<div class="card" id="card-summary" style="display:none">
+  <h2>Result</h2>
+  <div id="out-summary"></div>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id)
+
+  let provider = null
+  let account  = null
+  let chainId  = null
+
+  // ── helpers ──────────────────────────────────────────────────────────────
+
+  function show(containerId, html, kind = '') {
+    const el = $(containerId)
+    el.innerHTML = html
+    const card = el.closest('.card')
+    card.className = 'card' + (kind ? ' ' + kind : '')
+  }
+
+  function val(text, cls = '') {
+    return `<div class="value ${cls}">${text}</div>`
+  }
+
+  function mark(numId, state) {
+    const el = $(numId)
+    el.className = 'step-num ' + state
+    el.textContent = state === 'done' ? '✓' : state === 'fail' ? '✗' : el.textContent
+  }
+
+  async function fetchNonce(address) {
+    try {
+      const hex = await provider.request({ method: 'eth_getTransactionCount', params: [address, 'latest'] })
+      return parseInt(hex, 16)
+    } catch {
+      return 0
+    }
+  }
+
+  // ── step 1: connect ───────────────────────────────────────────────────────
+
+  $('btn-connect').addEventListener('click', async () => {
+    $('btn-connect').disabled = true
+    try {
+      if (!window.ethereum) throw new Error('No injected provider found. Load the Kohaku extension and open this page from a server or file://.')
+
+      provider = window.ethereum
+      const accounts = await provider.request({ method: 'eth_requestAccounts' })
+      account = accounts[0]
+
+      const chainHex = await provider.request({ method: 'eth_chainId' })
+      chainId = parseInt(chainHex, 16)
+
+      show('out-connect', `
+        <div class="label" style="margin-top:8px">Connected account</div>
+        ${val(account)}
+        <div class="label" style="margin-top:8px">Chain ID</div>
+        ${val(chainId)}
+      `, 'success')
+
+      mark('num-1', 'done')
+      $('btn-sign7702').disabled = false
+      $('btn-typeddata').disabled = false
+
+      // pre-fill chainId input
+      if ($('in-chainId').value === '0') $('in-chainId').value = chainId
+
+      provider.on('chainChanged', hex => { chainId = parseInt(hex, 16); $('in-chainId').value = chainId })
+      provider.on('accountsChanged', accs => { account = accs[0] })
+
+    } catch (e) {
+      show('out-connect', val(e.message, 'err'), 'error')
+      mark('num-1', 'fail')
+      $('btn-connect').disabled = false
+    }
+  })
+
+  // ── step 2: wallet_signAuthorization ─────────────────────────────────────
+
+  $('btn-sign7702').addEventListener('click', async () => {
+    $('btn-sign7702').disabled = true
+    show('out-sign7702', val('waiting for Kohaku approval window…', 'warn'), 'pending')
+
+    try {
+      const contractAddr = $('in-contractAddr').value.trim()
+      const rawChainId   = parseInt($('in-chainId').value) || chainId
+      const rawNonce     = $('in-nonce').value.trim()
+      const nonce        = rawNonce !== '' ? parseInt(rawNonce) : await fetchNonce(account)
+
+      const params = { address: contractAddr, chainId: rawChainId, nonce }
+
+      show('out-sign7702', val(`Calling wallet_signAuthorization with:\n${JSON.stringify(params, null, 2)}`, 'warn'), 'pending')
+
+      const result = await provider.request({
+        method: 'wallet_signAuthorization',
+        params: [params]
+      })
+
+      const resultStr = typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result)
+
+      const hasExpectedFields = result && result.r && result.s && (result.yParity !== undefined)
+      const shapeNote = hasExpectedFields
+        ? '<div class="label" style="margin-top:8px;color:#4ade80">✓ ZeroDev-compatible shape (r, s, yParity present)</div>'
+        : '<div class="label" style="margin-top:8px;color:#f6c90e">⚠ unexpected response shape — check ZeroDev compatibility</div>'
+
+      show('out-sign7702', `
+        <div class="label" style="margin-top:8px">Response</div>
+        ${val(resultStr)}
+        ${shapeNote}
+      `, 'success')
+
+      mark('num-2', 'done')
+
+    } catch (e) {
+      show('out-sign7702', val(`${e.code ? `[${e.code}] ` : ''}${e.message}`, 'err'), 'error')
+      mark('num-2', 'fail')
+    }
+
+    $('btn-sign7702').disabled = false
+    updateSummary()
+  })
+
+  // ── step 3: eth_signTypedData_v4 (verifyingContract = EOA) ───────────────
+
+  $('btn-typeddata').addEventListener('click', async () => {
+    $('btn-typeddata').disabled = true
+    show('out-typeddata', val('waiting for Kohaku approval window…', 'warn'), 'pending')
+
+    try {
+      // Mimics the ZeroDev serializePermissionAccount typed data.
+      // The critical field is domain.verifyingContract = the user's own EOA.
+      // MetaMask refuses this; Kohaku should not.
+      const typedData = {
+        domain: {
+          name: 'Kernel',
+          version: '0.3.3',
+          chainId: chainId,
+          verifyingContract: account  // ← EOA address, the key MetaMask test
+        },
+        types: {
+          EIP712Domain: [
+            { name: 'name',               type: 'string'  },
+            { name: 'version',            type: 'string'  },
+            { name: 'chainId',            type: 'uint256' },
+            { name: 'verifyingContract',  type: 'address' }
+          ],
+          SessionData: [
+            { name: 'nonce',    type: 'uint256' },
+            { name: 'expiry',   type: 'uint256' },
+            { name: 'selector', type: 'bytes4'  }
+          ]
+        },
+        primaryType: 'SessionData',
+        message: {
+          nonce:    '0',
+          expiry:   String(Math.floor(Date.now() / 1000) + 86400),
+          selector: '0x00000000'
+        }
+      }
+
+      const result = await provider.request({
+        method: 'eth_signTypedData_v4',
+        params: [account, JSON.stringify(typedData)]
+      })
+
+      show('out-typeddata', `
+        <div class="label" style="margin-top:8px">Signature (verifyingContract was ${account})</div>
+        ${val(result)}
+        <div class="label" style="margin-top:8px;color:#4ade80">✓ Kohaku did not block verifyingContract = EOA</div>
+      `, 'success')
+
+      mark('num-3', 'done')
+
+    } catch (e) {
+      const blocked = e.message && e.message.toLowerCase().includes('verifying')
+      show('out-typeddata', val(
+        `${e.code ? `[${e.code}] ` : ''}${e.message}` +
+        (blocked ? '\n\n⚠ wallet blocked verifyingContract = EOA (MetaMask behaviour)' : ''),
+        'err'
+      ), 'error')
+      mark('num-3', 'fail')
+    }
+
+    $('btn-typeddata').disabled = false
+    updateSummary()
+  })
+
+  // ── summary ───────────────────────────────────────────────────────────────
+
+  function updateSummary() {
+    const s2 = $('num-2').className.includes('done')
+    const s3 = $('num-3').className.includes('done')
+    if (!s2 && !s3) return
+
+    $('card-summary').style.display = 'block'
+    let lines = []
+    if (s2) lines.push('✓ wallet_signAuthorization — works, ZeroDev-compatible shape returned')
+    else     lines.push('✗ wallet_signAuthorization — failed (check step 2)')
+    if (s3) lines.push('✓ eth_signTypedData_v4 (verifyingContract = EOA) — not blocked by Kohaku')
+    else     lines.push('✗ eth_signTypedData_v4 — failed (check step 3)')
+
+    const allGood = s2 && s3
+    $('out-summary').innerHTML = val(lines.join('\n'), allGood ? '' : 'warn')
+    $('card-summary').className = 'card ' + (allGood ? 'success' : 'error')
+  }
+</script>
+</body>
+</html>

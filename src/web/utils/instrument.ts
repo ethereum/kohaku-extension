@@ -5,6 +5,7 @@ import {
 import { SENTRY_DSN_BROWSER_EXTENSION } from '@env'
 import * as Sentry from '@sentry/react'
 import { isExtension } from '@web/constants/browserapi'
+import { storage } from '@web/extension-services/background/webapi/storage'
 
 import { getUiType } from './uiType'
 
@@ -37,13 +38,7 @@ const initializeSentry = async () => {
     return
   }
 
-  /**
-   * Since v5.15.0, we enable anonymous crash reporting by default. To avoid respecting
-   * outdated user preferences from v5.11.x–v5.14.x (where users may have manually disabled it),
-   * we ignore stored values and always use the new default.
-   */
-  // const isEnabled = await storage.get('crashAnalyticsEnabled', CRASH_ANALYTICS_ENABLED_DEFAULT)
-  const isEnabled = CRASH_ANALYTICS_ENABLED_DEFAULT
+  const isEnabled = await storage.get('crashAnalyticsEnabled', CRASH_ANALYTICS_ENABLED_DEFAULT)
 
   if (!isEnabled) return
 

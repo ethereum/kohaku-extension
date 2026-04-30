@@ -86,9 +86,12 @@ const AccountSelector: FC<{
       let seedId
       if (key.type === 'internal') {
         const seed = seeds.find((s) => s.id === key.meta.fromSeedId)
-        if (!seed) return
-        label = seed.label
-        seedId = seed.id
+        if (seed) {
+          label = seed.label
+          seedId = seed.id
+        } else {
+          label = 'Private Key'
+        }
       } else {
         label = `${key.type}-${key.meta.deviceId}`
       }

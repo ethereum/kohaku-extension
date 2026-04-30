@@ -66,7 +66,7 @@ export const usePrivacyPoolsDepositForm = () => {
   const [selectedToken, setselectedToken] = useState<TokenResult | null>(null)
   const [amountFieldMode, setAmountFieldMode] = useState<'token' | 'fiat'>('token')
   const [isRecipientAddressUnknownAgreed, setIsRecipientAddressUnknownAgreed] = useState(false)
-  const [latestBroadcastedToken, setLatestBroadcastedToken] = useState<TokenResult | null>(null)
+  const [latestBroadcastedToken] = useState<TokenResult | null>(null)
   const [programmaticUpdateCounter, setProgrammaticUpdateCounter] = useState(0)
 
   const [addressState, setAddressStateRaw] = useState<AddressState>({
@@ -314,7 +314,7 @@ export const usePrivacyPoolsDepositForm = () => {
     selectedPoolAccount: null,
     signAccountOpController,
     latestBroadcastedAccountOp,
-    isLoading: !isReady,
+    isLoading: !isReady && !initializationError,
     isReady,
     isRefreshing,
     isAccountLoaded: isSynced,

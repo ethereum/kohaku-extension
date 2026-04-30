@@ -61,7 +61,7 @@ const formatScreenWidth = (w: number) => {
 }
 
 const calculateWindowSizeAndPosition = async (
-  baseWindow: chrome.windows.Window,
+  baseWindow: chrome.windows.Window | undefined,
   customSize?: CustomSize
 ): Promise<{ width: number; height: number; left: number; top: number }> => {
   // In CI (headless: true), the calculated window position is always outside the visible screen, causing window.open() to fail with:
@@ -106,9 +106,15 @@ const calculateWindowSizeAndPosition = async (
   let leftPosition = (screenWidth - desiredWidth) / 2
   let topPosition = (screenHeight - desiredHeight) / 2
 
-  const [activeTab] = (baseWindow.tabs || []).find((t) => t.active)
-    ? [(baseWindow.tabs || []).find((t) => t.active)]
-    : await chrome.tabs.query({ active: true, windowId: baseWindow.id })
+  // baseWindow may be undefined when getLastFocused() returns nothing (e.g. in the
+  // MV3 service worker before the user has interacted with any browser window).
+  // In that case skip the activeTab/offset math and fall back to the centered position.
+  const baseWindowTabs = baseWindow?.tabs || []
+  const [activeTab] = baseWindowTabs.find((t) => t.active)
+    ? [baseWindowTabs.find((t) => t.active)]
+    : baseWindow?.id !== undefined
+    ? await chrome.tabs.query({ active: true, windowId: baseWindow.id })
+    : []
 
   let leftOffset = 0
   let topOffset = 0
@@ -118,7 +124,7 @@ const calculateWindowSizeAndPosition = async (
     topOffset = baseWindow.top
   }
 
-  if (activeTab && activeTab.width && activeTab.height) {
+  if (baseWindow && activeTab && activeTab.width && activeTab.height) {
     if (customSize) desiredWidth = customSize.width
     leftPosition = (activeTab.width - desiredWidth) / 2 + leftOffset
     // Pass customSize height to the helper as the height may be lower than the minimum height
@@ -148,39 +154,71 @@ const create = async (
 
   if (baseWindowId) {
     const window = await chrome.windows.get(baseWindowId, { populate: true }).catch((e) => {
-      console.error(e)
+      console.error('[windowManager.create] get(baseWindowId) failed:', e)
       return undefined
     })
     if (window && window.id) baseWindow = window
   }
 
   if (!baseWindow || !baseWindow.id) {
-    console.warn(
-      baseWindowId
-        ? `No baseWindow with id: ${baseWindowId} was found in windowManager.open(); using the current window as the reference for positioning.`
-        : 'No baseWindowId provided to windowManager.open(); using the current window as the reference for positioning.'
-    )
-
-    baseWindow = await chrome.windows.getCurrent({
-      windowTypes: ['normal', 'panel', 'app'],
-      populate: true
-    })
+    // chrome.windows.getCurrent() is unreliable in MV3 service workers (no window context).
+    // getLastFocused() reliably returns the most recently focused browser window.
+    baseWindow = await chrome.windows
+      .getLastFocused({ windowTypes: ['normal', 'panel', 'app'], populate: true })
+      .catch((e) => {
+        console.error('[windowManager.create] getLastFocused failed:', e)
+        return undefined
+      })
   }
 
-  const { width, height, left, top } = await calculateWindowSizeAndPosition(baseWindow, customSize)
+  let geometry: { width: number; height: number; left: number; top: number }
+  try {
+    geometry = await calculateWindowSizeAndPosition(baseWindow, customSize)
+  } catch (e) {
+    console.error('[windowManager.create] calculateWindowSizeAndPosition failed:', e)
+    // Fallback to safe defaults so the window can still open
+    geometry = { width: 720, height: 800, left: 50, top: 50 }
+  }
+  const { width, height, left, top } = geometry
 
-  const win = await chrome.windows.create({
-    focused: true,
-    url,
-    type: 'popup',
-    width,
-    height,
-    left,
-    top,
-    state: 'normal'
+  console.log('[windowManager.create] opening', { url, width, height, left, top, hasBaseWindow: !!baseWindow })
+
+  const tryCreate = async (
+    bounds: { width: number; height: number; left?: number; top?: number }
+  ) =>
+    chrome.windows
+      .create({
+        focused: true,
+        url,
+        type: 'popup',
+        state: 'normal',
+        ...bounds
+      })
+      .catch((e) => {
+        console.error('[windowManager.create] chrome.windows.create rejected:', e)
+        return undefined
+      })
+
+  let win = await tryCreate({ width, height, left, top })
+
+  // If the calculated position is off-screen (multi-monitor / stale baseWindow position),
+  // chrome rejects with "Bounds must be at least 50% within visible screen space".
+  // Retry without left/top so chrome chooses a valid default position.
+  if (!win || !win.id) {
+    console.warn('[windowManager.create] retrying without explicit left/top')
+    win = await tryCreate({ width, height })
+  }
+
+  if (!win || !win.id) {
+    console.error('[windowManager.create] no window returned (win=', win, ')')
+    return null
+  }
+
+  // Explicitly focus the window after creation — on macOS, focused:true in
+  // chrome.windows.create is not always honoured for programmatic windows.
+  await chrome.windows.update(win.id, { focused: true }).catch((e) => {
+    console.error('[windowManager.create] post-create focus failed:', e)
   })
-
-  if (!win || !win.id) return null
 
   return {
     id: win.id,
@@ -189,7 +227,7 @@ const create = async (
     left,
     top,
     focused: true,
-    createdFromWindowId: baseWindow.id
+    createdFromWindowId: baseWindow?.id
   }
 }
 
@@ -226,7 +264,10 @@ const open = async (
 ): Promise<WindowProps> => {
   const { route, customSize, baseWindowId } = options
 
-  const url = `action-window.html${route ? `#/${route}` : ''}`
+  // Use an absolute extension URL so chrome.windows.create resolves correctly
+  // from the MV3 service worker context (relative URLs can silently fail there).
+  const url = chrome.runtime.getURL(`action-window.html${route ? `#/${route}` : ''}`)
+  console.log('[windowManager.open] called', { route, customSize, baseWindowId, url })
   return create(url, customSize, baseWindowId)
 }
 /**
@@ -253,7 +294,11 @@ const focus = async (
   }
 
   if (!baseWindow || !baseWindow.id) {
-    baseWindow = await chrome.windows.getCurrent({ populate: true })
+    // chrome.windows.getCurrent() is unreliable in MV3 service workers (no window context).
+    // getLastFocused() reliably returns the most recently focused browser window.
+    baseWindow = await chrome.windows
+      .getLastFocused({ windowTypes: ['normal', 'panel', 'app'], populate: true })
+      .catch(() => undefined)
   }
 
   const { left, top } = await calculateWindowSizeAndPosition(baseWindow, { width, height })

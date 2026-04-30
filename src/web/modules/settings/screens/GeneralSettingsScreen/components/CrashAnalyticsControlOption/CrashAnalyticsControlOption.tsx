@@ -27,7 +27,7 @@ const CrashAnalyticsControlOption = () => {
       style={spacings.mbTy}
       title={t('Crash analytics')}
       description={t(
-        'Help us fix issues faster with anonymous error reports, no personal identifiable info collected.'
+        'Help us fix issues faster with error reports. Wallet addresses, seed phrases, and private keys are not intentionally included.'
       )}
       renderIcon={<DevIcon color={theme.primaryText} />}
     >

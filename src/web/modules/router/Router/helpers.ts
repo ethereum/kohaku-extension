@@ -58,6 +58,7 @@ const getInitialRoute = ({
     // Currently, Gas Top-Ups are not supported by Trezor.
     // Once support is added, we need to introduce a new actionType specifically for Top-Up.
     if (actionType === 'transfer') return ROUTES.transfer
+    if (actionType === 'privacyPoolsV1') return ROUTES.pp1Deposit
 
     if (actionType === 'benzin') {
       const benzinAction = actionsState.currentAction

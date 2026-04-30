@@ -291,7 +291,7 @@ const TransferScreen = () => {
       dispatch({
         type: 'CLOSE_SIGNING_ACTION_WINDOW',
         params: {
-          type: 'transfer'
+          type: activeProtocol === 'railgun' ? 'transfer' : 'privacyPoolsV1'
         }
       })
     } else {
@@ -1088,7 +1088,7 @@ const TransferScreen = () => {
           <Failed
             title={t('Something went wrong!')}
             errorMessage={t(
-              "We couldn't complete your transfer. Please try again later or contact Kohaku support."
+              "We couldn't complete your transfer. Please try again later or contact UBAMM Wallet support."
             )}
           />
         )}

@@ -26,6 +26,10 @@ const PendingActionWindowModal = () => {
 
     if (currentAction.type === 'accountOp') return t('Finish your pending transaction(s)')
     if (currentAction.type === 'signMessage') return t('Finish your pending message signature')
+    if (currentAction.type === 'swapAndBridge') return t('Finish your pending swap')
+    if (currentAction.type === 'transfer') return t('Finish your pending transfer')
+    if (currentAction.type === 'privacyPoolsV1')
+      return t('Finish your pending private funds action')
     if (currentAction.type === 'switchAccount') return t('Finish switching accounts')
     if (currentAction.type === 'dappRequest') {
       if (currentAction.userRequest.action.kind === 'dappConnect')
@@ -49,6 +53,16 @@ const PendingActionWindowModal = () => {
     if (currentAction.type === 'signMessage')
       return t(
         'There is a message waiting for you to sign it. Would you like to open the active window?'
+      )
+    if (currentAction.type === 'swapAndBridge')
+      return t('A swap is waiting for you to sign it. Would you like to open the active window?')
+    if (currentAction.type === 'transfer')
+      return t(
+        'A transfer is waiting for you to sign it. Would you like to open the active window?'
+      )
+    if (currentAction.type === 'privacyPoolsV1')
+      return t(
+        'A private funds action is waiting for you to sign it. Would you like to open the active window?'
       )
     if (currentAction.type === 'switchAccount')
       return t(

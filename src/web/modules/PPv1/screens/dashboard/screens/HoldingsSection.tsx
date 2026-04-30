@@ -14,7 +14,7 @@ import NetworkVerificationBadge from '@web/components/NetworkVerificationBadge'
 const RED_ACCENT = '#D01C15'
 const RED_BG = '#D01C1520'
 
-const WARNING_TEXT = 'sepolia testnet ONLY, ethereum mainnet support coming soon'
+const WARNING_TEXT = 'Privacy Pools is available on Ethereum mainnet and Sepolia testnet'
 
 interface Props {
   displayedInteger: string

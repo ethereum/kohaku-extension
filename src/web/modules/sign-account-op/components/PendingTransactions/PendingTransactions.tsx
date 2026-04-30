@@ -4,10 +4,13 @@ import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 
 import { Hex } from '@ambire-common/interfaces/hex'
+import { get7702DelegationToggleState } from '@ambire-common/libs/accountOp/delegation'
+import { getContractImplementation } from '@ambire-common/libs/7702/7702'
 import { Network } from '@ambire-common/interfaces/network'
 import { humanizeAccountOp } from '@ambire-common/libs/humanizer'
 import { IrCall } from '@ambire-common/libs/humanizer/interfaces'
 import { stringify } from '@ambire-common/libs/richJson/richJson'
+import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
 import NetworkBadge from '@common/components/NetworkBadge'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
@@ -49,6 +52,14 @@ const PendingTransactions: FC<Props> = ({ network, setDelegation, delegatedContr
     oldAccountOpRelevantInfoHash.current = newAccountOpRelevantInfoHash
   }, [accountOp])
 
+  const effectiveSetDelegation = get7702DelegationToggleState(accountOp) ?? setDelegation
+
+  const effectiveDelegatedContract =
+    accountOp?.meta?.delegation?.address ||
+    (effectiveSetDelegation && accountOp
+      ? getContractImplementation(accountOp.chainId)
+      : delegatedContract || (effectiveSetDelegation === false ? ZERO_ADDRESS : null))
+
   return (
     <View style={spacings.mbLg}>
       <View
@@ -62,10 +73,10 @@ const PendingTransactions: FC<Props> = ({ network, setDelegation, delegatedContr
         <SectionHeading withMb={false}>{t('Overview')}</SectionHeading>
         <NetworkBadge chainId={network?.chainId} withOnPrefix />
       </View>
-      {setDelegation !== undefined ? (
+      {effectiveSetDelegation !== undefined ? (
         <DelegationHumanization
-          setDelegation={setDelegation}
-          delegatedContract={delegatedContract}
+          setDelegation={effectiveSetDelegation}
+          delegatedContract={effectiveDelegatedContract}
         />
       ) : network && callsToVisualize.length ? (
         callsToVisualize.map((call, i) => (

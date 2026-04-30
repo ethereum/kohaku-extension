@@ -25,7 +25,8 @@ export enum RpcMethods {
   wallet_getCapabilities = 'wallet_getCapabilities',
   wallet_sendCalls = 'wallet_sendCalls',
   wallet_getCallsStatus = 'wallet_getCallsStatus',
-  wallet_showCallsStatus = 'wallet_showCallsStatus'
+  wallet_showCallsStatus = 'wallet_showCallsStatus',
+  wallet_signAuthorization = 'wallet_signAuthorization'
 }
 
 export type RPCMethod = keyof typeof RpcMethods | string

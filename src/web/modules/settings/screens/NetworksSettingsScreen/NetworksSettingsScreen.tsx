@@ -171,29 +171,6 @@ const NetworksSettingsScreen = () => {
                 <AddIcon color={theme.primary} style={spacings.mrTy} />
               </Button>
             */}
-            <View
-              style={[
-                {
-                  borderWidth: 1,
-                  borderRadius: 12,
-                  paddingVertical: 10,
-                  paddingHorizontal: 12,
-                  borderColor: themeType === THEME_TYPES.DARK ? '#6b4a00' : '#ffe08a',
-                  backgroundColor: themeType === THEME_TYPES.DARK ? '#2b210e' : '#fff7d6'
-                }
-              ]}
-            >
-              <Text
-                weight="medium"
-                fontSize={14}
-                style={[
-                  text.center,
-                  { color: themeType === THEME_TYPES.DARK ? '#ffd166' : '#7a5a00' }
-                ]}
-              >
-                {t('sepolia testnet ONLY, ethereum mainnet support coming soon')}
-              </Text>
-            </View>
           </View>
         </View>
 

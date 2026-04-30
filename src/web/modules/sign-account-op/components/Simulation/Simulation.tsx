@@ -5,6 +5,8 @@ import { View } from 'react-native'
 import { SigningStatus } from '@ambire-common/controllers/signAccountOp/signAccountOp'
 import { Network } from '@ambire-common/interfaces/network'
 import { isSmartAccount } from '@ambire-common/libs/account/account'
+import { has7702DelegationRequest } from '@ambire-common/libs/accountOp/delegation'
+import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
 import SuccessIcon from '@common/assets/svg/SuccessIcon'
 import Alert from '@common/components/Alert'
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
@@ -183,6 +185,15 @@ const Simulation: FC<Props> = ({ network, isEstimationComplete, isViewOnly }) =>
     if (pendingSendCollection.length || pendingReceiveCollection.length || pendingTokens.length)
       return 'changes'
 
+    const isDelegationOnlyTxn =
+      has7702DelegationRequest(signAccountOpState.accountOp) &&
+      signAccountOpState.accountOp.calls.length === 1 &&
+      signAccountOpState.accountOp.calls[0]?.to === ZERO_ADDRESS &&
+      signAccountOpState.accountOp.calls[0]?.data === '0x' &&
+      signAccountOpState.accountOp.calls[0]?.value === 0n
+
+    if (isDelegationOnlyTxn) return 'no-changes'
+
     // no-changes from here
     if (!isSmartAccount(signAccountOpState.account) && !!network?.rpcNoStateOverride)
       return 'simulation-not-supported'
@@ -198,7 +209,8 @@ const Simulation: FC<Props> = ({ network, isEstimationComplete, isViewOnly }) =>
     pendingSendCollection.length,
     pendingReceiveCollection.length,
     pendingTokens.length,
-    network?.rpcNoStateOverride
+    network?.rpcNoStateOverride,
+    signAccountOpState?.accountOp
   ])
 
   useEffect(() => {

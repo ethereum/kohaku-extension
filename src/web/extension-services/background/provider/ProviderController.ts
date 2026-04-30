@@ -293,6 +293,25 @@ export class ProviderController {
     return handleSignMessage(requestRes)
   }
 
+  @Reflect.metadata('ACTION_REQUEST', ['SignText', false])
+  walletSignAuthorization = async ({ params, requestRes }: ProviderRequest) => {
+    if (!requestRes) throw new Error('Internal error: request result not found')
+    if (requestRes.error) throw ethErrors.rpc.invalidParams({ message: requestRes.error })
+
+    const sig = requestRes.hash as { yParity: string; r: string; s: string } | string
+    const p = params?.[0] ?? params ?? {}
+    const address = p.address ?? p.contractAddr ?? p.contractAddress
+    const chainId = p.chainId !== undefined ? toBeHex(BigInt(p.chainId)) : '0x'
+    const nonce = p.nonce !== undefined && BigInt(p.nonce) !== 0n ? toBeHex(BigInt(p.nonce)) : '0x'
+
+    if (typeof sig === 'string') {
+      // EOA key returned a flat hex sig — wrap it
+      return { address, chainId, nonce, sig }
+    }
+
+    return { address, chainId, nonce, r: sig.r, s: sig.s, yParity: sig.yParity }
+  }
+
   @Reflect.metadata('ACTION_REQUEST', [
     'AddChain',
     ({ request }: { request: ProviderRequest; mainCtrl: MainController }) => {

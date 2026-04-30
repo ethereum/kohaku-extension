@@ -628,13 +628,13 @@ type SwapAndBridgeControllerOpenSigningActionWindow = {
 type OpenSigningActionWindow = {
   type: 'OPEN_SIGNING_ACTION_WINDOW'
   params: {
-    type: 'swapAndBridge' | 'transfer'
+    type: 'swapAndBridge' | 'transfer' | 'privacyPoolsV1'
   }
 }
 type CloseSigningActionWindow = {
   type: 'CLOSE_SIGNING_ACTION_WINDOW'
   params: {
-    type: 'swapAndBridge' | 'transfer'
+    type: 'swapAndBridge' | 'transfer' | 'privacyPoolsV1'
   }
 }
 type TransferControllerUpdateForm = {

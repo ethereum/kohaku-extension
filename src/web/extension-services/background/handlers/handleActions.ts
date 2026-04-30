@@ -74,16 +74,13 @@ export const handleActions = async (
       } else if (params.controller === ('extensionUpdate' as any)) {
         pm.send('> ui', { method: 'extensionUpdate', params: extensionUpdateCtrl })
       } else {
-        const ctrl = (mainCtrl as any)[params.controller];
-        const payload =
-          ctrl && typeof ctrl.toJSON === 'function'
-            ? ctrl.toJSON()
-            : ctrl;
+        const ctrl = (mainCtrl as any)[params.controller]
+        const payload = ctrl && typeof ctrl.toJSON === 'function' ? ctrl.toJSON() : ctrl
 
         pm.send('> ui', {
           method: params.controller,
-          params: payload,
-        });
+          params: payload
+        })
       }
       break
     }
@@ -411,12 +408,16 @@ export const handleActions = async (
     case 'OPEN_SIGNING_ACTION_WINDOW': {
       if (!mainCtrl.selectedAccount.account) throw new Error('No selected account')
 
-      const idSuffix = params.type === 'swapAndBridge' ? 'swap-and-bridge-sign' : 'transfer-sign'
+      const idSuffixByType = {
+        swapAndBridge: 'swap-and-bridge-sign',
+        transfer: 'transfer-sign',
+        privacyPoolsV1: 'privacy-pools-v1-sign'
+      }
 
       return mainCtrl.requests.actions.addOrUpdateActions(
         [
           {
-            id: `${mainCtrl.selectedAccount.account.addr}-${idSuffix}`,
+            id: `${mainCtrl.selectedAccount.account.addr}-${idSuffixByType[params.type]}`,
             type: params.type,
             userRequest: {
               meta: {
@@ -435,10 +436,14 @@ export const handleActions = async (
     case 'CLOSE_SIGNING_ACTION_WINDOW': {
       if (!mainCtrl.selectedAccount.account) throw new Error('No selected account')
 
-      const idSuffix = params.type === 'swapAndBridge' ? 'swap-and-bridge-sign' : 'transfer-sign'
+      const idSuffixByType = {
+        swapAndBridge: 'swap-and-bridge-sign',
+        transfer: 'transfer-sign',
+        privacyPoolsV1: 'privacy-pools-v1-sign'
+      }
 
       return mainCtrl.requests.actions.removeActions([
-        `${mainCtrl.selectedAccount.account.addr}-${idSuffix}`
+        `${mainCtrl.selectedAccount.account.addr}-${idSuffixByType[params.type]}`
       ])
     }
     case 'TRANSFER_CONTROLLER_UPDATE_FORM':
@@ -534,16 +539,16 @@ export const handleActions = async (
     case 'RAILGUN_CONTROLLER_DIRECT_BROADCAST_WITHDRAWAL':
       return mainCtrl.railgun.directBroadcastWithdrawal(params)
     case 'RAILGUN_CONTROLLER_GET_DEFAULT_RAILGUN_KEYS':
-      console.log('[BG][RAILGUN] GET_DEFAULT_RAILGUN_KEYS action');
+      console.log('[BG][RAILGUN] GET_DEFAULT_RAILGUN_KEYS action')
       return mainCtrl.railgun.getDefaultRailgunKeys()
     case 'RAILGUN_CONTROLLER_DERIVE_RAILGUN_KEYS':
-      console.log('[BG][RAILGUN] DERIVE_RAILGUN_KEYS action', params);
+      console.log('[BG][RAILGUN] DERIVE_RAILGUN_KEYS action', params)
       return mainCtrl.railgun.deriveRailgunKeys(params.index)
     case 'RAILGUN_CONTROLLER_GET_ACCOUNT_CACHE':
-      console.log('[BG][RAILGUN] GET_ACCOUNT_CACHE action', params);
-      return mainCtrl.railgun.getRailgunAccountCache(params.zkAddress, params.chainId);
+      console.log('[BG][RAILGUN] GET_ACCOUNT_CACHE action', params)
+      return mainCtrl.railgun.getRailgunAccountCache(params.zkAddress, params.chainId)
     case 'RAILGUN_CONTROLLER_SET_ACCOUNT_CACHE':
-      console.log('[BG][RAILGUN] SET_ACCOUNT_CACHE action', params);
+      console.log('[BG][RAILGUN] SET_ACCOUNT_CACHE action', params)
       return mainCtrl.railgun.setRailgunAccountCache(params.zkAddress, params.chainId, params.cache)
     case 'ACTIONS_CONTROLLER_REMOVE_FROM_ACTIONS_QUEUE':
       return mainCtrl.requests.actions.removeActions([params.id], params.shouldOpenNextAction)

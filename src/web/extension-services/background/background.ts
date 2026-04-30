@@ -85,7 +85,6 @@ import { LOG_LEVELS, logInfoWithPrefix } from '@web/utils/logger'
 import {
   captureBackgroundException,
   CRASH_ANALYTICS_WEB_CONFIG,
-  setBackgroundExtraContext,
   setBackgroundUserContext
 } from './CrashAnalytics'
 import { handleDappAccountSwitching } from './handlers/handleDappAccountSwitching'
@@ -222,7 +221,7 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
 }
 
 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-; (async () => {
+;(async () => {
   // Init sentry
   if (CONFIG.SENTRY_DSN_BROWSER_EXTENSION) {
     Sentry.init({
@@ -233,8 +232,7 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
         }
       },
       beforeSend(event) {
-        // We don't want to miss errors that occur before the controllers are initialized
-        if (!walletStateCtrl) return event
+        if (!walletStateCtrl) return null
 
         if (isDev) {
           console.log(`Sentry event captured in background: ${event.event_id}`, event)
@@ -315,23 +313,12 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
   const trezorCtrl = new TrezorController(windowManager as WindowManager)
   const latticeCtrl = new LatticeController()
 
-  // Extension-specific additional trackings
+  // Extension-specific fetch wrapper.
   // @ts-ignore
   const fetchWithAnalytics: Fetch = (url, init) => {
-    // As of v4.26.0, custom extension-specific headers. TBD for the other apps.
-    const initWithCustomHeaders = init || { headers: { 'x-app-source': '' } }
+    const initWithCustomHeaders = init || { headers: {} }
     initWithCustomHeaders.headers = initWithCustomHeaders.headers || {}
-
-    // if the fetch method is called while the keystore is constructing the keyStoreUid won't be defined yet
-    // in that case we can still fetch but without our custom header
-    if (mainCtrl?.keystore?.keyStoreUid) {
-      const instanceId = getExtensionInstanceId(
-        mainCtrl.keystore.keyStoreUid,
-        mainCtrl.invite?.verifiedCode || ''
-      )
-
-      initWithCustomHeaders.headers['x-app-source'] = instanceId
-    }
+    initWithCustomHeaders.headers['x-app-source'] = 'ubamm-extension'
 
     // As of v4.36.0, for metric purposes, pass the account keys count as an
     // additional param for the batched velcro discovery requests.
@@ -375,8 +362,9 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
     alchemyApiKey: ALCHEMY_API_KEY,
     swapApiKey: LI_FI_API_KEY,
     hypersyncApiKey: HYPERSYNC_API_KEY,
+    defaultNetworksMode: process.env.NETWORKS_MODE === 'testnet' ? 'testnet' : 'mainnet',
     featureFlags: {
-      testnetMode: true
+      testnetMode: process.env.NETWORKS_MODE === 'testnet'
     },
     keystoreSigners: {
       internal: KeystoreSigner,
@@ -572,6 +560,7 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
     backgroundState.accountsOpsStatusesInterval = setTimeout(updateStatuses, updateInterval)
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function initActiveRoutesContinuousUpdate(activeRoutesInProgress?: SwapAndBridgeActiveRoute[]) {
     if (!activeRoutesInProgress || !activeRoutesInProgress.length) {
       !!backgroundState.updateActiveRoutesInterval &&
@@ -600,6 +589,7 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
     )
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function initSwapAndBridgeQuoteContinuousUpdate() {
     if (mainCtrl.swapAndBridge.formStatus !== SwapAndBridgeFormStatus.ReadyToSubmit) {
       !!backgroundState.updateSwapAndBridgeQuoteInterval &&
@@ -949,11 +939,6 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
               initFrequentLatestAccountStateContinuousUpdateIfNeeded()
             }
             // Swap & Bridge polling disabled for this build
-            if (ctrlName === 'selectedAccount') {
-              if (controller?.account?.addr) {
-                setBackgroundExtraContext('account', controller.account.addr)
-              }
-            }
           }, 'background')
         }
       }
@@ -1180,4 +1165,4 @@ browser.runtime.onInstalled.addListener(({ reason }: any) => {
 // TODO: Found the root cause of this! Event handler of 'disconnect' event must be added on the initial
 // evaluation of worker script. More info: https://developer.chrome.com/docs/extensions/mv3/service_workers/events/
 // Would be tricky to replace this workaround with different logic, but it's doable.
-if ('hid' in navigator) navigator.hid.addEventListener('disconnect', () => { })
+if ('hid' in navigator) navigator.hid.addEventListener('disconnect', () => {})
