@@ -41,8 +41,12 @@ const getBadgeTypes = (theme: ThemeProps) => ({
     iconColor: theme.successText
   },
   new: {
-    color: '#fff',
+    color: theme.success,
     iconColor: '#fff'
+  },
+  new2: {
+    color: theme.success,
+    iconColor: 'green'
   }
 })
 
@@ -82,6 +86,7 @@ const Badge = ({
         type === 'info' && styles.infoBadge,
         type === 'error' && styles.errorBadge,
         type === 'new' && styles.newBadge,
+        type === 'new2' && styles.new2,
         {
           height: sizeMultiplier * 20
         },

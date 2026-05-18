@@ -16,9 +16,18 @@ interface Props {
   fallbackBackRoute?: string
   type?: 'primary' | 'secondary'
   style?: ViewStyle
+  withIcon?: boolean
+  text?: string
 }
 
-const BackButton: FC<Props> = ({ onPress, fallbackBackRoute, type = 'primary', style = {} }) => {
+const BackButton: FC<Props> = ({
+  onPress,
+  fallbackBackRoute,
+  type = 'primary',
+  style = {},
+  withIcon = true,
+  text
+}) => {
   const { t } = useTranslation()
   const { goBack, canGoBack, navigate } = useNavigation()
   const { theme } = useTheme()
@@ -41,14 +50,18 @@ const BackButton: FC<Props> = ({ onPress, fallbackBackRoute, type = 'primary', s
   return type === 'primary' ? (
     <Button
       childrenPosition="left"
-      size="large"
+      size="regular"
       hasBottomSpacing={false}
       type="secondary"
       onPress={handlePress}
-      text={t('Back')}
-      style={style}
+      text={text ?? t('Back')}
+      style={[
+        spacings.phSm,
+        { padding: 30, flex: 1, maxWidth: 132, borderColor: '#F9F6E94D' },
+        style
+      ]}
     >
-      <LeftArrowIcon color={theme.primary} style={spacings.mrTy} />
+      {withIcon && <LeftArrowIcon color={theme.primary} style={spacings.mrTy} />}
     </Button>
   ) : (
     <AnimatedPressable
@@ -56,7 +69,7 @@ const BackButton: FC<Props> = ({ onPress, fallbackBackRoute, type = 'primary', s
       style={[animStyle, flexbox.directionRow, flexbox.alignCenter, style]}
       onPress={handlePress}
     >
-      <LeftArrowIcon color={theme.secondaryText} style={spacings.mrTy} />
+      {withIcon && <LeftArrowIcon color={theme.secondaryText} style={spacings.mrTy} />}
       <Text fontSize={16} weight="medium" appearance="secondaryText">
         {t('Back')}
       </Text>

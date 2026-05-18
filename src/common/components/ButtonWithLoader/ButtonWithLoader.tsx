@@ -1,4 +1,4 @@
-import React, { FC } from 'react'
+import React, { FC, ReactNode } from 'react'
 import { ViewStyle } from 'react-native'
 
 import spacings, { SPACING_TY, SPACING_XL } from '@common/styles/spacings'
@@ -6,15 +6,17 @@ import spacings, { SPACING_TY, SPACING_XL } from '@common/styles/spacings'
 import Button, { Props as CommonButtonProps } from '../Button/Button'
 import Spinner from '../Spinner'
 
-type Props = Omit<CommonButtonProps, 'style' | 'children' | 'childrenPosition'> & {
+type Props = Omit<CommonButtonProps, 'style' | 'children'> & {
   style?: ViewStyle
   isLoading?: boolean
+  proceedIcon?: ReactNode
 }
 
 const ButtonWithLoader: FC<Props> = ({
   style,
   isLoading,
   childrenContainerStyle = {},
+  proceedIcon,
   ...rest
 }) => {
   return (
@@ -22,8 +24,8 @@ const ButtonWithLoader: FC<Props> = ({
       style={[
         {
           minWidth: 160,
-          ...spacings.mlLg,
-          paddingHorizontal: SPACING_XL + SPACING_TY
+          ...spacings.mlLg
+          // paddingHorizontal: SPACING_XL + SPACING_TY
         },
         style
       ]}
@@ -40,7 +42,7 @@ const ButtonWithLoader: FC<Props> = ({
       }}
       {...rest}
     >
-      {isLoading && (
+      {isLoading ? (
         <Spinner
           variant="white"
           style={{
@@ -48,6 +50,8 @@ const ButtonWithLoader: FC<Props> = ({
             height: 32
           }}
         />
+      ) : (
+        proceedIcon ?? null
       )}
     </Button>
   )

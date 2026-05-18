@@ -2,7 +2,7 @@ import { ViewStyle } from 'react-native'
 
 import { TextWeight } from '@common/components/Text'
 
-type BadgeType = 'info' | 'warning' | 'default' | 'success' | 'error' | 'ok' | 'new'
+type BadgeType = 'info' | 'warning' | 'default' | 'success' | 'error' | 'ok' | 'new' | 'new2'
 
 type SpecialBadgeType = 'metamask'
 

@@ -16,6 +16,7 @@ import getStyles from './styles'
 type ButtonTypes =
   | 'primary'
   | 'secondary'
+  | 'tertiary'
   | 'danger'
   | 'outline'
   | 'ghost'
@@ -73,6 +74,7 @@ const ButtonInnerContainer = ({
     () => ({
       primary: [],
       secondary: [],
+      tertiary: [],
       danger: [],
       outline: [],
       ghost:
@@ -181,39 +183,58 @@ const Button = ({
       primary: [
         {
           property: 'backgroundColor',
-          from: theme.primary,
-          to: theme.primaryLight
-        },
-        ...(themeType === THEME_TYPES.DARK
-          ? [
-              {
-                property: 'borderWidth',
-                from: 0,
-                to: 1
-              },
-              {
-                property: 'borderColor',
-                from: theme.primary,
-                to: theme.primary
-              }
-            ]
-          : [])
+          from: '#0D9FD8',
+          to: '#2EB5E5'
+        }
+        // ...(themeType === THEME_TYPES.DARK
+        //   ? [
+        //       {
+        //         property: 'borderWidth',
+        //         from: 0,
+        //         to: 1
+        //       },
+        //       {
+        //         property: 'borderColor',
+        //         from: theme.primary,
+        //         to: theme.primary
+        //       }
+        //     ]
+        //   : [])
       ],
       secondary: [
+        // {
+        //   property: 'backgroundColor',
+        //   from:
+        //     themeType === THEME_TYPES.DARK
+        //       ? `${String(theme.primary)}00`
+        //       : `${String(theme.infoBackground)}00`,
+        //   to: themeType === THEME_TYPES.DARK ? `${String(theme.primary)}20` : theme.infoBackground
+        // }
         {
           property: 'backgroundColor',
-          from:
-            themeType === THEME_TYPES.DARK
-              ? `${String(theme.primary)}00`
-              : `${String(theme.infoBackground)}00`,
-          to: themeType === THEME_TYPES.DARK ? `${String(theme.primary)}20` : theme.infoBackground
+          // from:
+          //   themeType === THEME_TYPES.DARK
+          //     ? `${String(theme.primary)}00`
+          //     : `${String(theme.infoBackground)}00`,
+          // to: themeType === THEME_TYPES.DARK ? `${String(theme.primary)}20` : theme.infoBackground
+          from: 'transparent',
+          to: theme.accent
+        }
+      ],
+      tertiary: [
+        {
+          property: 'backgroundColor',
+          from: 'transparent',
+          to: theme.accent
         }
       ],
       danger: [
         {
           property: 'backgroundColor',
-          from: `${String(theme.errorBackground)}00`,
-          to: theme.errorBackground
+          // from: `${String(theme.errorBackground)}00`,
+          // to: theme.errorBackground
+          from: theme.danger,
+          to: theme.danger
         }
       ],
       outline: [OPACITY_ANIMATION],
@@ -257,6 +278,7 @@ const Button = ({
   const containerStyles: { [key in ButtonTypes]: ViewStyle } = {
     primary: styles.buttonContainerPrimary,
     secondary: styles.buttonContainerSecondary,
+    tertiary: styles.buttonContainerTertiary,
     danger: styles.buttonContainerDanger,
     outline: styles.buttonContainerOutline,
     ghost: styles.buttonContainerGhost,
@@ -266,7 +288,8 @@ const Button = ({
       borderWidth: 0
     },
     warning: {
-      backgroundColor: theme.warningText,
+      // backgroundColor: theme.warningText,
+      backgroundColor: theme.warning,
       borderWidth: 0
     },
     info: {
@@ -278,7 +301,8 @@ const Button = ({
       borderWidth: 0
     },
     success: {
-      backgroundColor: theme.successText,
+      // backgroundColor: theme.successText,
+      backgroundColor: theme.success,
       borderWidth: 0
     },
     gray: {
@@ -302,22 +326,37 @@ const Button = ({
       primary: [
         {
           property: 'color',
-          from: themeType === THEME_TYPES.DARK ? theme.primaryBackground : '#fff',
-          to: '#fff'
+          // from: themeType === THEME_TYPES.DARK ? theme.primaryBackground : '#fff',
+          // to: '#fff'
+          // from: theme.textPrimary,
+          // to: theme.textPrimary
+          from: theme.textPrimary,
+          to: theme.textPrimary
         }
       ],
       secondary: [
         {
           property: 'color',
           from: theme.primary,
-          to: themeType === THEME_TYPES.DARK ? '#fff' : theme.primary
+          // to: themeType === THEME_TYPES.DARK ? '#fff' : theme.primary
+          // to: theme.textPrimary
+          to: '#fff'
+        }
+      ],
+      tertiary: [
+        {
+          property: 'color',
+          from: '#0D9FD8',
+          to: theme.textPrimary
         }
       ],
       danger: [
         {
           property: 'color',
-          from: themeType === THEME_TYPES.DARK ? theme.errorText : theme.errorDecorative,
-          to: themeType === THEME_TYPES.DARK ? theme.errorText : theme.errorDecorative
+          // from: themeType === THEME_TYPES.DARK ? theme.errorText : theme.errorDecorative,
+          // to: themeType === THEME_TYPES.DARK ? theme.errorText : theme.errorDecorative
+          from: theme.textPrimary,
+          to: theme.textPrimary
         }
       ],
       outline: [
@@ -351,8 +390,10 @@ const Button = ({
       warning: [
         {
           property: 'color',
-          from: theme.primaryBackground,
-          to: theme.primaryBackground
+          // from: theme.primaryBackground,
+          // to: theme.primaryBackground
+          from: theme.surfaceInput,
+          to: theme.surfaceInput
         }
       ],
       info: [
@@ -372,8 +413,10 @@ const Button = ({
       success: [
         {
           property: 'color',
-          from: theme.primaryBackground,
-          to: theme.primaryBackground
+          // from: theme.primaryBackground,
+          // to: theme.primaryBackground
+          from: theme.surfaceInput,
+          to: theme.surfaceInput
         }
       ],
       gray: [

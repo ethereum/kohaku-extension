@@ -36,7 +36,7 @@ const getStyles = (theme: ThemeProps, themeType: ThemeType) =>
   StyleSheet.create<Style>({
     selectContainer: {
       width: '100%',
-      ...spacings.mbSm
+      // ...spacings.mbSm
     },
     selectBorderWrapper: {
       borderWidth: 2,
@@ -47,8 +47,9 @@ const getStyles = (theme: ThemeProps, themeType: ThemeType) =>
     select: {
       width: '100%',
       ...common.borderRadiusPrimary,
-      backgroundColor:
-        themeType === THEME_TYPES.DARK ? theme.primaryBackground : theme.secondaryBackground,
+      // backgroundColor:
+      //   themeType === THEME_TYPES.DARK ? theme.primaryBackground : theme.secondaryBackground,
+      backgroundColor: theme.surfaceInput,
       borderWidth: themeType === THEME_TYPES.DARK ? 0 : 1,
       ...common.hidden,
       borderColor: 'transparent',

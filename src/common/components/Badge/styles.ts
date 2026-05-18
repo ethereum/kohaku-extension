@@ -13,6 +13,7 @@ interface Style {
   warningBadge: ViewStyle
   errorBadge: ViewStyle
   newBadge: ViewStyle
+  new2: ViewStyle
 }
 
 const label: ViewStyle = {
@@ -59,6 +60,11 @@ const getStyles = (theme: ThemeProps) =>
       borderColor: theme.infoDecorative,
       // @ts-ignore
       backgroundImage: 'linear-gradient(90deg, #6000FF 0%, #FFA000 100%)'
+    },
+    new2: {
+      ...label,
+      borderColor: theme.success,
+      backgroundColor: `${theme.success.toString()}33`
     }
   })
 

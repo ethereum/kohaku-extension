@@ -9,7 +9,8 @@ export enum THEME_TYPES {
 
 export type ThemeType = THEME_TYPES.LIGHT | THEME_TYPES.DARK | THEME_TYPES.SYSTEM
 
-export const DEFAULT_THEME = THEME_TYPES.LIGHT
+// export const DEFAULT_THEME = THEME_TYPES.LIGHT
+export const DEFAULT_THEME = THEME_TYPES.DARK
 
 export type ThemeProps = {
   [key in keyof typeof ThemeColors]: ColorValue
@@ -65,16 +66,19 @@ const ThemeColors = {
     [THEME_TYPES.LIGHT]: '#00000050'
   },
   primaryBackground: {
-    [THEME_TYPES.DARK]: '#000000',
-    [THEME_TYPES.LIGHT]: '#FFFFFF'
+    // [THEME_TYPES.DARK]: '#000000',
+    [THEME_TYPES.DARK]: '#04364d',
+    [THEME_TYPES.LIGHT]: '#ffffff'
   },
   primaryBackgroundInverted: {
     [THEME_TYPES.DARK]: '#FFFFFF',
+    // [THEME_TYPES.DARK]: '#0f0',
     [THEME_TYPES.LIGHT]: '#000000'
   },
   secondaryBackground: {
-    [THEME_TYPES.DARK]: '#1A1A1A',
-    [THEME_TYPES.LIGHT]: '#f1f1f1'
+    // [THEME_TYPES.DARK]: '#1A1A1A',
+    [THEME_TYPES.DARK]: '#053f59',
+    [THEME_TYPES.LIGHT]: '#e8f4fb'
   },
   secondaryBackgroundInverted: {
     [THEME_TYPES.DARK]: '#F9F6E9',
@@ -82,6 +86,7 @@ const ThemeColors = {
   },
   tertiaryBackground: {
     [THEME_TYPES.DARK]: '#2A2A2A',
+    // [THEME_TYPES.DARK]: 'purple',
     [THEME_TYPES.LIGHT]: '#9E9E9F'
   },
   quaternaryBackground: {
@@ -220,6 +225,35 @@ const ThemeColors = {
   depositInactiveText: {
     [THEME_TYPES.DARK]: '#4a5568',
     [THEME_TYPES.LIGHT]: '#4a5568'
+  },
+  // random
+  muted: {
+    [THEME_TYPES.DARK]: '#7F7F7F',
+    [THEME_TYPES.LIGHT]: '#6b7280'
+  },
+  surfaceInput: {
+    [THEME_TYPES.DARK]: '#021B26',
+    [THEME_TYPES.LIGHT]: '#f5f9fc'
+  },
+  accent: {
+    [THEME_TYPES.DARK]: '#097db2',
+    [THEME_TYPES.LIGHT]: '#097db2'
+  },
+  textPrimary: {
+    [THEME_TYPES.DARK]: '#F9F6E9',
+    [THEME_TYPES.LIGHT]: '#021b26'
+  },
+  warning: {
+    [THEME_TYPES.DARK]: '#ffa500',
+    [THEME_TYPES.LIGHT]: '#ffa500'
+  },
+  success: {
+    [THEME_TYPES.DARK]: '#00C853',
+    [THEME_TYPES.LIGHT]: '#00C853'
+  },
+  danger: {
+    [THEME_TYPES.DARK]: '#FF4D4D',
+    [THEME_TYPES.LIGHT]: '#FF4D4D'
   }
 }
 

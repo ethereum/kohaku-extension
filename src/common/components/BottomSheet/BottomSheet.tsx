@@ -31,7 +31,7 @@ interface Props {
   containerInnerWrapperStyles?: ViewStyle
   flatListProps?: ModalizeProps['flatListProps']
   scrollViewProps?: ModalizeProps['scrollViewProps']
-  backgroundColor?: 'primaryBackground' | 'secondaryBackground'
+  backgroundColor?: 'primaryBackground' | 'secondaryBackground' | 'transparent'
   autoWidth?: boolean
   autoOpen?: boolean
   shouldBeClosableOnDrag?: boolean
@@ -162,7 +162,10 @@ const BottomSheet: React.FC<Props> = ({
             isModal
               ? { ...styles.modal, ...(autoWidth ? { maxWidth: 'unset', width: 'auto' } : {}) }
               : {},
-            { backgroundColor: theme[backgroundColor] },
+            {
+              backgroundColor:
+                backgroundColor === 'transparent' ? 'transparent' : theme[backgroundColor]
+            },
             isPopup && isModal ? { height: '100%' } : {},
             style
           ]}

@@ -13,6 +13,7 @@ interface Style {
 
   buttonContainerPrimary: ViewStyle
   buttonContainerSecondary: ViewStyle
+  buttonContainerTertiary: ViewStyle
   buttonContainerDanger: ViewStyle
   buttonContainerOutline: ViewStyle
   buttonContainerGhost: ViewStyle
@@ -58,10 +59,15 @@ const getStyles = (theme: ThemeProps, themeType: ThemeType) =>
     buttonContainerSecondary: {
       backgroundColor: 'transparent',
       borderWidth: 1,
-      borderColor: theme.primary
+      // borderColor: theme.primary
+      borderColor: theme.accent
+    },
+    buttonContainerTertiary: {
+      backgroundColor: 'transparent'
     },
     buttonContainerDanger: {
-      borderColor: theme.errorDecorative
+      // borderColor: theme.errorDecorative
+      borderColor: 'transparent'
     },
     buttonContainerOutline: {
       borderColor: themeType === THEME_TYPES.DARK ? theme.primary : theme.successDecorative
@@ -80,7 +86,7 @@ const getStyles = (theme: ThemeProps, themeType: ThemeType) =>
       ...spacings.mbSm
     },
     buttonContainerStylesSizeRegular: {
-      height: 56,
+      height: 48,
       ...spacings.pvMi,
       ...spacings.phSm,
       ...spacings.mbSm
