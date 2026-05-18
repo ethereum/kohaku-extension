@@ -22,7 +22,7 @@ import AuthenticatedRoute from '@web/modules/router/components/AuthenticatedRout
 import KeystoreUnlockedRoute from '@web/modules/router/components/KeystoreUnlockedRoute'
 
 import DashboardScreen from '@common/modules/dashboard/screens'
-import KohakuDashboardScreen from '@web/modules/PPv1/screens/dashboard/screens/KohakuDashboardScreen'
+import KohakuDashboardScreen from '@web/modules/PPv1/screens/dashboard/screens'
 import { getInitialRoute } from './helpers'
 import getStyles from './styles'
 

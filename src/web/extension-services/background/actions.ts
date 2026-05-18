@@ -170,6 +170,11 @@ type AccountsControllerSetAssociatedDapps = {
   }
 }
 
+type AccountsControllerTogglePinAccount = {
+  type: 'ACCOUNTS_CONTROLLER_TOGGLE_PIN_ACCOUNT'
+  params: { addr: string; pinned: boolean }
+}
+
 type SettingsControllerSetNetworkToAddOrUpdate = {
   type: 'SETTINGS_CONTROLLER_SET_NETWORK_TO_ADD_OR_UPDATE'
   params: {
@@ -1047,6 +1052,7 @@ export type Action =
   | AccountsControllerUpdateAccountState
   | AccountsControllerResetAccountsNewlyAddedStateAction
   | AccountsControllerSetAssociatedDapps
+  | AccountsControllerTogglePinAccount
   | SettingsControllerSetNetworkToAddOrUpdate
   | SettingsControllerResetNetworkToAddOrUpdate
   | MainControllerAddNetwork

@@ -24,6 +24,7 @@ import { Port, PortMessenger } from '@web/extension-services/messengers'
 import LatticeKeyIterator from '@web/modules/hardware-wallet/libs/latticeKeyIterator'
 import LedgerKeyIterator from '@web/modules/hardware-wallet/libs/ledgerKeyIterator'
 import TrezorKeyIterator from '@web/modules/hardware-wallet/libs/trezorKeyIterator'
+import { ExtendedAccountPreferences } from '@web/interfaces/account-preferences'
 
 import sessionStorage from '../webapi/sessionStorage'
 
@@ -157,6 +158,20 @@ export const handleActions = async (
     }
     case 'ACCOUNTS_CONTROLLER_RESET_ACCOUNTS_NEWLY_ADDED_STATE': {
       return await mainCtrl.accounts.resetAccountsNewlyAddedState()
+    }
+    case 'ACCOUNTS_CONTROLLER_TOGGLE_PIN_ACCOUNT': {
+      const account = mainCtrl.accounts.accounts.find((a) => a.addr === params.addr)
+      if (!account) break
+
+      return await mainCtrl.accounts.updateAccountPreferences([
+        {
+          addr: params.addr,
+          preferences: {
+            ...account.preferences,
+            pinnedAt: params.pinned ? Date.now() : undefined
+          } as ExtendedAccountPreferences
+        }
+      ])
     }
     case 'SETTINGS_CONTROLLER_SET_NETWORK_TO_ADD_OR_UPDATE': {
       return await mainCtrl.networks.setNetworkToAddOrUpdate(params)

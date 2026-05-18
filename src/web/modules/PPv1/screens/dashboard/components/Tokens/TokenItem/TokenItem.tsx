@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react'
-import { View } from 'react-native'
+import { StyleProp, View, ViewStyle } from 'react-native'
 import { formatUnits } from 'ethers'
 
 import { TokenResult } from '@ambire-common/libs/portfolio'
@@ -24,7 +24,7 @@ type PrivateToken = TokenResult & {
   privacyProtocol: PrivacyProtocolType
 }
 
-const TokenItem = ({ token }: { token: PrivateToken }) => {
+const TokenItem = ({ token, style }: { token: PrivateToken; style?: StyleProp<ViewStyle> }) => {
   const { styles, theme, themeType } = useTheme(getStyles)
 
   const {
@@ -61,7 +61,7 @@ const TokenItem = ({ token }: { token: PrivateToken }) => {
 
   return (
     <AnimatedPressable
-      style={[styles.container, animStyle]}
+      style={[styles.container, animStyle, style]}
       {...bindAnim}
       onPress={navigateToTransfer}
     >

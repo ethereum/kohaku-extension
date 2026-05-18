@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react'
-import { Pressable, View } from 'react-native'
+import { Pressable, StyleProp, View, ViewStyle } from 'react-native'
 import { useModalize } from 'react-native-modalize'
 
 import { TokenResult } from '@ambire-common/libs/portfolio'
@@ -34,7 +34,7 @@ import getStyles from './styles'
 
 const { isPopup } = getUiType()
 
-const TokenItem = ({ token }: { token: TokenResult }) => {
+const TokenItem = ({ token, style }: { token: TokenResult; style: StyleProp<ViewStyle> }) => {
   const { navigate } = useNavigation()
   const shieldToken = () => {
     navigate(`${WEB_ROUTES.pp1Deposit}`, { state: { token } })
@@ -110,7 +110,7 @@ const TokenItem = ({ token }: { token: TokenResult }) => {
   return (
     <AnimatedPressable
       onPress={() => openBottomSheet()}
-      style={[styles.container, animStyle]}
+      style={[styles.container, animStyle, style]}
       {...bindAnim}
     >
       <BottomSheet
@@ -214,12 +214,7 @@ const TokenItem = ({ token }: { token: TokenResult }) => {
                         }
                       ]}
                     >
-                      <Text
-                        weight="regular"
-                        fontSize={11}
-                        color="#fff"
-                        style={spacings.mrMi}
-                      >
+                      <Text weight="regular" fontSize={11} color="#fff" style={spacings.mrMi}>
                         {t('Shield It!')}
                       </Text>
                       <KohakuLogo height={13} width={13} />

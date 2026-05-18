@@ -1,28 +1,60 @@
 import React, { useCallback } from 'react'
-import { Animated, Pressable, View } from 'react-native'
+import { Pressable, View } from 'react-native'
 
-import BurgerIcon from '@common/assets/svg/BurgerIcon'
-import AmbireLogoHorizontal from '@common/components/AmbireLogoHorizontal/AmbireLogoHorizontal'
+import SettingsIcon from '@common/assets/svg/SettingsIcon'
+import KohakuLogo from '@common/components/HokahuLogo'
 import Text from '@common/components/Text/Text'
 import useTheme from '@common/hooks/useTheme'
-import spacings from '@common/styles/spacings'
-import { BORDER_RADIUS_PRIMARY } from '@common/styles/utils/common'
 import useNavigation from '@common/hooks/useNavigation'
+import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
-import useHover from '@web/hooks/useHover'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import { getUiType } from '@web/utils/uiType'
+import Button from '@common/components/Button'
+import { openInTab } from '@web/extension-services/background/webapi/tab'
+import MaximizeIcon from '@common/assets/svg/MaximizeIcon'
+import Tooltip from '@common/components/Tooltip'
+import { useTranslation } from 'react-i18next'
+import { ActiveView } from './types'
 
 const { isPopup } = getUiType()
 
-const DashboardHeader = () => {
-  const { navigate } = useNavigation()
-  const { theme } = useTheme()
-  const [bindBurgerAnim, burgerAnimStyle] = useHover({ preset: 'opacity' })
+const expandViewTooltipId = 'expand-view-tooltip'
 
-  const viewAllAccounts = () => {
-    navigate(WEB_ROUTES.accountSelect)
-  }
+const ExpandView = () => {
+  const { t } = useTranslation()
+  // const { theme } = useTheme()
+  return (
+    <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+      <Button
+        type="ghost2"
+        size="small"
+        hasBottomSpacing={false}
+        onPress={() =>
+          openInTab({
+            url: `tab.html#/${WEB_ROUTES.mainDashboard}`,
+            shouldCloseCurrentWindow: true
+          })
+        }
+      >
+        <MaximizeIcon
+          // color={theme.secondaryBackgroundInverted}
+          color="#FF0A6F"
+          // @ts-ignore missing type, but the prop is valid
+          dataSet={{ tooltipId: expandViewTooltipId }}
+          width={16}
+          height={16}
+        />
+      </Button>
+
+      <Tooltip content={t('Expand view')} id={expandViewTooltipId} />
+    </View>
+  )
+}
+
+const NewDashboardHeader = ({ activeView }: { activeView: ActiveView }) => {
+  const { theme } = useTheme()
+  const { navigate } = useNavigation()
 
   const openSettings = useCallback(() => {
     navigate(isPopup ? WEB_ROUTES.menu : WEB_ROUTES.generalSettings)
@@ -34,44 +66,41 @@ const DashboardHeader = () => {
         flexbox.directionRow,
         flexbox.justifySpaceBetween,
         flexbox.alignCenter,
-        spacings.phMd,
-        spacings.pvTy
+        spacings.pvTy,
+        !isPopup && spacings.phMd,
+        {
+          borderColor: theme.primaryBorder,
+          borderLeftWidth: isPopup ? 0 : 1,
+          borderRightWidth: isPopup ? 0 : 1,
+          marginLeft: isPopup ? 10 : 80,
+          marginRight: isPopup ? 10 : 80
+        }
       ]}
     >
+      <KohakuLogo width={40} height={40} />
+
       <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-        <AmbireLogoHorizontal width={100} height={40} />
-        <Pressable
-          onPress={viewAllAccounts}
-          style={[
-            spacings.mlSm,
-            spacings.phSm,
-            spacings.pvTy,
-            {
-              borderRadius: BORDER_RADIUS_PRIMARY,
-              borderWidth: 1,
-              borderColor: theme.primaryBorder,
-              backgroundColor: theme.secondaryBackground
-            }
-          ]}
+        <Text
+          fontSize={12}
+          weight="medium"
+          // color={activeView === 'private' ? undefined : '#000000'}
         >
-          <Text fontSize={11} weight="medium" appearance="secondaryText">
-            All Accounts
-          </Text>
+          How does Kohaku work?
+        </Text>
+
+        <Pressable onPress={openSettings} style={spacings.mlSm}>
+          <SettingsIcon
+            width={20}
+            height={20}
+            // color={activeView === 'private' ? '#F9F6E9' : '#000000'}
+            color="#F9F6E9"
+          />
         </Pressable>
-      </View>
-      <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-        <Pressable
-          style={[spacings.pvTy, spacings.phTy]}
-          onPress={openSettings}
-          {...bindBurgerAnim}
-        >
-          <Animated.View style={burgerAnimStyle}>
-            <BurgerIcon color={String(theme.primaryText)} width={20} height={20} />
-          </Animated.View>
-        </Pressable>
+
+        {isPopup && <ExpandView />}
       </View>
     </View>
   )
 }
 
-export default DashboardHeader
+export default NewDashboardHeader

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Animated, FlatListProps, View } from 'react-native'
+import { Animated, FlatListProps, StyleProp, StyleSheet, View, ViewStyle } from 'react-native'
 
 import CopyIcon from '@common/assets/svg/CopyIcon'
 import Text from '@common/components/Text'
@@ -27,7 +27,6 @@ import TabsAndSearch from '../TabsAndSearch'
 import { TabType } from '../TabsAndSearch/Tabs/Tab/Tab'
 import TokenItem from './TokenItem'
 
-
 interface Props {
   openTab: TabType
   setOpenTab: React.Dispatch<React.SetStateAction<TabType>>
@@ -38,6 +37,7 @@ interface Props {
   onScroll: FlatListProps<any>['onScroll']
   dashboardNetworkFilterName: string | null
   animatedOverviewHeight: Animated.Value
+  style?: StyleProp<ViewStyle>
 }
 
 const { isPopup } = getUiType()
@@ -49,7 +49,8 @@ const Tokens = ({
   sessionId,
   onScroll,
   animatedOverviewHeight,
-  dashboardNetworkFilterName
+  dashboardNetworkFilterName,
+  style
 }: Props) => {
   const { t } = useTranslation()
   const { theme } = useTheme()
@@ -208,7 +209,7 @@ const Tokens = ({
     ({ item, index }: any) => {
       if (item === 'header') {
         return (
-          <View style={{ backgroundColor: theme.primaryBackground }}>
+          <View style={{ backgroundColor: theme.primaryBackground, ...StyleSheet.flatten(style) }}>
             <TabsAndSearch
               openTab={openTab}
               setOpenTab={setOpenTab}
@@ -317,7 +318,7 @@ const Tokens = ({
       )
         return null
 
-      return <TokenItem token={item} />
+      return <TokenItem token={item} style={style} />
     },
     [
       initTab?.tokens,

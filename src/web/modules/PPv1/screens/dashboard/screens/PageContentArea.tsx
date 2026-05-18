@@ -26,10 +26,18 @@ const PageContentArea = ({ activeView, isLoadingPublicBalances }: Props) => {
     <>
       <DepositStatusBanner onWithdrawBack={onWithdrawBack} onDeposit={onDeposit} />
       {activeView === 'public' && !isLoadingPublicBalances && (
-        <DashboardPages onScroll={noop} animatedOverviewHeight={animatedOverviewHeight} />
+        <DashboardPages
+          onScroll={noop}
+          animatedOverviewHeight={animatedOverviewHeight}
+          generalViewStyle={{ backgroundColor: 'transparent' }}
+        />
       )}
       {activeView === 'private' && (
-        <PPv1DashboardPages onScroll={noop} animatedOverviewHeight={animatedOverviewHeight} />
+        <PPv1DashboardPages
+          onScroll={noop}
+          animatedOverviewHeight={animatedOverviewHeight}
+          generalViewStyle={{ backgroundColor: 'transparent' }}
+        />
       )}
     </>
   )

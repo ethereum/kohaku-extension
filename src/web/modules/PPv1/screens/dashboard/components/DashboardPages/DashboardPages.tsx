@@ -1,7 +1,14 @@
 import { nanoid } from 'nanoid'
 import React, { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Animated, NativeScrollEvent, NativeSyntheticEvent, View } from 'react-native'
+import {
+  Animated,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  StyleProp,
+  View,
+  ViewStyle
+} from 'react-native'
 import { useSearchParams } from 'react-router-dom'
 
 import usePrevious from '@common/hooks/usePrevious'
@@ -22,11 +29,12 @@ import { TabType } from '../TabsAndSearch/Tabs/Tab/Tab'
 interface Props {
   onScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
   animatedOverviewHeight: Animated.Value
+  generalViewStyle?: StyleProp<ViewStyle>
 }
 
 const { isTab } = getUiType()
 
-const DashboardPages = ({ onScroll, animatedOverviewHeight }: Props) => {
+const DashboardPages = ({ onScroll, animatedOverviewHeight, generalViewStyle }: Props) => {
   const { t } = useTranslation()
   const route = useRoute()
   const [sessionId] = useState(nanoid())
@@ -95,6 +103,7 @@ const DashboardPages = ({ onScroll, animatedOverviewHeight }: Props) => {
         initTab={initTab}
         dashboardNetworkFilterName={dashboardNetworkFilterName}
         animatedOverviewHeight={animatedOverviewHeight}
+        style={generalViewStyle}
       />
       <Activity
         openTab={openTab}

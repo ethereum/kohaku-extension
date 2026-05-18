@@ -1,6 +1,14 @@
 import React, { useCallback, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
-import { Animated, FlatListProps, Pressable, View } from 'react-native'
+import {
+  Animated,
+  FlatListProps,
+  Pressable,
+  StyleProp,
+  StyleSheet,
+  View,
+  ViewStyle
+} from 'react-native'
 import { useModalize } from 'react-native-modalize'
 
 import { PINNED_TOKENS } from '@ambire-common/consts/pinnedTokens'
@@ -42,6 +50,7 @@ interface Props {
   onScroll: FlatListProps<any>['onScroll']
   dashboardNetworkFilterName: string | null
   animatedOverviewHeight: Animated.Value
+  style?: StyleProp<ViewStyle>
 }
 
 // if any of the post amount (during simulation) or the current state
@@ -64,7 +73,8 @@ const Tokens = ({
   sessionId,
   onScroll,
   animatedOverviewHeight,
-  dashboardNetworkFilterName
+  dashboardNetworkFilterName,
+  style
 }: Props) => {
   const { t } = useTranslation()
   const { navigate } = useNavigation()
@@ -196,7 +206,7 @@ const Tokens = ({
     ({ item, index }: any) => {
       if (item === 'header') {
         return (
-          <View style={{ backgroundColor: theme.primaryBackground }}>
+          <View style={{ backgroundColor: theme.primaryBackground, ...StyleSheet.flatten(style) }}>
             <TabsAndSearch
               openTab={openTab}
               setOpenTab={setOpenTab}
@@ -226,7 +236,7 @@ const Tokens = ({
       if (item === 'empty') {
         return (
           <View style={[flexbox.alignCenter, spacings.pv]}>
-            <Text fontSize={16} weight="medium">
+            <Text fontSize={16} weight="medium" appearance="muted">
               {!searchValue && !dashboardNetworkFilterName && t("You don't have any tokens yet.")}
               {!searchValue &&
                 dashboardNetworkFilterName &&
@@ -285,11 +295,11 @@ const Tokens = ({
                 <RightArrowIcon height={12} color={theme.secondaryText} />
               </Pressable>
             )}
-            { <Button
-              type="secondary"
+            <Button
+              type="primary"
               text={t('+ Add custom token')}
               onPress={navigateToAddCustomToken}
-            />}
+            />
           </View>
         ) : null
       }
@@ -302,7 +312,7 @@ const Tokens = ({
       )
         return null
 
-      return <TokenItem token={item} />
+      return <TokenItem token={item} style={style} />
     },
     [
       initTab?.tokens,
