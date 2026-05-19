@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { View } from 'react-native'
+import { StyleProp, View, ViewStyle } from 'react-native'
 
 import Button, { Props as ButtonProps } from '@common/components/Button'
 import Tooltip from '@common/components/Tooltip'
@@ -18,6 +18,7 @@ type Props = {
   resolveType?: ButtonProps['type']
   rejectButtonTestID?: string
   resolveButtonTestID?: string
+  commonBtnStyle?: StyleProp<ViewStyle>
 }
 
 const ActionFooter = ({
@@ -28,7 +29,8 @@ const ActionFooter = ({
   resolveDisabled,
   resolveType = 'primary',
   rejectButtonTestID,
-  resolveButtonTestID
+  resolveButtonTestID,
+  commonBtnStyle
 }: Props) => {
   const { t } = useTranslation()
 
@@ -45,14 +47,14 @@ const ActionFooter = ({
           size="large"
           onPress={onReject}
           testID={rejectButtonTestID}
-          style={flexbox.alignSelfStart}
+          style={[flexbox.alignSelfStart, commonBtnStyle]}
         />
       </View>
       <ActionsPagination />
       <View style={flexbox.flex1}>
         <Button
           testID={resolveButtonTestID}
-          style={{ ...spacings.phLg, ...flexbox.alignSelfEnd, minWidth: 128 }}
+          style={[{ ...spacings.phLg, ...flexbox.alignSelfEnd, minWidth: 128 }, commonBtnStyle]}
           size="large"
           type={resolveType}
           hasBottomSpacing={false}

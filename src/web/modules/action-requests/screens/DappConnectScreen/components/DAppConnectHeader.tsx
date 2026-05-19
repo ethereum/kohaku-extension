@@ -52,18 +52,22 @@ const DAppConnectHeader: FC<Props> = ({
     return initialDappsList.some((dapp) => dapp.url.includes(hostname))
   }, [hostname, initialDappsList])
 
-  const spacingsStyle = useMemo(() => {
-    return {
-      paddingHorizontal: SPACING_LG * responsiveSizeMultiplier,
-      paddingTop: SPACING_MD * responsiveSizeMultiplier,
-      paddingBottom: SPACING_LG * responsiveSizeMultiplier
-    }
-  }, [responsiveSizeMultiplier])
+  // const spacingsStyle = useMemo(() => {
+  //   return {
+  //     paddingHorizontal: SPACING_LG * responsiveSizeMultiplier,
+  //     paddingTop: SPACING_MD * responsiveSizeMultiplier,
+  //     paddingBottom: SPACING_LG * responsiveSizeMultiplier
+  //   }
+  // }, [responsiveSizeMultiplier])
+
+  //
 
   return (
     <View
       style={[
         styles.contentHeader,
+        spacings.pvLg,
+        spacings.phLg,
         {
           backgroundColor:
             securityCheck === 'BLACKLISTED'
@@ -72,14 +76,17 @@ const DAppConnectHeader: FC<Props> = ({
               ? theme.secondaryBackground
               : theme.tertiaryBackground
         },
-        spacingsStyle
+        // spacingsStyle
       ]}
     >
       <Text
         weight="medium"
-        fontSize={responsiveSizeMultiplier * 20}
+        // fontSize={responsiveSizeMultiplier * 20}
+        fontSize={12}
+        appearance="muted"
         style={{
-          marginBottom: SPACING * responsiveSizeMultiplier
+          // marginBottom: SPACING * responsiveSizeMultiplier
+          marginBottom: 14
         }}
       >
         {t('Connection request from')}
@@ -123,13 +130,18 @@ const DAppConnectHeader: FC<Props> = ({
         <View style={flexbox.flex1}>
           <Text
             style={[!minHeightSize('m') && spacings.mbMi, flexbox.flex1, { lineHeight: 23 }]}
-            fontSize={responsiveSizeMultiplier * 20}
+            // fontSize={responsiveSizeMultiplier * 20}
+            fontSize={15}
             weight="semiBold"
             numberOfLines={2}
           >
             {name}
           </Text>
-          <Text fontSize={14 * responsiveSizeMultiplier} appearance="secondaryText">
+          <Text
+            // fontSize={14 * responsiveSizeMultiplier}
+            fontSize={12}
+            appearance="muted"
+          >
             {hostname}
           </Text>
         </View>

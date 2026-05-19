@@ -1,13 +1,13 @@
 import React, { createContext, FC, useContext, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ColorValue, View } from 'react-native'
+import { ColorValue, StyleProp, View, ViewStyle } from 'react-native'
 
 import LockIcon from '@common/assets/svg/LockIcon'
 import TransactionsIcon from '@common/assets/svg/TransactionsIcon'
 import VisibilityIcon from '@common/assets/svg/VisibilityIcon'
 import Text, { Props as TextProps } from '@common/components/Text'
 import useTheme from '@common/hooks/useTheme'
-import spacings, { SPACING_SM, SPACING_TY } from '@common/styles/spacings'
+import spacings, { SPACING_SM } from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 
 const dAppPermissionWrapperContext = createContext({
@@ -16,10 +16,12 @@ const dAppPermissionWrapperContext = createContext({
 
 const DAppPermissionWrapper = ({
   children,
-  responsiveSizeMultiplier
+  responsiveSizeMultiplier,
+  style
 }: {
   children: React.ReactNode
   responsiveSizeMultiplier: number
+  style?: StyleProp<ViewStyle>
 }) => {
   const contextValue = useMemo(() => ({ responsiveSizeMultiplier }), [responsiveSizeMultiplier])
 
@@ -28,9 +30,11 @@ const DAppPermissionWrapper = ({
       <View
         style={[
           flexbox.directionRow,
+          flexbox.alignCenter,
           {
             marginBottom: SPACING_SM * responsiveSizeMultiplier
-          }
+          },
+          style
         ]}
       >
         {children}
@@ -54,7 +58,8 @@ const DAppPermissionIcon = ({
         width: responsiveSizeMultiplier * 32,
         height: responsiveSizeMultiplier * 32,
         ...flexbox.center,
-        ...spacings.mrTy,
+        // ...spacings.mrTy,
+        marginRight: 10,
         borderRadius: 25
       }}
     >
@@ -81,11 +86,16 @@ const DAppPermissions: FC<{
 
   return (
     <View
-      style={{
-        marginBottom: SPACING_TY * responsiveSizeMultiplier
-      }}
+      style={[
+        spacings.phLg,
+        spacings.pvMd,
+        {
+          backgroundColor: theme.primaryBackground
+          // marginBottom: SPACING_TY * responsiveSizeMultiplier
+        }
+      ]}
     >
-      <Text fontSize={16} weight="medium" numberOfLines={1} style={spacings.mbSm}>
+      <Text fontSize={13} weight="medium" numberOfLines={1} style={spacings.mbSm}>
         {t('Connecting with this app will:')}
       </Text>
       <DAppPermissionWrapper responsiveSizeMultiplier={responsiveSizeMultiplier}>
@@ -96,7 +106,7 @@ const DAppPermissions: FC<{
             color={theme.info2Decorative}
           />
         </DAppPermissionIcon>
-        <DAppPermissionText style={spacings.ptMi}>
+        <DAppPermissionText style={[{ fontSize: 13 }]}>
           Allow the app to{' '}
           <DAppPermissionText weight="medium">{t('see your addresses')}</DAppPermissionText>
         </DAppPermissionText>
@@ -109,12 +119,15 @@ const DAppPermissions: FC<{
             color={theme.infoDecorative}
           />
         </DAppPermissionIcon>
-        <DAppPermissionText style={spacings.ptMi}>
+        <DAppPermissionText style={[{ fontSize: 13 }]}>
           Allow the app to{' '}
           <DAppPermissionText weight="medium">{t('propose transactions')}</DAppPermissionText>
         </DAppPermissionText>
       </DAppPermissionWrapper>
-      <DAppPermissionWrapper responsiveSizeMultiplier={responsiveSizeMultiplier}>
+      <DAppPermissionWrapper
+        responsiveSizeMultiplier={responsiveSizeMultiplier}
+        style={{ marginBottom: 0 }}
+      >
         <DAppPermissionIcon backgroundColor={theme.successBackground}>
           <LockIcon
             width={responsiveSizeMultiplier * 22}
@@ -122,7 +135,7 @@ const DAppPermissions: FC<{
             color={theme.successDecorative}
           />
         </DAppPermissionIcon>
-        <DAppPermissionText style={spacings.ptMi}>
+        <DAppPermissionText style={[{ fontSize: 13 }]}>
           The app <DAppPermissionText weight="medium">{t('cannot move funds')}</DAppPermissionText>{' '}
           without your permission
         </DAppPermissionText>

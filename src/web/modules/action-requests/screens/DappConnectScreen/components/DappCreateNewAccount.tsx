@@ -11,6 +11,7 @@ import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
 import useAccountPickerControllerState from '@web/hooks/useAccountPickerControllerState'
 import Spinner from '@common/components/Spinner'
 import { DappAccount } from './interface'
+import useTheme from '@common/hooks/useTheme'
 
 interface Props {
   origin?: string
@@ -18,6 +19,7 @@ interface Props {
 }
 
 const DappCreateNewAccount: FC<Props> = ({ origin, autoConnect }) => {
+  const { theme } = useTheme()
   const { t } = useTranslation()
   const { accounts } = useAccountsControllerState()
   const { subType, initParams } = useAccountPickerControllerState()
@@ -129,13 +131,18 @@ const DappCreateNewAccount: FC<Props> = ({ origin, autoConnect }) => {
   }, [seedPhraseGroups, seedId, onAddAccount])
 
   return (
-    <View style={{ width: '100%' }}>
+    <View
+      style={[
+        spacings.phLg,
+        spacings.pt,
+        { width: '100%', backgroundColor: theme.primaryBackground, paddingBottom: 10 }
+      ]}
+    >
       <Button
-        type="success"
         size="small"
         text={seedId ? undefined : t('Generate Fresh Account')}
         hasBottomSpacing={false}
-        style={[spacings.mhMi, spacings.mtTy, seedId ? { backgroundColor: 'transparent' } : {}]}
+        // style={[spacings.mhMi, spacings.mtTy, seedId ? { backgroundColor: 'transparent' } : {}]}
         onPress={handleGenerateFreshAccount}
         disabled={!!seedId || !seedPhraseGroups.length}
       >

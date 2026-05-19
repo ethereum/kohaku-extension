@@ -8,7 +8,8 @@ import wait from '@ambire-common/utils/wait'
 import { useTranslation } from '@common/config/localization'
 import useTheme from '@common/hooks/useTheme'
 import useWindowSize from '@common/hooks/useWindowSize'
-import Header from '@common/modules/header/components/Header'
+// import Header from '@common/modules/header/components/Header'
+import spacings from '@common/styles/spacings'
 import { TabLayoutContainer } from '@web/components/TabLayoutWrapper/TabLayoutWrapper'
 import eventBus from '@web/extension-services/event/eventBus'
 import useActionsControllerState from '@web/hooks/useActionsControllerState'
@@ -18,6 +19,8 @@ import ActionFooter from '@web/modules/action-requests/components/ActionFooter'
 
 import { openInTab } from '@web/extension-services/background/webapi/tab'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
+import Divider from '@common/components/Divider'
+import flexbox from '@common/styles/utils/flexbox'
 import DAppConnectBody from './components/DAppConnectBody'
 import DAppConnectHeader from './components/DAppConnectHeader'
 import getStyles from './styles'
@@ -162,31 +165,48 @@ const DappConnectScreen = () => {
     <TabLayoutContainer
       width="full"
       backgroundColor={theme.quinaryBackground}
-      header={
-        <Header
-          mode="custom-inner-content"
-          withAmbireLogo
-          backgroundColor={theme.quinaryBackground as string}
-        />
-      }
-      footer={
-        <ActionFooter
-          onReject={handleDenyButtonPress}
-          onResolve={handleAuthorizeButtonPress}
-          resolveButtonText={resolveButtonText}
-          resolveDisabled={
-            isAuthorizing ||
-            securityCheck === 'LOADING' ||
-            (securityCheck === 'BLACKLISTED' && !confirmedRiskCheckbox) ||
-            dappAccount === null
-          }
-          resolveType={securityCheck === 'BLACKLISTED' ? 'error' : 'primary'}
-          rejectButtonText={t('Deny')}
-          resolveButtonTestID="dapp-connect-button"
-        />
-      }
+      // backgroundColor={theme.primaryBackground}
+      // backgroundColor={theme.danger}
+      style={{
+        height: '95%',
+        alignItems: 'center',
+        justifyContent: 'center',
+        margin: 'auto'
+        // backgroundColor: 'brown'
+      }}
+      // style={{ alignItems: 'center', justifyContent: 'center' }}
+      containerStyle={{ height: '100%' }}
+      // containerStyle={{ height: 300 }}
+      // containerStyle={{ height: '100%', alignItems: 'center', justifyContent: 'center' }}
+      // header={
+      //   <Header
+      //     mode="custom-inner-content"
+      //     withAmbireLogo
+      //     backgroundColor={theme.quinaryBackground as string}
+      //   />
+      // }
+      // footer={
+      //   <View style={{ backgroundColor: 'coral' }}>
+      //     <ActionFooter
+      //       onReject={handleDenyButtonPress}
+      //       onResolve={handleAuthorizeButtonPress}
+      //       resolveButtonText={resolveButtonText}
+      //       resolveDisabled={
+      //         isAuthorizing ||
+      //         securityCheck === 'LOADING' ||
+      //         (securityCheck === 'BLACKLISTED' && !confirmedRiskCheckbox) ||
+      //         dappAccount === null
+      //       }
+      //       resolveType={securityCheck === 'BLACKLISTED' ? 'error' : 'primary'}
+      //       rejectButtonText={t('Deny')}
+      //       resolveButtonTestID="dapp-connect-button"
+      //     />
+      //   </View>
+      // }
+      header={null}
+      // footer={null}
     >
-      <View style={[styles.container, { flex: 1, marginBottom: '20px' }]}>
+      <View style={[styles.container]}>
         <View style={[styles.content, { flex: 1 }]}>
           <View style={{ flexShrink: 0 }}>
             <DAppConnectHeader
@@ -197,6 +217,9 @@ const DappConnectScreen = () => {
               responsiveSizeMultiplier={responsiveSizeMultiplier}
             />
           </View>
+
+          <Divider />
+
           <DAppConnectBody
             securityCheck={securityCheck}
             responsiveSizeMultiplier={responsiveSizeMultiplier}
@@ -205,6 +228,33 @@ const DappConnectScreen = () => {
             origin={userRequest?.session?.origin}
             setSelectedAccount={setDappAccount}
             autoConnect={autoConnect}
+          />
+        </View>
+
+        <Divider style={[spacings.mvTy]} />
+
+        <View
+          style={[
+            flexbox.center,
+            flexbox.directionRow,
+            spacings.phLg,
+            { gap: 10, paddingBottom: 10, paddingTop: 2 }
+          ]}
+        >
+          <ActionFooter
+            onReject={handleDenyButtonPress}
+            onResolve={handleAuthorizeButtonPress}
+            resolveButtonText={resolveButtonText}
+            resolveDisabled={
+              isAuthorizing ||
+              securityCheck === 'LOADING' ||
+              (securityCheck === 'BLACKLISTED' && !confirmedRiskCheckbox) ||
+              dappAccount === null
+            }
+            resolveType={securityCheck === 'BLACKLISTED' ? 'error' : 'primary'}
+            rejectButtonText={t('Deny')}
+            resolveButtonTestID="dapp-connect-button"
+            commonBtnStyle={{ width: '100%' }}
           />
         </View>
       </View>

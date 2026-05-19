@@ -20,6 +20,7 @@ import DAppAccountSelector from './DAppAccountSelector'
 import DAppPermissions from './DAppPermissions'
 import DappCreateNewAccount from './DappCreateNewAccount'
 import { DappAccount, ScreenMode } from './interface'
+import Divider from '@common/components/Divider'
 
 const DAppConnectBody: FC<{
   confirmedRiskCheckbox: boolean
@@ -55,21 +56,22 @@ const DAppConnectBody: FC<{
   }, [setConfirmedRiskCheckbox])
 
   return (
-    <View style={[styles.contentBody, spacingsStyle, { flex: 1 }]}>
+    // <View style={[styles.contentBody, spacingsStyle, { flex: 1 }]}>
+    <View style={[styles.contentBody, { flex: 1 }]}>
       {screenMode === 'all' && (
         <>
           <View
             style={[
               styles.securityChecksContainer,
-              {
-                marginBottom: SPACING * responsiveSizeMultiplier
-              },
+              // {
+              //   marginBottom: SPACING * responsiveSizeMultiplier
+              // },
               securityCheck === 'BLACKLISTED' && { borderColor: theme.errorDecorative }
             ]}
           >
             <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
               <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-                <Text fontSize={14} weight="medium" style={spacings.mr} appearance="secondaryText">
+                <Text fontSize={13} weight="medium" style={spacings.mr} appearance="muted">
                   {t('Security checks')}
                 </Text>
               </View>
@@ -110,9 +112,10 @@ const DAppConnectBody: FC<{
                     color={theme.errorDecorative}
                     style={{ lineHeight: 18 * responsiveSizeMultiplier }}
                   >
-                    {
-                      "This website didn't pass our safety checks and is blacklisted. It might trick you into signing malicious transactions, asking you to reveal sensitive information, or be dangerous otherwise. If you believe we have blocked it in error, please "
-                    }
+                    This website didn&apos;t pass our safety checks and is blacklisted. It might
+                    trick you into signing malicious transactions, asking you to reveal sensitive
+                    information, or be dangerous otherwise. If you believe we have blocked it in
+                    error, please
                     <Text
                       fontSize={14 * responsiveSizeMultiplier}
                       color={theme.errorDecorative}
@@ -129,7 +132,12 @@ const DAppConnectBody: FC<{
               </View>
             )}
           </View>
+
+          <Divider />
+
           <DAppPermissions responsiveSizeMultiplier={responsiveSizeMultiplier} />
+
+          <Divider />
         </>
       )}
       {(screenMode === 'all' || screenMode === 'new-account') && (
@@ -153,39 +161,41 @@ const DAppConnectBody: FC<{
           origin={origin}
         />
       )}
-      {securityCheck === 'BLACKLISTED' ? (
-        <Alert type="warning" size="sm" withIcon={false}>
-          <Checkbox
-            value={confirmedRiskCheckbox}
-            style={{ ...spacings.mb0 }}
-            onValueChange={handleRiskCheckboxPress}
-            uncheckedBorderColor={theme.warningDecorative}
-            checkedColor={theme.warningDecorative}
-          >
-            <Text
-              fontSize={16 * responsiveSizeMultiplier}
-              appearance="errorText"
-              weight="semiBold"
-              style={{ lineHeight: 20 }}
-              onPress={handleRiskCheckboxPress}
+      <View style={[spacings.phLg]}>
+        {securityCheck === 'BLACKLISTED' ? (
+          <Alert type="warning" size="sm" withIcon={false}>
+            <Checkbox
+              value={confirmedRiskCheckbox}
+              style={{ ...spacings.mb0 }}
+              onValueChange={handleRiskCheckboxPress}
+              uncheckedBorderColor={theme.warningDecorative}
+              checkedColor={theme.warningDecorative}
             >
-              {t('I have read and understood the risks')}
-            </Text>
-          </Checkbox>
-        </Alert>
-      ) : (
-        <Text
-          style={{
-            opacity: 0.64,
-            marginHorizontal: 'auto'
-          }}
-          fontSize={14 * responsiveSizeMultiplier}
-          weight="medium"
-          appearance="tertiaryText"
-        >
-          {t('Only connect with sites you trust')}
-        </Text>
-      )}
+              <Text
+                fontSize={16 * responsiveSizeMultiplier}
+                appearance="errorText"
+                weight="semiBold"
+                style={{ lineHeight: 20 }}
+                onPress={handleRiskCheckboxPress}
+              >
+                {t('I have read and understood the risks')}
+              </Text>
+            </Checkbox>
+          </Alert>
+        ) : (
+          <Text
+            style={{
+              opacity: 0.64,
+              marginHorizontal: 'auto'
+            }}
+            fontSize={14 * responsiveSizeMultiplier}
+            weight="medium"
+            appearance="tertiaryText"
+          >
+            {t('Only connect with sites you trust')}
+          </Text>
+        )}
+      </View>
     </View>
   )
 }
