@@ -5,6 +5,8 @@ import { View } from 'react-native'
 
 import AccountsIcon from '@common/assets/svg/AccountsIcon'
 import AddressBookIcon from '@common/assets/svg/AddressBookIcon'
+import useNavigation from '@common/hooks/useNavigation'
+import Button from '@common/components/Button'
 // import BugIcon from '@common/assets/svg/BugIcon'
 // import BulbIcon from '@common/assets/svg/BulbIcon'
 // import CustomTokensIcon from '@common/assets/svg/CustomTokensIcon'
@@ -20,7 +22,7 @@ import TransactionHistoryIcon from '@common/assets/svg/TransactionHistoryIcon'
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
 import Text from '@common/components/Text'
 import useTheme from '@common/hooks/useTheme'
-import { ROUTES } from '@common/modules/router/constants/common'
+import { ROUTES, WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
 import { THEME_TYPES } from '@common/styles/themeConfig'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
@@ -126,6 +128,7 @@ const Sidebar = ({ activeLink }: { activeLink?: string }) => {
   const keystoreState = useKeystoreControllerState()
   const { theme, themeType, styles } = useTheme(getStyles)
   const { t } = useTranslation()
+  const { navigate } = useNavigation()
 
   return (
     <View style={{ ...spacings.pbLg, position: 'relative', height: '100%' }}>
@@ -162,6 +165,7 @@ const Sidebar = ({ activeLink }: { activeLink?: string }) => {
             ...spacings.mv
           }}
         />
+        <Button onPress={() => navigate(WEB_ROUTES.mainDashboard)} text={t('Back to dashboard')} />
         {/* {OTHER_LINKS.map((link, i) => {
           const isActive = activeLink === link.key
 
