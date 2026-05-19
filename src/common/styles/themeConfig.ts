@@ -9,6 +9,7 @@ export enum THEME_TYPES {
 
 export type ThemeType = THEME_TYPES.LIGHT | THEME_TYPES.DARK | THEME_TYPES.SYSTEM
 
+// TODO: default to light mode when there is design for light mode
 // export const DEFAULT_THEME = THEME_TYPES.LIGHT
 export const DEFAULT_THEME = THEME_TYPES.DARK
 

@@ -10,7 +10,7 @@ import AutoLockDeviceControlOption from './components/AutoLockDeviceControlOptio
 // import CrashAnalyticsControlOption from './components/CrashAnalyticsControlOption'
 import LockAmbireControlOption from './components/LockAmbireControlOption'
 import LogLevelControlOption from './components/LogLevelControlOption'
-import ThemeControlOption from './components/ThemeControlOption'
+// import ThemeControlOption from './components/ThemeControlOption'
 
 const GeneralSettingsScreen = () => {
   const { setCurrentSettingsPage } = useContext(SettingsRoutesContext)
@@ -25,7 +25,7 @@ const GeneralSettingsScreen = () => {
       <View style={spacings.mb2Xl}>
         <LockAmbireControlOption />
         <AutoLockDeviceControlOption />
-        <ThemeControlOption />
+        {/* <ThemeControlOption /> */}
       </View>
       <SettingsPageHeader title="Support tools" />
       <LogLevelControlOption />
