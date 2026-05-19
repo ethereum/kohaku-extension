@@ -51,7 +51,7 @@ const AddTokenBottomSheet: FC<Props> = ({ sheetRef, handleClose }) => {
   const { addToast } = useToast()
   const { validTokens, customTokens, temporaryTokens } = usePortfolioControllerState()
   const { portfolio: selectedAccountPortfolio } = useSelectedAccountControllerState()
-  const { themeType } = useTheme()
+  const { themeType, theme } = useTheme()
   const [network, setNetwork] = useState<Network>(
     networks.find((n) => n.chainId.toString() === '1') || networks[0]
   )
@@ -226,10 +226,18 @@ const AddTokenBottomSheet: FC<Props> = ({ sheetRef, handleClose }) => {
       id="add-custom-token"
       sheetRef={sheetRef}
       closeBottomSheet={handleCloseAndReset}
-      style={{ maxWidth: 720 }}
+      style={{ maxWidth: 520 }}
       backgroundColor={themeType === THEME_TYPES.DARK ? 'secondaryBackground' : 'primaryBackground'}
     >
-      <Text fontSize={20} style={spacings.mbXl} weight="medium">
+      <Text
+        fontSize={20}
+        style={[
+          spacings.mb,
+          spacings.pb,
+          { color: theme.textPrimary, borderBottomWidth: 1, borderBottomColor: '#097DB233' }
+        ]}
+        weight="medium"
+      >
         {t('Add Token')}
       </Text>
       <Select
@@ -237,7 +245,7 @@ const AddTokenBottomSheet: FC<Props> = ({ sheetRef, handleClose }) => {
         options={networksOptions}
         value={networksOptions.filter((opt) => opt.value === network.name)[0]}
         label={t('Choose Network')}
-        containerStyle={spacings.mbMd}
+        containerStyle={spacings.mb}
       />
       <Controller
         control={control}
@@ -249,7 +257,9 @@ const AddTokenBottomSheet: FC<Props> = ({ sheetRef, handleClose }) => {
             label={t('Token Address')}
             placeholder={t('0x...')}
             value={value}
-            inputStyle={spacings.mbSm}
+            inputStyle={[spacings.mbSm, { backgroundColor: theme.surfaceInput }]}
+            inputWrapperStyle={{ borderColor: 'transparent', borderWidth: 0 }}
+            borderWrapperStyle={{ borderRadius: 8, borderWidth: 0 }}
             containerStyle={
               !isAdditionalHintRequested &&
               !temporaryToken &&
@@ -267,7 +277,7 @@ const AddTokenBottomSheet: FC<Props> = ({ sheetRef, handleClose }) => {
         style={[
           spacings.mbXl,
           {
-            minHeight: 50 // To prevent the bottom sheet from resizing
+            // minHeight: 50 // To prevent the bottom sheet from resizing
           }
         ]}
       >
@@ -321,8 +331,21 @@ const AddTokenBottomSheet: FC<Props> = ({ sheetRef, handleClose }) => {
         ) : null}
 
         {isLoading || (isAdditionalHintRequested && !temporaryToken) ? (
-          <View style={[flexbox.alignCenter, flexbox.justifyCenter, { height: 48 }]}>
-            <Spinner style={{ width: 18, height: 18 }} />
+          <View
+            style={[
+              {
+                backgroundColor: '#097DB20F',
+                borderWidth: 1,
+                borderColor: '#097DB226',
+                borderRadius: 8,
+                ...spacings.phSm,
+                ...spacings.pvSm
+              }
+            ]}
+          >
+            <Text fontSize={13} style={{ color: theme.muted }}>
+              Searching token...
+            </Text>
           </View>
         ) : null}
       </View>

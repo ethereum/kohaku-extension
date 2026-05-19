@@ -1,4 +1,4 @@
-import React, { ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { View } from 'react-native'
 
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
@@ -18,6 +18,7 @@ import Select from '@common/components/Select'
 import { SelectValue } from '@common/components/Select/types'
 import Avatar from '@common/components/Avatar'
 import { isSmartAccount } from '@ambire-common/libs/account/account'
+import Divider from '@common/components/Divider'
 import shortenAddress from '@ambire-common/utils/shortenAddress'
 import RailgunIcon from '@common/assets/svg/RailgunIcon'
 import useGetTokenSelectProps from '@common/hooks/useGetTokenSelectProps/useGetTokenSelectProps'
@@ -37,7 +38,8 @@ const DepositForm = ({
   defaultToken = null,
   handleUpdateForm,
   chainId,
-  privacyProvider
+  privacyProvider,
+  disabledForm
 }: {
   poolAvailable?: boolean
   supportedTokens?: Set<string>
@@ -48,6 +50,7 @@ const DepositForm = ({
   handleUpdateForm: (params: { [key: string]: any }) => void
   chainId: bigint
   privacyProvider?: string
+  disabledForm?: boolean
 }) => {
   const { account: selectedAccount, portfolio: selectedAccountPortfolio } =
     useSelectedAccountControllerState()
@@ -413,9 +416,9 @@ const DepositForm = ({
 
   return (
     <ScrollableWrapper contentContainerStyle={styles.container}>
-      <View>
-        <Text appearance="secondaryText" fontSize={14} weight="light">
-          {t('Account')}
+      <View style={[spacings.mbMd]}>
+        <Text appearance="muted" fontSize={13} weight="light">
+          {t('From account')}
         </Text>
         <Select
           setValue={handleAccountChange}
@@ -426,11 +429,13 @@ const DepositForm = ({
           searchPlaceholder={t('Search for account...')}
           emptyListPlaceholderText={t('No accounts found.')}
           mode="bottomSheet"
+          containerStyle={{ marginBottom: 0 }}
+          disabled={disabledForm}
         />
       </View>
 
       <View>
-        <Text appearance="secondaryText" fontSize={14} weight="light">
+        <Text appearance="muted" fontSize={13} weight="light">
           {t('Amount')}
         </Text>
         <SendToken
@@ -451,22 +456,32 @@ const DepositForm = ({
           selectTestId="tokens-select"
           title=""
           maxAmountDisabled={!currentSelectedToken || selectedTokenBalance === 0n}
+          disabled={disabledForm}
         />
       </View>
 
-      <View style={spacings.mbLg}>
+      <Divider style={{ marginBottom: 18 }} />
+
+      {/* <View style={{ marginBottom: 18 }}> */}
+      <View>
         <PrivacyProtocolSelector
           selectedProtocol={selectedProvider}
           changeProtocol={handleProviderChange}
+          disabled={disabledForm}
+          // selectStyle={{ height: 'auto', ...spacings.pvMi, ...spacings.phSm }}
         />
       </View>
 
+      <Divider style={{ marginVertical: 18 }} />
+
       {/* Only show vetting fee for Privacy Pools */}
       {privacyProvider === 'privacy-pools' && (
-        <View style={spacings.mbLg}>
+        // <View style={spacings.mbLg}>
+        <View>
           <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
             <Text appearance="secondaryText" fontSize={14} weight="light">
-              {t('Vetting fee')}
+              {/* {t('Vetting fee')} */}
+              {t('Fee')}
             </Text>
             <View style={[flexbox.directionRow, flexbox.alignCenter]}>
               <TokenIcon
@@ -507,6 +522,8 @@ const DepositForm = ({
               </View>
             </View>
           </View>
+
+          <Divider style={{ marginBottom: 18 }} />
 
           <View style={spacings.mbMi}>
             <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>

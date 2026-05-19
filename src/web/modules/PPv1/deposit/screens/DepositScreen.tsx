@@ -7,18 +7,19 @@ import { SigningStatus } from '@ambire-common/controllers/signAccountOp/signAcco
 import { Key } from '@ambire-common/interfaces/keystore'
 import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
 import BackButton from '@common/components/BackButton'
-import Text from '@common/components/Text'
+// import Text from '@common/components/Text'
+import KohakuLogo from '@common/components/HokahuLogo'
 import useNavigation from '@common/hooks/useNavigation'
 import useToast from '@common/hooks/useToast'
-import { ROUTES } from '@common/modules/router/constants/common'
+// import { ROUTES } from '@common/modules/router/constants/common'
 import useActivityControllerState from '@web/hooks/useActivityControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useRailgunControllerState from '@web/hooks/useRailgunControllerState'
 import Estimation from '@web/modules/sign-account-op/components/OneClick/Estimation'
-import TrackProgress from '@web/modules/sign-account-op/components/OneClick/TrackProgress'
+// import TrackProgress from '@web/modules/sign-account-op/components/OneClick/TrackProgress'
 import Completed from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/Completed'
 import Failed from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/Failed'
-import InProgress from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/InProgress'
+// import InProgress from '@web/modules/sign-account-op/components/OneClick/TrackProgress/ByStatus/InProgress'
 import useTrackAccountOp from '@web/modules/sign-account-op/hooks/OneClick/useTrackAccountOp'
 import DepositForm from '@web/modules/PPv1/deposit/components/DepositForm/DepositForm'
 import Buttons from '@web/modules/PPv1/deposit/components/Buttons'
@@ -28,6 +29,8 @@ import flexbox from '@common/styles/utils/flexbox'
 import { Content } from '@web/components/TransactionsScreen'
 import { TokenResult } from '@ambire-common/libs/portfolio'
 import { Form, Wrapper } from '../components/TransactionsScreen'
+// import Button from '@common/components/Button'
+// import { SubmittedAccountOp } from '@ambire-common/libs/accountOp/submittedAccountOp'
 
 const { isActionWindow } = getUiType()
 
@@ -312,29 +315,39 @@ function TransferScreen() {
   }, [navigate, dispatch])
 
   const headerTitle = t('Shield Funds')
-  const formTitle = t('Shield Funds')
+
+  const isPendingBroadcast = !!latestBroadcastedAccountOp && !submittedAccountOp
+
+  const hasResult = !!submittedAccountOp
+
+  const isResultPending =
+    isPendingBroadcast || submittedAccountOp?.status === AccountOpStatus.BroadcastedButNotConfirmed
 
   const proceedBtnText = useMemo(() => {
+    if (
+      isPendingBroadcast ||
+      submittedAccountOp?.status === AccountOpStatus.BroadcastedButNotConfirmed
+    )
+      return t('Shielding...')
+
+    if (hasResult) return t('Shield more funds')
+
     if (isLoading && !isAccountLoaded && privacyProvider === 'privacy-pools')
       return t('Loading account...')
-    return t('Shield')
-  }, [isLoading, privacyProvider, isAccountLoaded, t])
 
-  const buttons = useMemo(() => {
-    return (
-      <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
-        <BackButton onPress={onBack} />
-        <Buttons
-          handleSubmitForm={handleDeposit}
-          proceedBtnText={proceedBtnText}
-          isNotReadyToProceed={!isTransferFormValid}
-          isLoading={privacyProvider === 'privacy-pools' ? isLoading : false}
-          signAccountOpErrors={[]}
-          networkUserRequests={[]}
-        />
-      </View>
-    )
-  }, [onBack, handleDeposit, proceedBtnText, isTransferFormValid, isLoading])
+    if (displayedView === 'track') return t('Shielding...')
+
+    return t('Shield funds')
+  }, [
+    hasResult,
+    isPendingBroadcast,
+    submittedAccountOp?.status,
+    isLoading,
+    privacyProvider,
+    isAccountLoaded,
+    displayedView,
+    t
+  ])
 
   const resetScreen = useCallback(() => {
     if (
@@ -375,34 +388,82 @@ function TransferScreen() {
     resetForm()
   }, [submittedAccountOp, dispatch, resetForm])
 
-  if (displayedView === 'track') {
+  const buttons = useMemo(() => {
     return (
-      <TrackProgress onPrimaryButtonPress={resetScreen} handleClose={() => {}}>
-        {(submittedAccountOp?.status === AccountOpStatus.BroadcastedButNotConfirmed ||
-          ((submittedAccountOp?.status === AccountOpStatus.Success ||
-            submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce) &&
-            !isMatchingDeposit)) && (
-            <InProgress title={t('Confirming your deposit')}>
-              <Text fontSize={16} weight="medium" appearance="secondaryText">
-                {t('Almost there!')}
-              </Text>
-            </InProgress>
-          )}
-        {(submittedAccountOp?.status === AccountOpStatus.Success ||
-          submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce) &&
-          isMatchingDeposit && (
-            <Completed
-              title={t('Shield complete!')}
-              titleSecondary={t(
-                `${selectedToken?.symbol || 'Token'} deposited to privacy protocol!`
-              )}
-              explorerLink={explorerLink}
-              openExplorerText="View Deposit"
+      <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
+        <BackButton
+          onPress={hasResult ? navigateOut : onBack}
+          withIcon={false}
+          text={hasResult ? t('Close') : undefined}
+        />
+        <Buttons
+          handleSubmitForm={hasResult ? resetScreen : handleDeposit}
+          proceedBtnText={proceedBtnText}
+          proceedIcon={<KohakuLogo width={20} style={{ marginRight: 16 }} />}
+          isNotReadyToProceed={isResultPending ? true : hasResult ? false : !isTransferFormValid}
+          isLoading={
+            isResultPending ||
+            (privacyProvider === 'privacy-pools' && !hasResult ? isLoading : false)
+          }
+          signAccountOpErrors={[]}
+          networkUserRequests={[]}
+        />
+      </View>
+    )
+  }, [
+    onBack,
+    navigateOut,
+    handleDeposit,
+    resetScreen,
+    proceedBtnText,
+    isTransferFormValid,
+    isLoading,
+    hasResult,
+    isResultPending,
+    isPendingBroadcast,
+    privacyProvider,
+    t
+  ])
+
+  return (
+    <Wrapper
+      title={headerTitle}
+      description={t('Move public tokens into your private account')}
+      handleGoBack={onBack}
+      buttons={null}
+      // buttons={buttons}
+    >
+      <Content buttons={buttons}>
+        <Form>
+          {(!hasResult || isResultPending) && (
+            <DepositForm
+              poolAvailable={isReady}
+              depositAmount={depositAmount}
+              supportedTokens={supportedAssets}
+              selectedToken={selectedToken}
+              defaultToken={defaultToken}
+              amountErrorMessage={validationFormMsgs.amount.message || ''}
+              handleUpdateForm={handleUpdateForm}
+              chainId={BigInt(chainId)}
+              privacyProvider={privacyProvider}
+              disabledForm={isResultPending}
             />
           )}
-        {(submittedAccountOp?.status === AccountOpStatus.Failure ||
-          submittedAccountOp?.status === AccountOpStatus.Rejected ||
-          submittedAccountOp?.status === AccountOpStatus.BroadcastButStuck) && (
+          {(submittedAccountOp?.status === AccountOpStatus.Success ||
+            submittedAccountOp?.status === AccountOpStatus.UnknownButPastNonce) &&
+            isMatchingDeposit && (
+              <Completed
+                title={t('Shield complete!')}
+                titleSecondary={t(
+                  `${selectedToken?.symbol || 'Token'} deposited to privacy protocol!`
+                )}
+                explorerLink={explorerLink}
+                openExplorerText="View Deposit"
+              />
+            )}
+          {(submittedAccountOp?.status === AccountOpStatus.Failure ||
+            submittedAccountOp?.status === AccountOpStatus.Rejected ||
+            submittedAccountOp?.status === AccountOpStatus.BroadcastButStuck) && (
             <Failed
               title={t('Something went wrong!')}
               errorMessage={t(
@@ -410,38 +471,21 @@ function TransferScreen() {
               )}
             />
           )}
-      </TrackProgress>
-    )
-  }
-
-  return (
-    <Wrapper title={headerTitle} handleGoBack={onBack} buttons={buttons}>
-      <Content buttons={buttons}>
-        <Form>
-          <DepositForm
-            poolAvailable={isReady}
-            depositAmount={depositAmount}
-            supportedTokens={supportedAssets}
-            selectedToken={selectedToken}
-            defaultToken={defaultToken}
-            amountErrorMessage={validationFormMsgs.amount.message || ''}
-            handleUpdateForm={handleUpdateForm}
-            chainId={BigInt(chainId)}
-            privacyProvider={privacyProvider}
-          />
         </Form>
       </Content>
 
-      <Estimation
-        updateType={privacyProvider === 'railgun' ? 'Railgun' : 'PrivacyPoolsV1'}
-        estimationModalRef={estimationModalRef}
-        closeEstimationModal={closeEstimationModal}
-        updateController={updateController}
-        handleUpdateStatus={handleUpdateStatus}
-        handleBroadcastAccountOp={handleBroadcastAccountOp}
-        hasProceeded={!!hasProceeded}
-        signAccountOpController={signAccountOpController || null}
-      />
+      {!latestBroadcastedAccountOp && (
+        <Estimation
+          updateType={privacyProvider === 'railgun' ? 'Railgun' : 'PrivacyPoolsV1'}
+          estimationModalRef={estimationModalRef}
+          closeEstimationModal={closeEstimationModal}
+          updateController={updateController}
+          handleUpdateStatus={handleUpdateStatus}
+          handleBroadcastAccountOp={handleBroadcastAccountOp}
+          hasProceeded={!!hasProceeded}
+          signAccountOpController={signAccountOpController || null}
+        />
+      )}
     </Wrapper>
   )
 }

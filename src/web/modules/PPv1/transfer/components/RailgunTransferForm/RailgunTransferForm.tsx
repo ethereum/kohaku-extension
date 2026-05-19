@@ -25,6 +25,8 @@ import Recipient from '../Recipient'
 import SendToken from '../SendToken'
 import { formatAmount } from '../../utils/formatAmount'
 import getStyles from '../TransferForm/styles'
+import Disclaimer from '../Disclaimer'
+import PrivacyNotice from '../PrivacyNotice'
 
 const defaultEthToken: TokenResult = {
   address: ZERO_ADDRESS,
@@ -62,7 +64,8 @@ const RailgunTransferForm = ({
   totalApprovedBalance,
   totalPrivateBalancesFormatted,
   chainId,
-  defaultTokenToEth
+  defaultTokenToEth,
+  disabled
 }: {
   addressInputState: ReturnType<typeof useAddressInput>
   amountErrorMessage: string
@@ -87,6 +90,7 @@ const RailgunTransferForm = ({
   >
   chainId: number
   defaultTokenToEth?: boolean
+  disabled?: boolean
 }) => {
   const { validation } = addressInputState
   const { account, portfolio } = useSelectedAccountControllerState()
@@ -364,6 +368,26 @@ const RailgunTransferForm = ({
 
   return (
     <ScrollableWrapper contentContainerStyle={styles.container}>
+      <View style={[spacings.mb]}>
+        <Recipient
+          disabled={disabled || !selectedToken || selectedTokenBalance === 0n}
+          address={addressStateFieldValue}
+          setAddress={setAddressStateFieldValue}
+          validation={validation}
+          ensAddress={addressState.ensAddress}
+          addressValidationMsg={validation.message}
+          isRecipientAddressUnknown={isRecipientAddressUnknown}
+          isRecipientDomainResolving={addressState.isDomainResolving}
+          isRecipientAddressUnknownAgreed={isRecipientAddressUnknownAgreed}
+          onRecipientCheckboxClick={onRecipientCheckboxClick}
+          isRecipientHumanizerKnownTokenOrSmartContract={false}
+          isSWWarningVisible={false}
+          isSWWarningAgreed={false}
+          recipientMenuClosedAutomaticallyRef={{ current: false }}
+          selectedTokenSymbol={selectedToken?.symbol}
+        />
+      </View>
+
       {!portfolio?.isReadyToVisualize ? (
         <View>
           <Text appearance="secondaryText" fontSize={14} weight="regular" style={spacings.mbMi}>
@@ -377,7 +401,7 @@ const RailgunTransferForm = ({
           fromTokenValue={tokenSelectValue}
           fromAmountValue={amountFieldValue}
           fromTokenAmountSelectDisabled={
-            availableTokens.length === 0 || selectedTokenBalance === 0n
+            disabled || availableTokens.length === 0 || selectedTokenBalance === 0n
           }
           handleChangeFromToken={({ value }) => handleChangeToken(value as string)}
           fromSelectedToken={selectedToken}
@@ -391,46 +415,26 @@ const RailgunTransferForm = ({
           inputTestId="amount-field-railgun"
           selectTestId="tokens-select-railgun"
           title={formTitle}
-          maxAmountDisabled={!isMaxAmountEnabled}
+          maxAmountDisabled={disabled || !isMaxAmountEnabled}
+          disabled={disabled}
         />
       )}
 
-      <View style={[spacings.mbSm, styles.disclaimer]}>
-        <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifyCenter]}>
-          <Text
-            style={styles.disclaimerText}
-            appearance="secondaryText"
-            fontSize={14}
-            weight="light"
-          >
-            {t('Funds being send through your private account')}
-          </Text>
-        </View>
-      </View>
+      <Disclaimer />
 
-      <Alert type="warning" title={t('Privacy notice')} size="sm" style={spacings.mbSm}>
-        <Alert.Text size="sm" type="warning">
-          {t(
+      <PrivacyNotice
+        learnMoreLink="https://docs.railgun.org/wiki/assurance/private-proofs-of-innocence"
+        msgs={[
+          t(
             'This is a testnet demo; Private Proofs of Innocence (PPOI) are not enforced here. On mainnet, PPOI imposes a 1-hour standby period after shielding during which you can only unshield back to the original address. This gives list providers time to flag illicit sources before funds can move privately.'
-          )}
-          {'\n\n'}
-          {t(
+          ),
+          t(
             'Beyond PPOI, good privacy hygiene matters: avoid unshielding the exact amount you shielded, and consider splitting or rounding amounts to reduce timing and value correlation between your shield and unshield transactions.'
-          )}{' '}
-          <Text
-            fontSize={12}
-            weight="semiBold"
-            appearance="warningText"
-            onPress={() =>
-              Linking.openURL('https://docs.railgun.org/wiki/assurance/private-proofs-of-innocence')
-            }
-          >
-            {t('Learn more')}
-          </Text>
-        </Alert.Text>
-      </Alert>
+          )
+        ]}
+      />
 
-      <View>
+      {/* <View>
         <Recipient
           disabled={!selectedToken || selectedTokenBalance === 0n}
           address={addressStateFieldValue}
@@ -448,7 +452,7 @@ const RailgunTransferForm = ({
           recipientMenuClosedAutomaticallyRef={{ current: false }}
           selectedTokenSymbol={selectedToken?.symbol}
         />
-      </View>
+      </View> */}
 
       {/* TODO: Add WETH checkbox UI when native ETH is selected */}
       {/* {isNativeETH && (

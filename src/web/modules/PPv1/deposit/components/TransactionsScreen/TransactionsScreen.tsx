@@ -1,5 +1,5 @@
 import React, { FC, useMemo } from 'react'
-import { View } from 'react-native'
+import { View, ViewStyle } from 'react-native'
 
 // import { isSmartAccount } from '@ambire-common/libs/account/account'
 // import shortenAddress from '@ambire-common/utils/shortenAddress'
@@ -24,7 +24,7 @@ import {
 import { getUiType } from '@web/utils/uiType'
 // import { useTranslation } from 'react-i18next'
 
-import HokahuLogo from '@common/components/HokahuLogo'
+import KohakuLogo from '@common/components/HokahuLogo'
 import HeaderBackButton from '@common/modules/header/components/HeaderBackButton'
 import getStyles from './styles'
 
@@ -33,6 +33,7 @@ const { isTab } = getUiType()
 type WrapperProps = {
   children: React.ReactNode
   title?: string | React.ReactNode
+  description?: string
   buttons: React.ReactNode
   handleGoBack?: () => void
 }
@@ -47,7 +48,7 @@ type FormProps = {
   children: React.ReactNode
 }
 
-const Wrapper: FC<WrapperProps> = ({ children, title, buttons, handleGoBack }) => {
+const Wrapper: FC<WrapperProps> = ({ children, title, description, buttons, handleGoBack }) => {
   // const { t } = useTranslation()
   // const { addToast } = useToast()
   const { theme, styles } = useTheme(getStyles)
@@ -79,7 +80,20 @@ const Wrapper: FC<WrapperProps> = ({ children, title, buttons, handleGoBack }) =
               { maxWidth: tabLayoutWidths.xl, ...flexbox.justifySpaceBetween }
             ]}
           >
-            <View style={styles.headerSideContainer}>
+            <View
+              style={[
+                styles.headerSideContainer,
+                flexbox.justifySpaceBetween,
+                flexbox.directionRow,
+                flexbox.flex1
+              ]}
+            >
+              <View>
+                <KohakuLogo width={72} />
+              </View>
+              <Text fontSize={16} style={{ color: theme.textPrimary }}>
+                How does Kohaku work?
+              </Text>
               {/* {account && (
                 <View style={[flexbox.directionRow, flexbox.alignCenter]}>
                   <View style={[flexbox.directionRow, flexbox.alignCenter]}>
@@ -110,23 +124,44 @@ const Wrapper: FC<WrapperProps> = ({ children, title, buttons, handleGoBack }) =
                   </View>
                 </View>
               )} */}
-              <HeaderBackButton forceBack onGoBackPress={handleGoBack} />
+              {/* <HeaderBackButton forceBack onGoBackPress={handleGoBack} /> */}
             </View>
-            {title && (
-              <Text fontSize={isTab ? 24 : 20} weight="medium">
+            {/* <View style={[styles.headerSideContainer, { alignItems: 'flex-end' }]}>
+              <HokahuLogo width={72} />
+            </View> */}
+          </View>
+          {/* {title && (
+            <View>
+              <Text fontSize={isTab ? 24 : 20} weight="medium" style={{textAlign: "center"}}>
                 {title}
               </Text>
-            )}
-            <View style={[styles.headerSideContainer, { alignItems: 'flex-end' }]}>
-              <HokahuLogo width={72} />
+              {description && (
+                <Text fontSize={14} color={theme.muted} style={{textAlign: "center"}}>
+                  {description}
+                </Text>
+              )}
             </View>
-          </View>
+          )} */}
         </Header>
       }
       withHorizontalPadding={false}
       footer={isTab ? buttons : null}
     >
-      {children}
+      <View style={[flexbox.center, flexbox.flex1]}>
+        {title && (
+          <View style={{ marginBottom: -16 }}>
+            <Text fontSize={isTab ? 24 : 20} weight="medium" style={{ textAlign: 'center' }}>
+              {title}
+            </Text>
+            {description && (
+              <Text fontSize={14} color={theme.muted} style={{ textAlign: 'center' }}>
+                {description}
+              </Text>
+            )}
+          </View>
+        )}
+        {children}
+      </View>
     </TabLayoutContainer>
   )
 }

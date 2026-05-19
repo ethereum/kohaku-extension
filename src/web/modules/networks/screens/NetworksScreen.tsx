@@ -120,12 +120,13 @@ const NetworksScreen = () => {
 
   return (
     <TabLayoutContainer
-      header={<Header customTitle="Networks" withAmbireLogo />}
-      footer={<BackButton />}
+      // header={<Header customTitle="Networks" withAmbireLogo backgroundColor="transparent" />}
+      header={<Header customTitle="Networks" withAmbireLogo backgroundColor="transparent" />}
+      // footer={<BackButton />}
       width="lg"
       hideFooterInPopup
     >
-      <View style={[flexbox.flex1, spacings.pb]}>
+      <View style={[flexbox.flex1, spacings.pb, { maxWidth: 656, marginHorizontal: 'auto' }]}>
         <TabLayoutWrapperMainContent>
           <NetworkBottomSheet
             chainId={settingsChainId}
@@ -152,12 +153,17 @@ const NetworksScreen = () => {
             onPress={handleChangeNetwork}
           />
         </TabLayoutWrapperMainContent>
-        <View style={[spacings.ptSm, { width: '100%' }]}>
+        <View
+          style={[spacings.ptSm, flexbox.directionRow, flexbox.justifyCenter, { width: '100%' }]}
+        >
+          <BackButton />
           <Button
             text={t('Add New Network')}
-            type="secondary"
+            // type="secondary"
+            type="primary"
             hasBottomSpacing={false}
-            style={{ maxWidth: tabLayoutWidths.lg, ...flexbox.alignSelfCenter, width: '100%' }}
+            // style={{ maxWidth: tabLayoutWidths.lg, ...flexbox.alignSelfCenter, width: '100%' }}
+            style={{ ...flexbox.alignSelfCenter, ...spacings.ml }}
             childrenPosition="left"
             onPress={handleOpenAddNetworkBottomSheet}
           >

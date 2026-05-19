@@ -14,7 +14,7 @@ export const getPrivacyProtocolOptions = (t: TFunction<'translation', undefined>
   {
     label: (
       <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-        <RailgunIcon width={15} height={15} />
+        <RailgunIcon width={12} height={12} />
         <Text fontSize={14} weight="light" style={spacings.mlMi}>
           {t('Railgun')}
         </Text>
@@ -25,8 +25,8 @@ export const getPrivacyProtocolOptions = (t: TFunction<'translation', undefined>
   {
     label: (
       <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-        <PrivacyIcon width={15} height={15} />
-        <Text fontSize={14} weight="light">
+        <PrivacyIcon width={12} height={12} />
+        <Text fontSize={14} weight="light" style={spacings.mlMi}>
           {t('Privacy Pools')}
         </Text>
       </View>
@@ -43,6 +43,7 @@ interface PrivacyProtocolSelectorProps {
   containerStyle?: StyleProp<ViewStyle>
   direction?: 'row' | 'column'
   labelWeight?: TextWeight
+  disabled?: boolean
 }
 
 const PrivacyProtocolSelector = ({
@@ -52,7 +53,8 @@ const PrivacyProtocolSelector = ({
   viewStyle,
   containerStyle,
   direction = 'row',
-  labelWeight = 'light'
+  labelWeight = 'light',
+  disabled
 }: PrivacyProtocolSelectorProps) => {
   const { t } = useTranslation()
   const providerOptions = useMemo(() => getPrivacyProtocolOptions(t), [t])
@@ -63,7 +65,7 @@ const PrivacyProtocolSelector = ({
       : []
 
   const updateProtocol = (val: SelectValue) => {
-    if (val.value === selectedProtocol?.value) return
+    if (disabled || val.value === selectedProtocol?.value) return
 
     changeProtocol(val)
   }
@@ -71,7 +73,7 @@ const PrivacyProtocolSelector = ({
   return (
     <View style={[...contStyle, containerStyle]}>
       <Text
-        appearance="secondaryText"
+        appearance="muted"
         fontSize={14}
         weight={labelWeight}
         style={direction === 'row' ? undefined : [spacings.mbMi]}
@@ -83,8 +85,15 @@ const PrivacyProtocolSelector = ({
           options={providerOptions}
           value={selectedProtocol}
           setValue={updateProtocol}
-          selectStyle={{ minWidth: 150, ...selectStyle }}
+          selectStyle={{
+            minWidth: 150,
+            height: 'auto',
+            ...spacings.pvMi,
+            ...spacings.phSm,
+            ...selectStyle
+          }}
           testID="provider-dropdown"
+          disabled={disabled}
         />
       </View>
     </View>

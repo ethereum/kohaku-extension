@@ -144,6 +144,7 @@ const SelectedMenuOption: React.FC<{
         onPress: toggleMenu
       }}
       buttonStyle={{ ...spacings.pv0, ...spacings.ph, ...spacings.mr0, ...spacings.ml0 }}
+      inputWrapperStyle={{ backgroundColor: theme.surfaceInput }}
     />
   )
 }

@@ -478,8 +478,9 @@ const TransferScreen = ({ isTopUpScreen }: { isTopUpScreen?: boolean }) => {
 
   const buttons = useMemo(() => {
     return (
-      <>
-        {isTab && <BackButton onPress={onBack} />}
+      <View style={[flexbox.directionRow]}>
+        {/* {isTab && <BackButton onPress={onBack} />} */}
+        <BackButton onPress={onBack} />
         <Buttons
           handleSubmitForm={(isOneClickMode) =>
             addTransaction(isOneClickMode ? 'open-action-window' : 'queue')
@@ -491,7 +492,8 @@ const TransferScreen = ({ isTopUpScreen }: { isTopUpScreen?: boolean }) => {
           networkUserRequests={networkUserRequests}
           isLocalStateOutOfSync={isLocalStateOutOfSync}
         />
-      </>
+        {/* <BackButton onPress={onBack} /> */}
+      </View>
     )
   }, [
     onBack,
@@ -593,8 +595,10 @@ const TransferScreen = ({ isTopUpScreen }: { isTopUpScreen?: boolean }) => {
   }
 
   return (
-    <Wrapper title={headerTitle} handleGoBack={handleGoBackPress} buttons={buttons}>
+    // <Wrapper title={headerTitle} handleGoBack={handleGoBackPress} buttons={buttons}>
+    <Wrapper title={headerTitle} handleGoBack={handleGoBackPress} buttons={null}>
       <Content buttons={buttons}>
+      {/* <Content buttons={null}> */}
         {state?.isInitialized ? (
           <Form>
             <SendForm

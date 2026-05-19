@@ -35,6 +35,7 @@ type Props = {
   selectTestId?: string
   title?: string | ReactNode
   maxAmountDisabled?: boolean
+  disabled?: boolean
 }
 
 const SendToken: FC<Props> = ({
@@ -54,7 +55,8 @@ const SendToken: FC<Props> = ({
   inputTestId,
   selectTestId,
   title,
-  maxAmountDisabled
+  maxAmountDisabled,
+  disabled
 }) => {
   const { portfolio } = useSelectedAccountControllerState()
   const { theme, styles, themeType } = useTheme(getStyles)
@@ -63,9 +65,11 @@ const SendToken: FC<Props> = ({
 
   return (
     <View style={spacings.mbSm}>
-      <Text appearance="secondaryText" fontSize={16} weight="medium" style={spacings.mbTy}>
-        {heading}
-      </Text>
+      {Boolean(heading) && (
+        <Text appearance="muted" fontSize={13} weight="light" style={spacings.mbTy}>
+          {heading}
+        </Text>
+      )}
       <View
         style={[
           styles.outerContainer,
@@ -73,7 +77,13 @@ const SendToken: FC<Props> = ({
         ]}
       >
         <View
-          style={[styles.container, validateFromAmount?.message ? styles.containerWarning : {}]}
+          style={[
+            styles.container,
+            validateFromAmount?.message ? styles.containerWarning : {},
+            {
+              backgroundColor: theme.surfaceInput
+            }
+          ]}
         >
           <View style={[flexbox.flex1, flexbox.directionRow, flexbox.alignCenter]}>
             <Select
@@ -91,6 +101,7 @@ const SendToken: FC<Props> = ({
                 borderWidth: 0
               }}
               mode="bottomSheet"
+              disabled={disabled}
             />
             <NumberInput
               value={fromAmountValue}
@@ -103,7 +114,7 @@ const SendToken: FC<Props> = ({
                 fontSize: 20,
                 textAlign: 'right'
               }}
-              disabled={fromTokenAmountSelectDisabled}
+              disabled={disabled || fromTokenAmountSelectDisabled}
               containerStyle={[
                 spacings.mb0,
                 flexbox.flex1,
@@ -163,10 +174,12 @@ const SendToken: FC<Props> = ({
                 maxAmount={Number(maxFromAmount)}
                 selectedTokenSymbol={fromSelectedToken?.symbol || ''}
                 onMaxButtonPress={handleSetMaxFromAmount}
-                disabled={maxAmountDisabled}
+                disabled={disabled || maxAmountDisabled}
               />
             )}
-            {fromSelectedToken && fromSelectedToken.priceIn && fromSelectedToken.priceIn.length !== 0 ? (
+            {fromSelectedToken &&
+            fromSelectedToken.priceIn &&
+            fromSelectedToken.priceIn.length !== 0 ? (
               <Text
                 fontSize={12}
                 color={themeType === THEME_TYPES.DARK ? theme.linkText : theme.primary}

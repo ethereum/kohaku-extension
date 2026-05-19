@@ -32,22 +32,27 @@ const MaxAmount = ({
 
   return selectedTokenSymbol && !isLoading ? (
     <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-      <WalletFilledIcon width={14} height={14} color={theme.tertiaryText} />
+      {/* <WalletFilledIcon width={14} height={14} color={theme.tertiaryText} /> */}
+      {/* <Text fontSize={13} app>Balance:</Text> */}
       <Text
         testID="max-available-amount"
         numberOfLines={1}
-        fontSize={12}
+        fontSize={13}
         style={spacings.mlMi}
         weight="medium"
-        appearance="tertiaryText"
+        // appearance="tertiaryText"
+        appearance="muted"
         ellipsizeMode="tail"
       >
-        {maxAmount === 0 ? 0 : formatDecimals(maxAmount, 'amount')} {selectedTokenSymbol}
+        Balance: {maxAmount === 0 ? 0 : formatDecimals(maxAmount, 'amount')} {selectedTokenSymbol}
       </Text>
       {!!onMaxButtonPress && !!maxAmount && (
         <Pressable
           style={({ hovered }: any) => [
             styles.maxButton,
+            spacings.pvMi,
+            spacings.phTy,
+            { borderRadius: 4 },
             hovered && { backgroundColor: theme.primary20 }
           ]}
           onPress={onMaxButtonPress}

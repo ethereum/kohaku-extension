@@ -37,11 +37,11 @@ const getStyles = (theme: ThemeProps, themeType: ThemeType) =>
       maxWidth: TRANSACTION_FORM_WIDTH,
       flex: 1,
       alignSelf: 'center',
-      overflow: 'visible'
+      // overflow: 'visible'
     },
     nonTabButtons: {
-      ...spacings.mtLg,
-      ...spacings.pbLg
+      // ...spacings.mtLg,
+      // ...spacings.pbLg
     },
     headerSideContainer: { width: isTab ? 300 : 170, minWidth: isTab ? 300 : 160 }
   })

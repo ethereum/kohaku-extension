@@ -31,6 +31,7 @@ const { isTab } = getUiType()
 type WrapperProps = {
   children: React.ReactNode
   title: string | React.ReactNode
+  description?: string
   handleGoBack: () => void
   buttons: React.ReactNode
 }
@@ -45,7 +46,7 @@ type FormProps = {
   children: React.ReactNode
 }
 
-const Wrapper: FC<WrapperProps> = ({ children, title, handleGoBack, buttons }) => {
+const Wrapper: FC<WrapperProps> = ({ children, title, description, handleGoBack, buttons }) => {
   const { theme, styles } = useTheme(getStyles)
   const { styles: headerStyles } = useTheme(getHeaderStyles)
   const { account } = useSelectedAccountControllerState()
@@ -54,7 +55,68 @@ const Wrapper: FC<WrapperProps> = ({ children, title, handleGoBack, buttons }) =
   return (
     <TabLayoutContainer
       backgroundColor={theme.secondaryBackground}
-      header={
+      // backgroundColor="#f30"
+      // header={null}
+      containerStyle={{}}
+      // header={
+      //   <Header mode="custom">
+      //     <View
+      //       style={[
+      //         headerStyles.widthContainer,
+      //         { maxWidth: tabLayoutWidths.xl, ...flexbox.justifySpaceBetween }
+      //       ]}
+      //     >
+      //       <View
+      //         style={[
+      //           styles.headerSideContainer,
+      //           flexbox.justifySpaceBetween,
+      //           flexbox.directionRow,
+      //           flexbox.flex1
+      //         ]}
+      //       >
+      //         <View>
+      //           <KohakuLogo width={72} />
+      //         </View>
+      //         <Text fontSize={16} style={{ color: theme.textPrimary }}>
+      //           How does Kohaku work?
+      //         </Text>
+      //       </View>
+      //       {/* <View style={styles.headerSideContainer}>
+      //         {isTab && account && (
+      //           <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.flex1]}>
+      //             <Avatar pfp={account.preferences.pfp} isSmart={isSmartAccount(account)} />
+      //             <View style={flexbox.flex1}>
+      //               <View style={[flexbox.flex1, flexbox.directionRow]}>
+      //                 <Text fontSize={16} weight="medium" numberOfLines={1}>
+      //                   {account.preferences.label}
+      //                 </Text>
+
+      //                 <AccountBadges accountData={account} />
+      //               </View>
+      //               <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+      //                 <DomainBadge ens={ens} />
+      //                 <AccountAddress
+      //                   isLoading={isLoading}
+      //                   ens={ens}
+      //                   address={account.addr}
+      //                   plainAddressMaxLength={18}
+      //                 />
+      //               </View>
+      //             </View>
+      //           </View>
+      //         )}
+      //         {!isTab && <HeaderBackButton forceBack onGoBackPress={handleGoBack} />}
+      //       </View> */}
+      //       {/* <View style={[styles.headerSideContainer, { alignItems: 'flex-end' }]}>
+      //         <KohakuLogo width={72} />
+      //       </View> */}
+      //     </View>
+      //   </Header>
+      // }
+      withHorizontalPadding={false}
+      footer={isTab ? buttons : null}
+    >
+      <View style={[flexbox.center, flexbox.flex1]}>
         <Header mode="custom">
           <View
             style={[
@@ -62,7 +124,22 @@ const Wrapper: FC<WrapperProps> = ({ children, title, handleGoBack, buttons }) =
               { maxWidth: tabLayoutWidths.xl, ...flexbox.justifySpaceBetween }
             ]}
           >
-            <View style={styles.headerSideContainer}>
+            <View
+              style={[
+                styles.headerSideContainer,
+                flexbox.justifySpaceBetween,
+                flexbox.directionRow,
+                flexbox.flex1
+              ]}
+            >
+              <View>
+                <KohakuLogo width={72} />
+              </View>
+              <Text fontSize={16} style={{ color: theme.textPrimary }}>
+                How does Kohaku work?
+              </Text>
+            </View>
+            {/* <View style={styles.headerSideContainer}>
               {isTab && account && (
                 <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.flex1]}>
                   <Avatar pfp={account.preferences.pfp} isSmart={isSmartAccount(account)} />
@@ -87,20 +164,26 @@ const Wrapper: FC<WrapperProps> = ({ children, title, handleGoBack, buttons }) =
                 </View>
               )}
               {!isTab && <HeaderBackButton forceBack onGoBackPress={handleGoBack} />}
-            </View>
-            <Text fontSize={isTab ? 24 : 20} weight="medium">
-              {title}
-            </Text>
-            <View style={[styles.headerSideContainer, { alignItems: 'flex-end' }]}>
+            </View> */}
+            {/* <View style={[styles.headerSideContainer, { alignItems: 'flex-end' }]}>
               <KohakuLogo width={72} />
-            </View>
+            </View> */}
           </View>
         </Header>
-      }
-      withHorizontalPadding={false}
-      footer={isTab ? buttons : null}
-    >
-      {children}
+        {title && (
+          <View style={{ marginBottom: -16 }}>
+            <Text fontSize={isTab ? 24 : 20} weight="medium" style={{ textAlign: 'center' }}>
+              {title}
+            </Text>
+            {description && (
+              <Text fontSize={14} color={theme.muted} style={{ textAlign: 'center' }}>
+                {description}
+              </Text>
+            )}
+          </View>
+        )}
+        {children}
+      </View>
     </TabLayoutContainer>
   )
 }
@@ -112,17 +195,21 @@ const Content: FC<ContentProps> = ({ children, buttons, scrollViewRef }) => {
 
   return (
     <TabLayoutWrapperMainContent
+      withScroll={false}
       contentContainerStyle={{
         ...spacings.pv0,
         ...paddingHorizontalStyle,
-        ...(isTab ? (minHeightSize('m') ? {} : spacings.pt2Xl) : {}),
-        flexGrow: 1
+        ...spacings.pb
+        // ...(isTab ? (minHeightSize('m') ? {} : spacings.pt2Xl) : {}),
+        // flexGrow: 1,
+        // backgroundColor: "brown",
       }}
       wrapperRef={scrollViewRef}
     >
-      <View style={styles.container}>
+      <View style={[styles.container]}>
         {children}
-        {!isTab && <View style={styles.nonTabButtons}>{buttons}</View>}
+        {/* {!isTab && <View style={styles.nonTabButtons}>{buttons}</View>} */}
+        <View style={styles.nonTabButtons}>{buttons}</View>
       </View>
     </TabLayoutWrapperMainContent>
   )

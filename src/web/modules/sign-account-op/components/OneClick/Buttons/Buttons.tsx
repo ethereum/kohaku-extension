@@ -70,7 +70,9 @@ const Buttons: FC<Props> = ({
   }, [proceedBtnText, networkUserRequests.length, t])
 
   return (
-    <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifyEnd]}>
+    <View
+      style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifyEnd, flexbox.flex1]}
+    >
       {!isActionWindow && (
         // @ts-ignore
         <View dataSet={{ tooltipId: 'batch-btn-tooltip' }}>

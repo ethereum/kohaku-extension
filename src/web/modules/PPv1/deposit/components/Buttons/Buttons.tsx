@@ -1,4 +1,4 @@
-import React, { FC, useMemo } from 'react'
+import React, { FC, ReactNode, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { View } from 'react-native'
 
@@ -11,6 +11,7 @@ import flexbox from '@common/styles/utils/flexbox'
 type Props = {
   handleSubmitForm: () => void
   proceedBtnText?: string
+  proceedIcon?: ReactNode
   signAccountOpErrors: SignAccountOpError[]
   isNotReadyToProceed: boolean
   isLoading?: boolean
@@ -20,6 +21,7 @@ type Props = {
 const Buttons: FC<Props> = ({
   signAccountOpErrors,
   proceedBtnText = 'Proceed',
+  proceedIcon,
   handleSubmitForm,
   isNotReadyToProceed,
   isLoading,
@@ -48,15 +50,41 @@ const Buttons: FC<Props> = ({
   }, [proceedBtnText, networkUserRequests.length, t])
 
   return (
-    <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifyEnd]}>
-      {/* @ts-ignore */}
-      <View dataSet={{ tooltipId: 'proceed-btn-tooltip' }}>
+    <View
+      style={[
+        flexbox.directionRow,
+        flexbox.flex1,
+        flexbox.alignCenter,
+        flexbox.justifyEnd,
+        {
+          width: '100%'
+        }
+      ]}
+    >
+      <View
+        // @ts-ignore
+        dataSet={{ tooltipId: 'proceed-btn-tooltip' }}
+        style={{
+          width: '100%'
+        }}
+      >
         <ButtonWithLoader
           text={primaryButtonText}
+          proceedIcon={proceedIcon}
           disabled={isNotReadyToProceed || isLoading || !!oneClickDisabledReason}
           isLoading={isLoading}
           onPress={handleSubmitForm}
           testID="proceed-btn"
+          childrenPosition="left"
+          childrenContainerStyle={{
+            position: 'relative',
+            width: 'auto',
+            height: 'auto',
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingRight: 0
+          }}
         />
       </View>
       <Tooltip content={oneClickDisabledReason} id="proceed-btn-tooltip" />

@@ -1,8 +1,7 @@
 import React, { ReactNode, useCallback, useEffect, useMemo } from 'react'
-import { Linking, View } from 'react-native'
+import { View } from 'react-native'
 import { formatUnits, toHex, zeroAddress } from 'viem'
 
-import Alert from '@common/components/Alert'
 import TokenIcon from '@common/components/TokenIcon'
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
 import SkeletonLoader from '@common/components/SkeletonLoader'
@@ -22,6 +21,8 @@ import Recipient from '../Recipient'
 import SendToken from '../SendToken'
 import { formatAmount } from '../../utils/formatAmount'
 import getStyles from './styles'
+import Disclaimer from '../Disclaimer'
+import PrivacyNotice from '../PrivacyNotice'
 
 const TransferForm = ({
   addressInputState,
@@ -42,7 +43,8 @@ const TransferForm = ({
   controllerAmount,
   quoteFee,
   totalApprovedBalance,
-  updateQuoteStatus
+  updateQuoteStatus,
+  disabled
 }: {
   addressInputState: ReturnType<typeof useAddressInput>
   amountErrorMessage: string
@@ -62,7 +64,8 @@ const TransferForm = ({
   controllerAmount: string
   quoteFee: string
   updateQuoteStatus: 'INITIAL' | 'LOADING' | undefined
-  totalApprovedBalance: { total: bigint; accounts: PoolAccount[] }
+    totalApprovedBalance: { total: bigint; accounts: PoolAccount[] }
+  disabled?: boolean
 }) => {
   const { validation } = addressInputState
   const { account, portfolio } = useSelectedAccountControllerState()
@@ -200,67 +203,9 @@ const TransferForm = ({
 
   return (
     <ScrollableWrapper contentContainerStyle={styles.container}>
-      {!portfolio?.isReadyToVisualize ? (
-        <View>
-          <Text appearance="secondaryText" fontSize={14} weight="regular" style={spacings.mbMi}>
-            {t('Loading tokens...')}
-          </Text>
-          <SkeletonLoader width="100%" height={120} style={spacings.mbLg} />
-        </View>
-      ) : (
-        <SendToken
-          fromTokenOptions={tokenOptions}
-          fromTokenValue={tokenSelectValue}
-          fromAmountValue={amountFieldValue}
-          fromTokenAmountSelectDisabled={selectedTokenBalance === 0n}
-          handleChangeFromToken={({ value }) => handleChangeToken(value as string)}
-          fromSelectedToken={selectedToken}
-          fromAmount={controllerAmount}
-          fromAmountInFiat={amountInFiat}
-          fromAmountFieldMode={amountFieldMode}
-          maxFromAmount={maxAmount}
-          validateFromAmount={{ success: !amountErrorMessage, message: amountErrorMessage }}
-          onFromAmountChange={setAmountFieldValue}
-          handleSetMaxFromAmount={setMaxAmount}
-          inputTestId="amount-field"
-          selectTestId="tokens-select"
-          title={formTitle}
-          maxAmountDisabled={!isMaxAmountEnabled}
-        />
-      )}
-
-      <View style={[spacings.mbSm, styles.disclaimer]}>
-        <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifyCenter]}>
-          <Text
-            style={styles.disclaimerText}
-            appearance="secondaryText"
-            fontSize={14}
-            weight="light"
-          >
-            {t('Funds being send through your private account')}
-          </Text>
-        </View>
-      </View>
-
-      <Alert type="warning" title={t('Privacy notice')} size="sm" style={spacings.mbSm}>
-        <Alert.Text size="sm" type="warning">
-          {t(
-            'On mainnet, the ASP must approve your deposit before you can withdraw privately, until then, you can only ragequit back to your original address, which is public. Avoid withdrawing the exact amount you deposited; rounding or splitting helps prevent linking your deposit to your withdrawal.'
-          )}{' '}
-          <Text
-            fontSize={12}
-            weight="semiBold"
-            appearance="warningText"
-            onPress={() => Linking.openURL('https://docs.privacypools.com/protocol/withdrawal')}
-          >
-            {t('Learn more')}
-          </Text>
-        </Alert.Text>
-      </Alert>
-
-      <View>
+      <View style={[spacings.mb]}>
         <Recipient
-          disabled={selectedTokenBalance === 0n}
+          disabled={disabled || selectedTokenBalance === 0n}
           address={addressStateFieldValue}
           setAddress={setAddressStateFieldValue}
           validation={validation}
@@ -277,6 +222,46 @@ const TransferForm = ({
           selectedTokenSymbol={selectedToken?.symbol}
         />
       </View>
+      {!portfolio?.isReadyToVisualize ? (
+        <View>
+          <Text appearance="secondaryText" fontSize={14} weight="regular" style={spacings.mbMi}>
+            {t('Loading tokens...')}
+          </Text>
+          <SkeletonLoader width="100%" height={120} style={spacings.mbLg} />
+        </View>
+      ) : (
+        <SendToken
+          fromTokenOptions={tokenOptions}
+          fromTokenValue={tokenSelectValue}
+          fromAmountValue={amountFieldValue}
+          fromTokenAmountSelectDisabled={disabled || selectedTokenBalance === 0n}
+          handleChangeFromToken={({ value }) => handleChangeToken(value as string)}
+          fromSelectedToken={selectedToken}
+          fromAmount={controllerAmount}
+          fromAmountInFiat={amountInFiat}
+          fromAmountFieldMode={amountFieldMode}
+          maxFromAmount={maxAmount}
+          validateFromAmount={{ success: !amountErrorMessage, message: amountErrorMessage }}
+          onFromAmountChange={setAmountFieldValue}
+          handleSetMaxFromAmount={setMaxAmount}
+          inputTestId="amount-field"
+          selectTestId="tokens-select"
+          title={formTitle}
+          maxAmountDisabled={!isMaxAmountEnabled}
+          disabled={disabled}
+        />
+      )}
+
+      <Disclaimer />
+
+      <PrivacyNotice
+        learnMoreLink="https://docs.privacypools.com/protocol/withdrawal"
+        msgs={[
+          t(
+            'On mainnet, the ASP must approve your deposit before you can withdraw privately, until then, you can only ragequit back to your original address, which is public. Avoid withdrawing the exact amount you deposited; rounding or splitting helps prevent linking your deposit to your withdrawal.'
+          )
+        ]}
+      />
 
       <View style={spacings.mbLg}>
         <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>

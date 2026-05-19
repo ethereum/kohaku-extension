@@ -12,8 +12,11 @@ import flexbox from '@common/styles/utils/flexbox'
 import { TabLayoutContainer, TabLayoutWrapperMainContent } from '@web/components/TabLayoutWrapper'
 import { getTabLayoutPadding } from '@web/components/TabLayoutWrapper/TabLayoutWrapper'
 import { getUiType } from '@web/utils/uiType'
+import { TAB_WIDE_CONTENT_WIDTH } from '@web/constants/spacings'
+import KohakuLogo from '@common/components/HokahuLogo'
+import Text from '@common/components/Text'
 
-const { isActionWindow } = getUiType()
+const { isActionWindow, isTab } = getUiType()
 
 type TrackProgressProps = {
   handleClose: () => void
@@ -37,14 +40,96 @@ const TrackProgressWrapper: FC<TrackProgressProps> = ({
 
   return (
     <TabLayoutContainer
-      backgroundColor={theme.primaryBackground}
+      // backgroundColor={theme.primaryBackground}
+      backgroundColor={theme.secondaryBackground}
+      // header={
+      //   <Header
+      //     backgroundColor="primaryBackground"
+      //     displayBackButtonIn="never"
+      //     mode="custom-inner-content"
+      //     withAmbireLogo
+      //   />
+      // }
       header={
-        <Header
-          backgroundColor="primaryBackground"
-          displayBackButtonIn="never"
-          mode="custom-inner-content"
-          withAmbireLogo
-        />
+        <Header mode="custom">
+          <View
+            style={[
+              // headerStyles.widthContainer,
+              {
+                width: '100%',
+                marginHorizontal: 'auto',
+                ...flexbox.directionRow,
+                ...flexbox.alignCenter,
+                ...flexbox.flex1,
+                maxWidth: TAB_WIDE_CONTENT_WIDTH,
+                ...flexbox.justifySpaceBetween
+              }
+            ]}
+          >
+            <View
+              style={[
+                // styles.headerSideContainer,
+                flexbox.justifySpaceBetween,
+                flexbox.directionRow,
+                flexbox.flex1,
+                { width: isTab ? 300 : 170, minWidth: isTab ? 300 : 160 }
+              ]}
+            >
+              <View>
+                <KohakuLogo width={72} />
+              </View>
+              <Text fontSize={16} style={{ color: theme.textPrimary }}>
+                How does Kohaku work?
+              </Text>
+              {/* {account && (
+                <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+                  <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+                    <Avatar
+                      pfp={account.preferences.pfp}
+                      size={32}
+                      isSmart={isSmartAccount(account)}
+                    />
+                    <View style={spacings.mlTy}>
+                      <Text fontSize={16} weight="medium" numberOfLines={1}>
+                        {account.preferences.label}
+                      </Text>
+                      <AnimatedPressable
+                        style={[flexbox.directionRow, flexbox.alignCenter]}
+                        onPress={handleCopyText}
+                      >
+                        <Text
+                          fontSize={14}
+                          appearance="secondaryText"
+                          weight="medium"
+                          style={spacings.mrMi}
+                        >
+                          {shortenAddress(account.addr, 13)}
+                        </Text>
+                        <CopyIcon width={16} height={16} />
+                      </AnimatedPressable>
+                    </View>
+                  </View>
+                </View>
+              )} */}
+              {/* <HeaderBackButton forceBack onGoBackPress={handleGoBack} /> */}
+            </View>
+            {/* <View style={[styles.headerSideContainer, { alignItems: 'flex-end' }]}>
+              <HokahuLogo width={72} />
+            </View> */}
+          </View>
+          {/* {title && (
+            <View>
+              <Text fontSize={isTab ? 24 : 20} weight="medium" style={{textAlign: "center"}}>
+                {title}
+              </Text>
+              {description && (
+                <Text fontSize={14} color={theme.muted} style={{textAlign: "center"}}>
+                  {description}
+                </Text>
+              )}
+            </View>
+          )} */}
+        </Header>
       }
       withHorizontalPadding={false}
       footer={null}
