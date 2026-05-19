@@ -21,6 +21,8 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useWalletStateController from '@web/hooks/useWalletStateController'
 import PinExtension from '@web/modules/auth/components/PinExtension'
 import KohakuLogo from '@common/components/HokahuLogo'
+import Divider from '@common/components/Divider'
+import Pill from '@common/components/Pill'
 
 export const CARD_WIDTH = 400
 
@@ -54,31 +56,57 @@ const OnboardingCompletedScreen = () => {
                 <KohakuLogo width={96} height={80} />
               </View>
               <Text
-                style={[spacings.mtLg, spacings.mb, text.center]}
+                style={[spacings.mtLg, text.center, { marginBottom: 6 }]}
                 weight="semiBold"
                 fontSize={20}
               >
                 {t('Kohaku is ready to use')}
               </Text>
+              <Text appearance="muted" fontSize={13} style={{ marginBottom: 2 }}>
+                Your private DeFi wallet is set up.
+              </Text>
+              <Text appearance="muted" fontSize={13}>
+                Start exploring — privately.
+              </Text>
+              <Divider style={{ marginTop: 18, marginBottom: 15 }} />
+              <View
+                style={[
+                  flexbox.justifySpaceBetween,
+                  flexbox.directionRow,
+                  { width: '100%', paddingHorizontal: 20 }
+                ]}
+              >
+                <Pill text="Private" textStyle={{ color: theme.textPrimary }} />
+                <Pill text="Fast" textStyle={{ color: theme.textPrimary }} />
+                <Pill text="Simple" textStyle={{ color: theme.textPrimary }} />
+              </View>
+              <Divider style={{ marginTop: 18, marginBottom: 15 }} />
               {!isPinned ? (
-                <Text appearance="secondaryText" weight="medium" style={[text.center]}>
+                <Text appearance="muted" fontSize={13} weight="medium" style={[text.center]}>
                   {t('Pin the Kohaku Extension to your toolbar for easy access.')}
                 </Text>
               ) : (
-                <Text appearance="secondaryText" weight="medium" style={[text.center]}>
+                <Text appearance="muted" fontSize={13} weight="medium" style={[text.center]}>
                   {t('You can access your accounts from the dashboard via the extension icon.')}
                 </Text>
               )}
               {engine !== 'gecko' && (
-                <View style={[flexbox.flex1, flexbox.justifyEnd]}>
+                <View style={[flexbox.flex1, flexbox.justifyEnd, spacings.mt, { width: '100%' }]}>
                   <Button
                     testID="onboarding-completed-open-dashboard-btn"
-                    text={t('Open dashboard')}
+                    text={t('Open dashboard →')}
                     hasBottomSpacing={false}
                     onPress={handleOpenDashboardPress}
                   />
                 </View>
               )}
+              <Text
+                fontSize={11}
+                color={`${theme.muted.toString()}80`}
+                style={[text.center, { marginTop: 14 }]}
+              >
+                Secured by RAILGUN · Zero-knowledge proofs
+              </Text>
             </View>
           </Panel>
         </TabLayoutWrapperMainContent>

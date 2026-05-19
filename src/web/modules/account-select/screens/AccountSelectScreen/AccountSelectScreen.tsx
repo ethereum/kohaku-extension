@@ -6,7 +6,7 @@ import { zeroAddress } from 'viem'
 
 import { Account as AccountType } from '@ambire-common/interfaces/account'
 import AddIcon from '@common/assets/svg/AddIcon'
-import BackButton from '@common/components/BackButton'
+// import BackButton from '@common/components/BackButton'
 import BottomSheet from '@common/components/BottomSheet'
 import Button from '@common/components/Button'
 import ScrollableWrapper, { WRAPPER_TYPES } from '@common/components/ScrollableWrapper'
@@ -131,7 +131,8 @@ const AccountSelectScreen = () => {
   return !pendingToBeSetSelectedAccount ? (
     <TabLayoutContainer
       header={<Header withAmbireLogo />}
-      footer={<BackButton />}
+      // footer={<BackButton />}
+      // footer={null}
       width="lg"
       hideFooterInPopup
     >

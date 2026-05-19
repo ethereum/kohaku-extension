@@ -12,7 +12,7 @@ import Label from '@common/components/Label'
 import NetworkIcon from '@common/components/NetworkIcon'
 import SkeletonLoader from '@common/components/SkeletonLoader'
 import Text from '@common/components/Text'
-import Toggle from '@common/components/Toggle'
+import Switch from '@common/components/Switch'
 import Tooltip from '@common/components/Tooltip'
 import { useTranslation } from '@common/config/localization'
 import useReverseLookup from '@common/hooks/useReverseLookup'
@@ -20,7 +20,6 @@ import useTheme from '@common/hooks/useTheme'
 import useToast from '@common/hooks/useToast'
 import useWindowSize from '@common/hooks/useWindowSize'
 import spacings from '@common/styles/spacings'
-import { THEME_TYPES } from '@common/styles/themeConfig'
 import common from '@common/styles/utils/common'
 import flexbox from '@common/styles/utils/flexbox'
 import { setStringAsync } from '@common/utils/clipboard'
@@ -65,7 +64,7 @@ const Account = ({
   const { isLoading: isDomainResolving, ens } = useReverseLookup({ address: account.addr })
   const domainName = ens
   const { t } = useTranslation()
-  const { styles, theme, themeType } = useTheme(getStyles)
+  const { styles, theme } = useTheme(getStyles)
   const { setShowIntroSteps } = useContext(AccountPickerIntroStepsContext)
   const { minWidthSize, maxWidthSize } = useWindowSize()
   const { addToast } = useToast()
@@ -117,21 +116,21 @@ const Account = ({
         common.hidden,
         {
           borderWidth: 1,
-          borderColor: theme.quaternaryBackground
+          borderColor: theme.accent
         },
         ((hovered && !isDisabled) || isSelected) && {
-          borderColor: themeType === THEME_TYPES.DARK ? theme.primaryLight80 : theme.primary20
+          borderColor: theme.accent
         }
       ]}
       onPress={isDisabled ? undefined : toggleSelectedState}
       testID={`add-account-${account.addr}`}
     >
-      <View style={[styles.container, { backgroundColor: theme.quaternaryBackground }]}>
-        <Toggle
+      <View style={[styles.container, { backgroundColor: theme.surfaceInput }]}>
+        <Switch
           isOn={isSelected}
           onToggle={toggleSelectedState}
           disabled={isDisabled}
-          style={flexbox.alignSelfStart}
+          style={[spacings.mrSm]}
         />
 
         <View style={[flexbox.flex1, flexbox.directionRow, flexbox.alignCenter]}>
@@ -242,8 +241,10 @@ const Account = ({
             )}
             {!!unused && (
               <Badge
-                type={shouldBeDisplayedAsNew ? 'new' : 'default'}
+                type={shouldBeDisplayedAsNew ? 'new' : 'new2'}
                 text={shouldBeDisplayedAsNew ? t('new') : t('unused')}
+                weight={shouldBeDisplayedAsNew ? undefined : 'number_bold'}
+                style={{ borderRadius: 4 }}
               />
             )}
           </View>

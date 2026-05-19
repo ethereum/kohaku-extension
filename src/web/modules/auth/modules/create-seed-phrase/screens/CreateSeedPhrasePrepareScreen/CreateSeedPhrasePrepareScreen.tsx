@@ -16,9 +16,9 @@ import useOnboardingNavigation from '@common/modules/auth/hooks/useOnboardingNav
 import Header from '@common/modules/header/components/Header'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
+import Divider from '@common/components/Divider'
 import { BORDER_RADIUS_PRIMARY } from '@common/styles/utils/common'
 import flexbox from '@common/styles/utils/flexbox'
-import text from '@common/styles/utils/text'
 import {
   TabLayoutContainer,
   TabLayoutWrapperMainContent
@@ -100,37 +100,59 @@ const CreateSeedPhrasePrepareScreen = () => {
     <TabLayoutContainer
       backgroundColor={theme.secondaryBackground}
       header={<Header mode="custom-inner-content" withAmbireLogo />}
+      style={{ ...flexbox.center, height: '100%' }}
     >
-      <TabLayoutWrapperMainContent>
+      <TabLayoutWrapperMainContent contentContainerStyle={{ margin: 'auto', height: 'auto' }}>
         <Panel
+          style={[
+            flexbox.alignStart,
+            {
+              minHeight: 0
+            }
+          ]}
+          innerStyle={[{ padding: 0, maxWidth: 'none' }]}
           type="onboarding"
           spacingsSize="small"
           step={1}
           totalSteps={2}
-          title="Create new recovery phrase"
-          withBackButton
+          // title="Create new recovery phrase"
+          // withBackButton={false}
+          showProgress={false}
           onBackButtonPress={goToPrevRoute}
         >
-          <Text weight="medium" appearance="secondaryText" style={[spacings.mbXl, text.center]}>
+          <Text
+            weight="number_bold"
+            appearance="muted"
+            fontSize={20}
+            style={[spacings.mbTy, { color: theme.textPrimary }]}
+          >
+            {t('Create new recovery phrase')}
+          </Text>
+          <Text weight="medium" appearance="muted" fontSize={13}>
             {t('Before you begin, check these security tips.')}
           </Text>
+
+          <Divider style={{ marginTop: 10, marginBottom: 20 }} />
+
           <ScrollableWrapper style={flexbox.flex1} contentContainerStyle={{ flexGrow: 1 }}>
             {CHECKBOXES.map(({ id, label }, index) => (
               <View
                 key={id}
                 style={[
                   spacings.pvSm,
-                  spacings.phSm,
+                  spacings.ph,
                   flexbox.directionRow,
+                  flexbox.justifyStart,
                   spacings.mbSm,
                   {
-                    backgroundColor: theme.secondaryBackground,
-                    borderRadius: BORDER_RADIUS_PRIMARY
+                    backgroundColor: `${theme.surfaceInput.toString()}a8`,
+                    borderRadius: BORDER_RADIUS_PRIMARY,
+                    borderColor: `${theme.accent.toString()}26`
                   }
                 ]}
               >
                 <Checkbox
-                  style={spacings.mb0}
+                  style={[spacings.mb0]}
                   value={checkboxesState[id]}
                   onValueChange={() => {
                     handleCheckboxPress(id)
@@ -157,6 +179,16 @@ const CreateSeedPhrasePrepareScreen = () => {
               text={t('Create recovery phrase')}
               hasBottomSpacing={false}
               onPress={handleSubmit}
+            />
+            <Button
+              testID="review-seed-phrase-back-btn"
+              accessibilityRole="button"
+              size="large"
+              text={t('Back')}
+              hasBottomSpacing={false}
+              onPress={goToPrevRoute}
+              style={[spacings.mtSm, { borderColor: '#F9F6E940' }]}
+              type="outline"
             />
           </View>
         </Panel>

@@ -7,9 +7,9 @@ import AccountPickerController from '@ambire-common/controllers/accountPicker/ac
 import RightArrowIcon from '@common/assets/svg/RightArrowIcon'
 import Button from '@common/components/Button'
 import Panel from '@common/components/Panel'
-import { PanelBackButton, PanelTitle } from '@common/components/Panel/Panel'
+import { PanelTitle } from '@common/components/Panel/Panel'
 import useTheme from '@common/hooks/useTheme'
-import useOnboardingNavigation from '@common/modules/auth/hooks/useOnboardingNavigation'
+// import useOnboardingNavigation from '@common/modules/auth/hooks/useOnboardingNavigation'
 import Header from '@common/modules/header/components/Header'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
@@ -40,7 +40,7 @@ const AccountPickerScreen = () => {
   const accountPickerState = useAccountPickerControllerState()
   const { accounts } = useAccountsControllerState()
   const { isReady, onImportReady, setPage } = useAccountPicker()
-  const { goToPrevRoute } = useOnboardingNavigation()
+  // const { goToPrevRoute } = useOnboardingNavigation()
   const [isScanComplete, setIsScanComplete] = useState(false)
 
   const isLoading = useMemo(
@@ -117,9 +117,14 @@ const AccountPickerScreen = () => {
       header={<Header mode="custom-inner-content" withAmbireLogo />}
     >
       <TabLayoutWrapperMainContent contentContainerStyle={[spacings.pt0]}>
-        <Panel type="onboarding" spacingsSize="small" panelWidth={900} style={{ minHeight: '92%' }}>
+        <Panel
+          type="onboarding"
+          spacingsSize="small"
+          panelWidth={900}
+          style={{ minHeight: '92%', maxWidth: 750 }}
+        >
           <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mbMd]}>
-            <PanelBackButton onPress={goToPrevRoute} style={spacings.mr} />
+            {/* <PanelBackButton onPress={goToPrevRoute} style={spacings.mr} /> */}
             <PanelTitle
               title={setTitle(accountPickerState.type, accountPickerState.subType)}
               style={{ textAlign: 'left', flex: 1 }}
@@ -144,7 +149,7 @@ const AccountPickerScreen = () => {
               testID="button-import-account"
               hasBottomSpacing={false}
               onPress={onImportReady}
-              size="large"
+              size="small"
               disabled={isImportDisabled}
               text={
                 isLoading || !isScanComplete

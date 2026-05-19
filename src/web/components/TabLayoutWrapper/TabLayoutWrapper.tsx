@@ -1,5 +1,5 @@
 import React, { ReactElement, ReactNode, useMemo } from 'react'
-import { ColorValue, View, ViewStyle } from 'react-native'
+import { ColorValue, ScrollView, StyleProp, View, ViewStyle } from 'react-native'
 
 import ScrollableWrapper, { WrapperProps } from '@common/components/ScrollableWrapper'
 import useTheme from '@common/hooks/useTheme'
@@ -38,6 +38,7 @@ type TabLayoutContainerProps = {
   renderDirectChildren?: () => React.ReactNode
   style?: ViewStyle
   withHorizontalPadding?: boolean
+  containerStyle?: StyleProp<ViewStyle>
 }
 
 export const getTabLayoutPadding = (maxWidthSize: (size: WindowSizes) => boolean) => {
@@ -60,7 +61,8 @@ export const TabLayoutContainer = ({
   children,
   renderDirectChildren,
   style,
-  withHorizontalPadding = true
+  withHorizontalPadding = true,
+  containerStyle
 }: TabLayoutContainerProps) => {
   const { theme, styles } = useTheme(getStyles)
   const { maxWidthSize } = useWindowSize()
@@ -69,9 +71,15 @@ export const TabLayoutContainer = ({
   const paddingHorizontalStyle = useMemo(() => getTabLayoutPadding(maxWidthSize), [maxWidthSize])
 
   return (
-    <View style={[flexbox.flex1, { backgroundColor: backgroundColor || theme.primaryBackground }]}>
+    <View
+      style={[
+        flexbox.flex1,
+        { backgroundColor: backgroundColor || theme.primaryBackground },
+        containerStyle
+      ]}
+    >
       {!!header && header}
-      <View style={[flexbox.flex1, withHorizontalPadding && paddingHorizontalStyle]}>
+      {/* <View style={[flexbox.flex1, withHorizontalPadding && paddingHorizontalStyle]}>
         <View
           style={[
             flexbox.directionRow,
@@ -87,7 +95,25 @@ export const TabLayoutContainer = ({
         >
           {children}
         </View>
-      </View>
+      </View> */}
+      <ScrollView
+        style={[flexbox.flex1, withHorizontalPadding && paddingHorizontalStyle, { width: '100%' }]}
+        contentContainerStyle={[
+          flexbox.directionRow,
+          // flexbox.flexGrow1,
+          width !== 'full' ? flexbox.alignSelfCenter : {},
+          {
+            backgroundColor: backgroundColor || theme.primaryBackground,
+            maxWidth: tabLayoutWidths[width],
+            width: '100%'
+          },
+          style
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {children}
+      </ScrollView>
       {!!footer && !isFooterHiddenInPopup && (
         <View style={[styles.footerContainer, paddingHorizontalStyle]}>
           <View

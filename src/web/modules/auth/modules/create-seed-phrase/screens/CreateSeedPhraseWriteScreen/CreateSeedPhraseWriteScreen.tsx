@@ -16,6 +16,7 @@ import Header from '@common/modules/header/components/Header'
 import spacings from '@common/styles/spacings'
 import common from '@common/styles/utils/common'
 import flexbox from '@common/styles/utils/flexbox'
+import Divider from '@common/components/Divider'
 import { setStringAsync } from '@common/utils/clipboard'
 import {
   TabLayoutContainer,
@@ -94,15 +95,21 @@ const CreateSeedPhraseWriteScreen = () => {
     <TabLayoutContainer
       backgroundColor={theme.secondaryBackground}
       header={<Header mode="custom-inner-content" withAmbireLogo />}
+      style={{ ...flexbox.center, height: '100%' }}
     >
-      <TabLayoutWrapperMainContent>
+      <TabLayoutWrapperMainContent contentContainerStyle={{ margin: 'auto', height: 'auto' }}>
         <Panel
+          style={[
+            flexbox.alignStart,
+            {
+              minHeight: 0
+            }
+          ]}
           type="onboarding"
           spacingsSize="small"
-          step={1}
+          step={2}
           totalSteps={2}
-          title="Back up recovery phrase"
-          withBackButton
+          showProgress={false}
           onBackButtonPress={() => {
             goToPrevRoute()
           }}
@@ -110,12 +117,18 @@ const CreateSeedPhraseWriteScreen = () => {
           {!!seedArray.length && (
             <>
               <Text
-                weight="medium"
-                appearance="secondaryText"
-                style={[spacings.mbXl, spacings.phSm, { textAlign: 'center' }]}
+                weight="number_bold"
+                appearance="muted"
+                fontSize={20}
+                style={[spacings.mbTy, { color: theme.textPrimary }]}
               >
+                {t('Back up recovery phrase')}
+              </Text>
+              <Text weight="medium" appearance="muted" fontSize={13} style={[spacings.mbTy]}>
                 {t('Write down and secure the recovery phrase for your account.')}
               </Text>
+
+              <Divider style={{ marginTop: 10, marginBottom: 20 }} />
 
               <ScrollableWrapper
                 style={flexbox.flex1}
@@ -169,8 +182,8 @@ const CreateSeedPhraseWriteScreen = () => {
                   flexbox.justifyCenter,
                   flexbox.alignCenter,
                   spacings.ptTy,
-                  common.borderRadiusPrimary,
-                  spacings.mbLg
+                  common.borderRadiusPrimary
+                  // spacings.mbLg
                 ]}
               >
                 <Button
@@ -184,6 +197,9 @@ const CreateSeedPhraseWriteScreen = () => {
                   <CopyIcon style={spacings.mlTy} />
                 </Button>
               </View>
+
+              <Divider style={{ marginTop: 10, marginBottom: 20 }} />
+
               <Button
                 testID="create-seed-phrase-write-continue-btn"
                 accessibilityRole="button"
@@ -191,6 +207,16 @@ const CreateSeedPhraseWriteScreen = () => {
                 size="large"
                 hasBottomSpacing={false}
                 onPress={handleSubmit}
+              />
+              <Button
+                testID="create-seed-phrase-write-back-btn"
+                accessibilityRole="button"
+                text={t('Back')}
+                size="large"
+                hasBottomSpacing={false}
+                onPress={goToPrevRoute}
+                style={[spacings.mtSm, { borderColor: '#F9F6E940' }]}
+                type="outline"
               />
             </>
           )}

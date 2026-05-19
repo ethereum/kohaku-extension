@@ -39,8 +39,10 @@ const Account = ({
   options = {
     withOptionsButton: false
   },
-  containerStyle
+  containerStyle,
+  selectedBackgroundColor
 }: {
+  selectedBackgroundColor?: string
   account: AccountInterface
   onSelect?: (addr: string) => void
   maxAccountAddrLength?: number
@@ -70,7 +72,9 @@ const Account = ({
     property: 'backgroundColor',
     values: {
       from: theme.primaryBackground,
-      to: !options.setAccountToImportOrExport ? theme.secondaryBackground : theme.primaryBackground
+      to:
+        selectedBackgroundColor ??
+        (!options.setAccountToImportOrExport ? theme.secondaryBackground : theme.primaryBackground)
     },
     forceHoveredStyle: !options.setAccountToImportOrExport && addr === selectedAccount?.addr
   })

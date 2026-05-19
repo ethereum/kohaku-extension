@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react'
-import { Pressable, TextStyle, View, ViewProps, ViewStyle } from 'react-native'
+import { Pressable, StyleProp, TextStyle, View, ViewProps, ViewStyle } from 'react-native'
 
 import LeftArrowIcon from '@common/assets/svg/LeftArrowIcon'
 import Text from '@common/components/Text'
@@ -22,6 +22,8 @@ interface Props extends ViewProps {
   totalSteps?: number
   panelWidth?: number
   panelRef?: React.MutableRefObject<any>
+  showProgress?: boolean
+  innerStyle?: StyleProp<ViewStyle>
 }
 
 export const getPanelPaddings = (
@@ -80,6 +82,8 @@ const Panel: React.FC<Props> = ({
   totalSteps = 2,
   panelWidth = 400,
   panelRef,
+  showProgress = true,
+  innerStyle,
   ...rest
 }) => {
   const { styles, theme } = useTheme(getStyles)
@@ -113,12 +117,16 @@ const Panel: React.FC<Props> = ({
             minHeight: minHeightSize(620) ? 444 : 486,
             maxWidth: panelWidth,
             alignSelf: 'center',
-            maxHeight: minHeightSize('l') ? '95%' : '92%'
+            maxHeight: minHeightSize('l') ? '95%' : '92%',
+            borderWidth: 1,
+            borderStyle: 'solid',
+            borderColor: `${theme.accent.toString()}59`,
+            backgroundColor: '#04364D'
           },
           style
         ]}
       >
-        {step > 0 && renderProgress()}
+        {step > 0 && showProgress && renderProgress()}
         <View
           style={[
             styles.innerContainer,
@@ -127,7 +135,8 @@ const Panel: React.FC<Props> = ({
               width: '100%',
               maxWidth: panelWidth,
               alignSelf: 'center'
-            }
+            },
+            innerStyle
           ]}
           {...rest}
         >

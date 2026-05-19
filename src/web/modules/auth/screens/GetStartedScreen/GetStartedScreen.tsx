@@ -4,7 +4,7 @@ import { View } from 'react-native'
 // import ViewModeIcon from '@common/assets/svg/ViewModeIcon'
 import Button from '@common/components/Button'
 import Panel from '@common/components/Panel'
-import ScrollableWrapper from '@common/components/ScrollableWrapper'
+// import ScrollableWrapper from '@common/components/ScrollableWrapper'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import useNavigation from '@common/hooks/useNavigation'
@@ -12,11 +12,11 @@ import useTheme from '@common/hooks/useTheme'
 import { AUTH_STATUS } from '@common/modules/auth/constants/authStatus'
 import useAuth from '@common/modules/auth/hooks/useAuth'
 import useOnboardingNavigation from '@common/modules/auth/hooks/useOnboardingNavigation'
-import Header from '@common/modules/header/components/Header'
+// import Header from '@common/modules/header/components/Header'
 import { ROUTES, WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
-import text from '@common/styles/utils/text'
+// import text from '@common/styles/utils/text'
 import {
   TabLayoutContainer,
   TabLayoutWrapperMainContent
@@ -25,6 +25,7 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useWalletStateController from '@web/hooks/useWalletStateController'
 
 import KohakuLogo from '@common/components/HokahuLogo'
+import Divider from '@common/components/Divider'
 import getStyles from './styles'
 
 export const CARD_WIDTH = 400
@@ -62,7 +63,8 @@ const GetStartedScreen = () => {
         return
       }
       if (flow === 'import-existing-account') {
-        goToNextRoute(WEB_ROUTES.importExistingAccount)
+        // goToNextRoute(WEB_ROUTES.importExistingAccount)
+        goToNextRoute(WEB_ROUTES.importSeedPhrase)
         return
       }
       if (flow === 'view-only') {
@@ -75,20 +77,33 @@ const GetStartedScreen = () => {
   return (
     <TabLayoutContainer
       backgroundColor={theme.secondaryBackground}
-      header={<Header mode="custom-inner-content" withAmbireLogo />}
+      // header={<Header mode="custom-inner-content" withAmbireLogo />}
+      header={null}
+      containerStyle={[flexbox.center]}
+      style={{ ...flexbox.center, height: '100%' }}
     >
-      <TabLayoutWrapperMainContent>
-        <Panel spacingsSize="small" type="onboarding">
+      <TabLayoutWrapperMainContent contentContainerStyle={{ margin: 'auto', height: 'auto' }}>
+        <Panel spacingsSize="small" type="onboarding" style={{ minHeight: 0 }}>
           <View style={[flexbox.justifySpaceBetween, flexbox.flex1]}>
             <View
               style={[flexbox.justifyCenter, flexbox.alignCenter, flexbox.flex1, spacings.mbSm]}
             >
               <KohakuLogo width={180} height={80} />
-              <Text style={[spacings.mtLg, text.center]} weight="medium" appearance="secondaryText">
-                {t('The Web3 wallet that makes self-custody easy and secure.')}
+              <Text
+                color={theme.textPrimary}
+                fontSize={22}
+                style={{
+                  marginBottom: 4
+                }}
+              >
+                Welcome to Kohaku
+              </Text>
+              <Text appearance="muted" fontSize={13}>
+                Private DeFi, simplified.
               </Text>
             </View>
-            <ScrollableWrapper contentContainerStyle={[flexbox.justifyStart]}>
+            <Divider style={{ backgroundColor: '#097DB233', marginBottom: 18 }} />
+            <View>
               <Button
                 testID="create-new-account-btn"
                 type="primary"
@@ -107,10 +122,13 @@ const GetStartedScreen = () => {
                 hasBottomSpacing={false}
                 onPress={() => handleAuthButtonPress('view-only')}
                 text={t('Watch an address')}
-              >
+                >
                 <ViewModeIcon color={theme.primary} width={24} style={spacings.mlTy} />
-              </Button> */}
-            </ScrollableWrapper>
+                </Button> */}
+            </View>
+            <Text appearance="muted" fontSize={11} style={{ textAlign: 'center' }}>
+              v0.1.0 · kohaku.xyz
+            </Text>
           </View>
         </Panel>
       </TabLayoutWrapperMainContent>
