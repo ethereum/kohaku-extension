@@ -196,8 +196,8 @@ const ThemeColors = {
     [THEME_TYPES.LIGHT]: '#D01C15'
   },
   depositRejectedNotificationBackground: {
-    [THEME_TYPES.DARK]: '#FEF2F2',
-    [THEME_TYPES.LIGHT]: '#FEF2F2'
+    [THEME_TYPES.DARK]: '#FF4D4D',
+    [THEME_TYPES.LIGHT]: '#FF4D4D'
   },
   depositRejectedBackground: {
     [THEME_TYPES.DARK]: '#FECACA',
@@ -208,8 +208,8 @@ const ThemeColors = {
     [THEME_TYPES.LIGHT]: '#9b2c2c'
   },
   depositPendingNotificationBackground: {
-    [THEME_TYPES.DARK]: '#EFF6FF',
-    [THEME_TYPES.LIGHT]: '#EFF6FF'
+    [THEME_TYPES.DARK]: '#097db2',
+    [THEME_TYPES.LIGHT]: '#097db2'
   },
   depositPendingBackground: {
     [THEME_TYPES.DARK]: '#bee3f8',

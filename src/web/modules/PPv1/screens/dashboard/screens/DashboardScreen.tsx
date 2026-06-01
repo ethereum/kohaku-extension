@@ -32,6 +32,8 @@ import NewDisplayBalance from './DisplayBalance'
 
 const { isPopup } = getUiType()
 
+export const OVERVIEW_CONTENT_MAX_HEIGHT = 120
+
 const NewDashboardScreen = () => {
   const { addToast } = useToast()
   const { theme } = useTheme()
