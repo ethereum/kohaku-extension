@@ -14,7 +14,6 @@ import { setStringAsync } from '@common/utils/clipboard'
 import { getUiType } from '@web/utils/uiType'
 import useRailgunControllerState from '@web/hooks/useRailgunControllerState'
 import useRailgunForm from '@web/modules/railgun/hooks/useRailgunForm'
-import { getRailgunAddress } from '@kohaku-eth/railgun'
 import { useCustomHover, AnimatedPressable } from '@web/hooks/useHover'
 import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
 import { PrivacyProtocolType } from '@web/modules/PPv1/types/privacy'
@@ -42,6 +41,15 @@ interface Props {
 
 const { isPopup } = getUiType()
 
+// Railgun wraps native ETH into WETH when shielding, so shielded ETH comes back
+// from the SDK as the chain's WETH ERC20 (not ZERO_ADDRESS). Treat these as
+// ETH for display so a shielded-ETH balance reads "ETH (Railgun)" rather than
+// the raw WETH contract address.
+const WETH_ADDRESSES = new Set<string>([
+  '0xfff9976782d46cc05630d1f6ebab18b2324d6b14', // Sepolia WETH
+  '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2' // Mainnet WETH
+])
+
 const Tokens = ({
   openTab,
   setOpenTab,
@@ -67,10 +75,9 @@ const Tokens = ({
   const { ethPrice, totalApprovedBalance, isAccountLoaded, isReadyToLoad } =
     usePrivacyPoolsDepositForm()
   const { portfolio } = useSelectedAccountControllerState()
-  const { isAccountLoaded: railgunIsAccountLoaded, totalPrivateBalancesFormatted } =
-    useRailgunForm()
-  const { defaultRailgunKeys } = useRailgunControllerState()
-  const [railgunAddress, setRailgunAddress] = useState<string | null>(null)
+  const { isAccountLoaded: railgunIsAccountLoaded } = useRailgunForm()
+
+  const { zkAddress: railgunAddress, railgunAccountsState } = useRailgunControllerState()
 
   const [bindCopyIconAnim, copyIconAnimStyle] = useCustomHover({
     property: 'opacity',
@@ -130,20 +137,40 @@ const Tokens = ({
           privacyProtocol: PrivacyProtocolType.PRIVACY_POOLS
         })
       })
-    Object.entries(totalPrivateBalancesFormatted).forEach(([tokenAddress, tokenInfo]) => {
-      if (tokenInfo.amount !== '0') {
+    // Railgun: mirror the Privacy Pools enrichment above — iterate the raw
+    // balances from the controller and ALWAYS push a row, enriching from the
+    // portfolio when the token is known and falling back gracefully otherwise.
+    // (Shielded native ETH comes back as the wrapped-ETH ERC20, so it's matched
+    // by address like any other token.)
+    railgunAccountsState.balances
+      .filter((bal) => {
+        try {
+          return BigInt(bal.amount) > 0n
+        } catch {
+          return false
+        }
+      })
+      .forEach((bal) => {
+        const address = bal.tokenAddress.toLowerCase()
+        const portfolioToken = portfolio?.tokens.find(
+          (token) => token.address.toLowerCase() === address
+        )
+        // Shielded native ETH comes back as WETH — show both native and WETH as ETH.
+        const isEthLike = address === ZERO_ADDRESS.toLowerCase() || WETH_ADDRESSES.has(address)
         tokens.push({
-          id: `approved-railgun-${tokenInfo.symbol.toLowerCase()}`,
-          name: tokenInfo.name,
-          symbol: `${tokenInfo.symbol} (Railgun)`,
-          amount: tokenInfo.amount,
-          address: tokenAddress,
-          chainId: 11155111,
-          decimals: tokenInfo.decimals,
+          id: `approved-railgun-${address}`,
+          name: isEthLike ? 'Ethereum' : portfolioToken?.name ?? address,
+          symbol: `${isEthLike ? 'ETH' : portfolioToken?.symbol ?? address} (Railgun)`,
+          amount: bal.amount,
+          address,
+          chainId: portfolioToken?.chainId ?? 11155111,
+          decimals: isEthLike ? 18 : portfolioToken?.decimals ?? 18,
           priceIn: [
             {
               baseCurrency: 'usd',
-              price: tokenAddress === ZERO_ADDRESS ? ethPrice : tokenInfo.price
+              price: isEthLike
+                ? ethPrice
+                : portfolioToken?.priceIn.find((p) => p.baseCurrency === 'usd')?.price
             }
           ],
           flags: {
@@ -157,11 +184,10 @@ const Tokens = ({
           accounts: [],
           privacyProtocol: PrivacyProtocolType.RAILGUN
         })
-      }
-    })
+      })
 
     return tokens
-  }, [totalApprovedBalance, totalPrivateBalancesFormatted, ethPrice, portfolio?.tokens])
+  }, [totalApprovedBalance, railgunAccountsState, ethPrice, portfolio?.tokens])
 
   const filteredTokens = useMemo(() => {
     if (!searchValue) return privateTokens
@@ -175,28 +201,6 @@ const Tokens = ({
 
   // New: decide if we should show the Railgun loading row
   const showRailgunLoadingRow = !railgunIsAccountLoaded
-
-  // Calculate railgun address from defaultRailgunKeys
-  useEffect(() => {
-    const calculateRailgunAddress = async () => {
-      if (defaultRailgunKeys) {
-        try {
-          const address = await getRailgunAddress({
-            type: 'key',
-            spendingKey: defaultRailgunKeys.spendingKey,
-            viewingKey: defaultRailgunKeys.viewingKey
-          })
-          setRailgunAddress(address)
-        } catch (error) {
-          console.error('Failed to calculate railgun address:', error)
-          setRailgunAddress(null)
-        }
-      } else {
-        setRailgunAddress(null)
-      }
-    }
-    calculateRailgunAddress()
-  }, [defaultRailgunKeys])
 
   const handleCopyRailgunAddress = useCallback(async () => {
     if (railgunAddress) {

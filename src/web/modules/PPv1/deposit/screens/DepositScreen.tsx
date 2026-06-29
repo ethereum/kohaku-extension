@@ -34,6 +34,14 @@ import { Form, Wrapper } from '../components/TransactionsScreen'
 
 const { isActionWindow } = getUiType()
 
+const TERMINAL_STATUSES = [
+  AccountOpStatus.Success,
+  AccountOpStatus.UnknownButPastNonce,
+  AccountOpStatus.Failure,
+  AccountOpStatus.Rejected,
+  AccountOpStatus.BroadcastButStuck
+]
+
 function TransferScreen() {
   const hasRefreshedAccountRef = useRef(false)
   const { dispatch } = useBackgroundService()
@@ -44,10 +52,6 @@ function TransferScreen() {
   const defaultToken = ((location.state as any)?.token as TokenResult) ?? null
 
   const { accountsOps } = useActivityControllerState()
-  const {
-    selectedToken: railgunSelectedToken,
-    latestBroadcastedToken: railgunLatestBroadcastedToken
-  } = useRailgunControllerState()
 
   const {
     chainId,
@@ -71,27 +75,23 @@ function TransferScreen() {
     supportedAssets
   } = useDepositForm()
 
-  // Get selectedToken from the appropriate controller based on privacy provider
-  // Use latestBroadcastedToken as fallback for railgun since selectedToken might be cleared after deposit
-  const selectedToken = useMemo(() => {
-    let token: TokenResult | null | undefined
+  const selectedToken = depositFormSelectedToken
 
-    if (privacyProvider === 'railgun') {
-      // Prefer latestBroadcastedToken if available (set when deposit is broadcast)
-      // Otherwise fall back to selectedToken
-      token = railgunLatestBroadcastedToken || railgunSelectedToken
-    } else {
-      token = depositFormSelectedToken
-    }
-    return token
-  }, [
-    privacyProvider,
-    railgunSelectedToken,
-    railgunLatestBroadcastedToken,
-    depositFormSelectedToken
-  ])
+  // True when the broadcasted op was already in a terminal state at mount — i.e.
+  // we're returning after a finished shield. Used to show the deposit form instead
+  // of the stale success screen until the op is cleared (below).
+  const hasStaleTerminalOpRef = useRef(
+    !!(
+      latestBroadcastedAccountOp?.status &&
+      TERMINAL_STATUSES.includes(latestBroadcastedAccountOp.status)
+    )
+  )
 
   const submittedAccountOp = useMemo(() => {
+    // Ignore a leftover terminal op from a previous shield so its success view
+    // doesn't show on return; the mount effect below clears it, and once the op
+    // changes (new shield) this memo recomputes with the flag already reset.
+    if (hasStaleTerminalOpRef.current) return
     if (!latestBroadcastedAccountOp?.signature) return
 
     // For Railgun, transactions are stored in accountsOps.transfer
@@ -124,7 +124,7 @@ function TransferScreen() {
     }
 
     dispatch({
-      type: 'RAILGUN_CONTROLLER_UNLOAD_SCREEN'
+      type: 'RAILGUN_V2_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
     })
     dispatch({
       type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN'
@@ -206,6 +206,25 @@ function TransferScreen() {
     return 'transfer'
   }, [latestBroadcastedAccountOp])
 
+  // On mount, clear a leftover terminal op so a returning user lands on a fresh
+  // deposit form rather than the previous shield's success view.
+  useEffect(() => {
+    if (
+      latestBroadcastedAccountOp?.status &&
+      TERMINAL_STATUSES.includes(latestBroadcastedAccountOp.status)
+    ) {
+      dispatch({ type: 'RAILGUN_V2_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP' })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Once the op is cleared, drop the stale flag so the next shield shows progress.
+  useEffect(() => {
+    if (!latestBroadcastedAccountOp) {
+      hasStaleTerminalOpRef.current = false
+    }
+  }, [latestBroadcastedAccountOp])
+
   useEffect(() => {
     if (!isAccountLoaded) {
       loadPrivateAccount().catch((error) => {
@@ -223,9 +242,6 @@ function TransferScreen() {
       dispatch({
         type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM'
       })
-      dispatch({
-        type: 'RAILGUN_CONTROLLER_RESET_FORM'
-      })
 
       // Reset hasProceeded for the currently selected controller when navigating back
       dispatch({
@@ -235,7 +251,7 @@ function TransferScreen() {
         }
       })
       dispatch({
-        type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED',
+        type: 'RAILGUN_V2_CONTROLLER_HAS_USER_PROCEEDED',
         params: {
           proceeded: false
         }
@@ -244,7 +260,7 @@ function TransferScreen() {
   }, [dispatch])
 
   const handleBroadcastAccountOp = useCallback(() => {
-    const updateType = privacyProvider === 'railgun' ? 'Railgun' : 'PrivacyPoolsV1'
+    const updateType = privacyProvider === 'railgun' ? 'RailgunV2' : 'PrivacyPoolsV1'
     dispatch({
       type: 'MAIN_CONTROLLER_HANDLE_SIGN_AND_BROADCAST_ACCOUNT_OP',
       params: {
@@ -257,7 +273,7 @@ function TransferScreen() {
     (status: SigningStatus) => {
       const actionType =
         privacyProvider === 'railgun'
-          ? 'RAILGUN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
+          ? 'RAILGUN_V2_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
           : 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
       dispatch({
         type: actionType,
@@ -279,7 +295,7 @@ function TransferScreen() {
       )
       const actionType =
         privacyProvider === 'railgun'
-          ? 'RAILGUN_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
+          ? 'RAILGUN_V2_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
           : 'PRIVACY_POOLS_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
       dispatch({
         type: actionType,
@@ -362,13 +378,14 @@ function TransferScreen() {
     }
 
     dispatch({
-      type: 'RAILGUN_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+      type: 'RAILGUN_V2_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
     })
+    // Tear down the previous shield's sign-account-op so the next shield's
+    // syncSignAccountOp doesn't early-return on a stale controller.
+    dispatch({ type: 'RAILGUN_V2_CONTROLLER_DESTROY_SIGN_ACCOUNT_OP' })
 
     dispatch({ type: 'PRIVACY_POOLS_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP' })
-    dispatch({ type: 'RAILGUN_CONTROLLER_UNLOAD_SCREEN' })
     dispatch({ type: 'PRIVACY_POOLS_CONTROLLER_UNLOAD_SCREEN' })
-    dispatch({ type: 'RAILGUN_CONTROLLER_RESET_FORM' })
     dispatch({ type: 'PRIVACY_POOLS_CONTROLLER_RESET_FORM' })
 
     // Reset hasProceeded for the currently selected controller
@@ -380,13 +397,14 @@ function TransferScreen() {
       }
     })
     dispatch({
-      type: 'RAILGUN_CONTROLLER_HAS_USER_PROCEEDED',
+      type: 'RAILGUN_V2_CONTROLLER_HAS_USER_PROCEEDED',
       params: {
         proceeded: false
       }
     })
     resetForm()
   }, [submittedAccountOp, dispatch, resetForm])
+
 
   const buttons = useMemo(() => {
     return (
@@ -476,7 +494,7 @@ function TransferScreen() {
 
       {!latestBroadcastedAccountOp && (
         <Estimation
-          updateType={privacyProvider === 'railgun' ? 'Railgun' : 'PrivacyPoolsV1'}
+          updateType={privacyProvider === 'railgun' ? 'RailgunV2' : 'PrivacyPoolsV1'}
           estimationModalRef={estimationModalRef}
           closeEstimationModal={closeEstimationModal}
           updateController={updateController}

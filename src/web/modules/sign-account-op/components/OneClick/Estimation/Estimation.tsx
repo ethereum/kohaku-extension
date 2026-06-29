@@ -33,7 +33,13 @@ type Props = {
   errors?: SignAccountOpError[]
   signAccountOpController: SignAccountOpController | null
   hasProceeded: boolean
-  updateType: 'Swap&Bridge' | 'Transfer&TopUp' | 'PrivacyPools' | 'PrivacyPoolsV1' | 'Railgun'
+  updateType:
+    | 'Swap&Bridge'
+    | 'Transfer&TopUp'
+    | 'PrivacyPools'
+    | 'PrivacyPoolsV1'
+    | 'Railgun'
+    | 'RailgunV2'
 }
 
 const { isActionWindow, isTab } = getUiType()

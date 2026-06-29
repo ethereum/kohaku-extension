@@ -27,5 +27,6 @@
       "matches": ["*://connect.trezor.io/*/popup.html", "https://connect.onekey.so/popup.html"],
       "js": ["browser-polyfill.min.js", "vendor/trezor/trezor-content-script.js"]
     }
-  ]
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAn39z6tFb9mjXNWbI2yvMdDmnKMnuuD5ULTzsCSHOn18lXImF0ob+y5CPrKqxCX0d6M8xksRiqXz5yPbjH3UBzW3ES1/T3l8EA1pn4saMMTa8AhpFP6P87S/5NnmrmqAAIZcjSDeaMAnb+NPpXaT4Cppm/1iKyASpzlvMsZX2R5S9lqapnzhZAMX5pDUKu2TrmjwcvOiesHjWHkzYjDRfux+v4iYUqRFOxHe4KIGZzTLp5sTUPZaJUPog0YGwriqKXYrHb+kndZxCONoipnfsqlkriGo4jaw9axQ5llrzgVTC/UwNrhVvk6Xrc2TO/TOazZ7rT7prtcH5gYzw+xQgbwIDAQAB"
 }

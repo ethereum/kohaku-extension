@@ -19,7 +19,6 @@ import { ZERO_ADDRESS } from '@ambire-common/services/socket/constants'
 import { TokenResult } from '@ambire-common/libs/portfolio'
 
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
-import useRailgunControllerState from '@web/hooks/useRailgunControllerState'
 import Recipient from '../Recipient'
 
 import SendToken from '../SendToken'

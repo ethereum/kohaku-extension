@@ -363,15 +363,14 @@ export const usePrivacyPoolsDepositForm = () => {
 }
 
 const useDepositForm = () => {
-  // Get the privacy provider setting from Privacy Pools controller
-  // (both controllers share this setting)
-  const { privacyProvider } = useRailgunControllerState()
   const { dispatch } = useBackgroundService()
 
   // IMPORTANT: Always call both hooks unconditionally to maintain consistent hook order
   // This prevents React's "Hooks called in different order" error
   const privacyPoolsForm = usePrivacyPoolsDepositForm()
   const railgunForm = useRailgunForm()
+
+  const { privacyProvider } = railgunForm
 
   // Route to the appropriate hook based on the selected provider
   // Default to railgun if not set

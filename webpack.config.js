@@ -209,7 +209,14 @@ module.exports = async function (env, argv) {
     '@web': path.resolve(__dirname, 'src/web'),
     '@benzin': path.resolve(__dirname, 'src/benzin'),
     '@legends': path.resolve(__dirname, 'src/legends'),
-    react: path.resolve(__dirname, 'node_modules/react')
+    react: path.resolve(__dirname, 'node_modules/react'),
+    // Pin @kohaku-eth/railgun to a single copy so the WASM module-level init
+    // promise is shared between the background pre-init and the controller's
+    // createRailgunPlugin call (otherwise they get separate module instances).
+    '@kohaku-eth/railgun$': path.resolve(
+      __dirname,
+      'src/ambire-common/node_modules/@kohaku-eth/railgun'
+    )
   }
 
   config.resolve.fallback = {
@@ -217,6 +224,10 @@ module.exports = async function (env, argv) {
     stream: require.resolve('stream-browserify'),
     crypto: false,
     fs: false,
+    // The railgun SDK's WASM loader references these only in its Node code path
+    // (skipped in the browser since we pass an explicit wasm input).
+    'fs/promises': false,
+    path: require.resolve('path-browserify'),
 
     // Added: explicitly avoid bundling Node's 'module' in web
     module: false,
@@ -402,6 +413,14 @@ module.exports = async function (env, argv) {
         from: 'node_modules/snarkjs/dist/*.wasm',
         to: 'assets/snarkjs/[name][ext]',
         noErrorOnMissing: true
+      },
+
+      // Railgun SDK WASM — copied to a stable asset path and loaded explicitly at
+      // runtime (see background.ts) so the SDK's Node fs loader is bypassed.
+      {
+        from: 'src/ambire-common/node_modules/@kohaku-eth/railgun/dist/pkg/index_bg.wasm',
+        to: 'assets/railgun/index_bg.wasm',
+        noErrorOnMissing: true
       }
     ]
 
@@ -413,6 +432,13 @@ module.exports = async function (env, argv) {
 
       // Keep your existing global shims
       new webpack.ProvidePlugin({ Buffer: ['buffer', 'Buffer'], process: 'process' }),
+
+      // Strip the "node:" scheme so webpack can resolve (and fallback/polyfill)
+      // these imports — the railgun SDK's wasm loader uses node:fs/promises etc.
+      // in a code path that is dead in the browser.
+      new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
+        resource.request = resource.request.replace(/^node:/, '')
+      }),
 
       // Added: define NODE_ENV for any conditional checks without requiring a global 'process'
       new webpack.DefinePlugin({

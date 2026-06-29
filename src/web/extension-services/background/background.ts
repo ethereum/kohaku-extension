@@ -44,9 +44,11 @@ import {
   PRIVACY_POOLS_RELAYER_URL,
   HYPERSYNC_API_KEY,
   RAILGUN_RELAYER_URL,
+  RAILGUN_DELEGATING_SIGNER_PK,
   ALCHEMY_API_KEY
 } from '@env'
 import * as Sentry from '@sentry/browser'
+import { ensureInitialized as ensureRailgunInitialized } from '@kohaku-eth/railgun'
 import { browser, platform } from '@web/constants/browserapi'
 import { Action } from '@web/extension-services/background/actions'
 import AutoLockController from '@web/extension-services/background/controllers/auto-lock'
@@ -363,6 +365,14 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
     return fetch(url, initWithCustomHeaders)
   }
 
+  try {
+    const railgunWasm = await fetch(browser.runtime.getURL('assets/railgun/index_bg.wasm'))
+    await ensureRailgunInitialized(railgunWasm)
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[BG] Railgun WASM init failed', err)
+  }
+
   mainCtrl = new MainController({
     platform,
     storageAPI: storage,
@@ -372,6 +382,7 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
     privacyPoolsAspUrl: PRIVACY_POOLS_ASP_URL,
     privacyPoolsRelayerUrl: PRIVACY_POOLS_RELAYER_URL,
     railgunRelayerUrl: RAILGUN_RELAYER_URL,
+    railgunDelegatingSignerPk: RAILGUN_DELEGATING_SIGNER_PK,
     alchemyApiKey: ALCHEMY_API_KEY,
     swapApiKey: LI_FI_API_KEY,
     hypersyncApiKey: HYPERSYNC_API_KEY,

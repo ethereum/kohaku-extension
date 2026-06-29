@@ -406,6 +406,7 @@ type SignAccountOpUpdateAction = {
       | 'PrivacyPools'
       | 'PrivacyPoolsV1'
       | 'Railgun'
+      | 'RailgunV2'
     accountOp?: AccountOp
     gasPrices?: GasRecommendation[]
     estimation?: FullEstimation
@@ -437,6 +438,7 @@ type MainControllerHandleSignAndBroadcastAccountOp = {
       | 'PrivacyPools'
       | 'Railgun'
       | 'PrivacyPoolsV1'
+      | 'RailgunV2'
   }
 }
 
@@ -966,6 +968,53 @@ type RailgunControllerSetAccountCacheAction = {
     cache: RailgunAccountCache
   }
 }
+type RailgunV2AssetAmount = {
+  asset: { __type: 'native' } | { __type: 'erc20'; contract: `0x${string}` }
+  amount: bigint
+}
+type RailgunV2ControllerInitAction = {
+  type: 'RAILGUN_V2_CONTROLLER_INIT'
+}
+type RailgunV2ControllerSyncAction = {
+  type: 'RAILGUN_V2_CONTROLLER_SYNC'
+}
+type RailgunV2ControllerShieldAction = {
+  type: 'RAILGUN_V2_CONTROLLER_SHIELD'
+  params: { asset: RailgunV2AssetAmount }
+}
+type RailgunV2ControllerPrepareUnshieldAction = {
+  type: 'RAILGUN_V2_CONTROLLER_PREPARE_UNSHIELD'
+  params: { asset: RailgunV2AssetAmount; to: `0x${string}` }
+}
+type RailgunV2ControllerPrepareTransferAction = {
+  type: 'RAILGUN_V2_CONTROLLER_PREPARE_TRANSFER'
+  params: { asset: RailgunV2AssetAmount; to: `0zk${string}` }
+}
+type RailgunV2ControllerBroadcastPrivateOpAction = {
+  type: 'RAILGUN_V2_CONTROLLER_BROADCAST_PRIVATE_OP'
+}
+type RailgunV2ControllerSubmitPrivateOpAction = {
+  type: 'RAILGUN_V2_CONTROLLER_SUBMIT_PRIVATE_OP'
+  params: { asset: RailgunV2AssetAmount; to: `0x${string}` | `0zk${string}` }
+}
+type RailgunV2ControllerSignAccountOpUpdateAction = {
+  type: 'RAILGUN_V2_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE'
+  params: { [key: string]: any }
+}
+type RailgunV2ControllerSignAccountOpUpdateStatusAction = {
+  type: 'RAILGUN_V2_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS'
+  params: { status: any }
+}
+type RailgunV2ControllerHasUserProceededAction = {
+  type: 'RAILGUN_V2_CONTROLLER_HAS_USER_PROCEEDED'
+  params: { proceeded: boolean }
+}
+type RailgunV2ControllerDestroySignAccountOpAction = {
+  type: 'RAILGUN_V2_CONTROLLER_DESTROY_SIGN_ACCOUNT_OP'
+}
+type RailgunV2ControllerDestroyLatestBroadcastedAccountOpAction = {
+  type: 'RAILGUN_V2_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP'
+}
 type PrivacyPoolsV1ControllerInitAction = {
   type: 'PRIVACY_POOLS_V1_CONTROLLER_INIT'
   params: {
@@ -1199,6 +1248,18 @@ export type Action =
   | RailgunControllerGetDefaultRailgunKeysAction
   | RailgunControllerGetAccountCacheAction
   | RailgunControllerSetAccountCacheAction
+  | RailgunV2ControllerInitAction
+  | RailgunV2ControllerSyncAction
+  | RailgunV2ControllerShieldAction
+  | RailgunV2ControllerPrepareUnshieldAction
+  | RailgunV2ControllerPrepareTransferAction
+  | RailgunV2ControllerBroadcastPrivateOpAction
+  | RailgunV2ControllerSubmitPrivateOpAction
+  | RailgunV2ControllerSignAccountOpUpdateAction
+  | RailgunV2ControllerSignAccountOpUpdateStatusAction
+  | RailgunV2ControllerHasUserProceededAction
+  | RailgunV2ControllerDestroySignAccountOpAction
+  | RailgunV2ControllerDestroyLatestBroadcastedAccountOpAction
   | PrivacyPoolsV1ControllerInitAction
   | PrivacyPoolsV1ControllerSyncAction
   | PrivacyPoolsV1ControllerShieldAction

@@ -10,6 +10,7 @@ import {
   SIGN_ACCOUNT_OP_PRIVACY_POOLS,
   SIGN_ACCOUNT_OP_PRIVACY_POOLS_V1,
   SIGN_ACCOUNT_OP_RAILGUN,
+  SIGN_ACCOUNT_OP_RAILGUN_V2,
   SignAccountOpType
 } from '@ambire-common/controllers/signAccountOp/helper'
 import { KeyIterator } from '@ambire-common/libs/keyIterator/keyIterator'
@@ -309,6 +310,8 @@ export const handleActions = async (
         signAccountOpType = SIGN_ACCOUNT_OP_PRIVACY_POOLS_V1
       } else if (params.updateType === 'Railgun') {
         signAccountOpType = SIGN_ACCOUNT_OP_RAILGUN
+      } else if (params.updateType === 'RailgunV2') {
+        signAccountOpType = SIGN_ACCOUNT_OP_RAILGUN_V2
       } else {
         signAccountOpType = SIGN_ACCOUNT_OP_TRANSFER
       }
@@ -357,6 +360,10 @@ export const handleActions = async (
 
       if (params.updateType === 'Railgun') {
         return mainCtrl?.railgun?.signAccountOpController?.update(params)
+      }
+
+      if (params.updateType === 'RailgunV2') {
+        return mainCtrl?.railgunV2?.signAccountOpController?.update(params)
       }
 
       // 'Transfer&TopUp'
@@ -506,6 +513,30 @@ export const handleActions = async (
     case 'PRIVACY_POOLS_CONTROLLER_ADD_IMPORTED_ACCOUNT_TO_ACTIVITY_CONTROLLER': {
       return await mainCtrl.privacyPools.addImportedAccountToActivityController(params.accountName)
     }
+    case 'RAILGUN_V2_CONTROLLER_INIT':
+      return mainCtrl.railgunV2.init()
+    case 'RAILGUN_V2_CONTROLLER_SYNC':
+      return mainCtrl.railgunV2.sync()
+    case 'RAILGUN_V2_CONTROLLER_SHIELD':
+      return mainCtrl.railgunV2.prepareShield(params.asset as never)
+    case 'RAILGUN_V2_CONTROLLER_PREPARE_UNSHIELD':
+      return mainCtrl.railgunV2.prepareUnshield(params.asset as never, params.to as never)
+    case 'RAILGUN_V2_CONTROLLER_PREPARE_TRANSFER':
+      return mainCtrl.railgunV2.prepareTransfer(params.asset as never, params.to as never)
+    case 'RAILGUN_V2_CONTROLLER_BROADCAST_PRIVATE_OP':
+      return mainCtrl.railgunV2.broadcastPrivateOp()
+    case 'RAILGUN_V2_CONTROLLER_SUBMIT_PRIVATE_OP':
+      return mainCtrl.railgunV2.submitPrivateOp(params.asset as never, params.to as never)
+    case 'RAILGUN_V2_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE':
+      return mainCtrl.railgunV2?.signAccountOpController?.update(params)
+    case 'RAILGUN_V2_CONTROLLER_SIGN_ACCOUNT_OP_UPDATE_STATUS':
+      return mainCtrl.railgunV2?.signAccountOpController?.updateStatus(params.status)
+    case 'RAILGUN_V2_CONTROLLER_HAS_USER_PROCEEDED':
+      return mainCtrl.railgunV2.setUserProceeded(params.proceeded)
+    case 'RAILGUN_V2_CONTROLLER_DESTROY_SIGN_ACCOUNT_OP':
+      return mainCtrl.railgunV2.destroySignAccountOp()
+    case 'RAILGUN_V2_CONTROLLER_DESTROY_LATEST_BROADCASTED_ACCOUNT_OP':
+      return mainCtrl.railgunV2.destroyLatestBroadcastedAccountOp()
     case 'PRIVACY_POOLS_V1_CONTROLLER_INIT':
       return mainCtrl.privacyPoolsV1.init()
     case 'PRIVACY_POOLS_V1_CONTROLLER_SYNC':
