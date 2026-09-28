@@ -28,7 +28,7 @@ Checks:
 
 Judgments:
 
-- the lines are a pure function of the path's shape and every line D-305 states is produced for the shape that earns it, all N must answer, both must answer, the single-method warning, any N of these M, either one alone, any one of these M alone, together with your required methods and one member of each other group, every member must answer, and one failure domain
+- the lines are a pure function of the path's shape and every line D-305 states is produced for the shape that earns it, all N must answer, both must answer, the single-method warning, any N of these M, either one alone, any one of these M alone, together with your required methods and enough members of each other group to meet its threshold, every member must answer, and one failure domain
 - a group of one member and a path of one row both produce the single-method warning with the second passkey or hardware key offer beside it, and a two item path as two required rows produces the sizing rule line
 - the lines say nothing about the identity method's weight and nothing about raising a threshold when a secondary credential joins
 
