@@ -3,6 +3,7 @@ import { Route, Routes } from 'react-router-dom'
 
 import AuthenticatedRoute from '@web/modules/router/components/AuthenticatedRoute'
 import KeystoreUnlockedRoute from '@web/modules/router/components/KeystoreUnlockedRoute'
+import CeremonyScreen from '@web/modules/social-recovery/shared/ceremony/screen'
 
 /**
  * The route registry of the account recovery module.
@@ -40,9 +41,10 @@ const SocialRecoveryRoutes = () => (
     <Route>
       {/*
         The open surfaces mount here: socialRecoveryApprove,
-        socialRecoveryFastTrack and socialRecoveryRecover. socialRecoveryCeremony
-        mounts in the group its callers need.
+        socialRecoveryFastTrack and socialRecoveryRecover.
       */}
+      {/* The passkey ceremony tab. It needs no guard, because a fresh install with no keystore also opens it. */}
+      <Route path="ceremony" element={<CeremonyScreen />} />
     </Route>
   </Routes>
 )
