@@ -24,7 +24,11 @@ import {
   shippedMethodDoubles,
   WalletReadsDouble
 } from '@web/modules/social-recovery/sdk-doubles'
-import type { DeploymentDescriptor, Domain } from '@web/modules/social-recovery/sdk-interfaces'
+import type {
+  DeploymentDescriptor,
+  Domain,
+  IRecoveryMethod
+} from '@web/modules/social-recovery/sdk-interfaces'
 
 import { sameAddress } from './addresses'
 import { clientConfigurationOf } from './configuration'
@@ -134,7 +138,24 @@ export const buildRecoveryClient = async (
     .config(clientConfiguration)
     .policyManager(manager)
   // The builder's method registry: the four shipped methods.
-  shippedMethodDoubles(chain).forEach((method) => builder.method(method))
+  const methods: IRecoveryMethod[] = shippedMethodDoubles(chain)
+  methods.forEach((method) => builder.method(method))
+  // The registered methods by module, keyed as the orchestrator's registry keys
+  // them: where two claim one module, the later registration serves it, so a
+  // slug hands out the method the orchestrator runs.
+  const methodsByModule = new Map<string, IRecoveryMethod>()
+  methods.forEach((method) =>
+    method
+      .modules(descriptor)
+      .forEach((address) => methodsByModule.set(address.toLowerCase(), method))
+  )
+  // Each slug of the address book to the method serving its module.
+  const methodsBySlug = new Map(
+    Object.entries(config.addressBook.methods).flatMap(([slug, module]) => {
+      const served = methodsByModule.get(module.toLowerCase())
+      return served ? [[slug, served] as const] : []
+    })
+  )
 
   try {
     const setup = await builder.buildSetupClient()
@@ -155,6 +176,7 @@ export const buildRecoveryClient = async (
       action,
       moduleReads,
       approving,
+      methodFor: (slug: string) => methodsBySlug.get(slug),
       walletReads
     })
   } catch (thrown) {

@@ -25,6 +25,7 @@ export type {
   CeremonyDevice,
   CeremonyOutcome,
   CeremonyParams,
+  CeremonyRefusal,
   CeremonyReport,
   CeremonyResolver,
   CeremonyStep,

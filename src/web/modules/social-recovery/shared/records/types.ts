@@ -8,6 +8,7 @@
 import type { Storage } from '@ambire-common/interfaces/storage'
 import type {
   Address,
+  ApproverRequest,
   Configuration,
   Credential,
   Gathering,
@@ -258,6 +259,34 @@ export interface ListedRecord<T> {
 }
 
 // ---------------------------------------------------------------------------
+// The ceremony request
+// ---------------------------------------------------------------------------
+
+/** What every ceremony request names: the account and chain its client is built for, and the method. */
+export interface CeremonyRequestTarget {
+  account: Address
+  chainId: ChainId
+  /** The method's slug, the one the ceremony tab's route carries. */
+  method: string
+}
+
+/**
+ * The ceremony a caller asks the ceremony tab to run, stored under the request
+ * id before the caller opens the tab, with what its call needs: an enrollment
+ * its method address and params, an access test or a claim the request and
+ * the method's params, a health check nothing more. It holds no approval
+ * material: the outcome travels back in the tab's report alone.
+ */
+export type CeremonyRequestRecord =
+  | (CeremonyRequestTarget & { call: 'enroll'; methodAddress: Address; params: unknown })
+  | (CeremonyRequestTarget & {
+      call: 'testAccess' | 'createClaim'
+      request: ApproverRequest
+      params?: unknown
+    })
+  | (CeremonyRequestTarget & { call: 'healthCheck' })
+
+// ---------------------------------------------------------------------------
 // What `createWalletRecords` returns
 // ---------------------------------------------------------------------------
 
@@ -334,6 +363,13 @@ export interface WalletRecords {
   countdown(chainId: ChainId, account: Address): CountdownAccessor
   listCountdowns(chainId: ChainId): Promise<ListedRecord<CountdownRecord>[]>
   decryptedSetupCache(chainId: ChainId, account: Address): RecordAccessor<DecryptedSetupCacheRecord>
+  /**
+   * The ceremony request stored under one request id, one from
+   * `newCeremonyRequestId`. The caller writes it before it opens the ceremony
+   * tab and wipes it once it has taken the tab's report; the tab only reads
+   * it, so its Try again finds it again.
+   */
+  ceremonyRequest(id: string): RecordAccessor<CeremonyRequestRecord>
 }
 
 /**

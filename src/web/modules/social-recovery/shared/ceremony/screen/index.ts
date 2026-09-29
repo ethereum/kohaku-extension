@@ -1,9 +1,10 @@
 /**
  * The ceremony tab screen and the source it reads its ceremony from. Kept
  * apart from the pure entry of `shared/ceremony`, since it imports React, the
- * browser and the extension's storage.
+ * browser and the extension's storage. The default export is the tab as the
+ * route mounts it, under the wallet's own source where no provider sits above.
  */
-import CeremonyScreen from './CeremonyScreen'
+import CeremonyTab from './CeremonyTab'
 
 export { CeremonySourceProvider, useCeremonySource } from './CeremonySource'
 export type { CeremonySource } from './types'
@@ -16,4 +17,4 @@ export {
   pagePlatform
 } from './browserDefaults'
 
-export default CeremonyScreen
+export default CeremonyTab

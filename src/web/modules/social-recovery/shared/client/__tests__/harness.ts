@@ -12,11 +12,15 @@
  *   no action window and no background runs.
  * - The stand-in's scripted chain (`sdkStandIn.chainFor`) is reset before each
  *   world, so one test's domain script never leaks into the next.
+ * - The ceremony tab's resolver reads the wallet's records over an in-memory
+ *   storage and a client of the approving side alone, built by a `jest.fn`.
  */
 import { AbiCoder, id, toBeHex } from 'ethers'
 
+import type { Network } from '@ambire-common/interfaces/network'
 import {
   addressOf,
+  MethodsOrchestratorDouble,
   PolicyManagerDouble,
   ProviderDouble,
   RecoveryActionDouble,
@@ -31,16 +35,21 @@ import type {
   ClientConfiguration,
   DeploymentDescriptor,
   Hex,
-  IProvider
+  IProvider,
+  IRecoveryMethod
 } from '@web/modules/social-recovery/sdk-interfaces'
 import {
   addressBookOf,
+  CHAIN_IDS,
   createProviderAdapter,
   createSignerFacade,
+  deploymentDescriptor,
   descriptorOf,
   WALLET_RECOVERY_CHAIN,
+  type ApprovingClient,
   type KeyHandle,
   type ListedAccount,
+  type RecoveryChain,
   type RecoveryClientConfiguration,
   type SignerFacade,
   type SignerFacadeOptions,
@@ -50,6 +59,10 @@ import {
 } from '@web/modules/social-recovery/shared/client'
 // The stand-in is not part of the barrel a screen imports; tests reach it by path.
 import { sdkStandIn } from '@web/modules/social-recovery/shared/client/stand-in'
+import {
+  createWalletRecords,
+  type RecordStorage
+} from '@web/modules/social-recovery/shared/records'
 
 export * from '@web/modules/social-recovery/shared/client'
 export { sdkStandIn }
@@ -480,6 +493,58 @@ export const flush = async (): Promise<void> => {
 export const advance = async (ms: number): Promise<void> => {
   jest.advanceTimersByTime(ms)
   await flush()
+}
+
+/** The network record the extension holds for a recovery chain, as `getRpcProvider` reads it. */
+export const networkRecord = (chain: RecoveryChain, overrides: Partial<Network> = {}): Network =>
+  ({
+    chainId: BigInt(CHAIN_IDS[chain]),
+    name: chain,
+    rpcUrls: [`https://rpc.example/${chain}`],
+    selectedRpcUrl: `https://rpc.example/${chain}`,
+    rpcProvider: 'rpc',
+    ...overrides
+  } as Network)
+
+/**
+ * The wallet's records over one in-memory storage: what a caller writes, the
+ * tab reads. The records stamp each write with `clock.t`.
+ */
+export const recordsInMemory = (clock: { t: number } = { t: Date.now() }) => {
+  const entries = new Map<string, unknown>()
+  const storage: RecordStorage = {
+    get: async (key, defaultValue) => (key && entries.has(key) ? entries.get(key) : defaultValue),
+    set: async (key, value) => {
+      entries.set(key, value)
+      return null
+    },
+    remove: async (key) => {
+      entries.delete(key)
+      return null
+    }
+  }
+  return { entries, storage, clock, records: createWalletRecords({ storage, now: () => clock.t }) }
+}
+
+export interface FakeApprovingClient extends ApprovingClient {
+  methodFor: jest.Mock<IRecoveryMethod | undefined, [string]>
+}
+
+/**
+ * The approving side of a client that serves the methods of `served` by slug,
+ * and no other, with the descriptor of the chain this build reads unless one
+ * is given.
+ */
+export const fakeApprovingClient = (
+  served: Record<string, IRecoveryMethod> = {},
+  descriptor: DeploymentDescriptor = deploymentDescriptor(WALLET_RECOVERY_CHAIN)
+): FakeApprovingClient => {
+  const methods = new Map(Object.entries(served))
+  return {
+    approving: new MethodsOrchestratorDouble(new Map(), []),
+    methodFor: jest.fn((slug: string) => methods.get(slug)),
+    descriptor
+  }
 }
 
 export type { KeyHandle }

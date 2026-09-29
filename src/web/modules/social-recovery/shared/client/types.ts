@@ -21,8 +21,10 @@ import type {
   IProvider,
   IRecoveryActionInteractor,
   IRecoveryClient,
+  IRecoveryMethod,
   ISetupClient
 } from '@web/modules/social-recovery/sdk-interfaces'
+import type { ChainId, WalletRecords } from '@web/modules/social-recovery/shared/records'
 
 import type { PUBLISHERS, UNKNOWN_ACTION } from './audited-actions'
 import type { RECOVERY_CHAINS } from './chains'
@@ -154,9 +156,9 @@ export type { FitCheckReading, RemovedKeyReading, RemovedKeyUnavailableCause }
 
 /**
  * What the extension holds for one account: the two entry clients, the two
- * narrow seams the builder hands out, the approving side, and the wallet's
- * own reads. The builder constructed every part once, so all of them read the
- * same manager, action and events.
+ * narrow seams the builder hands out, the approving side and its methods, and
+ * the wallet's own reads. The builder constructed every part once, so all of
+ * them read the same manager, action and events.
  */
 export interface RecoveryKitClient {
   chain: RecoveryChain
@@ -170,8 +172,31 @@ export interface RecoveryKitClient {
   moduleReads: IMethodModuleReads
   /** The approving side, over the builder's method registry; it reads no chain. */
   approving: IMethodsOrchestrator
+  /**
+   * The method implementation the builder's registry holds for a method slug,
+   * a key of the address book's `methods` (`ecdsa`, `passkey`, `aadhaar`,
+   * `zkpassport`): the one serving that module. Undefined for any other slug.
+   */
+  methodFor(slug: string): IRecoveryMethod | undefined
   /** The wallet's own reads the SDK does not offer (wallet-reads.ts). */
   walletReads: WalletReads
+}
+
+/**
+ * The part of a client a ceremony runs on: the approving side, its methods and
+ * the descriptor their modules are read from. No part reads a chain.
+ */
+export type ApprovingClient = Pick<RecoveryKitClient, 'approving' | 'methodFor' | 'descriptor'>
+
+/** Builds the client for an account on a chain; rejects where it cannot. */
+export type CeremonyClientFor = (account: Address, chainId: ChainId) => Promise<ApprovingClient>
+
+export interface CeremonyResolverOptions {
+  /** The wallet's records, read for the ceremony request under a request id. */
+  records: Pick<WalletRecords, 'ceremonyRequest'>
+  clientFor: CeremonyClientFor
+  /** The clock a request's age is read against, in ms since epoch. */
+  now?: () => number
 }
 
 /** The domain name and version a build carries or a manager publishes. */

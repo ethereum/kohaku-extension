@@ -37,6 +37,7 @@ import { ceremonyMayRun, runCeremony } from '../run'
 import type {
   CeremonyOutcome,
   CeremonyParams,
+  CeremonyRefusal,
   CeremonyStep,
   CeremonyValue,
   ReportStore,
@@ -175,10 +176,10 @@ const CeremonyScreen = () => {
     if (visibility) await whenVisible(visibility)
     if (!live()) return
 
-    // No resolver wired: this build holds no implementation to run.
+    // A source with no resolver holds no implementation to run.
     let result: CeremonyOutcome<CeremonyValue> = notSupported('no-implementation')
     if (source.resolve) {
-      let resolved: ResolvedCeremony | null | undefined
+      let resolved: ResolvedCeremony | CeremonyRefusal | null | undefined
       try {
         resolved = await source.resolve(params)
       } catch {
@@ -192,7 +193,10 @@ const CeremonyScreen = () => {
         if (live()) setPhase('nothing')
         return
       }
-      if (resolved) {
+      if (resolved && 'refused' in resolved) {
+        // The request names a method this build holds no implementation of.
+        result = notSupported(resolved.refused)
+      } else if (resolved) {
         if (!live()) return
         setBinding(resolved.method.deviceBinding)
         if (visibility) await whenVisible(visibility)

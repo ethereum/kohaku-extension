@@ -1,7 +1,7 @@
 /**
  * The wallet's records: the six setup records, the recovery session and its
- * five wipe events, the countdown the landed session carries, and the
- * decrypted setup cache.
+ * five wipe events, the countdown the landed session carries, the decrypted
+ * setup cache, and the ceremony request the ceremony tab reads.
  *
  * Every test runs against an in-memory double of
  * src/web/extension-services/background/webapi/storage.ts that behaves like it:
@@ -14,13 +14,16 @@ import en from '@common/config/localization/translations/en.json'
 import type {
   Address,
   ApproverReply,
+  ApproverRequest,
   Configuration,
   Gathering,
   Hex,
   SetupDraft
 } from '@web/modules/social-recovery/sdk-interfaces'
+import { parseCeremonySearch } from '@web/modules/social-recovery/shared/ceremony'
 import {
   ABSENT,
+  CeremonyRequestRecord,
   ChainId,
   createWalletRecords,
   DecryptedSetupCacheRecord,
@@ -29,6 +32,7 @@ import {
   ExpectedRevision,
   extensionRecordStorage,
   isSessionRevisionConflict,
+  newCeremonyRequestId,
   predictedAttemptId,
   recordAge,
   recordKeys,
@@ -1870,4 +1874,225 @@ describe('updates of one session run one at a time, across wrappers and pages', 
       })
     })
   )
+})
+
+describe('the ceremony request under its request id', () => {
+  const ID = 'req-1'
+  const APPROVER_REQUEST: ApproverRequest = {
+    kind: 'recovery-proof-request',
+    version: 1,
+    purpose: 'approval',
+    chainId: CHAIN_ID.toString(),
+    manager: MANAGER,
+    digestVersion: '1',
+    account: ACCOUNT,
+    action: ACTION,
+    attemptId: PREDICTED_ATTEMPT_ID.toString(),
+    setupNonce: '3',
+    setupBodyHash: `0x${'44'.repeat(32)}`,
+    validUntil: VALID_UNTIL,
+    place: 0,
+    method: METHOD,
+    config: '0xabcd',
+    salt: '0x01'
+  }
+  const PARAMS = { relyingPartyId: 'chrome-extension://abc', userName: 'holder' }
+  const target = { account: ACCOUNT, chainId: CHAIN_ID, method: 'passkey' }
+  const ENROLL: CeremonyRequestRecord = {
+    ...target,
+    call: 'enroll',
+    methodAddress: METHOD,
+    params: PARAMS
+  }
+  const REQUESTS: CeremonyRequestRecord[] = [
+    ENROLL,
+    { ...target, call: 'testAccess', request: APPROVER_REQUEST, params: PARAMS },
+    { ...target, call: 'createClaim', request: APPROVER_REQUEST },
+    { ...target, call: 'healthCheck' }
+  ]
+
+  REQUESTS.forEach((request) =>
+    it(`round-trips the ${request.call} request, which another instance over the same storage reads`, async () => {
+      const { storage, records } = setup()
+      await records.ceremonyRequest(ID).write(request)
+      const tab = createWalletRecords({ storage, now: () => T0 + HOUR })
+      const read = present(await tab.ceremonyRequest(ID).read())
+      expect(read.value).toEqual(request)
+      expect(read.savedAt).toBe(T0)
+      expect(await tab.ceremonyRequest(ID).age()).toBe(HOUR)
+    })
+  )
+
+  it('keeps a bigint chain id a bigint and a number chain id a number', async () => {
+    const { records } = setup()
+    await records.ceremonyRequest('as-bigint').write(ENROLL)
+    await records.ceremonyRequest('as-number').write({ ...ENROLL, chainId: 11155111 })
+    expect(present(await records.ceremonyRequest('as-bigint').read()).value.chainId).toBe(CHAIN_ID)
+    expect(present(await records.ceremonyRequest('as-number').read()).value.chainId).toBe(11155111)
+  })
+
+  it('reads a request whose account is in a letter case that fails the checksum', async () => {
+    const { records } = setup()
+    await records.ceremonyRequest(ID).write({ ...ENROLL, account: MISCASED })
+    expect(present(await records.ceremonyRequest(ID).read()).value.account).toBe(MISCASED)
+  })
+
+  it('reads absent under an id nothing was written under, and never the request of another id', async () => {
+    const { records } = setup()
+    await records.ceremonyRequest(ID).write(ENROLL)
+    expect(await records.ceremonyRequest('req-2').read()).toBe(ABSENT)
+    expect(await records.ceremonyRequest('req-2').age(T0)).toBeNull()
+    expect(await records.ceremonyRequest('REQ-1').read()).toBe(ABSENT)
+  })
+
+  it('a later write under the same id replaces the request and restamps it', async () => {
+    const { records, clock } = setup()
+    await records.ceremonyRequest(ID).write(ENROLL)
+    clock.t = T0 + HOUR
+    await records.ceremonyRequest(ID).write(REQUESTS[1])
+    const read = present(await records.ceremonyRequest(ID).read())
+    expect(read.value).toEqual(REQUESTS[1])
+    expect(read.savedAt).toBe(T0 + HOUR)
+  })
+
+  it('a removal leaves the request absent, and every other request and record in place', async () => {
+    const { records } = setup()
+    await records.ceremonyRequest(ID).write(ENROLL)
+    await records.ceremonyRequest('req-2').write(REQUESTS[1])
+    await records.setup(CHAIN_ID, ACCOUNT).inventory.write(['passport'])
+    await records.ceremonyRequest(ID).wipe()
+    expect(await records.ceremonyRequest(ID).read()).toBe(ABSENT)
+    expect(present(await records.ceremonyRequest('req-2').read()).value).toEqual(REQUESTS[1])
+    expect(present(await records.setup(CHAIN_ID, ACCOUNT).inventory.read()).value).toEqual([
+      'passport'
+    ])
+    await expect(records.ceremonyRequest(ID).wipe()).resolves.toBeUndefined()
+  })
+
+  const stored = (value: unknown) => ({ value, savedAt: T0 })
+  const MALFORMED: [string, unknown][] = [
+    ['a bare request with no savedAt', ENROLL],
+    ['a bare false', false],
+    ['a bare zero', 0],
+    ['a bare string', 'passkey'],
+    ['a request with a savedAt that is no number', { value: ENROLL, savedAt: 'yesterday' }],
+    ['a stored null', stored(null)],
+    ['a stored string', stored('enroll')],
+    ['a request with no account', stored({ ...ENROLL, account: undefined })],
+    ['a request whose account is no address', stored({ ...ENROLL, account: '0x1234' })],
+    ['a request with no chain id', stored({ ...ENROLL, chainId: undefined })],
+    ['a request whose chain id is a string', stored({ ...ENROLL, chainId: '11155111' })],
+    ['a request with no method', stored({ ...ENROLL, method: undefined })],
+    ['a request whose method is no string', stored({ ...ENROLL, method: 7 })],
+    ['a request with no call', stored({ ...ENROLL, call: undefined })],
+    ['a request for a call the tab does not run', stored({ ...ENROLL, call: 'sign' })],
+    ['an enrollment with no method address', stored({ ...ENROLL, methodAddress: undefined })],
+    [
+      'an enrollment whose method address is no address',
+      stored({ ...ENROLL, methodAddress: '0x12' })
+    ],
+    ['a test access with no request', stored({ ...target, call: 'testAccess' })],
+    ['a claim whose request is null', stored({ ...target, call: 'createClaim', request: null })],
+    [
+      'a test access whose request is a string',
+      stored({ ...target, call: 'testAccess', request: 'r' })
+    ]
+  ]
+  MALFORMED.forEach(([label, value]) =>
+    it(`reads ${label} under the id as absent`, async () => {
+      const { storage, records } = setup()
+      await storage.set(recordKeys.ceremonyRequest(ID), value)
+      expect(await records.ceremonyRequest(ID).read()).toBe(ABSENT)
+      expect(await records.ceremonyRequest(ID).age(T0)).toBeNull()
+    })
+  )
+
+  it('keys a request under any id the ceremony route carries: up to 128 letters, digits, _ and -', async () => {
+    const { records } = setup()
+    const longest = `A_b-9${'x'.repeat(123)}`
+    expect(longest).toHaveLength(128)
+    await records.ceremonyRequest(longest).write(ENROLL)
+    expect(present(await records.ceremonyRequest(longest).read()).value).toEqual(ENROLL)
+  })
+
+  const BAD_IDS: [string, string][] = [
+    ['an empty id', ''],
+    ['an id with a slash', 'a/b'],
+    ['an id with a colon', 'a:b'],
+    ['an id with a space', 'a b'],
+    ['an id that climbs a path', '../x'],
+    ['an id with a dot', 'id.1'],
+    ['an id with a letter outside ASCII', 'é'],
+    ['an id of 129 characters', 'x'.repeat(129)]
+  ]
+  BAD_IDS.forEach(([label, bad]) =>
+    it(`refuses ${label} and stores nothing`, async () => {
+      const { storage, records } = setup()
+      const refused = (fn: () => unknown) =>
+        expect(attempt(fn)).rejects.toThrow(/Invalid request id/)
+      await refused(() => records.ceremonyRequest(bad).write(ENROLL))
+      await refused(() => records.ceremonyRequest(bad).read())
+      await refused(() => records.ceremonyRequest(bad).wipe())
+      await refused(() => records.ceremonyRequest(bad).age())
+      expect(storage.raw.size).toBe(0)
+      expect(storage.calls).toEqual({ set: [], remove: [] })
+    })
+  )
+
+  /** Whether the ceremony tab's route reads `id` from its search. */
+  const routeTakes = (id: string): boolean => {
+    const parsed = parseCeremonySearch(
+      new URLSearchParams({ call: 'enroll', method: 'passkey', id })
+    )
+    return parsed.ok && parsed.params.id === id
+  }
+
+  /** Whether the records key a request under `id`. */
+  const recordsTake = (id: string): boolean => {
+    const { records } = setup()
+    try {
+      records.ceremonyRequest(id)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  it('keys a request under exactly the ids the ceremony route reads', () => {
+    const printable = Array.from({ length: 95 }, (_, i) => String.fromCharCode(32 + i))
+    const ids = [
+      ...printable,
+      ...printable.map((c) => `a${c}b`),
+      '',
+      'req-1',
+      'A_b-9',
+      'é',
+      'a\nb',
+      'a\u0000b',
+      '%20',
+      'x'.repeat(127),
+      'x'.repeat(128),
+      'x'.repeat(129),
+      '-'.repeat(128),
+      newCeremonyRequestId()
+    ]
+    const disagreements = ids.filter((id) => routeTakes(id) !== recordsTake(id))
+    expect(disagreements).toEqual([])
+    expect(ids.filter(routeTakes).length).toBeGreaterThan(60)
+    expect(ids.filter((id) => !routeTakes(id)).length).toBeGreaterThan(60)
+  })
+
+  it('hands a caller a fresh request id of 32 hex digits, which the route reads and the records key', async () => {
+    const { records } = setup()
+    const id = newCeremonyRequestId()
+    expect(id).toMatch(/^[0-9a-f]{32}$/)
+    expect(routeTakes(id)).toBe(true)
+    await records.ceremonyRequest(id).write(ENROLL)
+    expect(present(await records.ceremonyRequest(id).read()).value).toEqual(ENROLL)
+  })
+
+  it('hands out another request id on each call', () => {
+    const ids = Array.from({ length: 200 }, () => newCeremonyRequestId())
+    expect(new Set(ids).size).toBe(ids.length)
+  })
 })

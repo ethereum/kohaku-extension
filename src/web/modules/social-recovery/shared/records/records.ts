@@ -2,8 +2,8 @@
  * The wallet's records: the social recovery records this device keeps, in the
  * extension's local storage and never in a background controller, since the
  * worker restarts and clears its controllers. The SDK stores nothing, so the
- * setup draft, the recovery session and the setup cache live here and the SDK
- * sees them only as arguments.
+ * setup draft, the recovery session, the setup cache and the ceremony tab's
+ * requests live here and the SDK sees them only as arguments.
  *
  * Every record is stored as `{ value, savedAt }`, `savedAt` in ms since epoch,
  * never as a bare boolean or zero, since the storage helper's read returns the
@@ -20,6 +20,7 @@ import type { Address, Gathering } from '@web/modules/social-recovery/sdk-interf
 
 import { ABSENT, SETUP_RECORD_NAMES } from './types'
 import type {
+  CeremonyRequestRecord,
   ChainId,
   CountdownAccessor,
   CountdownRead,
@@ -59,6 +60,21 @@ const accountPart = (account: Address): string => {
   return account.toLowerCase()
 }
 
+/** A request id as the ceremony tab's route carries it: letters, digits, `_` and `-`. */
+const requestIdPart = (id: string): string => {
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) throw new Error(`Invalid request id: ${id}`)
+  return id
+}
+
+/**
+ * A fresh request id for a ceremony request: 32 hex digits from the platform's
+ * random source, an id the ceremony tab's route carries. Request ids are
+ * global, so a caller takes a new one for each ceremony it asks for; a retry
+ * of the same ceremony may write under the same id again.
+ */
+export const newCeremonyRequestId = (): string =>
+  bytesToHex(globalThis.crypto.getRandomValues(new Uint8Array(16))).slice(2)
+
 /** The key prefix every recovery session on one chain shares. */
 const recoverySessionPrefix = (chainId: ChainId): string =>
   `${RECORDS_KEY_PREFIX}:recoverySession:${chainPart(chainId)}:`
@@ -72,6 +88,10 @@ const recoverySessionPrefix = (chainId: ChainId): string =>
  * - `recoverySession`: the live gathering, the reason line a wipe leaves, or in
  *   its landed state the countdown's record;
  * - `decryptedSetupCache`: the setup the recovery password unlocked.
+ *
+ * A ceremony request is keyed by its request id alone,
+ * `socialRecovery:ceremonyRequest:<id>`, since the ceremony tab reads it from
+ * that id before it knows the account.
  */
 export const recordKeys = {
   setup: (name: SetupRecordName, chainId: ChainId, account: Address): string =>
@@ -79,7 +99,9 @@ export const recordKeys = {
   recoverySession: (chainId: ChainId, account: Address): string =>
     `${recoverySessionPrefix(chainId)}${accountPart(account)}`,
   decryptedSetupCache: (chainId: ChainId, account: Address): string =>
-    `${RECORDS_KEY_PREFIX}:decryptedSetupCache:${chainPart(chainId)}:${accountPart(account)}`
+    `${RECORDS_KEY_PREFIX}:decryptedSetupCache:${chainPart(chainId)}:${accountPart(account)}`,
+  ceremonyRequest: (id: string): string =>
+    `${RECORDS_KEY_PREFIX}:ceremonyRequest:${requestIdPart(id)}`
 }
 
 const isStoredRecord = (stored: unknown): stored is StoredRecord<unknown> => {
@@ -99,6 +121,38 @@ const isStoredSession = (stored: unknown): stored is StoredSession => {
   if (!isStoredRecord(stored) || !isSessionRecord(stored.value)) return false
   const { revision } = stored as { revision?: unknown }
   return typeof revision === 'string' && revision !== ''
+}
+
+/**
+ * Whether a stored value is a ceremony request: its account, chain and method,
+ * and what its call needs, an enrollment's method address or a test's or a
+ * claim's request.
+ */
+const isCeremonyRequest = (value: unknown): value is CeremonyRequestRecord => {
+  if (typeof value !== 'object' || value === null) return false
+  const record = value as Record<string, unknown>
+  if (
+    typeof record.account !== 'string' ||
+    !isAddress(record.account, { strict: false }) ||
+    (typeof record.chainId !== 'number' && typeof record.chainId !== 'bigint') ||
+    typeof record.method !== 'string'
+  ) {
+    return false
+  }
+  switch (record.call) {
+    case 'enroll':
+      return (
+        typeof record.methodAddress === 'string' &&
+        isAddress(record.methodAddress, { strict: false })
+      )
+    case 'testAccess':
+    case 'createClaim':
+      return typeof record.request === 'object' && record.request !== null
+    case 'healthCheck':
+      return true
+    default:
+      return false
+  }
 }
 
 /**
@@ -537,6 +591,27 @@ export const createWalletRecords = ({
   ): RecordAccessor<DecryptedSetupCacheRecord> =>
     accessor<DecryptedSetupCacheRecord>(recordKeys.decryptedSetupCache(chainId, account))
 
+  // --- the ceremony request ------------------------------------------------
+
+  /**
+   * The ceremony request under one request id. A stored value that is not a
+   * ceremony request reads absent, so the tab finds nothing to run under it.
+   */
+  const ceremonyRequest = (id: string): RecordAccessor<CeremonyRequestRecord> => {
+    const key = recordKeys.ceremonyRequest(id)
+    const read = async (): Promise<RecordRead<CeremonyRequestRecord>> => {
+      const stored: unknown = await storage.get(key, undefined)
+      if (!isStoredRecord(stored) || !isCeremonyRequest(stored.value)) return ABSENT
+      return { status: 'present', value: stored.value, savedAt: stored.savedAt }
+    }
+    return {
+      read,
+      write: (value: CeremonyRequestRecord) => inQueue(key, () => writeKey(key, value)),
+      wipe: () => removeKey(key),
+      age: async (at?: number) => recordAge(await read(), at ?? now())
+    }
+  }
+
   return {
     setup,
     setupSavedAt,
@@ -550,6 +625,7 @@ export const createWalletRecords = ({
     endCountdown,
     countdown,
     listCountdowns,
-    decryptedSetupCache
+    decryptedSetupCache,
+    ceremonyRequest
   }
 }

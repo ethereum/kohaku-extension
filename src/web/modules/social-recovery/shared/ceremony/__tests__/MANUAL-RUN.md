@@ -4,7 +4,7 @@ The tests in this folder mock `navigator.credentials`. The checks below need a r
 
 ## Set-up
 
-- Mount a `CeremonySourceProvider` above the ceremony route that hands the tab an orchestrator, a passkey method and a request. Without one, every call reports not supported. Record which provider the run used.
+- Mount a `CeremonySourceProvider` above the ceremony route that hands the tab an orchestrator, a passkey method and a request. Without one, the tab mounts the wallet's own source, which runs the request a caller stored under the id and shows that nothing is to run for an id with none. Record which provider the run used.
 - Build the extension (`yarn build:web:webkit`) with the manifest key of the release builds. Load it unpacked in a Chrome profile with no other Kohaku build, and keep one Kohaku tab open. Write down the extension id.
 - Compute the expected rp id hash: `printf 'chrome-extension://<id>' | shasum -a 256`.
 - Have a synced platform authenticator (Touch ID with iCloud Keychain), a hardware security key with no sync, and an Android phone with Google Password Manager. 1Password on a phone is optional.

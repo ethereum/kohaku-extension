@@ -4,14 +4,13 @@
  *
  * A host takes the orchestrator and the method implementation as injected
  * parameters typed by `sdk-interfaces`, and never imports the SDK doubles: the
- * ESLint fence keeps them to `shared/client`. The tab is to get both from a
- * resolver that a `CeremonySourceProvider` above the route supplies; that
- * wiring comes with a later task, and until then the tab runs nothing and
- * reports not supported. A test passes its own. Each host renders its steps
- * through `onStep`, honours `signal` as the abort, and returns exactly one
- * outcome of `verdicts.ts`: one of the four verdicts, or a dismissal. A
- * dismissal is the browser's own dismissal, read before the method runs, or
- * the holder's Cancel at any step.
+ * ESLint fence keeps them to `shared/client`. The tab gets both from its
+ * source's resolver, by default the one `shared/client` builds over the
+ * wallet's records and the client. A test passes its own. Each host renders
+ * its steps through `onStep`, honours `signal` as the abort, and returns
+ * exactly one outcome of `verdicts.ts`: one of the four verdicts, or a
+ * dismissal. A dismissal is the browser's own dismissal, read before the
+ * method runs, or the holder's Cancel at any step.
  *
  * "The method runs" means its packaging: `configFrom` at enrollment and
  * `replyFrom` at a test or a claim. The options calls, `enrollInput` and

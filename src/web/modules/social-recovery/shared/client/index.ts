@@ -39,6 +39,7 @@ export {
   isDigestVersionRefusal
 } from './build-client'
 export { REMOVED_KEY_UNAVAILABLE_CAUSES } from './wallet-reads'
+export { createCeremonyResolver, extensionClientFor } from './ceremony-resolver'
 export {
   SIGNER_MEMBERS,
   MISSING_BACKGROUND_ACTION,
@@ -77,6 +78,9 @@ export type {
   GasEstimateCall,
   ExtensionProvider,
   RecoveryKitClient,
+  ApprovingClient,
+  CeremonyClientFor,
+  CeremonyResolverOptions,
   DomainVersion,
   DigestVersionRefusal,
   WalletReads,

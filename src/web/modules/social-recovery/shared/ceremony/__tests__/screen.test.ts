@@ -4,20 +4,17 @@
  */
 /**
  * The repository's Jest config compiles TSX with `jsx: react-native`, which
- * keeps the JSX, so a test cannot import a component. This file transpiles the
- * screen with the TypeScript compiler's React JSX and evaluates it under
- * Jest's own `require`, so every import resolves through the aliases and the
- * mocks below. The shared components are stubs; the ceremony module, i18next
- * and en.json are real.
+ * keeps the JSX, so a test cannot import a component. This file loads the
+ * screen through the harness, which transpiles it with the TypeScript
+ * compiler's React JSX and evaluates it under Jest's own `require`, so every
+ * import resolves through the aliases and the mocks below. The shared
+ * components are stubs; the ceremony module, i18next and en.json are real.
  */
-/* eslint-disable global-require, import/no-dynamic-require, @typescript-eslint/no-var-requires */
-import fs from 'fs'
 import path from 'path'
 import React from 'react'
 import { createRoot, Root } from 'react-dom/client'
 import { act } from 'react-dom/test-utils'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import ts from 'typescript'
 
 import {
   callerParams,
@@ -32,6 +29,7 @@ import {
   flush,
   generatePoint,
   installCredentials,
+  loadWithReactJsx,
   MethodScript,
   methodRunCount,
   notAllowedError,
@@ -117,25 +115,12 @@ jest.mock('@web/components/TabLayoutWrapper/TabLayoutWrapper', () => {
 
 const SCREEN = path.resolve(__dirname, '../screen/CeremonyScreen.tsx')
 
-/** The screen, transpiled with React JSX and evaluated under Jest's require. */
-const loadScreen = (): React.ComponentType => {
-  const { outputText } = ts.transpileModule(fs.readFileSync(SCREEN, 'utf8'), {
-    fileName: SCREEN,
-    compilerOptions: {
-      jsx: ts.JsxEmit.React,
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2020,
-      esModuleInterop: true
-    }
-  })
-  const mod = { exports: {} as Record<string, unknown> }
-  const screenRequire = (id: string) =>
-    require(id.startsWith('.') ? path.resolve(path.dirname(SCREEN), id) : id)
-  // The transpiled screen is this repository's own source, run once per render.
-  // eslint-disable-next-line no-new-func, @typescript-eslint/no-implied-eval
-  new Function('require', 'module', 'exports', outputText)(screenRequire, mod, mod.exports)
-  return mod.exports.default as React.ComponentType
-}
+/** The source module, which this file mocks. */
+const SOURCE = path.resolve(__dirname, '../screen/CeremonySource')
+
+/** The screen, transpiled with React JSX and evaluated under Jest's require, over the mocked source. */
+const loadScreen = (): React.ComponentType =>
+  loadWithReactJsx(SCREEN, { mocked: [SOURCE] }).default as React.ComponentType
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 

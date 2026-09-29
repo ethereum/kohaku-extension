@@ -930,6 +930,58 @@ export const enrolledKind = (outcome: Outcome): unknown =>
   (outcome.raw as { value?: { facts?: { kind?: unknown } } }).value?.facts?.kind
 
 // ---------------------------------------------------------------------------
+// The tab's screen files, transpiled with React JSX
+// ---------------------------------------------------------------------------
+
+/* eslint-disable global-require, import/no-dynamic-require, @typescript-eslint/no-var-requires */
+/**
+ * Loads a file of the tab under Jest's own `require`. The repository's Jest
+ * config compiles TSX with `jsx: react-native`, which keeps the JSX, so the
+ * entry and every `.tsx` file it reaches through a relative import are
+ * transpiled here with the TypeScript compiler's React JSX. Each file runs once
+ * per load, so the files of one load share one module, and one React context.
+ * Every other import resolves through Jest's aliases and the test's mocks, and
+ * so does a `.tsx` file the test mocks, named in `mocked` by its path without
+ * the extension.
+ */
+export const loadWithReactJsx = (
+  entry: string,
+  { mocked = [] }: { mocked?: string[] } = {}
+): Record<string, unknown> => {
+  const fs = require('fs') as typeof import('fs')
+  const path = require('path') as typeof import('path')
+  const ts = require('typescript') as typeof import('typescript')
+  const loaded = new Map<string, Record<string, unknown>>()
+  const load = (file: string): Record<string, unknown> => {
+    const known = loaded.get(file)
+    if (known) return known
+    const mod = { exports: {} as Record<string, unknown> }
+    loaded.set(file, mod.exports)
+    const { outputText } = ts.transpileModule(fs.readFileSync(file, 'utf8'), {
+      fileName: file,
+      compilerOptions: {
+        jsx: ts.JsxEmit.React,
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2020,
+        esModuleInterop: true
+      }
+    })
+    const fileRequire = (id: string): unknown => {
+      if (!id.startsWith('.')) return require(id)
+      const resolved = path.resolve(path.dirname(file), id)
+      const transpiled = !mocked.includes(resolved) && fs.existsSync(`${resolved}.tsx`)
+      return transpiled ? load(`${resolved}.tsx`) : require(resolved)
+    }
+    // The transpiled file is this repository's own source.
+    // eslint-disable-next-line no-new-func, @typescript-eslint/no-implied-eval
+    new Function('require', 'module', 'exports', outputText)(fileRequire, mod, mod.exports)
+    return mod.exports
+  }
+  return load(entry)
+}
+/* eslint-enable global-require, import/no-dynamic-require, @typescript-eslint/no-var-requires */
+
+// ---------------------------------------------------------------------------
 // The harness's own checks
 // ---------------------------------------------------------------------------
 

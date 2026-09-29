@@ -427,8 +427,21 @@ export interface ResolvedCeremony {
   device?: CeremonyDevice
 }
 
-/** Finds the ceremony a request id names; null where nothing waits under it. */
-export type CeremonyResolver = (params: CeremonyParams) => Promise<ResolvedCeremony | null>
+/**
+ * The resolver's refusal of a request whose method this build holds no
+ * implementation of. The tab reports it as not supported, with no retry.
+ */
+export interface CeremonyRefusal {
+  refused: 'no-implementation'
+}
+
+/**
+ * Finds the ceremony a request id names: null where nothing waits under it,
+ * the refusal where its method has no implementation here.
+ */
+export type CeremonyResolver = (
+  params: CeremonyParams
+) => Promise<ResolvedCeremony | CeremonyRefusal | null>
 
 export interface RunDeps {
   devices?: PageDevices
