@@ -1,6 +1,7 @@
 /**
  * shared/writes: the submitting and failed states every social recovery write
- * shares, and the gas check with its deposit step.
+ * shares, the gas check with its deposit step, and the driver that feeds the
+ * machine a send's answers.
  *
  * The two React components live in `./components`, imported by path, so this
  * module loads in a Node test without the UI.
@@ -34,6 +35,7 @@ export {
   settleReceipt
 } from './classify'
 export { WRITE_EVENT_TYPES, WRITE_ANSWER_TYPES, initialWriteState, writeReducer } from './machine'
+export { driveSend } from './send'
 export {
   FEE_HEADROOM_PERCENT,
   GAS_DISPLAY_DECIMALS,
@@ -93,6 +95,7 @@ export type {
   WriteEvent,
   WriteRun,
   WriteMachineState,
+  SendDrive,
   GasNetwork,
   WalletAccountRef,
   GasEstimate,

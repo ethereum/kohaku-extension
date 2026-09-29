@@ -97,18 +97,21 @@ export const writeReducer = (state: WriteMachineState, event: WriteEvent): Write
     case 'recheck':
       return state.status === 'needsDeposit' ? { status: 'checkingGas', write, run } : state
 
-    case 'sent':
+    case 'sent': {
+      if (state.status !== 'submitting') return state
       // A second hash in the same run is the same call sent again at another
-      // fee: it becomes the stored hash and joins the ones before it.
-      return state.status === 'submitting'
-        ? {
-            status: 'submitting',
-            write,
-            transactionHash: event.transactionHash,
-            sentHashes: withSentHash(sentHashesOf(state), event.transactionHash),
-            run
-          }
-        : state
+      // fee: it becomes the stored hash and joins the ones before it. The
+      // run's first start block stays, the earliest a replacement can be in.
+      const startBlock = state.startBlock ?? event.startBlock
+      return {
+        status: 'submitting',
+        write,
+        transactionHash: event.transactionHash,
+        sentHashes: withSentHash(sentHashesOf(state), event.transactionHash),
+        ...(startBlock !== undefined ? { startBlock } : {}),
+        run
+      }
+    }
 
     case 'receipt':
       if (state.status !== 'submitting') return state
@@ -156,11 +159,13 @@ export const writeReducer = (state: WriteMachineState, event: WriteEvent): Write
       const named = failure.transactionHash
       const earlier = state.status === 'submitting' ? sentHashesOf(state) : []
       const current = state.status === 'submitting' ? state.transactionHash : undefined
+      const startBlock = state.status === 'submitting' ? state.startBlock : undefined
       const tracked = earlier.some((hash) => sameHash(hash, named))
       return {
         ...failure,
         transactionHash: tracked && current ? current : named,
         sentHashes: withSentHash(earlier, named),
+        ...(startBlock !== undefined ? { startBlock } : {}),
         run
       }
     }

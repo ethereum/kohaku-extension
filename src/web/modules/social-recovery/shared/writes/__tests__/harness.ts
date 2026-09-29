@@ -13,6 +13,11 @@
  *   `ProviderReadFailure`, or a `RevertedCall` for an estimate that would
  *   revert), `rpcReads` runs the client's own `createChainReads` over a double
  *   of the provider members it calls (`ChainReadsProvider`).
+ * - A send drive runs against a fake send port and a fake receipt wait,
+ *   `jest.fn` members answering what a test gives them, or the client's own
+ *   receipt wait over a node that never learns the hash, into the real
+ *   machine (`drivenMachine`), so the machine and the classification decide
+ *   each reading.
  * - Nothing else is mocked. The strings come from the real en.json through
  *   the app's own i18next instance (the renderers' default `t`).
  */
@@ -29,11 +34,16 @@ import type {
 } from '@web/modules/social-recovery/sdk-interfaces'
 import {
   createChainReads,
+  createReceiptWait,
   providerReadFailure,
   type ChainReads,
   type ChainReadsProvider,
   type GasEstimateCall,
-  type KeyHandle
+  type KeyHandle,
+  type ProviderTransactionReceipt,
+  type ReceiptProvider,
+  type ReceiptWait,
+  type SendPort
 } from '@web/modules/social-recovery/shared/client'
 import type { Translate } from '@web/modules/social-recovery/shared/display'
 import * as writes from '@web/modules/social-recovery/shared/writes'
@@ -51,6 +61,7 @@ import {
   WalletAccountRef,
   WriteKind,
   writeFailureOf,
+  WriteEvent,
   WriteMachineState,
   writeReducer,
   WriteState
@@ -449,6 +460,111 @@ export const gasReadErrorFor = (write: WriteKind): WriteMachineState => {
     error: providerReadFailure('nativeBalance', new Error('node down'))
   })
 }
+
+/** A promise a test settles by hand. */
+export interface Deferred<T> {
+  promise: Promise<T>
+  resolve: (value: T) => void
+  reject: (error: unknown) => void
+}
+
+export const deferred = <T>(): Deferred<T> => {
+  const settle = {} as Deferred<T>
+  settle.promise = new Promise<T>((resolve, reject) => {
+    settle.resolve = resolve
+    settle.reject = reject
+  })
+  return settle
+}
+
+/** The real machine behind a dispatch: every event it took, and the state it holds now. */
+export interface DrivenMachine {
+  dispatch: (event: WriteEvent) => void
+  events: WriteEvent[]
+  state: () => WriteMachineState
+}
+
+export const drivenMachine = (from: WriteMachineState): DrivenMachine => {
+  let state = from
+  const events: WriteEvent[] = []
+  return {
+    dispatch: (event) => {
+      events.push(event)
+      state = writeReducer(state, event)
+    },
+    events,
+    state: () => state
+  }
+}
+
+/** A receipt as ethers' provider answers it, with the members the writes read. */
+export const providerReceipt = (
+  hash: Hex,
+  status: 0 | 1 | null,
+  gas: { gasUsed?: bigint; gasPrice?: bigint } = {}
+): ProviderTransactionReceipt =>
+  ({ hash, status, blockNumber: 7_000_001, ...gas } as unknown as ProviderTransactionReceipt)
+
+/** What a fake answers: a value, a thrown error, or a promise a test settles. */
+export type FakeAnswer<T> = { value: T } | { error: unknown } | { pending: Promise<T> }
+
+const answered = async <T>(answer: FakeAnswer<T>): Promise<T> => {
+  if ('pending' in answer) return answer.pending
+  if ('error' in answer) throw answer.error
+  return answer.value
+}
+
+/** A send port whose `send` answers as given, recording each call. */
+export const fakeSendPort = (answer: FakeAnswer<Hex>): SendPort & { send: jest.Mock } => ({
+  send: jest.fn(() => answered(answer))
+})
+
+/** The block the fake receipt wait reads as the chain's latest, unless a test gives another. */
+export const START_BLOCK = 7_000_000
+
+/** How often the provider behind `receiptWaitNeverKnowing` sees a new block. */
+export const BLOCK_EVERY_MS = 12_000
+
+/**
+ * The client's own receipt wait over a provider whose node never learns any
+ * transaction, while a new block comes every `BLOCK_EVERY_MS`: the wait asks
+ * again at each block until it gives up. Run it on fake timers.
+ */
+export const receiptWaitNeverKnowing = (): ReceiptWait => {
+  const provider = {
+    getBlockNumber: async () => START_BLOCK,
+    getTransaction: async () => null,
+    once(event: string, listener: (blockNumber: number) => void) {
+      setTimeout(() => listener(START_BLOCK), BLOCK_EVERY_MS)
+      return Promise.resolve(provider)
+    }
+  }
+  return createReceiptWait(provider as unknown as ReceiptProvider)
+}
+
+/**
+ * Jest's own `advanceTimersByTimeAsync`: it moves the fake clock and lets the
+ * promises each timer released run before the next timer fires. The
+ * repository's Jest typings predate it, so it is reached through its shape.
+ */
+export const advanceTimersAsync = (ms: number): Promise<void> =>
+  (
+    jest as unknown as { advanceTimersByTimeAsync(ms: number): Promise<void> }
+  ).advanceTimersByTimeAsync(ms)
+
+export type FakeReceiptWait = ReceiptWait & { blockNumber: jest.Mock; wait: jest.Mock }
+
+/**
+ * A receipt wait whose `wait` answers as given and whose `blockNumber` reads
+ * `START_BLOCK`, or answers as given; each records what it was asked.
+ */
+export const fakeReceiptWait = (
+  answer: FakeAnswer<ProviderTransactionReceipt>,
+  block: FakeAnswer<number> = { value: START_BLOCK }
+): FakeReceiptWait => ({
+  blockNumber: jest.fn(() => answered(block)),
+  wait: jest.fn(() => answered(answer))
+})
 
 /** Every string reachable from a value, depth first. */
 export const collectStrings = (

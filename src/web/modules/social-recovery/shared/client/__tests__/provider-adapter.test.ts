@@ -41,6 +41,7 @@ import {
   isRevertedCall,
   NODE_ANSWERS,
   nodeRevert,
+  PLAIN_RPC_NETWORK,
   ProviderRead,
   SEPOLIA,
   thrownBy,
@@ -595,15 +596,6 @@ describe('the balance and gas reads on the typed members of the ethers provider'
     })
   )
 })
-
-/** A network record the extension reads over plain JSON-RPC; no request leaves the test. */
-const PLAIN_RPC_NETWORK = {
-  chainId: BigInt(SEPOLIA),
-  name: 'Sepolia',
-  rpcUrls: ['http://127.0.0.1:1'],
-  selectedRpcUrl: 'http://127.0.0.1:1',
-  rpcProvider: 'rpc'
-} as Network
 
 /** The batch transport under an ethers JSON-RPC provider's `send`. */
 interface JsonRpcTransport {

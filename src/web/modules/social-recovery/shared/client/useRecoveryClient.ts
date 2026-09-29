@@ -1,7 +1,8 @@
 /**
  * The hook that hands a screen the recovery kit client for one account, built
  * over the extension's own provider for the one chain this build reads, with
- * the balance and gas reads on the same provider beside it.
+ * the balance and gas reads and the receipt wait on the same provider beside
+ * it.
  *
  * A refused digest version comes back as the `update-the-wallet` state the
  * account step draws; any other failure as `failed`, with `retry`, never as an
@@ -18,6 +19,7 @@ import { createChainReads } from './chain-reads'
 import { CHAIN_IDS, WALLET_RECOVERY_CHAIN } from './chains'
 import { extensionProviderFor, networkOf, providerKeyOf } from './extension-provider'
 import { createProviderAdapter } from './provider-adapter'
+import { createReceiptWait } from './receipts'
 import type { AccountFacts, ExtensionProvider, RecoveryClientState } from './types'
 
 export type { RecoveryClientState }
@@ -41,7 +43,8 @@ export const useRecoveryClient = (
   const networkRef = useRef(network)
   networkRef.current = network
   // A change to any field the provider is built from rebuilds the provider
-  // and the client; the effect's cleanup destroys the previous provider first.
+  // and the client; the effect's cleanup releases the previous provider's
+  // receipt waits and destroys that provider first.
   const networkKey = network ? providerKeyOf(network) : networks ? 'missing' : 'loading'
   const factsRef = useRef(facts)
   factsRef.current = facts
@@ -80,6 +83,7 @@ export const useRecoveryClient = (
       return undefined
     }
     let live = true
+    const release = new AbortController()
     setState(LOADING)
     buildRecoveryClient({
       ...factsRef.current,
@@ -89,7 +93,14 @@ export const useRecoveryClient = (
       provider: createProviderAdapter(provider)
     })
       .then((client) => {
-        if (live) setState({ status: 'ready', client, reads: createChainReads(provider) })
+        if (live) {
+          setState({
+            status: 'ready',
+            client,
+            reads: createChainReads(provider),
+            receipts: createReceiptWait(provider, { signal: release.signal })
+          })
+        }
       })
       .catch((error: unknown) => {
         if (!live) return
@@ -101,6 +112,7 @@ export const useRecoveryClient = (
       })
     return () => {
       live = false
+      release.abort()
       provider.destroy()
     }
   }, [account, networkKey, factsKey, attempt])
