@@ -27,10 +27,13 @@ import {
   ChainId,
   createWalletRecords,
   DecryptedSetupCacheRecord,
+  defaultSetupDraft,
   DirectWipeEvent,
+  emptySlot,
   Enrollment,
   ExpectedRevision,
   extensionRecordStorage,
+  isEmptySlot,
   isSessionRevisionConflict,
   newCeremonyRequestId,
   predictedAttemptId,
@@ -46,6 +49,8 @@ import {
   SETUP_RECORD_NAMES,
   SetupRecordName,
   SetupRecordValues,
+  SLOT_KINDS,
+  slotKindOf,
   WIPE_REASON_STRING_KEYS
 } from '@web/modules/social-recovery/shared/records'
 
@@ -75,12 +80,19 @@ type StorageDouble = {
   get: RecordStorage['get']
   set: (key: string, value: unknown) => Promise<null>
   remove: (key: string) => Promise<null>
+  setEntries: RecordStorage['setEntries']
+  removeKeys: RecordStorage['removeKeys']
   /** The helper's `get()` with no key: every entry, each value parsed. */
   getAll: () => Promise<Record<string, unknown>>
   /** What `browser.storage.local` would hold: one string per key. */
   raw: Map<string, string>
-  /** The keys of every `set` and `remove` call, in order. */
-  calls: { set: string[]; remove: string[] }
+  /**
+   * The keys of every `set` and `remove` call, in order, and the keys of each
+   * `setEntries` and `removeKeys` call, one list per call.
+   */
+  calls: { set: string[]; remove: string[]; setEntries: string[][]; removeKeys: string[][] }
+  /** An error the next `setEntries` or `removeKeys` call rejects with, storing nothing. */
+  faults: { setEntries?: Error; removeKeys?: Error }
 }
 
 // The helper's `formatValue`: parse a string, or return it as is when it is not JSON.
@@ -94,10 +106,39 @@ const formatValue = (stored: string): unknown => {
 
 const makeStorage = (): StorageDouble => {
   const raw = new Map<string, string>()
-  const calls = { set: [] as string[], remove: [] as string[] }
+  const calls = {
+    set: [] as string[],
+    remove: [] as string[],
+    setEntries: [] as string[][],
+    removeKeys: [] as string[][]
+  }
+  const faults: StorageDouble['faults'] = {}
+  // The helper's serialization: a string as is, anything else through richJson.
+  // `browser.storage.local.set({ [key]: undefined })` stores nothing.
+  const serialize = (value: unknown): string | undefined =>
+    typeof value === 'string' ? value : stringify(value)
+  const set = async (key: string, value: unknown): Promise<null> => {
+    calls.set.push(key)
+    const serialized = serialize(value)
+    if (serialized !== undefined) raw.set(key, serialized)
+    return null
+  }
+  const remove = async (key: string): Promise<null> => {
+    calls.remove.push(key)
+    raw.delete(key)
+    return null
+  }
+  // One `browser.storage.local` call over several keys lands whole or not at
+  // all: every value is serialized first, and an injected fault stores nothing.
+  const takeFault = (name: keyof StorageDouble['faults']) => {
+    const fault = faults[name]
+    delete faults[name]
+    if (fault) throw fault
+  }
   return {
     raw,
     calls,
+    faults,
     // The helper's rule: `if (!res[key]) return defaultValue`, then `formatValue`.
     get: async (key, defaultValue) => {
       const stored = key && raw.get(key)
@@ -106,18 +147,20 @@ const makeStorage = (): StorageDouble => {
     },
     getAll: async () =>
       Object.fromEntries([...raw.entries()].map(([key, stored]) => [key, formatValue(stored)])),
-    // The helper's `set`: a string as is, anything else through richJson.
-    set: async (key, value) => {
-      calls.set.push(key)
-      const serialized: string | undefined = typeof value === 'string' ? value : stringify(value)
-      // `browser.storage.local.set({ [key]: undefined })` stores nothing.
-      if (serialized !== undefined) raw.set(key, serialized)
-      return null
+    set,
+    remove,
+    setEntries: async (entries) => {
+      calls.setEntries.push(Object.keys(entries))
+      takeFault('setEntries')
+      const serialized = Object.entries(entries).map(([key, value]) => [key, serialize(value)])
+      serialized.forEach(([key, value]) => {
+        if (value !== undefined) raw.set(key as string, value)
+      })
     },
-    remove: async (key) => {
-      calls.remove.push(key)
-      raw.delete(key)
-      return null
+    removeKeys: async (keys) => {
+      calls.removeKeys.push([...keys])
+      takeFault('removeKeys')
+      keys.forEach((key) => raw.delete(key))
     }
   }
 }
@@ -428,6 +471,237 @@ describe('the six setup records', () => {
     await records.setup(CHAIN_ID, ACCOUNT).enrollments.write([ENROLLMENT, synced])
     const { value } = present(await records.setup(CHAIN_ID, ACCOUNT).enrollments.read())
     expect(value.map((e) => e.backup)).toEqual(['device-bound', 'synced'])
+  })
+})
+
+describe('the empty slots of a path', () => {
+  it('a slot of each kind round-trips through storage and still reads as an empty slot of its kind', async () => {
+    const { records } = setup()
+    const path = [{ threshold: 2, credentials: SLOT_KINDS.map(emptySlot) }]
+    await records.setup(CHAIN_ID, ACCOUNT).path.write(path)
+    const { value } = present(await records.setup(CHAIN_ID, ACCOUNT).path.read())
+    expect(value).toEqual(path)
+    expect(value[0].credentials.map(isEmptySlot)).toEqual(SLOT_KINDS.map(() => true))
+    expect(value[0].credentials.map(slotKindOf)).toEqual([...SLOT_KINDS])
+  })
+
+  it('an enrolled method is no slot and has no slot kind, whatever its label says', () => {
+    const enrolled = { method: METHOD, config: '0xabcd' as Hex, label: 'passkey' }
+    expect(isEmptySlot(enrolled)).toBe(false)
+    expect(slotKindOf(enrolled)).toBeUndefined()
+  })
+
+  it('a slot whose label names no known kind, or that has no label, has no slot kind', () => {
+    const unknown = { ...emptySlot('passkey'), label: 'carrier-pigeon' }
+    const unlabelled = { method: emptySlot('passkey').method, config: '0x' as Hex }
+    expect(isEmptySlot(unknown)).toBe(true)
+    expect(slotKindOf(unknown)).toBeUndefined()
+    expect(isEmptySlot(unlabelled)).toBe(true)
+    expect(slotKindOf(unlabelled)).toBeUndefined()
+  })
+
+  it('a zero-address credential with a config is an ordinary credential, whatever its label says', () => {
+    const configured = { ...emptySlot('passkey'), config: '0xabcd' as Hex }
+    expect(isEmptySlot(configured)).toBe(false)
+    expect(slotKindOf(configured)).toBeUndefined()
+  })
+
+  it('a slot filled with the enrolled method it waited for is no longer a slot', () => {
+    const slot = emptySlot('passkey')
+    const filled = { ...slot, method: METHOD, config: '0xabcd' as Hex }
+    expect(isEmptySlot(slot)).toBe(true)
+    expect(isEmptySlot(filled)).toBe(false)
+    expect(slotKindOf(filled)).toBeUndefined()
+  })
+})
+
+describe('the default setup draft', () => {
+  it('waits 48 hours, holds no clause, opts out of the pause and keeps an encrypted private backup', () => {
+    const draft = defaultSetupDraft()
+    expect(draft.wait).toBe(BigInt(48 * 60 * 60))
+    expect(draft.clauses).toEqual([])
+    expect(draft.ignoresPause).toBe(true)
+    expect(draft.privacy).toEqual({ publicMetadata: '0x', backup: 'encrypted' })
+  })
+
+  it('round-trips through storage with its wait still a bigint', async () => {
+    const { records } = setup()
+    await records.setup(CHAIN_ID, ACCOUNT).setupDraft.write(defaultSetupDraft())
+    const { value } = present(await records.setup(CHAIN_ID, ACCOUNT).setupDraft.read())
+    expect(value).toEqual(defaultSetupDraft())
+    expect(typeof value.wait).toBe('bigint')
+  })
+
+  it('each call returns a fresh draft with a fresh clause list', () => {
+    const first = defaultSetupDraft()
+    const second = defaultSetupDraft()
+    expect(second).toEqual(first)
+    expect(second).not.toBe(first)
+    expect(second.clauses).not.toBe(first.clauses)
+    expect(second.privacy).not.toBe(first.privacy)
+  })
+
+  it('a caller that changes the draft it got, clauses and privacy included, leaves the next call as it was', async () => {
+    const draft = defaultSetupDraft()
+    draft.clauses.push({ threshold: 1, credentials: [emptySlot('passkey')] })
+    draft.privacy.backup = 'clear'
+    draft.wait = 86400n
+    draft.ignoresPause = false
+    const { records } = setup()
+    await records.setup(CHAIN_ID, ACCOUNT).writeDraftAndPath(draft)
+    const next = defaultSetupDraft()
+    expect(next.clauses).toEqual([])
+    expect(next.privacy.backup).toBe('encrypted')
+    expect(next.wait).toBe(BigInt(48 * 60 * 60))
+    expect(next.ignoresPause).toBe(true)
+  })
+})
+
+describe('the setup draft and its path are written together', () => {
+  const DRAFT: SetupDraft = {
+    ...defaultSetupDraft(),
+    clauses: [
+      { threshold: 1, credentials: [emptySlot('passkey')] },
+      { threshold: 2, credentials: [emptySlot('ecdsa'), emptySlot('ecdsa'), emptySlot('ecdsa')] }
+    ]
+  }
+  const draftKey = recordKeys.setup('setupDraft', CHAIN_ID, ACCOUNT)
+  const pathKey = recordKeys.setup('path', CHAIN_ID, ACCOUNT)
+
+  it('stores the draft and its clauses as the path in one storage call, with one savedAt', async () => {
+    const { storage, records, clock } = setup()
+    clock.t = T0 + HOUR
+    const written = await records.setup(CHAIN_ID, ACCOUNT).writeDraftAndPath(DRAFT)
+    expect(storage.calls.setEntries).toEqual([[draftKey, pathKey]])
+    expect(storage.calls.set).toEqual([])
+    expect(written.setupDraft.savedAt).toBe(T0 + HOUR)
+    expect(written.path.savedAt).toBe(T0 + HOUR)
+
+    const six = records.setup(CHAIN_ID, ACCOUNT)
+    const draft = present(await six.setupDraft.read())
+    const path = present(await six.path.read())
+    expect(draft.value).toEqual(DRAFT)
+    expect(path.value).toEqual(DRAFT.clauses)
+    expect(draft.savedAt).toBe(T0 + HOUR)
+    expect(path.savedAt).toBe(T0 + HOUR)
+    expect(await records.setupSavedAt(CHAIN_ID, ACCOUNT)).toBe(T0 + HOUR)
+  })
+
+  it('replaces an earlier draft and path together', async () => {
+    const { records, clock } = setup()
+    await writeAllSetup(records)
+    clock.t = T0 + 2 * HOUR
+    await records.setup(CHAIN_ID, ACCOUNT).writeDraftAndPath(DRAFT)
+    const six = records.setup(CHAIN_ID, ACCOUNT)
+    expect(present(await six.setupDraft.read()).value).toEqual(DRAFT)
+    expect(present(await six.path.read()).value).toEqual(DRAFT.clauses)
+    expect(present(await six.inventory.read()).value).toEqual(SETUP_SAMPLES.inventory)
+  })
+
+  it('a storage call that fails writes neither the draft nor the path', async () => {
+    const { storage, records } = setup()
+    storage.faults.setEntries = new Error('quota exceeded')
+    await expect(records.setup(CHAIN_ID, ACCOUNT).writeDraftAndPath(DRAFT)).rejects.toThrow(
+      'quota exceeded'
+    )
+    const six = records.setup(CHAIN_ID, ACCOUNT)
+    expect(await six.setupDraft.read()).toBe(ABSENT)
+    expect(await six.path.read()).toBe(ABSENT)
+    expect(storage.raw.size).toBe(0)
+  })
+
+  it('a storage call that fails leaves the earlier draft and path as they were', async () => {
+    const { storage, records, clock } = setup()
+    await writeAllSetup(records)
+    clock.t = T0 + HOUR
+    storage.faults.setEntries = new Error('quota exceeded')
+    await expect(records.setup(CHAIN_ID, ACCOUNT).writeDraftAndPath(DRAFT)).rejects.toThrow(
+      'quota exceeded'
+    )
+    const six = records.setup(CHAIN_ID, ACCOUNT)
+    expect(present(await six.setupDraft.read())).toMatchObject({
+      value: SETUP_SAMPLES.setupDraft,
+      savedAt: T0
+    })
+    expect(present(await six.path.read())).toMatchObject({ value: SETUP_SAMPLES.path, savedAt: T0 })
+  })
+
+  it('through the extension storage, the pair lands in one browser storage call and reads back', async () => {
+    const { browser } = jest.requireMock('@web/constants/browserapi')
+    const records = createWalletRecords({ storage: extensionRecordStorage, now: () => T0 })
+    const setSpy = jest.spyOn(browser.storage.local, 'set')
+    try {
+      await records.setup(CHAIN_ID, ACCOUNT).writeDraftAndPath(DRAFT)
+      expect(setSpy).toHaveBeenCalledTimes(1)
+      expect(Object.keys(setSpy.mock.calls[0][0] as object)).toEqual([draftKey, pathKey])
+      const six = records.setup(CHAIN_ID, ACCOUNT)
+      expect(present(await six.setupDraft.read()).value).toEqual(DRAFT)
+      expect(present(await six.path.read()).value).toEqual(DRAFT.clauses)
+    } finally {
+      setSpy.mockRestore()
+      await extensionRecordStorage.removeKeys([draftKey, pathKey])
+    }
+  })
+})
+
+describe('a setup wipe removes the six records in one storage call', () => {
+  const sixKeys = (account: Address = ACCOUNT) =>
+    SETUP_RECORD_NAMES.map((name) => recordKeys.setup(name, CHAIN_ID, account))
+  ;(
+    [
+      ['save', 'saveSetup'],
+      ['start over', 'startOverSetup']
+    ] as const
+  ).forEach(([label, act]) => {
+    it(`${label} removes all six keys in one call`, async () => {
+      const { storage, records } = setup()
+      await writeAllSetup(records)
+      await records[act](CHAIN_ID, ACCOUNT)
+      expect(storage.calls.removeKeys).toHaveLength(1)
+      expect([...storage.calls.removeKeys[0]].sort()).toEqual([...sixKeys()].sort())
+      expect(storage.calls.remove).toEqual([])
+    })
+
+    it(`${label} that fails in storage leaves every setup record in place`, async () => {
+      const { storage, records } = setup()
+      await writeAllSetup(records)
+      storage.faults.removeKeys = new Error('storage unavailable')
+      await expect(records[act](CHAIN_ID, ACCOUNT)).rejects.toThrow('storage unavailable')
+      const six = records.setup(CHAIN_ID, ACCOUNT)
+      const reads = await Promise.all(SETUP_RECORD_NAMES.map((name) => six[name].read()))
+      reads.forEach((read, i) =>
+        expect(present(read as RecordRead<unknown>).value).toEqual(
+          SETUP_SAMPLES[SETUP_RECORD_NAMES[i]]
+        )
+      )
+    })
+  })
+
+  it('through the extension storage, start over removes the six in one browser storage call', async () => {
+    const { browser } = jest.requireMock('@web/constants/browserapi')
+    const records = createWalletRecords({ storage: extensionRecordStorage, now: () => T0 })
+    await writeAllSetup(records)
+    const removeSpy = jest.spyOn(browser.storage.local, 'remove')
+    try {
+      await records.startOverSetup(CHAIN_ID, ACCOUNT)
+      expect(removeSpy).toHaveBeenCalledTimes(1)
+      expect([...(removeSpy.mock.calls[0][0] as string[])].sort()).toEqual([...sixKeys()].sort())
+      const six = records.setup(CHAIN_ID, ACCOUNT)
+      const reads = await Promise.all(SETUP_RECORD_NAMES.map((name) => six[name].read()))
+      reads.forEach((read) => expect(read).toBe(ABSENT))
+    } finally {
+      removeSpy.mockRestore()
+    }
+  })
+
+  it('a wipe waits for a draft write already running on the same account, so none of it survives', async () => {
+    const { records } = setup()
+    const six = records.setup(CHAIN_ID, ACCOUNT)
+    const writing = six.writeDraftAndPath(SETUP_DRAFT)
+    const wiping = records.startOverSetup(CHAIN_ID, ACCOUNT)
+    await Promise.all([writing, wiping])
+    expect(await six.setupDraft.read()).toBe(ABSENT)
+    expect(await six.path.read()).toBe(ABSENT)
   })
 })
 
@@ -2035,7 +2309,7 @@ describe('the ceremony request under its request id', () => {
       await refused(() => records.ceremonyRequest(bad).wipe())
       await refused(() => records.ceremonyRequest(bad).age())
       expect(storage.raw.size).toBe(0)
-      expect(storage.calls).toEqual({ set: [], remove: [] })
+      expect(storage.calls).toEqual({ set: [], remove: [], setEntries: [], removeKeys: [] })
     })
   )
 

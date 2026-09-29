@@ -4,7 +4,8 @@
  * setup it was typed for is started over and kept when it is saved.
  *
  * The records run against an in-memory storage double that counts its `set`
- * and `remove` calls, so a test sees every storage write a holder call makes.
+ * and `remove` calls, single or batched, so a test sees every storage write a
+ * holder call makes.
  */
 import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
 import {
@@ -43,6 +44,17 @@ const makeStorage = ({ failRemove = false } = {}): StorageDouble => {
       if (failRemove) throw new Error('storage remove failed')
       raw.delete(key)
       return null
+    },
+    setEntries: async (entries: Record<string, unknown>) => {
+      Object.entries(entries).forEach(([key, value]) => {
+        calls.set.push(key)
+        raw.set(key, value)
+      })
+    },
+    removeKeys: async (keys: string[]) => {
+      keys.forEach((key) => calls.remove.push(key))
+      if (failRemove) throw new Error('storage remove failed')
+      keys.forEach((key) => raw.delete(key))
     }
   } as StorageDouble
 }

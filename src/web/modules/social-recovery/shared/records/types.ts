@@ -22,9 +22,13 @@ import type {
  * in-memory double. `get` may return the default for a falsy stored value.
  * `getAll` returns every stored entry by key, what the helper's `get()` with no
  * key returns; the list functions need it and refuse a storage without it.
+ * `setEntries` and `removeKeys` write or remove several keys in one storage
+ * call, so a change that spans records lands whole or not at all.
  */
 export interface RecordStorage extends Storage {
   getAll?(): Promise<Record<string, unknown>>
+  setEntries(entries: Record<string, unknown>): Promise<void>
+  removeKeys(keys: string[]): Promise<void>
 }
 
 /** The chain a record belongs to, as the network's chain id. */
@@ -55,6 +59,19 @@ export const ABSENT: AbsentRecord = Object.freeze({ status: 'absent' as const })
 export type SetupDraftRecord = SetupDraft
 
 /**
+ * The draft every setup starts from until its later steps overwrite it: a wait
+ * of 48 hours in seconds, no clause yet, the pause opted out of, and the
+ * private default with an encrypted backup. Each call returns a fresh draft
+ * with a fresh `clauses` list, so a caller may change what it gets.
+ */
+export const defaultSetupDraft = (): SetupDraftRecord => ({
+  wait: BigInt(48 * 60 * 60),
+  clauses: [],
+  ignoresPause: true,
+  privacy: { publicMetadata: '0x', backup: 'encrypted' }
+})
+
+/**
  * 2. The inventory, the answer to "What do you have": another device,
  * guardians with wallets, a passport, an Aadhaar identity, and keys the holder
  * keeps on paper or hardware. The guided setup wizard fills it at its "What do
@@ -72,6 +89,13 @@ export type InventoryRecord = InventoryItem[]
 
 /** 3. The path: the clauses the setup draft holds, the record the rule lines read. */
 export type PathRecord = SetupDraft['clauses']
+
+/**
+ * The kinds of method an empty slot of the path waits for, one per method
+ * module the address book names.
+ */
+export const SLOT_KINDS = ['ecdsa', 'passkey', 'zkpassport', 'aadhaar'] as const
+export type SlotKind = typeof SLOT_KINDS[number]
 
 /** The access test verdicts an enrollment carries: passed, or one of the four verdict states. */
 export const ENROLLMENT_TEST_VERDICTS = [
@@ -299,8 +323,20 @@ export interface RecordAccessor<T> {
   age(at?: number): Promise<number | null>
 }
 
+/** The setup draft and the path one write stores together. */
+export interface DraftAndPath {
+  setupDraft: StoredRecord<SetupDraftRecord>
+  path: StoredRecord<PathRecord>
+}
+
 export type SetupRecords = {
   [N in SetupRecordName]: RecordAccessor<SetupRecordValues[N]>
+} & {
+  /**
+   * Writes the setup draft and its clauses as the path in one storage call, so
+   * a draft never lands without its path.
+   */
+  writeDraftAndPath(draft: SetupDraftRecord): Promise<DraftAndPath>
 }
 
 export interface RecoverySessionAccessor {

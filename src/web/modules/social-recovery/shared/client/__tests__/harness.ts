@@ -899,6 +899,12 @@ export const recordsInMemory = (clock: { t: number } = { t: Date.now() }) => {
     remove: async (key) => {
       entries.delete(key)
       return null
+    },
+    setEntries: async (items) => {
+      Object.entries(items).forEach(([key, value]) => entries.set(key, value))
+    },
+    removeKeys: async (keys) => {
+      keys.forEach((key) => entries.delete(key))
     }
   }
   return { entries, storage, clock, records: createWalletRecords({ storage, now: () => clock.t }) }

@@ -37,6 +37,7 @@ import type {
   RecoverySessionRecord,
   SessionRead,
   SessionRevision,
+  SetupDraftRecord,
   SetupRecordName,
   SetupRecords,
   StoredRecord,
@@ -206,6 +207,15 @@ const inQueue = <R>(key: string, task: () => Promise<R>): Promise<R> => {
 }
 
 /**
+ * Runs one update that spans several keys while it holds the queue of each,
+ * taken one after another in the order given, so no single-key update of any
+ * of them interleaves with it. Every caller passes its keys in the order of
+ * `SETUP_RECORD_NAMES`, so two such updates never wait on each other.
+ */
+const inQueues = <R>(keys: readonly string[], task: () => Promise<R>): Promise<R> =>
+  keys.reduceRight<() => Promise<R>>((inner, key) => () => inQueue(key, inner), task)()
+
+/**
  * The refusal of a recovery session update whose caller read an older
  * revision: another update changed the session after that read, and nothing
  * was written. A retry reads the session again. Only while that fresh read is
@@ -273,23 +283,38 @@ export const createWalletRecords = ({
 
   // --- the six setup records -----------------------------------------------
 
+  /** Removes the six setup records in one storage call, so a wipe never lands in part. */
   const wipeSetupRecords = async (chainId: ChainId, account: Address): Promise<void> => {
     const keys = SETUP_RECORD_NAMES.map((name) => recordKeys.setup(name, chainId, account))
-    await Promise.all(keys.map(removeKey))
+    await inQueues(keys, () => storage.removeKeys(keys))
   }
 
   /**
    * The six setup records of an account: the setup draft, the inventory, the
    * path, the enrollments, the waiting period and the password-set flag.
    */
-  const setup = (chainId: ChainId, account: Address): SetupRecords => ({
-    setupDraft: accessor(recordKeys.setup('setupDraft', chainId, account)),
-    inventory: accessor(recordKeys.setup('inventory', chainId, account)),
-    path: accessor(recordKeys.setup('path', chainId, account)),
-    enrollments: accessor(recordKeys.setup('enrollments', chainId, account)),
-    waitingPeriod: accessor(recordKeys.setup('waitingPeriod', chainId, account)),
-    passwordSet: accessor(recordKeys.setup('passwordSet', chainId, account))
-  })
+  const setup = (chainId: ChainId, account: Address): SetupRecords => {
+    const draftKey = recordKeys.setup('setupDraft', chainId, account)
+    const pathKey = recordKeys.setup('path', chainId, account)
+    return {
+      setupDraft: accessor(draftKey),
+      inventory: accessor(recordKeys.setup('inventory', chainId, account)),
+      path: accessor(pathKey),
+      enrollments: accessor(recordKeys.setup('enrollments', chainId, account)),
+      waitingPeriod: accessor(recordKeys.setup('waitingPeriod', chainId, account)),
+      passwordSet: accessor(recordKeys.setup('passwordSet', chainId, account)),
+      writeDraftAndPath: (draft: SetupDraftRecord) =>
+        inQueues([draftKey, pathKey], async () => {
+          const savedAt = now()
+          const written = {
+            setupDraft: { value: draft, savedAt },
+            path: { value: draft.clauses, savedAt }
+          }
+          await storage.setEntries({ [draftKey]: written.setupDraft, [pathKey]: written.path })
+          return written
+        })
+    }
+  }
 
   /**
    * The latest `savedAt` of the six setup records, the draft's age a resumed

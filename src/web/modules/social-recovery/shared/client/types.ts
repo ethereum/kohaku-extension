@@ -31,7 +31,7 @@ import type {
   IRecoveryMethod,
   ISetupClient
 } from '@web/modules/social-recovery/sdk-interfaces'
-import type { ChainId, WalletRecords } from '@web/modules/social-recovery/shared/records'
+import type { ChainId, SlotKind, WalletRecords } from '@web/modules/social-recovery/shared/records'
 
 import type { PUBLISHERS, UNKNOWN_ACTION } from './audited-actions'
 import type { RECOVERY_CHAINS } from './chains'
@@ -51,12 +51,7 @@ export interface AddressBook {
   /** The policy manager every setup and attempt call targets. */
   manager: Address
   /** The four shipped method modules. */
-  methods: {
-    ecdsa: Address
-    passkey: Address
-    aadhaar: Address
-    zkpassport: Address
-  }
+  methods: Record<SlotKind, Address>
   /** The recovery action for Kohaku's Ambire-derived account. */
   action: Address
 }
