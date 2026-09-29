@@ -14,7 +14,7 @@ import Button from '@common/components/Button'
 // import HelpIcon from '@common/assets/svg/HelpIcon'
 import KeyStoreSettingsIcon from '@common/assets/svg/KeyStoreSettingsIcon'
 import NetworksIcon from '@common/assets/svg/NetworksIcon'
-// import PasswordRecoverySettingsIcon from '@common/assets/svg/PasswordRecoverySettingsIcon'
+import PasswordRecoverySettingsIcon from '@common/assets/svg/PasswordRecoverySettingsIcon'
 import SettingsIcon from '@common/assets/svg/SettingsIcon'
 import SidebarSecurityIcon from '@common/assets/svg/SidebarSecurityIcon'
 // import SignedMessageIcon from '@common/assets/svg/SignedMessageIcon'
@@ -78,6 +78,12 @@ export const SETTINGS_LINKS = [
     Icon: React.memo(KeyStoreSettingsIcon),
     label: 'Extension password',
     path: ROUTES.devicePasswordChange
+  },
+  {
+    key: 'account-recovery',
+    Icon: React.memo(PasswordRecoverySettingsIcon),
+    label: 'Account recovery',
+    path: ROUTES.socialRecoverySetup
   }
   // {
   //   key: 'device-password-recovery',

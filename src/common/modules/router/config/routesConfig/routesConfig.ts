@@ -444,6 +444,41 @@ const routesConfig: RouteConfig = {
     route: ROUTES.socialRecoveryManage,
     title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
     name: Platform.select({ default: i18n.t('socialRecovery.routes.manage') })
+  },
+  [ROUTES.socialRecoverySetupEditor]: {
+    route: ROUTES.socialRecoverySetupEditor,
+    title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
+    name: Platform.select({ default: i18n.t('socialRecovery.routes.setupEditor') })
+  },
+  [ROUTES.socialRecoverySetupEnroll]: {
+    route: ROUTES.socialRecoverySetupEnroll,
+    title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
+    name: Platform.select({ default: i18n.t('socialRecovery.routes.setupEnroll') })
+  },
+  [ROUTES.socialRecoverySetupWaitingPeriod]: {
+    route: ROUTES.socialRecoverySetupWaitingPeriod,
+    title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
+    name: Platform.select({ default: i18n.t('socialRecovery.routes.setupWaitingPeriod') })
+  },
+  [ROUTES.socialRecoverySetupPrivacy]: {
+    route: ROUTES.socialRecoverySetupPrivacy,
+    title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
+    name: Platform.select({ default: i18n.t('socialRecovery.routes.setupPrivacy') })
+  },
+  [ROUTES.socialRecoverySetupReview]: {
+    route: ROUTES.socialRecoverySetupReview,
+    title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
+    name: Platform.select({ default: i18n.t('socialRecovery.routes.setupReview') })
+  },
+  [ROUTES.socialRecoverySetupSave]: {
+    route: ROUTES.socialRecoverySetupSave,
+    title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
+    name: Platform.select({ default: i18n.t('socialRecovery.routes.setupSave') })
+  },
+  [ROUTES.socialRecoverySetupCard]: {
+    route: ROUTES.socialRecoverySetupCard,
+    title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
+    name: Platform.select({ default: i18n.t('socialRecovery.routes.setupCard') })
   }
 }
 
