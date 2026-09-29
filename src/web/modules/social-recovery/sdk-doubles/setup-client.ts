@@ -49,7 +49,9 @@ import { composeBatch, shouldSimulate, simulationFrom, withSimulation } from './
 import { codedError, finding, unansweredRead, validationRefusal } from './scripts'
 import type { ClientContext, LastSetupWrite, MethodReads } from './types'
 
-const MAX_WAIT_FIELD = 2n ** 48n
+// A shift, since the build compiles `**` to Math.pow, which throws on a bigint.
+// eslint-disable-next-line no-bitwise
+const MAX_WAIT_FIELD = 1n << 48n
 
 /** The widest threshold the body's `uint8` field holds. */
 const THRESHOLD_FIELD = 255
