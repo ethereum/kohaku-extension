@@ -18,6 +18,7 @@ import { bytesToHex, isAddress, isAddressEqual } from 'viem'
 import { parse, stringify } from '@ambire-common/libs/richJson/richJson'
 import type { Address, Gathering } from '@web/modules/social-recovery/sdk-interfaces'
 
+import { wipeRecoveryPassword } from './recoveryPassword'
 import { ABSENT, SETUP_RECORD_NAMES } from './types'
 import type {
   CeremonyRequestRecord,
@@ -302,11 +303,22 @@ export const createWalletRecords = ({
     return times.length ? Math.max(...times) : null
   }
 
-  /** The setup landed on chain: wipes the six setup records. Platform credentials are untouched. */
+  /**
+   * The setup landed on chain: wipes the six setup records. The recovery
+   * password held in memory stays for the tab's life, so the Recovery Card can
+   * show it. Platform credentials are untouched.
+   */
   const saveSetup = (chainId: ChainId, account: Address) => wipeSetupRecords(chainId, account)
 
-  /** The holder starts over: wipes the six setup records. Platform credentials are untouched. */
-  const startOverSetup = (chainId: ChainId, account: Address) => wipeSetupRecords(chainId, account)
+  /**
+   * The holder starts over: wipes the six setup records, then the recovery
+   * password held in memory, which no screen shows again. Platform credentials
+   * are untouched.
+   */
+  const startOverSetup = async (chainId: ChainId, account: Address): Promise<void> => {
+    await wipeSetupRecords(chainId, account)
+    wipeRecoveryPassword(chainId, account)
+  }
 
   // --- the recovery session ------------------------------------------------
 

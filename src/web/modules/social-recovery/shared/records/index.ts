@@ -5,3 +5,4 @@
 export * from './types'
 export * from './records'
 export { extensionRecordStorage } from './extensionStorage'
+export { readRecoveryPassword, setRecoveryPassword, wipeRecoveryPassword } from './recoveryPassword'
