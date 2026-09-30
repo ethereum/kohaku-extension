@@ -318,7 +318,19 @@
       "require": "Require",
       "group": "Group {{n}}",
       "guardians": "guardians",
-      "header": "What this shape means"
+      "header": "What this shape means",
+      "sentence": {
+        "kinds": {
+          "passkey": "a passkey",
+          "passport": "a passport",
+          "guardian": "a guardian",
+          "aadhaar": "an Aadhaar identity",
+          "method": "a method"
+        },
+        "anyOf": "any {{threshold}} of {{count}}",
+        "pair": "{{first}} and {{second}}",
+        "list": "{{first}}, {{rest}}"
+      }
     },
     "disclosures": {
       "guardianPublication": "A recovery publishes the whole recovery path on chain in the clear, every method in it and not only the ones it used. If a recovery uses this guardian, their address goes on chain in the clear. Even unused, anyone who can guess it can find it. Ask them first.",
@@ -533,6 +545,10 @@
           "badge": "Default",
           "line": "A stranger sees that this account has a recovery setup and nothing of what it is until a recovery runs, which publishes the whole rule on chain in the clear."
         },
+        "shapeVisible": {
+          "label": "Shape visible",
+          "line": "The shape of your setup is readable: {{shape}}. Which ones stays hidden."
+        },
         "public": {
           "label": "Public",
           "line": "Everything is readable by anyone. No password is set and the card carries only the address."
@@ -540,9 +556,10 @@
         "exposure": {
           "guardians": "Every guardian of your path is hidden from a stranger who cannot guess their address.",
           "unguessable": "{{items}} cannot be guessed at all and lose nothing before a recovery.",
+          "unguessableOne": "{{items}} cannot be guessed at all and loses nothing before a recovery.",
           "publication": "A recovery publishes the rule with its waiting period and every method in it, so every method of your path is exposed, the ones it used and the ones it did not."
         },
-        "requiredAtPrivate": "Required at Private.",
+        "requiredAtPrivate": "Required at Private and Shape visible.",
         "passwordLabel": "Password",
         "confirmLabel": "Confirm password",
         "tradeCard": "Anyone holding the Recovery Card can read the recovery path and still cannot recover.",
@@ -702,7 +719,10 @@
       "whyNotOnCardBody": "The card carries no method, no guardian address, no threshold and no waiting period, so a photograph of the card alone names nothing to phish.",
       "warnsHeader": "What warns you",
       "banner": "Your warning for a recovery you did not start is a banner the next time you open the wallet.",
-      "wrongPassword": "That is not your extension password. Try again."
+      "wrongPassword": "That is not your extension password. Try again.",
+      "passwordGone": "Your recovery password is not on this device any more. Set it again on the privacy step to reveal it and carry the card.",
+      "passwordGoneAction": "Set the recovery password again",
+      "carrierAsks": "A new download, print or hand-off asks your extension password."
     },
     "create": {
       "controlledBy": "Controlled by {{address}}",
