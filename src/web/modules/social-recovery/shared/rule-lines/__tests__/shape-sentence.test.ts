@@ -3,6 +3,7 @@
  * expected sentences are composed from the string table's own values, so the
  * tests follow the table and a hard-coded word in the rendering shows up.
  */
+import i18next from 'i18next'
 import { isAddressEqual } from 'viem'
 
 import type { Clause, Credential, Hex } from '@web/modules/social-recovery/sdk-interfaces'
@@ -12,10 +13,27 @@ import { emptySlot, SLOT_KINDS } from '@web/modules/social-recovery/shared/recor
 import type { SlotKind } from '@web/modules/social-recovery/shared/records'
 
 import { renderShapeSentence } from '@web/modules/social-recovery/shared/rule-lines'
-import type { RuleLinesOptions } from '@web/modules/social-recovery/shared/rule-lines'
+import type { RuleLinesOptions, Translate } from '@web/modules/social-recovery/shared/rule-lines'
 
-import { EN, partsOf, translatorOf } from './harness'
+import { EN } from './harness'
 import type { Table } from './harness'
+
+const translatorOf = (table: Table): Translate => {
+  const i18n = i18next.createInstance()
+  // eslint-disable-next-line @typescript-eslint/no-floating-promises
+  i18n.init({
+    lng: 'en',
+    fallbackLng: 'en',
+    defaultNS: 'app',
+    resources: { en: { app: table } },
+    interpolation: { escapeValue: false },
+    initImmediate: false
+  })
+  return (key, params) => String(i18n.t(key, params ? { ...params } : undefined))
+}
+
+const fill = (template: string, params: Record<string, string | number>): string =>
+  template.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(params[name]))
 
 // The kind each shipped method module serves, read from the address book.
 const book = addressBookOf('sepolia')
@@ -38,6 +56,19 @@ const group = (threshold: number, credentials: Credential[]): Clause => ({
 })
 const noMember = (threshold: number): Clause => ({ threshold, credentials: [] })
 const UNKNOWN_MODULE = '0x9000000000000000000000000000000000000009' as Hex
+
+// The sentence parts, each read from one table.
+const partsOf = (table: Table) => {
+  const s = table.socialRecovery.shape.sentence
+  return {
+    kinds: s.kinds,
+    method: s.kinds.method,
+    pair: (first: string, second: string) => fill(s.pair, { first, second }),
+    list: (first: string, rest: string) => fill(s.list, { first, rest }),
+    anyOf: (threshold: number, count: number) => fill(s.anyOf, { threshold, count }),
+    and: ` ${table.socialRecovery.shape.and.toLowerCase()} `
+  }
+}
 
 const t = translatorOf(EN)
 const p = partsOf(EN)
