@@ -15,6 +15,7 @@
  * The builder runs the same checks again at construction, and its
  * digest-version refusal is surfaced as the same `DigestVersionRefusal`.
  */
+import { PROXY_AMBIRE_ACCOUNT } from '@ambire-common/consts/deploy'
 import type { ConstructionRefusal } from '@web/modules/social-recovery/sdk-doubles'
 import {
   constructionRefusal,
@@ -99,7 +100,12 @@ export const buildRecoveryClient = async (
   config: RecoveryClientConfiguration
 ): Promise<RecoveryKitClient> => {
   const descriptor = descriptorOf(config.chain, config.addressBook)
-  const clientConfiguration = clientConfigurationOf(config)
+  // The fit check judges the implementation the account library deploys behind
+  // its proxy unless the configuration names another.
+  const clientConfiguration = clientConfigurationOf({
+    ...config,
+    accountImplementation: config.accountImplementation ?? PROXY_AMBIRE_ACCOUNT
+  })
   const chain = sdkStandIn.chainFor(descriptor, config.account)
   const manager = new PolicyManagerDouble(chain)
 

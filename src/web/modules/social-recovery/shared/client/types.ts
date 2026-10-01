@@ -197,7 +197,7 @@ export interface ReceiptWaitReleased extends Error {
 export type ExtensionProvider = AdapterProvider &
   ChainReadsProvider &
   ReceiptProvider &
-  Pick<RPCProvider, 'destroy'>
+  Pick<RPCProvider, 'getCode' | 'destroy'>
 
 // ---------------------------------------------------------------------------
 // The client
@@ -206,6 +206,28 @@ export type ExtensionProvider = AdapterProvider &
 /** The wallet's own reads the SDK does not offer, under the name screens use. */
 export type WalletReads = IWalletReadsDouble
 export type { FitCheckReading, RemovedKeyReading, RemovedKeyUnavailableCause }
+
+/** The account fields the privilege holders read takes. */
+export type PrivilegeAccount = Pick<
+  Account,
+  'addr' | 'associatedKeys' | 'initialPrivileges' | 'creation'
+>
+
+/** The members of the extension's provider the privilege holders read uses. */
+export type PrivilegeReadsProvider = Pick<RPCProvider, 'send' | 'getCode' | 'call'>
+
+/** The keys holding a privilege on an account, or why they could not be read. */
+export type PrivilegeHoldersReading =
+  | { kind: 'holders'; keys: Address[] }
+  | { kind: 'unreadable'; cause: string }
+
+/** The wallet's own read of who holds a privilege on an account. */
+export interface PrivilegeReads {
+  privilegeHoldersOf(
+    account: PrivilegeAccount,
+    chainId: number | bigint
+  ): Promise<PrivilegeHoldersReading>
+}
 
 /**
  * What the extension holds for one account: the two entry clients, the two

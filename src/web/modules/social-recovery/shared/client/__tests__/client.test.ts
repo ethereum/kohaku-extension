@@ -5,6 +5,7 @@
  * hands the client no signer and no storage. With no sponsor rail configured,
  * every prepared call is sent from a key the signer holds.
  */
+import { PROXY_AMBIRE_ACCOUNT } from '@ambire-common/consts/deploy'
 import {
   addressOf,
   DEFAULT_REQUEST_WINDOW,
@@ -78,7 +79,10 @@ describe('buildRecoveryClient', () => {
       descriptorOf(world.config.chain, world.config.addressBook)
     )
     expect(lastArg(spies.descriptor)).toEqual(deploymentDescriptor(world.config.chain))
-    expect(lastArg(spies.config)).toEqual(clientConfigurationOf(world.config))
+    expect(lastArg(spies.config)).toEqual({
+      ...clientConfigurationOf(world.config),
+      accountImplementation: PROXY_AMBIRE_ACCOUNT
+    })
     expect(lastArg(spies.account)).toBe(world.account)
 
     // The rest the builder receives is the stand-in SDK's own parts, never the extension's.
@@ -87,6 +91,16 @@ describe('buildRecoveryClient', () => {
     expect(spies.action).not.toHaveBeenCalled()
     expect(spies.eventManager).not.toHaveBeenCalled()
     expect(spies.codec).not.toHaveBeenCalled()
+  })
+
+  it('keeps an account implementation the configuration names', async () => {
+    const spies = spyOnBuilder()
+    const implementation = addressOf('other-implementation')
+    const world = createWorld({ accountImplementation: implementation })
+    await buildRecoveryClient(world.config)
+    const configuration = lastArg(spies.config) as { accountImplementation?: string }
+    expect(configuration.accountImplementation).toBe(implementation)
+    expect(configuration.accountImplementation).not.toBe(PROXY_AMBIRE_ACCOUNT)
   })
 
   it('hands the builder the wallet request window of 24 hours and no token allowlist', async () => {
@@ -193,6 +207,48 @@ describe("the manager domain's members", () => {
       expect(builder.buildRecoveryClient).not.toHaveBeenCalled()
     })
   )
+})
+
+describe('the fit check the built client runs against the account implementation', () => {
+  const fitFindings = async (world: ReturnType<typeof createWorld>) => {
+    const client = await buildRecoveryClient(world.config)
+    world.chain.setHasCode(false)
+    const result = await client.setup.validateSetup({
+      wait: 432_000n,
+      clauses: [
+        {
+          threshold: 1,
+          credentials: [
+            {
+              method: world.descriptor.methodEcdsa,
+              config: new WalletMethodDouble().codec.encodeConfig({
+                address: addressOf('approver')
+              })
+            }
+          ]
+        }
+      ],
+      ignoresPause: false,
+      privacy: { publicMetadata: '0x', backup: 'encrypted' }
+    })
+    const codes = (findings: { code: string }[]) =>
+      findings
+        .map((finding) => finding.code)
+        .filter((code) => code === 'action.unsupported' || code === 'action.fit-unchecked')
+    return { errors: codes(result.errors), warnings: codes(result.warnings) }
+  }
+
+  it('finds the default configuration fits an account with no code yet', async () => {
+    await expect(fitFindings(createWorld())).resolves.toEqual({ errors: [], warnings: [] })
+  })
+
+  it('refuses an account implementation the action does not serve', async () => {
+    const world = createWorld({ accountImplementation: addressOf('other-implementation') })
+    await expect(fitFindings(world)).resolves.toEqual({
+      errors: ['action.unsupported'],
+      warnings: []
+    })
+  })
 })
 
 describe('the request window the built client judges', () => {

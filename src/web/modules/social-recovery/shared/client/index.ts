@@ -38,7 +38,7 @@ export {
   digestVersionRefusal,
   isDigestVersionRefusal
 } from './build-client'
-export { REMOVED_KEY_UNAVAILABLE_CAUSES } from './wallet-reads'
+export { REMOVED_KEY_UNAVAILABLE_CAUSES, createPrivilegeReads } from './wallet-reads'
 export { createCeremonyResolver, extensionClientFor } from './ceremony-resolver'
 export {
   SIGNER_MEMBERS,
@@ -98,6 +98,10 @@ export type {
   FitCheckReading,
   RemovedKeyReading,
   RemovedKeyUnavailableCause,
+  PrivilegeAccount,
+  PrivilegeReadsProvider,
+  PrivilegeHoldersReading,
+  PrivilegeReads,
   KeyHandle,
   TypedDataToSign,
   SignerFacade,
