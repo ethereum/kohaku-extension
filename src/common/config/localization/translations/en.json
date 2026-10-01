@@ -445,6 +445,7 @@
       "continueUnlock": "Continue unlocks when your path has at least one method.",
       "refusals": {
         "emptyGroup": "This wallet cannot save a group with no members. Add a member or remove the group.",
+        "emptyGroupSlot": "This wallet cannot save a group with a member that is not enrolled yet. Enroll it or remove it.",
         "thresholdAboveMembers": "This wallet cannot save a group that requires more members than it holds. Lower the threshold or add members.",
         "thresholdBelowOne": "This wallet cannot save a group whose threshold is below one. Require at least one member.",
         "thresholdBelowOneOwnRule": "This wallet cannot save a group whose threshold is below one. On a path with a required method or a second group, this rule is this wallet's alone.",
@@ -456,7 +457,8 @@
         "tooLarge": "This wallet cannot check a path this large in one block. Remove members or groups.",
         "emptyRequired": "This wallet cannot save a required method that is not enrolled yet. Enroll it or remove the row.",
         "backupTooWide": "This wallet cannot save a path whose hidden details are too large for the setup's backup. Remove members or groups.",
-        "actionUnsupported": "This release cannot recover this account yet, so this wallet cannot save a setup for it."
+        "actionUnsupported": "This release cannot recover this account yet, so this wallet cannot save a setup for it.",
+        "thresholdWholeNumber": "This wallet cannot save a threshold that is not a whole number. Type how many members must answer."
       },
       "startingFrom": "Starting from: {{preset}}"
     },
@@ -502,7 +504,9 @@
         "addAnother": "+ Add another guardian",
         "howMany": "How many must approve is set on the path, not here.",
         "testedLine": "This key signed the test challenge.",
-        "testThisKey": "Test this key"
+        "testThisKey": "Test this key",
+        "waitingForSignScreen": "Waiting for the wallet's sign screen…",
+        "testOfflineInstead": "Test it offline instead"
       },
       "offline": {
         "title": "Test this key offline",
@@ -638,6 +642,9 @@
         "validator": "Any code entry that is not the marker is a validator somebody bound to this account.",
         "untouched": "A recovery leaves them untouched. The account is only as safe as its weakest door."
       },
+      "otherDoors": {
+        "cannotSeeEveryDoor": "The wallet cannot see every door, and the account is only as safe as its weakest one."
+      },
       "account": {
         "header": "The account this setup is for",
         "check": "Full address. Check it: the save writes to this account."
@@ -658,7 +665,8 @@
         "cannotRecover": {
           "title": "This release cannot recover this account yet.",
           "reasonNotSupported": "The recovery module does not support this account.",
-          "reasonKeyCount": "This account has {{count}} keys in control, and this wallet recovers one key in this release."
+          "reasonKeyCount": "This account has {{count}} keys in control, and this wallet recovers one key in this release.",
+          "reasonSeveralKeys": "This account has more than one key in control, and this wallet recovers one key in this release."
         },
         "notTested": {
           "title": "An untested method is in your path",
@@ -669,7 +677,11 @@
           "title": "This account already has a recovery setup",
           "body": "Edit it instead. This wallet keeps one recovery path per account.",
           "open": "Open your recovery path"
-        }
+        },
+        "emptySlot": "Fill every slot of the path before you save.",
+        "emptySlotAction": "Go to the editor",
+        "passwordMissing": "Set the recovery password before you save.",
+        "passwordMissingAction": "Go to the privacy step"
       },
       "after": {
         "submitting": "Your account is signing its setup and your key is sending it.",
