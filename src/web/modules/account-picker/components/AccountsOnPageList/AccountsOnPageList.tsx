@@ -2,26 +2,38 @@
 import groupBy from 'lodash/groupBy'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { NativeScrollEvent, View } from 'react-native'
-import { createPublicClient, http } from 'viem'
+import {
+  Address,
+  createPublicClient,
+  hexToBigInt,
+  http,
+  isAddress,
+  isAddressEqual,
+  isHex
+} from 'viem'
 
+import { ERC_4337_ENTRYPOINT } from '@ambire-common/consts/deploy'
 import AccountPickerController from '@ambire-common/controllers/accountPicker/accountPicker'
 import {
   Account as AccountInterface,
   AccountOnPage
   // ImportStatus
 } from '@ambire-common/interfaces/account'
+import { Network } from '@ambire-common/interfaces/network'
+import { isSmartAccount } from '@ambire-common/libs/account/account'
+import { getAccountState } from '@ambire-common/libs/accountState/accountState'
 // import WarningFilledIcon from '@common/assets/svg/WarningFilledIcon'
 import Alert from '@common/components/Alert'
 // import Badge from '@common/components/Badge'
 import Pagination from '@common/components/Pagination'
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
 import Spinner from '@common/components/Spinner'
-// import Text from '@common/components/Text'
-// import Tooltip from '@common/components/Tooltip'
-// import { useTranslation } from '@common/config/localization'
+import Text from '@common/components/Text'
+import Tooltip from '@common/components/Tooltip'
+import { useTranslation } from '@common/config/localization'
 import useTheme from '@common/hooks/useTheme'
 import spacings from '@common/styles/spacings'
-// import { THEME_TYPES } from '@common/styles/themeConfig'
+import { THEME_TYPES } from '@common/styles/themeConfig'
 import flexbox from '@common/styles/utils/flexbox'
 import useAccountPickerControllerState from '@web/hooks/useAccountPickerControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
@@ -29,12 +41,59 @@ import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import Account from '@web/modules/account-picker/components/Account'
 import AnimatedDownArrow from '@web/modules/account-picker/components/AccountsOnPageList/AnimatedDownArrow/AnimatedDownArrow'
 import AccountsRetrieveError from '@web/modules/account-picker/components/AccountsRetrieveError'
+import { renderFullAddress, renderShortAddress } from '@web/modules/social-recovery/shared/display'
+import { getRpcProviderForUI } from '@web/services/provider'
 
 import getStyles from './styles'
 
 const isCloseToBottom = ({ layoutMeasurement, contentOffset, contentSize }: NativeScrollEvent) => {
   const paddingToBottom = 20
   return layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom
+}
+
+// The first key holding a non-zero privilege on a smart account, leaving out
+// the ERC-4337 entry point, which the account state lists beside the keys.
+const findPrivilegeHolder = (privileges: [string, string][]): Address | null => {
+  const holder = privileges.find(
+    ([addr, privilege]) =>
+      isAddress(addr, { strict: false }) &&
+      !isAddressEqual(addr, ERC_4337_ENTRYPOINT) &&
+      isHex(privilege) &&
+      hexToBigInt(privilege) !== 0n
+  )?.[0]
+
+  return holder && isAddress(holder, { strict: false }) ? holder : null
+}
+
+// A network that answers with the account deployed wins: the holder comes from
+// the privileges the account holds on chain. With no deployed answer, or no
+// answer at all, the privileges the account's creation will write serve.
+const readPrivilegeHolder = async (
+  account: AccountInterface,
+  networks: Network[],
+  dispatch: (action: any) => void
+): Promise<Address | null> => {
+  const states = await Promise.all(
+    networks.map(async (network) => {
+      const provider = getRpcProviderForUI(network, dispatch)
+      try {
+        const [accountState] = await getAccountState(provider, network, [account])
+        return accountState
+      } catch {
+        return null
+      } finally {
+        provider.destroy()
+      }
+    })
+  )
+  const answers = states.filter((accountState) => !!accountState)
+  const deployedState = answers.find((accountState) => accountState.isDeployed)
+
+  if (deployedState) {
+    return findPrivilegeHolder(Object.entries(deployedState.associatedKeys))
+  }
+
+  return findPrivilegeHolder(account.initialPrivileges)
 }
 
 type Props = {
@@ -56,18 +115,14 @@ const AccountsOnPageList = ({
   onScanComplete,
   children
 }: Props) => {
-  // const { t } = useTranslation()
+  const { t } = useTranslation()
   const { dispatch } = useBackgroundService()
   const { networks } = useNetworksControllerState()
   const accountPickerState = useAccountPickerControllerState()
   const [hasReachedBottom, setHasReachedBottom] = useState<null | boolean>(null)
   const [containerHeight, setContainerHeight] = useState(0)
   const [contentHeight, setContentHeight] = useState(0)
-  const {
-    styles
-    // theme,
-    // themeType
-  } = useTheme(getStyles)
+  const { styles, themeType } = useTheme(getStyles)
 
   const slots = useMemo(() => {
     // Only basic accounts.
@@ -81,6 +136,51 @@ const AccountsOnPageList = ({
   //   () => state.accountsOnPage.some((a) => a.isLinked),
   //   [state.accountsOnPage]
   // )
+
+  // The smart accounts are listed only when the picker selects them by default
+  // (a newly created seed); the imports list basic accounts only.
+  const shouldDisplaySmartAccounts = !!state.shouldSelectSmartAccountAutomatically
+
+  const smartAccounts = useMemo(() => {
+    if (!shouldDisplaySmartAccounts) {
+      return []
+    }
+
+    return state.accountsOnPage.filter((a) => !a.isLinked && isSmartAccount(a.account))
+  }, [shouldDisplaySmartAccounts, state.accountsOnPage])
+
+  const smartAccountsKey = useMemo(
+    () => smartAccounts.map(({ account }) => account.addr).join(','),
+    [smartAccounts]
+  )
+
+  const [privilegeHolders, setPrivilegeHolders] = useState<Record<string, Address | null>>({})
+
+  useEffect(() => {
+    if (!smartAccounts.length || !networks.length) {
+      return
+    }
+
+    let cancelled = false
+
+    Promise.all(
+      smartAccounts.map(async ({ account }) => {
+        const holder = await readPrivilegeHolder(account, networks, dispatch)
+        return [account.addr, holder] as const
+      })
+    )
+      .then((holders) => {
+        if (!cancelled) {
+          setPrivilegeHolders(Object.fromEntries(holders))
+        }
+      })
+      .catch(() => {})
+
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [smartAccountsKey, networks, dispatch])
 
   const [accountUsageMap, setAccountUsageMap] = useState<Record<string, boolean>>({})
   const [usageCheckComplete, setUsageCheckComplete] = useState(false)
@@ -373,8 +473,7 @@ const AccountsOnPageList = ({
                   )
                 })}
               </View>
-              {/* Smart accounts section - commented out
-              {!!Object.keys(slots).length && (
+              {!!smartAccounts.length && (
                 <View
                   style={[
                     styles.smartAccountWrapper,
@@ -392,65 +491,50 @@ const AccountsOnPageList = ({
                     <Text fontSize={16} weight="medium" style={spacings.mrMd}>
                       {t('Smart accounts')}
                     </Text>
-                    <View
-                      style={[
-                        flexbox.directionRow,
-                        flexbox.justifySpaceBetween,
-                        flexbox.alignCenter
-                      ]}
-                    >
-                      {lookingForLinkedAccounts && (
-                        <View style={[flexbox.alignCenter, flexbox.directionRow]}>
-                          <Spinner style={{ width: 16, height: 16 }} />
-                          <Text appearance="primary" style={[spacings.mlTy]} fontSize={14}>
-                            {t('Looking for linked smart accounts')}
-                          </Text>
-                        </View>
-                      )}
-                      {!lookingForLinkedAccounts && hasLinkedAccounts && (
-                        <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-                          <Badge
-                            type="info"
-                            size="md"
-                            withRightSpacing
-                            text={`Linked Smart Account (found on page ${state.page})`}
-                            tooltipText="Linked smart accounts are accounts that were not created with a given key originally, but this key was authorized for that given account on any supported network."
-                          />
-                          <WarningFilledIcon data-tooltip-id="linked-accounts-warning" />
-                          <Tooltip
-                            id="linked-accounts-warning"
-                            border={`1px solid ${theme.warningDecorative as any}`}
-                            style={{
-                              backgroundColor:
-                                themeType === THEME_TYPES.DARK
-                                  ? theme.warningDecorative
-                                  : (theme.warningBackground as any),
-                              color:
-                                themeType === THEME_TYPES.DARK
-                                  ? theme.primaryBackground
-                                  : (theme.warningText as any)
-                            }}
-                            content="Do not add linked accounts you are not aware of!"
-                          />
-                        </View>
-                      )}
-                    </View>
                   </View>
-                  {Object.keys(slots).map((key, i) => {
+                  {smartAccounts.map((acc, i) => {
+                    const holder = privilegeHolders[acc.account.addr]
+                    const holderTooltipId = `controlled-by-${acc.account.addr}`
+                    const isLast = i === smartAccounts.length - 1
+
                     return (
-                      <View key={key}>
-                        {getAccounts({
-                          accounts: slots[key],
-                          isLastSlot: i === Object.keys(slots).length - 1,
-                          slotIndex: 1,
-                          byType: ['smart', 'linked']
-                        })}
+                      <View key={acc.account.addr} style={!isLast && spacings.mbTy}>
+                        <Account
+                          account={acc.account}
+                          type="smart"
+                          withBottomSpacing={false}
+                          unused={!accountUsageMap[acc.account.addr]}
+                          isSelected={state.selectedAccounts.some(
+                            (selectedAcc) => selectedAcc.account.addr === acc.account.addr
+                          )}
+                          importStatus={acc.importStatus}
+                          onSelect={handleSelectAccount}
+                          onDeselect={handleDeselectAccount}
+                          displayTypeBadge={false}
+                          shouldBeDisplayedAsNew={false}
+                        />
+                        {!!holder && (
+                          <>
+                            <Text
+                              fontSize={12}
+                              appearance="secondaryText"
+                              style={[spacings.mtTy, spacings.mlTy]}
+                              testID={holderTooltipId}
+                              // @ts-ignore
+                              dataSet={{ tooltipId: holderTooltipId }}
+                            >
+                              {t('socialRecovery.create.controlledBy', {
+                                address: renderShortAddress(holder)
+                              })}
+                            </Text>
+                            <Tooltip content={renderFullAddress(holder)} id={holderTooltipId} />
+                          </>
+                        )}
                       </View>
                     )
                   })}
                 </View>
               )}
-              */}
             </>
           )}
         </ScrollableWrapper>

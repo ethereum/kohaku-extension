@@ -78,8 +78,10 @@ const Account = ({
     }
   }, [isSelected, onSelect, onDeselect, account])
 
+  const isAddressAlwaysShort = type === 'smart'
+
   const formattedAddress = useMemo(() => {
-    if (minWidthSize('m') || domainName) {
+    if (minWidthSize('m') || domainName || isAddressAlwaysShort) {
       return shortenAddress(account.addr, 16)
     }
     if (maxWidthSize('m') && minWidthSize('l')) {
@@ -89,7 +91,7 @@ const Account = ({
       return account.addr
     }
     return shortenAddress(account.addr, 16)
-  }, [account.addr, domainName, maxWidthSize, minWidthSize])
+  }, [account.addr, domainName, isAddressAlwaysShort, maxWidthSize, minWidthSize])
 
   useEffect(() => {
     if (shouldAddIntroStepsIds) setShowIntroSteps(true)
@@ -179,11 +181,14 @@ const Account = ({
                     fontSize={domainName ? 14 : 16}
                     appearance={domainName ? 'secondaryText' : 'primaryText'}
                     style={spacings.mrMi}
+                    // @ts-ignore
+                    dataSet={isAddressAlwaysShort ? { tooltipId: account.addr } : undefined}
                   >
                     {domainName ? '(' : ''}
                     {formattedAddress}
                     {domainName ? ')' : ''}
                   </Text>
+                  {isAddressAlwaysShort && <Tooltip content={account.addr} id={account.addr} />}
                 </>
               )}
 
