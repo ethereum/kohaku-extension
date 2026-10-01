@@ -70,6 +70,7 @@ export {
 export { sendRequestPort } from './sender-port'
 export { UNKNOWN_TRANSACTION_MS, createReceiptWait } from './receipts'
 export { SPONSOR_RAIL, RECOVERY_CALLS, sendingKeyOf } from './sending'
+export { shapeNoteOf, privacyLevelOf } from './setup-notes'
 export type {
   RecoveryChain,
   AddressBook,
