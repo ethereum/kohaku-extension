@@ -199,7 +199,7 @@ describe('validateSetup computes its own findings', () => {
     const rpIdHash = sha256(stringToHex('wallet.example'))
     const passkey: Credential = {
       method: world.descriptor.methodPasskey,
-      config: world.methods.passkey.codec.encodeConfig({ publicKey: '0x04aa', rpIdHash })
+      config: world.methods.passkey.codec.encodeConfig({ x: rpIdHash, y: rpIdHash, rpIdHash })
     }
     const draft = draftOf(world, [{ threshold: 1, credentials: [wallet(world, 'a'), passkey] }])
     const described = await (await world.setupClient()).describeSetup(draft)

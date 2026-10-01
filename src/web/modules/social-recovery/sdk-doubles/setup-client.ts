@@ -45,6 +45,7 @@ import {
   setupBodyOf,
   setupCommitmentOf
 } from './encoding'
+import { PASSKEY_CONFIG } from './methods'
 import { composeBatch, shouldSimulate, simulationFrom, withSimulation } from './prepared'
 import { codedError, finding, unansweredRead, validationRefusal } from './scripts'
 import type { ClientContext, LastSetupWrite, MethodReads } from './types'
@@ -402,10 +403,7 @@ export class SetupClientDouble implements ISetupClient {
       .map((p) => {
         let rpIdHash: string | undefined
         try {
-          ;[, rpIdHash] = decodeAbiParameters(
-            [{ type: 'bytes' }, { type: 'bytes32' }],
-            p.credential.config
-          )
+          ;[, , rpIdHash] = decodeAbiParameters(PASSKEY_CONFIG, p.credential.config)
         } catch {
           rpIdHash = undefined
         }
