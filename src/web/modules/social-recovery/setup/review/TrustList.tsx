@@ -11,17 +11,20 @@ import { renderFullAddress, renderNoun } from '@web/modules/social-recovery/shar
 import { isEmptySlot } from '@web/modules/social-recovery/shared/records/slots'
 
 import { kindNameOf, passkeyLinesOf } from './lead'
+import OtherDoors from './OtherDoors'
+import StopBlock from './StopBlock'
 import { nodeKindOf } from './trust'
-import type { TrustHeading, TrustListProps, TrustRow } from './types'
+import type { AdminDeclaration, TrustHeading, TrustListProps, TrustRow } from './types'
 
 const TRUST = 'socialRecovery.review.trust'
 
 /**
  * The trust list: one contract row per method under the headings of the path
  * rows that use it, each heading's own lines after the row, the recovery
- * module with its publisher, and the node the wallet reads through.
+ * module with its publisher, the security stop block, the account's other
+ * doors, and the node the wallet reads through.
  */
-const TrustList = ({ rows, client, providerKind, onRetry }: TrustListProps) => {
+const TrustList = ({ rows, stopRows, doors, client, providerKind, onRetry }: TrustListProps) => {
   const { t } = useTranslation()
 
   const line = (text: string, testID?: string) => (
@@ -65,6 +68,24 @@ const TrustList = ({ rows, client, providerKind, onRetry }: TrustListProps) => {
     return []
   }
 
+  const adminLines = (declaration: AdminDeclaration, testID: string) => (
+    <>
+      {!!declaration.admin && line(t(`${TRUST}.adminLine`), `${testID}-admin`)}
+      {!!declaration.pendingAdmin &&
+        line(
+          t(`${TRUST}.oneAcceptanceAway`, { address: renderFullAddress(declaration.pendingAdmin) }),
+          `${testID}-pending-admin`
+        )}
+      {declaration.recoverAlone &&
+        line(
+          declaration.aloneAtThresholdOne
+            ? t(`${TRUST}.recoverAlone`)
+            : t(`${TRUST}.recoverAloneAny`),
+          `${testID}-recover-alone`
+        )}
+    </>
+  )
+
   const renderContract = (row: TrustRow, testID: string) => {
     const { contract } = row
     if (contract.status === 'pending') {
@@ -94,10 +115,22 @@ const TrustList = ({ rows, client, providerKind, onRetry }: TrustListProps) => {
       )
     }
     if (contract.status === 'third-party') {
+      const declaration = contract.declaration
+      if (!declaration?.admin) {
+        return (
+          <>
+            {line(t(`${TRUST}.thirdPartyRow`), `${testID}-third-party`)}
+            {line(t(`${TRUST}.thirdPartyLine`))}
+          </>
+        )
+      }
       return (
         <>
-          {line(t(`${TRUST}.thirdPartyRow`), `${testID}-third-party`)}
-          {line(t(`${TRUST}.thirdPartyLine`))}
+          {line(
+            t(`${TRUST}.thirdPartyDeclaredRow`, { party: renderFullAddress(declaration.admin) }),
+            `${testID}-third-party`
+          )}
+          {adminLines(declaration, testID)}
         </>
       )
     }
@@ -110,13 +143,7 @@ const TrustList = ({ rows, client, providerKind, onRetry }: TrustListProps) => {
               `${testID}-method`
             )
           : line(t(`${TRUST}.methodRow`, { method }), `${testID}-method`)}
-        {!!contract.admin && line(t(`${TRUST}.adminLine`), `${testID}-admin`)}
-        {!!contract.pendingAdmin &&
-          line(
-            t(`${TRUST}.oneAcceptanceAway`, { address: renderFullAddress(contract.pendingAdmin) }),
-            `${testID}-pending-admin`
-          )}
-        {contract.recoverAlone && line(t(`${TRUST}.recoverAlone`), `${testID}-recover-alone`)}
+        {adminLines(contract, testID)}
         {contract.passportRenewal && line(t(`${TRUST}.passportRenewal`), `${testID}-renewal`)}
       </>
     )
@@ -174,6 +201,8 @@ const TrustList = ({ rows, client, providerKind, onRetry }: TrustListProps) => {
         {line(t(`${TRUST}.moduleAuthority`))}
         {line(t(`${TRUST}.auditedOnly`))}
       </View>
+      <StopBlock rows={stopRows} />
+      <OtherDoors doors={doors} />
       {line(
         nodeKindOf(providerKind) === 'light-client'
           ? t(`${TRUST}.nodeLightClient`)

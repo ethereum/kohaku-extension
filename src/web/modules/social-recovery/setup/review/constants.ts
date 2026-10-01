@@ -1,4 +1,4 @@
-import type { ProviderKind, ReviewWaitChip, TrustReadName } from './types'
+import type { AccountReadName, ProviderKind, ReviewWaitChip, TrustReadName } from './types'
 
 /** The picker's fixed lengths with their chip words, so the review names a length as the picker did. */
 export const REVIEW_WAIT_CHIPS: readonly ReviewWaitChip[] = [
@@ -11,5 +11,13 @@ export const REVIEW_WAIT_CHIPS: readonly ReviewWaitChip[] = [
 /** The provider kinds that read through a light client with its prover; any other is a plain node. */
 export const LIGHT_CLIENT_PROVIDERS: readonly ProviderKind[] = ['helios', 'colibri']
 
-/** The two declarations the trust list reads for every method of the path. */
-export const TRUST_READ_NAMES: readonly TrustReadName[] = ['trustedParties', 'moduleInfo']
+/** The declarations the trust list reads for every method of the path. */
+export const TRUST_READ_NAMES: readonly TrustReadName[] = ['trustedParties', 'moduleInfo', 'paused']
+
+/** The account's reads that gate Save, in the order the review starts them. */
+export const ACCOUNT_READ_NAMES: readonly AccountReadName[] = [
+  'removedKey',
+  'fitCheck',
+  'setupState',
+  'description'
+]

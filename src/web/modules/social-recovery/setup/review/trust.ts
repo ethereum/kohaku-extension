@@ -1,21 +1,30 @@
 /**
  * The trust list as pure functions over the path, the enrollments and the
  * module reads: one contract row per method, the headings of the path rows
- * that use it, and the node the wallet reads through.
+ * that use it, the security stop block's rows, and the node the wallet reads
+ * through.
  */
 import { zeroAddress } from 'viem'
 
-import type { Address, Clause, Credential } from '@web/modules/social-recovery/sdk-interfaces'
+import type {
+  Address,
+  Clause,
+  Credential,
+  TrustedParties
+} from '@web/modules/social-recovery/sdk-interfaces'
 import { sameAddress } from '@web/modules/social-recovery/shared/client'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import { isEmptySlot } from '@web/modules/social-recovery/shared/records/slots'
 
-import { enrollmentOf, guardianAddressOf, kindOf } from './lead'
+import { enrollmentOf, guardianAddressOf, isRequiredRow, kindOf } from './lead'
 import { LIGHT_CLIENT_PROVIDERS, TRUST_READ_NAMES } from './constants'
 import type {
+  AdminDeclaration,
   MethodReads,
   NodeKind,
   ProviderKind,
+  StopDeclaration,
+  StopRow,
   TrustContract,
   TrustHeading,
   TrustRow,
@@ -69,14 +78,54 @@ export const aloneSatisfiesRule = (
   )
 }
 
+/**
+ * Whether every clause that holds a credential is at threshold one with no
+ * required row beside another clause: a lone row, or groups of any one.
+ */
+const everyClauseAtOne = (clauses: readonly Clause[]): boolean => {
+  const held = clauses.filter((clause) => clause.credentials.length > 0)
+  return (
+    held.every(({ threshold }) => threshold === 1) &&
+    (held.length === 1 || !held.some(isRequiredRow))
+  )
+}
+
 const nonZero = (address: Address): Address | undefined =>
   sameAddress(address, zeroAddress) ? undefined : address
 
+/** What a method's declaration says about its admin, and whether that admin could recover alone. */
+const adminDeclarationOf = (
+  method: Address,
+  trustedParties: TrustedParties,
+  input: TrustRowsInput
+): AdminDeclaration => {
+  const admin = nonZero(trustedParties.admin)
+  const recoverAlone = !!admin && aloneSatisfiesRule(input.clauses, method, input.addressBook)
+  return {
+    admin,
+    pendingAdmin: nonZero(trustedParties.pendingAdmin),
+    recoverAlone,
+    aloneAtThresholdOne: recoverAlone && everyClauseAtOne(input.clauses)
+  }
+}
+
+/** What a method's declaration and its `paused` read say about stopping it. */
+const stopDeclarationOf = (trustedParties: TrustedParties, paused: boolean): StopDeclaration => {
+  const pauseHolder = nonZero(trustedParties.pauseHolder)
+  const pendingPauseHolder = nonZero(trustedParties.pendingPauseHolder)
+  return {
+    paused,
+    ...(pauseHolder ? { pauseHolder } : {}),
+    ...(pendingPauseHolder ? { pendingPauseHolder } : {})
+  }
+}
+
 /**
- * What the list says about one method from its two reads. A read still running
- * leaves the row pending; a read that did not answer marks it unavailable. A
- * module the deployment does not ship, or one that does not answer to the
- * method interface, is a third-party module.
+ * What the list says about one method from its three reads. A read still
+ * running leaves the row pending; a read that did not answer marks it
+ * unavailable. A module the deployment does not ship, or one that does not
+ * answer to the method interface, is a third-party module; one that answers
+ * to it keeps its own declaration, read by the same rule as a shipped method.
  */
 const contractOf = (
   method: Address,
@@ -90,21 +139,24 @@ const contractOf = (
   if (unanswered.length > 0) {
     return { status: 'unavailable', unanswered }
   }
-  const { trustedParties, moduleInfo } = reads
-  if (!trustedParties?.answered || !moduleInfo?.answered) {
+  const { trustedParties, moduleInfo, paused } = reads
+  if (!trustedParties?.answered || !moduleInfo?.answered || !paused?.answered) {
     return { status: 'pending' }
   }
-  const shipped = input.shippedMethods.some((address) => sameAddress(address, method))
-  if (!shipped || !moduleInfo.value.supportsInterface) {
+  if (!moduleInfo.value.supportsInterface) {
     return { status: 'third-party' }
   }
-  const admin = nonZero(trustedParties.value.admin)
+  const admin = adminDeclarationOf(method, trustedParties.value, input)
+  const stop = stopDeclarationOf(trustedParties.value, paused.value)
+  const shipped = input.shippedMethods.some((address) => sameAddress(address, method))
+  if (!shipped) {
+    return { status: 'third-party', declaration: { ...admin, ...stop } }
+  }
   return {
     status: 'declared',
-    admin,
-    pendingAdmin: nonZero(trustedParties.value.pendingAdmin),
-    recoverAlone: !!admin && aloneSatisfiesRule(input.clauses, method, input.addressBook),
-    passportRenewal: sameAddress(method, input.addressBook.methods.zkpassport)
+    ...admin,
+    passportRenewal: sameAddress(method, input.addressBook.methods.zkpassport),
+    ...stop
   }
 }
 
@@ -156,6 +208,43 @@ export const trustRowsOf = (input: TrustRowsInput): TrustRow[] => {
 export const trustReadsComplete = (rows: readonly TrustRow[]): boolean =>
   rows.length > 0 &&
   rows.every(({ contract }) => contract.status !== 'pending' && contract.status !== 'unavailable')
+
+/** Whether two addresses name the same party. */
+const sameParty = (one: Address | undefined, other: Address | undefined): one is Address =>
+  !!one && !!other && sameAddress(one, other)
+
+/**
+ * The security stop block's rows: one per method of the path in the trust
+ * list's order, each from that method's own declaration. A module with no
+ * declaration takes no row.
+ */
+export const stopRowsOf = (rows: readonly TrustRow[]): StopRow[] =>
+  rows.flatMap(({ method, kind, contract }): StopRow[] => {
+    if (contract.status === 'pending') {
+      return [{ method, kind, stop: { status: 'pending' } }]
+    }
+    if (contract.status === 'unavailable') {
+      return [{ method, kind, stop: { status: 'unavailable' } }]
+    }
+    const declared = contract.status === 'declared' ? contract : contract.declaration
+    if (!declared) {
+      return []
+    }
+    const { admin, paused, pauseHolder, pendingPauseHolder } = declared
+    return [
+      {
+        method,
+        kind,
+        stop: {
+          status: 'declared',
+          paused,
+          ...(pauseHolder ? { pauseHolder } : {}),
+          ...(pendingPauseHolder ? { pendingPauseHolder } : {}),
+          ...(sameParty(pauseHolder, admin) ? { bothRoles: pauseHolder } : {})
+        }
+      }
+    ]
+  })
 
 /** The node by kind: a light client with its prover, or a plain node where the kind is absent. */
 export const nodeKindOf = (providerKind: ProviderKind | undefined): NodeKind =>

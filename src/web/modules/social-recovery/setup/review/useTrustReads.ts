@@ -1,5 +1,5 @@
 /**
- * Runs the two declaration reads of every method of the path through the
+ * Runs the declaration reads and the stop read of every method of the path through the
  * client's module reads, and runs again the ones that did not answer on
  * request. A read that rejects did not answer; it is never read as empty.
  */
@@ -59,6 +59,12 @@ export const useTrustReads = (
         moduleReads.moduleInfo(method).then(
           (result) => land((held) => ({ ...held, moduleInfo: result })),
           () => land((held) => ({ ...held, moduleInfo: UNANSWERED }))
+        )
+      }
+      if (names.includes('paused')) {
+        moduleReads.paused(method).then(
+          (result) => land((held) => ({ ...held, paused: result })),
+          () => land((held) => ({ ...held, paused: UNANSWERED }))
         )
       }
     },
