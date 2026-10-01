@@ -3,6 +3,7 @@ import { Route, Routes } from 'react-router-dom'
 
 import AuthenticatedRoute from '@web/modules/router/components/AuthenticatedRoute'
 import KeystoreUnlockedRoute from '@web/modules/router/components/KeystoreUnlockedRoute'
+import ReviewScreen from '@web/modules/social-recovery/setup/review/ReviewScreen'
 import RecoveryCardScreen from '@web/modules/social-recovery/setup/card/RecoveryCardScreen'
 import PrivacyScreen from '@web/modules/social-recovery/setup/privacy/PrivacyScreen'
 import WaitingPeriodScreen from '@web/modules/social-recovery/setup/privacy/WaitingPeriodScreen'
@@ -39,6 +40,7 @@ const SocialRecoveryRoutes = () => (
           socialRecoveryManage, socialRecoveryCancel, socialRecoveryCreate and
           socialRecoveryRecovery.
         */}
+        <Route path="setup/review" element={<ReviewScreen />} />
         <Route path="setup/card" element={<RecoveryCardScreen />} />
         <Route path="setup/waiting-period" element={<WaitingPeriodScreen />} />
         <Route path="setup/privacy" element={<PrivacyScreen />} />
