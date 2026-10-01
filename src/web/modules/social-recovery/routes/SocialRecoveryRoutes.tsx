@@ -3,6 +3,7 @@ import { Route, Routes } from 'react-router-dom'
 
 import AuthenticatedRoute from '@web/modules/router/components/AuthenticatedRoute'
 import KeystoreUnlockedRoute from '@web/modules/router/components/KeystoreUnlockedRoute'
+import EditorScreen from '@web/modules/social-recovery/setup/editor/EditorScreen'
 import PresetsScreen from '@web/modules/social-recovery/setup/presets/PresetsScreen'
 import CeremonyScreen from '@web/modules/social-recovery/shared/ceremony/screen'
 
@@ -36,6 +37,7 @@ const SocialRecoveryRoutes = () => (
           socialRecoveryRecovery.
         */}
         <Route path="setup" element={<PresetsScreen />} />
+        <Route path="setup/editor" element={<EditorScreen />} />
       </Route>
     </Route>
 
