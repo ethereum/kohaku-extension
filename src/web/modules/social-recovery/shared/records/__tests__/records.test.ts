@@ -474,6 +474,67 @@ describe('the six setup records', () => {
   })
 })
 
+describe("an enrollment's credential id, passkey facts and last passed test", () => {
+  const FULL: Enrollment = {
+    ...ENROLLMENT,
+    backup: 'synced',
+    credentialId: 'AQIDBAUGBwgJCgsMDQ4PEA',
+    facts: {
+      kind: 'synced',
+      backedUp: true,
+      place: 'phone',
+      attachment: 'cross-platform',
+      transports: ['hybrid', 'internal'],
+      aaguid: 'ea9b8d66-4d01-1d21-3ce4-b6b48cb575d4'
+    },
+    lastTest: { salt: '0x0102', at: T0 - HOUR }
+  }
+
+  it('reads back the credential id, the facts and the last test unchanged', async () => {
+    const { records } = setup()
+    await records.setup(CHAIN_ID, ACCOUNT).enrollments.write([FULL])
+    const { value } = present(await records.setup(CHAIN_ID, ACCOUNT).enrollments.read())
+    expect(value).toEqual([FULL])
+  })
+
+  it('reads them the same from another instance over the same storage, as after a reload', async () => {
+    const { storage, records } = setup()
+    await records.setup(CHAIN_ID, ACCOUNT).enrollments.write([FULL])
+    const reloaded = createWalletRecords({ storage, now: () => T0 + HOUR })
+    const { value } = present(await reloaded.setup(CHAIN_ID, ACCOUNT).enrollments.read())
+    expect(value).toEqual([FULL])
+  })
+
+  it('reads an enrollment written without them as before, with none of the three members', async () => {
+    const { records } = setup()
+    await records.setup(CHAIN_ID, ACCOUNT).enrollments.write([ENROLLMENT, FULL])
+    const { value } = present(await records.setup(CHAIN_ID, ACCOUNT).enrollments.read())
+    expect(value).toEqual([ENROLLMENT, FULL])
+    expect(Object.keys(value[0]).sort()).toEqual(['backup', 'credential', 'test'])
+  })
+
+  it('keeps the last test time a number and the transports an array of strings', async () => {
+    const { records } = setup()
+    await records.setup(CHAIN_ID, ACCOUNT).enrollments.write([FULL])
+    const [read] = present(await records.setup(CHAIN_ID, ACCOUNT).enrollments.read()).value
+    expect(typeof read.lastTest?.at).toBe('number')
+    expect(read.lastTest?.at).toBe(T0 - HOUR)
+    expect(Array.isArray(read.facts?.transports)).toBe(true)
+    read.facts?.transports.forEach((transport) => expect(typeof transport).toBe('string'))
+    expect(read.facts?.transports).toEqual(['hybrid', 'internal'])
+  })
+
+  it('reads a stored enrollment with an extra unknown member without refusal', async () => {
+    const { storage, records } = setup()
+    const key = recordKeys.setup('enrollments', CHAIN_ID, ACCOUNT)
+    const extra = { ...FULL, laterMember: { note: 'from a newer build' } }
+    await storage.set(key, { value: [extra], savedAt: T0 })
+    const read = present(await records.setup(CHAIN_ID, ACCOUNT).enrollments.read())
+    expect(read.savedAt).toBe(T0)
+    expect(read.value).toEqual([extra])
+  })
+})
+
 describe('the empty slots of a path', () => {
   it('a slot of each kind round-trips through storage and still reads as an empty slot of its kind', async () => {
     const { records } = setup()

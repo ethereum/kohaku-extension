@@ -115,16 +115,45 @@ export type EnrollmentTestVerdict = typeof ENROLLMENT_TEST_VERDICTS[number]
 export const PASSKEY_BACKUP_KINDS = ['synced', 'device-bound'] as const
 export type PasskeyBackupKind = typeof PASSKEY_BACKUP_KINDS[number]
 
+/** Where the authenticator sat, read from its attachment and its transports. */
+export type EnrollmentAuthenticatorPlace = 'this-device' | 'phone' | 'security-key' | 'unknown'
+
+/** How the authenticator is attached, or `null` when the browser did not say. */
+export type EnrollmentAuthenticatorAttachment = 'platform' | 'cross-platform' | null
+
+/**
+ * What the passkey ceremony reported about the credential at enrollment. The
+ * chain keeps only the public key, so these facts live on this device alone.
+ */
+export interface EnrollmentFacts {
+  kind: PasskeyBackupKind
+  backedUp: boolean
+  place: EnrollmentAuthenticatorPlace
+  attachment: EnrollmentAuthenticatorAttachment
+  transports: string[]
+  aaguid?: string
+}
+
+/** The last access test that passed: its challenge salt and when it passed (ms since epoch). */
+export interface EnrollmentLastTest {
+  salt: Hex
+  at: number
+}
+
 /**
  * One enrollment not yet saved on chain: the credential it produced, its
  * access test verdict with the cause a failed test reported, and for a passkey
- * its backup kind.
+ * its backup kind, its credential id (base64url, as the ceremony reports it)
+ * and the facts the ceremony reported. `lastTest` is the last test that passed.
  */
 export interface Enrollment {
   credential: Credential
   test: EnrollmentTestVerdict
   cause?: string
   backup?: PasskeyBackupKind
+  credentialId?: string
+  facts?: EnrollmentFacts
+  lastTest?: EnrollmentLastTest
 }
 
 /** 4. The enrollments. */
