@@ -107,6 +107,7 @@ export type {
   SignerFacade,
   SignerMember,
   SignerFacadeOptions,
+  SignOptions,
   SignRequestAction,
   SignRequestPort,
   SignRequestUpdate,

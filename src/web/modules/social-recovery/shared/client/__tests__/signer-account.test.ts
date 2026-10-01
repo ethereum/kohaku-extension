@@ -30,6 +30,7 @@ import {
   isSignFlowFailure,
   KeyHandle,
   queueOver,
+  queued,
   QueueWorld,
   SEPOLIA,
   SignFlowFailure,
@@ -145,6 +146,7 @@ describe('signMessage', () => {
     const { q, account } = accountOver()
     const signing = track(account.signMessage({ message: 'hello' }))
     const { userRequest } = addedRequest(q.dispatch)
+    q.push(queued(userRequest.id))
     await advance(DEFAULT_SIGN_TIMEOUT_MS)
     expect(signing.status).toBe('rejected')
     expect((signing.value as SignFlowFailure).reason).toBe('timeout')

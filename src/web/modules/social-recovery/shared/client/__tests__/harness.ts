@@ -479,6 +479,18 @@ export const queued = (...requestIds: (string | number)[]): SignRequestUpdate =>
   }
 })
 
+/** The `requests` state with some request ids queued and others waiting for an account switch. */
+export const listedIn = (
+  queuedIds: (string | number)[],
+  waitingIds: (string | number)[]
+): SignRequestUpdate => ({
+  controller: 'requests',
+  state: {
+    userRequests: queuedIds.map((requestId) => ({ id: requestId })),
+    userRequestsWaitingAccountSwitch: waitingIds.map((requestId) => ({ id: requestId }))
+  }
+})
+
 /** The `signMessage` state carrying a signed message for a request id. */
 export const signedFor = (requestId: string | number, signature: unknown): SignRequestUpdate => ({
   controller: 'signMessage',

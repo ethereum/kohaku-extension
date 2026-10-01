@@ -320,14 +320,22 @@ export interface TypedDataToSign {
 /** The facade. Its two members are its whole surface. */
 export interface SignerFacade {
   /** An EIP-712 signature over the typed data by the key, after the holder confirms it. */
-  signTypedData(key: KeyHandle, typedData: TypedDataToSign): Promise<Hex>
+  signTypedData(key: KeyHandle, typedData: TypedDataToSign, options?: SignOptions): Promise<Hex>
   /** An EIP-191 personal-message signature over the bytes by the key, after the holder confirms it. */
-  signBytes(key: KeyHandle, bytes: Hex): Promise<Hex>
+  signBytes(key: KeyHandle, bytes: Hex, options?: SignOptions): Promise<Hex>
+}
+
+/**
+ * What a caller may pass with one signature. An abort of `signal` before the
+ * answer arrives withdraws the request from the queue.
+ */
+export interface SignOptions {
+  signal?: AbortSignal
 }
 
 export type SignerMember = typeof SIGNER_MEMBERS[number]
 
-/** The two request-queue actions the facade dispatches: add its request, and withdraw it on a timeout. */
+/** The two request-queue actions the facade dispatches: add its request, and withdraw it on a timeout or an abort. */
 export type SignRequestAction = Extract<
   Action,
   { type: 'REQUESTS_CONTROLLER_ADD_USER_REQUEST' | 'REQUESTS_CONTROLLER_REMOVE_USER_REQUEST' }

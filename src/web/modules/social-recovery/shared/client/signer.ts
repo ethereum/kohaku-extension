@@ -22,7 +22,8 @@
  *    it recovers, in this page, to the key's address over the facade's own
  *    content. A request that leaves the queue with no such signature (the
  *    holder rejected it or closed the window) is refused. A request with no
- *    answer in time is withdrawn.
+ *    answer in time, or whose caller aborts it before the answer, is
+ *    withdrawn.
  *
  * The queue signs for an account the wallet lists with that account's keys.
  * A key that is itself a basic account (an EOA the wallet lists, its own only
@@ -59,6 +60,7 @@ import type {
   SignerNotWired,
   SignFlowFailure,
   SignFlowFailureReason,
+  SignOptions,
   SignRequestPort,
   TypedDataToSign
 } from './types'
@@ -85,13 +87,15 @@ export const isSignerNotWired = (value: unknown): value is SignerNotWired =>
 /**
  * Why a queued request returned no signature: it left the queue with none
  * (the holder rejected it or closed the action window), no answer came in
- * time (the facade then withdraws it), the answer was not a hex signature,
- * or the signature does not recover to the key's address over the facade's
- * own content.
+ * time (the facade then withdraws it), the caller aborted it before the
+ * answer came (the facade then withdraws it), the answer was not a hex
+ * signature, or the signature does not recover to the key's address over the
+ * facade's own content.
  */
 export const SIGN_FLOW_FAILURE_REASONS = [
   'refused',
   'timeout',
+  'withdrawn',
   'malformed-signature',
   'signer-mismatch'
 ] as const
@@ -117,10 +121,13 @@ export const isSignFlowFailure = (value: unknown): value is SignFlowFailure =>
  * request while a swap, bridge or transfer signs with a hardware wallet in the
  * action window, so that request times out too.
  *
- * The withdrawal reaches `userRequests` alone: a request still waiting for an
- * account switch stays until the action window closes. A holder who accepts
- * that switch after the timeout still sees the sign screen; the signature then
- * reaches no caller, but the activity records it.
+ * The queue's removal reaches `userRequests` alone: a request still waiting
+ * for an account switch stays there until the holder accepts the switch or the
+ * action window closes. After a withdrawal the facade therefore keeps watching
+ * the queue, for the same wait again, and removes the request again when it
+ * surfaces in `userRequests`. A page closed before the holder accepts the
+ * switch watches nothing: the holder then still sees the sign screen, and the
+ * signature reaches no caller, but the activity records it.
  *
  * Each signature adds an entry to the account's activity and raises a "message
  * signed" notification, and an accepted switch changes the wallet's selected
@@ -249,11 +256,15 @@ export const createSignerFacade = (
   const run = (
     member: SignerMember,
     key: KeyHandle,
-    content: PlainTextMessage | TypedMessage
+    content: PlainTextMessage | TypedMessage,
+    signal: AbortSignal | undefined
   ): Promise<Hex> => {
     const listed = listedBasicAccountOf(port.accounts(), key)
     if (!listed) {
       return Promise.reject(signerNotWired(member, key))
+    }
+    if (signal?.aborted) {
+      return Promise.reject(signFlowFailure(member, 'withdrawn'))
     }
     // The queue and the sign-message controller compare addresses with exact
     // case, so the request carries the listed account's own (checksum-cased) address.
@@ -263,36 +274,130 @@ export const createSignerFacade = (
       let done = false
       let answered = false
       let queued = false
+      let inUserRequests = false
+      let waitingForSwitch = false
+      let withdrawing = false
+      let removedOnce = false
       let unsubscribe: () => void = () => {}
+      let onAbort: () => void = () => {}
       let timer: ReturnType<typeof setTimeout> | undefined
       let absence: ReturnType<typeof setTimeout> | undefined
+      let watchBound: ReturnType<typeof setTimeout> | undefined
+      let gone: ReturnType<typeof setTimeout> | undefined
+
+      const remove = () =>
+        port.dispatch({ type: 'REQUESTS_CONTROLLER_REMOVE_USER_REQUEST', params: { id } })
+
+      const stopWatching = () => {
+        withdrawing = false
+        if (watchBound !== undefined) {
+          clearTimeout(watchBound)
+        }
+        if (gone !== undefined) {
+          clearTimeout(gone)
+        }
+        unsubscribe()
+      }
+
+      // The background may still be adding the request when it is withdrawn,
+      // and a removal that arrives first finds nothing, so the removal waits
+      // until a queue state lists the request. The queue removes only from
+      // `userRequests`: a request waiting for an account switch is removed
+      // again once the accepted switch moves it there. The watch ends once the
+      // removal is sent for a request listed in `userRequests`, once it stays
+      // out of both lists, or when the wait passes again.
+      const followWithdrawal = () => {
+        if (inUserRequests) {
+          remove()
+          stopWatching()
+          return
+        }
+        if (!removedOnce) {
+          removedOnce = true
+          remove()
+        }
+        if (waitingForSwitch) {
+          if (gone !== undefined) {
+            clearTimeout(gone)
+          }
+          gone = undefined
+        } else if (gone === undefined) {
+          gone = setTimeout(stopWatching, ABSENCE_GRACE_MS)
+        }
+      }
 
       const end = (withdraw: boolean): boolean => {
-        if (done) return false
+        if (done) {
+          return false
+        }
         done = true
-        if (timer !== undefined) clearTimeout(timer)
-        if (absence !== undefined) clearTimeout(absence)
-        unsubscribe()
-        if (withdraw)
-          port.dispatch({ type: 'REQUESTS_CONTROLLER_REMOVE_USER_REQUEST', params: { id } })
+        if (timer !== undefined) {
+          clearTimeout(timer)
+        }
+        if (absence !== undefined) {
+          clearTimeout(absence)
+        }
+        signal?.removeEventListener('abort', onAbort)
+        if (!withdraw) {
+          unsubscribe()
+          return true
+        }
+        withdrawing = true
+        watchBound = setTimeout(stopWatching, timeoutMs)
+        if (queued) {
+          followWithdrawal()
+        }
         return true
       }
       const succeed = (signature: Hex) => {
-        if (end(false)) resolve(signature)
+        if (end(false)) {
+          resolve(signature)
+        }
       }
       const fail = (reason: SignFlowFailureReason, withdraw = false) => {
-        if (end(withdraw)) reject(signFlowFailure(member, reason))
+        if (end(withdraw)) {
+          reject(signFlowFailure(member, reason))
+        }
+      }
+
+      // Once the answer arrived, an abort no longer withdraws the request.
+      onAbort = () => {
+        if (!answered) {
+          fail('withdrawn', true)
+        }
       }
 
       timer = setTimeout(() => fail('timeout', true), timeoutMs)
+      signal?.addEventListener('abort', onAbort)
 
       unsubscribe = port.subscribe((update) => {
+        if (update.controller === 'requests') {
+          inUserRequests = (update.state.userRequests ?? []).some((request) =>
+            sameId(request.id, id)
+          )
+          waitingForSwitch = (update.state.userRequestsWaitingAccountSwitch ?? []).some((request) =>
+            sameId(request.id, id)
+          )
+        }
+        if (withdrawing) {
+          if (update.controller === 'requests') {
+            queued = queued || inUserRequests || waitingForSwitch
+            if (queued) {
+              followWithdrawal()
+            }
+          }
+          return
+        }
         // The first signature under the request's id is its answer; nothing
         // pushed after it counts.
-        if (done || answered) return
+        if (done || answered) {
+          return
+        }
         if (update.controller === 'signMessage') {
           const signed = update.state.signedMessage
-          if (!signed || !sameId(signed.fromActionId, id)) return
+          if (!signed || !sameId(signed.fromActionId, id)) {
+            return
+          }
           const { signature } = signed
           const malformed = () => fail('malformed-signature')
           if (!isHex(signature)) {
@@ -300,7 +405,9 @@ export const createSignerFacade = (
             return
           }
           answered = true
-          if (absence !== undefined) clearTimeout(absence)
+          if (absence !== undefined) {
+            clearTimeout(absence)
+          }
           absence = undefined
           // Verified in this page: the signature must recover to the key over
           // the facade's own content, whatever the background reports.
@@ -315,13 +422,11 @@ export const createSignerFacade = (
           }, malformed)
           return
         }
-        const present = [
-          ...(update.state.userRequests ?? []),
-          ...(update.state.userRequestsWaitingAccountSwitch ?? [])
-        ].some((request) => sameId(request.id, id))
-        if (present) {
+        if (inUserRequests || waitingForSwitch) {
           queued = true
-          if (absence !== undefined) clearTimeout(absence)
+          if (absence !== undefined) {
+            clearTimeout(absence)
+          }
           absence = undefined
         } else if (queued && absence === undefined) {
           // The queue moves a request between its two lists after an account
@@ -342,7 +447,11 @@ export const createSignerFacade = (
   }
 
   return Object.freeze({
-    signTypedData(key: KeyHandle, typedData: TypedDataToSign): Promise<Hex> {
+    signTypedData(
+      key: KeyHandle,
+      typedData: TypedDataToSign,
+      signOptions?: SignOptions
+    ): Promise<Hex> {
       // A domain alone carries no message for the holder to read.
       if (typedData.primaryType === 'EIP712Domain') {
         return Promise.reject(
@@ -357,13 +466,13 @@ export const createSignerFacade = (
       } catch {
         return Promise.reject(new Error('signTypedData takes valid EIP-712 typed data.'))
       }
-      return run('signTypedData', key, content)
+      return run('signTypedData', key, content, signOptions?.signal)
     },
-    signBytes(key: KeyHandle, bytes: Hex): Promise<Hex> {
+    signBytes(key: KeyHandle, bytes: Hex, signOptions?: SignOptions): Promise<Hex> {
       if (!isHex(bytes)) {
         return Promise.reject(new Error('signBytes takes 0x-prefixed hex bytes.'))
       }
-      return run('signBytes', key, { kind: 'message', message: bytes })
+      return run('signBytes', key, { kind: 'message', message: bytes }, signOptions?.signal)
     }
   })
 }
