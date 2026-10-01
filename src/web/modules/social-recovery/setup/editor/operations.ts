@@ -14,6 +14,7 @@ import type {
   Address,
   Clause,
   Credential,
+  Finding,
   SetupDraft,
   ValidationResult
 } from '@web/modules/social-recovery/sdk-interfaces'
@@ -86,7 +87,10 @@ export const pathHolds = (
 
 /**
  * The role a stored clause reads as: a threshold of one over one credential is
- * a required row, anything else a group.
+ * a required row, anything else a group. The shape alone cannot tell a required
+ * row from a one-of-one group with an unfilled slot, so a caller that holds the
+ * roles passes them, and this guess serves only a stored draft read without
+ * its roles.
  */
 export const roleOf = (clause: Clause): ClauseRole =>
   clause.threshold === 1 && clause.credentials.length === 1 ? 'required' : 'group'
@@ -364,5 +368,14 @@ export const enrollSearchOf = (kind: SlotKind, at: SlotPosition): string =>
     member: String(at.member)
   }).toString()}`
 
+/**
+ * The errors of a path check the editor answers for. A wait finding belongs to
+ * the waiting period step, which refuses the wait in its own words, so the
+ * editor leaves it there.
+ */
+export const editorErrorsOf = (result: ValidationResult): Finding[] =>
+  result.errors.filter((finding) => !finding.code.startsWith('wait.'))
+
 /** Whether a path check found anything that blocks the next step. Warnings never block. */
-export const blocksContinue = (result: ValidationResult): boolean => result.errors.length > 0
+export const blocksContinue = (result: ValidationResult): boolean =>
+  editorErrorsOf(result).length > 0

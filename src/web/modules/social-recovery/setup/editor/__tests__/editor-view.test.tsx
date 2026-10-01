@@ -421,6 +421,23 @@ describe('the rule lines on screen', () => {
     expect(shown()).not.toEqual(expected(presetPath()))
   })
 
+  it('show a line the lane repeats on a two-group path every time, with no React key warning', async () => {
+    const clauses = [...presetPath(), { threshold: 1, credentials: [CAROL, AADHAAR] }]
+    const error = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      await mount({ clauses })
+      const keys = getRuleLines(clauses).map((line) => line.key)
+      expect(new Set(keys).size).toBeLessThan(keys.length)
+      expect(shown()).toEqual(expected(clauses))
+      const keyWarnings = error.mock.calls.filter((call) =>
+        call.some((part) => String(part).includes('same key'))
+      )
+      expect(keyWarnings).toEqual([])
+    } finally {
+      error.mockRestore()
+    }
+  })
+
   it('drop every line of the old shape when one of three groups of the same shape changes its threshold', async () => {
     const pair = (a: string, b: string) => ({
       threshold: 1,
@@ -542,7 +559,7 @@ describe('continue', () => {
     expect(navigate).not.toHaveBeenCalled()
     expect(allByTestId('editor-finding')).toEqual([
       en.socialRecovery.editor.refusals.emptyGroup,
-      'action.unsupported'
+      en.socialRecovery.editor.refusals.actionUnsupported
     ])
     expect(byTestId('editor-continue')).not.toBeNull()
   })
@@ -720,12 +737,11 @@ describe('edits while the path check runs', () => {
     return { validate, answer: (result: ValidationResult) => answer(result) }
   }
 
-  const clauses = () => [...presetPath(), { threshold: 1, credentials: [emptySlotOf('aadhaar')] }]
+  const clauses = () => [...presetPath(), { threshold: 1, credentials: [DAVE, AADHAAR] }]
 
   const controls = [
     'editor-row-0-move',
     'editor-row-0-remove',
-    'editor-slot-2-0',
     'editor-add-required',
     'editor-group-1-threshold',
     'editor-member-1-0-required',
@@ -756,7 +772,6 @@ describe('edits while the path check runs', () => {
     expect(storage.sets.length).toBe(writesBefore)
     expect(await stored()).toEqual({ draft: draftOf(clauses()), path: clauses() })
     expect(navigate).not.toHaveBeenCalled()
-    // A slot pressed during the check leaves the open picker on its own target.
     expect(byTestId('editor-picker-ecdsa')).not.toBeNull()
 
     await act(async () => check.answer({ errors: [finding('clause.empty')], warnings: [] }))
@@ -768,7 +783,7 @@ describe('edits while the path check runs', () => {
     await expectPathMatchesDraft(stored, [
       { threshold: 1, credentials: [PASSKEY] },
       { threshold: 2, credentials: [ALICE, BOB, PASSPORT, CAROL] },
-      { threshold: 1, credentials: [emptySlotOf('aadhaar')] }
+      { threshold: 1, credentials: [DAVE, AADHAAR] }
     ])
   })
 })
@@ -814,11 +829,14 @@ describe('a failed read or write of the draft', () => {
   it('writes the draft and its path again on "Try again", clearing the failure and freeing continue', async () => {
     const { storage, stored, navigate } = await mount({ clauses: presetPath() })
     storage.rejectOnce('set', 'path')
-    await press('editor-add-group')
+    await press('editor-member-1-2-remove')
     expect(byTestId('editor-write-failed')).not.toBeNull()
     expect(byTestId('editor-write-retry')?.textContent).toBe(en.socialRecovery.writes.tryAgain)
     expect(isHeld('editor-continue')).toBe(true)
-    const edited = [...presetPath(), { threshold: 2, credentials: [] }]
+    const edited = [
+      { threshold: 1, credentials: [PASSKEY] },
+      { threshold: 2, credentials: [ALICE, BOB] }
+    ]
     expect(await stored()).toEqual({ draft: draftOf(presetPath()), path: presetPath() })
 
     await press('editor-write-retry')

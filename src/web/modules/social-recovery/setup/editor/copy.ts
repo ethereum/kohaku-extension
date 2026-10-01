@@ -1,11 +1,16 @@
 /**
  * The editor's words: each method kind's name and picker header, the chip a
  * row carries with a failed test's line, the line under a threshold that is
- * not a whole number, and the line a path check finding renders as. A finding whose
- * code has a refusal sentence renders that sentence; any other finding renders
- * its code.
+ * not a whole number, the sentence of each refusal this wallet applies, the
+ * rules panel, and the line a path check finding renders as. Every setup error
+ * renders a sentence; any other finding renders its code.
  */
-import type { Credential, Finding, FindingCode } from '@web/modules/social-recovery/sdk-interfaces'
+import type {
+  Credential,
+  Finding,
+  FindingCode,
+  SetupErrorCode
+} from '@web/modules/social-recovery/sdk-interfaces'
 import { renderChip } from '@web/modules/social-recovery/shared/display'
 import type { MethodChip, Translate } from '@web/modules/social-recovery/shared/display'
 import type {
@@ -16,7 +21,7 @@ import type {
 } from '@web/modules/social-recovery/shared/records'
 
 import { enrollmentOf, isEmptySlot } from './operations'
-import type { ClientRefusal } from './types'
+import type { ClauseRole, ClientRefusal, Refusal, RefusalKey, RulesPanelLine } from './types'
 
 const KIND_NAME_KEYS: Record<SlotKind, string> = {
   passkey: 'socialRecovery.methodNames.passkey',
@@ -40,17 +45,52 @@ const VERDICT_CHIPS: Record<EnrollmentTestVerdict, MethodChip> = {
   'not-supported': 'notSupported'
 }
 
-const FINDING_KEYS: Partial<Record<FindingCode, string>> = {
-  'rule.empty': 'socialRecovery.editor.refusals.noMethod',
-  'clause.empty': 'socialRecovery.editor.refusals.emptyGroup',
-  'rule.all-thresholds-zero': 'socialRecovery.editor.refusals.thresholdBelowOne',
-  'clause.threshold-above-count': 'socialRecovery.editor.refusals.thresholdAboveMembers',
-  'clause.threshold-too-wide': 'socialRecovery.editor.refusals.thresholdAboveField',
-  'rule.too-wide': 'socialRecovery.editor.refusals.tooLarge',
-  'credential.duplicate': 'socialRecovery.editor.duplicate',
-  'wait.field-width': 'socialRecovery.editor.refusals.waitFieldWidth',
-  'wait.above-maximum': 'socialRecovery.editor.refusals.waitCeiling'
+const REFUSAL_KEYS: Record<RefusalKey, string> = {
+  emptyGroup: 'socialRecovery.editor.refusals.emptyGroup',
+  emptyGroupSlot: 'socialRecovery.editor.refusals.emptyGroupSlot',
+  emptyRequired: 'socialRecovery.editor.refusals.emptyRequired',
+  thresholdAboveMembers: 'socialRecovery.editor.refusals.thresholdAboveMembers',
+  thresholdBelowOne: 'socialRecovery.editor.refusals.thresholdBelowOne',
+  thresholdBelowOneOwnRule: 'socialRecovery.editor.refusals.thresholdBelowOneOwnRule',
+  thresholdAboveField: 'socialRecovery.editor.refusals.thresholdAboveField',
+  memberCeiling: 'socialRecovery.editor.refusals.memberCeiling',
+  noMethod: 'socialRecovery.editor.refusals.noMethod',
+  waitFieldWidth: 'socialRecovery.editor.refusals.waitFieldWidth',
+  waitCeiling: 'socialRecovery.editor.refusals.waitCeiling',
+  tooLarge: 'socialRecovery.editor.refusals.tooLarge'
 }
+
+// A backup too wide for its padding and an action that cannot serve the
+// account are the SDK's findings alone: this wallet never judges either shape
+// itself, so each has a sentence of its own outside the editor's refusals.
+const SETUP_ERROR_KEYS: Record<SetupErrorCode, string> = {
+  'rule.empty': REFUSAL_KEYS.noMethod,
+  'clause.empty': REFUSAL_KEYS.emptyGroup,
+  'rule.all-thresholds-zero': REFUSAL_KEYS.thresholdBelowOne,
+  'clause.threshold-above-count': REFUSAL_KEYS.thresholdAboveMembers,
+  'clause.threshold-too-wide': REFUSAL_KEYS.thresholdAboveField,
+  'rule.too-wide': REFUSAL_KEYS.tooLarge,
+  'credential.duplicate': 'socialRecovery.editor.duplicate',
+  'wait.field-width': REFUSAL_KEYS.waitFieldWidth,
+  'wait.above-maximum': REFUSAL_KEYS.waitCeiling,
+  'action.unsupported': 'socialRecovery.editor.refusals.actionUnsupported',
+  'backup.too-wide': 'socialRecovery.editor.refusals.backupTooWide'
+}
+
+const FINDING_KEYS: Partial<Record<FindingCode, string>> = SETUP_ERROR_KEYS
+
+/** The rules panel's lines, the zero threshold's own-rule line last. */
+const RULES_PANEL_LINES: readonly RulesPanelLine[] = [
+  'requiredAnswers',
+  'enoughMembers',
+  'thresholdAtLeastOne',
+  'thresholdCeiling',
+  'memberCeiling',
+  'oneRowPerMethod',
+  'atLeastOneMethod',
+  'smallEnough',
+  'zeroThresholdOwnRule'
+]
 
 const CLIENT_REFUSAL_KEYS: Record<ClientRefusal, { title: string; body: string }> = {
   'update-the-wallet': {
@@ -129,3 +169,32 @@ export const renderFinding = (finding: Finding, t: Translate): string => {
   const key = FINDING_KEYS[finding.code]
   return key ? t(key) : finding.code
 }
+
+export const renderRefusal = (refusal: Refusal, t: Translate): string =>
+  t(REFUSAL_KEYS[refusal.key])
+
+/**
+ * The label of the clause a refusal points at, as the editor heads it: the
+ * required section's for a required row, "Group n" for a group, counting the
+ * groups alone. A refusal of the whole path or of its wait has none.
+ */
+export const renderRefusalPlace = (
+  refusal: Refusal,
+  roles: readonly ClauseRole[],
+  t: Translate
+): string | null => {
+  const { clause } = refusal
+  if (clause === undefined || !roles[clause]) {
+    return null
+  }
+  if (roles[clause] === 'required') {
+    return t('socialRecovery.editor.requiredHeader')
+  }
+  const n = roles.slice(0, clause).filter((role) => role === 'group').length + 1
+  return t('socialRecovery.shape.group', { n })
+}
+
+export const renderRulesPanel = (t: Translate): { header: string; lines: string[] } => ({
+  header: t('socialRecovery.editor.rules.header'),
+  lines: RULES_PANEL_LINES.map((line) => t(`socialRecovery.editor.rules.${line}`))
+})

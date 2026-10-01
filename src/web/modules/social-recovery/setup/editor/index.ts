@@ -5,6 +5,7 @@
  * route and `setup/editor/EditorView` for the editor over given records.
  */
 export * from './operations'
+export * from './refusals'
 export {
   renderClientRefusal,
   renderFailedTestLine,
@@ -12,7 +13,10 @@ export {
   renderHeldThreshold,
   renderKindHeader,
   renderKindName,
-  renderRowChip
+  renderRefusal,
+  renderRefusalPlace,
+  renderRowChip,
+  renderRulesPanel
 } from './copy'
 export type {
   ClauseRole,
@@ -24,5 +28,8 @@ export type {
   HeldThresholds,
   PickerEntry,
   PickerTarget,
+  Refusal,
+  RefusalKey,
+  RulesPanelLine,
   SlotPosition
 } from './types'

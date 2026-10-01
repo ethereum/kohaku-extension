@@ -8,6 +8,7 @@ import { getAddress, zeroAddress } from 'viem'
 
 import i18n from '@common/config/localization'
 import en from '@common/config/localization/translations/en.json'
+import { SETUP_ERROR_CODES } from '@web/modules/social-recovery/sdk-interfaces'
 import type { Clause, Finding, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
 
 import { renderFailedTestLine, renderFinding } from '../copy'
@@ -16,6 +17,7 @@ import {
   addMember,
   addRequired,
   blocksContinue,
+  editorErrorsOf,
   emptySlotOf,
   enrollSearchOf,
   fillSlot,
@@ -442,6 +444,31 @@ describe('the path check at continue', () => {
     expect(blocksContinue({ errors: [], warnings: [] })).toBe(false)
   })
 
+  it('keeps every error but the wait findings, which the waiting period step answers', () => {
+    const errors = SETUP_ERROR_CODES.map(finding)
+    const kept = editorErrorsOf({ errors, warnings: [] }).map((error) => error.code)
+    expect(kept).toEqual(
+      SETUP_ERROR_CODES.filter(
+        (code) => code !== 'wait.field-width' && code !== 'wait.above-maximum'
+      )
+    )
+  })
+
+  it('lets continue through when the wait findings are the only errors', () => {
+    const waitOnly = {
+      errors: [finding('wait.field-width'), finding('wait.above-maximum')],
+      warnings: []
+    }
+    expect(editorErrorsOf(waitOnly)).toEqual([])
+    expect(blocksContinue(waitOnly)).toBe(false)
+    expect(
+      blocksContinue({
+        errors: [finding('wait.field-width'), finding('clause.empty')],
+        warnings: []
+      })
+    ).toBe(true)
+  })
+
   it('renders a finding through its refusal sentence, or its code where none maps', () => {
     expect(renderFinding(finding('clause.empty'), t)).toBe(
       en.socialRecovery.editor.refusals.emptyGroup
@@ -450,7 +477,7 @@ describe('the path check at continue', () => {
     expect(renderFinding(finding('clause.threshold-above-count'), t)).toBe(
       en.socialRecovery.editor.refusals.thresholdAboveMembers
     )
-    expect(renderFinding(finding('action.unsupported'), t)).toBe('action.unsupported')
+    expect(renderFinding(finding('clause.single-point'), t)).toBe('clause.single-point')
   })
 })
 

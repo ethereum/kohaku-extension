@@ -2,8 +2,11 @@
  * The setup editor over the draft record. Every edit runs one of the pure
  * operations, writes the draft and the path together, and keeps the path equal
  * to the draft's clauses. A credential the path already holds is refused
- * before the record changes. Continue runs the SDK's path check on the draft
- * and opens the waiting period only when the check finds no error.
+ * before the record changes. Continue first judges the path's shape against
+ * this wallet's own rules and, with a refusal, stays and names it without
+ * running the SDK's path check; otherwise it runs the check and opens the
+ * waiting period only when the check finds no error. The rules panel lists
+ * every rule the editor applies, always.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, View } from 'react-native'
@@ -30,6 +33,7 @@ import MemberPicker from './MemberPicker'
 import {
   addGroup,
   blocksContinue,
+  editorErrorsOf,
   emptySlotOf,
   enrollSearchOf,
   kindOf,
@@ -52,8 +56,10 @@ import {
   withClauses,
   withoutRole
 } from './operations'
+import { shapeRefusalsOf } from './refusals'
 import RequiredRows from './RequiredRows'
 import RuleLines from './RuleLines'
+import RulesPanel from './RulesPanel'
 import type {
   ClauseRole,
   ClientRefusal,
@@ -62,6 +68,7 @@ import type {
   EditResult,
   HeldThresholds,
   PickerTarget,
+  Refusal,
   SlotPosition
 } from './types'
 
@@ -73,6 +80,7 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
   const [rowChoosingGroup, setRowChoosingGroup] = useState<number | null>(null)
   const [heldThresholds, setHeldThresholds] = useState<HeldThresholds>({})
   const [findings, setFindings] = useState<Finding[]>([])
+  const [walletRefusals, setWalletRefusals] = useState<Refusal[]>([])
   const [checking, setChecking] = useState(false)
   const [checkFailed, setCheckFailed] = useState(false)
   const checkingRef = useRef(false)
@@ -161,6 +169,7 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
       setLoad(updated)
       setRefused(false)
       setFindings([])
+      setWalletRefusals([])
       setCheckFailed(false)
       setRowChoosingGroup(null)
       setPicker(null)
@@ -263,6 +272,13 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
     if (client.status !== 'ready' || !loadRef.current || checkingRef.current || thresholdHeld) {
       return
     }
+    const refusals = shapeRefusalsOf(loadRef.current.draft, loadRef.current.roles)
+    setWalletRefusals(refusals)
+    if (refusals.length > 0) {
+      setFindings([])
+      setCheckFailed(false)
+      return
+    }
     checkingRef.current = true
     setChecking(true)
     setCheckFailed(false)
@@ -279,7 +295,7 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
         return
       }
       if (blocksContinue(result)) {
-        setFindings(result.errors)
+        setFindings(editorErrorsOf(result))
         endCheck()
         return
       }
@@ -420,9 +436,13 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
         />
       )}
 
+      <RulesPanel />
+
       <EditorActions
         client={client}
         clientRefusal={clientRefusal}
+        walletRefusals={walletRefusals}
+        roles={load.roles}
         findings={findings}
         methodCount={methodCount}
         checking={checking}

@@ -13,6 +13,39 @@ import type {
 } from '@web/modules/social-recovery/shared/records'
 import type { RuleLine } from '@web/modules/social-recovery/shared/rule-lines'
 
+/** A shape this wallet refuses to save, named by its sentence. */
+export type RefusalKey =
+  | 'emptyGroup'
+  | 'emptyGroupSlot'
+  | 'emptyRequired'
+  | 'thresholdAboveMembers'
+  | 'thresholdBelowOne'
+  | 'thresholdBelowOneOwnRule'
+  | 'thresholdAboveField'
+  | 'memberCeiling'
+  | 'noMethod'
+  | 'waitFieldWidth'
+  | 'waitCeiling'
+  | 'tooLarge'
+
+/** One refusal of the draft: its sentence, and the clause it is about when it is about one. */
+export interface Refusal {
+  key: RefusalKey
+  clause?: number
+}
+
+/** One line of the rules panel. */
+export type RulesPanelLine =
+  | 'requiredAnswers'
+  | 'enoughMembers'
+  | 'thresholdAtLeastOne'
+  | 'thresholdCeiling'
+  | 'memberCeiling'
+  | 'oneRowPerMethod'
+  | 'atLeastOneMethod'
+  | 'smallEnough'
+  | 'zeroThresholdOwnRule'
+
 /** Where one credential sits in the path: its clause and its place among the clause's members. */
 export interface SlotPosition {
   clause: number
@@ -166,9 +199,18 @@ export interface RuleLinesProps {
   onAddSecondMethod: () => void
 }
 
+export interface RefusalListProps {
+  refusals: Refusal[]
+  /** The role of each clause, which heads a refusal with its clause's label. */
+  roles: readonly ClauseRole[]
+}
+
 export interface EditorActionsProps {
   client: EditorClient
   clientRefusal: ClientRefusal | null
+  /** The wallet's own refusals of the path at the last continue. */
+  walletRefusals: Refusal[]
+  roles: readonly ClauseRole[]
   findings: Finding[]
   methodCount: number
   checking: boolean
