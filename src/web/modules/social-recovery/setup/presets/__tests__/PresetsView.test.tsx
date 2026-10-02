@@ -32,6 +32,8 @@ const {
   stringify
 }: typeof import('@ambire-common/libs/richJson/richJson') = require('@ambire-common/libs/richJson/richJson')
 const en: typeof import('@common/config/localization/translations/en.json') = require('@common/config/localization/translations/en.json')
+const { t }: typeof import('@common/config/localization').default =
+  require('@common/config/localization').default
 const {
   ThemeContext
 }: typeof import('@common/contexts/themeContext') = require('@common/contexts/themeContext')
@@ -880,6 +882,174 @@ describe('the presets view', () => {
       expect(byTestId('presets-resume')).toBeNull()
       expect(byTestId('presets-grid')).not.toBeNull()
       expect(byTestId('resume-row')).toBeNull()
+    })
+  })
+
+  describe('start over while a save is on its way', () => {
+    const WHILE_SAVING = t('socialRecovery.records.startOverWhileSaving')
+    const WRITE_FAILED = t('socialRecovery.records.writeFailed')
+    const REQUEST_ID = 'social-recovery-sender:pending'
+
+    const claimSave = async (account: Address = ACCOUNT) => {
+      const draft = await storedDraft()
+      const { claimed } = await records.saveInFlight(CHAIN_ID, account).claim({
+        draft,
+        prepared: {
+          kind: 'call',
+          target: account,
+          value: 0n,
+          data: '0xabcdef',
+          sender: 'account',
+          block: { number: 7_000_000, hash: `0x${'ab'.repeat(32)}` }
+        },
+        requestId: REQUEST_ID,
+        claimedAt: DRAFTED_AT
+      })
+      expect(claimed).toBe(true)
+    }
+
+    const storedRecords = () => Promise.all(SETUP_RECORD_NAMES.map((name) => setup()[name].read()))
+
+    const storeFullDraft = async (faults: { get?: boolean; remove?: boolean; set?: number }) => {
+      await storeOn(
+        faults,
+        clausesOfShape([
+          { threshold: 1, slots: ['passkey'] },
+          { threshold: 2, slots: ['ecdsa', 'ecdsa', 'ecdsa'] }
+        ]),
+        [DEVICE_PASSKEY]
+      )
+      await setup().inventory.write(['passport'])
+      await setup().path.write([])
+      await setup().waitingPeriod.write(86400n)
+      await setup().passwordSet.write('password-set')
+    }
+
+    it('the two lines read differently, and the key resolves to its text', () => {
+      expect(WHILE_SAVING).toBe(S.records.startOverWhileSaving)
+      expect(WHILE_SAVING).not.toBe('socialRecovery.records.startOverWhileSaving')
+      expect(WHILE_SAVING).not.toBe(WRITE_FAILED)
+    })
+
+    it('from the resume block, shows the line, removes nothing and keeps the block as it was', async () => {
+      await storeFullDraft({})
+      await claimSave()
+      const before = await storedRecords()
+      expect(before.every(({ status }) => status === 'present')).toBe(true)
+      await mount()
+      const rowsBefore = allByTestId('resume-row')
+      const ageBefore = byTestId('draft-age')?.textContent
+      await press('start-over')
+      expect(byTestId('start-over-while-saving')?.textContent).toBe(WHILE_SAVING)
+      expect(byTestId('write-failed')).toBeNull()
+      expect(await storedRecords()).toEqual(before)
+      expect((await records.saveInFlight(CHAIN_ID, ACCOUNT).read()).status).toBe('present')
+      expect(byTestId('presets-resume')).not.toBeNull()
+      expect(byTestId('presets-grid')).toBeNull()
+      expect(allByTestId('resume-row')).toEqual(rowsBefore)
+      expect(byTestId('draft-age')?.textContent).toBe(ageBefore)
+      expect(byTestId('start-over')?.textContent).toBe(S.presets.resume.startOver)
+      expect(isDisabled('start-over')).toBe(false)
+      expect(isDisabled('resume')).toBe(false)
+      expect(onOpenEditor).not.toHaveBeenCalled()
+    })
+
+    it('with no save on its way, removes the records and shows neither line', async () => {
+      await storeFullDraft({})
+      await mount()
+      await press('start-over')
+      expect(await storedStatuses()).toEqual(SETUP_RECORD_NAMES.map(() => 'absent'))
+      expect(byTestId('start-over-while-saving')).toBeNull()
+      expect(byTestId('write-failed')).toBeNull()
+      expect(byTestId('presets-grid')).not.toBeNull()
+    })
+
+    it('once the save is released, the next start over removes the records and clears the line', async () => {
+      await storeFullDraft({})
+      await claimSave()
+      await mount()
+      await press('start-over')
+      expect(byTestId('start-over-while-saving')?.textContent).toBe(WHILE_SAVING)
+      expect(await records.saveInFlight(CHAIN_ID, ACCOUNT).release(REQUEST_ID)).toBe(true)
+      await press('start-over')
+      expect(await storedStatuses()).toEqual(SETUP_RECORD_NAMES.map(() => 'absent'))
+      expect(byTestId('start-over-while-saving')).toBeNull()
+      expect(byTestId('write-failed')).toBeNull()
+      expect(byTestId('presets-resume')).toBeNull()
+      expect(byTestId('presets-grid')).not.toBeNull()
+    })
+
+    it('a storage that refuses the removal shows the write-failed line and not the new one', async () => {
+      const faults = { remove: false }
+      await storeFullDraft(faults)
+      faults.remove = true
+      await mount()
+      await press('start-over')
+      expect(byTestId('write-failed')?.textContent).toBe(WRITE_FAILED)
+      expect(byTestId('start-over-while-saving')).toBeNull()
+      expect(await storedStatuses()).toEqual(SETUP_RECORD_NAMES.map(() => 'present'))
+    })
+
+    it('the two lines never show together: each press replaces the line of the last', async () => {
+      const faults = { remove: false }
+      await storeFullDraft(faults)
+      faults.remove = true
+      await mount()
+      await press('start-over')
+      expect(byTestId('write-failed')).not.toBeNull()
+      faults.remove = false
+      await claimSave()
+      await press('start-over')
+      expect(byTestId('start-over-while-saving')?.textContent).toBe(WHILE_SAVING)
+      expect(byTestId('write-failed')).toBeNull()
+      await records.saveInFlight(CHAIN_ID, ACCOUNT).release(REQUEST_ID)
+      faults.remove = true
+      await press('start-over')
+      expect(byTestId('write-failed')?.textContent).toBe(WRITE_FAILED)
+      expect(byTestId('start-over-while-saving')).toBeNull()
+    })
+
+    it('from the failed read, shows the line, removes nothing and keeps the failed read', async () => {
+      await storeOn({}, [], [{ test: 'passed' } as unknown as Enrollment])
+      await setup().inventory.write(['passport'])
+      await claimSave()
+      const before = await storedRecords()
+      await mount()
+      expect(byTestId('presets-load-failed')).not.toBeNull()
+      await press('start-over')
+      expect(byTestId('start-over-while-saving')?.textContent).toBe(WHILE_SAVING)
+      expect(byTestId('write-failed')).toBeNull()
+      expect(await storedRecords()).toEqual(before)
+      expect(byTestId('presets-load-failed')).not.toBeNull()
+      expect(byTestId('presets-grid')).toBeNull()
+      expect(isDisabled('start-over')).toBe(false)
+      expect(isDisabled('load-retry')).toBe(false)
+    })
+
+    it('from the failed read, a start over after the release removes the records and clears the line', async () => {
+      await storeOn({}, [], [{ test: 'passed' } as unknown as Enrollment])
+      await claimSave()
+      await mount()
+      await press('start-over')
+      expect(byTestId('start-over-while-saving')).not.toBeNull()
+      await records.saveInFlight(CHAIN_ID, ACCOUNT).release(REQUEST_ID)
+      await press('start-over')
+      expect(await storedStatuses()).toEqual(SETUP_RECORD_NAMES.map(() => 'absent'))
+      expect(byTestId('start-over-while-saving')).toBeNull()
+      expect(byTestId('presets-load-failed')).toBeNull()
+      expect(byTestId('presets-grid')).not.toBeNull()
+    })
+
+    it("a save on its way for another account does not refuse this account's start over", async () => {
+      await storeFullDraft({})
+      await claimSave(OTHER_ACCOUNT)
+      await mount()
+      await press('start-over')
+      expect(await storedStatuses()).toEqual(SETUP_RECORD_NAMES.map(() => 'absent'))
+      expect(byTestId('start-over-while-saving')).toBeNull()
+      expect(byTestId('write-failed')).toBeNull()
+      expect(byTestId('presets-grid')).not.toBeNull()
+      expect((await records.saveInFlight(CHAIN_ID, OTHER_ACCOUNT).read()).status).toBe('present')
     })
   })
 })

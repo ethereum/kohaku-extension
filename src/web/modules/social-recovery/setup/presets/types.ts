@@ -53,6 +53,12 @@ export interface PresetsLoad {
   notStarted: ResumeRow[]
 }
 
+/**
+ * The line above the screen's body after a write: a refused write, or a start
+ * over refused because a save of this setup is still on its way.
+ */
+export type WriteLine = 'writeFailed' | 'startOverWhileSaving'
+
 export interface PresetsViewProps {
   records: WalletRecords
   chainId: ChainId

@@ -16,6 +16,7 @@ import common from '@common/styles/utils/common'
 import flexbox from '@common/styles/utils/flexbox'
 import { addressBookOf, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
 import { renderChip } from '@web/modules/social-recovery/shared/display'
+import { isSaveInFlightRefusal } from '@web/modules/social-recovery/shared/records'
 
 import { startDraft } from './draft'
 import { cardRuleLines, shapeRowsOf } from './lines'
@@ -27,7 +28,8 @@ import type {
   PresetsLoad,
   PresetsViewProps,
   ResumeNote,
-  ResumeRow
+  ResumeRow,
+  WriteLine
 } from './types'
 
 const COST_KEYS = [
@@ -43,7 +45,7 @@ const PresetsView = ({ records, chainId, account, onOpenEditor, onRecover }: Pre
   // `undefined` until the stored draft is read, `null` when there is none.
   const [savedAt, setSavedAt] = useState<number | null | undefined>(undefined)
   const [loadFailed, setLoadFailed] = useState(false)
-  const [writeFailed, setWriteFailed] = useState(false)
+  const [writeLine, setWriteLine] = useState<WriteLine | null>(null)
   const [resumeRows, setResumeRows] = useState<ResumeRow[]>([])
   const [notYetActive, setNotYetActive] = useState<ResumeNote | null>(null)
   const [notStartedRows, setNotStartedRows] = useState<ResumeRow[]>([])
@@ -115,11 +117,11 @@ const PresetsView = ({ records, chainId, account, onOpenEditor, onRecover }: Pre
       setBusy(true)
       try {
         await startDraft(setup, choice)
-        setWriteFailed(false)
+        setWriteLine(null)
         onOpenEditor()
       } catch {
         // A refused write changes nothing: reload and show what storage holds.
-        setWriteFailed(true)
+        setWriteLine('writeFailed')
         await reload()
       } finally {
         setBusy(false)
@@ -132,12 +134,18 @@ const PresetsView = ({ records, chainId, account, onOpenEditor, onRecover }: Pre
     setBusy(true)
     try {
       await records.startOverSetup(chainId, account)
-      setWriteFailed(false)
+      setWriteLine(null)
       setPicked(null)
       await reload()
-    } catch {
-      setWriteFailed(true)
-      await reload()
+    } catch (error) {
+      // A save still on its way may land on the draft, so nothing was removed
+      // and the screen stays as it is.
+      if (isSaveInFlightRefusal(error)) {
+        setWriteLine('startOverWhileSaving')
+      } else {
+        setWriteLine('writeFailed')
+        await reload()
+      }
     } finally {
       setBusy(false)
     }
@@ -378,9 +386,19 @@ const PresetsView = ({ records, chainId, account, onOpenEditor, onRecover }: Pre
       <Text testID="honesty-note" fontSize={14} weight="medium" style={spacings.mbLg}>
         {t('socialRecovery.honestyNote')}
       </Text>
-      {writeFailed && (
+      {writeLine === 'writeFailed' && (
         <Text testID="write-failed" fontSize={14} appearance="errorText" style={spacings.mbSm}>
           {t('socialRecovery.records.writeFailed')}
+        </Text>
+      )}
+      {writeLine === 'startOverWhileSaving' && (
+        <Text
+          testID="start-over-while-saving"
+          fontSize={14}
+          appearance="errorText"
+          style={spacings.mbSm}
+        >
+          {t('socialRecovery.records.startOverWhileSaving')}
         </Text>
       )}
       {loadFailed && renderLoadFailed()}
