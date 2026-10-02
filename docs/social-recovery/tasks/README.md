@@ -44,6 +44,36 @@ Round is the half-day in which the task can start, from `depends_on` alone. With
 | 6 | PT-061 The wait and its endings | M-8 | free | [PT-061-the-wait-and-its-endings.md](PT-061-the-wait-and-its-endings.md) |
 | 7 | PT-062 The done screen | M-8 | free | [PT-062-the-done-screen.md](PT-062-the-done-screen.md) |
 
+## Follow-up tasks
+
+A follow-up task is work the cut did not hold: a seam a task or a review found, an owner's ruling, or a library change a task needs. It has an id `FU-<letter>`, one pull request of its own (or one in `kohaku-commons` where the change is in the library), and the same method as a task. The coordinator adds a row here when a follow-up is named and updates it when its pull request opens and merges. Pull request numbers are those of `defi-wonderland/kohaku-extension` unless a row says `kohaku-commons`.
+
+| Id | Follow-up | Follows | Where the code lives | Pull request | State on 2026-10-02 |
+| --- | --- | --- | --- | --- | --- |
+| (M-6) | The ceremony tab resolves a recorded request through the client | PT-041, PT-038 | `shared/ceremony`, `shared/client` | #15 | merged |
+| (M-6) | A send path for the writes through the request queue | PT-039, PT-038 | `shared/client`, `shared/writes` | #16 | merged |
+| FU-C | The built extension no longer crashes at load on a bigint exponent | the M-7 setup | `sdk-doubles`, `shared/writes` | #20 | merged |
+| FU-D | The rule lines read an empty slot as a member of its kind, and the records' shared pieces | PT-043, PT-044 | `shared/rule-lines`, `shared/records`, `shared/client` | #25 | merged |
+| FU-E | The recovery password kept in memory between the privacy step, the save and the card | PT-047, PT-048, PT-051 | `shared/records` | #21 | merged |
+| FU-F | The send path for a listed smart account's batch | PT-051, the proof of concept | `shared/client`, `shared/writes` | #29 | merged |
+| FU-G | The sign screen allows the account's own privilege grant and warns on a grant to a stranger | PT-051, the proof of concept | the library's sign controller and humanizer | kohaku-commons#3 | merged |
+| FU-H | The seams of the Shape visible level in the shared lanes | PT-047 | `shared/rule-lines`, `shared/client` and the other shared lanes | #32 | merged |
+| FU-I | The passkey doubles take the browser's credential and assertion | PT-046 | `sdk-doubles`, `shared/webauthn`, `shared/ceremony` | #36 | merged |
+| FU-J | A queued signing request can be withdrawn by its caller | PT-046, PT-041 | `shared/client` | #35 | merged |
+| FU-K | The enrollment record keeps the passkey's facts and credential id | PT-046 | `shared/records` | #37 | merged |
+| FU-L | The client's account implementation and the privilege holders read | PT-049, PT-050 | `shared/client` | #38 | merged |
+| FU-M | The privilege holders read derives the keys from the account's privilege events | PT-050 | `shared/client`, the create door's picker badge | none yet | planned; complete only with the creation block from the SDK |
+| FU-N | The wallet's own request carries the recovery kit's mark, and the self-call exemption belongs to that request | PT-051 | the library's requests and sign controllers | kohaku-commons#5 | merged |
+| FU-O | The client seams the arming save needs: the kit mark, the account batch, the account facts, the gas check for an account with no code, the save in flight, the request's state, the refusal for another waiting request, the may-still-land reading | PT-051 | `shared/client`, `shared/writes`, `shared/records` | #40 | open |
+| FU-P | The smart account's own key as the fee payer: the estimation reads it, and the sign screen labels and prefers it | PT-051 | the library's estimation; the wallet's sign screen | kohaku-commons#6, #43 | merged |
+| FU-Q | "Start over" is refused while a save is pending | PT-043, PT-051 | `shared/records` (in #40), `setup/presets` | #40 for the records part; none yet for the presets screen | in work |
+| FU-R | A save the network dropped: after one hour with the transaction unknown to the node, the save screen offers to save again | PT-051 | `setup/arm` | none yet | planned, after PT-051 merges |
+| FU-S | Before the Recovery Card, the wallet asks for the recovery password again when it is not in memory | PT-048, PT-051 | `setup/card` | none yet | planned, after PT-051 merges |
+| FU-T | The module-wide test pass: test imports through the aliases, braces on the inherited single-statement branches, test-only types in the harnesses | every M-6 and M-7 task | every `__tests__` folder of the module | none yet | planned, after the M-7 merge train |
+| FU-U | The stand-in names of the unanswered SDK questions are renamed once the SDK owner answers | PT-035, PT-038 | `sdk-interfaces`, `sdk-doubles`, `shared/client` | none yet | planned; waits for the SDK owner |
+| FU-V | The styling pass of the setup flow's screens, with its screen walk | PT-042 to PT-051 | `setup/**`, `onboarding/create` | none yet | planned, after the M-7 merge train |
+| FU-W | Small repairs recorded in review: the card's unused re-download string, the ceremony test harness anchored to its file, a safe-integer guard on the stored chain id | PT-048, PT-041, PT-040 | `setup/card`, `shared/ceremony`, `shared/records` | none yet | planned, after the M-7 merge train |
+
 ## Open questions
 
 Questions the tasks leave open, with the owner of the answer. They are not answered here. The ux owner is @FiboApe; the sdk owner is @0xAaCE.
