@@ -1,15 +1,20 @@
 import type { SignedMessage } from '@ambire-common/controllers/activity/types'
+import type { EstimationController } from '@ambire-common/controllers/estimation/estimation'
 import type { MainController } from '@ambire-common/controllers/main/main'
+import type { SignAccountOpController } from '@ambire-common/controllers/signAccountOp/signAccountOp'
 import type { Account } from '@ambire-common/interfaces/account'
 import type { Key } from '@ambire-common/interfaces/keystore'
 import type { RPCProvider } from '@ambire-common/interfaces/provider'
-import type { TypedMessage } from '@ambire-common/interfaces/userRequest'
+import type { SignAccountOpError } from '@ambire-common/interfaces/signAccountOp'
+import type { Calls, TypedMessage } from '@ambire-common/interfaces/userRequest'
 import type { WindowProps } from '@ambire-common/interfaces/window'
 import type {
   AccountOpIdentifiedBy,
   SubmittedAccountOp
 } from '@ambire-common/libs/accountOp/submittedAccountOp'
+import type { AccountOp } from '@ambire-common/libs/accountOp/accountOp'
 import type { Call } from '@ambire-common/libs/accountOp/types'
+import type { TokenResult } from '@ambire-common/libs/portfolio'
 import type { Action } from '@web/extension-services/background/actions'
 import type {
   FitCheckReading,
@@ -29,7 +34,8 @@ import type {
   IRecoveryActionInteractor,
   IRecoveryClient,
   IRecoveryMethod,
-  ISetupClient
+  ISetupClient,
+  PreparedCall
 } from '@web/modules/social-recovery/sdk-interfaces'
 import type { ChainId, SlotKind, WalletRecords } from '@web/modules/social-recovery/shared/records'
 
@@ -458,35 +464,109 @@ export interface MainStatusState {
   statuses?: Partial<Pick<MainController['statuses'], 'signAndBroadcastAccountOp'>>
 }
 
+/**
+ * The part of the `signAccountOp` controller state the send port reads: the
+ * operation the sign screen estimates, with the requests its calls came from,
+ * the estimation's status, fee options and own error, the fee speeds, the
+ * holder's pick and the errors the sign screen shows, first one first.
+ */
+export type SignAccountOpState = Partial<
+  Pick<
+    SignAccountOpController,
+    'feeSpeeds' | 'selectedFeeSpeed' | 'selectedOption' | 'rbfAccountOps' | 'errors'
+  >
+> & {
+  accountOp?: Pick<AccountOp, 'accountAddr'> & { calls?: Pick<Call, 'fromUserRequestId'>[] }
+  estimation?: Partial<Pick<EstimationController, 'status' | 'availableFeeOptions' | 'error'>>
+}
+
 /** One controller state the background pushed, by controller. */
 export type SendRequestUpdate =
   | { controller: 'requests'; state: SendQueueState }
   | { controller: 'activity'; state: ActivityState }
   | { controller: 'main'; state: MainStatusState }
+  | { controller: 'signAccountOp'; state: SignAccountOpState }
 
 /**
  * How the send port reaches the background: the dispatch of
- * `useBackgroundService`, the `requests`, `activity` and `main` controller
- * states the background pushes, the accounts the wallet lists and the window
- * the request opens beside. `sendRequestPort` (sender-port.ts) wires the UI's
- * own.
+ * `useBackgroundService`, the `requests`, `activity`, `main` and
+ * `signAccountOp` controller states the background pushes, the accounts the
+ * wallet lists and the window the request opens beside. `sendRequestPort`
+ * (sender-port.ts) wires the UI's own.
  */
 export interface SendRequestPort {
   dispatch(action: SendRequestAction): void
-  /** Calls the listener with each pushed `requests`, `activity` and `main` state; returns the unsubscribe. */
+  /** Calls the listener with each pushed controller state; returns the unsubscribe. */
   subscribe(listener: (update: SendRequestUpdate) => void): () => void
   accounts(): readonly ListedAccount[]
   windowId(): number | undefined
 }
 
 /**
- * Sends one transaction from a key the wallet holds: the transaction the gas
- * check estimated, from that key. It answers the transaction hash once the
- * wallet broadcast it, and rejects with a `SendRefusal` where the wallet has
- * no transaction of the key under the request.
+ * One way the sign screen offers to pay the fee, as its controller holds it.
+ * `balance` is what the payer holds of the token. `amount` is what the fee
+ * needs at the fee speed the holder picked, and `available` whether the
+ * balance covers at least one speed; both are absent until the controller
+ * has the option's speeds.
+ */
+export interface FeeOption {
+  paidBy: Address
+  token: Pick<TokenResult, 'address' | 'symbol' | 'decimals'>
+  balance: bigint
+  amount?: bigint
+  available?: boolean
+  /** Whether the holder picked this option on the sign screen. */
+  selected: boolean
+}
+
+/**
+ * The sign screen's estimation for the port's own request, once it settled:
+ * the fee options it offers and one error with its title and code as the
+ * wallet gives them. The error is the estimation's own where it has one, and
+ * otherwise the first one the sign screen shows.
+ */
+export interface FeeReading {
+  options: FeeOption[]
+  error?: Pick<SignAccountOpError, 'title' | 'code'>
+}
+
+/**
+ * Called with each new reading of the sign screen's estimation for the port's
+ * request. The port ignores a throw from the listener.
+ */
+export type EstimationListener = (reading: FeeReading) => void
+
+/**
+ * Sends through the request queue: one transaction from a key the wallet
+ * holds, or one batch of calls a smart account the wallet lists runs. Each
+ * answers the transaction hash once the wallet broadcast it, and rejects with
+ * a `SendRefusal` where the wallet has no transaction under the request.
  */
 export interface SendPort {
+  /** The transaction the gas check estimated, from that key. */
   send(key: KeyHandle, transaction: GasEstimateCall): Promise<Hex>
+  /**
+   * The calls, in order, as one operation of the account. The sign screen
+   * estimates it and offers the fee options; `onEstimation` hears each
+   * reading of that estimation.
+   */
+  sendAccountBatch(
+    account: Address,
+    calls: readonly PreparedCall[],
+    onEstimation?: EstimationListener
+  ): Promise<Hex>
+}
+
+/** What the port follows once it queued a request: the request and who the refusal names. */
+export interface FollowedRequest {
+  id: string
+  /** The listed account the request sends for, with the wallet's own case. */
+  account: Address
+  calls: Calls['calls']
+  /** The key type the request carries beside the account, for a key's own transaction. */
+  keyType?: Key['type']
+  refusal: (reason: SendRefusalReason) => SendRefusal
+  onEstimation?: EstimationListener
 }
 
 export interface SendPortOptions {
@@ -504,10 +584,12 @@ export interface SettlingRefusal {
 }
 
 /**
- * The send port returned no transaction hash of the key. For every reason but
+ * The send port returned no transaction hash. For every reason but
  * `not-a-transaction` the wallet broadcast nothing under the request; for
  * `not-a-transaction` it submitted the request as an operation another party
- * sends, which may still reach the chain (`SEND_REFUSAL_REASONS`).
+ * sends, which may still reach the chain (`SEND_REFUSAL_REASONS`). It names
+ * the key it was asked to send from, or the account whose batch it was asked
+ * to send.
  *
  * `not-wired` is a key the request queue cannot send from: any key that is
  * not itself a basic account the wallet lists. Sending from such a key needs
@@ -524,7 +606,8 @@ export interface SettlingRefusal {
 export interface SendRefusal extends Error {
   name: 'SendRefusal'
   reason: SendRefusalReason
-  key: KeyHandle
+  key?: KeyHandle
+  account?: Address
   missingAction?: typeof MISSING_SEND_ACTION
 }
 

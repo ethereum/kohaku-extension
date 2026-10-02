@@ -6,11 +6,15 @@
  * decide every reading, so each test runs the real machine from the
  * submitting state and reads the state it ends in.
  *
+ * The account batch drive takes the same path over the port's batch send, so
+ * the sequence of events is read for both drives.
+ *
  * The port and the wait are the fakes of harness.ts. The refusals are the
  * client's own, and the wait errors are ethers' shapes the harness builds.
  */
 import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
 import {
+  accountBatchRefusal,
   SEND_REFUSAL_REASONS,
   sendRefusal,
   UNKNOWN_TRANSACTION_MS,
@@ -18,9 +22,11 @@ import {
 } from '@web/modules/social-recovery/shared/client'
 
 import {
+  ACCOUNT,
   advanceTimersAsync,
   BLOCK_EVERY_MS,
   deferred,
+  driveAccountBatch,
   driveSend,
   drivenMachine,
   enoughCheck,
@@ -36,6 +42,7 @@ import {
   receiptWaitNeverKnowing,
   REPLACEMENT_HASH,
   replacedBy,
+  SAVE,
   START_BLOCK,
   submittingFor,
   TX_HASH,
@@ -62,6 +69,114 @@ const drive = async (
   await driveSend({ dispatch: machine.dispatch, run, port, receipts, key: KEY, transaction })
   return { machine, run, transaction }
 }
+
+/** Hears the sign screen's estimation for the account's batch. */
+const LISTENER = () => undefined
+
+/**
+ * Each drive over the one sequence of events: a key's own transaction, and
+ * the batch an account runs on itself. Each names what it asks the port for
+ * and the refusal the port gives it.
+ */
+const DRIVES = [
+  {
+    title: "a key's own transaction",
+    run: (base: Omit<Parameters<typeof driveSend>[0], 'key' | 'transaction'>) =>
+      driveSend({ ...base, key: KEY, transaction: ownerTransaction('save') }),
+    expectAsked: (port: ReturnType<typeof fakeSendPort>) => {
+      expect(port.send).toHaveBeenCalledTimes(1)
+      expect(port.send).toHaveBeenCalledWith(KEY, ownerTransaction('save'))
+      expect(port.sendAccountBatch).not.toHaveBeenCalled()
+    },
+    refusal: () => sendRefusal('refused', KEY)
+  },
+  {
+    title: "an account's batch",
+    run: (base: Omit<Parameters<typeof driveSend>[0], 'key' | 'transaction'>) =>
+      driveAccountBatch({ ...base, account: ACCOUNT, calls: SAVE.calls, onEstimation: LISTENER }),
+    expectAsked: (port: ReturnType<typeof fakeSendPort>) => {
+      expect(port.sendAccountBatch).toHaveBeenCalledTimes(1)
+      expect(port.sendAccountBatch).toHaveBeenCalledWith(ACCOUNT, SAVE.calls, LISTENER)
+      expect(port.send).not.toHaveBeenCalled()
+    },
+    refusal: () => accountBatchRefusal('refused', ACCOUNT)
+  }
+]
+
+DRIVES.forEach(({ title, run: driveOnce, expectAsked, refusal }) =>
+  describe(`the drive of ${title}`, () => {
+    /** Drives it once from the submitting state of a save. */
+    const driven = async (port: ReturnType<typeof fakeSendPort>, receipts: FakeReceiptWait) => {
+      const machine = drivenMachine(submittingFor('save'))
+      const { run } = machine.state()
+      await driveOnce({ dispatch: machine.dispatch, run, port, receipts })
+      return { machine, run }
+    }
+
+    it('reads the block, asks the port once, announces the hash with that block, then lands on its receipt', async () => {
+      const order: string[] = []
+      const port = fakeSendPort({ value: TX_HASH })
+      const answer = async () => {
+        order.push('send')
+        return TX_HASH
+      }
+      port.send.mockImplementation(answer)
+      port.sendAccountBatch.mockImplementation(answer)
+      const receipts = fakeReceiptWait({ value: providerReceipt(TX_HASH, 1) })
+      receipts.blockNumber.mockImplementation(async () => {
+        order.push('blockNumber')
+        return START_BLOCK
+      })
+      const { machine, run } = await driven(port, receipts)
+      expectAsked(port)
+      expect(order).toEqual(['blockNumber', 'send'])
+      expect(receipts.wait).toHaveBeenCalledWith(TX_HASH, START_BLOCK)
+      expect(machine.events.map((event) => event.type)).toEqual(['sent', 'receipt'])
+      expect(machine.events[0]).toEqual({
+        type: 'sent',
+        run,
+        transactionHash: TX_HASH,
+        startBlock: START_BLOCK
+      })
+      expect(machine.state()).toMatchObject({ status: 'landed', transactionHash: TX_HASH, run })
+    })
+
+    it('reads a block read that failed as not sent, and asks the port for nothing', async () => {
+      const failure = new Error('The node is not reachable.')
+      const port = fakeSendPort({ value: TX_HASH })
+      const receipts = fakeReceiptWait({ value: providerReceipt(TX_HASH, 1) }, { error: failure })
+      const { machine, run } = await driven(port, receipts)
+      expect(port.send).not.toHaveBeenCalled()
+      expect(port.sendAccountBatch).not.toHaveBeenCalled()
+      expect(machine.events).toEqual([{ type: 'error', run, error: failure }])
+      expect(readingOf(machine.state())).toBe('notSent')
+    })
+
+    it("reads the port's refusal before any hash as not sent, with the refusal as its error", async () => {
+      const refused = refusal()
+      const receipts = fakeReceiptWait({ value: providerReceipt(TX_HASH, 1) })
+      const { machine, run } = await driven(fakeSendPort({ error: refused }), receipts)
+      expect(receipts.wait).not.toHaveBeenCalled()
+      expect(machine.events).toEqual([{ type: 'error', run, error: refused }])
+      expect(errorOf(machine.events[0])).toBe(refused)
+      expect(machine.state()).toMatchObject({ status: 'failedNotSent', run })
+    })
+
+    it('hands a wait error after the hash on with the hash', async () => {
+      const reverted = minedAndReverted(TX_HASH)
+      const { machine, run } = await driven(
+        fakeSendPort({ value: TX_HASH }),
+        fakeReceiptWait({ error: reverted })
+      )
+      expect(machine.events).toEqual([
+        { type: 'sent', run, transactionHash: TX_HASH, startBlock: START_BLOCK },
+        { type: 'error', run, error: reverted, transactionHash: TX_HASH }
+      ])
+      expect(errorOf(machine.events[1])).toBe(reverted)
+      expect(machine.state()).toMatchObject({ status: 'failedReverted', transactionHash: TX_HASH })
+    })
+  })
+)
 
 describe('a send the wallet broadcast', () => {
   it('sends the transaction from the key given, announces its hash, then lands on its receipt', async () => {

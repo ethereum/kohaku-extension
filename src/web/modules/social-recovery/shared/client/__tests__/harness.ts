@@ -13,7 +13,8 @@
  * - The send port's background is the same kind of fake behind the
  *   `SendRequestPort`: a test pushes the `requests` state, with the action
  *   window open or closed, and the `activity` state listing the operation the
- *   wallet broadcast, as the real background would push them.
+ *   wallet broadcast, and the `signAccountOp` state of the sign screen's
+ *   estimation, as the real background would push them.
  * - The receipt wait runs on the extension's own provider for a plain
  *   JSON-RPC network, whose `send` answers the transactions, receipts, blocks
  *   and nonces a test scripts, as a node's JSON (`scriptedNode`), so ethers'
@@ -23,7 +24,7 @@
  * - The ceremony tab's resolver reads the wallet's records over an in-memory
  *   storage and a client of the approving side alone, built by a `jest.fn`.
  */
-import { AbiCoder, id, toBeHex, toQuantity } from 'ethers'
+import { AbiCoder, id, toBeHex, toQuantity, Wallet } from 'ethers'
 
 import type { Network } from '@ambire-common/interfaces/network'
 import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
@@ -46,7 +47,8 @@ import type {
   DeploymentDescriptor,
   Hex,
   IProvider,
-  IRecoveryMethod
+  IRecoveryMethod,
+  PreparedCall
 } from '@web/modules/social-recovery/sdk-interfaces'
 import {
   addressBookOf,
@@ -67,9 +69,12 @@ import {
   type RecoveryClientConfiguration,
   type SendPort,
   type SendPortOptions,
+  type SendRefusal,
+  type SendRefusalReason,
   type SendRequestPort,
   type SendRequestUpdate,
   type SignerFacade,
+  type SignAccountOpState,
   type SignerFacadeOptions,
   type SignRequestAction,
   type SignRequestPort,
@@ -669,6 +674,92 @@ export const waitingForSwitch = (...requestIds: (string | number)[]): SendReques
   state: {
     userRequests: [],
     userRequestsWaitingAccountSwitch: requestIds.map((requestId) => ({ id: requestId }))
+  }
+})
+
+/** A smart account the wallet lists, as the wallet holds its address: checksummed. */
+export const SMART_ACCOUNT = new Wallet(`0x${'33'.repeat(32)}`).address as Address
+
+/** The smart account's controlling key, which the wallet does not list as an account. */
+export const CONTROLLING_KEY = new Wallet(`0x${'44'.repeat(32)}`).address as Address
+
+/** A batch the smart account runs on itself: a call that carries value, then one that does not. */
+export const BATCH: readonly PreparedCall[] = [
+  {
+    kind: 'call',
+    target: SMART_ACCOUNT,
+    value: 3n,
+    data: '0xaaaa0001',
+    sender: 'account',
+    block: { number: 7_000_000, hash: `0x${'0b'.repeat(32)}` }
+  },
+  {
+    kind: 'call',
+    target: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
+    value: 0n,
+    data: '0xbbbb0002',
+    sender: 'account',
+    block: { number: 7_000_000, hash: `0x${'0b'.repeat(32)}` }
+  }
+]
+
+/** The `signAccountOp` state the background pushes while the sign screen holds an operation. */
+export const signAccountOpPush = (state: SignAccountOpState): SendRequestUpdate => ({
+  controller: 'signAccountOp',
+  state
+})
+
+/** A send the port was asked for, its state read after the pending microtasks ran. */
+export type TrackedSend = ReturnType<typeof track>
+
+/**
+ * One way to ask the send port for a transaction: a key's own transaction, or
+ * the batch an account runs. The refusals behave the same for each, so the
+ * tests that read them run over every subject.
+ */
+export interface SendSubject {
+  title: string
+  /** The address every refusal message names. */
+  names: Address
+  /** Starts one send over a queue listing the sender, and answers the request id the port queued. */
+  sending: (options?: Partial<SendPortOptions>) => { q: SendWorld; send: TrackedSend; id: string }
+  /** The port settled with a refusal for `reason`, naming what it was asked to send. */
+  expectRefusal: (seen: TrackedSend, reason: SendRefusalReason) => void
+}
+
+export interface SendSubjectParts {
+  title: string
+  names: Address
+  /** The accounts the wallet lists for this subject's sender. */
+  accounts: () => ListedAccount[]
+  /** Asks the port for the subject's transaction. */
+  start: (sender: SendPort) => Promise<Hex>
+  /** Checks that a refusal names what the port was asked to send. */
+  expectNamed: (refusal: SendRefusal) => void
+}
+
+export const sendSubject = ({
+  title,
+  names,
+  accounts,
+  start,
+  expectNamed
+}: SendSubjectParts): SendSubject => ({
+  title,
+  names,
+  sending: (options = {}) => {
+    const q = sendQueueOver(accounts(), options)
+    const send = track(start(q.sender))
+    const requestId = addedRequest(q.dispatch).userRequest.id
+    return { q, send, id: String(requestId) }
+  },
+  expectRefusal: (seen, reason) => {
+    expect(seen.status).toBe('rejected')
+    expect(seen.value).toBeInstanceOf(Error)
+    const refusal = seen.value as SendRefusal
+    expect(refusal.name).toBe('SendRefusal')
+    expect(refusal.reason).toBe(reason)
+    expectNamed(refusal)
   }
 })
 

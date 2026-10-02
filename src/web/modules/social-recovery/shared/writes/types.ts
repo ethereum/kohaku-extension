@@ -10,6 +10,7 @@ import type {
 } from '@web/modules/social-recovery/sdk-interfaces'
 import type {
   ChainReads,
+  EstimationListener,
   GasEstimateCall,
   KeyHandle,
   ProviderReadFailure,
@@ -279,20 +280,36 @@ export type WriteEvent =
 
 export type WriteAnswer = Extract<WriteEvent, { type: typeof WRITE_ANSWER_TYPES[number] }>
 
-/** What `driveSend` takes: the machine's dispatch and run, the two client parts and what the key sends. */
-export interface SendDrive {
+/** What every drive takes: the machine's dispatch and run, and the receipt wait. */
+export interface DriveRun {
   /** The machine's dispatch. */
   dispatch: (event: WriteEvent) => void
   /** The run of the submitting state the send answers. */
   run: number
-  /** The send port the client hands out (`createSendPort`). */
-  port: SendPort
   /** The receipt wait over the extension's provider (`createReceiptWait`). */
   receipts: ReceiptWait
+}
+
+/** What `driveSend` takes: the drive's run, the send port and what the key sends. */
+export interface SendDrive extends DriveRun {
+  /** The send port the client hands out (`createSendPort`). */
+  port: SendPort
   /** The key that sends the transaction and pays its gas. */
   key: KeyHandle
   /** The transaction the gas check estimated, from that key (`gasTransactionOf`). */
   transaction: GasEstimateCall
+}
+
+/** What `driveAccountBatch` takes: the drive's run, the send port and the batch the account runs. */
+export interface AccountBatchDrive extends DriveRun {
+  /** The send port the client hands out (`createSendPort`). */
+  port: SendPort
+  /** The account the wallet lists that runs the batch on itself. */
+  account: Address
+  /** The batch's calls, in order, each with the account as its sender. */
+  calls: readonly PreparedCall[]
+  /** Hears each reading of the sign screen's estimation for the batch. */
+  onEstimation?: EstimationListener
 }
 
 // ---------------------------------------------------------------------------

@@ -65,7 +65,8 @@ export {
   DEFAULT_SEND_TIMEOUT_MS,
   SEND_SETTLE_MS,
   createSendPort,
-  sendRefusal
+  sendRefusal,
+  accountBatchRefusal
 } from './sender'
 export { sendRequestPort } from './sender-port'
 export { UNKNOWN_TRANSACTION_MS, createReceiptWait } from './receipts'
@@ -127,9 +128,13 @@ export type {
   SubmittedOperation,
   ActivityState,
   MainStatusState,
+  SignAccountOpState,
   SendRequestUpdate,
   SendRequestPort,
   SendPort,
+  FeeOption,
+  FeeReading,
+  EstimationListener,
   SendPortOptions,
   SendRefusal,
   SendRefusalReason,

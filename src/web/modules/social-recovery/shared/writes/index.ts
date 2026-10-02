@@ -35,7 +35,7 @@ export {
   settleReceipt
 } from './classify'
 export { WRITE_EVENT_TYPES, WRITE_ANSWER_TYPES, initialWriteState, writeReducer } from './machine'
-export { driveSend } from './send'
+export { driveSend, driveAccountBatch } from './send'
 export {
   FEE_HEADROOM_PERCENT,
   GAS_DISPLAY_DECIMALS,
@@ -95,7 +95,9 @@ export type {
   WriteEvent,
   WriteRun,
   WriteMachineState,
+  DriveRun,
   SendDrive,
+  AccountBatchDrive,
   GasNetwork,
   WalletAccountRef,
   GasEstimate,

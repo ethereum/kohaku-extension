@@ -514,9 +514,12 @@ const answered = async <T>(answer: FakeAnswer<T>): Promise<T> => {
   return answer.value
 }
 
-/** A send port whose `send` answers as given, recording each call. */
-export const fakeSendPort = (answer: FakeAnswer<Hex>): SendPort & { send: jest.Mock } => ({
-  send: jest.fn(() => answered(answer))
+/** A send port whose `send` and `sendAccountBatch` answer as given, recording each call. */
+export const fakeSendPort = (
+  answer: FakeAnswer<Hex>
+): SendPort & { send: jest.Mock; sendAccountBatch: jest.Mock } => ({
+  send: jest.fn(() => answered(answer)),
+  sendAccountBatch: jest.fn(() => answered(answer))
 })
 
 /** The block the fake receipt wait reads as the chain's latest, unless a test gives another. */
