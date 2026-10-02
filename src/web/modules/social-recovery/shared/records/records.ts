@@ -1,3 +1,4 @@
+/* eslint-disable max-classes-per-file -- the two refusals a records update throws */
 /**
  * The wallet's records: the social recovery records this device keeps, in the
  * extension's local storage and never in a background controller, since the
@@ -16,7 +17,7 @@ import isEqual from 'react-fast-compare'
 import { bytesToHex, isAddress, isAddressEqual } from 'viem'
 
 import { parse, stringify } from '@ambire-common/libs/richJson/richJson'
-import type { Address, Gathering } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Gathering, Hex } from '@web/modules/social-recovery/sdk-interfaces'
 
 import { wipeRecoveryPassword } from './recoveryPassword'
 import { ABSENT, SETUP_RECORD_NAMES } from './types'
@@ -35,6 +36,9 @@ import type {
   RecordRead,
   RecoverySessionAccessor,
   RecoverySessionRecord,
+  SaveInFlightAccessor,
+  SaveInFlightClaim,
+  SaveInFlightRecord,
   SessionRead,
   SessionRevision,
   SetupDraftRecord,
@@ -89,7 +93,8 @@ const recoverySessionPrefix = (chainId: ChainId): string =>
  *   `passwordSet`: the six setup records;
  * - `recoverySession`: the live gathering, the reason line a wipe leaves, or in
  *   its landed state the countdown's record;
- * - `decryptedSetupCache`: the setup the recovery password unlocked.
+ * - `decryptedSetupCache`: the setup the recovery password unlocked;
+ * - `saveInFlight`: the setup save sent to the wallet and not yet settled.
  *
  * A ceremony request is keyed by its request id alone,
  * `socialRecovery:ceremonyRequest:<id>`, since the ceremony tab reads it from
@@ -102,6 +107,8 @@ export const recordKeys = {
     `${recoverySessionPrefix(chainId)}${accountPart(account)}`,
   decryptedSetupCache: (chainId: ChainId, account: Address): string =>
     `${RECORDS_KEY_PREFIX}:decryptedSetupCache:${chainPart(chainId)}:${accountPart(account)}`,
+  saveInFlight: (chainId: ChainId, account: Address): string =>
+    `${RECORDS_KEY_PREFIX}:saveInFlight:${chainPart(chainId)}:${accountPart(account)}`,
   ceremonyRequest: (id: string): string =>
     `${RECORDS_KEY_PREFIX}:ceremonyRequest:${requestIdPart(id)}`
 }
@@ -158,6 +165,33 @@ const isCeremonyRequest = (value: unknown): value is CeremonyRequestRecord => {
 }
 
 /**
+ * Whether a stored value is a save in flight: a draft, a prepared call or
+ * batch, the request id, the claim time and, where present, the hash and the
+ * start block.
+ */
+const isSaveInFlight = (value: unknown): value is SaveInFlightRecord => {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+  const record = value as Record<string, unknown>
+  const prepared = record.prepared as { kind?: unknown } | null | undefined
+  return (
+    typeof record.draft === 'object' &&
+    record.draft !== null &&
+    typeof prepared === 'object' &&
+    prepared !== null &&
+    (prepared.kind === 'call' || prepared.kind === 'batch') &&
+    typeof record.requestId === 'string' &&
+    record.requestId !== '' &&
+    typeof record.claimedAt === 'number' &&
+    Number.isFinite(record.claimedAt) &&
+    (record.transactionHash === undefined || typeof record.transactionHash === 'string') &&
+    (record.startBlock === undefined ||
+      (Number.isSafeInteger(record.startBlock) && (record.startBlock as number) >= 0))
+  )
+}
+
+/**
  * Deep equality of a stored request and the request a write names, as the
  * storage keeps them: both pass through the rich JSON the storage writes, so a
  * key whose value is `undefined` counts as absent on both sides. The storage
@@ -209,8 +243,11 @@ const inQueue = <R>(key: string, task: () => Promise<R>): Promise<R> => {
 /**
  * Runs one update that spans several keys while it holds the queue of each,
  * taken one after another in the order given, so no single-key update of any
- * of them interleaves with it. Every caller passes its keys in the order of
- * `SETUP_RECORD_NAMES`, so two such updates never wait on each other.
+ * of them interleaves with it. Every caller passes its setup keys in the order
+ * of `SETUP_RECORD_NAMES` and the save in flight's key after them, and a
+ * single-key update holds one key alone. An update can wait for another that
+ * holds a key it needs, but never for one that waits for a key it holds, so
+ * the waits never form a cycle.
  */
 const inQueues = <R>(keys: readonly string[], task: () => Promise<R>): Promise<R> =>
   keys.reduceRight<() => Promise<R>>((inner, key) => () => inQueue(key, inner), task)()
@@ -236,6 +273,22 @@ export class SessionRevisionConflict extends Error {
 
 export const isSessionRevisionConflict = (error: unknown): error is SessionRevisionConflict =>
   error instanceof SessionRevisionConflict
+
+/**
+ * The refusal of a start over while a setup save of the account is in flight:
+ * the save may still land, so the setup records stay and nothing was removed.
+ */
+export class SaveInFlightRefusal extends Error {
+  constructor(key: string) {
+    super(`The setup save ${key} is in flight: start over waits until it settles`)
+    this.name = 'SaveInFlightRefusal'
+    // Keeps `instanceof` working where the build compiles classes to functions.
+    Object.setPrototypeOf(this, SaveInFlightRefusal.prototype)
+  }
+}
+
+export const isSaveInFlightRefusal = (error: unknown): error is SaveInFlightRefusal =>
+  error instanceof SaveInFlightRefusal
 
 /** The revision an update passes after this read: the read's revision, or `null` when absent. */
 export const revisionOf = (read: SessionRead | CountdownRead): ExpectedRevision =>
@@ -281,13 +334,19 @@ export const createWalletRecords = ({
     age: async (at?: number) => recordAge(await readKey<T>(key), at ?? now())
   })
 
-  // --- the six setup records -----------------------------------------------
-
-  /** Removes the six setup records in one storage call, so a wipe never lands in part. */
-  const wipeSetupRecords = async (chainId: ChainId, account: Address): Promise<void> => {
-    const keys = SETUP_RECORD_NAMES.map((name) => recordKeys.setup(name, chainId, account))
-    await inQueues(keys, () => storage.removeKeys(keys))
+  /**
+   * The save in flight stored under a key. A stored value that is not a save in
+   * flight reads absent.
+   */
+  const readSaveInFlight = async (key: string): Promise<RecordRead<SaveInFlightRecord>> => {
+    const stored: unknown = await storage.get(key, undefined)
+    if (!isStoredRecord(stored) || !isSaveInFlight(stored.value)) {
+      return ABSENT
+    }
+    return { status: 'present', value: stored.value, savedAt: stored.savedAt }
   }
+
+  // --- the six setup records -----------------------------------------------
 
   /**
    * The six setup records of an account: the setup draft, the inventory, the
@@ -329,19 +388,36 @@ export const createWalletRecords = ({
   }
 
   /**
-   * The setup landed on chain: wipes the six setup records. The recovery
-   * password held in memory stays for the tab's life, so the Recovery Card can
-   * show it. Platform credentials are untouched.
+   * The setup landed on chain: wipes the six setup records and the save in
+   * flight in one storage call, so a saved setup leaves no record behind. The
+   * recovery password held in memory stays for the tab's life, so the Recovery
+   * Card can show it. Platform credentials are untouched.
    */
-  const saveSetup = (chainId: ChainId, account: Address) => wipeSetupRecords(chainId, account)
+  const saveSetup = async (chainId: ChainId, account: Address): Promise<void> => {
+    const keys = [
+      ...SETUP_RECORD_NAMES.map((name) => recordKeys.setup(name, chainId, account)),
+      recordKeys.saveInFlight(chainId, account)
+    ]
+    await inQueues(keys, () => storage.removeKeys(keys))
+  }
 
   /**
-   * The holder starts over: wipes the six setup records, then the recovery
-   * password held in memory, which no screen shows again. Platform credentials
-   * are untouched.
+   * The holder starts over: wipes the six setup records in one storage call,
+   * then the recovery password held in memory, which no screen shows again.
+   * While a save of the account is in flight it removes nothing and throws
+   * `SaveInFlightRefusal`, since that save may still land. It takes the keys in
+   * the order `saveSetup` takes them, the save in flight last, and reads that
+   * record while it holds them all. Platform credentials are untouched.
    */
   const startOverSetup = async (chainId: ChainId, account: Address): Promise<void> => {
-    await wipeSetupRecords(chainId, account)
+    const setupKeys = SETUP_RECORD_NAMES.map((name) => recordKeys.setup(name, chainId, account))
+    const saveKey = recordKeys.saveInFlight(chainId, account)
+    await inQueues([...setupKeys, saveKey], async () => {
+      if ((await readSaveInFlight(saveKey)).status === 'present') {
+        throw new SaveInFlightRefusal(saveKey)
+      }
+      await storage.removeKeys(setupKeys)
+    })
     wipeRecoveryPassword(chainId, account)
   }
 
@@ -649,6 +725,66 @@ export const createWalletRecords = ({
     }
   }
 
+  // --- the save in flight -------------------------------------------------
+
+  /**
+   * The setup save of one account sent to the wallet and not yet settled. A
+   * stored value that is not a save in flight reads absent, and a claim writes
+   * over it.
+   */
+  const saveInFlight = (chainId: ChainId, account: Address): SaveInFlightAccessor => {
+    const key = recordKeys.saveInFlight(chainId, account)
+    const read = () => readSaveInFlight(key)
+    return {
+      read,
+      claim: (claim: SaveInFlightClaim) =>
+        inQueue(key, async () => {
+          const current = await read()
+          if (current.status === 'present') {
+            return { claimed: false, record: { value: current.value, savedAt: current.savedAt } }
+          }
+          const value: SaveInFlightRecord = {
+            draft: claim.draft,
+            prepared: claim.prepared,
+            requestId: claim.requestId,
+            claimedAt: claim.claimedAt,
+            ...(claim.startBlock === undefined ? {} : { startBlock: claim.startBlock })
+          }
+          if (!isSaveInFlight(value)) {
+            throw new Error(`Invalid save in flight, not written: ${key}`)
+          }
+          const record = await writeKey<SaveInFlightRecord>(key, value)
+          return { claimed: true, record }
+        }),
+      markSent: (requestId: string, transactionHash: Hex, startBlock?: number) =>
+        inQueue(key, async () => {
+          const current = await read()
+          if (current.status !== 'present' || current.value.requestId !== requestId) {
+            return current
+          }
+          const value: SaveInFlightRecord = {
+            ...current.value,
+            transactionHash,
+            ...(startBlock === undefined ? {} : { startBlock })
+          }
+          if (!isSaveInFlight(value)) {
+            throw new Error(`Invalid save in flight, not written: ${key}`)
+          }
+          const record = await writeKey<SaveInFlightRecord>(key, value)
+          return { status: 'present' as const, ...record }
+        }),
+      release: (requestId: string) =>
+        inQueue(key, async () => {
+          const current = await read()
+          if (current.status !== 'present' || current.value.requestId !== requestId) {
+            return false
+          }
+          await storage.remove(key)
+          return true
+        })
+    }
+  }
+
   return {
     setup,
     setupSavedAt,
@@ -663,6 +799,7 @@ export const createWalletRecords = ({
     countdown,
     listCountdowns,
     decryptedSetupCache,
+    saveInFlight,
     ceremonyRequest
   }
 }

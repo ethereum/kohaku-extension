@@ -26,11 +26,12 @@
  * An event a state does not take leaves the state as it was (the same object).
  */
 import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
-import { isProviderReadFailure } from '@web/modules/social-recovery/shared/client'
+import { isProviderReadFailure, isSendRefusal } from '@web/modules/social-recovery/shared/client'
 
 import { classifyFailure, revertCauseOf, settleReceipt, writeFailureOf } from './classify'
 import { canRetry } from './states'
 import type {
+  FailedNotSentState,
   IdleState,
   SubmittingInRun,
   WriteAnswer,
@@ -48,6 +49,24 @@ const sentHashesOf = (state: SubmittingInRun): readonly Hex[] =>
 
 const withSentHash = (hashes: readonly Hex[], hash: Hex): readonly Hex[] =>
   hashes.some((known) => sameHash(known, hash)) ? hashes : [...hashes, hash]
+
+/**
+ * The not-sent reading of a send port's refusal: one the wallet submitted as
+ * an operation another party sends may still reach the chain, and one refused
+ * for another request of the account names that request.
+ */
+const withRefusalReading = (state: FailedNotSentState): FailedNotSentState => {
+  if (!isSendRefusal(state.error)) {
+    return state
+  }
+  if (state.error.reason === 'not-a-transaction') {
+    return { ...state, mayStillLand: true }
+  }
+  if (state.error.reason === 'other-request-pending') {
+    return { ...state, otherRequest: true }
+  }
+  return state
+}
 
 export const WRITE_EVENT_TYPES = [
   'start',
@@ -150,6 +169,9 @@ export const writeReducer = (state: WriteMachineState, event: WriteEvent): Write
         { error: event.error, ...(transactionHash ? { transactionHash } : {}) },
         context
       )
+      if (failure.status === 'failedNotSent') {
+        return { ...withRefusalReading(failure), run }
+      }
       if (failure.status !== 'submitting' || !failure.transactionHash) return { ...failure, run }
       // A hash the run already tracks leaves the current hash active: an error
       // from waiting on a hash a replacement superseded must not make it the

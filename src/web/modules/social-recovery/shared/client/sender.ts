@@ -25,6 +25,19 @@
  * with a key the keystore holds cannot be stopped once it began, so an
  * operation that names the request still answers its hash in that time.
  *
+ * A request the port withdraws is not gone until the queue shows it gone and
+ * the sign screen no longer holds it: the wallet drops a hidden tab's
+ * dispatch, removes a request only from its waiting requests, not from those
+ * that wait for an account switch, and a sign screen that pauses or signs
+ * keeps the operation it froze. So after a withdrawal the port keeps following
+ * until a queue state lists the request in neither list and the sign screen's
+ * last state holds no operation that carries it, and only then counts its
+ * settle period; until then, an operation that names it still answers its
+ * hash. Except while the sign screen signs or pauses on the request, the port
+ * sends the removal again when the request enters the waiting requests, when
+ * the sign screen stops with the request still waiting and, where the caller
+ * gives the page's document, when the page is shown again.
+ *
  * The queue sends for an account the wallet lists, from that account's keys.
  * A key that is itself a basic account (an EOA the wallet lists, its own only
  * associated key) therefore sends its own transaction and pays its gas. Any
@@ -41,6 +54,20 @@
  * refused as `not-listed`. A listed basic account is refused as
  * `not-smart-account`: the wallet sends its calls as separate transactions,
  * not as one batch.
+ *
+ * A batch that arms the recovery kit carries the kit's mark in its request's
+ * `meta.recoveryKit`, the manager and its audited actions. The wallet copies
+ * it onto the operation it builds, and the sign screen then lets the account
+ * grant an audited action its privilege beside the commit at that manager.
+ * The port sets it only where the caller passes it, and never on a key's own
+ * transaction.
+ *
+ * The queue joins every `calls` request of one account and chain into one
+ * operation. So the port queues nothing where another `calls` request of the
+ * account and chain is already in the queue, and except while the sign screen
+ * that holds its request signs it or pauses on it withdraws its own request
+ * where another one joins it, refusing with `other-request-pending` in both
+ * cases.
  */
 import { v4 as uuidv4 } from 'uuid'
 import { isAddress, isHash } from 'viem'
@@ -48,6 +75,7 @@ import { isAddress, isHash } from 'viem'
 import { Session } from '@ambire-common/classes/session'
 import { EstimationStatus } from '@ambire-common/controllers/estimation/types'
 import { getFeeSpeedIdentifier } from '@ambire-common/controllers/signAccountOp/helper'
+import { SigningStatus } from '@ambire-common/controllers/signAccountOp/signAccountOp'
 import type { Account } from '@ambire-common/interfaces/account'
 import type { SignAccountOpError } from '@ambire-common/interfaces/signAccountOp'
 import type { SignUserRequest } from '@ambire-common/interfaces/userRequest'
@@ -56,6 +84,8 @@ import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
 import type { FeePaymentOption } from '@ambire-common/libs/estimate/interfaces'
 import { stringify } from '@ambire-common/libs/richJson/richJson'
 import type { Address, Hex, PreparedCall } from '@web/modules/social-recovery/sdk-interfaces'
+
+import { isVisible } from '@web/modules/social-recovery/shared/ceremony/visibility'
 
 import { sameAddress } from './addresses'
 import { ABSENCE_GRACE_MS, listedBasicAccountOf } from './signer'
@@ -67,11 +97,14 @@ import type {
   GasEstimateCall,
   KeyHandle,
   MainStatusState,
+  QueueLists,
+  RecoveryKitMark,
   SendPort,
   SendPortOptions,
   SendRefusal,
   SendRefusalReason,
   SendRequestPort,
+  SendRequestState,
   SettlingRefusal,
   SignAccountOpState,
   SubmittedOperation
@@ -99,7 +132,11 @@ export const MISSING_SEND_ACTION = 'KEYSTORE_CONTROLLER_SEND_WITH_KEY' as const
  *   transaction of the sender follows it, and its hash, where one comes, is
  *   not the call's; that operation may still reach the chain;
  * - `timeout`: no answer came in time; the port withdraws the request, or
- *   waits until the queue drops one that waited for an account switch.
+ *   waits until the queue drops one that waited for an account switch, or
+ *   until the sign screen stops signing or pausing on it;
+ * - `other-request-pending`: another `calls` request of the same account and
+ *   chain waits in the queue, which would join it to this one; the port
+ *   queued nothing, or withdrew its request before the wallet signed it.
  */
 export const SEND_REFUSAL_REASONS = [
   'not-wired',
@@ -109,7 +146,8 @@ export const SEND_REFUSAL_REASONS = [
   'window-closed',
   'not-broadcast',
   'not-a-transaction',
-  'timeout'
+  'timeout',
+  'other-request-pending'
 ] as const
 
 const REFUSAL_MESSAGES: { readonly [R in SendRefusalReason]: string } = {
@@ -124,7 +162,9 @@ const REFUSAL_MESSAGES: { readonly [R in SendRefusalReason]: string } = {
   'not-a-transaction':
     'the wallet submitted the request as an operation another party sends, which names no transaction of the sender; that operation may still reach the chain.',
   timeout:
-    'no answer came in time; the request is no longer queued and no transaction was broadcast.'
+    'no answer came in time; the request is no longer queued and no transaction was broadcast.',
+  'other-request-pending':
+    'another request for the same account and chain waits in the queue, so the request was not queued or was withdrawn, and no transaction was broadcast.'
 }
 
 const refusalOf = (reason: SendRefusalReason, sender: string): SendRefusal => {
@@ -135,6 +175,12 @@ const refusalOf = (reason: SendRefusalReason, sender: string): SendRefusal => {
   error.reason = reason
   return error
 }
+
+/** Whether a thrown value is a refusal of the send port, with one of its reasons. */
+export const isSendRefusal = (value: unknown): value is SendRefusal =>
+  value instanceof Error &&
+  value.name === 'SendRefusal' &&
+  (SEND_REFUSAL_REASONS as readonly unknown[]).includes((value as { reason?: unknown }).reason)
 
 /** The refusal of a transaction from a key. */
 export const sendRefusal = (reason: SendRefusalReason, key: KeyHandle): SendRefusal => {
@@ -180,14 +226,62 @@ const TRANSACTION_OPERATIONS: readonly string[] = ['Transaction', 'MultipleTxns'
 /** The activity page the port reads: the operation it sent is the newest of the account. */
 const ACTIVITY_PAGE = { fromPage: 0, itemsPerPage: 10 }
 
+/**
+ * How long a reading of a request's state waits for the activity to answer
+ * each page it asks for, before it reads `unread`.
+ */
+export const REQUEST_STATE_READ_MS = 10 * 1000
+
+/**
+ * The sign screen's statuses under which it may sign the operation it holds
+ * as it stands: the sign controller signs, waits for the paymaster or signed
+ * once the holder confirmed, or pauses for a warning or a hardware wallet.
+ * While paused, the controller takes no new calls and can still sign the
+ * operation it froze, so a request that joins then cannot enter it. The
+ * controller leaves these statuses back to taking updates only where a
+ * signature or its broadcast failed or the pause ended.
+ */
+const SIGNING_STATUSES: readonly SigningStatus[] = [
+  SigningStatus.InProgress,
+  SigningStatus.WaitingForPaymaster,
+  SigningStatus.Done,
+  SigningStatus.UpdatesPaused
+]
+
 /** The estimation statuses after which the sign screen holds its fee options or its error. */
 const SETTLED_ESTIMATIONS: readonly string[] = [EstimationStatus.Success, EstimationStatus.Error]
 
 /**
  * A request id no other page makes: the port's prefix and a random UUID. The
- * activity session takes the same id, so it is the port's own too.
+ * activity session takes the same id, so it is the port's own too. A caller
+ * that must find its request again from another page takes one before the
+ * send and passes it.
  */
-const nextRequestId = (): string => `social-recovery-sender:${uuidv4()}`
+export const newSendRequestId = (): string => `social-recovery-sender:${uuidv4()}`
+
+/** Every request in the queue, those waiting for an account switch included. */
+const queuedRequestsOf = (state: QueueLists) => [
+  ...(state.userRequests ?? []),
+  ...(state.userRequestsWaitingAccountSwitch ?? [])
+]
+
+/**
+ * Whether the queue holds a `calls` request other than `id` for the account on
+ * the chain, which the wallet would join into one operation with it.
+ */
+const otherCallsRequestIn = (
+  state: QueueLists,
+  id: string,
+  account: Address,
+  chainId: bigint
+): boolean =>
+  queuedRequestsOf(state).some(
+    (queued) =>
+      queued.id !== id &&
+      queued.action?.kind === 'calls' &&
+      queued.meta?.chainId === chainId &&
+      sameAddress(queued.meta?.accountAddr, account)
+  )
 
 /**
  * The `calls` request the port adds to the queue for one listed account.
@@ -209,7 +303,15 @@ const callsRequestOf = (
     isSignAction: true,
     accountAddr: request.account,
     ...(request.keyType === undefined ? {} : { keyType: request.keyType }),
-    chainId
+    chainId,
+    ...(request.recoveryKit
+      ? {
+          recoveryKit: {
+            manager: request.recoveryKit.manager,
+            auditedActions: [...request.recoveryKit.auditedActions]
+          }
+        }
+      : {})
   },
   action: { kind: 'calls', calls: request.calls.map((call) => ({ ...call })) }
 })
@@ -229,6 +331,131 @@ const hashOf = (operation: SubmittedOperation, id: string): Hex | undefined => {
 
 const isBusy = (state: MainStatusState): boolean =>
   BUSY_STATUSES.includes(state.statuses?.signAndBroadcastAccountOp ?? '')
+
+/** Whether calls the wallet holds came from the request. */
+const carriesRequest = (calls: SubmittedOperation['calls'], id: string): boolean =>
+  !!calls?.some((call) => call.fromUserRequestId === id)
+
+/**
+ * Whether the sign screen holds an operation that carries the request, which
+ * it could still sign. A screen that pauses or signs takes no calls update, so
+ * its operation keeps a request the queue already dropped, and a pause that
+ * ends does not take the dropped update back. A screen with no status is a
+ * reset one, or one that has not yet reached ready to sign and still takes
+ * every update.
+ */
+const holdsRequest = (state: SignAccountOpState, id: string): boolean =>
+  !!state.status && carriesRequest(state.accountOp?.calls, id)
+
+/** Whether the sign screen started to sign the operation that holds the request. */
+const signsRequest = (state: SignAccountOpState, id: string): boolean =>
+  !!state.status && SIGNING_STATUSES.includes(state.status.type) && holdsRequest(state, id)
+
+/** Whether the wallet rejected the operation before it reached the chain, so it names no transaction. */
+const neverBroadcast = (operation: SubmittedOperation): boolean =>
+  operation.status === AccountOpStatus.Rejected
+
+const isQueued = (port: SendRequestPort, id: string): boolean =>
+  queuedRequestsOf(port.queue()).some((queued) => queued.id === id)
+
+/** The state of a request whose operation the activity lists. */
+const operationStateOf = (operation: SubmittedOperation, id: string): SendRequestState => {
+  if (!TRANSACTION_OPERATIONS.includes(operation.identifiedBy?.type ?? '')) {
+    return { status: 'untracked' }
+  }
+  const transactionHash = hashOf(operation, id)
+  if (transactionHash) {
+    return { status: 'broadcast', transactionHash }
+  }
+  return neverBroadcast(operation) ? { status: 'gone' } : { status: 'queued' }
+}
+
+/**
+ * Where a request the send port queued stands, read from the queue the wallet
+ * holds now and from the account's own activity on the chain, whichever
+ * account the wallet has selected. The activity is read through a session of
+ * its own, asked page by page, newest first, until a page lists the request's
+ * operation or the list ends; the session is closed in every outcome. A page
+ * the activity does not answer within `REQUEST_STATE_READ_MS` ends the read as
+ * `unread`.
+ */
+export const sendRequestStateOf = (
+  port: SendRequestPort,
+  requestId: string,
+  account: Address,
+  chainId: number | bigint
+): Promise<SendRequestState> => {
+  if (isQueued(port, requestId)) {
+    return Promise.resolve({ status: 'queued' })
+  }
+  // The activity keys its operations by the account's address with the
+  // wallet's own case.
+  const listed = port.accounts().find((candidate) => sameAddress(candidate.addr, account))
+  const filters = { account: listed?.addr ?? account, chainId: BigInt(chainId) }
+  const sessionId = `social-recovery-request-state:${uuidv4()}`
+  return new Promise<SendRequestState>((resolve) => {
+    let done = false
+    let page = ACTIVITY_PAGE.fromPage
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let unsubscribe: () => void = () => {}
+
+    const finish = (state: SendRequestState) => {
+      if (done) {
+        return
+      }
+      done = true
+      if (timer !== undefined) {
+        clearTimeout(timer)
+      }
+      unsubscribe()
+      port.dispatch({
+        type: 'MAIN_CONTROLLER_ACTIVITY_RESET_ACC_OPS_FILTERS',
+        params: { sessionId }
+      })
+      resolve(state)
+    }
+    const ask = () => {
+      if (timer !== undefined) {
+        clearTimeout(timer)
+      }
+      timer = setTimeout(() => finish({ status: 'unread' }), REQUEST_STATE_READ_MS)
+      port.dispatch({
+        type: 'MAIN_CONTROLLER_ACTIVITY_SET_ACC_OPS_FILTERS',
+        params: {
+          sessionId,
+          filters,
+          pagination: { fromPage: page, itemsPerPage: ACTIVITY_PAGE.itemsPerPage }
+        }
+      })
+    }
+
+    unsubscribe = port.subscribe((update) => {
+      if (done || update.controller !== 'activity') {
+        return
+      }
+      const result = update.state.accountsOps?.[sessionId]?.result
+      // A push from before the activity took the page asked for holds no
+      // session, or the page before it.
+      if (!result || (result.currentPage ?? ACTIVITY_PAGE.fromPage) !== page) {
+        return
+      }
+      const operation = result.items?.find((item) => carriesRequest(item.calls, requestId))
+      if (operation) {
+        finish(operationStateOf(operation, requestId))
+        return
+      }
+      if (page + 1 < (result.maxPages ?? 0)) {
+        page += 1
+        ask()
+        return
+      }
+      // The queue may push a state between moving a request from one of its
+      // lists to the other, so it is read once more before `gone`.
+      finish(isQueued(port, requestId) ? { status: 'queued' } : { status: 'gone' })
+    })
+    ask()
+  })
+}
 
 const sameFeeOption = (a: FeePaymentOption, b: FeePaymentOption): boolean =>
   sameAddress(a.paidBy, b.paidBy) &&
@@ -287,7 +514,7 @@ const estimationErrorOf = (state: SignAccountOpState): SignAccountOpError | unde
  */
 const feeReadingOf = (state: SignAccountOpState, id: string): FeeReading | undefined => {
   const { accountOp, estimation } = state
-  if (!accountOp?.calls?.some((call) => call.fromUserRequestId === id)) {
+  if (!accountOp || !carriesRequest(accountOp.calls, id)) {
     return undefined
   }
   if (!SETTLED_ESTIMATIONS.includes(estimation?.status ?? '')) {
@@ -307,10 +534,14 @@ const feeReadingOf = (state: SignAccountOpState, id: string): FeeReading | undef
 export const createSendPort = (port: SendRequestPort, options: SendPortOptions): SendPort => {
   const timeoutMs = options.timeoutMs ?? DEFAULT_SEND_TIMEOUT_MS
   const chainId = BigInt(options.chainId)
+  const { visibility } = options
 
   /** Queues the request and follows it until the activity names its hash or a refusal settles. */
   const follow = (request: FollowedRequest): Promise<Hex> => {
     const { id, account, refusal, onEstimation } = request
+    if (otherCallsRequestIn(port.queue(), id, account, chainId)) {
+      return Promise.reject(refusal('other-request-pending'))
+    }
     return new Promise<Hex>((resolve, reject) => {
       let done = false
       let broadcast = false
@@ -319,12 +550,22 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
       let waiting = false
       let timedOut = false
       let busy = false
+      let signing = false
+      let held = false
+      let inRequests = false
+      let listed = false
+      let lastQueue: QueueLists | undefined
+      let windowClosed = false
       let lastReading: string | undefined
       let settling: SettlingRefusal | undefined
       let unsubscribe: () => void = () => {}
       let timer: ReturnType<typeof setTimeout> | undefined
       let closed: ReturnType<typeof setTimeout> | undefined
       let settleTimer: ReturnType<typeof setTimeout> | undefined
+      let onShown: (() => void) | undefined
+
+      const remove = () =>
+        port.dispatch({ type: 'REQUESTS_CONTROLLER_REMOVE_USER_REQUEST', params: { id } })
 
       const clearWaits = () => {
         if (timer !== undefined) {
@@ -347,6 +588,10 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
         done = true
         clearWaits()
         unsubscribe()
+        if (visibility && onShown) {
+          visibility.removeEventListener('visibilitychange', onShown)
+        }
+        onShown = undefined
         port.dispatch({
           type: 'MAIN_CONTROLLER_ACTIVITY_RESET_ACC_OPS_FILTERS',
           params: { sessionId: id }
@@ -363,24 +608,57 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
           reject(refusal(reason))
         }
       }
-      // A refusal waits while the wallet signs or broadcasts, and then for a
-      // full settle period after it stopped.
+      // A refusal waits while the wallet signs or broadcasts, and while the
+      // queue or the sign screen still holds a request the port withdrew, and
+      // then for a full settle period after all of them stopped.
       const armSettle = () => {
         if (settleTimer !== undefined) {
           clearTimeout(settleTimer)
         }
         settleTimer = undefined
-        if (settling === undefined || busy) {
+        if (settling === undefined || busy || !settling.confirmed) {
           return
         }
         const { reason } = settling
         settleTimer = setTimeout(() => fail(reason), SEND_SETTLE_MS)
       }
+      // A withdrawal is confirmed while the last queue state lists the request
+      // in neither list and the last sign screen state holds no operation that
+      // carries it; a later state that holds it again takes the confirmation
+      // back.
+      const confirmWithdrawal = () => {
+        if (settling === undefined || !settling.withdrawn) {
+          return
+        }
+        const confirmed = !listed && !held
+        if (confirmed !== settling.confirmed) {
+          settling.confirmed = confirmed
+          armSettle()
+        }
+      }
+      // Until the withdrawal is confirmed the removal may have been dropped, so
+      // it is sent again each time the request enters the waiting requests,
+      // except while the sign screen signs or pauses on it.
+      const followWithdrawal = (wasInRequests: boolean) => {
+        if (settling === undefined || !settling.withdrawn) {
+          return
+        }
+        confirmWithdrawal()
+        if (inRequests && !wasInRequests && !signing) {
+          remove()
+        }
+      }
       const settle = (reason: SendRefusalReason, withdraw: boolean) => {
         if (done || settling !== undefined) {
           return
         }
-        settling = { reason, withdrawn: withdraw }
+        // Before any queue state listed the request, the queue the page holds
+        // now tells whether there is anything to withdraw.
+        if (!seen) {
+          listed = isQueued(port, id)
+        }
+        const confirmed = !withdraw || (!listed && !held)
+        settling = { reason, withdrawn: withdraw, confirmed }
         if (timer !== undefined) {
           clearTimeout(timer)
         }
@@ -390,18 +668,28 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
         timer = undefined
         closed = undefined
         if (withdraw) {
-          port.dispatch({ type: 'REQUESTS_CONTROLLER_REMOVE_USER_REQUEST', params: { id } })
+          remove()
+          if (visibility && onShown === undefined) {
+            onShown = () => {
+              if (!done && settling?.withdrawn && inRequests && !signing && isVisible(visibility)) {
+                remove()
+              }
+            }
+            visibility.addEventListener('visibilitychange', onShown)
+          }
         }
         armSettle()
       }
 
       // The queue withdraws a request only from its own list, never one that
       // waits for an account switch, so the timeout waits until the queue
-      // takes it in or drops it.
+      // takes it in or drops it. A withdrawal cannot stop a signature either,
+      // so the timeout also waits while the sign screen signs or pauses on
+      // this request, and applies once it stops with nothing broadcast.
       timer = setTimeout(() => {
         timer = undefined
         timedOut = true
-        if (!waiting) {
+        if (!waiting && !signing) {
           settle('timeout', true)
         }
       }, timeoutMs)
@@ -411,6 +699,31 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
           return
         }
         if (update.controller === 'signAccountOp') {
+          const wasSigning = signing
+          signing = signsRequest(update.state, id)
+          held = holdsRequest(update.state, id)
+          confirmWithdrawal()
+          // A failed signature or the end of a pause takes the sign screen back
+          // to taking updates with no push of the queue, so a time limit that
+          // passed while it signed, a request that joined then, or a removal
+          // held back then, is read from the last queue state.
+          if (wasSigning && !signing && !broadcast) {
+            const queue = lastQueue ?? port.queue()
+            const queued = (queue.userRequests ?? []).some(
+              (queuedRequest) => queuedRequest.id === id
+            )
+            if (settling !== undefined) {
+              if (settling.withdrawn && !settling.confirmed && queued) {
+                remove()
+              }
+            } else if (queued && timedOut) {
+              settle('timeout', true)
+            } else if (queued && windowClosed) {
+              settle('window-closed', true)
+            } else if (queued && otherCallsRequestIn(queue, id, account, chainId)) {
+              settle('other-request-pending', true)
+            }
+          }
           if (!onEstimation) {
             return
           }
@@ -440,7 +753,7 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
         }
         if (update.controller === 'activity') {
           const operation = update.state.accountsOps?.[id]?.result?.items?.find((item) =>
-            item.calls?.some((call) => call.fromUserRequestId === id)
+            carriesRequest(item.calls, id)
           )
           if (!operation) {
             return
@@ -457,22 +770,30 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
           const hash = hashOf(operation, id)
           if (hash) {
             succeed(hash)
-          } else if (operation.status === AccountOpStatus.Rejected) {
+          } else if (neverBroadcast(operation)) {
             fail('not-broadcast')
           }
           return
         }
+        lastQueue = update.state
         if (broadcast) {
           return
         }
         const { userRequests = [], userRequestsWaitingAccountSwitch = [] } = update.state
         const inQueue = userRequests.some((queued) => queued.id === id)
+        const wasInRequests = inRequests
+        inRequests = inQueue
         waiting = userRequestsWaitingAccountSwitch.some((queued) => queued.id === id)
+        listed = inQueue || waiting
         if (settling !== undefined) {
+          if (settling.withdrawn) {
+            followWithdrawal(wasInRequests)
+            return
+          }
           // The queue moves a request between its two lists after an account
           // switch and may push a state between the two moves: a request the
           // port did not withdraw that is back in either list is still open.
-          if (settling.withdrawn || (!inQueue && !waiting)) {
+          if (!inQueue && !waiting) {
             return
           }
           settling = undefined
@@ -488,12 +809,21 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
         if (!inQueue) {
           return
         }
-        if (timedOut) {
+        if (timedOut && !signing) {
           settle('timeout', true)
+          return
+        }
+        // Except while the sign screen that holds this request signs or pauses
+        // on its operation, another request that joins it withdraws this one: the
+        // holder would sign both together. The wallet's own signing status
+        // covers every sign flow, so only the sign screen's status tells.
+        if (!signing && otherCallsRequestIn(update.state, id, account, chainId)) {
+          settle('other-request-pending', true)
           return
         }
         if (update.state.actions?.actionWindow?.windowProps) {
           windowSeen = true
+          windowClosed = false
           if (closed !== undefined) {
             clearTimeout(closed)
           }
@@ -501,10 +831,16 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
         } else if (windowSeen && closed === undefined) {
           // The queue keeps a transaction request when its window closes, so
           // the holder could still send it from the dashboard later. The port
-          // withdraws it instead, once the window stays closed.
+          // withdraws it instead, once the window stays closed, and not while
+          // the sign screen signs or pauses on this request, which a withdrawal
+          // cannot stop: then it applies once that ends with nothing broadcast.
           closed = setTimeout(() => {
             closed = undefined
-            settle('window-closed', true)
+            if (signing) {
+              windowClosed = true
+            } else {
+              settle('window-closed', true)
+            }
           }, ABSENCE_GRACE_MS)
         }
       })
@@ -537,7 +873,7 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
         return Promise.reject(sendRefusal('not-wired', key))
       }
       return follow({
-        id: nextRequestId(),
+        id: newSendRequestId(),
         // The queue, the sign screen and the activity compare addresses with
         // exact case, so the request carries the listed account's own address.
         account: listed.addr as Address,
@@ -550,7 +886,9 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
     sendAccountBatch(
       account: Address,
       calls: readonly PreparedCall[],
-      onEstimation?: EstimationListener
+      onEstimation?: EstimationListener,
+      recoveryKit?: RecoveryKitMark,
+      requestId?: string
     ): Promise<Hex> {
       const listed = port.accounts().find((candidate) => sameAddress(candidate.addr, account))
       if (!listed) {
@@ -562,11 +900,12 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
         return Promise.reject(accountBatchRefusal('not-smart-account', account))
       }
       return follow({
-        id: nextRequestId(),
+        id: requestId ?? newSendRequestId(),
         account: listed.addr as Address,
         calls: calls.map((call) => ({ to: call.target, value: call.value, data: call.data })),
         refusal: (reason) => accountBatchRefusal(reason, account),
-        onEstimation
+        onEstimation,
+        recoveryKit
       })
     }
   })

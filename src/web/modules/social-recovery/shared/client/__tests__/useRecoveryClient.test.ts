@@ -24,6 +24,10 @@ jest.mock('@web/hooks/useNetworksControllerState', () => ({
   __esModule: true,
   default: jest.fn()
 }))
+jest.mock('@web/hooks/useAccountsControllerState', () => ({
+  __esModule: true,
+  default: () => ({ accounts: [] })
+}))
 // viem builds a TextEncoder and a TextDecoder when either entry the client
 // imports loads, which jsdom lacks: Node's own are installed first, whichever
 // entry loads first.

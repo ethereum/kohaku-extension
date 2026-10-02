@@ -11,6 +11,7 @@
  *   to the account the key operates or the account factory.
  * - A transaction another one replaced before it was mined never ran.
  */
+import { DEPLOYLESS_SIMULATION_FROM } from '@ambire-common/consts/deploy'
 import i18n from '@common/config/localization'
 import { KIT_ERROR_NAMES, type KitErrorName } from '@web/modules/social-recovery/sdk-interfaces'
 import { isProviderReadFailure } from '@web/modules/social-recovery/shared/client'
@@ -236,7 +237,10 @@ describe("an owner write's transaction is tied to the prepared write", () => {
     const reads = mockReads({ balance: 10n ** 18n, gas: 180_000n })
     const deploy = { ...ownerTransaction('save'), to: ACCOUNT_FACTORY }
     expect((await runGasCheck({ write: 'save', reads, transaction: deploy })).kind).toBe('enough')
-    expect(reads.estimateGas.mock.calls[0][0]).toEqual(deploy)
+    expect(reads.estimateGas.mock.calls[0][0]).toEqual({
+      ...deploy,
+      from: DEPLOYLESS_SIMULATION_FROM
+    })
   })
 })
 

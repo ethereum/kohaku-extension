@@ -6,6 +6,8 @@ export interface WriteStateViewProps {
   state: WriteState
   /** The write's own title over the state, from its own keys. */
   title?: string
+  /** The write's own lines in place of the state's own, from its own keys. */
+  body?: string[]
   /** The write's own sentence after the reading, from its own keys. */
   note?: string
   /** Runs the write again; the view shows the retry only where the state offers it. */

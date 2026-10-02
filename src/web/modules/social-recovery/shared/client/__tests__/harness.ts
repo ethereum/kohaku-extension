@@ -26,7 +26,10 @@
  */
 import { AbiCoder, id, toBeHex, toQuantity, Wallet } from 'ethers'
 
+import { Session } from '@ambire-common/classes/session'
+import type { AccountOnchainState } from '@ambire-common/interfaces/account'
 import type { Network } from '@ambire-common/interfaces/network'
+import type { SignUserRequest } from '@ambire-common/interfaces/userRequest'
 import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
 
 import {
@@ -40,6 +43,7 @@ import {
   ScriptedChain,
   SetupClientDouble
 } from '@web/modules/social-recovery/sdk-doubles'
+import type { VisibilitySource } from '@web/modules/social-recovery/shared/ceremony'
 import type {
   Address,
   BlockTag,
@@ -62,6 +66,7 @@ import {
   WALLET_RECOVERY_CHAIN,
   type ApprovingClient,
   type ExtensionProvider,
+  type HeldRequestQueue,
   type KeyHandle,
   type ListedAccount,
   type MainStatusState,
@@ -69,6 +74,7 @@ import {
   type RecoveryClientConfiguration,
   type SendPort,
   type SendPortOptions,
+  type SendQueueState,
   type SendRefusal,
   type SendRefusalReason,
   type SendRequestPort,
@@ -83,6 +89,7 @@ import {
 } from '@web/modules/social-recovery/shared/client'
 // The stand-in is not part of the barrel a screen imports; tests reach it by path.
 import { sdkStandIn } from '@web/modules/social-recovery/shared/client/stand-in'
+import type { RecoveryClientState } from '@web/modules/social-recovery/shared/client/types'
 import {
   createWalletRecords,
   type RecordStorage
@@ -90,6 +97,8 @@ import {
 
 export * from '@web/modules/social-recovery/shared/client'
 export { sdkStandIn }
+
+export type HookState = RecoveryClientState & { retry: () => void }
 
 export const SEPOLIA = 11155111
 export const MAINNET = 1
@@ -543,6 +552,12 @@ export interface SendWorld {
   push: (update: SendRequestUpdate) => void
   /** How many listeners are subscribed now. */
   listeners: () => number
+  /** The request queue the wallet holds now, which the port pulls; a test may replace it and push it. */
+  queue: HeldAndPushedQueue
+  /** The port the sender runs over. */
+  port: SendRequestPort
+  /** Puts a queue state in the getter and pushes it, as the wallet does. */
+  show: (state: HeldAndPushedQueue) => void
 }
 
 /**
@@ -559,17 +574,64 @@ export const sendQueueOver = (
   world.dispatch = jest.fn()
   world.push = (update) => [...listeners].forEach((l) => l(update))
   world.listeners = () => listeners.size
-  const port: SendRequestPort = {
+  world.queue = {}
+  world.port = {
     dispatch: world.dispatch,
     subscribe(listener) {
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
     accounts: () => world.accounts,
+    queue: () => world.queue,
     windowId: () => WINDOW_ID
   }
-  world.sender = createSendPort(port, { chainId: SEPOLIA, ...options })
+  world.show = (state) => {
+    world.queue = state
+    world.push({ controller: 'requests', state })
+  }
+  world.sender = createSendPort(world.port, { chainId: SEPOLIA, ...options })
   return world
+}
+
+export interface FakeVisibility {
+  /** The page's document as the send port reads it. */
+  source: VisibilitySource
+  /** Shows the page and fires `visibilitychange`. */
+  show: () => void
+  /** Hides the page and fires `visibilitychange`. */
+  hide: () => void
+  /** How many `visibilitychange` listeners are added now. */
+  listeners: () => number
+}
+
+/** A page's document that a test shows and hides by hand, with no DOM. */
+export const fakeVisibility = (initial: 'visible' | 'hidden' = 'visible'): FakeVisibility => {
+  let state: string = initial
+  // A list, not a set, so a listener added twice counts twice.
+  const listeners: (() => void)[] = []
+  const fire = (next: string) => {
+    state = next
+    ;[...listeners].forEach((listener) => listener())
+  }
+  return {
+    source: {
+      get visibilityState() {
+        return state
+      },
+      addEventListener: (_type, listener) => {
+        listeners.push(listener)
+      },
+      removeEventListener: (_type, listener) => {
+        const at = listeners.indexOf(listener)
+        if (at >= 0) {
+          listeners.splice(at, 1)
+        }
+      }
+    },
+    show: () => fire('visible'),
+    hide: () => fire('hidden'),
+    listeners: () => listeners.length
+  }
 }
 
 /** The id of the action window the queue opened, as its window props carry it. */
@@ -675,6 +737,52 @@ export const waitingForSwitch = (...requestIds: (string | number)[]): SendReques
     userRequests: [],
     userRequestsWaitingAccountSwitch: requestIds.map((requestId) => ({ id: requestId }))
   }
+})
+
+/** The kinds of request a test puts in the wallet's queue. */
+export type QueuedKind = 'calls' | 'message' | 'typedMessage'
+
+/** What a request in the wallet's queue is for: its kind, its account and its chain. */
+export interface QueuedFor {
+  account: string
+  chainId?: bigint
+  kind?: QueuedKind
+}
+
+/** A `requests` state the wallet both holds and pushes. */
+export type HeldAndPushedQueue = HeldRequestQueue & SendQueueState
+
+const QUEUED_ACTIONS: Record<QueuedKind, SignUserRequest['action']> = {
+  calls: { kind: 'calls', calls: [] },
+  message: { kind: 'message', message: '0x' },
+  typedMessage: { kind: 'typedMessage', domain: {}, types: {}, message: {}, primaryType: '' }
+}
+
+/** One request in the wallet's queue, with the kind, account and chain the queue keeps. */
+export const queuedRequest = (
+  requestId: string | number,
+  { account, chainId = BigInt(SEPOLIA), kind = 'calls' }: QueuedFor
+): SignUserRequest => ({
+  id: requestId,
+  action: QUEUED_ACTIONS[kind],
+  session: new Session(),
+  meta: { isSignAction: true, accountAddr: account, chainId }
+})
+
+/** The `requests` state holding these requests, those waiting for an account switch, and the window open. */
+export const queueHolding = (
+  requests: SignUserRequest[],
+  waiting: SignUserRequest[] = []
+): HeldAndPushedQueue => ({
+  userRequests: requests,
+  userRequestsWaitingAccountSwitch: waiting,
+  actions: { actionWindow: { windowProps: { id: ACTION_WINDOW_ID } } }
+})
+
+/** The push of a `requests` state. */
+export const requestsPush = (state: SendQueueState): SendRequestUpdate => ({
+  controller: 'requests',
+  state
 })
 
 /** A smart account the wallet lists, as the wallet holds its address: checksummed. */
@@ -988,6 +1096,33 @@ export const networkRecord = (chain: RecoveryChain, overrides: Partial<Network> 
     rpcProvider: 'rpc',
     ...overrides
   } as Network)
+
+/**
+ * An account's state on one chain as the wallet reads it: a smart account of
+ * the current version with code, nonce 5, unless the overrides say otherwise.
+ */
+export const onchainState = (
+  accountAddr: string,
+  overrides: Partial<AccountOnchainState> = {}
+): AccountOnchainState => ({
+  accountAddr,
+  isDeployed: true,
+  eoaNonce: null,
+  nonce: 5n,
+  erc4337Nonce: 0n,
+  associatedKeys: {},
+  deployError: false,
+  balance: 0n,
+  isEOA: false,
+  isErc4337Enabled: false,
+  isErc4337Nonce: false,
+  isV2: true,
+  currentBlock: 7_000_000n,
+  isSmarterEoa: false,
+  delegatedContract: null,
+  delegatedContractName: null,
+  ...overrides
+})
 
 /**
  * The wallet's records over one in-memory storage: what a caller writes, the

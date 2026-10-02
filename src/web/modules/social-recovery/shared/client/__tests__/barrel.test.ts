@@ -11,8 +11,9 @@ describe('the client barrel', () => {
     expect(Object.keys(client)).not.toContain('sdkStandIn')
   })
 
-  it('does not export the React hook, so it loads in a Node test', () => {
+  it('does not export the React hooks, so it loads in a Node test', () => {
     expect(Object.keys(client)).not.toContain('useRecoveryClient')
+    expect(Object.keys(client)).not.toContain('useAccountFacts')
   })
 
   it('hands a screen no class or function of the doubles', () => {

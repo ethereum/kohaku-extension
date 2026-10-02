@@ -27,6 +27,7 @@ import type {
   AttemptEnd,
   DepositStep,
   DepositStepRenderOptions,
+  FailedNotSentState,
   OwnerWrite,
   RenderedDepositStep,
   RenderedRoute,
@@ -65,7 +66,13 @@ export const WRITES_KEYS = {
   tryAgain: `${WRITES}.tryAgain`,
   cancelRevertedTitle: `${WRITES}.cancelRevertedTitle`,
   cancelReverted: `${WRITES}.cancelReverted`,
-  nowControlledBy: `${WRITES}.nowControlledBy`
+  nowControlledBy: `${WRITES}.nowControlledBy`,
+  /**
+   * A call the wallet submitted as an operation another party sends: this
+   * wallet cannot follow it, and it may still reach the chain.
+   */
+  mayStillLand: `${WRITES}.mayStillLand`,
+  otherRequestPending: `${WRITES}.otherRequestPending`
 } as const
 
 /** The keys of `socialRecovery.writes.gas` the deposit step reads. */
@@ -186,6 +193,22 @@ const renderAttemptGone = (
 }
 
 /**
+ * The one line of the not-sent reading. A replaced transaction was sent: it
+ * never ran, but it did not fail to reach the chain. A call that may still
+ * reach the chain says so and nothing more, and a call refused for another
+ * request of the account names that request.
+ */
+const notSentKeyOf = (state: FailedNotSentState): string => {
+  if (state.mayStillLand) {
+    return WRITES_KEYS.mayStillLand
+  }
+  if (state.otherRequest) {
+    return WRITES_KEYS.otherRequestPending
+  }
+  return state.replaced ? WRITES_KEYS.replaced : WRITES_KEYS.notSent
+}
+
+/**
  * The copy of a write's state. The submitting state reads the in-progress chip,
  * its title and that the key is sending one transaction; the failed state reads
  * one of its two readings, the reverted one in the write's own words
@@ -210,12 +233,7 @@ export const renderWriteState = (state: WriteState, t: Translate = i18n.t): Rend
     case 'gasReadError':
       return { ...base, ...retry, lines: [t(WRITES_KEYS.gasCheckFailed)] }
     case 'failedNotSent':
-      // A replaced transaction was sent: it never ran, but it did not fail to reach the chain.
-      return {
-        ...base,
-        ...retry,
-        lines: [t(state.replaced ? WRITES_KEYS.replaced : WRITES_KEYS.notSent)]
-      }
+      return { ...base, ...retry, lines: [t(notSentKeyOf(state))] }
     case 'failedReverted':
       if (state.cause.kind === 'attemptGone') {
         return { ...base, ...retry, ...renderAttemptGone(state.cause, t) }

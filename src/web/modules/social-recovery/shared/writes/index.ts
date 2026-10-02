@@ -16,7 +16,15 @@ export {
   payerOf,
   assertWriteDoor
 } from './kinds'
-export { WRITE_STATUSES, FAILED_STATUSES, isFailedState, canRetry, offersMoveFunds } from './states'
+export {
+  WRITE_STATUSES,
+  FAILED_STATUSES,
+  isFailedState,
+  canRetry,
+  offersMoveFunds,
+  mayStillLand,
+  otherRequestPending
+} from './states'
 export {
   ATTEMPT_ENDS,
   ATTEMPT_STILL_RUNNING,
@@ -40,6 +48,8 @@ export {
   FEE_HEADROOM_PERCENT,
   GAS_DISPLAY_DECIMALS,
   ACCOUNT_FACTORY,
+  accountFactoryOf,
+  walletAccountRefOf,
   VALUE_TRANSFER_GAS,
   DEPOSIT_ROUTES,
   roundUpForDisplay,

@@ -29,14 +29,26 @@ export const isFailedState = (state: WriteState): state is FailedState =>
   (FAILED_STATUSES as readonly string[]).includes(state.status)
 
 /**
+ * Whether the wallet submitted the write as an operation another party sends,
+ * which this wallet cannot follow and which may still reach the chain.
+ */
+export const mayStillLand = (state: WriteState): boolean =>
+  state.status === 'failedNotSent' && !!state.mayStillLand
+
+/** Whether the write was not sent because another request for the account waited in the wallet. */
+export const otherRequestPending = (state: WriteState): boolean =>
+  state.status === 'failedNotSent' && !!state.otherRequest
+
+/**
  * Whether the state offers the retry. A gas check that could not read runs
- * again, and a call never sent is sent again. A reverted call is retried only
- * where a retry can fix its cause (`retryCanFix`): never for a cancel whose
- * attempt was already gone, nor for a kit error of the write's `NO_RETRY_CAUSES`.
+ * again, and a call never sent is sent again, except one that may still reach
+ * the chain. A reverted call is retried only where a retry can fix its cause
+ * (`retryCanFix`): never for a cancel whose attempt was already gone, nor for a
+ * kit error of the write's `NO_RETRY_CAUSES`.
  */
 export const canRetry = (state: WriteState): boolean =>
   state.status === 'gasReadError' ||
-  state.status === 'failedNotSent' ||
+  (state.status === 'failedNotSent' && !state.mayStillLand) ||
   (state.status === 'failedReverted' && retryCanFix(state.write, state.cause))
 
 /**

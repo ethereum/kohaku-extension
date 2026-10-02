@@ -10,6 +10,7 @@
  *   failed to reach the chain.
  * - A failed gas read names the gas check, not one read.
  */
+import { DEPLOYLESS_SIMULATION_FROM } from '@ambire-common/consts/deploy'
 import i18n from '@common/config/localization'
 import { revertedCall, providerReadFailure } from '@web/modules/social-recovery/shared/client'
 
@@ -91,7 +92,10 @@ describe('an account with no code pays its transfer through the factory', () => 
   it("estimates the caller's deploy-and-transfer, never a call to the empty account", async () => {
     const { reads } = await transferOf(true)
     expect(reads.estimateGas).toHaveBeenCalledTimes(2)
-    expect(reads.estimateGas.mock.calls[1][0]).toEqual(DEPLOY_AND_TRANSFER)
+    expect(reads.estimateGas.mock.calls[1][0]).toEqual({
+      ...DEPLOY_AND_TRANSFER,
+      from: DEPLOYLESS_SIMULATION_FROM
+    })
   })
 
   it("the undeployed account's transfer route asks for more than the deployed one's", async () => {

@@ -469,9 +469,12 @@ describe("the UI's own port over the event bus", () => {
   it('reads the sign screen the background pushes, takes a null or missing push as an empty state with no reading, and leaves no listener behind', async () => {
     const before = eventBus.events.signAccountOp?.length ?? 0
     const dispatch = jest.fn()
-    const sender = createSendPort(sendRequestPort(dispatch, LISTED, WINDOW_ID), {
-      chainId: SEPOLIA
-    })
+    const sender = createSendPort(
+      sendRequestPort(dispatch, LISTED, () => undefined, WINDOW_ID),
+      {
+        chainId: SEPOLIA
+      }
+    )
     const heard = jest.fn()
     const send = track(sender.sendAccountBatch(SMART_ACCOUNT, BATCH, heard))
     const id = String(addedRequest(dispatch).userRequest.id)
@@ -489,9 +492,12 @@ describe("the UI's own port over the event bus", () => {
   it("keeps a listener's throw inside the port, so the bus's later listeners still hear the push and the send still follows", async () => {
     const before = eventBus.events.signAccountOp?.length ?? 0
     const dispatch = jest.fn()
-    const sender = createSendPort(sendRequestPort(dispatch, LISTED, WINDOW_ID), {
-      chainId: SEPOLIA
-    })
+    const sender = createSendPort(
+      sendRequestPort(dispatch, LISTED, () => undefined, WINDOW_ID),
+      {
+        chainId: SEPOLIA
+      }
+    )
     const heard = jest.fn().mockImplementationOnce(() => {
       throw new Error('the listener failed')
     })
@@ -520,7 +526,11 @@ describe("the UI's own port over the event bus", () => {
   it('refuses an account while the wallet lists no accounts yet', async () => {
     const dispatch = jest.fn()
     const sender = createSendPort(
-      sendRequestPort(dispatch, () => undefined),
+      sendRequestPort(
+        dispatch,
+        () => undefined,
+        () => undefined
+      ),
       { chainId: SEPOLIA }
     )
     const caught = (await thrownBy(sender.sendAccountBatch(SMART_ACCOUNT, BATCH))) as SendRefusal
