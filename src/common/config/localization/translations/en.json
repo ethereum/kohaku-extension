@@ -554,7 +554,8 @@
         },
         "shapeVisible": {
           "label": "Shape visible",
-          "line": "The shape of your setup is readable: {{shape}}. Which ones stays hidden."
+          "line": "The shape of your setup is readable: {{shape}}. Which ones stays hidden.",
+          "lineEmpty": "The shape of your setup is readable. Which methods you chose stays hidden."
         },
         "public": {
           "label": "Public",
@@ -597,6 +598,7 @@
       },
       "privacyHeader": "Privacy",
       "privateSet": "Private · recovery password set",
+      "shapeVisibleSet": "Shape visible · recovery password set",
       "verifyDetails": "Verify the details",
       "trust": {
         "methodRow": "{{method}} method · Audited · no outside party",
@@ -702,6 +704,7 @@
       "explorer": "View on explorer",
       "oneTransaction": "One transaction. Nothing else was sent.",
       "hiddenBehindPassword": "Setup details hidden behind your recovery password.",
+      "shapeVisibleBehindPassword": "Method details hidden behind your recovery password. The shape of your setup is readable.",
       "writtenTo": "This is the account your setup was written to.",
       "settingsLine": "Change anything later in Settings › Account recovery.",
       "notListed": "This wallet does not list this account on this network.",
@@ -744,7 +747,11 @@
       "wrongPassword": "That is not your extension password. Try again.",
       "passwordGone": "Your recovery password is not on this device any more. Set it again on the privacy step to reveal it and carry the card.",
       "passwordGoneAction": "Set the recovery password again",
-      "carrierAsks": "A new download, print or hand-off asks your extension password."
+      "carrierAsks": "A new download, print or hand-off asks your extension password.",
+      "passwordAsk": "Enter your recovery password to show your Recovery Card. This is not your extension password.",
+      "passwordAskAction": "Show the card",
+      "wrongRecoveryPassword": "That is not your recovery password. Try again.",
+      "passwordUnchecked": "This wallet could not check your recovery password. Try again."
     },
     "create": {
       "controlledBy": "Controlled by {{address}}",
