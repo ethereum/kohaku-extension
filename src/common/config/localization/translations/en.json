@@ -286,6 +286,7 @@
       "wipedNote": "Nothing was submitted and nothing left the account. Every approval was wiped from this device. Only this reason is kept.",
       "draftAge": "Your setup is unfinished. Draft from {{date}}. Nothing is saved on chain until you confirm.",
       "startOverNote": "Start over discards the draft. Your created passkey is not deleted.",
+      "startOverWhileSaving": "A save is on its way. Wait until it ends, then start over.",
       "writeFailed": "This device could not save your draft. Nothing changed. Try again.",
       "loadFailed": "This device could not read your draft."
     },
@@ -707,6 +708,8 @@
       "viewOnly": "This wallet has no key for this account. It cannot save a recovery path from here.",
       "mayStillLand": "This save went out on a route this wallet cannot follow. It may still reach the chain.",
       "checkAgain": "Check again",
+      "unread": "This wallet could not read where your save stands. Check again.",
+      "lookingForSave": "This wallet is looking for your save.",
       "disagreed": {
         "title": "This wallet cannot confirm your setup",
         "body": "The transaction landed. A check this wallet runs after the save disagreed, so it does not report your recovery path as live.",
