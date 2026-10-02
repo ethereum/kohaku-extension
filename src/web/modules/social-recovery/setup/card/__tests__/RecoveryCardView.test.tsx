@@ -508,7 +508,6 @@ describe('the recovery card view', () => {
       const count = () => (container.textContent ?? '').split(S.card.carrierAsks).length - 1
       await mount()
       expect(count()).toBe(1)
-      expect(container.textContent).not.toContain(S.card.reDownload)
       await press('card-download')
       await press('card-download')
       expect(byTestId('card-password-ask')).not.toBeNull()

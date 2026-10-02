@@ -64,15 +64,16 @@ A follow-up task is work the cut did not hold: a seam a task or a review found, 
 | FU-L | The client's account implementation and the privilege holders read | PT-049, PT-050 | `shared/client` | #38 | merged |
 | FU-M | The privilege holders read derives the keys from the account's privilege events | PT-050 | `shared/client`, the create door's picker badge | none yet | planned; complete only with the creation block from the SDK |
 | FU-N | The wallet's own request carries the recovery kit's mark, and the self-call exemption belongs to that request | PT-051 | the library's requests and sign controllers | kohaku-commons#5 | merged |
-| FU-O | The client seams the arming save needs: the kit mark, the account batch, the account facts, the gas check for an account with no code, the save in flight, the request's state, the refusal for another waiting request, the may-still-land reading | PT-051 | `shared/client`, `shared/writes`, `shared/records` | #40 | open |
+| FU-O | The client seams the arming save needs: the kit mark, the account batch, the account facts, the gas check for an account with no code, the save in flight, the request's state, the refusal for another waiting request, the may-still-land reading | PT-051 | `shared/client`, `shared/writes`, `shared/records` | #40 | merged |
 | FU-P | The smart account's own key as the fee payer: the estimation reads it, and the sign screen labels and prefers it | PT-051 | the library's estimation; the wallet's sign screen | kohaku-commons#6, #43 | merged |
-| FU-Q | "Start over" is refused while a save is pending | PT-043, PT-051 | `shared/records` (in #40), `setup/presets` | #40 for the records part; none yet for the presets screen | in work |
-| FU-R | A save the network dropped: after one hour with the transaction unknown to the node, the save screen offers to save again | PT-051 | `setup/arm` | none yet | planned, after PT-051 merges |
-| FU-S | Before the Recovery Card, the wallet asks for the recovery password again when it is not in memory | PT-048, PT-051 | `setup/card` | none yet | planned, after PT-051 merges |
-| FU-T | The module-wide test pass: test imports through the aliases, braces on the inherited single-statement branches, test-only types in the harnesses | every M-6 and M-7 task | every `__tests__` folder of the module | none yet | planned, after the M-7 merge train |
+| FU-Q | "Start over" is refused while a save is pending | PT-043, PT-051 | `shared/records` (in #40), `setup/presets` | #40 for the records part, #47 for the presets screen | the records part merged; #47 open |
+| FU-R | A save the network dropped: after one hour with the transaction unknown to the node, the save screen offers to save again | PT-051 | `setup/arm`, `shared/records`, `shared/client` | none yet | in work, stacked on PT-051's pull request |
+| FU-S | Before the Recovery Card, the wallet asks for the recovery password again when it is not in memory | PT-048, PT-051 | `setup/card` | none yet | in work |
+| FU-T | The module-wide test pass: test imports through the aliases, braces on the inherited single-statement branches, test-only types in the harnesses, each harness's self-check anchored to its own file | every M-6 and M-7 task | every `__tests__` folder of the module | none yet | in work; setup/arm and setup/presets follow their pull requests |
 | FU-U | The stand-in names of the unanswered SDK questions are renamed once the SDK owner answers | PT-035, PT-038 | `sdk-interfaces`, `sdk-doubles`, `shared/client` | none yet | planned; waits for the SDK owner |
-| FU-V | The styling pass of the setup flow's screens, with its screen walk | PT-042 to PT-051 | `setup/**`, `onboarding/create` | none yet | planned, after the M-7 merge train |
-| FU-W | Small repairs recorded in review: the card's unused re-download string, the ceremony test harness anchored to its file, a safe-integer guard on the stored chain id | PT-048, PT-041, PT-040 | `setup/card`, `shared/ceremony`, `shared/records` | none yet | planned, after the M-7 merge train |
+| FU-V | The styling pass of the setup flow's screens, with its screen walk | PT-042 to PT-051 | `setup/**`, `onboarding/create` | none yet | in work, by screen |
+| FU-W | Small repairs recorded in review: the card's unused re-download string (removed in setup round 13), a safe-integer guard on the stored chain id | PT-048, PT-040 | `setup/card`, `shared/records` | none yet | the string removed; the guard in work |
+| FU-X | The middle privacy level ships (the owner's ruling of 2026-10-02: three levels): the task files say three radios, and the review and the saved screen get their own lines at Shape visible | PT-047, PT-049, PT-051 | the task files, `setup/review`, `setup/arm`, `sdk-interfaces` (a comment) | none yet | the documents in setup round 13; the screens' lines wait for the ux owner's text |
 
 ## Open questions
 
@@ -82,7 +83,7 @@ Questions the tasks leave open, with the owner of the answer. They are not answe
 | --- | --- | --- | --- |
 | 1 | PT-035 | Which interfaces the doubles imitate: the cut lists eight, `sdk.md` D-201 declares twelve, and the builder never hands out `IPolicyManagerInteractor` or `IRecoveryActionArming`; `IMethodModuleReads` and `IRecoveryMethod` are missing from the eight | sdk owner with ux owner |
 | 2 | PT-035 | Which commit of `sdk.md` the doubles freeze against, since every TypeScript block is illustrative | sdk owner |
-| 3 | PT-047, PT-056, PT-035, PT-048, I-25 | cut-q-23: whether a middle privacy level exists; until then two radios, and I-25 still says three | sdk owner for the level, ux owner for the invariant |
+| 3 | PT-047, PT-056, PT-035, PT-048, I-25 | cut-q-23: whether a middle privacy level exists. Ruled by the owner on 2026-10-02: three levels ship, as I-25 says; the byte format of the public shape note still waits for the sdk owner | sdk owner for the level, ux owner for the invariant |
 | 4 | PT-050, PT-051, PT-054, PT-058, PT-060 | cut-q-22: the verify per pasted reply, the removed-key read and the fit check on code-to-be, none an SDK member today | sdk owner |
 | 5 | PT-050 | The "other doors" privilege read has no SDK member and `sdk.md` declines the list; extension-derived or dropped | sdk owner and ux owner |
 | 6 | PT-058, PT-060 | `addApproverReply` shape (typed result with five refusals in `sdk.md` D-207, three thrown errors in D-374) and the nonexistent uncertified-key warning | sdk owner |

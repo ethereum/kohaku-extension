@@ -153,7 +153,6 @@ describe('the extension password ask', () => {
   it('leads with the line that a new download, print or hand-off asks the extension password', async () => {
     await render()
     expect(container.textContent?.startsWith(S.card.carrierAsks)).toBe(true)
-    expect(container.textContent).not.toContain(S.card.reDownload)
   })
 
   it('sends one unlock on Enter and ignores Enter while the unlock runs', async () => {
