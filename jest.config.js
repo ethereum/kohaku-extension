@@ -37,6 +37,7 @@ module.exports = {
     '^react-native-safe-area-context$':
       '<rootDir>/src/web/modules/social-recovery/__tests__/stubs/safeAreaContext.ts',
     '^react-native-svg$': 'react-native-svg/lib/commonjs/ReactNativeSVG.web.js',
+    '^nanoid$': '<rootDir>/src/web/modules/social-recovery/__tests__/stubs/nanoid.ts',
     // The path aliases of tsconfig.json, so a unit test imports like the code it tests
     '^@ambire-common/(.*)$': '<rootDir>/src/ambire-common/src/$1',
     '^@contracts/(.*)$': '<rootDir>/src/ambire-common/contracts/$1',
