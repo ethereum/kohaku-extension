@@ -225,7 +225,9 @@
       },
       "revertedExecuteGone": "Could not execute. The transaction reached the chain and reverted. {{cause}} The gas it spent is gone.",
       "gasCheckFailed": "Could not finish the gas check. The node did not answer.",
-      "replaced": "Another transaction from this key took this one's place before it ran. Nothing changed."
+      "replaced": "Another transaction from this key took this one's place before it ran. Nothing changed.",
+      "mayStillLand": "This went out on a route this wallet cannot follow. It may still reach the chain.",
+      "otherRequestPending": "Another request for this account is waiting in the wallet. Sign or reject it, then try again."
     },
     "ceremony": {
       "passedNote": "check {{hash}} · passed just now",
@@ -701,6 +703,10 @@
       "hiddenBehindPassword": "Setup details hidden behind your recovery password.",
       "writtenTo": "This is the account your setup was written to.",
       "settingsLine": "Change anything later in Settings › Account recovery.",
+      "notListed": "This wallet does not list this account on this network.",
+      "viewOnly": "This wallet has no key for this account. It cannot save a recovery path from here.",
+      "mayStillLand": "This save went out on a route this wallet cannot follow. It may still reach the chain.",
+      "checkAgain": "Check again",
       "disagreed": {
         "title": "This wallet cannot confirm your setup",
         "body": "The transaction landed. A check this wallet runs after the save disagreed, so it does not report your recovery path as live.",
