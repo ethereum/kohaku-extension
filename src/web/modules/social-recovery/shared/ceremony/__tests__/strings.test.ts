@@ -12,14 +12,16 @@ import path from 'path'
 import i18n from '@common/config/localization'
 import en from '@common/config/localization/translations/en.json'
 
-import { ceremony } from './harness'
+import { ceremony } from '@web/modules/social-recovery/shared/ceremony/__tests__/harness'
 
 const MODULE_DIR = path.resolve(__dirname, '..')
 
 const sourcesOf = (dir: string): string[] =>
   fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const full = path.join(dir, entry.name)
-    if (entry.isDirectory()) return entry.name === '__tests__' ? [] : sourcesOf(full)
+    if (entry.isDirectory()) {
+      return entry.name === '__tests__' ? [] : sourcesOf(full)
+    }
     return /\.(ts|tsx)$/.test(entry.name) ? [full] : []
   })
 
@@ -114,7 +116,9 @@ describe('the keys an outcome selects', () => {
     CEREMONY_CALLS.forEach((call) =>
       everyOutcome().forEach((outcome) => {
         const key = noteKeyOfOutcome(outcome, call)
-        if (key !== null) expectResolves(key)
+        if (key !== null) {
+          expectResolves(key)
+        }
       })
     )
   })
@@ -124,7 +128,9 @@ describe('the keys an outcome selects', () => {
     CEREMONY_CALLS.forEach((call) =>
       everyOutcome().forEach((outcome) => {
         const key = lineKeyOfOutcome(outcome, call)
-        if (key === null) return
+        if (key === null) {
+          return
+        }
         expect(key).not.toBe('socialRecovery.ceremony.notTestedLine')
         expectResolves(key)
       })

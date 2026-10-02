@@ -43,7 +43,7 @@ import {
   spyOnBuilder,
   thrownBy,
   underlyingCalls
-} from './harness'
+} from '@web/modules/social-recovery/shared/client/__tests__/harness'
 
 const IPROVIDER_READS = ['block', 'call', 'chainId', 'logs']
 

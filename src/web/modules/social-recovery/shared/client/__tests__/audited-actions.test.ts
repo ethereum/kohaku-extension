@@ -23,7 +23,7 @@ import {
   RECOVERY_CHAINS,
   SEPOLIA,
   UNKNOWN_ACTION
-} from './harness'
+} from '@web/modules/social-recovery/shared/client/__tests__/harness'
 
 const ABSENT = '0x9999999999999999999999999999999999999999' as Address
 

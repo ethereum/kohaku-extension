@@ -18,6 +18,7 @@
 import routesConfig from '@common/modules/router/config/routesConfig/routesConfig'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import { SETTINGS_LINKS } from '@web/modules/settings/components/Sidebar/Sidebar'
+import type { RouteEntry } from '@web/modules/social-recovery/__tests__/stubs/types'
 
 jest.mock('@web/hooks/useKeystoreControllerState', () => ({ __esModule: true, default: jest.fn() }))
 jest.mock('@common/components/ScrollableWrapper', () => ({ __esModule: true, default: jest.fn() }))
@@ -48,10 +49,8 @@ const EXPECTED_ROUTES: Record<string, string> = {
   socialRecoverySetupCard: 'social-recovery/setup/card'
 }
 
-type Entry = { route: string; title: string; name: string; withTitlePrefix?: boolean }
-
 const webRoutes = WEB_ROUTES as unknown as Record<string, string>
-const config = routesConfig as unknown as Record<string, Entry>
+const config = routesConfig as unknown as Record<string, RouteEntry>
 
 const socialRecoveryKeys = Object.keys(webRoutes).filter((key) => key.startsWith('socialRecovery'))
 

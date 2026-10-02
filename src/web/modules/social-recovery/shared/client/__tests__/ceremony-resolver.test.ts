@@ -38,7 +38,7 @@ import {
   sameAddress,
   spyOnBuilder,
   thrownBy
-} from './harness'
+} from '@web/modules/social-recovery/shared/client/__tests__/harness'
 
 jest.mock('@ambire-common/services/provider/getRpcProvider', () => ({
   getRpcProvider: jest.fn()
@@ -59,7 +59,9 @@ describe("the client's method implementation by slug", () => {
       const world = createWorld()
       const client = await buildRecoveryClient(world.config)
       const method = client.methodFor(slug)
-      if (!method) throw new Error(`no method for ${slug}`)
+      if (!method) {
+        throw new Error(`no method for ${slug}`)
+      }
       const module = world.config.addressBook.methods[slug]
       expect(method.modules(world.descriptor).some((served) => sameAddress(served, module))).toBe(
         true
@@ -174,7 +176,9 @@ const resolverWorld = (
 
 /** The ceremony a resolver answered; throws where it answered null or a refusal. */
 const ceremonyOf = (answer: Awaited<ReturnType<CeremonyResolver>>) => {
-  if (!answer || 'refused' in answer) throw new Error(`no ceremony: ${JSON.stringify(answer)}`)
+  if (!answer || 'refused' in answer) {
+    throw new Error(`no ceremony: ${JSON.stringify(answer)}`)
+  }
   return answer
 }
 

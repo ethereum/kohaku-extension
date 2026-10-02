@@ -28,7 +28,7 @@ import {
   relyingParty,
   stringsIn,
   SYNCED_FLAGS
-} from './harness'
+} from '@web/modules/social-recovery/shared/ceremony/__tests__/harness'
 
 let point: P256Point
 let bareIdHash: string
@@ -167,7 +167,9 @@ describe('the origin string the method names', () => {
       const orchestrator = fakeOrchestrator(method)
       const outcome = await hosts.enroll({ method, orchestrator })
       expect(outcome).toMatchObject({ type: 'verdict', verdict: 'failed' })
-      if (outcome.type === 'verdict') expect(outcome.cause).toContain('relying-party-mismatch')
+      if (outcome.type === 'verdict') {
+        expect(outcome.cause).toContain('relying-party-mismatch')
+      }
       expect(creds.create).not.toHaveBeenCalled()
       expect(methodRunCount(method, orchestrator)).toBe(0)
     })
@@ -180,7 +182,9 @@ describe('the origin string the method names', () => {
     const orchestrator = fakeOrchestrator(method)
     const outcome = await hosts.createClaim({ method, orchestrator })
     expect(outcome).toMatchObject({ type: 'verdict', verdict: 'failed' })
-    if (outcome.type === 'verdict') expect(outcome.cause).toContain('relying-party-mismatch')
+    if (outcome.type === 'verdict') {
+      expect(outcome.cause).toContain('relying-party-mismatch')
+    }
     expect(creds.get).not.toHaveBeenCalled()
     expect(methodRunCount(method, orchestrator)).toBe(0)
   })
@@ -220,7 +224,9 @@ describe('a credential committed under the bare id', () => {
     const orchestrator = fakeOrchestrator(method)
     const outcome = await hosts.enroll({ method, orchestrator })
     expect(outcome).toMatchObject({ type: 'verdict', verdict: 'failed' })
-    if (outcome.type === 'verdict') expect(outcome.cause).toContain('relying-party-mismatch')
+    if (outcome.type === 'verdict') {
+      expect(outcome.cause).toContain('relying-party-mismatch')
+    }
     expect(methodRunCount(method, orchestrator)).toBe(0)
   })
 
@@ -234,7 +240,9 @@ describe('a credential committed under the bare id', () => {
     const orchestrator = fakeOrchestrator(method)
     const outcome = await hosts.createClaim({ method, orchestrator })
     expect(outcome).toMatchObject({ type: 'verdict', verdict: 'failed' })
-    if (outcome.type === 'verdict') expect(outcome.cause).toContain('relying-party-mismatch')
+    if (outcome.type === 'verdict') {
+      expect(outcome.cause).toContain('relying-party-mismatch')
+    }
     expect(methodRunCount(method, orchestrator)).toBe(0)
   })
 

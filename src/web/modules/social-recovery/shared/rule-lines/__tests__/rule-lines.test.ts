@@ -13,8 +13,9 @@ import { addressBookOf } from '@web/modules/social-recovery/shared/client/addres
 import { emptySlot, SLOT_KINDS } from '@web/modules/social-recovery/shared/records'
 import type { SlotKind } from '@web/modules/social-recovery/shared/records'
 
-import { getRuleLines, renderRuleLines } from '..'
-import type { RuleLinesOptions, Translate } from '..'
+import { getRuleLines, renderRuleLines } from '@web/modules/social-recovery/shared/rule-lines'
+import type { RuleLinesOptions, Translate } from '@web/modules/social-recovery/shared/rule-lines'
+import type { Expected } from '@web/modules/social-recovery/shared/rule-lines/__tests__/harness'
 
 // One method address per family: the failure-domain line keys on the method
 // address.
@@ -59,8 +60,6 @@ const RULE_LINES = (en as { socialRecovery: { ruleLines: Record<string, string> 
 const PREFIX = 'socialRecovery.ruleLines.'
 
 const shortKey = (key: string): string => (key.startsWith(PREFIX) ? key.slice(PREFIX.length) : key)
-
-type Expected = { key: string; params?: Record<string, number> }
 
 const SINGLE_METHOD: Expected[] = [
   { key: 'singleMethod' },
@@ -578,7 +577,9 @@ const t: Translate = (key, params) => String(i18n.t(key, params ? { ...params } 
 const englishOf = (e: Expected): string =>
   RULE_LINES[e.key].replace(/\{\{(\w+)\}\}/g, (_, name: string) => {
     const value = e.params?.[name]
-    if (value === undefined) throw new Error(`missing param ${name} for ${e.key}`)
+    if (value === undefined) {
+      throw new Error(`missing param ${name} for ${e.key}`)
+    }
     return String(value)
   })
 
@@ -597,7 +598,9 @@ describe('getRuleLines: the lines each path shape earns', () => {
       expect(lines.map((l) => shortKey(l.key))).toEqual(expected.map((e) => e.key))
       lines.forEach((line, i) => {
         const params = expected[i].params
-        if (params) expect(line.params).toMatchObject(params)
+        if (params) {
+          expect(line.params).toMatchObject(params)
+        }
       })
     })
   )
@@ -646,7 +649,9 @@ describe('getRuleLines: a path whose members wait in empty slots', () => {
       expect(lines.map((l) => shortKey(l.key))).toEqual(expected.map((e) => e.key))
       lines.forEach((line, i) => {
         const params = expected[i].params
-        if (params) expect(line.params).toMatchObject(params)
+        if (params) {
+          expect(line.params).toMatchObject(params)
+        }
       })
       expect(renderRuleLines(lines, t)).toEqual(expected.map(englishOf))
     })
@@ -685,7 +690,9 @@ describe('getRuleLines: a clause with no member', () => {
         expect(lines.map((l) => shortKey(l.key))).toEqual(expected.map((e) => e.key))
         lines.forEach((line, i) => {
           const params = expected[i].params
-          if (params) expect(line.params).toMatchObject(params)
+          if (params) {
+            expect(line.params).toMatchObject(params)
+          }
         })
         expect(renderRuleLines(lines, t)).toEqual(expected.map(englishOf))
         expect(getRuleLines(clauses, SKIP_MEMBERLESS)).toEqual(lines)

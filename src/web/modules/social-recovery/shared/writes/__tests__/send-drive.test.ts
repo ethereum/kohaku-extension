@@ -52,7 +52,7 @@ import {
   waitTimedOut,
   WriteKind,
   writeReducer
-} from './harness'
+} from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 const OTHER_HASH: Hex = `0x${'d'.repeat(64)}`
 const REQUEST_ID = 'social-recovery-sender:from-the-caller'

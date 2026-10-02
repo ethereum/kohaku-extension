@@ -17,7 +17,9 @@ import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
 import type { KeyHandle, SignerFacade, TypedDataToSign } from './types'
 
 const bytesOf = (message: SignableMessage): Hex => {
-  if (typeof message === 'string') return stringToHex(message)
+  if (typeof message === 'string') {
+    return stringToHex(message)
+  }
   return typeof message.raw === 'string' ? message.raw : bytesToHex(message.raw)
 }
 

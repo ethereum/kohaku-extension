@@ -16,8 +16,12 @@ const BIGINT_EXPONENT = new RegExp(
 const sourceFiles = (dir: string): string[] =>
   fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const full = path.join(dir, entry.name)
-    if (entry.isDirectory()) return entry.name === '__tests__' ? [] : sourceFiles(full)
-    if (!/\.tsx?$/.test(entry.name) || /\.test\.tsx?$/.test(entry.name)) return []
+    if (entry.isDirectory()) {
+      return entry.name === '__tests__' ? [] : sourceFiles(full)
+    }
+    if (!/\.tsx?$/.test(entry.name) || /\.test\.tsx?$/.test(entry.name)) {
+      return []
+    }
     return [full]
   })
 

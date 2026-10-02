@@ -117,7 +117,9 @@ export const useRecoveryClient = (
         }
       })
       .catch((error: unknown) => {
-        if (!live) return
+        if (!live) {
+          return
+        }
         setState(
           isDigestVersionRefusal(error)
             ? { status: 'update-the-wallet', refusal: error }

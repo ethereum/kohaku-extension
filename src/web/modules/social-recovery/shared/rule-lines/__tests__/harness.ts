@@ -19,6 +19,8 @@ export type Table = {
 
 export const EN = en as unknown as Table
 
+export type Expected = { key: string; params?: Record<string, number> }
+
 // Jest runs every file under __tests__, this one included; its own check runs
 // only when Jest runs this file, never from a file that imports the harness.
 if (expect.getState().testPath === __filename) {

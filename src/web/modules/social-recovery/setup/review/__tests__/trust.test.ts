@@ -4,8 +4,18 @@ import type { Clause } from '@web/modules/social-recovery/sdk-interfaces'
 import { emptySlot } from '@web/modules/social-recovery/shared/records/slots'
 import type { Enrollment } from '@web/modules/social-recovery/shared/records'
 
-import { aloneSatisfiesRule, nodeKindOf, trustReadsComplete, trustRowsOf } from '../trust'
-import type { NodeKind, ProviderKind, TrustReads, TrustRow } from '../types'
+import {
+  aloneSatisfiesRule,
+  nodeKindOf,
+  trustReadsComplete,
+  trustRowsOf
+} from '@web/modules/social-recovery/setup/review/trust'
+import type {
+  NodeKind,
+  ProviderKind,
+  TrustReads,
+  TrustRow
+} from '@web/modules/social-recovery/setup/review/types'
 import {
   ADMIN,
   ALICE,
@@ -30,7 +40,7 @@ import {
   THIRD_PARTY,
   THIRD_PARTY_MODULE,
   UNANSWERED
-} from '../__fixtures__/review'
+} from '@web/modules/social-recovery/setup/review/__fixtures__/review'
 
 const rowsOf = (
   clauses: Clause[],

@@ -3,8 +3,18 @@
  */
 import type { StepViewProps } from '@web/modules/social-recovery/setup/privacy'
 
-import type { Harness, StorageFaults } from './harness'
-import { ACCOUNT, CHAIN_ID, draftOf, harnessOf, holdReads, recordsOn } from './harness'
+import type {
+  Harness,
+  StorageFaults
+} from '@web/modules/social-recovery/setup/privacy/__tests__/harness'
+import {
+  ACCOUNT,
+  CHAIN_ID,
+  draftOf,
+  harnessOf,
+  holdReads,
+  recordsOn
+} from '@web/modules/social-recovery/setup/privacy/__tests__/harness'
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const React: typeof import('react') = require('react')
@@ -12,8 +22,8 @@ const en: typeof import('@common/config/localization/translations/en.json') = re
 const {
   WEB_ROUTES
 }: typeof import('@common/modules/router/constants/common') = require('@common/modules/router/constants/common')
-const WaitingPeriodView: typeof import('../WaitingPeriodView').default =
-  require('../WaitingPeriodView').default
+const WaitingPeriodView: typeof import('@web/modules/social-recovery/setup/privacy/WaitingPeriodView').default =
+  require('@web/modules/social-recovery/setup/privacy/WaitingPeriodView').default
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
 
 const W = en.socialRecovery.privacy.waitingPeriod

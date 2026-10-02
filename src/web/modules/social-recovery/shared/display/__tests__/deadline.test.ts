@@ -1,4 +1,9 @@
-import { renderDateTimeInZone, renderDeadline, renderRemaining, Translate } from '..'
+import {
+  renderDateTimeInZone,
+  renderDeadline,
+  renderRemaining,
+  Translate
+} from '@web/modules/social-recovery/shared/display'
 
 const expectRefusal = (fn: () => unknown, message: string) => {
   expect(fn).toThrow(TypeError)

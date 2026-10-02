@@ -100,6 +100,24 @@ export { sdkStandIn }
 
 export type HookState = RecoveryClientState & { retry: () => void }
 
+export interface ProviderMock {
+  send: jest.Mock
+  getTransaction: jest.Mock
+  getBlockNumber: jest.Mock
+  /** The replacement-aware response each transaction answers, by the start block given. */
+  replaceable: jest.Mock
+  once: jest.Mock
+  off: jest.Mock
+  destroy: jest.Mock
+}
+
+export type AdapterWorld = Pick<World, 'chain' | 'ethers' | 'adapter'>
+
+/** The batch transport under an ethers JSON-RPC provider's `send`. */
+export interface JsonRpcTransport {
+  _send(payload: unknown): Promise<unknown[]>
+}
+
 export const SEPOLIA = 11155111
 export const MAINNET = 1
 
@@ -185,7 +203,9 @@ export const ethersOver = (chain: ScriptedChain): EthersMock => {
     const to = (tx.to ?? '').toLowerCase()
     const data = (tx.data ?? '').toLowerCase()
     if (to === chain.descriptor.manager.toLowerCase()) {
-      if (data.startsWith(SELECTOR.eip712Domain)) return encodedDomain(chain)
+      if (data.startsWith(SELECTOR.eip712Domain)) {
+        return encodedDomain(chain)
+      }
       if (data.startsWith(SELECTOR.name)) {
         return coder.encode(['string'], [chain.manager.name]) as Hex
       }
@@ -194,7 +214,9 @@ export const ethersOver = (chain: ScriptedChain): EthersMock => {
       }
     }
     const scripted = chain.calls.get(`${to}:${data}`)
-    if (scripted && 'result' in scripted) return scripted.result
+    if (scripted && 'result' in scripted) {
+      return scripted.result
+    }
     return '0x'
   }
   const blockOf = (tag: unknown) => {
@@ -337,7 +359,9 @@ export const functionMembersOf = (value: object): string[] => [
   ...new Set(
     chainOf(value).flatMap((proto) =>
       Object.getOwnPropertyNames(proto).filter((n) => {
-        if (n === 'constructor') return false
+        if (n === 'constructor') {
+          return false
+        }
         const descriptor = Object.getOwnPropertyDescriptor(proto, n)
         return !!descriptor && typeof descriptor.value === 'function'
       })
@@ -359,7 +383,9 @@ export const memberNamesOf = (value: object): string[] => [
  * (the extension's own provider, which the adapter may hold).
  */
 export const keysUnder = (value: unknown, depth: number, skip: unknown[] = []): string[] => {
-  if (depth < 0 || value === null || typeof value !== 'object' || skip.includes(value)) return []
+  if (depth < 0 || value === null || typeof value !== 'object' || skip.includes(value)) {
+    return []
+  }
   return memberNamesOf(value as object).flatMap((k) => {
     let child: unknown
     try {
@@ -967,7 +993,9 @@ const nodeAnswer = (script: NodeScript, method: string, params: readonly unknown
       return toQuantity(script.nonces[String(params[0]).toLowerCase()] ?? 0)
     case 'eth_getBlockByNumber': {
       const blockNumber = Number(params[0])
-      if (blockNumber > script.blockNumber) return null
+      if (blockNumber > script.blockNumber) {
+        return null
+      }
       return {
         hash: blockHashOf(blockNumber),
         parentHash: blockHashOf(blockNumber - 1),
@@ -1069,7 +1097,9 @@ export const watchEthersWaits = async (
   hash: Hex
 ): Promise<Promise<unknown>[]> => {
   const response = await node.provider.getTransaction(hash)
-  if (!response) throw new Error(`The scripted node does not answer ${hash}.`)
+  if (!response) {
+    throw new Error(`The scripted node does not answer ${hash}.`)
+  }
   const proto = Object.getPrototypeOf(response) as EthersWait
   const { wait } = proto
   const settled: Promise<unknown>[] = []

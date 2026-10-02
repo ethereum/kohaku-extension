@@ -52,8 +52,12 @@ export class WalletReadsDouble implements IWalletReadsDouble {
    */
   async verifyReply(request: ApproverRequest, reply: ApproverReply): Promise<Verdict> {
     this.chain.guard('walletReads.verifyReply')
-    if (this.chain.verdict) return this.chain.verdict
-    if (!replyReadable(reply) || !requestReadable(request)) return 'rejected'
+    if (this.chain.verdict) {
+      return this.chain.verdict
+    }
+    if (!replyReadable(reply) || !requestReadable(request)) {
+      return 'rejected'
+    }
     if (
       reply.place !== request.place ||
       !sameAddress(reply.method, request.method) ||
@@ -76,9 +80,13 @@ export class WalletReadsDouble implements IWalletReadsDouble {
 
   async fitCheck(accountImplementation?: Address): Promise<FitCheckReading> {
     this.chain.guard('walletReads.fitCheck')
-    if (this.chain.hasCode) return { basis: 'deployed-code', fits: this.chain.supportsAccount }
+    if (this.chain.hasCode) {
+      return { basis: 'deployed-code', fits: this.chain.supportsAccount }
+    }
     const implementation = accountImplementation ?? this.config.accountImplementation
-    if (!implementation) return { basis: 'no-code', fits: false }
+    if (!implementation) {
+      return { basis: 'no-code', fits: false }
+    }
     return {
       basis: 'code-to-be',
       implementation,

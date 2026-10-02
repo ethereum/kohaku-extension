@@ -95,7 +95,9 @@ export const initialWriteState = (write: WriteKind): IdleState & WriteRun => ({
 /** The reducer of a write. Pure: the same state and event always answer the same state. */
 export const writeReducer = (state: WriteMachineState, event: WriteEvent): WriteMachineState => {
   const { write, run } = state
-  if (isAnswer(event) && event.run !== run) return state
+  if (isAnswer(event) && event.run !== run) {
+    return state
+  }
   switch (event.type) {
     case 'start':
       if (state.status === 'idle' || canRetry(state)) {
@@ -104,7 +106,9 @@ export const writeReducer = (state: WriteMachineState, event: WriteEvent): Write
       return state
 
     case 'gasChecked':
-      if (state.status !== 'checkingGas') return state
+      if (state.status !== 'checkingGas') {
+        return state
+      }
       // A check made for another write kind is not this write's.
       if ((event.check.kind === 'enough' ? event.check.write : event.check.step.write) !== write) {
         return state
@@ -117,7 +121,9 @@ export const writeReducer = (state: WriteMachineState, event: WriteEvent): Write
       return state.status === 'needsDeposit' ? { status: 'checkingGas', write, run } : state
 
     case 'sent': {
-      if (state.status !== 'submitting') return state
+      if (state.status !== 'submitting') {
+        return state
+      }
       // A second hash in the same run is the same call sent again at another
       // fee: it becomes the stored hash and joins the ones before it. The
       // run's first start block stays, the earliest a replacement can be in.
@@ -133,7 +139,9 @@ export const writeReducer = (state: WriteMachineState, event: WriteEvent): Write
     }
 
     case 'receipt':
-      if (state.status !== 'submitting') return state
+      if (state.status !== 'submitting') {
+        return state
+      }
       // Only a receipt for a hash the run announced with `sent`, or that an
       // error of the run named, settles the write: the same key sends other
       // transactions too, such as the deposit step's transfer. A repriced
@@ -147,20 +155,26 @@ export const writeReducer = (state: WriteMachineState, event: WriteEvent): Write
       }
 
     case 'error': {
-      if (state.status !== 'checkingGas' && state.status !== 'submitting') return state
+      if (state.status !== 'checkingGas' && state.status !== 'submitting') {
+        return state
+      }
       if (state.status === 'checkingGas' && isProviderReadFailure(event.error)) {
         return { status: 'gasReadError', write, error: event.error, run }
       }
       const context = { write, attemptAfter: event.attemptAfter }
       const found = writeFailureOf(event.error)
       // A call another transaction replaced never ran, whatever the replacement did.
-      if (found.replaced) return { ...classifyFailure(found, context), run }
+      if (found.replaced) {
+        return { ...classifyFailure(found, context), run }
+      }
       // An error that carries its receipt (ethers' `CALL_EXCEPTION` from `wait()`,
       // or a repriced replacement's) settles by it, and a hash it names becomes
       // the call's, without the announced-hash check. So the consumer sends an
       // `error` only from this write's gas check, its send, or waiting on its own
       // hash, never from another transaction of the key.
-      if (found.receipt) return { ...settleReceipt(found.receipt, context, event.cause), run }
+      if (found.receipt) {
+        return { ...settleReceipt(found.receipt, context, event.cause), run }
+      }
       const transactionHash =
         found.transactionHash ??
         event.transactionHash ??
@@ -172,7 +186,9 @@ export const writeReducer = (state: WriteMachineState, event: WriteEvent): Write
       if (failure.status === 'failedNotSent') {
         return { ...withRefusalReading(failure), run }
       }
-      if (failure.status !== 'submitting' || !failure.transactionHash) return { ...failure, run }
+      if (failure.status !== 'submitting' || !failure.transactionHash) {
+        return { ...failure, run }
+      }
       // A hash the run already tracks leaves the current hash active: an error
       // from waiting on a hash a replacement superseded must not make it the
       // active one again. A new hash the error names is the call's too: it
@@ -195,7 +211,9 @@ export const writeReducer = (state: WriteMachineState, event: WriteEvent): Write
     case 'attemptRead':
       // The attempt read judges a reverted cancel again: gone, with its road and
       // controller, or still running, the plain reverted reading.
-      if (state.status !== 'failedReverted' || state.write !== 'cancel') return state
+      if (state.status !== 'failedReverted' || state.write !== 'cancel') {
+        return state
+      }
       return { ...state, cause: revertCauseOf(write, state.decoded, event.attemptAfter) }
 
     case 'reset':

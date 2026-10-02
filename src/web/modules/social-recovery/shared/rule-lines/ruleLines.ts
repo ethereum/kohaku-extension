@@ -57,7 +57,9 @@ const familyOf = (
   credential: Credential,
   kindOfMethod: RuleLinesOptions['kindOfMethod']
 ): string | undefined => {
-  if (isEmptySlot(credential)) return slotKindOf(credential)
+  if (isEmptySlot(credential)) {
+    return slotKindOf(credential)
+  }
   return kindOfMethod?.(credential.method) ?? credential.method.toLowerCase()
 }
 
@@ -86,9 +88,13 @@ const holdsDuplicate = (clauses: readonly Clause[]): boolean => {
   const seen = new Set<string>()
   return clauses.some((clause) =>
     clause.credentials.some((credential) => {
-      if (isEmptySlot(credential)) return false
+      if (isEmptySlot(credential)) {
+        return false
+      }
       const id = `${credential.method.toLowerCase()}|${credential.config.toLowerCase()}`
-      if (seen.has(id)) return true
+      if (seen.has(id)) {
+        return true
+      }
       seen.add(id)
       return false
     })
@@ -118,10 +124,15 @@ const groupLine = (clause: Clause, rowCount: number, groupCount: number): RuleLi
   // answer in place of the count line, with the together-with wording where
   // rows or another group stand beside it.
   if (n === m) {
-    if (hasRows && hasOtherGroups)
+    if (hasRows && hasOtherGroups) {
       return line(RULE_LINE_KEYS.togetherWithRequiredAndGroupsEveryMember)
-    if (hasRows) return line(RULE_LINE_KEYS.togetherWithRequiredEveryMember)
-    if (hasOtherGroups) return line(RULE_LINE_KEYS.togetherWithGroupsEveryMember)
+    }
+    if (hasRows) {
+      return line(RULE_LINE_KEYS.togetherWithRequiredEveryMember)
+    }
+    if (hasOtherGroups) {
+      return line(RULE_LINE_KEYS.togetherWithGroupsEveryMember)
+    }
     return line(RULE_LINE_KEYS.everyMemberMustAnswer)
   }
 
@@ -131,11 +142,19 @@ const groupLine = (clause: Clause, rowCount: number, groupCount: number): RuleLi
   if (hasRows && hasOtherGroups) {
     return line(RULE_LINE_KEYS.togetherWithRequiredAndGroups, { n, m, spare })
   }
-  if (hasRows) return line(RULE_LINE_KEYS.togetherWithRequired, { n, m, spare })
-  if (hasOtherGroups) return line(RULE_LINE_KEYS.togetherWithGroups, { n, m, spare })
+  if (hasRows) {
+    return line(RULE_LINE_KEYS.togetherWithRequired, { n, m, spare })
+  }
+  if (hasOtherGroups) {
+    return line(RULE_LINE_KEYS.togetherWithGroups, { n, m, spare })
+  }
 
-  if (n === 1 && m === 2) return line(RULE_LINE_KEYS.eitherOneAlone)
-  if (n === 1) return line(RULE_LINE_KEYS.anyOneOfM, { m })
+  if (n === 1 && m === 2) {
+    return line(RULE_LINE_KEYS.eitherOneAlone)
+  }
+  if (n === 1) {
+    return line(RULE_LINE_KEYS.anyOneOfM, { m })
+  }
   return line(RULE_LINE_KEYS.anyNOfM, { n, m, spare })
 }
 
@@ -162,7 +181,9 @@ export const getRuleLines = (path: RuleLinesInput, options: RuleLinesOptions = {
   // a line about the rest of the path would read a lockout as a rescue. A path
   // read from the chain or from another client keeps a memberless clause, so a
   // lockout never reads as a rescue there either.
-  if (clauses.some(isRefused) || holdsDuplicate(clauses)) return []
+  if (clauses.some(isRefused) || holdsDuplicate(clauses)) {
+    return []
+  }
 
   // A clause with one credential is a required row at any threshold, so a group
   // of one member reads as a row. A screen that must keep such a group drawn as
@@ -171,7 +192,9 @@ export const getRuleLines = (path: RuleLinesInput, options: RuleLinesOptions = {
   const groups = clauses.filter((clause) => clause.credentials.length > 1)
   const methodCount = clauses.reduce((sum, clause) => sum + clause.credentials.length, 0)
 
-  if (methodCount === 0) return []
+  if (methodCount === 0) {
+    return []
+  }
 
   if (methodCount === 1) {
     return [
@@ -193,13 +216,16 @@ export const getRuleLines = (path: RuleLinesInput, options: RuleLinesOptions = {
 
   groups.forEach((group) => {
     lines.push(groupLine(group, rows.length, groups.length))
-    if (sharesOneFamily(group.credentials, options.kindOfMethod))
+    if (sharesOneFamily(group.credentials, options.kindOfMethod)) {
       lines.push(line(RULE_LINE_KEYS.oneFailureDomain))
+    }
   })
 
   lines.push(line(RULE_LINE_KEYS.differentPlaces))
 
-  if (groups.length === 0 && rows.length === 2) lines.push(line(RULE_LINE_KEYS.sizingRule))
+  if (groups.length === 0 && rows.length === 2) {
+    lines.push(line(RULE_LINE_KEYS.sizingRule))
+  }
 
   return lines
 }

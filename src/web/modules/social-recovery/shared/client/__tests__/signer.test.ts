@@ -50,7 +50,7 @@ import {
   thrownBy,
   track,
   WINDOW_ID
-} from './harness'
+} from '@web/modules/social-recovery/shared/client/__tests__/harness'
 
 /** The key the tests sign with, a basic account the wallet lists. */
 const WALLET = new Wallet(`0x${'11'.repeat(32)}`)

@@ -22,7 +22,11 @@ import type {
 } from '@web/modules/social-recovery/shared/client'
 import type { Enrollment } from '@web/modules/social-recovery/shared/records'
 
-import type { MethodReads, ProviderKind, TrustReads } from '../types'
+import type {
+  MethodReads,
+  ProviderKind,
+  TrustReads
+} from '@web/modules/social-recovery/setup/review/types'
 
 export const BOOK = addressBookOf('sepolia')
 export const SHIPPED = deploymentDescriptor('sepolia').shippedMethods

@@ -23,7 +23,7 @@ import {
   P256_N,
   parseSignature,
   signaturesIn
-} from './harness'
+} from '@web/modules/social-recovery/shared/ceremony/__tests__/harness'
 
 const R = BigInt('0x1c2e8b4f5a6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f9011223344556677')
 // A high s with its top bit set, as a real one has, so its DER needs a 0x00 pad.
@@ -32,7 +32,9 @@ const HIGH_S = BigInt('0xf1e2d3c4b5a697887766554433221100ffeeddccbbaa99887766554
 const normalized = (r: bigint, s: bigint) => {
   const out = normalizeSignature(derSignature(r, s))
   const parsed = parseSignature(out)
-  if (!parsed) throw new Error(`the normalization returned no signature: ${String(out)}`)
+  if (!parsed) {
+    throw new Error(`the normalization returned no signature: ${String(out)}`)
+  }
   return { out, parsed }
 }
 
@@ -63,7 +65,9 @@ describe('the high-s normalization', () => {
       const { out, parsed } = normalized(R, s)
       expect(parsed).toMatchObject({ r: R, s })
       // Unchanged means unchanged: a DER answer is the same bytes.
-      if (parsed.form === 'der') expect(Array.from(asBytes(out) ?? [])).toEqual(Array.from(input))
+      if (parsed.form === 'der') {
+        expect(Array.from(asBytes(out) ?? [])).toEqual(Array.from(input))
+      }
     })
   )
 })

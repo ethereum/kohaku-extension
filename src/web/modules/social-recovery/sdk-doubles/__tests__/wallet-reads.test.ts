@@ -10,7 +10,13 @@ import type {
   Verdict
 } from '@web/modules/social-recovery/sdk-interfaces'
 
-import { createWorld, eachIt, expectThrown, fillAll, openRecovery } from './harness'
+import {
+  createWorld,
+  eachIt,
+  expectThrown,
+  fillAll,
+  openRecovery
+} from '@web/modules/social-recovery/sdk-doubles/__tests__/harness'
 
 const CREATION: CreationRecord = {
   factory: '0x00000000000000000000000000000000000000fa',

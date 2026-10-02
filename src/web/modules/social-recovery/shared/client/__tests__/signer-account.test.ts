@@ -37,7 +37,7 @@ import {
   signedFor,
   thrownBy,
   track
-} from './harness'
+} from '@web/modules/social-recovery/shared/client/__tests__/harness'
 
 const WALLET = new Wallet(`0x${'11'.repeat(32)}`)
 const KEY = WALLET.address as Address

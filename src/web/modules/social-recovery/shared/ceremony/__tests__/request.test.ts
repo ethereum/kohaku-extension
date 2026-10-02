@@ -1,4 +1,4 @@
-import { ceremony } from './harness'
+import { ceremony } from '@web/modules/social-recovery/shared/ceremony/__tests__/harness'
 
 const parse = (search: string) => ceremony().parseCeremonySearch(search)
 

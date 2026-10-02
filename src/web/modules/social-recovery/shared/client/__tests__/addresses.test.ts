@@ -3,7 +3,7 @@
  * that is not an address names nothing, so it matches nothing, itself included,
  * and the comparison answers rather than throws.
  */
-import { sameAddress } from './harness'
+import { sameAddress } from '@web/modules/social-recovery/shared/client/__tests__/harness'
 
 const CHECKSUMMED = '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed'
 const LOWER = CHECKSUMMED.toLowerCase()

@@ -15,8 +15,8 @@ import type { SlotKind } from '@web/modules/social-recovery/shared/records'
 import { renderShapeSentence } from '@web/modules/social-recovery/shared/rule-lines'
 import type { RuleLinesOptions, Translate } from '@web/modules/social-recovery/shared/rule-lines'
 
-import { EN } from './harness'
-import type { Table } from './harness'
+import { EN } from '@web/modules/social-recovery/shared/rule-lines/__tests__/harness'
+import type { Table } from '@web/modules/social-recovery/shared/rule-lines/__tests__/harness'
 
 const translatorOf = (table: Table): Translate => {
   const i18n = i18next.createInstance()

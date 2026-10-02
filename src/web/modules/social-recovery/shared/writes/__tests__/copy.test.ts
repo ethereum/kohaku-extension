@@ -43,7 +43,7 @@ import {
   userRejected,
   WRITE_KINDS,
   WRITES_MODULE
-} from './harness'
+} from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 const TRANSFER_IS_AN_OPERATION =
   /\ba transfer out of the account (?:the|that) key operates is itself an operation that key must (?:send and )?pay for\b/i

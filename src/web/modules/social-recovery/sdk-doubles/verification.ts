@@ -109,7 +109,9 @@ export const acceptanceRevert = (
       validUntil: request.validUntil
     })
   }
-  if (chain.setup.status !== 'committed') return kitError('NoSetup', { account, action })
+  if (chain.setup.status !== 'committed') {
+    return kitError('NoSetup', { account, action })
+  }
   if (isApproval) {
     if (state.attempt.state === 'Waiting') {
       return kitError('AttemptAlreadyActive', {
@@ -125,7 +127,9 @@ export const acceptanceRevert = (
       })
     }
   } else {
-    if (state.attempt.state !== 'Waiting') return kitError('NoActiveAttempt', { account, action })
+    if (state.attempt.state !== 'Waiting') {
+      return kitError('NoActiveAttempt', { account, action })
+    }
     if (request.attemptId !== state.attempt.attemptId) {
       return kitError('WrongAttemptId', {
         supplied: request.attemptId,
@@ -182,8 +186,9 @@ export const acceptanceRevert = (
     request.setupBody,
     request.proofs.map((p) => Number(p.place))
   )
-  if (!rule.satisfied)
+  if (!rule.satisfied) {
     return kitError('RuleUnsatisfied', { clause: BigInt(rule.failingClause ?? 0) })
+  }
   return undefined
 }
 
@@ -239,7 +244,9 @@ export const executeRevert = (
   }
   if (!live.ignoresPause) {
     const stopped = live.usedMethods.find((m: Address) => chain.method(m)?.paused === true)
-    if (stopped) return kitError('MethodVetoedSpend', { method: stopped })
+    if (stopped) {
+      return kitError('MethodVetoedSpend', { method: stopped })
+    }
   }
   return undefined
 }

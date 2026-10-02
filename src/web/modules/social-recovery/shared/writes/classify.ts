@@ -62,7 +62,9 @@ const isTransactionHash = (value: unknown): value is Hex => isHex(value) && valu
  */
 export const receiptOf = (receipt: ProviderReceipt): WriteReceipt | undefined => {
   const { hash, status, blockNumber, gasUsed, gasPrice } = receipt
-  if (!isTransactionHash(hash) || (status !== 0 && status !== 1)) return undefined
+  if (!isTransactionHash(hash) || (status !== 0 && status !== 1)) {
+    return undefined
+  }
   return {
     transactionHash: hash,
     status,
@@ -79,9 +81,13 @@ export const receiptOf = (receipt: ProviderReceipt): WriteReceipt | undefined =>
  * another type is left out.
  */
 const carriedReceiptOf = (value: unknown): WriteReceipt | undefined => {
-  if (!value || typeof value !== 'object') return undefined
+  if (!value || typeof value !== 'object') {
+    return undefined
+  }
   const { hash, status, blockNumber, gasUsed, gasPrice } = value as Record<string, unknown>
-  if (typeof hash !== 'string' || typeof status !== 'number') return undefined
+  if (typeof hash !== 'string' || typeof status !== 'number') {
+    return undefined
+  }
   return receiptOf({
     hash,
     status,
@@ -118,7 +124,9 @@ export const writeFailureOf = (thrown: unknown): WriteFailure => {
   let replaced: ReplacedReason | undefined
 
   const visit = (value: unknown, depth: number): void => {
-    if (depth > 4 || !value || typeof value !== 'object' || seen.has(value)) return
+    if (depth > 4 || !value || typeof value !== 'object' || seen.has(value)) {
+      return
+    }
     seen.add(value)
     const record = value as Record<string, unknown>
     if (record.code === 'TRANSACTION_REPLACED' && !replaced && !receipt) {
@@ -126,12 +134,19 @@ export const writeFailureOf = (thrown: unknown): WriteFailure => {
         replaced = record.reason
         return
       }
-      if (record.reason === 'repriced') receipt = carriedReceiptOf(record.receipt)
+      if (record.reason === 'repriced') {
+        receipt = carriedReceiptOf(record.receipt)
+      }
     }
-    if (!receipt) receipt = carriedReceiptOf(record.receipt)
+    if (!receipt) {
+      receipt = carriedReceiptOf(record.receipt)
+    }
     if (!transactionHash) {
-      if (isTransactionHash(record.transactionHash)) transactionHash = record.transactionHash
-      else if (isTransactionHash(record.hash)) transactionHash = record.hash
+      if (isTransactionHash(record.transactionHash)) {
+        transactionHash = record.transactionHash
+      } else if (isTransactionHash(record.hash)) {
+        transactionHash = record.hash
+      }
     }
     ;['transaction', 'info', 'error', 'cause', 'receipt'].forEach((key) =>
       visit(record[key], depth + 1)
@@ -139,7 +154,9 @@ export const writeFailureOf = (thrown: unknown): WriteFailure => {
   }
 
   visit(thrown, 0)
-  if (replaced) return { error: thrown, replaced }
+  if (replaced) {
+    return { error: thrown, replaced }
+  }
   return {
     error: thrown,
     ...(receipt ? { receipt, transactionHash: receipt.transactionHash } : {}),
@@ -172,7 +189,9 @@ export const kitErrorNameOf = (cause?: KitError): KitErrorName | undefined =>
 
 const plainCause = (cause?: KitError): RevertCause => {
   const known = kitErrorNameOf(cause)
-  if (known !== undefined && cause) return { kind: 'named', name: known, error: cause }
+  if (known !== undefined && cause) {
+    return { kind: 'named', name: known, error: cause }
+  }
   return cause?.kind === 'unknown' ? { kind: 'unnamed', data: cause.data } : { kind: 'unnamed' }
 }
 
@@ -204,7 +223,9 @@ export const revertCauseOf = (
   cause?: KitError,
   attemptAfter?: AttemptAfterCancel
 ): RevertCause => {
-  if (write !== 'cancel') return plainCause(cause)
+  if (write !== 'cancel') {
+    return plainCause(cause)
+  }
   if (attemptAfter) {
     if (attemptAfter.ended === ATTEMPT_STILL_RUNNING) {
       // The read contradicts a decoded "nothing to cancel": a new attempt may
@@ -221,8 +242,12 @@ export const revertCauseOf = (
     }
   }
   const known = kitErrorNameOf(cause)
-  if (known === 'NoActiveAttempt') return { kind: 'attemptGone' }
-  if (known === 'NoSetup') return { kind: 'attemptGone', ended: 'setupWrite' }
+  if (known === 'NoActiveAttempt') {
+    return { kind: 'attemptGone' }
+  }
+  if (known === 'NoSetup') {
+    return { kind: 'attemptGone', ended: 'setupWrite' }
+  }
   return plainCause(cause)
 }
 
@@ -291,8 +316,12 @@ export const NO_RETRY_CAUSES: { readonly [W in WriteKind]: readonly KitErrorName
 
 /** Whether a revert of a write leaves something a retry can fix. */
 export const retryCanFix = (write: WriteKind, cause: RevertCause): boolean => {
-  if (cause.kind === 'attemptGone') return false
-  if (cause.kind === 'named') return !NO_RETRY_CAUSES[write].includes(cause.name)
+  if (cause.kind === 'attemptGone') {
+    return false
+  }
+  if (cause.kind === 'named') {
+    return !NO_RETRY_CAUSES[write].includes(cause.name)
+  }
   return true
 }
 

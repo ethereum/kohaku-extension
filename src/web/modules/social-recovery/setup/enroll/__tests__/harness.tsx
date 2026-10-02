@@ -38,7 +38,12 @@ import type {
   WalletRecords
 } from '@web/modules/social-recovery/shared/records'
 
-import type { EnrollClient, EnrollDeps, EnrollSearch, HeldKey } from '../types'
+import type {
+  EnrollClient,
+  EnrollDeps,
+  EnrollSearch,
+  HeldKey
+} from '@web/modules/social-recovery/setup/enroll/types'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 // React only runs effects and state updates inside act() when this flag is set.
@@ -94,7 +99,8 @@ const {
   createWalletRecords,
   emptySlot
 }: typeof import('@web/modules/social-recovery/shared/records') = require('@web/modules/social-recovery/shared/records')
-const EnrollView: typeof import('../EnrollView').default = require('../EnrollView').default
+const EnrollView: typeof import('@web/modules/social-recovery/setup/enroll/EnrollView').default =
+  require('@web/modules/social-recovery/setup/enroll/EnrollView').default
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
 
 export const CHAIN_ID = 11155111
@@ -517,7 +523,7 @@ export const each =
 
 // Registered only when Jest runs this file itself: a suite that imports the
 // harness does not run its checks again.
-const runningHarnessItself = /[\\/]harness\.tsx$/.test(expect.getState().testPath ?? '')
+const runningHarnessItself = expect.getState().testPath === __filename
 
 const describeHarness = runningHarnessItself ? describe : () => undefined
 

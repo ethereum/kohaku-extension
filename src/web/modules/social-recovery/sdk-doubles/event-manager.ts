@@ -64,7 +64,9 @@ export class EventManagerDouble implements IEventManager {
 
   async fetch(filter: FilterSpec, range: BlockRange): Promise<Notification[]> {
     this.chain.guard('events.fetch')
-    if (range.to < range.from) return []
+    if (range.to < range.from) {
+      return []
+    }
     const notifications: Notification[] = []
     for (let from = range.from; from <= range.to; from += this.chunkWidth) {
       const to = Math.min(range.to, from + this.chunkWidth - 1)
@@ -73,7 +75,9 @@ export class EventManagerDouble implements IEventManager {
       const logs = await this.provider.logs(filter, { from, to })
       logs.forEach((log) => {
         const n = this.decodeLog(log)
-        if (n) notifications.push(n)
+        if (n) {
+          notifications.push(n)
+        }
       })
     }
     return notifications.sort(
@@ -83,7 +87,9 @@ export class EventManagerDouble implements IEventManager {
 
   decodeLog(log: RawLog): Notification | undefined {
     const n = notificationOf(log)
-    if (!n) return undefined
+    if (!n) {
+      return undefined
+    }
     const owner = MANAGER_KINDS.includes(n.kind)
       ? sameAddress(log.address, this.chain.descriptor.manager)
       : METHOD_KINDS.includes(n.kind)

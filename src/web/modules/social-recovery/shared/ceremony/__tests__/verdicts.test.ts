@@ -12,21 +12,22 @@
  * a claim reads the checklist's chips.
  */
 import type { ApproverReply, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { CeremonyOutcome } from '@web/modules/social-recovery/shared/ceremony'
 
 import {
   browserDefaults,
+  Call,
+  Case,
   enrollFailure,
   fakeAssertion,
   fakeAttestation,
   fakeMethod,
   fakeOrchestrator,
-  FourVerdict,
   generatePoint,
   HostName,
   hosts,
   installCredentials,
   lineKeyOf,
-  MethodScript,
   methodRunCount,
   Outcome,
   P256Point,
@@ -35,7 +36,7 @@ import {
   rowChipOf,
   SYNCED_FLAGS,
   ceremony
-} from './harness'
+} from '@web/modules/social-recovery/shared/ceremony/__tests__/harness'
 
 const THROWN_CAUSE = 'the authenticator returned a key of the wrong curve'
 
@@ -51,13 +52,6 @@ const scan = (value: unknown): string => {
   } catch {
     return String(value)
   }
-}
-
-interface Case {
-  title: string
-  script: MethodScript
-  verdict: FourVerdict
-  cause?: string | RegExp
 }
 
 // The member each host runs: enroll packages through configFrom, test access
@@ -204,8 +198,6 @@ beforeEach(() => {
 
 afterEach(() => restore())
 
-type Call = keyof typeof CASES
-
 const NOTE = (key: string) => `socialRecovery.ceremony.${key}`
 
 /** The chip, note and line a row renders for one verdict of `call`. */
@@ -252,7 +244,9 @@ const expectRow = (outcome: Outcome & { type: 'verdict' }, call: Call) => {
 
 const expectOneVerdict = (outcome: Outcome, expected: Case, call: Call) => {
   expect(outcome.type).toBe('verdict')
-  if (outcome.type !== 'verdict') return
+  if (outcome.type !== 'verdict') {
+    return
+  }
   expect(outcome.verdict).toBe(expected.verdict)
   // A failed test is never a skipped one.
   expect(scan(outcome.raw)).not.toMatch(/not[\s_-]?tested|skipped/i)
@@ -260,8 +254,11 @@ const expectOneVerdict = (outcome: Outcome, expected: Case, call: Call) => {
     case 'failed':
       expect(outcome.cause).toEqual(expect.any(String))
       expect((outcome.cause ?? '').length).toBeGreaterThan(0)
-      if (typeof expected.cause === 'string') expect(outcome.cause).toContain(expected.cause)
-      else if (expected.cause) expect(outcome.cause).toMatch(expected.cause)
+      if (typeof expected.cause === 'string') {
+        expect(outcome.cause).toContain(expected.cause)
+      } else if (expected.cause) {
+        expect(outcome.cause).toMatch(expected.cause)
+      }
       break
     case 'unavailable':
       expect(outcome.retry).toBe(true)
@@ -362,8 +359,7 @@ describe('the health-check host', () => {
 })
 
 describe('what a row renders, by call', () => {
-  type ModuleOutcome = Parameters<ReturnType<typeof ceremony>['chipOfOutcome']>[0]
-  const row = (outcome: ModuleOutcome, call: Call | 'healthCheck') => {
+  const row = (outcome: CeremonyOutcome, call: Call | 'healthCheck') => {
     const { chipOfOutcome, noteKeyOfOutcome, lineKeyOfOutcome } = ceremony()
     const chip = chipOfOutcome(outcome, call)
     return [

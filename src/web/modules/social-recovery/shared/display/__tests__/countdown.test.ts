@@ -1,4 +1,8 @@
-import { countdownStateOf, renderCountdown, renderCountdownTime } from '..'
+import {
+  countdownStateOf,
+  renderCountdown,
+  renderCountdownTime
+} from '@web/modules/social-recovery/shared/display'
 
 const REMAINING = (47 * 3600 + 12 * 60 + 6) * 1000 // 47:12:06
 

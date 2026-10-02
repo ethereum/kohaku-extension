@@ -32,7 +32,7 @@ import {
   WINDOW,
   World,
   ZERO
-} from './harness'
+} from '@web/modules/social-recovery/sdk-doubles/__tests__/harness'
 
 /**
  * A willing approver's reply. The zkPassport request takes its app's domain and

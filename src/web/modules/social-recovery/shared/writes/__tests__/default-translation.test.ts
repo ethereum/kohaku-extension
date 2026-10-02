@@ -17,7 +17,7 @@ import {
   renderWriteState,
   runGasCheck,
   stepOf
-} from './harness'
+} from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 const WRITES = en.socialRecovery.writes
 

@@ -20,7 +20,7 @@ import {
   notAllowedError,
   resetVisibility,
   setVisibility
-} from './harness'
+} from '@web/modules/social-recovery/shared/ceremony/__tests__/harness'
 
 afterEach(() => {
   resetVisibility()
@@ -290,7 +290,9 @@ describe('a hand-off to a phone', () => {
     const orchestrator = fakeOrchestrator(method)
     const outcome = await hosts.testAccess({ method, orchestrator, handOff: true })
     expect(outcome).toMatchObject({ type: 'verdict', verdict: 'unavailable', retry: true })
-    if (outcome.type === 'verdict') expect(outcome.cause).toContain('unreachable')
+    if (outcome.type === 'verdict') {
+      expect(outcome.cause).toContain('unreachable')
+    }
     expect(noteKeyOf(outcome, 'testAccess')).toBe('socialRecovery.ceremony.unreachableNote')
     expect(methodRunCount(method, orchestrator)).toBe(0)
   })
@@ -347,6 +349,8 @@ describe('a hand-off to a phone', () => {
       handOff: true
     })
     expect(outcome).toMatchObject({ type: 'verdict', verdict: 'failed' })
-    if (outcome.type === 'verdict') expect(outcome.cause).toContain('NotAllowedError')
+    if (outcome.type === 'verdict') {
+      expect(outcome.cause).toContain('NotAllowedError')
+    }
   })
 })

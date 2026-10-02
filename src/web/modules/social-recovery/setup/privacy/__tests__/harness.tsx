@@ -217,7 +217,7 @@ export const harnessOf = (View: ComponentType<StepViewProps>): Harness => {
 
 // Registered only when Jest runs this file itself: a suite that imports the
 // harness does not run its checks again.
-const runningHarnessItself = /[\\/]harness\.tsx$/.test(expect.getState().testPath ?? '')
+const runningHarnessItself = expect.getState().testPath === __filename
 
 const describeHarness = runningHarnessItself ? describe : () => undefined
 

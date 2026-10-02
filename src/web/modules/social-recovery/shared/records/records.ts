@@ -55,7 +55,9 @@ export const RECORDS_KEY_PREFIX = 'socialRecovery'
 
 const chainPart = (chainId: ChainId | string): string => {
   const text = String(chainId)
-  if (!/^[0-9]+$/.test(text)) throw new Error(`Invalid chain id: ${text}`)
+  if (!/^[0-9]+$/.test(text)) {
+    throw new Error(`Invalid chain id: ${text}`)
+  }
   return text
 }
 
@@ -68,7 +70,9 @@ const accountPart = (account: Address): string => {
 
 /** A request id as the ceremony tab's route carries it: letters, digits, `_` and `-`. */
 const requestIdPart = (id: string): string => {
-  if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) throw new Error(`Invalid request id: ${id}`)
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) {
+    throw new Error(`Invalid request id: ${id}`)
+  }
   return id
 }
 
@@ -114,7 +118,9 @@ export const recordKeys = {
 }
 
 const isStoredRecord = (stored: unknown): stored is StoredRecord<unknown> => {
-  if (typeof stored !== 'object' || stored === null || !('value' in stored)) return false
+  if (typeof stored !== 'object' || stored === null || !('value' in stored)) {
+    return false
+  }
   const { savedAt } = stored as { savedAt?: unknown }
   return typeof savedAt === 'number' && Number.isFinite(savedAt)
 }
@@ -127,7 +133,9 @@ const isSessionRecord = (value: unknown): value is RecoverySessionRecord =>
   SESSION_STATES.includes((value as { state?: unknown }).state as string)
 
 const isStoredSession = (stored: unknown): stored is StoredSession => {
-  if (!isStoredRecord(stored) || !isSessionRecord(stored.value)) return false
+  if (!isStoredRecord(stored) || !isSessionRecord(stored.value)) {
+    return false
+  }
   const { revision } = stored as { revision?: unknown }
   return typeof revision === 'string' && revision !== ''
 }
@@ -138,7 +146,9 @@ const isStoredSession = (stored: unknown): stored is StoredSession => {
  * claim's request.
  */
 const isCeremonyRequest = (value: unknown): value is CeremonyRequestRecord => {
-  if (typeof value !== 'object' || value === null) return false
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
   const record = value as Record<string, unknown>
   if (
     typeof record.account !== 'string' ||
@@ -219,7 +229,9 @@ const inMemoryQueue = <R>(key: string, task: () => Promise<R>): Promise<R> => {
   queues.set(key, settled)
   settled
     .then(() => {
-      if (queues.get(key) === settled) queues.delete(key)
+      if (queues.get(key) === settled) {
+        queues.delete(key)
+      }
     })
     .catch(() => undefined)
   return run
@@ -236,7 +248,9 @@ const inMemoryQueue = <R>(key: string, task: () => Promise<R>): Promise<R> => {
  */
 const inQueue = <R>(key: string, task: () => Promise<R>): Promise<R> => {
   const locks = typeof navigator === 'undefined' ? undefined : navigator.locks
-  if (locks) return locks.request(key, () => task()) as Promise<R>
+  if (locks) {
+    return locks.request(key, () => task()) as Promise<R>
+  }
   return inMemoryQueue(key, task)
 }
 
@@ -312,7 +326,9 @@ export const createWalletRecords = ({
 }: WalletRecordsOptions): WalletRecords => {
   const readKey = async <T>(key: string): Promise<RecordRead<T>> => {
     const stored: unknown = await storage.get(key, undefined)
-    if (!isStoredRecord(stored)) return ABSENT
+    if (!isStoredRecord(stored)) {
+      return ABSENT
+    }
     return { status: 'present', value: stored.value as T, savedAt: stored.savedAt }
   }
 
@@ -425,7 +441,9 @@ export const createWalletRecords = ({
 
   const readSessionAt = async (key: string): Promise<SessionRead> => {
     const stored: unknown = await storage.get(key, undefined)
-    if (!isStoredSession(stored)) return ABSENT
+    if (!isStoredSession(stored)) {
+      return ABSENT
+    }
     return {
       status: 'present',
       value: stored.value,
@@ -457,7 +475,9 @@ export const createWalletRecords = ({
   }
 
   const checkRevision = (current: SessionRead, expectedRevision: ExpectedRevision, key: string) => {
-    if (revisionOf(current) !== expectedRevision) throw new SessionRevisionConflict(key)
+    if (revisionOf(current) !== expectedRevision) {
+      throw new SessionRevisionConflict(key)
+    }
   }
 
   /**
@@ -576,7 +596,9 @@ export const createWalletRecords = ({
     expectedRevision: ExpectedRevision
   ): Promise<boolean> =>
     updateSession(chainId, account, expectedRevision, async (current, key) => {
-      if (current.status !== 'present' || current.value.state !== 'live') return false
+      if (current.status !== 'present' || current.value.state !== 'live') {
+        return false
+      }
       const { request } = current.value.gathering
       await writeSessionAt(key, {
         state: 'wiped',
@@ -622,7 +644,9 @@ export const createWalletRecords = ({
     expectedRevision: ExpectedRevision
   ): Promise<boolean> =>
     inSessionQueue(chainId, account, async (current, key) => {
-      if (current.status !== 'present' || current.value.state !== state) return false
+      if (current.status !== 'present' || current.value.state !== state) {
+        return false
+      }
       checkRevision(current, expectedRevision, key)
       await storage.remove(key)
       return true
@@ -714,7 +738,9 @@ export const createWalletRecords = ({
     const key = recordKeys.ceremonyRequest(id)
     const read = async (): Promise<RecordRead<CeremonyRequestRecord>> => {
       const stored: unknown = await storage.get(key, undefined)
-      if (!isStoredRecord(stored) || !isCeremonyRequest(stored.value)) return ABSENT
+      if (!isStoredRecord(stored) || !isCeremonyRequest(stored.value)) {
+        return ABSENT
+      }
       return { status: 'present', value: stored.value, savedAt: stored.savedAt }
     }
     return {

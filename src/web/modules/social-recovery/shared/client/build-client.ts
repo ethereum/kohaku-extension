@@ -58,7 +58,9 @@ export const digestVersionRefusal = (
   error.name = 'DigestVersionRefusal'
   error.state = 'update-the-wallet'
   error.carried = carried
-  if (published) error.published = published
+  if (published) {
+    error.published = published
+  }
   return error
 }
 

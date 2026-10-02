@@ -52,7 +52,7 @@ import {
   WriteKind,
   WRITES_KEYS,
   GAS_KEYS
-} from './harness'
+} from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 /** The value at a dotted key of en.json, or undefined. */
 const lookup = (key: string): unknown =>

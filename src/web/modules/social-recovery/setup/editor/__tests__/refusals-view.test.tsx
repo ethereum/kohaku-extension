@@ -19,7 +19,7 @@ import type {
   ValidationResult
 } from '@web/modules/social-recovery/sdk-interfaces'
 
-import type { Root, Validate } from './harness'
+import type { Root, Validate } from '@web/modules/social-recovery/setup/editor/__tests__/harness'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 
@@ -45,7 +45,9 @@ const { emptySlotOf } = jest.requireActual<
   typeof import('@web/modules/social-recovery/setup/editor/operations')
 >('@web/modules/social-recovery/setup/editor/operations')
 const { AADHAAR, ALICE, BOB, BOOK, makeRecords, PASSKEY, PASSPORT, presetPath } =
-  jest.requireActual<typeof import('./harness')>('./harness')
+  jest.requireActual<typeof import('@web/modules/social-recovery/setup/editor/__tests__/harness')>(
+    '@web/modules/social-recovery/setup/editor/__tests__/harness'
+  )
 
 const { refusals, rules } = en.socialRecovery.editor
 const groupLabel = (n: number) => i18n.t('socialRecovery.shape.group', { n })

@@ -43,13 +43,21 @@ export const isInternalPath = (path: string): boolean =>
 export const parseCeremonySearch = (search: string | URLSearchParams): ParsedCeremony => {
   const query = typeof search === 'string' ? new URLSearchParams(search) : search
   const call = query.get(CEREMONY_SEARCH_KEYS.call)
-  if (!isCeremonyCall(call)) return { ok: false, reason: 'call' }
+  if (!isCeremonyCall(call)) {
+    return { ok: false, reason: 'call' }
+  }
   const method = query.get(CEREMONY_SEARCH_KEYS.method) ?? ''
-  if (!SLUG.test(method)) return { ok: false, reason: 'method' }
+  if (!SLUG.test(method)) {
+    return { ok: false, reason: 'method' }
+  }
   const id = query.get(CEREMONY_SEARCH_KEYS.id) ?? ''
-  if (!REQUEST_ID.test(id)) return { ok: false, reason: 'id' }
+  if (!REQUEST_ID.test(id)) {
+    return { ok: false, reason: 'id' }
+  }
   const returnTo = query.get(CEREMONY_SEARCH_KEYS.returnTo) ?? undefined
-  if (returnTo !== undefined && !isInternalPath(returnTo)) return { ok: false, reason: 'returnTo' }
+  if (returnTo !== undefined && !isInternalPath(returnTo)) {
+    return { ok: false, reason: 'returnTo' }
+  }
   return {
     ok: true,
     params: {
@@ -68,8 +76,12 @@ export const ceremonySearch = (params: CeremonyParams): string => {
   query.set(CEREMONY_SEARCH_KEYS.call, params.call)
   query.set(CEREMONY_SEARCH_KEYS.method, params.method)
   query.set(CEREMONY_SEARCH_KEYS.id, params.id)
-  if (params.handOff) query.set(CEREMONY_SEARCH_KEYS.handOff, 'phone')
-  if (params.returnTo) query.set(CEREMONY_SEARCH_KEYS.returnTo, params.returnTo)
+  if (params.handOff) {
+    query.set(CEREMONY_SEARCH_KEYS.handOff, 'phone')
+  }
+  if (params.returnTo) {
+    query.set(CEREMONY_SEARCH_KEYS.returnTo, params.returnTo)
+  }
   return `?${query.toString()}`
 }
 

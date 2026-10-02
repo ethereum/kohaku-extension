@@ -1,4 +1,4 @@
-import { NAME_USES, renderResolvedName } from '..'
+import { NAME_USES, renderResolvedName } from '@web/modules/social-recovery/shared/display'
 
 const CAVEAT = 'The name can change hands. Check the full address.'
 

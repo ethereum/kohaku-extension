@@ -43,7 +43,9 @@ const isDecimal = (value: unknown): boolean => isText(value) && /^[0-9]+$/.test(
  * rather than failing half-way through a digest.
  */
 export const requestReadable = (request: ApproverRequest): boolean => {
-  if (!request || typeof request !== 'object') return false
+  if (!request || typeof request !== 'object') {
+    return false
+  }
   const r = request as unknown as Record<string, unknown>
   const approval = r.purpose === 'approval'
   const order = r.order as Record<string, unknown> | undefined
@@ -83,7 +85,9 @@ const reads = requestReadable
  * seam's `verifyReply` answers `rejected`, never a thrown error.
  */
 export const replyReadable = (reply: unknown): reply is ApproverReply => {
-  if (!reply || typeof reply !== 'object') return false
+  if (!reply || typeof reply !== 'object') {
+    return false
+  }
   const r = reply as Record<string, unknown>
   return (
     r.kind === 'recovery-proof-reply' &&
@@ -149,7 +153,9 @@ export class MethodsOrchestratorDouble implements IMethodsOrchestrator {
   }
 
   describeRequest(request: ApproverRequest): RequestDescription {
-    if (!reads(request)) throw codedError('version-unread', { kind: request?.kind })
+    if (!reads(request)) {
+      throw codedError('version-unread', { kind: request?.kind })
+    }
     const approval = request.purpose === 'approval'
     let handover: RequestDescription['handover']
     if (approval) {
@@ -192,24 +198,36 @@ export class MethodsOrchestratorDouble implements IMethodsOrchestrator {
   }
 
   async verify(request: ApproverRequest, place: number, proof: Hex): Promise<Verdict> {
-    if (this.chain?.verdict) return this.chain.verdict
-    if (!reads(request) || typeof proof !== 'string') return 'not-judged'
+    if (this.chain?.verdict) {
+      return this.chain.verdict
+    }
+    if (!reads(request) || typeof proof !== 'string') {
+      return 'not-judged'
+    }
     const method = this.methodFor(request.method)
     const ctx = this.safeContext(request, place)
-    if (!method || !ctx) return 'not-judged'
+    if (!method || !ctx) {
+      return 'not-judged'
+    }
     return method.verify(ctx, proof)
   }
 
   signingInput(request: ApproverRequest, params?: unknown): unknown {
     this.chain?.guardRefusal('orchestrator.signingInput')
-    if (!reads(request)) throw codedError('version-unread', { kind: request?.kind })
+    if (!reads(request)) {
+      throw codedError('version-unread', { kind: request?.kind })
+    }
     const method = this.methodFor(request.method)
-    if (!method) throw codedError('method-unsupported', { method: request.method })
+    if (!method) {
+      throw codedError('method-unsupported', { method: request.method })
+    }
     if (this.chain?.unmetBindings.has(method.deviceBinding)) {
       throw codedError('binding-unmet', { deviceBinding: method.deviceBinding })
     }
     const ctx = this.safeContext(request)
-    if (!ctx) throw codedError('version-unread', { kind: request.kind })
+    if (!ctx) {
+      throw codedError('version-unread', { kind: request.kind })
+    }
     return method.signingInput(ctx, params)
   }
 
@@ -218,14 +236,24 @@ export class MethodsOrchestratorDouble implements IMethodsOrchestrator {
     input: unknown,
     material: unknown
   ): Promise<ApproverReply | ReplyFailure> {
-    if (!reads(request)) return { kind: 'reply-failure', cause: 'version-unread' }
+    if (!reads(request)) {
+      return { kind: 'reply-failure', cause: 'version-unread' }
+    }
     const method = this.methodFor(request.method)
-    if (!method) return { kind: 'reply-failure', cause: 'method-unsupported' }
-    if (this.chain?.replyFailure) return { kind: 'reply-failure', cause: this.chain.replyFailure }
+    if (!method) {
+      return { kind: 'reply-failure', cause: 'method-unsupported' }
+    }
+    if (this.chain?.replyFailure) {
+      return { kind: 'reply-failure', cause: this.chain.replyFailure }
+    }
     const ctx = this.safeContext(request)
-    if (!ctx) return { kind: 'reply-failure', cause: 'version-unread' }
+    if (!ctx) {
+      return { kind: 'reply-failure', cause: 'version-unread' }
+    }
     const proof = await method.replyFrom(ctx, input, material)
-    if (typeof proof !== 'string') return proof
+    if (typeof proof !== 'string') {
+      return proof
+    }
     return {
       kind: 'recovery-proof-reply',
       version: RECORD_VERSION,
@@ -247,7 +275,9 @@ export class MethodsOrchestratorDouble implements IMethodsOrchestrator {
   enrollInput(method: Address, params: unknown): unknown {
     this.chain?.guardRefusal('orchestrator.enrollInput')
     const implementation = this.methodFor(method)
-    if (!implementation) throw codedError('method-unsupported', { method })
+    if (!implementation) {
+      throw codedError('method-unsupported', { method })
+    }
     return implementation.enrollInput(params)
   }
 
@@ -257,9 +287,12 @@ export class MethodsOrchestratorDouble implements IMethodsOrchestrator {
     material: unknown
   ): Promise<Hex | EnrollFailure> {
     const implementation = this.methodFor(method)
-    if (!implementation) return { kind: 'enroll-failure', cause: 'method-unsupported' }
-    if (this.chain?.enrollFailure)
+    if (!implementation) {
+      return { kind: 'enroll-failure', cause: 'method-unsupported' }
+    }
+    if (this.chain?.enrollFailure) {
       return { kind: 'enroll-failure', cause: this.chain.enrollFailure }
+    }
     return implementation.configFrom(input, material)
   }
 }

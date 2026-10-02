@@ -123,7 +123,9 @@ export const toBuffer = (bytes: Uint8Array): ArrayBuffer => {
 
 const bigToBytes = (value: bigint, length?: number): Uint8Array => {
   const bytes = numberToBytes(value)
-  if (length === undefined || bytes.length >= length) return bytes
+  if (length === undefined || bytes.length >= length) {
+    return bytes
+  }
   return concatBytes(new Uint8Array(length - bytes.length), bytes)
 }
 
@@ -137,10 +139,15 @@ const base64url = (bytes: Uint8Array): string =>
 export const asBytes = (value: unknown): Uint8Array | null => {
   // Realm-blind checks: WebCrypto in jsdom hands back Node's buffers.
   const tag = Object.prototype.toString.call(value)
-  if (tag === '[object ArrayBuffer]') return new Uint8Array(value as ArrayBuffer)
-  if (ArrayBuffer.isView(value))
+  if (tag === '[object ArrayBuffer]') {
+    return new Uint8Array(value as ArrayBuffer)
+  }
+  if (ArrayBuffer.isView(value)) {
     return new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
-  if (isHex(value) && value.length % 2 === 0) return hexToBytes(value)
+  }
+  if (isHex(value) && value.length % 2 === 0) {
+    return hexToBytes(value)
+  }
   return null
 }
 
@@ -151,7 +158,9 @@ export const asBytes = (value: unknown): Uint8Array | null => {
 const derInteger = (value: bigint): Uint8Array => {
   let bytes = bigToBytes(value)
   // eslint-disable-next-line no-bitwise
-  if (bytes[0] & 0x80) bytes = concatBytes([0], bytes)
+  if (bytes[0] & 0x80) {
+    bytes = concatBytes([0], bytes)
+  }
   return concatBytes([0x02, bytes.length], bytes)
 }
 
@@ -173,29 +182,42 @@ export interface ParsedSignature {
 
 /** Parses a strict DER ECDSA signature, or null. */
 export const parseDer = (bytes: Uint8Array): ParsedSignature | null => {
-  if (bytes.length < 8 || bytes[0] !== 0x30 || bytes[1] !== bytes.length - 2) return null
+  if (bytes.length < 8 || bytes[0] !== 0x30 || bytes[1] !== bytes.length - 2) {
+    return null
+  }
   let at = 2
   const ints: bigint[] = []
   for (let k = 0; k < 2; k++) {
-    if (bytes[at] !== 0x02) return null
+    if (bytes[at] !== 0x02) {
+      return null
+    }
     const len = bytes[at + 1]
     const start = at + 2
-    if (len === 0 || start + len > bytes.length) return null
+    if (len === 0 || start + len > bytes.length) {
+      return null
+    }
     ints.push(bytesToBig(bytes.slice(start, start + len)))
     at = start + len
   }
-  if (at !== bytes.length) return null
+  if (at !== bytes.length) {
+    return null
+  }
   return { r: ints[0], s: ints[1], form: 'der' }
 }
 
 /** Parses a signature in either form: DER first, then 64 raw bytes. */
 export const parseSignature = (value: unknown): ParsedSignature | null => {
   const bytes = asBytes(value)
-  if (!bytes) return null
+  if (!bytes) {
+    return null
+  }
   const der = parseDer(bytes)
-  if (der) return der
-  if (bytes.length === 64)
+  if (der) {
+    return der
+  }
+  if (bytes.length === 64) {
     return { r: bytesToBig(bytes.slice(0, 32)), s: bytesToBig(bytes.slice(32)), form: 'raw' }
+  }
   return null
 }
 
@@ -206,20 +228,32 @@ export const parseSignature = (value: unknown): ParsedSignature | null => {
  */
 export const signaturesIn = (value: unknown, depth = 0, seen = new Set<unknown>()) => {
   const found: ParsedSignature[] = []
-  if (depth > 8 || value === null || value === undefined) return found
+  if (depth > 8 || value === null || value === undefined) {
+    return found
+  }
   const direct = parseSignature(value)
-  if (direct) return [direct]
-  if (typeof value !== 'object' || seen.has(value)) return found
+  if (direct) {
+    return [direct]
+  }
+  if (typeof value !== 'object' || seen.has(value)) {
+    return found
+  }
   seen.add(value)
   const record = value as Record<string, unknown>
   const toBig = (v: unknown): bigint | null => {
-    if (typeof v === 'bigint') return v
-    if (isHex(v) && v !== '0x') return BigInt(v)
+    if (typeof v === 'bigint') {
+      return v
+    }
+    if (isHex(v) && v !== '0x') {
+      return BigInt(v)
+    }
     return null
   }
   const r = toBig(record.r)
   const s = toBig(record.s)
-  if (r !== null && s !== null) found.push({ r, s, form: 'raw' })
+  if (r !== null && s !== null) {
+    found.push({ r, s, form: 'raw' })
+  }
   Object.keys(record).forEach((key) => {
     found.push(...signaturesIn(record[key], depth + 1, seen))
   })
@@ -227,11 +261,17 @@ export const signaturesIn = (value: unknown, depth = 0, seen = new Set<unknown>(
 }
 
 const includesBytes = (hay: Uint8Array, needle: Uint8Array): boolean => {
-  if (!needle.length || needle.length > hay.length) return false
+  if (!needle.length || needle.length > hay.length) {
+    return false
+  }
   for (let i = 0; i + needle.length <= hay.length; i++) {
     let j = 0
-    while (j < needle.length && hay[i + j] === needle[j]) j++
-    if (j === needle.length) return true
+    while (j < needle.length && hay[i + j] === needle[j]) {
+      j++
+    }
+    if (j === needle.length) {
+      return true
+    }
   }
   return false
 }
@@ -247,12 +287,22 @@ export const carries = (
   depth = 0,
   seen = new Set<unknown>()
 ): boolean => {
-  if (depth > 8 || value === null || value === undefined) return false
-  if (needles.objects?.some((o) => o === value)) return true
-  if (typeof value === 'string' && needles.strings?.includes(value)) return true
+  if (depth > 8 || value === null || value === undefined) {
+    return false
+  }
+  if (needles.objects?.some((o) => o === value)) {
+    return true
+  }
+  if (typeof value === 'string' && needles.strings?.includes(value)) {
+    return true
+  }
   const bytes = asBytes(value)
-  if (bytes && needles.bytes?.some((b) => includesBytes(bytes, b))) return true
-  if (typeof value !== 'object' || seen.has(value)) return false
+  if (bytes && needles.bytes?.some((b) => includesBytes(bytes, b))) {
+    return true
+  }
+  if (typeof value !== 'object' || seen.has(value)) {
+    return false
+  }
   seen.add(value)
   const record = value as Record<string, unknown>
   return Object.keys(record).some((key) => carries(record[key], needles, depth + 1, seen))
@@ -260,9 +310,15 @@ export const carries = (
 
 /** Every string anywhere inside `value`. */
 export const stringsIn = (value: unknown, depth = 0, seen = new Set<unknown>()): string[] => {
-  if (depth > 8 || value === null || value === undefined) return []
-  if (typeof value === 'string') return [value]
-  if (typeof value !== 'object' || seen.has(value)) return []
+  if (depth > 8 || value === null || value === undefined) {
+    return []
+  }
+  if (typeof value === 'string') {
+    return [value]
+  }
+  if (typeof value !== 'object' || seen.has(value)) {
+    return []
+  }
   seen.add(value)
   const record = value as Record<string, unknown>
   return Object.keys(record).flatMap((key) => stringsIn(record[key], depth + 1, seen))
@@ -342,8 +398,12 @@ export const authenticatorData = ({
 }: AuthDataOptions): Uint8Array => {
   const head = concatBytes(hexToBytes(rpIdHash), [flags], bigToBytes(BigInt(signCount), 4))
   // eslint-disable-next-line no-bitwise
-  if (!(flags & FLAGS.AT)) return head
-  if (!credentialId || !point) throw new Error('attested credential data needs an id and a key')
+  if (!(flags & FLAGS.AT)) {
+    return head
+  }
+  if (!credentialId || !point) {
+    throw new Error('attested credential data needs an id and a key')
+  }
   return concatBytes(
     head,
     hexToBytes(`0x${aaguid.replace(/-/g, '')}`),
@@ -359,8 +419,12 @@ const cborText = (text: string): Uint8Array => {
 }
 
 const cborBytes = (bytes: Uint8Array): Uint8Array => {
-  if (bytes.length < 24) return concatBytes([0x40 + bytes.length], bytes)
-  if (bytes.length < 256) return concatBytes([0x58, bytes.length], bytes)
+  if (bytes.length < 24) {
+    return concatBytes([0x40 + bytes.length], bytes)
+  }
+  if (bytes.length < 256) {
+    return concatBytes([0x58, bytes.length], bytes)
+  }
   return concatBytes([0x59], bigToBytes(BigInt(bytes.length), 2), bytes)
 }
 
@@ -552,8 +616,11 @@ export const installCredentials = (
   return {
     ...fake,
     restore: () => {
-      if (saved) Object.defineProperty(nav, 'credentials', saved)
-      else delete nav.credentials
+      if (saved) {
+        Object.defineProperty(nav, 'credentials', saved)
+      } else {
+        delete nav.credentials
+      }
     }
   }
 }
@@ -566,7 +633,9 @@ export const installCredentials = (
 export const setVisibility = (state: DocumentVisibilityState, fire = true) => {
   Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state })
   Object.defineProperty(document, 'hidden', { configurable: true, get: () => state === 'hidden' })
-  if (fire) document.dispatchEvent(new Event('visibilitychange'))
+  if (fire) {
+    document.dispatchEvent(new Event('visibilitychange'))
+  }
 }
 
 /** Gives the page back jsdom's own visibility getters. */
@@ -625,14 +694,16 @@ export interface MethodScript {
 }
 
 const answer = async <T>(scripted: Scripted<T>): Promise<T> => {
-  if (scripted && typeof scripted === 'object' && 'throws' in (scripted as object))
+  if (scripted && typeof scripted === 'object' && 'throws' in (scripted as object)) {
     throw (scripted as { throws: unknown }).throws
+  }
   return scripted as T
 }
 
 const answerSync = <T>(scripted: Scripted<T>): T => {
-  if (scripted && typeof scripted === 'object' && 'throws' in (scripted as object))
+  if (scripted && typeof scripted === 'object' && 'throws' in (scripted as object)) {
     throw (scripted as { throws: unknown }).throws
+  }
   return scripted as T
 }
 
@@ -672,7 +743,9 @@ export const fakeMethod = (
 ): FakeMethod => ({
   modules: jest.fn<Address[], [unknown]>(() => [PASSKEY_METHOD]),
   enrollInput: jest.fn((params: unknown) => {
-    if (script.enrollInput !== undefined) return answerSync(script.enrollInput)
+    if (script.enrollInput !== undefined) {
+      return answerSync(script.enrollInput)
+    }
     const p = params as { relyingPartyId?: string; userName?: string } | undefined
     return { rp: { id: p?.relyingPartyId }, user: { name: p?.userName }, params }
   }),
@@ -680,7 +753,9 @@ export const fakeMethod = (
     answer(script.configFrom ?? CONFIG_HEX)
   ),
   signingInput: jest.fn((ctx: MethodContext, params?: unknown) => {
-    if (script.signingInput !== undefined) return answerSync(script.signingInput)
+    if (script.signingInput !== undefined) {
+      return answerSync(script.signingInput)
+    }
     const p = params as { relyingPartyId?: string } | undefined
     return { challenge: ctx.digest, rpId: p?.relyingPartyId, params }
   }),
@@ -737,7 +812,9 @@ export const fakeOrchestrator = (method: FakeMethod): FakeOrchestrator => ({
   ),
   replyFrom: jest.fn(async (request: ApproverRequest, input: unknown, material: unknown) => {
     const out = await method.replyFrom(ctxOf(request), input, material)
-    if (typeof out !== 'string') return out
+    if (typeof out !== 'string') {
+      return out
+    }
     return {
       kind: 'recovery-proof-reply' as const,
       version: request.version,
@@ -816,18 +893,27 @@ const MODULE_VERDICT: Record<string, FourVerdict> = {
  */
 export const toOutcome = (raw: unknown): Outcome => {
   const r = raw as Record<string, unknown>
-  if (!r || typeof r !== 'object') throw new Error(`host result is not a record: ${String(raw)}`)
+  if (!r || typeof r !== 'object') {
+    throw new Error(`host result is not a record: ${String(raw)}`)
+  }
   if (r.kind === 'verdict') {
-    if ('note' in r) throw new Error('host result carries a verdict and a note at once')
+    if ('note' in r) {
+      throw new Error('host result carries a verdict and a note at once')
+    }
     const verdict = typeof r.verdict === 'string' ? MODULE_VERDICT[r.verdict] : undefined
-    if (!verdict) throw new Error(`unknown verdict ${String(r.verdict)}`)
+    if (!verdict) {
+      throw new Error(`unknown verdict ${String(r.verdict)}`)
+    }
     const cause = [r.cause, r.detail].filter((c) => typeof c === 'string' && c).join(': ')
     return { type: 'verdict', verdict, cause: cause || undefined, retry: r.retry === true, raw }
   }
   if (r.kind === 'dismissed') {
-    if ('verdict' in r) throw new Error('host result carries a verdict and a note at once')
-    if (r.note !== 'cancelled' && r.note !== 'refused')
+    if ('verdict' in r) {
+      throw new Error('host result carries a verdict and a note at once')
+    }
+    if (r.note !== 'cancelled' && r.note !== 'refused') {
       throw new Error(`unknown note ${String(r.note)}`)
+    }
     return { type: 'note', note: r.note, raw }
   }
   throw new Error(`host result carries neither a verdict nor a note: ${JSON.stringify(raw)}`)
@@ -882,6 +968,29 @@ export const hosts = {
     toOutcome(await runCall('healthCheck', env))
 }
 export type HostName = keyof typeof hosts
+
+/** The calls a host runs to a verdict for a scripted method. */
+export type Call = Exclude<HostName, 'healthCheck'>
+
+/** One scripted method and the verdict its host reports. */
+export interface Case {
+  title: string
+  script: MethodScript
+  verdict: FourVerdict
+  cause?: string | RegExp
+}
+
+/** A listener on the extension's `storage.onChanged`. */
+export type ChangeListener = (changes: Record<string, { newValue?: unknown }>, area: string) => void
+
+/** One JSX tag found in a route file's text. */
+export interface RouteTag {
+  text: string
+  start: number
+  end: number
+  selfClosing: boolean
+  closes?: number
+}
 
 /** The synced or device-bound kind the module reads from authenticator data. */
 export const kindFromAuthData = (authData: Uint8Array): string =>
@@ -954,7 +1063,9 @@ export const loadWithReactJsx = (
   const loaded = new Map<string, Record<string, unknown>>()
   const load = (file: string): Record<string, unknown> => {
     const known = loaded.get(file)
-    if (known) return known
+    if (known) {
+      return known
+    }
     const mod = { exports: {} as Record<string, unknown> }
     loaded.set(file, mod.exports)
     const { outputText } = ts.transpileModule(fs.readFileSync(file, 'utf8'), {
@@ -967,7 +1078,9 @@ export const loadWithReactJsx = (
       }
     })
     const fileRequire = (id: string): unknown => {
-      if (!id.startsWith('.')) return require(id)
+      if (!id.startsWith('.')) {
+        return require(id)
+      }
       const resolved = path.resolve(path.dirname(file), id)
       const transpiled = !mocked.includes(resolved) && fs.existsSync(`${resolved}.tsx`)
       return transpiled ? load(`${resolved}.tsx`) : require(resolved)
@@ -987,7 +1100,7 @@ export const loadWithReactJsx = (
 
 // Registered only when Jest runs this file itself: a suite that imports the
 // harness does not run its checks again under its own hooks.
-const runningHarnessItself = /[\\/]harness\.ts$/.test(expect.getState().testPath ?? '')
+const runningHarnessItself = expect.getState().testPath === __filename
 
 const describeHarness = runningHarnessItself ? describe : () => undefined
 

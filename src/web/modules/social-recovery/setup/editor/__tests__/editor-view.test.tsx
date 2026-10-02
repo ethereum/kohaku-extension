@@ -20,7 +20,11 @@ import type {
 } from '@web/modules/social-recovery/sdk-interfaces'
 import type { Enrollment } from '@web/modules/social-recovery/shared/records'
 
-import type { MountOptions, Root, Validate } from './harness'
+import type {
+  MountOptions,
+  Root,
+  Validate
+} from '@web/modules/social-recovery/setup/editor/__tests__/harness'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 
@@ -45,9 +49,15 @@ const { getRuleLines, renderRuleLines } = jest.requireActual<
 const { renderShortAddress } = jest.requireActual<
   typeof import('@web/modules/social-recovery/shared/display')
 >('@web/modules/social-recovery/shared/display')
-const EditorView = jest.requireActual<typeof import('../EditorView')>('../EditorView').default
-const { emptySlotOf } = jest.requireActual<typeof import('../operations')>('../operations')
-const harness = jest.requireActual<typeof import('./harness')>('./harness')
+const EditorView = jest.requireActual<
+  typeof import('@web/modules/social-recovery/setup/editor/EditorView')
+>('@web/modules/social-recovery/setup/editor/EditorView').default
+const { emptySlotOf } = jest.requireActual<
+  typeof import('@web/modules/social-recovery/setup/editor/operations')
+>('@web/modules/social-recovery/setup/editor/operations')
+const harness = jest.requireActual<
+  typeof import('@web/modules/social-recovery/setup/editor/__tests__/harness')
+>('@web/modules/social-recovery/setup/editor/__tests__/harness')
 const {
   AADHAAR,
   ALICE,

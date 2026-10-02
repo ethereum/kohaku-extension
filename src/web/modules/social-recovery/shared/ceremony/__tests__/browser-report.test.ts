@@ -8,7 +8,11 @@
  * comes back as a bigint, a value that is not text passes as it came, and
  * text that is not JSON reaches no caller.
  */
-import { browserDefaults, ceremony } from './harness'
+import {
+  browserDefaults,
+  ceremony,
+  ChangeListener
+} from '@web/modules/social-recovery/shared/ceremony/__tests__/harness'
 
 const T0 = 1_790_000_000_000
 
@@ -86,8 +90,6 @@ describe('outside an extension, on storage events', () => {
 })
 
 describe('in the extension, on storage.onChanged', () => {
-  type ChangeListener = (changes: Record<string, { newValue?: unknown }>, area: string) => void
-
   const local = new Map<string, unknown>()
   const changeListeners = new Set<ChangeListener>()
   const fakeBrowser = {

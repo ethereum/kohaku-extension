@@ -39,7 +39,7 @@ import {
   type Setup,
   setUp,
   signedAssertion
-} from './harness'
+} from '@web/modules/social-recovery/sdk-doubles/__tests__/harness'
 
 const challengeOf = (options?: CredentialRequestOptions): Uint8Array =>
   new Uint8Array(options?.publicKey?.challenge as ArrayBuffer)

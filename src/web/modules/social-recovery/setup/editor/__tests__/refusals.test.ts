@@ -44,7 +44,7 @@ import {
   PASSPORT,
   presetPath,
   twoGroupPath
-} from './harness'
+} from '@web/modules/social-recovery/setup/editor/__tests__/harness'
 
 const t = i18n.t
 

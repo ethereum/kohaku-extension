@@ -4,8 +4,18 @@
 import type { Clause, Credential, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
 import type { WalletRecords } from '@web/modules/social-recovery/shared/records'
 
-import type { Harness, StorageFaults } from './harness'
-import { ACCOUNT, CHAIN_ID, draftOf, harnessOf, holdReads, recordsOn } from './harness'
+import type {
+  Harness,
+  StorageFaults
+} from '@web/modules/social-recovery/setup/privacy/__tests__/harness'
+import {
+  ACCOUNT,
+  CHAIN_ID,
+  draftOf,
+  harnessOf,
+  holdReads,
+  recordsOn
+} from '@web/modules/social-recovery/setup/privacy/__tests__/harness'
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const en: typeof import('@common/config/localization/translations/en.json') = require('@common/config/localization/translations/en.json')
@@ -26,7 +36,8 @@ const {
   setRecoveryPassword,
   wipeRecoveryPassword
 }: typeof import('@web/modules/social-recovery/shared/records') = require('@web/modules/social-recovery/shared/records')
-const PrivacyView: typeof import('../PrivacyView').default = require('../PrivacyView').default
+const PrivacyView: typeof import('@web/modules/social-recovery/setup/privacy/PrivacyView').default =
+  require('@web/modules/social-recovery/setup/privacy/PrivacyView').default
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
 
 const L = en.socialRecovery.privacy.level

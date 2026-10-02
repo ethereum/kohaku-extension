@@ -18,7 +18,7 @@ import {
   PrivilegeAccount,
   PrivilegeReadsProvider,
   World
-} from './harness'
+} from '@web/modules/social-recovery/shared/client/__tests__/harness'
 
 const accountView = new Interface(['function privileges(address) view returns (bytes32)'])
 

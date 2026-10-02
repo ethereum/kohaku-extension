@@ -61,8 +61,14 @@ export const canRetry = (state: WriteState): boolean =>
  * attempt whose read has not returned. No other write offers it.
  */
 export const offersMoveFunds = (state: WriteState): boolean => {
-  if (state.write !== 'cancel') return false
-  if (state.status === 'failedNotSent') return true
-  if (state.status !== 'failedReverted') return false
+  if (state.write !== 'cancel') {
+    return false
+  }
+  if (state.status === 'failedNotSent') {
+    return true
+  }
+  if (state.status !== 'failedReverted') {
+    return false
+  }
   return state.cause.kind !== 'attemptGone' || state.cause.ended === 'executed'
 }

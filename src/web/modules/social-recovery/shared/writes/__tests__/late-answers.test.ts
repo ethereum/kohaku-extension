@@ -26,7 +26,7 @@ import {
   TX_HASH,
   waitTimedOut,
   writeReducer
-} from './harness'
+} from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 const HASH_A = TX_HASH
 const HASH_B: Hex = `0x${'b'.repeat(64)}`

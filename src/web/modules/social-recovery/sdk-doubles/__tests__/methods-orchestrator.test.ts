@@ -10,7 +10,14 @@ import {
 
 import { getAddress, isAddress } from 'viem'
 
-import { createWorld, eachIt, expectThrown, isHex, openRecovery, replyFor } from './harness'
+import {
+  createWorld,
+  eachIt,
+  expectThrown,
+  isHex,
+  openRecovery,
+  replyFor
+} from '@web/modules/social-recovery/sdk-doubles/__tests__/harness'
 
 const firstRequest = async () => {
   const { world, requests } = await openRecovery()
@@ -34,7 +41,9 @@ describe('methods orchestrator double', () => {
     expect(described.validUntil).toBe(Number(request.validUntil))
     // Addresses compare case-insensitively: the codec decodes checksummed ones.
     const { handover } = described
-    if (!handover?.decoded) throw new Error('the handover did not decode')
+    if (!handover?.decoded) {
+      throw new Error('the handover did not decode')
+    }
     expect(handover.value.newAuthority.toLowerCase()).toBe(world.keys.fresh.toLowerCase())
     expect(handover.value.removedAuthority.toLowerCase()).toBe(world.keys.held.toLowerCase())
   })

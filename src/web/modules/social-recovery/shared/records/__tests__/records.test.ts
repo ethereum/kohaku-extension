@@ -33,7 +33,6 @@ import {
   DirectWipeEvent,
   emptySlot,
   Enrollment,
-  ExpectedRevision,
   extensionRecordStorage,
   isEmptySlot,
   isSaveInFlightRefusal,
@@ -58,9 +57,14 @@ import {
   setRecoveryPassword,
   SLOT_KINDS,
   slotKindOf,
+  WalletRecords,
   WIPE_REASON_STRING_KEYS,
   wipeRecoveryPassword
 } from '@web/modules/social-recovery/shared/records'
+import type {
+  RichJsonStorageDouble,
+  SessionUpdate
+} from '@web/modules/social-recovery/shared/records/__fixtures__/types'
 
 // The extension's `browser.storage.local` for `extensionRecordStorage`: one
 // in-memory store, holding what the helper writes.
@@ -84,25 +88,6 @@ jest.mock('@web/constants/browserapi', () => {
   }
 })
 
-type StorageDouble = {
-  get: RecordStorage['get']
-  set: (key: string, value: unknown) => Promise<null>
-  remove: (key: string) => Promise<null>
-  setEntries: RecordStorage['setEntries']
-  removeKeys: RecordStorage['removeKeys']
-  /** The helper's `get()` with no key: every entry, each value parsed. */
-  getAll: () => Promise<Record<string, unknown>>
-  /** What `browser.storage.local` would hold: one string per key. */
-  raw: Map<string, string>
-  /**
-   * The keys of every `set` and `remove` call, in order, and the keys of each
-   * `setEntries` and `removeKeys` call, one list per call.
-   */
-  calls: { set: string[]; remove: string[]; setEntries: string[][]; removeKeys: string[][] }
-  /** An error the next `setEntries` or `removeKeys` call rejects with, storing nothing. */
-  faults: { setEntries?: Error; removeKeys?: Error }
-}
-
 // The helper's `formatValue`: parse a string, or return it as is when it is not JSON.
 const formatValue = (stored: string): unknown => {
   try {
@@ -112,7 +97,7 @@ const formatValue = (stored: string): unknown => {
   }
 }
 
-const makeStorage = (): StorageDouble => {
+const makeStorage = (): RichJsonStorageDouble => {
   const raw = new Map<string, string>()
   const calls = {
     set: [] as string[],
@@ -120,7 +105,7 @@ const makeStorage = (): StorageDouble => {
     setEntries: [] as string[][],
     removeKeys: [] as string[][]
   }
-  const faults: StorageDouble['faults'] = {}
+  const faults: RichJsonStorageDouble['faults'] = {}
   // The helper's serialization: a string as is, anything else through richJson.
   // `browser.storage.local.set({ [key]: undefined })` stores nothing.
   const serialize = (value: unknown): string | undefined =>
@@ -128,7 +113,9 @@ const makeStorage = (): StorageDouble => {
   const set = async (key: string, value: unknown): Promise<null> => {
     calls.set.push(key)
     const serialized = serialize(value)
-    if (serialized !== undefined) raw.set(key, serialized)
+    if (serialized !== undefined) {
+      raw.set(key, serialized)
+    }
     return null
   }
   const remove = async (key: string): Promise<null> => {
@@ -138,10 +125,12 @@ const makeStorage = (): StorageDouble => {
   }
   // One `browser.storage.local` call over several keys lands whole or not at
   // all: every value is serialized first, and an injected fault stores nothing.
-  const takeFault = (name: keyof StorageDouble['faults']) => {
+  const takeFault = (name: keyof RichJsonStorageDouble['faults']) => {
     const fault = faults[name]
     delete faults[name]
-    if (fault) throw fault
+    if (fault) {
+      throw fault
+    }
   }
   return {
     raw,
@@ -150,7 +139,9 @@ const makeStorage = (): StorageDouble => {
     // The helper's rule: `if (!res[key]) return defaultValue`, then `formatValue`.
     get: async (key, defaultValue) => {
       const stored = key && raw.get(key)
-      if (!stored) return defaultValue
+      if (!stored) {
+        return defaultValue
+      }
       return formatValue(stored)
     },
     getAll: async () =>
@@ -162,7 +153,9 @@ const makeStorage = (): StorageDouble => {
       takeFault('setEntries')
       const serialized = Object.entries(entries).map(([key, value]) => [key, serialize(value)])
       serialized.forEach(([key, value]) => {
-        if (value !== undefined) raw.set(key as string, value)
+        if (value !== undefined) {
+          raw.set(key as string, value)
+        }
       })
     },
     removeKeys: async (keys) => {
@@ -317,20 +310,20 @@ const setup = (clock: { t: number } = { t: T0 }) => {
   return { storage, records, clock }
 }
 
-type Records = ReturnType<typeof createWalletRecords>
-
 const present = <T>(read: RecordRead<T>) => {
-  if (read.status !== 'present') throw new Error('expected a present record')
+  if (read.status !== 'present') {
+    throw new Error('expected a present record')
+  }
   return read
 }
 
 // Each session update below passes the revision of a fresh read, as a caller
 // does, so a refusal comes from the rule under test and never from the revision.
-const revisionNow = async (records: Records, account: Address, chainId: ChainId) =>
+const revisionNow = async (records: WalletRecords, account: Address, chainId: ChainId) =>
   revisionOf(await records.recoverySession(chainId, account).read())
 
 const writeSession = async (
-  records: Records,
+  records: WalletRecords,
   value: Gathering,
   account: Address = ACCOUNT,
   chainId: ChainId = CHAIN_ID
@@ -339,7 +332,11 @@ const writeSession = async (
     .recoverySession(chainId, account)
     .write(value, await revisionNow(records, account, chainId))
 
-const wipeSession = async (records: Records, event: DirectWipeEvent, account: Address = ACCOUNT) =>
+const wipeSession = async (
+  records: WalletRecords,
+  event: DirectWipeEvent,
+  account: Address = ACCOUNT
+) =>
   records.wipeRecoverySession(
     CHAIN_ID,
     account,
@@ -348,27 +345,28 @@ const wipeSession = async (records: Records, event: DirectWipeEvent, account: Ad
   )
 
 const landSession = async (
-  records: Records,
+  records: WalletRecords,
   account: Address = ACCOUNT,
   chainId: ChainId = CHAIN_ID
 ) => records.landSubmission(chainId, account, await revisionNow(records, account, chainId))
 
-const clearWiped = async (records: Records, account: Address = ACCOUNT) =>
+const clearWiped = async (records: WalletRecords, account: Address = ACCOUNT) =>
   records.clearWipedSession(CHAIN_ID, account, await revisionNow(records, account, CHAIN_ID))
 
-const endSessionCountdown = async (records: Records, account: Address = ACCOUNT) =>
+const endSessionCountdown = async (records: WalletRecords, account: Address = ACCOUNT) =>
   records.endCountdown(CHAIN_ID, account, await revisionNow(records, account, CHAIN_ID))
 
 // Every stored string, keys included, to prove a secret is gone.
-const dump = (storage: StorageDouble) => [...storage.raw.entries()].flat().join('\n')
+const dump = (storage: RichJsonStorageDouble) => [...storage.raw.entries()].flat().join('\n')
 
 // Every stored value, parsed back as the helper would.
-const storedValues = (storage: StorageDouble) => [...storage.raw.values()].map((s) => parse(s))
+const storedValues = (storage: RichJsonStorageDouble) =>
+  [...storage.raw.values()].map((s) => parse(s))
 
 // A call that may throw synchronously or reject, as a promise.
 const attempt = (fn: () => unknown) => Promise.resolve().then(fn)
 
-const writeAllSetup = async (records: Records, account: Address = ACCOUNT) => {
+const writeAllSetup = async (records: WalletRecords, account: Address = ACCOUNT) => {
   const six = records.setup(CHAIN_ID, account)
   await six.setupDraft.write(SETUP_SAMPLES.setupDraft)
   await six.inventory.write(SETUP_SAMPLES.inventory)
@@ -391,15 +389,18 @@ const wipedLine = (event: RecoveryWipeEvent): RecoverySessionRecord =>
         ...(event === 'deadline-passed' ? { deadline: VALID_UNTIL } : {})
       }
 
-const wipeFor = async (records: Records, event: RecoveryWipeEvent) => {
-  if (event === 'submission-landed') await landSession(records)
-  else await wipeSession(records, event)
+const wipeFor = async (records: WalletRecords, event: RecoveryWipeEvent) => {
+  if (event === 'submission-landed') {
+    await landSession(records)
+  } else {
+    await wipeSession(records, event)
+  }
 }
 
 describe('the six setup records', () => {
   SETUP_RECORD_NAMES.forEach((name: SetupRecordName) =>
     describe(name, () => {
-      const accessorOf = (records: Records) =>
+      const accessorOf = (records: WalletRecords) =>
         records.setup(CHAIN_ID, ACCOUNT)[name] as unknown as {
           read(): Promise<RecordRead<unknown>>
           write(value: unknown): Promise<unknown>
@@ -960,7 +961,9 @@ describe('the recovery session', () => {
     const read = present(await records.recoverySession(CHAIN_ID, ACCOUNT).read())
     expect(read.savedAt).toBe(T0)
     expect(read.value).toEqual({ state: 'live', gathering: GATHERING })
-    if (read.value.state !== 'live') throw new Error('expected a live session')
+    if (read.value.state !== 'live') {
+      throw new Error('expected a live session')
+    }
     expect(read.value.gathering.replies).toEqual(APPROVALS)
     expect(read.value.gathering.replies.map((r) => r.proof)).toEqual([PROOF_A, PROOF_B])
     expect(predictedAttemptId(read.value)).toBe(PREDICTED_ATTEMPT_ID)
@@ -1153,7 +1156,9 @@ describe('the recovery session', () => {
     const strings = (en as { socialRecovery: { records: Record<string, string> } }).socialRecovery
       .records
     Object.values(WIPE_REASON_STRING_KEYS).forEach((keys) => {
-      if (!keys) return
+      if (!keys) {
+        return
+      }
       ;[keys.title, keys.body].forEach((k) => {
         expect(k.startsWith('socialRecovery.records.')).toBe(true)
         expect(typeof strings[k.slice('socialRecovery.records.'.length)]).toBe('string')
@@ -1788,8 +1793,6 @@ const repliesOf = (read: SessionRead) => {
 
 const CONFLICT = { status: 'rejected', reason: expect.any(SessionRevisionConflict) }
 
-type SessionUpdate = (records: Records, revision: ExpectedRevision) => Promise<unknown>
-
 describe('a session update refuses when the session changed after its caller read it', () => {
   it('a reply write from a read taken before a wipe is refused and cannot bring the session back', async () => {
     const { storage, records } = setup()
@@ -2022,7 +2025,7 @@ describe('a session update refuses when the session changed after its caller rea
 
 describe('the revision an update names', () => {
   it('an update that names the empty revision meets the conflict, or returns false for a clear or an end on another state, and writes nothing', async () => {
-    const states: [string, (records: Records) => Promise<unknown>][] = [
+    const states: [string, (records: WalletRecords) => Promise<unknown>][] = [
       ['none', async () => undefined],
       ['live', (records) => writeSession(records, GATHERING)],
       [
@@ -2175,16 +2178,19 @@ const withNavigator = async (value: unknown, run: () => Promise<void>) => {
   try {
     await run()
   } finally {
-    if (saved) Object.defineProperty(globalThis, 'navigator', saved)
-    else delete (globalThis as { navigator?: unknown }).navigator
+    if (saved) {
+      Object.defineProperty(globalThis, 'navigator', saved)
+    } else {
+      delete (globalThis as { navigator?: unknown }).navigator
+    }
   }
 }
 
 // Two reply writes from one read, the first held after its read: the second
 // must wait for the first, then meet the conflict; a retry keeps both replies.
 const raceTwoReplyWrites = async (
-  first: { records: Records; storage: Pick<RecordStorage, 'get'> },
-  second: Records
+  first: { records: WalletRecords; storage: Pick<RecordStorage, 'get'> },
+  second: WalletRecords
 ) => {
   await first.records.recoverySession(CHAIN_ID, ACCOUNT).write(gathering(ACCOUNT, []), null)
   const read = await first.records.recoverySession(CHAIN_ID, ACCOUNT).read()
@@ -2813,7 +2819,7 @@ describe('start over is refused while a setup save is in flight', () => {
       (error: unknown) => error
     )
 
-  const expectSetupKept = async (records: Records) => {
+  const expectSetupKept = async (records: WalletRecords) => {
     const six = records.setup(CHAIN_ID, ACCOUNT)
     const reads = await Promise.all(SETUP_RECORD_NAMES.map((name) => six[name].read()))
     reads.forEach((read, i) =>
@@ -2823,7 +2829,7 @@ describe('start over is refused while a setup save is in flight', () => {
     )
   }
 
-  const expectSetupGone = async (records: Records) => {
+  const expectSetupGone = async (records: WalletRecords) => {
     const six = records.setup(CHAIN_ID, ACCOUNT)
     const reads = await Promise.all(SETUP_RECORD_NAMES.map((name) => six[name].read()))
     reads.forEach((read) => expect(read).toBe(ABSENT))

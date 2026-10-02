@@ -13,8 +13,9 @@ jest.mock('@web/extension-services/background/webapi/storage', () => {
 describe('the rule lines load without the extension storage', () => {
   it('reads the lines of a path of slots with the storage modules unloadable', () => {
     jest.isolateModules(() => {
-      // eslint-disable-next-line global-require
-      const { getRuleLines } = require('..') as typeof import('..')
+      const { getRuleLines } =
+        // eslint-disable-next-line global-require
+        require('@web/modules/social-recovery/shared/rule-lines') as typeof import('@web/modules/social-recovery/shared/rule-lines')
       const slot = {
         method: '0x0000000000000000000000000000000000000000',
         config: '0x',

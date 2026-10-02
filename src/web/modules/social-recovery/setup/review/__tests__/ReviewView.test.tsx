@@ -18,8 +18,11 @@ import type {
 } from '@web/modules/social-recovery/shared/client'
 import type { Enrollment, RecordStorage } from '@web/modules/social-recovery/shared/records'
 
-import type { MountOptions, Root } from '../__fixtures__/review'
-import type { ReviewClient, ReviewKitClient } from '../types'
+import type {
+  MountOptions,
+  Root
+} from '@web/modules/social-recovery/setup/review/__fixtures__/review'
+import type { ReviewClient, ReviewKitClient } from '@web/modules/social-recovery/setup/review/types'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 // React only runs effects and state updates inside act() when this flag is set.
@@ -60,9 +63,12 @@ const { zeroAddress } = jest.requireActual<typeof import('viem')>('viem')
 const { emptySlot } = jest.requireActual<
   typeof import('@web/modules/social-recovery/shared/records/slots')
 >('@web/modules/social-recovery/shared/records/slots')
-const ReviewView = jest.requireActual<typeof import('../ReviewView')>('../ReviewView').default
-const fixtures =
-  jest.requireActual<typeof import('../__fixtures__/review')>('../__fixtures__/review')
+const ReviewView = jest.requireActual<
+  typeof import('@web/modules/social-recovery/setup/review/ReviewView')
+>('@web/modules/social-recovery/setup/review/ReviewView').default
+const fixtures = jest.requireActual<
+  typeof import('@web/modules/social-recovery/setup/review/__fixtures__/review')
+>('@web/modules/social-recovery/setup/review/__fixtures__/review')
 const {
   ACCOUNT,
   AADHAAR,

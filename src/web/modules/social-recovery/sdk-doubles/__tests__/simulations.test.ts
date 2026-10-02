@@ -25,16 +25,19 @@ import {
   openRecovery,
   startLanded,
   World
-} from './harness'
+} from '@web/modules/social-recovery/sdk-doubles/__tests__/harness'
 
 const PAST_THE_WAIT = 432_000 + 60
 
 /** The typed error a prepared call's simulation carries; fails the test on a clean one. */
 const failureOf = (call: PreparedCall): Extract<KitError, { kind: 'known' }> => {
   const { simulation } = call
-  if (!simulation || simulation.ok)
+  if (!simulation || simulation.ok) {
     throw new Error(`expected a failed simulation, got ${JSON.stringify(simulation)}`)
-  if (simulation.error.kind !== 'known') throw new Error('expected a known kit error')
+  }
+  if (simulation.error.kind !== 'known') {
+    throw new Error('expected a known kit error')
+  }
   return simulation.error
 }
 

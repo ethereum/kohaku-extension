@@ -314,15 +314,21 @@ export class ScriptedChain {
   advance(seconds: number, blocks = 1): BlockHeader {
     const count = Math.max(1, blocks)
     const step = Math.floor(Math.max(0, seconds) / count)
-    for (let i = 0; i < count - 1; i++) this.mine(step)
+    for (let i = 0; i < count - 1; i++) {
+      this.mine(step)
+    }
     return this.mine(Math.max(0, seconds - step * (count - 1)))
   }
 
   /** The block a tag names; every named tag answers the head. */
   blockAt(tag: BlockTag): BlockHeader {
-    if (typeof tag !== 'number') return this.head
+    if (typeof tag !== 'number') {
+      return this.head
+    }
     const known = this.blocks.get(tag)
-    if (known) return known
+    if (known) {
+      return known
+    }
     return {
       number: tag,
       timestamp: this.head.timestamp - (this.head.number - tag) * BLOCK_TIME,
@@ -409,14 +415,18 @@ export class ScriptedChain {
   setAuthorities(keys: Address[]): void {
     const writes = this.privilegeWrites(this.authorities, keys, KEY_PRIVILEGE)
     this.authorities = [...keys]
-    if (writes.length) this.emitAll(writes)
+    if (writes.length) {
+      this.emitAll(writes)
+    }
   }
 
   /** Replaces the other privileged entries, emitting one privilege write per change. */
   setOtherPrivileged(addresses: Address[]): void {
     const writes = this.privilegeWrites(this.otherPrivileged, addresses, CODE_PRIVILEGE)
     this.otherPrivileged = [...addresses]
-    if (writes.length) this.emitAll(writes)
+    if (writes.length) {
+      this.emitAll(writes)
+    }
   }
 
   isAuthority(key: Address): boolean {
@@ -437,9 +447,15 @@ export class ScriptedChain {
    * cannot name one.
    */
   removedKeyReading(hasCreationRecord: boolean): RemovedKeyReading {
-    if (!hasCreationRecord) return { kind: 'unavailable', cause: 'no-creation-record' }
-    if (this.authorities.length === 0) return { kind: 'unavailable', cause: 'no-key-entry' }
-    if (this.authorities.length > 1) return { kind: 'unavailable', cause: 'several-key-entries' }
+    if (!hasCreationRecord) {
+      return { kind: 'unavailable', cause: 'no-creation-record' }
+    }
+    if (this.authorities.length === 0) {
+      return { kind: 'unavailable', cause: 'no-key-entry' }
+    }
+    if (this.authorities.length > 1) {
+      return { kind: 'unavailable', cause: 'several-key-entries' }
+    }
     return { kind: 'named', key: this.authorities[0] }
   }
 
@@ -523,7 +539,9 @@ export class ScriptedChain {
       publicMetadata = clearNote(configuration)
       privateMetadata = clearBackup(configuration)
     } else {
-      if (level === 'shape-visible') publicMetadata = shapeNote(configuration)
+      if (level === 'shape-visible') {
+        publicMetadata = shapeNote(configuration)
+      }
       privateMetadata = sealBackup(configuration, password as string)
     }
     const nonce = this.setup.setupNonce + 1n
@@ -540,7 +558,9 @@ export class ScriptedChain {
 
   /** Commits the raw fields a `commitSetup` call carries; what `land` runs. */
   commitRaw(fields: CommitFields): CommittedSetup {
-    if (this.attempt.status === 'waiting') this.cancelAttempt('nobody')
+    if (this.attempt.status === 'waiting') {
+      this.cancelAttempt('nobody')
+    }
     const n = this.emit({
       kind: 'setup-committed',
       account: this.account,
@@ -570,7 +590,9 @@ export class ScriptedChain {
     if (this.setup.status !== 'committed') {
       throw codedError('NoSetup', { account: this.account, action: this.action })
     }
-    if (this.attempt.status === 'waiting') this.cancelAttempt('nobody')
+    if (this.attempt.status === 'waiting') {
+      this.cancelAttempt('nobody')
+    }
     const nonce = this.setup.setupNonce + 1n
     const n = this.emit({
       kind: 'setup-cleared',
@@ -662,8 +684,9 @@ export class ScriptedChain {
       consumableAfter: record.consumableAfter
     })
     record.startedAtBlock = n.at.blockNumber
-    if (options.ready)
+    if (options.ready) {
       record.consumableAfter = Math.min(record.consumableAfter, this.head.timestamp)
+    }
     this.attempt = { status: 'waiting', record }
     this.nextAttemptId = attemptId + 1n
     return record
@@ -730,7 +753,9 @@ export class ScriptedChain {
     }
     const { record } = this.attempt
     const performed = handover ?? decodeHandover(this, record.payload)
-    if (!performed) throw codedError('MalformedHandover', { payload: record.payload })
+    if (!performed) {
+      throw codedError('MalformedHandover', { payload: record.payload })
+    }
     const after = [
       ...this.authorities.filter((a) => !sameAddress(a, performed.removedAuthority)),
       performed.newAuthority
@@ -842,8 +867,11 @@ export class ScriptedChain {
 
   /** Stops failing one read, or every read. */
   restoreRead(read?: ScriptedRead): this {
-    if (read) this.readScripts.delete(read)
-    else this.readScripts.clear()
+    if (read) {
+      this.readScripts.delete(read)
+    } else {
+      this.readScripts.clear()
+    }
     return this
   }
 
@@ -854,8 +882,11 @@ export class ScriptedChain {
   }
 
   allow(member?: ScriptedRefusalMember): this {
-    if (member) this.refusals.delete(member)
-    else this.refusals.clear()
+    if (member) {
+      this.refusals.delete(member)
+    } else {
+      this.refusals.clear()
+    }
     return this
   }
 
@@ -866,8 +897,11 @@ export class ScriptedChain {
   }
 
   clearSimulation(member?: ScriptedSimulation): this {
-    if (member) this.simulations.delete(member)
-    else this.simulations.clear()
+    if (member) {
+      this.simulations.delete(member)
+    } else {
+      this.simulations.clear()
+    }
     return this
   }
 
@@ -888,8 +922,11 @@ export class ScriptedChain {
   }
 
   clearFindings(member?: ScriptedFindings): this {
-    if (member) this.appended.delete(member)
-    else this.appended.clear()
+    if (member) {
+      this.appended.delete(member)
+    } else {
+      this.appended.clear()
+    }
     return this
   }
 
@@ -923,8 +960,12 @@ export class ScriptedChain {
   /** Whether a module read is scripted to come back unanswered; throws where scripted to throw. */
   unanswered(read: ModuleRead, module: Address): boolean {
     const script = this.readScript(read, module)
-    if (!script) return false
-    if (script.mode === 'throw') throw this.failureOf(read, script)
+    if (!script) {
+      return false
+    }
+    if (script.mode === 'throw') {
+      throw this.failureOf(read, script)
+    }
     return true
   }
 
@@ -940,7 +981,9 @@ export class ScriptedChain {
   /** Throws the scripted refusal of a member, where one stands. */
   guardRefusal(member: ScriptedRefusalMember): void {
     const refusal = this.refusals.get(member)
-    if (refusal) throw thrownValueOf(member, refusal)
+    if (refusal) {
+      throw thrownValueOf(member, refusal)
+    }
   }
 
   simulationFailure(member: ScriptedSimulation): KitError | undefined {
@@ -988,8 +1031,9 @@ export class ScriptedChain {
           ? undefined
           : kitError('NoActiveAttempt', { account, action })
       case 'cancel-by-veto': {
-        if (this.attempt.status !== 'waiting')
+        if (this.attempt.status !== 'waiting') {
           return kitError('NoActiveAttempt', { account, action })
+        }
         const { record } = this.attempt
         // A veto names the attempt it was prepared for; it never ends a later one.
         if (record.attemptId !== effect.attemptId) {
@@ -1004,8 +1048,9 @@ export class ScriptedChain {
             currentNonce: this.setup.setupNonce
           })
         }
-        if (record.ignoresPause)
+        if (record.ignoresPause) {
           return kitError('AttemptIgnoresPause', { attemptId: record.attemptId })
+        }
         if (!record.usedMethods.some((m) => sameAddress(m, effect.method))) {
           return kitError('MethodNotUsed', { attemptId: record.attemptId, method: effect.method })
         }
@@ -1035,11 +1080,15 @@ export class ScriptedChain {
     calls.forEach((call) => {
       const effect = this.effectOf(call.data)
       const revert = effect ? this.revertOf(effect) : undefined
-      if (revert) throw landingRevert(revert)
+      if (revert) {
+        throw landingRevert(revert)
+      }
     })
     calls.forEach((call) => {
       const effect = this.effectOf(call.data)
-      if (!effect) return
+      if (!effect) {
+        return
+      }
       switch (effect.kind) {
         case 'arm':
           this.setAuthorized(true)

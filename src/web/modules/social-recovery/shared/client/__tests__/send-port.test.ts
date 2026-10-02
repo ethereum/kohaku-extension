@@ -62,7 +62,7 @@ import {
   track,
   waitingForSwitch,
   WINDOW_ID
-} from './harness'
+} from '@web/modules/social-recovery/shared/client/__tests__/harness'
 
 const WALLET = new Wallet(`0x${'11'.repeat(32)}`)
 /** The sending key, a basic account the wallet lists. */

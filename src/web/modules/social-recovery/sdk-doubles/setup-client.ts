@@ -110,7 +110,9 @@ export class SetupClientDouble implements ISetupClient {
     draft.clauses.forEach((clause, index) => {
       const count = clause.credentials.length
       const methods = clause.credentials.map((c) => c.method)
-      if (count === 0) errors.push(finding('clause.empty', 'clause', { clause: index }))
+      if (count === 0) {
+        errors.push(finding('clause.empty', 'clause', { clause: index }))
+      }
       if (clause.threshold > count) {
         errors.push(
           finding('clause.threshold-above-count', 'clause', {
@@ -187,7 +189,9 @@ export class SetupClientDouble implements ISetupClient {
         .slice(0, Math.max(0, clause.threshold))
     )
     const cost = chosen.reduce((sum, c) => sum + c.cost, 0n)
-    if (cost <= bound) return undefined
+    if (cost <= bound) {
+      return undefined
+    }
     return finding('rule.too-wide', 'setup', {
       places: chosen.map((c) => c.place),
       methods: chosen.map((c) => ({ method: c.method, cost: c.cost })),
@@ -230,7 +234,9 @@ export class SetupClientDouble implements ISetupClient {
     const errors: Finding[] = []
     const warnings: Finding[] = []
 
-    if (draft.clauses.length === 0) errors.push(finding('rule.empty', 'setup'))
+    if (draft.clauses.length === 0) {
+      errors.push(finding('rule.empty', 'setup'))
+    }
     if (draft.clauses.length > 0 && draft.clauses.every((c) => c.threshold === 0)) {
       errors.push(
         finding('rule.all-thresholds-zero', 'setup', {
@@ -240,7 +246,9 @@ export class SetupClientDouble implements ISetupClient {
     }
     this.clauseRows(draft, errors, warnings)
     const width = this.widthRow(draft)
-    if (width) errors.push(width)
+    if (width) {
+      errors.push(width)
+    }
 
     const placed = placesOf(chain.account, configurationOfDraft(draft))
     const seen = new Map<string, number>()
@@ -250,16 +258,21 @@ export class SetupClientDouble implements ISetupClient {
         errors.push(
           finding('credential.duplicate', 'credential', { places: [seen.get(key), place] })
         )
-      } else seen.set(key, place)
+      } else {
+        seen.set(key, place)
+      }
     })
     const people = new Map<string, number[]>()
     placed.forEach(({ place, credential }) => {
       const label = credential.label?.trim().toLowerCase()
-      if (label) people.set(label, [...(people.get(label) ?? []), place])
+      if (label) {
+        people.set(label, [...(people.get(label) ?? []), place])
+      }
     })
     people.forEach((places, label) => {
-      if (places.length > 1)
+      if (places.length > 1) {
         warnings.push(finding('rule.repeated-person', 'setup', { label, places }))
+      }
     })
 
     // The unsigned `uint48` field holds no negative wait either.
@@ -277,8 +290,9 @@ export class SetupClientDouble implements ISetupClient {
         finding('wait.above-maximum', 'setup', { wait: draft.wait, maximum: maximumWait })
       )
     }
-    if (draft.wait === 0n) warnings.push(finding('setup.wait-zero', 'setup'))
-    else if (draft.wait < BigInt(config.shortWaitBelow ?? DEFAULT_SHORT_WAIT_BELOW)) {
+    if (draft.wait === 0n) {
+      warnings.push(finding('setup.wait-zero', 'setup'))
+    } else if (draft.wait < BigInt(config.shortWaitBelow ?? DEFAULT_SHORT_WAIT_BELOW)) {
       warnings.push(
         finding('setup.wait-short', 'setup', {
           wait: draft.wait,
@@ -286,8 +300,12 @@ export class SetupClientDouble implements ISetupClient {
         })
       )
     }
-    if (draft.privacy.backup === 'clear') warnings.push(finding('backup.clear', 'setup'))
-    if (draft.privacy.backup === 'empty') warnings.push(finding('backup.empty', 'setup'))
+    if (draft.privacy.backup === 'clear') {
+      warnings.push(finding('backup.clear', 'setup'))
+    }
+    if (draft.privacy.backup === 'empty') {
+      warnings.push(finding('backup.empty', 'setup'))
+    }
     if (draft.privacy.backup !== 'empty') {
       const size = backupPlaintextSize(configurationOfDraft(draft))
       if (size > BACKUP_PADDING_SIZE) {
@@ -305,8 +323,12 @@ export class SetupClientDouble implements ISetupClient {
     reads.forEach((r) => {
       // An unanswered read says nothing about the method's stop or its declaration,
       // so validation refuses rather than pass a draft over values nobody read.
-      if (!r.paused.answered) throw unansweredRead('manager.paused', r.method)
-      if (!r.moduleInfo.answered) throw unansweredRead('manager.moduleInfo', r.method)
+      if (!r.paused.answered) {
+        throw unansweredRead('manager.paused', r.method)
+      }
+      if (!r.moduleInfo.answered) {
+        throw unansweredRead('manager.moduleInfo', r.method)
+      }
       const { method } = r
       if (!chain.descriptor.shippedMethods.some((m) => sameAddress(m, method))) {
         warnings.push(
@@ -318,7 +340,9 @@ export class SetupClientDouble implements ISetupClient {
           })
         )
       }
-      if (undeclared(r)) warnings.push(finding('method.no-declaration', 'credential', { method }))
+      if (undeclared(r)) {
+        warnings.push(finding('method.no-declaration', 'credential', { method }))
+      }
       if (r.paused.value) {
         warnings.push(
           finding('method.stopped', 'credential', { method, ignoresPause: draft.ignoresPause })
@@ -458,7 +482,9 @@ export class SetupClientDouble implements ISetupClient {
     chain.guardRefusal('setup.prepareCommitSetup')
     const block = await pinBlock(this.ctx)
     const findings = await this.findings(draft)
-    if (findings.errors.length > 0) throw validationRefusal(findings)
+    if (findings.errors.length > 0) {
+      throw validationRefusal(findings)
+    }
     if (draft.privacy.backup === 'encrypted' && !password) {
       throw codedError('setup.password-missing', { backup: 'encrypted' })
     }
@@ -528,7 +554,9 @@ export class SetupClientDouble implements ISetupClient {
       const disarm = await action.disarmingCall()
       return composeBatch([pin(clear), pin(disarm, undefined)], block)
     }
-    if (hasSetup) return pin(await manager.prepareClearSetup(actionAddress))
+    if (hasSetup) {
+      return pin(await manager.prepareClearSetup(actionAddress))
+    }
     return pin(await action.disarmingCall())
   }
 

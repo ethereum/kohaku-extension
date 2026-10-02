@@ -8,6 +8,10 @@ import type { Network } from '@ambire-common/interfaces/network'
 import { getRpcProvider } from '@ambire-common/services/provider/getRpcProvider'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import type { Address, IProvider } from '@web/modules/social-recovery/sdk-interfaces'
+import type {
+  HookState,
+  ProviderMock
+} from '@web/modules/social-recovery/shared/client/__tests__/harness'
 import { buildRecoveryClient } from '@web/modules/social-recovery/shared/client/build-client'
 import { useRecoveryClient } from '@web/modules/social-recovery/shared/client/useRecoveryClient'
 
@@ -71,17 +75,6 @@ const sepolia = (overrides: Partial<Network> = {}): Network =>
     ...overrides
   } as Network)
 
-interface ProviderMock {
-  send: jest.Mock
-  getTransaction: jest.Mock
-  getBlockNumber: jest.Mock
-  /** The replacement-aware response each transaction answers, by the start block given. */
-  replaceable: jest.Mock
-  once: jest.Mock
-  off: jest.Mock
-  destroy: jest.Mock
-}
-
 /** The block number each provider built answers: one more for each provider built before it. */
 const blockOf = (index: number) => 7_000_000 + index
 
@@ -91,8 +84,12 @@ const providerMock = (index: number): ProviderMock => {
   }))
   return {
     send: jest.fn(async (method: string) => {
-      if (method === 'eth_chainId') return `0x${SEPOLIA.toString(16)}`
-      if (method === 'eth_gasPrice') return `0x${GAS_PRICE.toString(16)}`
+      if (method === 'eth_chainId') {
+        return `0x${SEPOLIA.toString(16)}`
+      }
+      if (method === 'eth_gasPrice') {
+        return `0x${GAS_PRICE.toString(16)}`
+      }
       throw new Error(`The provider mock does not answer ${method}.`)
     }),
     getTransaction: jest.fn(async () => ({ replaceableTransaction: replaceable })),
@@ -112,8 +109,6 @@ const deferred = <T>() => {
   return { promise, resolve }
 }
 
-type HookState = ReturnType<typeof useRecoveryClient>
-
 let built: ProviderMock[]
 let network: Network
 let latest: HookState | undefined
@@ -125,12 +120,16 @@ const clientOf = (state: HookState | undefined): unknown =>
   state?.status === 'ready' ? state.client : undefined
 
 const readsOf = (state: HookState | undefined) => {
-  if (state?.status !== 'ready') throw new Error(`The hook is ${state?.status}, not ready.`)
+  if (state?.status !== 'ready') {
+    throw new Error(`The hook is ${state?.status}, not ready.`)
+  }
   return state.reads
 }
 
 const receiptsOf = (state: HookState | undefined) => {
-  if (state?.status !== 'ready') throw new Error(`The hook is ${state?.status}, not ready.`)
+  if (state?.status !== 'ready') {
+    throw new Error(`The hook is ${state?.status}, not ready.`)
+  }
   return state.receipts
 }
 

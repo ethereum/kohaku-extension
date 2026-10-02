@@ -16,8 +16,13 @@ import type {
 
 import type { MethodChip } from '@web/modules/social-recovery/shared/display'
 
-import type { EnrollSearch } from '../types'
-import type { FakeDeps, Mounted, StorageFaults, TestRecord } from './harness'
+import type { EnrollSearch } from '@web/modules/social-recovery/setup/enroll/types'
+import type {
+  FakeDeps,
+  Mounted,
+  StorageFaults,
+  TestRecord
+} from '@web/modules/social-recovery/setup/enroll/__tests__/harness'
 import {
   ACCOUNT,
   BOOK,
@@ -38,7 +43,7 @@ import {
   storedEnrollments,
   SYNCED_ON_GOOGLE,
   t
-} from './harness'
+} from '@web/modules/social-recovery/setup/enroll/__tests__/harness'
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const {
@@ -62,7 +67,9 @@ const {
   renderChip,
   renderHash
 }: typeof import('@web/modules/social-recovery/shared/display') = require('@web/modules/social-recovery/shared/display')
-const { parseEnrollSearch }: typeof import('../search') = require('../search')
+const {
+  parseEnrollSearch
+}: typeof import('@web/modules/social-recovery/setup/enroll/search') = require('@web/modules/social-recovery/setup/enroll/search')
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
 
 const CEREMONY = 'socialRecovery.ceremony'

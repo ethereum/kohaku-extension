@@ -11,7 +11,7 @@ import en from '@common/config/localization/translations/en.json'
 import { SETUP_ERROR_CODES } from '@web/modules/social-recovery/sdk-interfaces'
 import type { Clause, Finding, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
 
-import { renderFailedTestLine, renderFinding } from '../copy'
+import { renderFailedTestLine, renderFinding } from '@web/modules/social-recovery/setup/editor/copy'
 import {
   addGroup,
   addMember,
@@ -36,7 +36,7 @@ import {
   sameCredential,
   setThreshold,
   withClauses
-} from '../operations'
+} from '@web/modules/social-recovery/setup/editor/operations'
 import {
   AADHAAR,
   ALICE,
@@ -50,7 +50,7 @@ import {
   PASSPORT,
   presetPath,
   twoGroupPath
-} from './harness'
+} from '@web/modules/social-recovery/setup/editor/__tests__/harness'
 
 const t = i18n.t
 

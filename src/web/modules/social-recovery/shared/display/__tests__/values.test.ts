@@ -14,7 +14,7 @@ import {
   renderShortAddress,
   renderTokenAmount,
   Translate
-} from '..'
+} from '@web/modules/social-recovery/shared/display'
 
 const expectRefusal = (fn: () => unknown, message: string) => {
   expect(fn).toThrow(TypeError)

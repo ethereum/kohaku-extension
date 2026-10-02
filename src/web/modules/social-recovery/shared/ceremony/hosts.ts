@@ -45,7 +45,9 @@ import {
 } from './verdicts'
 
 const isPlainRecord = (value: unknown): value is Record<string, unknown> => {
-  if (typeof value !== 'object' || value === null) return false
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
   const prototype = Object.getPrototypeOf(value)
   return prototype === Object.prototype || prototype === null
 }
@@ -62,7 +64,9 @@ const isPlainRecord = (value: unknown): value is Record<string, unknown> => {
 const chooseDevice = (context: HostContext, params: unknown): DeviceChoice | undefined => {
   if (context.method.deviceBinding === 'browser-authenticator') {
     const own = context.devices?.['browser-authenticator']
-    if (!own) return undefined
+    if (!own) {
+      return undefined
+    }
     return {
       device: own,
       params: {
@@ -86,8 +90,12 @@ const cancelledByAbort = (context: HostContext) =>
  * takes a signal, so it passes unchanged.
  */
 const materialFor = (context: HostContext, material: unknown): unknown => {
-  if (context.method.deviceBinding !== 'in-browser-prover' || !context.signal) return material
-  if (!isPlainRecord(material) || material.signal !== undefined) return material
+  if (context.method.deviceBinding !== 'in-browser-prover' || !context.signal) {
+    return material
+  }
+  if (!isPlainRecord(material) || material.signal !== undefined) {
+    return material
+  }
   return { ...material, signal: context.signal }
 }
 
@@ -113,9 +121,13 @@ export const enrollHost = async (
   context: HostContext & { methodAddress: Address; params: unknown }
 ): Promise<CeremonyOutcome<EnrollValue>> => {
   const aborted = cancelledByAbort(context)
-  if (aborted) return aborted
+  if (aborted) {
+    return aborted
+  }
   const chosen = chooseDevice(context, context.params)
-  if (!chosen) return notSupported('no-implementation')
+  if (!chosen) {
+    return notSupported('no-implementation')
+  }
   const { device } = chosen
 
   context.onStep?.('preparing')
@@ -127,9 +139,13 @@ export const enrollHost = async (
   }
 
   const result = await device.enroll(input, deviceContext(context, 'enroll'))
-  if (!result.ok) return cancelledByAbort(context) ?? result.stop
+  if (!result.ok) {
+    return cancelledByAbort(context) ?? result.stop
+  }
   const abortedAfterDevice = cancelledByAbort(context)
-  if (abortedAfterDevice) return abortedAfterDevice
+  if (abortedAfterDevice) {
+    return abortedAfterDevice
+  }
 
   context.onStep?.('packaging')
   try {
@@ -139,8 +155,12 @@ export const enrollHost = async (
       materialFor(context, result.material)
     )
     const abortedInMethod = cancelledByAbort(context)
-    if (abortedInMethod) return abortedInMethod
-    if (isMethodFailure(config)) return outcomeOfMethodFailure(config, failureOptions(context))
+    if (abortedInMethod) {
+      return abortedInMethod
+    }
+    if (isMethodFailure(config)) {
+      return outcomeOfMethodFailure(config, failureOptions(context))
+    }
     return passed({
       config,
       ...(result.facts ? { facts: result.facts } : {}),
@@ -157,9 +177,13 @@ const signForRequest = async (
   call: 'testAccess' | 'createClaim'
 ): Promise<SignedReply> => {
   const aborted = cancelledByAbort(context)
-  if (aborted) return { ok: false, outcome: aborted }
+  if (aborted) {
+    return { ok: false, outcome: aborted }
+  }
   const chosen = chooseDevice(context, context.params)
-  if (!chosen) return { ok: false, outcome: notSupported('no-implementation') }
+  if (!chosen) {
+    return { ok: false, outcome: notSupported('no-implementation') }
+  }
   const { device } = chosen
 
   context.onStep?.('preparing')
@@ -171,9 +195,13 @@ const signForRequest = async (
   }
 
   const result = await device.sign(input, deviceContext(context, call))
-  if (!result.ok) return { ok: false, outcome: cancelledByAbort(context) ?? result.stop }
+  if (!result.ok) {
+    return { ok: false, outcome: cancelledByAbort(context) ?? result.stop }
+  }
   const abortedAfterDevice = cancelledByAbort(context)
-  if (abortedAfterDevice) return { ok: false, outcome: abortedAfterDevice }
+  if (abortedAfterDevice) {
+    return { ok: false, outcome: abortedAfterDevice }
+  }
 
   context.onStep?.('packaging')
   try {
@@ -183,7 +211,9 @@ const signForRequest = async (
       materialFor(context, result.material)
     )
     const abortedInMethod = cancelledByAbort(context)
-    if (abortedInMethod) return { ok: false, outcome: abortedInMethod }
+    if (abortedInMethod) {
+      return { ok: false, outcome: abortedInMethod }
+    }
     if (isMethodFailure(reply)) {
       return { ok: false, outcome: outcomeOfMethodFailure(reply, failureOptions(context)) }
     }
@@ -203,7 +233,9 @@ export const testAccessHost = async (
   context: HostContext & { request: ApproverRequest; params?: unknown }
 ): Promise<CeremonyOutcome<TestAccessValue>> => {
   const signed = await signForRequest(context, 'testAccess')
-  if (!signed.ok) return signed.outcome
+  if (!signed.ok) {
+    return signed.outcome
+  }
   context.onStep?.('checking')
   try {
     const verdict = await context.orchestrator.verify(
@@ -212,7 +244,9 @@ export const testAccessHost = async (
       signed.reply.proof
     )
     const abortedInCheck = cancelledByAbort(context)
-    if (abortedInCheck) return abortedInCheck
+    if (abortedInCheck) {
+      return abortedInCheck
+    }
     return outcomeOfCheck(verdict, {
       proof: signed.reply.proof,
       ...(signed.facts ? { facts: signed.facts } : {})
@@ -231,7 +265,9 @@ export const createClaimHost = async (
   context: HostContext & { request: ApproverRequest; params?: unknown }
 ): Promise<CeremonyOutcome<ClaimValue>> => {
   const signed = await signForRequest(context, 'createClaim')
-  if (!signed.ok) return signed.outcome
+  if (!signed.ok) {
+    return signed.outcome
+  }
   return passed({ reply: signed.reply, ...(signed.facts ? { facts: signed.facts } : {}) })
 }
 

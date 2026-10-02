@@ -2,7 +2,13 @@ import { addressOf } from '@web/modules/social-recovery/sdk-doubles'
 import { DEVICE_KINDS, type Address, type Hex } from '@web/modules/social-recovery/sdk-interfaces'
 import { concat, getAddress, hexToBytes, keccak256, sha256, slice, stringToHex } from 'viem'
 
-import { METHOD_KINDS, MethodKind, createWorld, eachDescribe, isHex } from './harness'
+import {
+  METHOD_KINDS,
+  MethodKind,
+  createWorld,
+  eachDescribe,
+  isHex
+} from '@web/modules/social-recovery/sdk-doubles/__tests__/harness'
 
 eachDescribe(METHOD_KINDS)('the %s method double', (kind) => {
   it('serves the module the descriptor names for its kind', () => {

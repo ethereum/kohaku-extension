@@ -2,7 +2,7 @@ import en from '@common/config/localization/translations/en.json'
 
 import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
 
-import * as display from '..'
+import * as display from '@web/modules/social-recovery/shared/display'
 
 const BANS: { rule: string; pattern: RegExp }[] = [
   { rule: 'policy', pattern: /\bpolic(?:y|ies)\b/i },
@@ -16,8 +16,9 @@ const BANS: { rule: string; pattern: RegExp }[] = [
 ]
 
 const collect = (value: unknown, out: string[] = [], seen = new Set<unknown>()): string[] => {
-  if (typeof value === 'string') out.push(value)
-  else if (value && typeof value === 'object' && !seen.has(value)) {
+  if (typeof value === 'string') {
+    out.push(value)
+  } else if (value && typeof value === 'object' && !seen.has(value)) {
     seen.add(value)
     Object.values(value as Record<string, unknown>).forEach((v) => collect(v, out, seen))
   }

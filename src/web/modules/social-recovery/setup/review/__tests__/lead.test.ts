@@ -13,7 +13,7 @@ import {
   publicationItemsOf,
   publicationSentenceOf,
   renderWait
-} from '../lead'
+} from '@web/modules/social-recovery/setup/review/lead'
 import {
   AADHAAR,
   ALICE,
@@ -28,7 +28,7 @@ import {
   PASSPORT,
   PHONE_PASSKEY,
   required
-} from '../__fixtures__/review'
+} from '@web/modules/social-recovery/setup/review/__fixtures__/review'
 
 const { t } = i18n
 const ITEMS = 'socialRecovery.disclosures.items'

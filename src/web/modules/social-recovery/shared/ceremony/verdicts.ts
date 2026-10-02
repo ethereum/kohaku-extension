@@ -157,7 +157,9 @@ export const chipOfOutcome = (
   outcome: CeremonyOutcome<unknown>,
   call: CeremonyCall
 ): RowChip | null => {
-  if (outcome.kind === 'dismissed') return null
+  if (outcome.kind === 'dismissed') {
+    return null
+  }
   switch (call) {
     case 'testAccess':
       return { set: 'method', chip: VERDICT_CHIP[outcome.verdict] }
@@ -205,7 +207,9 @@ export const noteKeyOfOutcome = (
     case 'notSupported':
       return 'socialRecovery.ceremony.notSupportedNote'
     case 'unavailable':
-      if (outcome.cause === 'unreachable') return 'socialRecovery.ceremony.unreachableNote'
+      if (outcome.cause === 'unreachable') {
+        return 'socialRecovery.ceremony.unreachableNote'
+      }
       return call === 'testAccess'
         ? 'socialRecovery.ceremony.testUnavailableLine'
         : 'socialRecovery.ceremony.unavailableNote'
@@ -230,7 +234,9 @@ export const lineKeyOfOutcome = (
   outcome: CeremonyOutcome<unknown>,
   call: CeremonyCall
 ): string | null => {
-  if (outcome.kind === 'dismissed' || call !== 'testAccess') return null
+  if (outcome.kind === 'dismissed' || call !== 'testAccess') {
+    return null
+  }
   switch (outcome.verdict) {
     case 'failed':
       return outcome.cause === 'check-rejected'
@@ -313,21 +319,33 @@ const UNANSWERED_ERROR_NAMES = ['TimeoutError', 'NetworkError']
  * `unavailable: true` or `code: 'UNAVAILABLE'`.
  */
 export const isUnansweredError = (error: unknown): boolean => {
-  if (typeof error !== 'object' || error === null) return false
+  if (typeof error !== 'object' || error === null) {
+    return false
+  }
   const e = error as { name?: unknown; message?: unknown; code?: unknown; unavailable?: unknown }
-  if (e.unavailable === true || e.code === 'UNAVAILABLE') return true
-  if (typeof e.name === 'string' && UNANSWERED_ERROR_NAMES.includes(e.name)) return true
+  if (e.unavailable === true || e.code === 'UNAVAILABLE') {
+    return true
+  }
+  if (typeof e.name === 'string' && UNANSWERED_ERROR_NAMES.includes(e.name)) {
+    return true
+  }
   return e.name === 'TypeError' && typeof e.message === 'string' && /fetch/i.test(e.message)
 }
 
 /** The message a thrown value carries, or undefined where it carries none. */
 export const messageOf = (error: unknown): string | undefined => {
-  if (error instanceof Error && error.message) return error.message
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
   if (typeof error === 'object' && error !== null) {
     const message = (error as { message?: unknown }).message
-    if (typeof message === 'string' && message) return message
+    if (typeof message === 'string' && message) {
+      return message
+    }
   }
-  if (typeof error === 'string' && error) return error
+  if (typeof error === 'string' && error) {
+    return error
+  }
   return undefined
 }
 

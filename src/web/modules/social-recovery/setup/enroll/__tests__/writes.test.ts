@@ -10,7 +10,7 @@
 import type { Credential } from '@web/modules/social-recovery/sdk-interfaces'
 import type { Enrollment, SetupRecords } from '@web/modules/social-recovery/shared/records'
 
-import type { EnrollSearch } from '../types'
+import type { EnrollSearch } from '@web/modules/social-recovery/setup/enroll/types'
 import {
   ACCOUNT,
   BOOK,
@@ -21,10 +21,13 @@ import {
   pathWith,
   recordsWith,
   SYNCED_ON_GOOGLE
-} from './harness'
+} from '@web/modules/social-recovery/setup/enroll/__tests__/harness'
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
-const { placeEnrollment, recordTest }: typeof import('../writes') = require('../writes')
+const {
+  placeEnrollment,
+  recordTest
+}: typeof import('@web/modules/social-recovery/setup/enroll/writes') = require('@web/modules/social-recovery/setup/enroll/writes')
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
 
 const SEARCH: EnrollSearch = { kind: 'passkey', at: { clause: 0, member: 1 } }

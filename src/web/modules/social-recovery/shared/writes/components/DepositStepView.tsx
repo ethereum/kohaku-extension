@@ -59,8 +59,9 @@ const DepositStepView = ({
 
   const copy = useCallback(() => {
     const address = rendered.keyAddress
-    if (onCopy) onCopy(address)
-    else {
+    if (onCopy) {
+      onCopy(address)
+    } else {
       // On web the clipboard answers false, or rejects, where it could not copy.
       setStringAsync(address)
         .then((copied) => setCopyResult({ address, copied }))

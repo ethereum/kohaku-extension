@@ -39,7 +39,7 @@ import {
   WRITE_KINDS,
   writeReducer,
   WRITES_KEYS
-} from './harness'
+} from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 const t = i18n.t
 const LINK = /\bhttps?:\/\/|\bwww\.|faucet/i

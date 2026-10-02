@@ -39,7 +39,9 @@ const drive = async (
   try {
     const receipt = receiptOf(await receipts.wait(transactionHash, startBlock))
     // A receipt with no status reads neither way, so the write keeps its hash.
-    if (receipt) dispatch({ type: 'receipt', run, receipt })
+    if (receipt) {
+      dispatch({ type: 'receipt', run, receipt })
+    }
   } catch (error: unknown) {
     dispatch({ type: 'error', run, error, transactionHash })
   }

@@ -1,7 +1,7 @@
 import type { Address, Clause } from '@web/modules/social-recovery/sdk-interfaces'
 
-import { stopRowsOf, trustRowsOf } from '../trust'
-import type { MethodReads, TrustReads } from '../types'
+import { stopRowsOf, trustRowsOf } from '@web/modules/social-recovery/setup/review/trust'
+import type { MethodReads, TrustReads } from '@web/modules/social-recovery/setup/review/types'
 import {
   ADMIN,
   ALICE,
@@ -21,7 +21,7 @@ import {
   THIRD_PARTY,
   THIRD_PARTY_MODULE,
   UNANSWERED
-} from '../__fixtures__/review'
+} from '@web/modules/social-recovery/setup/review/__fixtures__/review'
 
 const trustRowsFor = (clauses: Clause[], reads: TrustReads) =>
   trustRowsOf({ clauses, enrollments: [], reads, shippedMethods: SHIPPED, addressBook: BOOK })

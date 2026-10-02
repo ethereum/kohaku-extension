@@ -32,7 +32,7 @@ import {
   WINDOW,
   World,
   ZERO
-} from './harness'
+} from '@web/modules/social-recovery/sdk-doubles/__tests__/harness'
 
 const codes = (findings: Finding[]) => findings.map((f) => f.code)
 const wallet = (world: World, label: string, extra: Partial<Credential> = {}): Credential => ({

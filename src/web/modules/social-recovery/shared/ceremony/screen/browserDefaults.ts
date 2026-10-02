@@ -24,7 +24,9 @@ export const browserReportKeys = async (): Promise<string[]> => {
   if (isExtension && browser?.storage?.local) {
     return Object.keys((await browser.storage.local.get(null)) ?? {})
   }
-  if (typeof localStorage === 'undefined') return []
+  if (typeof localStorage === 'undefined') {
+    return []
+  }
   return Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i)).filter(
     (key): key is string => key !== null
   )
@@ -61,7 +63,9 @@ export const browserReportSubscribe: ReportSubscribe = (key, onValue) => {
     return () => browser.storage.onChanged.removeListener(listener)
   }
   const listener = (event: StorageEvent) => {
-    if (event.key === key && event.newValue !== null) deliverParsed(event.newValue, onValue)
+    if (event.key === key && event.newValue !== null) {
+      deliverParsed(event.newValue, onValue)
+    }
   }
   window.addEventListener('storage', listener)
   return () => window.removeEventListener('storage', listener)

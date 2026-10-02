@@ -7,7 +7,7 @@
  */
 import type { Credential } from '@web/modules/social-recovery/sdk-interfaces'
 
-import type { Mounted } from './harness'
+import type { Mounted } from '@web/modules/social-recovery/setup/enroll/__tests__/harness'
 import {
   BOOK,
   depsOf,
@@ -18,13 +18,15 @@ import {
   pathWith,
   recordsWith,
   t
-} from './harness'
+} from '@web/modules/social-recovery/setup/enroll/__tests__/harness'
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const {
   WEB_ROUTES
 }: typeof import('@common/modules/router/constants/common') = require('@common/modules/router/constants/common')
-const { parseEnrollSearch }: typeof import('../search') = require('../search')
+const {
+  parseEnrollSearch
+}: typeof import('@web/modules/social-recovery/setup/enroll/search') = require('@web/modules/social-recovery/setup/enroll/search')
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
 
 const GUARDIAN = '0x2222222222222222222222222222222222222222'

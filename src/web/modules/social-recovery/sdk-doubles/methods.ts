@@ -243,7 +243,9 @@ abstract class MethodDouble implements IRecoveryMethod {
   abstract satisfyingMaterial(request: ApproverRequest): unknown
 
   async configFrom(input: unknown, material: unknown): Promise<Hex | EnrollFailure> {
-    if (this.chain?.enrollFailure) return enrollFailure(this.chain.enrollFailure)
+    if (this.chain?.enrollFailure) {
+      return enrollFailure(this.chain.enrollFailure)
+    }
     return this.enrollConfig(input, material)
   }
 
@@ -252,12 +254,16 @@ abstract class MethodDouble implements IRecoveryMethod {
     input: unknown,
     material: unknown
   ): Promise<Hex | ReplyFailure> {
-    if (this.chain?.replyFailure) return replyFailure(this.chain.replyFailure)
+    if (this.chain?.replyFailure) {
+      return replyFailure(this.chain.replyFailure)
+    }
     return this.proofFrom(ctx, input, material)
   }
 
   async verify(ctx: MethodContext, proof: Hex): Promise<Verdict> {
-    if (this.chain?.verdict) return this.chain.verdict
+    if (this.chain?.verdict) {
+      return this.chain.verdict
+    }
     return proof.toLowerCase() === doubleProof(ctx.request.config, ctx.digest).toLowerCase()
       ? 'satisfied'
       : 'rejected'
@@ -303,7 +309,9 @@ export class WalletMethodDouble extends MethodDouble {
     const address = (input as WalletEnrollParams | undefined)?.address
     // The strict check refuses a mixed-case address with a wrong checksum, which
     // the encoder would otherwise throw on.
-    if (!address || !isAddress(address, { strict: true })) return enrollFailure('material-rejected')
+    if (!address || !isAddress(address, { strict: true })) {
+      return enrollFailure('material-rejected')
+    }
     return this.codec.encodeConfig({ address: address as Address })
   }
 
@@ -638,8 +646,9 @@ export class ZkPassportMethodDouble extends MethodDouble {
 
   private requestRecord(params: unknown, boundData: string): unknown {
     const p = params as ZkPassportParams
-    if (!p?.domain || !p?.scope)
+    if (!p?.domain || !p?.scope) {
       throw codedError('params-missing', { method: 'zkpassport', missing: ['domain', 'scope'] })
+    }
     return {
       domain: p.domain,
       scope: p.scope,
@@ -659,7 +668,9 @@ export class ZkPassportMethodDouble extends MethodDouble {
   /** `material: { result }`, the double's result carrying the `uniqueIdentifier`. */
   protected enrollConfig(_input: unknown, material: unknown): Hex | EnrollFailure {
     const id = (material as ZkPassportEnrollMaterial | undefined)?.result?.uniqueIdentifier
-    if (!nonEmptyHex(id) || id.length !== 66) return enrollFailure('material-rejected')
+    if (!nonEmptyHex(id) || id.length !== 66) {
+      return enrollFailure('material-rejected')
+    }
     return this.codec.encodeConfig({ uniqueIdentifier: id })
   }
 
@@ -737,7 +748,9 @@ export class AadhaarMethodDouble extends MethodDouble {
   protected enrollConfig(input: unknown, material: unknown): Hex | EnrollFailure {
     const seed = (input as Partial<AadhaarInput> | undefined)?.nullifierSeed
     const qrData = (material as AadhaarMaterial | undefined)?.qrData
-    if (seed === undefined || !nonEmptyHex(qrData)) return enrollFailure('material-rejected')
+    if (seed === undefined || !nonEmptyHex(qrData)) {
+      return enrollFailure('material-rejected')
+    }
     return this.codec.encodeConfig({ nullifier: AadhaarMethodDouble.nullifierOf(seed, qrData) })
   }
 
@@ -748,12 +761,15 @@ export class AadhaarMethodDouble extends MethodDouble {
   protected proofFrom(ctx: MethodContext, input: unknown, material: unknown): Hex | ReplyFailure {
     const seed = (input as Partial<AadhaarInput> | undefined)?.nullifierSeed
     const qrData = (material as AadhaarMaterial | undefined)?.qrData
-    if (seed === undefined || !nonEmptyHex(qrData)) return replyFailure('material-rejected')
+    if (seed === undefined || !nonEmptyHex(qrData)) {
+      return replyFailure('material-rejected')
+    }
     const config = this.codec.encodeConfig({
       nullifier: AadhaarMethodDouble.nullifierOf(seed, qrData)
     })
-    if (config.toLowerCase() !== ctx.request.config.toLowerCase())
+    if (config.toLowerCase() !== ctx.request.config.toLowerCase()) {
       return replyFailure('material-rejected')
+    }
     return doubleProof(ctx.request.config, ctx.digest)
   }
 
@@ -762,7 +778,9 @@ export class AadhaarMethodDouble extends MethodDouble {
    * satisfying material is the one enrolled: pass the QR data used at enrollment.
    */
   satisfyingMaterial(_request: ApproverRequest, qrData?: Hex) {
-    if (!qrData) throw codedError('material-missing', { method: 'aadhaar', missing: ['qrData'] })
+    if (!qrData) {
+      throw codedError('material-missing', { method: 'aadhaar', missing: ['qrData'] })
+    }
     return { qrData }
   }
 

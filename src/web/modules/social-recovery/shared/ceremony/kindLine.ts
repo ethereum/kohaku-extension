@@ -55,18 +55,33 @@ export const platformOf = (nav: {
   const hint = nav.userAgentData?.platform ?? ''
   const platform = nav.platform ?? ''
   const agent = nav.userAgent ?? ''
-  if (nav.userAgentData?.mobile || /android|ios/i.test(hint) || /android|iphone|ipad/i.test(agent))
+  if (
+    nav.userAgentData?.mobile ||
+    /android|ios/i.test(hint) ||
+    /android|iphone|ipad/i.test(agent)
+  ) {
     return 'phone'
-  if (/mac/i.test(hint) || /^mac/i.test(platform)) return 'mac'
+  }
+  if (/mac/i.test(hint) || /^mac/i.test(platform)) {
+    return 'mac'
+  }
   return 'other'
 }
 
 /** The device a device-bound passkey lives on, from its place and the platform. */
 export const deviceOf = (facts: Pick<PasskeyFacts, 'place'>, platform: Platform): PasskeyDevice => {
-  if (facts.place === 'phone') return 'thisPhone'
-  if (facts.place !== 'this-device') return 'thisDevice'
-  if (platform === 'mac') return 'thisMac'
-  if (platform === 'phone') return 'thisPhone'
+  if (facts.place === 'phone') {
+    return 'thisPhone'
+  }
+  if (facts.place !== 'this-device') {
+    return 'thisDevice'
+  }
+  if (platform === 'mac') {
+    return 'thisMac'
+  }
+  if (platform === 'phone') {
+    return 'thisPhone'
+  }
   return 'thisDevice'
 }
 

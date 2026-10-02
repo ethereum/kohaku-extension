@@ -48,13 +48,17 @@ const knownTransaction = (
     const started = Date.now()
     let onRelease: (() => void) | undefined
     const settle = (settled: () => void): void => {
-      if (onRelease) signal?.removeEventListener('abort', onRelease)
+      if (onRelease) {
+        signal?.removeEventListener('abort', onRelease)
+      }
       settled()
     }
     const ask = async (): Promise<void> => {
       try {
         const transaction = await provider.getTransaction(hash)
-        if (signal?.aborted) return
+        if (signal?.aborted) {
+          return
+        }
         if (transaction) {
           settle(() => resolve(transaction))
         } else if (Date.now() - started >= UNKNOWN_TRANSACTION_MS) {
@@ -84,8 +88,12 @@ const untilReleased = <T>(
   transactionHash: Hex,
   run: Promise<T>
 ): Promise<T> => {
-  if (!signal) return run
-  if (signal.aborted) return Promise.reject(released(transactionHash))
+  if (!signal) {
+    return run
+  }
+  if (signal.aborted) {
+    return Promise.reject(released(transactionHash))
+  }
   return new Promise<T>((resolve, reject) => {
     const onRelease = (): void => reject(released(transactionHash))
     signal.addEventListener('abort', onRelease, { once: true })
@@ -107,7 +115,9 @@ export const createReceiptWait = (
       transaction.replaceableTransaction(startBlock).wait()
     )
     // ethers answers no receipt only for a wait of zero confirmations.
-    if (!receipt) throw new Error(`No receipt came back for ${transactionHash}.`)
+    if (!receipt) {
+      throw new Error(`No receipt came back for ${transactionHash}.`)
+    }
     return receipt
   }
 })

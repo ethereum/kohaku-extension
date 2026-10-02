@@ -71,7 +71,9 @@ const formatAaguid = (bytes: Uint8Array): string => {
 /** Reads the rp id hash, the flags, the counter and the AAGUID of an authenticator data. */
 export const readAuthenticatorData = (data: ArrayBuffer | ArrayBufferView): AuthenticatorData => {
   const bytes = bytesOf(data)
-  if (bytes.length < 37) throw new Error('The authenticator data is shorter than 37 bytes.')
+  if (bytes.length < 37) {
+    throw new Error('The authenticator data is shorter than 37 bytes.')
+  }
   const flagsByte = bytes[32]
   const flags: AuthenticatorFlags = {
     userPresent: (flagsByte & AUTHENTICATOR_FLAGS.userPresent) !== 0,
@@ -122,11 +124,21 @@ export const authenticatorPlaceOf = (
   attachment: string | null | undefined,
   transports: readonly string[] = []
 ): AuthenticatorPlace => {
-  if (attachment === 'platform') return 'this-device'
-  if (transports.includes('hybrid')) return 'phone'
-  if (attachment === 'cross-platform' || transports.some((t) => ['usb', 'nfc', 'ble'].includes(t)))
+  if (attachment === 'platform') {
+    return 'this-device'
+  }
+  if (transports.includes('hybrid')) {
+    return 'phone'
+  }
+  if (
+    attachment === 'cross-platform' ||
+    transports.some((t) => ['usb', 'nfc', 'ble'].includes(t))
+  ) {
     return 'security-key'
-  if (transports.includes('internal')) return 'this-device'
+  }
+  if (transports.includes('internal')) {
+    return 'this-device'
+  }
   return 'unknown'
 }
 
@@ -213,7 +225,9 @@ export const stopOfCeremonyError = (
         return unavailable('unreachable', name)
       }
       const isTest = context.lifecycle ? context.lifecycle === 'testAccess' : context.call === 'get'
-      if (isTest) return failed('browser-error', name)
+      if (isTest) {
+        return failed('browser-error', name)
+      }
       if (/focus|permissions? policy|feature policy/i.test(message)) {
         return dismissed('refused', name)
       }

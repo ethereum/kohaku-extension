@@ -35,7 +35,9 @@ export const ARBITRARY_SENDER: Address = addressOf('arbitrary-simulation-sender'
 /** A prepared call with no simulation, as the manager part's own prepares return it. */
 export const composeCall = (chain: ScriptedChain, input: ComposeInput): PreparedCall => {
   const data = calldataOf(input.name, input.args)
-  if (input.effect) chain.registerEffect(data, input.effect)
+  if (input.effect) {
+    chain.registerEffect(data, input.effect)
+  }
   const call: PreparedCall = {
     kind: 'call',
     target: input.target,
@@ -44,7 +46,9 @@ export const composeCall = (chain: ScriptedChain, input: ComposeInput): Prepared
     sender: input.sender,
     block: { number: input.block.number, hash: input.block.hash }
   }
-  if (input.describes) call.describes = input.describes
+  if (input.describes) {
+    call.describes = input.describes
+  }
   return call
 }
 

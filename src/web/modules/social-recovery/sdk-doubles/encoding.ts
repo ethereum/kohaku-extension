@@ -212,9 +212,13 @@ const safeText = (hex: Hex): string | undefined => {
 
 /** Reads a private field: empty, clear, or encrypted (opened with the password when it fits). */
 export const readBackup = (privateMetadata: Hex, password?: string): BackupReading => {
-  if (!privateMetadata || privateMetadata === '0x') return { form: 'empty' }
+  if (!privateMetadata || privateMetadata === '0x') {
+    return { form: 'empty' }
+  }
   const text = safeText(privateMetadata)
-  if (text === undefined) return { form: 'unreadable' }
+  if (text === undefined) {
+    return { form: 'unreadable' }
+  }
   if (text.startsWith(CLEAR_MARK)) {
     return { form: 'clear', configuration: fromJson<Configuration>(text.slice(CLEAR_MARK.length)) }
   }
@@ -241,8 +245,12 @@ export const readBackup = (privateMetadata: Hex, password?: string): BackupReadi
  * empty backup is shape-visible, and nothing public is private (the default).
  */
 export const levelOfFields = (publicMetadata: Hex, backupIsClear: boolean): PrivacyLevel => {
-  if (backupIsClear) return 'public'
-  if (publicMetadata && publicMetadata !== '0x') return 'shape-visible'
+  if (backupIsClear) {
+    return 'public'
+  }
+  if (publicMetadata && publicMetadata !== '0x') {
+    return 'shape-visible'
+  }
   return 'private'
 }
 
@@ -258,7 +266,9 @@ export const levelOfMetadata = (publicMetadata: Hex, privateMetadata: Hex): Priv
  * readable, fully readable.
  */
 export const readPublicNote = (publicMetadata: Hex): PublicNoteReading => {
-  if (!publicMetadata || publicMetadata === '0x') return { kind: 'none' }
+  if (!publicMetadata || publicMetadata === '0x') {
+    return { kind: 'none' }
+  }
   const text = safeText(publicMetadata)
   try {
     if (text?.startsWith(SHAPE_MARK)) {

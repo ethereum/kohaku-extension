@@ -28,7 +28,7 @@ import {
   track,
   UNKNOWN_TRANSACTION_MS,
   watchEthersWaits
-} from './harness'
+} from '@web/modules/social-recovery/shared/client/__tests__/harness'
 
 const SENDER = '0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A' as Address
 const TARGET = '0x0000000000000000000000000000000000c70101' as Address

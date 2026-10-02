@@ -1,8 +1,17 @@
 import type { PrivilegeHoldersReading } from '@web/modules/social-recovery/shared/client'
 
-import { authoritiesOf, codeEntriesOf, doorsOf as doorsWith } from '../doors'
-import type { AccountRead, AccountReads } from '../types'
-import { descriptionOf, OTHER_KEY, REMOVED_KEY, THIRD_KEY } from '../__fixtures__/review'
+import {
+  authoritiesOf,
+  codeEntriesOf,
+  doorsOf as doorsWith
+} from '@web/modules/social-recovery/setup/review/doors'
+import type { AccountRead, AccountReads } from '@web/modules/social-recovery/setup/review/types'
+import {
+  descriptionOf,
+  OTHER_KEY,
+  REMOVED_KEY,
+  THIRD_KEY
+} from '@web/modules/social-recovery/setup/review/__fixtures__/review'
 
 const NAMED: AccountReads['removedKey'] = {
   status: 'answered',

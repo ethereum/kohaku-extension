@@ -51,6 +51,7 @@ import type {
   ModuleInfo,
   PaymentOrder,
   PrivacyLevel,
+  ReadResult,
   SetupDraft,
   TrustedParties
 } from '@web/modules/social-recovery/sdk-interfaces'
@@ -73,7 +74,23 @@ export type Canceller = typeof CANCELLERS[number]
 export const METHOD_KINDS = ['wallet', 'passkey', 'zkPassport', 'aadhaar'] as const
 export type MethodKind = typeof METHOD_KINDS[number]
 
+/** Every way to build from a builder; each runs the construction checks. */
+export const BUILD_PATHS = {
+  buildSetupClient: (b: RecoveryKitBuilderDouble) => b.buildSetupClient(),
+  buildRecoveryClient: (b: RecoveryKitBuilderDouble) => b.buildRecoveryClient(),
+  buildMethodsOrchestrator: (b: RecoveryKitBuilderDouble) => b.buildMethodsOrchestrator(),
+  recoveryAction: (b: RecoveryKitBuilderDouble) => b.recoveryAction(),
+  methodModuleReads: (b: RecoveryKitBuilderDouble) => b.methodModuleReads()
+}
+export type BuildPath = keyof typeof BUILD_PATHS
+
 export const PASSWORD = 'correct horse battery staple'
+
+export interface StandingRow {
+  method: Address
+  moduleInfo: ReadResult<ModuleInfo>
+  paused: ReadResult<boolean>
+}
 
 export interface CommittedSetup {
   configuration: Configuration
@@ -195,7 +212,9 @@ export const createWorld = (seed: ChainSeed = {}): World => {
     // "Nobody" here is a security stop's veto; a setup write is the other nobody.
     if (canceller === 'nobody') {
       chain.cancelAttempt('nobody', { vetoingMethod: descriptor.methodZkpassport })
-    } else chain.cancelAttempt(canceller)
+    } else {
+      chain.cancelAttempt(canceller)
+    }
   }
 
   return {
@@ -224,7 +243,9 @@ export const createWorld = (seed: ChainSeed = {}): World => {
     keys,
     script: {
       setupNone: () => {
-        if (chain.setup.status === 'committed') chain.clearSetup()
+        if (chain.setup.status === 'committed') {
+          chain.clearSetup()
+        }
       },
       setupCommitted: (level) => {
         const password = level === 'public' ? undefined : PASSWORD
@@ -232,10 +253,16 @@ export const createWorld = (seed: ChainSeed = {}): World => {
         return { configuration, draft: draft(level), password }
       },
       attempt: (status, canceller = 'account') => {
-        if (status === 'none') return
+        if (status === 'none') {
+          return
+        }
         chain.openAttempt({ ready: status !== 'pending', payload })
-        if (status === 'cancelled') cancel(canceller)
-        if (status === 'executed') chain.executeAttempt()
+        if (status === 'cancelled') {
+          cancel(canceller)
+        }
+        if (status === 'executed') {
+          chain.executeAttempt()
+        }
       },
       authorized: (held) => chain.setAuthorized(held),
       code: (present) => chain.setHasCode(present),
@@ -376,7 +403,9 @@ export const openingOf = async (world: World, attemptId: bigint) => {
     to: at.number
   })
   const opening = notes.find((n) => n.kind === 'attempt-started' && n.attemptId === attemptId)
-  if (opening?.kind !== 'attempt-started') throw new Error('no opening notification')
+  if (opening?.kind !== 'attempt-started') {
+    throw new Error('no opening notification')
+  }
   return opening
 }
 
@@ -442,9 +471,6 @@ const ECDSA_P256 = { name: 'ECDSA', namedCurve: 'P-256' } as const
 const ECDSA_SHA256 = { name: 'ECDSA', hash: 'SHA-256' } as const
 
 /* eslint-disable global-require, @typescript-eslint/no-var-requires */
-// The WebAuthn fakes load on first use, never with this file: the ceremony
-// harness registers its own checks under any file named harness.ts that loads
-// it, and those checks need a DOM this file's own run does not have.
 const webAuthnFakes = () =>
   require('@web/modules/social-recovery/shared/ceremony/__tests__/harness') as typeof import('@web/modules/social-recovery/shared/ceremony/__tests__/harness')
 /* eslint-enable global-require, @typescript-eslint/no-var-requires */

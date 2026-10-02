@@ -17,8 +17,13 @@ import type { RecordStorage, WalletRecords } from '@web/modules/social-recovery/
 
 import type { MethodChip } from '@web/modules/social-recovery/shared/display'
 
-import type { EnrollSearch, GuardianChain } from '../types'
-import type { FakeClient, FakeDeps, Mounted, StorageFaults } from './harness'
+import type { EnrollSearch, GuardianChain } from '@web/modules/social-recovery/setup/enroll/types'
+import type {
+  FakeClient,
+  FakeDeps,
+  Mounted,
+  StorageFaults
+} from '@web/modules/social-recovery/setup/enroll/__tests__/harness'
 import {
   ACCOUNT,
   BOOK,
@@ -37,7 +42,7 @@ import {
   storedClauses,
   storedEnrollments,
   t
-} from './harness'
+} from '@web/modules/social-recovery/setup/enroll/__tests__/harness'
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const {
@@ -61,12 +66,14 @@ const {
   renderFullAddress,
   renderShortAddress
 }: typeof import('@web/modules/social-recovery/shared/display') = require('@web/modules/social-recovery/shared/display')
-const { guardianChainOf }: typeof import('../chain') = require('../chain')
+const {
+  guardianChainOf
+}: typeof import('@web/modules/social-recovery/setup/enroll/chain') = require('@web/modules/social-recovery/setup/enroll/chain')
 const {
   KEY_TEST_DOMAIN_NAME,
   keyTestOf,
   keyTestToSignOf
-}: typeof import('../testRequest') = require('../testRequest')
+}: typeof import('@web/modules/social-recovery/setup/enroll/testRequest') = require('@web/modules/social-recovery/setup/enroll/testRequest')
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
 
 const GUARDIAN = 'socialRecovery.enroll.guardian'

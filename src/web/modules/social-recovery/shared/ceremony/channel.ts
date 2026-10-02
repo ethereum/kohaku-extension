@@ -50,16 +50,28 @@ export const ceremonyResultKey = (id: string): string => `${CEREMONY_RESULT_KEY_
 
 /** Whether `value` is a well-formed report: one of the four verdicts or a dismissal. */
 export const isCeremonyReport = (value: unknown): value is CeremonyReport => {
-  if (typeof value !== 'object' || value === null) return false
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
   const report = value as Partial<CeremonyReport>
-  if (typeof report.id !== 'string' || typeof report.method !== 'string') return false
-  if (!isCeremonyCall(report.call) || typeof report.reportedAt !== 'number') return false
-  if (typeof report.expiresAt !== 'number') return false
+  if (typeof report.id !== 'string' || typeof report.method !== 'string') {
+    return false
+  }
+  if (!isCeremonyCall(report.call) || typeof report.reportedAt !== 'number') {
+    return false
+  }
+  if (typeof report.expiresAt !== 'number') {
+    return false
+  }
   const outcome = report.outcome as
     | { kind?: unknown; verdict?: unknown; note?: unknown }
     | undefined
-  if (!outcome) return false
-  if (outcome.kind === 'verdict') return isCeremonyVerdict(outcome.verdict)
+  if (!outcome) {
+    return false
+  }
+  if (outcome.kind === 'verdict') {
+    return isCeremonyVerdict(outcome.verdict)
+  }
   return (
     outcome.kind === 'dismissed' && (outcome.note === 'cancelled' || outcome.note === 'refused')
   )
@@ -145,13 +157,17 @@ export const takeCeremonyReport = async (
   now: number = Date.now()
 ): Promise<CeremonyReport | null> => {
   const value = await storedReport(expected.id, store)
-  if (value === null || value === undefined) return null
+  if (value === null || value === undefined) {
+    return null
+  }
   const key = ceremonyResultKey(expected.id)
   if (!isCeremonyReport(value) || !isWithinExpiry(value.reportedAt, now)) {
     await store.remove(key)
     return null
   }
-  if (!isReportFor(value, expected, now)) return null
+  if (!isReportFor(value, expected, now)) {
+    return null
+  }
   await store.remove(key)
   return value
 }
@@ -169,7 +185,9 @@ export const listenForCeremonyReport = (
   now: () => number = () => Date.now()
 ): (() => void) =>
   subscribe(ceremonyResultKey(expected.id), (value) => {
-    if (!isCeremonyReport(value) || !isReportFor(value, expected, now())) return
+    if (!isCeremonyReport(value) || !isReportFor(value, expected, now())) {
+      return
+    }
     onReport(value)
     store.remove(ceremonyResultKey(expected.id)).catch(() => undefined)
   })
