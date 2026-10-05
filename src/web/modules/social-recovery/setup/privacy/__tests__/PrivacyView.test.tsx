@@ -24,6 +24,7 @@ const {
 }: typeof import('@common/modules/router/constants/common') = require('@common/modules/router/constants/common')
 const {
   addressBookOf,
+  privacyLevelOf,
   shapeNoteOf,
   WALLET_RECOVERY_CHAIN
 }: typeof import('@web/modules/social-recovery/shared/client') = require('@web/modules/social-recovery/shared/client')
@@ -210,19 +211,47 @@ describe('the privacy step', () => {
       expect(await continueAsOpened(records)).toEqual(privacy)
     })
 
-    it('a draft stored at Shape visible with no member opens on Private and continue stores Private', async () => {
+    it('a draft stored at Shape visible with no member opens on Shape visible and continue keeps it', async () => {
       const draft = shapeVisibleDraft([])
       const records = recordsOn()
       await records.setup(CHAIN_ID, ACCOUNT).setupDraft.write(draft)
       await h.mount(records)
-      expect(radioIds()).toEqual(['level-private', 'level-public'])
-      expect(checkedRadios()).toEqual(['level-private'])
-      expect(await continueAsOpened(records)).toEqual({ backup: 'encrypted', publicMetadata: '0x' })
+      expect(radioIds()).toEqual(['level-private', 'level-shape-visible', 'level-public'])
+      expect(checkedRadios()).toEqual(['level-shape-visible'])
+      expect(h.byTestId('level-line-shape-visible')?.textContent).toBe(L.shapeVisible.lineEmpty)
+      const privacy = await continueAsOpened(records)
+      expect(privacy).toEqual(draft.privacy)
+      expect(privacyLevelOf(privacy)).toBe('shape-visible')
     })
 
-    it('a path whose groups have no member offers no Shape visible', async () => {
+    it('a path whose groups have no member offers Shape visible with the line that names no shape', async () => {
       await h.mount(await withDraft({ clauses: [{ threshold: 1, credentials: [] }] }))
-      expect(radioIds()).toEqual(['level-private', 'level-public'])
+      expect(radioIds()).toEqual(['level-private', 'level-shape-visible', 'level-public'])
+      expect(h.byTestId('level-shape-visible')?.textContent).toContain(L.shapeVisible.label)
+      expect(h.byTestId('level-line-shape-visible')?.textContent).toBe(L.shapeVisible.lineEmpty)
+      expect(h.byTestId('level-line-private')?.textContent).toBe(L.private.line)
+      expect(h.byTestId('level-line-public')?.textContent).toBe(L.public.line)
+    })
+
+    it('a path whose groups have no member stores Shape visible as a sealed backup beside a note that reads back as Shape visible', async () => {
+      const records = await withDraft({ clauses: [{ threshold: 1, credentials: [] }] })
+      await h.mount(records)
+      await h.press('level-shape-visible')
+      expect(checkedRadios()).toEqual(['level-shape-visible'])
+      await typePasswords('correct horse', 'correct horse')
+      await h.press('continue')
+      const { privacy } = await storedDraft(records)
+      expect(privacy.backup).toBe('encrypted')
+      expect(privacy.publicMetadata).not.toBe('0x')
+      expect(privacyLevelOf(privacy)).toBe('shape-visible')
+      expect(await flagOf(records)).toBe(PASSWORD_SET)
+      expect(readRecoveryPassword(CHAIN_ID, ACCOUNT)).toBe('correct horse')
+      expect(h.navigate).toHaveBeenCalledWith(WEB_ROUTES.socialRecoverySetupReview)
+    })
+
+    it('a path with a member never reads the line that names no shape', async () => {
+      await h.mount(await withDraft({ clauses: PASSKEY_PASSPORT_AND_GUARDIAN }))
+      expect(h.byTestId('level-line-shape-visible')?.textContent).not.toBe(L.shapeVisible.lineEmpty)
     })
 
     it('only the radio of a stored Public draft is checked', async () => {
@@ -591,11 +620,29 @@ describe('the privacy step', () => {
       expect(h.text()).not.toMatch(HIDES_EXISTENCE)
     })
 
-    it('is not offered with no draft, where only Private and Public render', async () => {
+    it('is offered with no draft, with the line that names no shape', async () => {
       await h.mount(recordsOn())
-      expect(radioIds()).toEqual(['level-private', 'level-public'])
-      expect(h.byTestId('level-shape-visible')).toBeNull()
-      expect(h.byTestId('level-line-shape-visible')).toBeNull()
+      expect(radioIds()).toEqual(['level-private', 'level-shape-visible', 'level-public'])
+      expect(checkedRadios()).toEqual(['level-private'])
+      expect(h.byTestId('level-line-shape-visible')?.textContent).toBe(L.shapeVisible.lineEmpty)
+    })
+
+    it('continue with no draft starts one with a sealed backup beside a note that reads back as Shape visible', async () => {
+      const records = recordsOn()
+      await records.setup(CHAIN_ID, ACCOUNT).waitingPeriod.write(259200n)
+      await h.mount(records)
+      await h.press('level-shape-visible')
+      await typePasswords('correct horse', 'correct horse')
+      await h.press('continue')
+      const draft = await storedDraft(records)
+      expect(draft.clauses).toEqual([])
+      expect(draft.wait).toBe(259200n)
+      expect(draft.privacy.backup).toBe('encrypted')
+      expect(draft.privacy.publicMetadata).not.toBe('0x')
+      expect(privacyLevelOf(draft.privacy)).toBe('shape-visible')
+      expect(await flagOf(records)).toBe(PASSWORD_SET)
+      expect(readRecoveryPassword(CHAIN_ID, ACCOUNT)).toBe('correct horse')
+      expect(h.navigate).toHaveBeenCalledWith(WEB_ROUTES.socialRecoverySetupReview)
     })
 
     it('continue carries the stored waiting period into the note', async () => {
@@ -675,14 +722,15 @@ describe('the privacy step', () => {
 
     const disabledRadios = () => radioIds().map((id) => h.isDisabled(String(id)))
 
-    it('holds the levels, the password fields and continue until the draft is read', async () => {
+    it('holds the three levels, the password fields and continue until the draft is read', async () => {
       const { release } = await mountHeld({ backup: 'encrypted', publicMetadata: '0x' })
-      expect(disabledRadios()).toEqual([true, true])
+      expect(radioIds()).toEqual(['level-private', 'level-shape-visible', 'level-public'])
+      expect(disabledRadios()).toEqual([true, true, true])
       expect(h.inputOf('password')?.readOnly).toBe(true)
       expect(h.inputOf('password-confirmation')?.readOnly).toBe(true)
       expect(h.isDisabled('continue')).toBe(true)
       await release()
-      expect(disabledRadios()).toEqual([false, false])
+      expect(disabledRadios()).toEqual([false, false, false])
       expect(h.inputOf('password')?.readOnly).toBe(false)
       expect(h.inputOf('password-confirmation')?.readOnly).toBe(false)
     })

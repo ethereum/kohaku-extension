@@ -53,7 +53,7 @@ const LEVEL_SLUGS: Readonly<Record<OfferedLevel, string>> = {
 const PrivacyView = ({ records, chainId, account, navigate }: PrivacyViewProps) => {
   const { t } = useTranslation()
 
-  const [picked, setPicked] = useState<OfferedLevel>('private')
+  const [level, setLevel] = useState<OfferedLevel>('private')
   const [clauses, setClauses] = useState<Clause[]>([])
   const [password, setPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
@@ -77,7 +77,7 @@ const PrivacyView = ({ records, chainId, account, navigate }: PrivacyViewProps) 
         if (!current || draft.status !== 'present') {
           return
         }
-        setPicked(privacyLevelOf(draft.value.privacy))
+        setLevel(privacyLevelOf(draft.value.privacy))
         setClauses(draft.value.clauses)
       })
       .catch(() => {
@@ -111,13 +111,12 @@ const PrivacyView = ({ records, chainId, account, navigate }: PrivacyViewProps) 
     [clauses, book, t]
   )
 
-  // A path with no member has no shape to publish, so Shape visible is not
-  // offered, and a level stored as Shape visible for such a path opens on Private.
-  const offeredLevels = useMemo(
-    () => OFFERED_LEVELS.filter((offered) => offered !== 'shape-visible' || shape !== ''),
-    [shape]
-  )
-  const level: OfferedLevel = offeredLevels.includes(picked) ? picked : 'private'
+  // A path with no member yet has no shape to name, so Shape visible reads its
+  // own line until one is added.
+  const lineOf = (offered: OfferedLevel): string =>
+    offered === 'shape-visible' && shape === ''
+      ? t(`${LEVEL}.shapeVisible.lineEmpty`)
+      : t(`${LEVEL}.${LEVEL_SLUGS[offered]}.line`, { shape })
 
   const exposure = useMemo(
     () => exposureLinesOf(clauses, level, book, t),
@@ -161,13 +160,13 @@ const PrivacyView = ({ records, chainId, account, navigate }: PrivacyViewProps) 
         </Text>
       )}
       <SectionCard label={t(`${LEVEL}.header`)}>
-        {offeredLevels.map((offered) => (
+        {OFFERED_LEVELS.map((offered) => (
           <RadioCard
             key={offered}
             testID={`level-${offered}`}
             selected={level === offered}
             disabled={!loaded}
-            onPress={() => setPicked(offered)}
+            onPress={() => setLevel(offered)}
           >
             <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mbTy]}>
               <Text fontSize={16} weight="medium" style={spacings.mrSm}>
@@ -176,7 +175,7 @@ const PrivacyView = ({ records, chainId, account, navigate }: PrivacyViewProps) 
               {offered === 'private' && <StatusChip text={t(`${LEVEL}.private.badge`)} />}
             </View>
             <Text testID={`level-line-${offered}`} fontSize={14}>
-              {t(`${LEVEL}.${LEVEL_SLUGS[offered]}.line`, { shape })}
+              {lineOf(offered)}
             </Text>
           </RadioCard>
         ))}

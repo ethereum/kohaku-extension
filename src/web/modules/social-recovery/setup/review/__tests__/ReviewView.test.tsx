@@ -642,29 +642,76 @@ describe('the lead', () => {
     expect(textsStartingWith('review-privacy-')).toEqual([t('socialRecovery.review.privateSet')])
   })
 
-  it('reads the Shape visible label and the line carrying the shape of a stored shape-visible draft', async () => {
+  describe('at Shape visible', () => {
     const clauses = [group(2, PASSKEY, PASSPORT, ALICE)]
     const shape = 'socialRecovery.shape.sentence'
-    await mount({
-      clauses,
-      enrollments: [enrolled(PASSKEY)],
-      publicMetadata: shapeNoteOf({ clauses, wait: 172800n, ignoresPause: true })
+    const shapeLine = t('socialRecovery.privacy.level.shapeVisible.line', {
+      shape: t(`${shape}.list`, {
+        first: t(`${shape}.list`, {
+          first: t(`${shape}.kinds.passkey`),
+          rest: t(`${shape}.pair`, {
+            first: t(`${shape}.kinds.passport`),
+            second: t(`${shape}.kinds.guardian`)
+          })
+        }),
+        rest: t(`${shape}.anyOf`, { threshold: 2, count: 3 })
+      })
+    })
+    const mountShapeVisible = (passwordSet: boolean) =>
+      mount({
+        clauses,
+        enrollments: [enrolled(PASSKEY)],
+        publicMetadata: shapeNoteOf({ clauses, wait: 172800n, ignoresPause: true }),
+        passwordSet
+      })
+
+    it('reads that the recovery password is set, then the line carrying the shape, once the password is stored', async () => {
+      await mountShapeVisible(true)
+
+      expect(textsStartingWith('review-privacy-')).toEqual([
+        t('socialRecovery.review.shapeVisibleSet'),
+        shapeLine
+      ])
     })
 
-    expect(textsStartingWith('review-privacy-')).toEqual([
-      t('socialRecovery.privacy.level.shapeVisible.label'),
-      t('socialRecovery.privacy.level.shapeVisible.line', {
-        shape: t(`${shape}.list`, {
-          first: t(`${shape}.list`, {
-            first: t(`${shape}.kinds.passkey`),
-            rest: t(`${shape}.pair`, {
-              first: t(`${shape}.kinds.passport`),
-              second: t(`${shape}.kinds.guardian`)
-            })
-          }),
-          rest: t(`${shape}.anyOf`, { threshold: 2, count: 3 })
-        })
+    it('reads the Shape visible label, then the line carrying the shape, before the password is stored', async () => {
+      await mountShapeVisible(false)
+
+      expect(textsStartingWith('review-privacy-')).toEqual([
+        t('socialRecovery.privacy.level.shapeVisible.label'),
+        shapeLine
+      ])
+    })
+
+    it('reads that the recovery password is set, then the line for an empty path, where the path has no member', async () => {
+      const memberless: Clause[] = [{ threshold: 1, credentials: [] }]
+      await mount({
+        clauses: memberless,
+        publicMetadata: shapeNoteOf({ clauses: memberless, wait: 172800n, ignoresPause: true }),
+        passwordSet: true
       })
+
+      expect(textsStartingWith('review-privacy-')).toEqual([
+        t('socialRecovery.review.shapeVisibleSet'),
+        t('socialRecovery.privacy.level.shapeVisible.lineEmpty')
+      ])
+    })
+  })
+
+  it('reads the Private label alone before the password is stored', async () => {
+    await mount({ backup: 'encrypted', passwordSet: false })
+
+    expect(textsStartingWith('review-privacy-')).toEqual([
+      t('socialRecovery.privacy.level.private.label')
+    ])
+  })
+
+  it('reads the Public label and its line', async () => {
+    await mount({ backup: 'clear', passwordSet: false })
+
+    expect(textsStartingWith('review-privacy-')).toEqual([
+      t('socialRecovery.privacy.level.public.label'),
+      t('socialRecovery.privacy.level.public.line')
     ])
   })
 })
