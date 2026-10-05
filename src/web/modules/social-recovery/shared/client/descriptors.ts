@@ -4,9 +4,11 @@
  *
  * Every field of both is a placeholder until each deployment lands: the
  * addresses (addresses.ts), the deployment block, the digest version and the
- * release string. The digest version is the domain version this build derives
- * typed data under, the manager contract's `DIGEST_VERSION`;
- * `buildRecoveryClient` refuses a manager that publishes another one.
+ * release string. A chain whose deployment record (deployments.ts) names a
+ * deployed kit reads that deployment's facts instead. The digest version is
+ * the domain version this build derives typed data under, the manager
+ * contract's `DIGEST_VERSION`; `buildRecoveryClient` refuses a manager that
+ * publishes another one.
  *
  * The two audited sets are the kit's claim, not the address fields read back:
  * `shippedMethods` are the four shipped modules and `auditedActions` come from
@@ -14,9 +16,10 @@
  */
 import type { DeploymentDescriptor } from '@web/modules/social-recovery/sdk-interfaces'
 
-import { PLACEHOLDER_ADDRESSES } from './addresses'
+import { deploymentAddressesOf } from './addresses'
 import { auditedActionsOn } from './audited-actions'
 import { CHAIN_IDS } from './chains'
+import { deploymentOf } from './deployments'
 import type { AddressBook, RecoveryChain } from './types'
 
 /** The fields of a shipped descriptor that are not addresses, all placeholders until deployment. */
@@ -39,10 +42,14 @@ export const DEPLOYMENT_FACTS = {
   }
 } as const
 
-/** The shipped descriptor of one chain, as a fresh record every call. */
+/**
+ * The shipped descriptor of one chain, as a fresh record every call: the
+ * placeholders for the stand-in, or a deployed kit's addresses and facts.
+ */
 export const deploymentDescriptor = (chain: RecoveryChain): DeploymentDescriptor => {
-  const a = PLACEHOLDER_ADDRESSES[chain]
-  const facts = DEPLOYMENT_FACTS[chain]
+  const a = deploymentAddressesOf(chain)
+  const deployment = deploymentOf(chain)
+  const facts = deployment.kind === 'deployed' ? deployment.facts : DEPLOYMENT_FACTS[chain]
   return {
     chainId: CHAIN_IDS[chain],
     manager: a.manager,

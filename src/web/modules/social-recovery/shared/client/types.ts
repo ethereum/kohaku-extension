@@ -43,8 +43,9 @@ import type {
 } from '@web/modules/social-recovery/sdk-interfaces'
 import type { ChainId, SlotKind, WalletRecords } from '@web/modules/social-recovery/shared/records'
 
-import type { PUBLISHERS, UNKNOWN_ACTION } from './audited-actions'
+import type { UNKNOWN_ACTION } from './audited-actions'
 import type { RECOVERY_CHAINS } from './chains'
+import type { PUBLISHERS } from './deployments'
 import type { PROVIDER_READS } from './provider-adapter'
 import type { MISSING_SEND_ACTION, SEND_REFUSAL_REASONS } from './sender'
 import type { RECOVERY_CALLS } from './sending'
@@ -84,6 +85,56 @@ export interface AuditedAction {
 }
 
 export type UnknownAction = typeof UNKNOWN_ACTION
+
+// ---------------------------------------------------------------------------
+// Deployments
+// ---------------------------------------------------------------------------
+
+/** One audited action a deployment names, with its publisher. */
+export interface DeployedAuditedAction {
+  action: Address
+  publisher: Publisher
+}
+
+/**
+ * The facts of a deployed kit on one chain. The two identity methods are
+ * absent where that deployment does not serve them.
+ */
+export interface DeploymentFacts {
+  manager: Address
+  methodEcdsa: Address
+  methodPasskey: Address
+  methodAadhaar?: Address
+  methodZkpassport?: Address
+  action: Address
+  /** The block the manager was deployed at, where event reads start. */
+  deployedAt: number
+  digestVersion: string
+  managerVersion: string
+  auditedActions: DeployedAuditedAction[]
+  /** The block explorer's base address for this deployment's transactions. */
+  explorerUrl?: string
+}
+
+/** The addresses of one chain's deployment, flat, as a descriptor names them. */
+export interface DeploymentAddresses {
+  manager: Address
+  methodEcdsa: Address
+  methodPasskey: Address
+  methodAadhaar: Address
+  methodZkpassport: Address
+  action: Address
+  servedImplementation: Address
+}
+
+/** A deployment variable's raw text and the facts parsed from it. */
+export interface ParsedDeploymentVariable {
+  raw: string
+  facts: DeploymentFacts
+}
+
+/** What a chain runs: the scripted stand-in, or a deployed kit and its facts. */
+export type Deployment = { kind: 'stand-in' } | { kind: 'deployed'; facts: DeploymentFacts }
 
 // ---------------------------------------------------------------------------
 // Configuration

@@ -8,9 +8,14 @@
  * without the UI's contexts.
  */
 export { RECOVERY_CHAINS, CHAIN_IDS, WALLET_RECOVERY_CHAIN, recoveryChainOf } from './chains'
-export { PLACEHOLDER_ADDRESSES, addressBookOf, sameAddress } from './addresses'
+export { PUBLISHERS, DEPLOYMENTS, deploymentOf, deploymentFactsFrom } from './deployments'
 export {
-  PUBLISHERS,
+  PLACEHOLDER_ADDRESSES,
+  addressBookOf,
+  deploymentAddressesOf,
+  sameAddress
+} from './addresses'
+export {
   AUDITED_ACTIONS,
   UNKNOWN_ACTION,
   auditedActionsOn,
@@ -93,6 +98,10 @@ export type {
   PublisherKey,
   AuditedAction,
   UnknownAction,
+  DeployedAuditedAction,
+  DeploymentFacts,
+  DeploymentAddresses,
+  Deployment,
   AccountFacts,
   RecoveryClientConfiguration,
   AdapterProvider,
