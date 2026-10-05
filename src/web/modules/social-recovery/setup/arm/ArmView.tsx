@@ -11,12 +11,16 @@
 import React from 'react'
 import { ActivityIndicator, View } from 'react-native'
 
+import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
+import useTheme from '@common/hooks/useTheme'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
+import common from '@common/styles/utils/common'
 import flexbox from '@common/styles/utils/flexbox'
+import { PageTitle, SectionCard, SectionLabel } from '@web/modules/social-recovery/shared/chrome'
 import { publisherKeyOf } from '@web/modules/social-recovery/shared/client'
 import {
   renderFullAddress,
@@ -24,7 +28,11 @@ import {
   renderResolvedName,
   renderValueLabel
 } from '@web/modules/social-recovery/shared/display'
-import { mayStillLand, renderDepositStep } from '@web/modules/social-recovery/shared/writes'
+import {
+  mayStillLand,
+  renderDepositStep,
+  type WriteStatus
+} from '@web/modules/social-recovery/shared/writes'
 import DepositStepView from '@web/modules/social-recovery/shared/writes/components/DepositStepView'
 import WriteStateView from '@web/modules/social-recovery/shared/writes/components/WriteStateView'
 import type { SaveBlock } from '@web/modules/social-recovery/setup/review'
@@ -38,6 +46,15 @@ import SavedView from './SavedView'
 import type { ArmViewProps } from './types'
 
 const REVIEW = 'socialRecovery.review'
+
+// The write states that draw lines of their own; the gas check's spinner and
+// the states that render nothing stay outside a card.
+const CARDED_WRITE_STATUSES: readonly WriteStatus[] = [
+  'gasReadError',
+  'submitting',
+  'failedNotSent',
+  'failedReverted'
+]
 
 const ArmView = ({
   arrival,
@@ -59,6 +76,7 @@ const ArmView = ({
   openUrl
 }: ArmViewProps) => {
   const { t } = useTranslation()
+  const { theme } = useTheme()
   const screen = armScreenOf(state)
   const { write } = state
   // A save that landed while no page followed its hash shows no hash.
@@ -90,11 +108,6 @@ const ArmView = ({
     )
   }
 
-  const header = (text: string) => (
-    <Text fontSize={12} weight="semiBold" appearance="secondaryText" style={spacings.mbTy}>
-      {text}
-    </Text>
-  )
   const line = (text: string, testID?: string) => (
     <Text fontSize={14} style={spacings.mbTy} testID={testID}>
       {text}
@@ -110,26 +123,27 @@ const ArmView = ({
       hasBottomSpacing={false}
     />
   )
+  const muted = (text: string, testID?: string) => (
+    <Text fontSize={12} appearance="secondaryText" style={spacings.mbTy} testID={testID}>
+      {text}
+    </Text>
+  )
+  // A refusal with no body of its own reads as one sentence.
   const refusal = (title: string, body: string | null, onPress?: () => void) => (
-    <View style={spacings.mbMd} testID="arm-unavailable">
-      <Text fontSize={14} weight="medium" style={spacings.mbSm}>
-        {title}
-      </Text>
-      {body !== null && (
-        <Text fontSize={14} appearance="secondaryText" style={spacings.mbSm}>
-          {body}
-        </Text>
-      )}
-      {!!onPress && (
-        <Button
-          testID="arm-arrival-retry"
-          type="outline"
-          size="small"
-          text={t('socialRecovery.writes.tryAgain')}
-          onPress={onPress}
-          hasBottomSpacing={false}
-        />
-      )}
+    <View testID="arm-unavailable">
+      <Alert type="error" size="sm" title={body !== null ? title : undefined} text={body ?? title}>
+        {!!onPress && (
+          <Button
+            testID="arm-arrival-retry"
+            type="secondary"
+            size="small"
+            text={t('socialRecovery.writes.tryAgain')}
+            onPress={onPress}
+            hasBottomSpacing={false}
+            style={[flexbox.alignSelfStart, spacings.mtSm]}
+          />
+        )}
+      </Alert>
     </View>
   )
 
@@ -173,13 +187,15 @@ const ArmView = ({
         return blocker(arrival.block)
       case 'ready':
         return onSave ? (
-          <Button
-            testID="arm-save"
-            type="primary"
-            text={t(`${REVIEW}.save`)}
-            onPress={onSave}
-            hasBottomSpacing={false}
-          />
+          <View style={flexbox.directionRow}>
+            <Button
+              testID="arm-save"
+              type="primary"
+              text={t(`${REVIEW}.save`)}
+              onPress={onSave}
+              hasBottomSpacing={false}
+            />
+          </View>
         ) : (
           <ActivityIndicator testID="arm-spinner" />
         )
@@ -192,49 +208,55 @@ const ArmView = ({
     if (write.status === 'needsDeposit') {
       const rendered = renderDepositStep(write.step, {}, t)
       return (
-        <DepositStepView step={write.step} variant="blocker" testID="arm-gas-blocker">
-          {rendered.routes.map((route) => (
-            <View key={route.kind} style={spacings.mbSm} testID={`arm-gas-route-${route.kind}`}>
-              <Text fontSize={14} weight="medium">
-                {route.line}
-              </Text>
-              {!!route.note && (
-                <Text fontSize={12} appearance="secondaryText">
-                  {route.note}
+        <SectionCard spacing="none">
+          <DepositStepView step={write.step} variant="blocker" testID="arm-gas-blocker">
+            {rendered.routes.map((route) => (
+              <View key={route.kind} style={spacings.mbSm} testID={`arm-gas-route-${route.kind}`}>
+                <Text fontSize={14} weight="medium">
+                  {route.line}
                 </Text>
-              )}
-            </View>
-          ))}
-          {rendered.notes.map((note) => (
-            <Text key={note} fontSize={14} appearance="secondaryText" style={spacings.mbSm}>
-              {note}
-            </Text>
-          ))}
-          <Button
-            testID="arm-gas-continue"
-            type="primary"
-            text={t('socialRecovery.actions.continue')}
-            onPress={onRecheck}
-            hasBottomSpacing={false}
-          />
-        </DepositStepView>
+                {!!route.note && (
+                  <Text fontSize={12} appearance="secondaryText">
+                    {route.note}
+                  </Text>
+                )}
+              </View>
+            ))}
+            {rendered.notes.map((note) => (
+              <Text key={note} fontSize={14} appearance="secondaryText" style={spacings.mbSm}>
+                {note}
+              </Text>
+            ))}
+            <Button
+              testID="arm-gas-continue"
+              type="primary"
+              size="small"
+              text={t('socialRecovery.actions.continue')}
+              onPress={onRecheck}
+              hasBottomSpacing={false}
+              style={flexbox.alignSelfStart}
+            />
+          </DepositStepView>
+        </SectionCard>
       )
     }
     // A dropped save offers one move: release it and save again.
     if (state.dropped) {
       return (
-        <View testID="arm-dropped">
-          <Text fontSize={14} style={spacings.mbSm} testID="arm-dropped-line">
+        <SectionCard spacing="none" testID="arm-dropped">
+          <Text fontSize={14} style={spacings.mbTy} testID="arm-dropped-line">
             {t('socialRecovery.arm.dropped')}
           </Text>
           <Button
             testID="arm-save-again"
-            type="primary"
+            type="secondary"
+            size="small"
             text={t('socialRecovery.arm.saveAgain')}
             onPress={onSaveAgain}
             hasBottomSpacing={false}
+            style={[flexbox.alignSelfStart, spacings.mtTy]}
           />
-        </View>
+        </SectionCard>
       )
     }
     const keys = saveWriteKeysOf(write, state.follow)
@@ -244,7 +266,7 @@ const ArmView = ({
       write.status === 'submitting' &&
       ((!!write.transactionHash && !!state.stalled) ||
         (!write.transactionHash && state.follow === 'unread'))
-    return (
+    const view = (
       <WriteStateView
         state={write}
         title={keys.title ? t(keys.title) : undefined}
@@ -256,24 +278,31 @@ const ArmView = ({
         {checksAgain && (
           <Button
             testID="arm-check-again"
-            type="outline"
+            type="secondary"
             size="small"
             text={t('socialRecovery.arm.checkAgain')}
             onPress={onCheckAgain}
             hasBottomSpacing={false}
+            style={[flexbox.alignSelfStart, spacings.mtTy]}
           />
         )}
         {mayStillLand(write) && (
           <Button
             testID="arm-check-setup"
-            type="outline"
+            type="secondary"
             size="small"
             text={t('socialRecovery.arm.checkAgain')}
             onPress={onCheckSetup}
             hasBottomSpacing={false}
+            style={[flexbox.alignSelfStart, spacings.mtTy]}
           />
         )}
       </WriteStateView>
+    )
+    return CARDED_WRITE_STATUSES.includes(write.status) ? (
+      <SectionCard spacing="none">{view}</SectionCard>
+    ) : (
+      view
     )
   }
 
@@ -289,47 +318,75 @@ const ArmView = ({
 
   return (
     <View testID="arm">
-      <Text fontSize={20} weight="semiBold" style={spacings.mbLg} testID="arm-title">
-        {t('socialRecovery.routes.setupSave')}
-      </Text>
+      <PageTitle title={t('socialRecovery.routes.setupSave')} titleTestID="arm-title" />
 
-      <View style={spacings.mbLg} testID="arm-account">
-        {header(t(`${REVIEW}.account.header`))}
-        {!!name && line(name.name, 'arm-account-label')}
-        {line(renderFullAddress(account.address), 'arm-account-address')}
-        {line(t(`${REVIEW}.account.check`))}
-        {!!name?.caveat && line(name.caveat, 'arm-account-caveat')}
+      <SectionCard label={t(`${REVIEW}.account.header`)} testID="arm-account">
+        {!!name && (
+          <Text fontSize={16} weight="medium" style={spacings.mbTy} testID="arm-account-label">
+            {name.name}
+          </Text>
+        )}
+        <Text
+          fontSize={14}
+          weight="number_medium"
+          selectable
+          style={spacings.mbTy}
+          testID="arm-account-address"
+        >
+          {renderFullAddress(account.address)}
+        </Text>
+        {muted(t(`${REVIEW}.account.check`))}
+        {!!name?.caveat && muted(name.caveat, 'arm-account-caveat')}
         {!!account.removedKey && (
-          <View style={spacings.mtSm} testID="arm-removed-key">
-            {header(renderValueLabel('keyBeingRemoved', t))}
-            {line(renderFullAddress(account.removedKey), 'arm-removed-key-address')}
-            {line(t(`${REVIEW}.keyRemovedLine`))}
+          <View style={spacings.mtTy} testID="arm-removed-key">
+            <View
+              style={[
+                common.borderRadiusPrimary,
+                spacings.phSm,
+                spacings.pvSm,
+                spacings.mbTy,
+                { backgroundColor: theme.secondaryBackground }
+              ]}
+            >
+              <SectionLabel>{renderValueLabel('keyBeingRemoved', t)}</SectionLabel>
+              <Text
+                fontSize={14}
+                weight="number_medium"
+                selectable
+                testID="arm-removed-key-address"
+              >
+                {renderFullAddress(account.removedKey)}
+              </Text>
+            </View>
+            <Text fontSize={12} appearance="secondaryText">
+              {t(`${REVIEW}.keyRemovedLine`)}
+            </Text>
           </View>
         )}
-      </View>
+      </SectionCard>
 
       {!!action && (
-        <View style={spacings.mbLg} testID="arm-module">
-          <Text fontSize={14} weight="medium" style={spacings.mbTy}>
+        <SectionCard testID="arm-module">
+          <Text fontSize={16} weight="medium" style={spacings.mbTy}>
             {action.kind === 'audited'
               ? t(`${REVIEW}.trust.moduleRow`, { publisher: t(publisherKeyOf(action)) })
               : renderNoun('recoveryModule', t)}
           </Text>
           {line(t(`${REVIEW}.trust.moduleAuthority`))}
           {line(t(`${REVIEW}.trust.auditedOnly`))}
-        </View>
+        </SectionCard>
       )}
 
       {account.deployed !== undefined && (
-        <View style={spacings.mbLg}>
+        <SectionCard>
           {line(t(costLineKeyOf(account.deployed)), 'arm-cost-line')}
           <Text fontSize={12} appearance="secondaryText">
             {t(`${REVIEW}.oneConfirmation`)}
           </Text>
-        </View>
+        </SectionCard>
       )}
 
-      <View style={spacings.mbLg}>
+      <View>
         {screen === 'arrival' && arrivalBlock()}
         {screen === 'run' && runBlock()}
         {screen === 'already-set-up' && blocker({ kind: 'already-set-up' })}
@@ -339,7 +396,7 @@ const ArmView = ({
       {(screen === 'arrival' && arrival.kind !== 'ready' && arrival.kind !== 'loading') ||
       (screen === 'run' && stopped) ||
       screen === 'already-set-up' ? (
-        <View style={[flexbox.directionRow, flexbox.alignCenter]}>{back}</View>
+        <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mtSm]}>{back}</View>
       ) : null}
     </View>
   )

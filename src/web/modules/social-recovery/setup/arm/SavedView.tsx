@@ -10,6 +10,13 @@ import Button from '@common/components/Button'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
+import flexbox from '@common/styles/utils/flexbox'
+import {
+  ActionsRow,
+  SectionCard,
+  SectionLabel,
+  StatusChip
+} from '@web/modules/social-recovery/shared/chrome'
 import {
   renderChip,
   renderFullAddress,
@@ -38,65 +45,95 @@ const SavedView = ({
       {text}
     </Text>
   )
+  const muted = (text: string, testID?: string) => (
+    <Text fontSize={12} appearance="secondaryText" style={spacings.mbTy} testID={testID}>
+      {text}
+    </Text>
+  )
 
   return (
     <View testID="arm-saved">
-      <Text
-        fontSize={12}
-        weight="medium"
-        appearance="successText"
-        style={spacings.mbTy}
-        testID="arm-saved-chip"
-      >
-        {renderChip('recovery', 'setUp', t)}
-      </Text>
-      <Text fontSize={20} weight="semiBold" style={spacings.mbTy} testID="arm-saved-title">
-        {t(`${ARM}.title`)}
-      </Text>
-      <Text fontSize={14} appearance="secondaryText" style={spacings.mbLg} testID="arm-saved-live">
-        {t(`${ARM}.live`)}
-      </Text>
+      <View style={spacings.mbLg}>
+        <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap, spacings.mbTy]}>
+          <Text fontSize={20} weight="medium" testID="arm-saved-title">
+            {t(`${ARM}.title`)}
+          </Text>
+          <StatusChip
+            text={renderChip('recovery', 'setUp', t)}
+            tone="success"
+            style={spacings.mlSm}
+            testID="arm-saved-chip"
+          />
+        </View>
+        <Text fontSize={14} appearance="secondaryText" testID="arm-saved-live">
+          {t(`${ARM}.live`)}
+        </Text>
+      </View>
 
-      <View style={spacings.mbLg} testID="arm-saved-transaction">
+      <SectionCard testID="arm-saved-transaction">
         {!!transactionHash && (
           <>
-            <Text fontSize={12} weight="semiBold" appearance="secondaryText" style={spacings.mbTy}>
-              {t(`${ARM}.savedOnChain`)}
-            </Text>
-            <Text fontSize={14} weight="number_medium" selectable style={spacings.mbTy}>
-              {renderHash(transactionHash)}
-            </Text>
-            <Button
-              testID="arm-saved-explorer"
-              type="ghost"
-              size="small"
-              text={t(`${ARM}.explorer`)}
-              onPress={() => openUrl(explorerTransactionUrlOf(chain, transactionHash))}
-              hasBottomSpacing={false}
-            />
+            <SectionLabel>{t(`${ARM}.savedOnChain`)}</SectionLabel>
+            <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap, spacings.mbTy]}>
+              <Text fontSize={14} weight="number_medium" selectable style={spacings.mrSm}>
+                {renderHash(transactionHash)}
+              </Text>
+              <Button
+                testID="arm-saved-explorer"
+                type="ghost"
+                size="small"
+                text={t(`${ARM}.explorer`)}
+                onPress={() => openUrl(explorerTransactionUrlOf(chain, transactionHash))}
+                hasBottomSpacing={false}
+              />
+            </View>
           </>
         )}
-        {line(t(`${ARM}.oneTransaction`), 'arm-saved-one-transaction')}
-        {level === 'hidden' && line(t(`${ARM}.hiddenBehindPassword`), 'arm-saved-hidden')}
-      </View>
+        {muted(t(`${ARM}.oneTransaction`), 'arm-saved-one-transaction')}
+      </SectionCard>
 
-      <View style={spacings.mbLg} testID="arm-saved-account">
-        {!!name && line(name.name, 'arm-saved-account-label')}
-        {line(renderFullAddress(account.address), 'arm-saved-account-address')}
-        {line(t(`${ARM}.writtenTo`), 'arm-saved-written-to')}
-        {!!name?.caveat && line(name.caveat, 'arm-saved-account-caveat')}
-      </View>
+      {level === 'hidden' && (
+        <View style={spacings.mbLg}>
+          {line(t(`${ARM}.hiddenBehindPassword`), 'arm-saved-hidden')}
+        </View>
+      )}
 
-      <Button
-        testID="arm-saved-continue"
-        type="primary"
-        text={t('socialRecovery.actions.continue')}
-        onPress={() => navigate(cardPathOf(level))}
-        hasBottomSpacing={false}
+      <SectionCard testID="arm-saved-account">
+        {!!name && (
+          <Text
+            fontSize={16}
+            weight="medium"
+            style={spacings.mbTy}
+            testID="arm-saved-account-label"
+          >
+            {name.name}
+          </Text>
+        )}
+        <Text
+          fontSize={14}
+          weight="number_medium"
+          selectable
+          style={spacings.mbTy}
+          testID="arm-saved-account-address"
+        >
+          {renderFullAddress(account.address)}
+        </Text>
+        {muted(t(`${ARM}.writtenTo`), 'arm-saved-written-to')}
+        {!!name?.caveat && muted(name.caveat, 'arm-saved-account-caveat')}
+      </SectionCard>
+
+      <ActionsRow
+        primary={
+          <Button
+            testID="arm-saved-continue"
+            type="primary"
+            text={t('socialRecovery.actions.continue')}
+            onPress={() => navigate(cardPathOf(level))}
+            hasBottomSpacing={false}
+          />
+        }
+        note={t(`${ARM}.settingsLine`)}
       />
-      <Text fontSize={12} appearance="secondaryText" style={spacings.mtSm}>
-        {t(`${ARM}.settingsLine`)}
-      </Text>
     </View>
   )
 }

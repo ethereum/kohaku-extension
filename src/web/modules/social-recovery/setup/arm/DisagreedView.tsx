@@ -14,6 +14,13 @@ import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
+import flexbox from '@common/styles/utils/flexbox'
+import {
+  ActionsRow,
+  PageTitle,
+  SectionCard,
+  SectionLabel
+} from '@web/modules/social-recovery/shared/chrome'
 import { renderHash } from '@web/modules/social-recovery/shared/display'
 
 import { disagreedLineKeyOf } from './copy'
@@ -34,68 +41,64 @@ const DisagreedView = ({
 
   return (
     <View testID={check ? `arm-disagreed-${check}` : 'arm-unread'}>
-      <Text fontSize={20} weight="semiBold" style={spacings.mbTy} testID="arm-disagreed-title">
-        {t(`${DISAGREED}.title`)}
-      </Text>
-      <Text
-        fontSize={14}
-        appearance="secondaryText"
-        style={spacings.mbLg}
-        testID="arm-disagreed-body"
-      >
-        {t(`${DISAGREED}.body`)}
-      </Text>
+      <PageTitle title={t(`${DISAGREED}.title`)} titleTestID="arm-disagreed-title">
+        <Text fontSize={14} appearance="secondaryText" testID="arm-disagreed-body">
+          {t(`${DISAGREED}.body`)}
+        </Text>
+      </PageTitle>
 
       {!!check && (
-        <View style={spacings.mbLg}>
-          <Text fontSize={12} weight="semiBold" appearance="secondaryText" style={spacings.mbTy}>
-            {t(`${DISAGREED}.checkHeader`)}
-          </Text>
+        <SectionCard tone="muted">
+          <SectionLabel>{t(`${DISAGREED}.checkHeader`)}</SectionLabel>
           <Text fontSize={14} style={spacings.mbTy} testID="arm-disagreed-check">
             {t(disagreedLineKeyOf(check))}
           </Text>
           <Text fontSize={14} weight="medium" testID="arm-disagreed-do-not-rely">
             {t(`${DISAGREED}.doNotRely`)}
           </Text>
-        </View>
+        </SectionCard>
       )}
 
       {!!transactionHash && (
-        <View style={spacings.mbLg} testID="arm-disagreed-transaction">
-          <Text fontSize={12} weight="semiBold" appearance="secondaryText" style={spacings.mbTy}>
-            {t('socialRecovery.arm.savedOnChain')}
-          </Text>
-          <Text fontSize={14} weight="number_medium" selectable style={spacings.mbTy}>
-            {renderHash(transactionHash)}
-          </Text>
-          <Button
-            testID="arm-disagreed-explorer"
-            type="ghost"
-            size="small"
-            text={t('socialRecovery.arm.explorer')}
-            onPress={() => openUrl(explorerTransactionUrlOf(chain, transactionHash))}
-            hasBottomSpacing={false}
-          />
-        </View>
+        <SectionCard testID="arm-disagreed-transaction">
+          <SectionLabel>{t('socialRecovery.arm.savedOnChain')}</SectionLabel>
+          <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap]}>
+            <Text fontSize={14} weight="number_medium" selectable style={spacings.mrSm}>
+              {renderHash(transactionHash)}
+            </Text>
+            <Button
+              testID="arm-disagreed-explorer"
+              type="ghost"
+              size="small"
+              text={t('socialRecovery.arm.explorer')}
+              onPress={() => openUrl(explorerTransactionUrlOf(chain, transactionHash))}
+              hasBottomSpacing={false}
+            />
+          </View>
+        </SectionCard>
       )}
 
-      {check ? (
-        <Button
-          testID="arm-disagreed-remove-and-save"
-          type="primary"
-          text={t(`${DISAGREED}.removeAndSave`)}
-          onPress={() => navigate(WEB_ROUTES.socialRecoveryManage)}
-          hasBottomSpacing={false}
-        />
-      ) : (
-        <Button
-          testID="arm-unread-retry"
-          type="primary"
-          text={t('socialRecovery.writes.tryAgain')}
-          onPress={onReread}
-          hasBottomSpacing={false}
-        />
-      )}
+      <ActionsRow
+        primary={
+          check ? (
+            <Button
+              testID="arm-disagreed-remove-and-save"
+              type="primary"
+              text={t(`${DISAGREED}.removeAndSave`)}
+              onPress={() => navigate(WEB_ROUTES.socialRecoveryManage)}
+              hasBottomSpacing={false}
+            />
+          ) : (
+            <Button
+              testID="arm-unread-retry"
+              type="primary"
+              text={t('socialRecovery.writes.tryAgain')}
+              onPress={onReread}
+              hasBottomSpacing={false}
+            />
+          )
+        }
+      />
     </View>
   )
 }
