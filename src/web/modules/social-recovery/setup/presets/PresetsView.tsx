@@ -7,6 +7,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, View } from 'react-native'
 
+import RightArrowIcon from '@common/assets/svg/RightArrowIcon'
+import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
@@ -14,6 +16,16 @@ import useTheme from '@common/hooks/useTheme'
 import spacings from '@common/styles/spacings'
 import common from '@common/styles/utils/common'
 import flexbox from '@common/styles/utils/flexbox'
+import {
+  ActionsRow,
+  MethodRow,
+  NoteBox,
+  PageTitle,
+  RadioCard,
+  SectionCard,
+  SectionLabel,
+  StatusChip
+} from '@web/modules/social-recovery/shared/chrome'
 import { addressBookOf, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
 import { renderChip } from '@web/modules/social-recovery/shared/display'
 import { isSaveInFlightRefusal } from '@web/modules/social-recovery/shared/records'
@@ -151,209 +163,213 @@ const PresetsView = ({ records, chainId, account, onOpenEditor, onRecover }: Pre
     }
   }, [records, chainId, account, reload])
 
-  const cardStyle = (choice: PresetChoice) => [
-    spacings.ph,
-    spacings.pv,
-    spacings.mbSm,
-    common.borderRadiusPrimary,
-    {
-      borderWidth: 1,
-      borderColor: picked === choice ? theme.primary : theme.secondaryBorder
-    }
-  ]
-
-  const renderPreset = (preset: Preset) => (
-    <Pressable
-      key={preset.id}
-      testID={`preset-${preset.id}`}
-      accessibilityRole="radio"
-      accessibilityState={{ checked: picked === preset.id }}
-      // The web renderer reads the checked state of a radio from this prop
-      // alone; the React Native types do not declare it, so it goes in a spread.
-      {...{ accessibilityChecked: picked === preset.id }}
-      onPress={() => setPicked(preset.id)}
-      style={cardStyle(preset.id)}
-    >
-      <Text fontSize={16} weight="semiBold" style={spacings.mbSm}>
-        {t(preset.nameKey)}
-      </Text>
-      {shapeRowsOf(preset, t).map((row, index) => (
-        // eslint-disable-next-line react/no-array-index-key
-        <View key={index}>
-          {index > 0 && (
-            <Text fontSize={12} weight="medium" appearance="secondaryText" style={spacings.mbTy}>
-              {t('socialRecovery.shape.and')}
-            </Text>
-          )}
-          {row.kind === 'required' ? (
-            <Text fontSize={14} style={spacings.mbTy}>
-              {row.text}
-            </Text>
-          ) : (
-            <View style={spacings.mbTy}>
-              <Text fontSize={14} weight="medium">
-                {row.count}
-              </Text>
-              {row.members.map((member, memberIndex) => (
-                // eslint-disable-next-line react/no-array-index-key
-                <Text key={memberIndex} fontSize={14}>
-                  {member}
+  const renderPreset = (preset: Preset) => {
+    const rows = shapeRowsOf(preset, t)
+    const members = rows.flatMap((row) => (row.kind === 'group' ? row.members : []))
+    return (
+      <RadioCard
+        key={preset.id}
+        testID={`preset-${preset.id}`}
+        selected={picked === preset.id}
+        onPress={() => setPicked(preset.id)}
+      >
+        <Text fontSize={16} weight="medium" style={spacings.mbTy}>
+          {t(preset.nameKey)}
+        </Text>
+        <View style={[flexbox.directionRow, flexbox.wrap, flexbox.alignCenter]}>
+          {rows.map((row, index) => (
+            // eslint-disable-next-line react/no-array-index-key
+            <React.Fragment key={index}>
+              {index > 0 && (
+                <Text
+                  fontSize={12}
+                  weight="semiBold"
+                  appearance="secondaryText"
+                  style={spacings.mhTy}
+                >
+                  {t('socialRecovery.shape.and')}
                 </Text>
-              ))}
-            </View>
-          )}
+              )}
+              {row.kind === 'required' ? (
+                <Text fontSize={14}>{row.text}</Text>
+              ) : (
+                <Text fontSize={14} weight="medium">
+                  {row.count}
+                </Text>
+              )}
+            </React.Fragment>
+          ))}
         </View>
-      ))}
-      {cardRuleLines(preset, t).map((line) => (
-        <Text key={line} testID={`rule-line-${preset.id}`} fontSize={14} style={spacings.mtTy}>
-          {line}
-        </Text>
-      ))}
-      {!!preset.taglineKey && (
-        <Text fontSize={14} appearance="secondaryText" style={spacings.mtTy}>
-          {t(preset.taglineKey)}
-        </Text>
-      )}
-    </Pressable>
-  )
+        {members.map((member, memberIndex) => (
+          // eslint-disable-next-line react/no-array-index-key
+          <Text key={memberIndex} fontSize={12} appearance="secondaryText">
+            {member}
+          </Text>
+        ))}
+        {cardRuleLines(preset, t).map((line) => (
+          <Text
+            key={line}
+            testID={`rule-line-${preset.id}`}
+            fontSize={12}
+            appearance="secondaryText"
+            style={spacings.mtTy}
+          >
+            {line}
+          </Text>
+        ))}
+        {!!preset.taglineKey && (
+          <Text fontSize={12} appearance="secondaryText" style={spacings.mtTy}>
+            {t(preset.taglineKey)}
+          </Text>
+        )}
+      </RadioCard>
+    )
+  }
 
   const renderGrid = () => (
     <View testID="presets-grid">
       <Button
         testID="customize"
         type="secondary"
+        size="small"
         text={t('socialRecovery.presets.customize')}
         disabled={busy}
         onPress={() => open('fromScratch')}
-        style={spacings.mbLg}
+        hasBottomSpacing={false}
+        style={{ alignSelf: 'flex-start', ...spacings.mbLg }}
       />
-      <Text fontSize={12} weight="medium" appearance="secondaryText" style={spacings.mbSm}>
-        {t('socialRecovery.presets.pickOne')}
-      </Text>
+      <SectionLabel>{t('socialRecovery.presets.pickOne')}</SectionLabel>
       {PRESETS.map(renderPreset)}
-      <Pressable
+      <RadioCard
         testID="preset-fromScratch"
-        accessibilityRole="radio"
-        accessibilityState={{ checked: picked === 'fromScratch' }}
-        {...{ accessibilityChecked: picked === 'fromScratch' }}
+        selected={picked === 'fromScratch'}
         onPress={() => setPicked('fromScratch')}
-        style={cardStyle('fromScratch')}
       >
-        <Text fontSize={16} weight="semiBold" style={spacings.mbSm}>
+        <Text fontSize={16} weight="medium" style={spacings.mbTy}>
           {t('socialRecovery.presets.cards.fromScratch.name')}
         </Text>
-        <Text fontSize={14} style={spacings.mbTy}>
+        <Text fontSize={12} appearance="secondaryText">
           {t('socialRecovery.presets.cards.fromScratch.line')}
         </Text>
-        <Text fontSize={14} appearance="secondaryText">
+        <Text fontSize={12} appearance="secondaryText">
           {t('socialRecovery.presets.cards.fromScratch.oneDevice')}
         </Text>
-      </Pressable>
-      <Button
-        testID="continue"
-        text={t('socialRecovery.actions.continue')}
-        disabled={!picked || busy}
-        onPress={() => picked && open(picked)}
-        style={spacings.mtSm}
+      </RadioCard>
+      <ActionsRow
+        primary={
+          <Button
+            testID="continue"
+            text={t('socialRecovery.actions.continue')}
+            disabled={!picked || busy}
+            onPress={() => picked && open(picked)}
+            hasBottomSpacing={false}
+          />
+        }
+        note={picked ? undefined : t('socialRecovery.presets.continueUnlock')}
       />
-      {!picked && (
-        <Text fontSize={12} appearance="secondaryText" style={spacings.mtTy}>
-          {t('socialRecovery.presets.continueUnlock')}
-        </Text>
-      )}
     </View>
   )
 
   const renderResumeRow = (row: ResumeRow) => (
-    <View
+    <MethodRow
       key={row.id}
       testID="resume-row"
-      style={[flexbox.directionRow, flexbox.justifySpaceBetween, spacings.mbSm]}
+      style={[flexbox.directionRow, flexbox.justifySpaceBetween, flexbox.alignStart]}
     >
-      <View style={flexbox.flex1}>
-        <Text fontSize={14}>{row.name}</Text>
+      <View style={[flexbox.flex1, spacings.mrSm]}>
+        <Text fontSize={14} weight="medium">
+          {row.name}
+        </Text>
         {!!row.detail && (
-          <Text fontSize={12} appearance="secondaryText">
+          <Text fontSize={12} appearance="secondaryText" style={spacings.mtMi}>
             {row.detail}
           </Text>
         )}
         {!!row.note && (
-          <Text testID="resume-note" fontSize={12} appearance="secondaryText">
+          <Text testID="resume-note" fontSize={12} appearance="secondaryText" style={spacings.mtMi}>
             {row.note}
           </Text>
         )}
       </View>
-      <Text testID="resume-chip" fontSize={12} weight="medium" appearance="secondaryText">
-        {row.chip}
-      </Text>
-    </View>
+      <StatusChip testID="resume-chip" text={row.chip} />
+    </MethodRow>
   )
 
   const renderResume = (at: number) => (
-    <View testID="presets-resume">
-      <Text fontSize={16} weight="semiBold" style={spacings.mbSm}>
+    <SectionCard testID="presets-resume">
+      <Text fontSize={16} weight="medium" style={spacings.mbTy}>
         {t('socialRecovery.presets.resume.action')}
       </Text>
-      <Text testID="draft-age" fontSize={14} style={spacings.mbSm}>
+      <Text testID="draft-age" fontSize={12} appearance="secondaryText" style={spacings.mbSm}>
         {draftAgeLine(at, t)}
       </Text>
       {resumeRows.map(renderResumeRow)}
       {!!notYetActive && (
-        <View
+        <MethodRow
           testID="not-yet-active"
-          style={[flexbox.directionRow, flexbox.justifySpaceBetween, spacings.mbSm]}
+          style={[flexbox.directionRow, flexbox.justifySpaceBetween, flexbox.alignStart]}
         >
-          <Text fontSize={12} appearance="secondaryText" style={flexbox.flex1}>
+          <Text fontSize={12} appearance="secondaryText" style={[flexbox.flex1, spacings.mrSm]}>
             {notYetActive.note}
           </Text>
-          <Text fontSize={12} weight="medium" appearance="secondaryText">
-            {notYetActive.chip}
-          </Text>
-        </View>
+          <StatusChip text={notYetActive.chip} />
+        </MethodRow>
       )}
       {notStartedRows.map(renderResumeRow)}
-      <View style={[flexbox.directionRow, spacings.mtSm]}>
-        <Button
-          testID="resume"
-          text={t('socialRecovery.presets.resume.action')}
-          disabled={busy}
-          onPress={onOpenEditor}
-          style={spacings.mrSm}
-        />
-        <Button
-          testID="start-over"
-          type="secondary"
-          text={t('socialRecovery.presets.resume.startOver')}
-          disabled={busy}
-          onPress={startOver}
-        />
-      </View>
-      <Text fontSize={12} appearance="secondaryText" style={spacings.mtTy}>
-        {t('socialRecovery.records.startOverNote')}
-      </Text>
-    </View>
+      <ActionsRow
+        primary={
+          <Button
+            testID="resume"
+            text={t('socialRecovery.presets.resume.action')}
+            disabled={busy}
+            onPress={onOpenEditor}
+            hasBottomSpacing={false}
+          />
+        }
+        secondary={
+          <Button
+            testID="start-over"
+            type="secondary"
+            size="small"
+            text={t('socialRecovery.presets.resume.startOver')}
+            disabled={busy}
+            onPress={startOver}
+            hasBottomSpacing={false}
+          />
+        }
+        note={t('socialRecovery.records.startOverNote')}
+      />
+    </SectionCard>
   )
 
   const renderLoadFailed = () => (
     <View testID="presets-load-failed">
-      <Text fontSize={14} appearance="errorText" style={spacings.mbSm}>
-        {t('socialRecovery.records.loadFailed')}
-      </Text>
-      <Button
-        testID="load-retry"
-        type="secondary"
-        text={t('socialRecovery.writes.tryAgain')}
-        disabled={busy}
-        onPress={reload}
-        style={spacings.mbSm}
-      />
-      <Button
-        testID="start-over"
-        type="secondary"
-        text={t('socialRecovery.presets.resume.startOver')}
-        disabled={busy}
-        onPress={startOver}
-      />
+      <Alert type="error" size="sm" text={t('socialRecovery.records.loadFailed')}>
+        <ActionsRow
+          primary={
+            <Button
+              testID="load-retry"
+              type="secondary"
+              size="small"
+              text={t('socialRecovery.writes.tryAgain')}
+              disabled={busy}
+              onPress={reload}
+              hasBottomSpacing={false}
+            />
+          }
+          secondary={
+            <Button
+              testID="start-over"
+              type="secondary"
+              size="small"
+              text={t('socialRecovery.presets.resume.startOver')}
+              disabled={busy}
+              onPress={startOver}
+              hasBottomSpacing={false}
+            />
+          }
+        />
+      </Alert>
       <Text fontSize={12} appearance="secondaryText" style={spacings.mtTy}>
         {t('socialRecovery.records.startOverNote')}
       </Text>
@@ -362,20 +378,16 @@ const PresetsView = ({ records, chainId, account, onOpenEditor, onRecover }: Pre
 
   return (
     <View testID="presets-screen">
-      <Text fontSize={20} weight="medium" style={spacings.mbSm}>
-        {t('socialRecovery.routes.setup')}
-      </Text>
-      <Text fontSize={14} style={spacings.mbLg}>
-        {t('socialRecovery.presets.lead')}
-      </Text>
-      <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mbLg]}>
-        <Text fontSize={14} weight="medium" style={spacings.mrSm}>
+      <PageTitle title={t('socialRecovery.routes.setup')} lead={t('socialRecovery.presets.lead')} />
+      <SectionCard
+        tone="muted"
+        style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}
+      >
+        <Text fontSize={16} weight="medium" style={spacings.mrSm}>
           {t('socialRecovery.routes.root')}
         </Text>
-        <Text testID="recovery-status" fontSize={12} weight="medium" appearance="secondaryText">
-          {renderChip('recovery', 'notSetUp', t)}
-        </Text>
-      </View>
+        <StatusChip testID="recovery-status" text={renderChip('recovery', 'notSetUp', t)} />
+      </SectionCard>
       <View testID="cost-lines" style={spacings.mbSm}>
         {COST_KEYS.map((key) => (
           <Text key={key} fontSize={14} style={spacings.mbTy}>
@@ -383,38 +395,60 @@ const PresetsView = ({ records, chainId, account, onOpenEditor, onRecover }: Pre
           </Text>
         ))}
       </View>
-      <Text testID="honesty-note" fontSize={14} weight="medium" style={spacings.mbLg}>
-        {t('socialRecovery.honestyNote')}
-      </Text>
+      <View style={spacings.mbLg}>
+        <NoteBox testID="honesty-note">{t('socialRecovery.honestyNote')}</NoteBox>
+      </View>
       {writeLine === 'writeFailed' && (
-        <Text testID="write-failed" fontSize={14} appearance="errorText" style={spacings.mbSm}>
-          {t('socialRecovery.records.writeFailed')}
-        </Text>
+        <Alert
+          type="error"
+          size="sm"
+          style={spacings.mbSm}
+          text={
+            <Alert.Text size="sm" type="error" testID="write-failed">
+              {t('socialRecovery.records.writeFailed')}
+            </Alert.Text>
+          }
+        />
       )}
       {writeLine === 'startOverWhileSaving' && (
-        <Text
-          testID="start-over-while-saving"
-          fontSize={14}
-          appearance="errorText"
+        <Alert
+          type="error"
+          size="sm"
           style={spacings.mbSm}
-        >
-          {t('socialRecovery.records.startOverWhileSaving')}
-        </Text>
+          text={
+            <Alert.Text size="sm" type="error" testID="start-over-while-saving">
+              {t('socialRecovery.records.startOverWhileSaving')}
+            </Alert.Text>
+          }
+        />
       )}
       {loadFailed && renderLoadFailed()}
       {!loadFailed && savedAt === null && renderGrid()}
       {!loadFailed && typeof savedAt === 'number' && renderResume(savedAt)}
-      <View style={spacings.mtLg}>
-        <Button
-          testID="recover"
-          type="secondary"
-          text={t('socialRecovery.routes.recover')}
-          onPress={onRecover}
-        />
-        <Text fontSize={12} appearance="secondaryText">
-          {t('socialRecovery.presets.recoverLine')}
-        </Text>
-      </View>
+      <Pressable
+        testID="recover"
+        accessibilityRole="button"
+        onPress={onRecover}
+        style={[
+          flexbox.directionRow,
+          flexbox.alignCenter,
+          common.borderRadiusSecondary,
+          spacings.ph,
+          spacings.pv,
+          spacings.mtLg,
+          { borderWidth: 1, borderColor: theme.secondaryBorder }
+        ]}
+      >
+        <View style={[flexbox.flex1, spacings.mrSm]}>
+          <Text fontSize={16} weight="medium">
+            {t('socialRecovery.routes.recover')}
+          </Text>
+          <Text fontSize={12} appearance="secondaryText">
+            {t('socialRecovery.presets.recoverLine')}
+          </Text>
+        </View>
+        <RightArrowIcon />
+      </Pressable>
     </View>
   )
 }
