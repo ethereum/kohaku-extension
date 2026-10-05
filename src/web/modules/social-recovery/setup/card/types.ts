@@ -48,11 +48,64 @@ export interface PasswordAskAnswer {
   onCancel: () => void
 }
 
+/**
+ * What a check of a typed recovery password found: it opened the saved backup
+ * and the holder keeps it, it did not open the backup, the account has no saved
+ * backup and the row leads back to the privacy step, the check itself failed,
+ * or the answer came after the screen left or the account changed and changed
+ * nothing.
+ */
+export type RecoveryPasswordCheck = 'opened' | 'wrong' | 'no-backup' | 'unchecked' | 'stale'
+
+/** The line the recovery password ask shows under its field after a check. */
+export type RecoveryPasswordAskLine = 'wrong' | 'unchecked'
+
+/**
+ * The password row at the hidden level with no password in memory: blank while
+ * the account's setup is read, the ask when a saved setup can check a typed
+ * password, the way back to the privacy step when there is none.
+ */
+export type MissingPasswordRow =
+  | { kind: 'reading' }
+  | { kind: 'gone' }
+  | { kind: 'ask'; check: (typed: string) => Promise<RecoveryPasswordCheck> }
+
+export interface RecoveryPasswordAskProps {
+  check: (typed: string) => Promise<RecoveryPasswordCheck>
+}
+
+/**
+ * What made the row: the account's setup read or a check, or a client that
+ * could not be built, whose row is read again once a client is ready.
+ */
+export type SetupReadingSource = 'setup' | 'failed-client'
+
+/** What the setup read made of the row, with the account it was read for. */
+export interface SetupReading {
+  address: Address
+  row: 'ask' | 'gone'
+  source: SetupReadingSource
+}
+
+/** A password a check opened, with the account it opened for. */
+export interface OpenedPassword {
+  address: Address
+  password: string
+}
+
+/** The card's password and the row that stands in for it while it is missing. */
+export interface CardPassword {
+  password: string | undefined
+  missingPassword: MissingPasswordRow
+}
+
 export interface RecoveryCardViewProps {
   account: Address
   level: CardLevel
   /** The password the holder typed at the privacy step, absent after a reload. */
   password: string | undefined
+  /** What the password row shows at the hidden level while no password is in memory. */
+  missingPassword: MissingPasswordRow
   /** A carrier already ran for this account in this tab, so the next one asks the extension password. */
   carriedBefore: boolean
   onCarried: () => void

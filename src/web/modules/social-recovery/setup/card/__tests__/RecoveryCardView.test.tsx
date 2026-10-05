@@ -18,6 +18,11 @@ import type {
   CardLevel,
   PasswordAskAnswer
 } from '@web/modules/social-recovery/setup/card'
+import { deferred } from '@web/modules/social-recovery/setup/card/__tests__/harness'
+import type {
+  MissingPasswordRow,
+  RecoveryPasswordCheck
+} from '@web/modules/social-recovery/setup/card/types'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 // React only runs effects and state updates inside act() when this flag is set.
@@ -26,6 +31,8 @@ Object.assign(globalThis, { TextEncoder, TextDecoder })
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const React: typeof import('react') = require('react')
 const en: typeof import('@common/config/localization/translations/en.json') = require('@common/config/localization/translations/en.json')
+const i18n: typeof import('@common/config/localization').default =
+  require('@common/config/localization').default
 const {
   ThemeContext
 }: typeof import('@common/contexts/themeContext') = require('@common/contexts/themeContext')
@@ -39,6 +46,8 @@ const ACCOUNT = '0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed' as Address
 const CHECKSUMMED = '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed'
 const PASSWORD = 'tide<lantern>&"orchid\'s'
 const S = en.socialRecovery
+const t = (key: string): string => i18n.t(key)
+const TYPED = 'harbor quill meadow'
 const LINES = [
   S.card.lines.guide,
   S.card.lines.cannotMoveFunds,
@@ -125,8 +134,14 @@ describe('the recovery card view', () => {
   const mount = async ({
     level = 'hidden',
     password = PASSWORD,
-    carriedBefore = false
-  }: { level?: CardLevel; password?: string | null; carriedBefore?: boolean } = {}) => {
+    carriedBefore = false,
+    missingPassword = { kind: 'gone' }
+  }: {
+    level?: CardLevel
+    password?: string | null
+    carriedBefore?: boolean
+    missingPassword?: MissingPasswordRow
+  } = {}) => {
     await act(async () => {
       root.render(
         <ThemeContext.Provider value={THEME_CONTEXT}>
@@ -134,6 +149,7 @@ describe('the recovery card view', () => {
             account={ACCOUNT}
             level={level}
             password={password ?? undefined}
+            missingPassword={missingPassword}
             carriedBefore={carriedBefore}
             onCarried={onCarried}
             carriers={{ download, print }}
@@ -524,6 +540,149 @@ describe('the recovery card view', () => {
       expect(onContinue).not.toHaveBeenCalled()
       await press('card-continue')
       expect(onContinue).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('the password row while the setup is read or the password is asked again', () => {
+    const askField = () =>
+      container.querySelector<HTMLInputElement>('[data-testid="card-recovery-password-ask"] input')
+    const typeAsk = async (value: string) => {
+      const node = askField()
+      if (!node) {
+        throw new Error('no recovery password field')
+      }
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(node, value)
+        node.dispatchEvent(new Event('input', { bubbles: true }))
+      })
+    }
+    const askWith = (check: jest.Mock): MissingPasswordRow => ({ kind: 'ask', check })
+
+    it('holds the label alone while the setup is read, with every carrier off', async () => {
+      await mount({ password: null, missingPassword: { kind: 'reading' } })
+      expect(allByTestId('card-password')).toEqual([
+        t('socialRecovery.display.passwords.recoveryPassword')
+      ])
+      expect(byTestId('card-password-gone')).toBeNull()
+      expect(byTestId('card-recovery-password-ask')).toBeNull()
+      expect(container.querySelector('input')).toBeNull()
+      expect(['card-download', 'card-print', 'card-send'].map(isDisabled)).toEqual([
+        true,
+        true,
+        true
+      ])
+    })
+
+    it('asks the recovery password in the row, beside back and continue, with every carrier off', async () => {
+      await mount({ password: null, missingPassword: askWith(jest.fn()) })
+      expect(byTestId('card-recovery-password-lead')?.textContent).toBe(
+        t('socialRecovery.card.passwordAsk')
+      )
+      expect(askField()?.getAttribute('aria-label')).toBe(
+        t('socialRecovery.display.passwords.recoveryPassword')
+      )
+      expect(byTestId('card-recovery-password-check')?.textContent).toBe(
+        t('socialRecovery.card.passwordAskAction')
+      )
+      expect(isDisabled('card-recovery-password-check')).toBe(true)
+      expect(['card-download', 'card-print', 'card-send'].map(isDisabled)).toEqual([
+        true,
+        true,
+        true
+      ])
+      const ids = Array.from(container.querySelectorAll<HTMLElement>('[data-testid]'), (node) =>
+        node.getAttribute('data-testid')
+      )
+      expect(ids).not.toContain('card-password-gone')
+      expect(ids).not.toContain('card-password-gone-action')
+      expect(ids).not.toContain('card-reveal')
+      expect(ids.indexOf('card-recovery-password-ask')).toBeGreaterThan(
+        ids.indexOf('card-password')
+      )
+      expect(ids.indexOf('card-recovery-password-ask')).toBeLessThan(ids.indexOf('card-line'))
+      expect(ids).toContain('card-back')
+      expect(ids).toContain('card-continue')
+    })
+
+    it('shows no ask once a password is held or at the public level', async () => {
+      await mount({ missingPassword: askWith(jest.fn()) })
+      expect(byTestId('card-recovery-password-ask')).toBeNull()
+      expect(byTestId('card-reveal')).not.toBeNull()
+
+      await mount({ level: 'public', password: null, missingPassword: askWith(jest.fn()) })
+      expect(byTestId('card-recovery-password-ask')).toBeNull()
+      expect(byTestId('card-password')).toBeNull()
+    })
+
+    it('hands the typed value to the check and empties the field once it opens', async () => {
+      const check = jest.fn(async (): Promise<RecoveryPasswordCheck> => 'opened')
+      await mount({ password: null, missingPassword: askWith(check) })
+      await typeAsk(TYPED)
+      expect(isDisabled('card-recovery-password-check')).toBe(false)
+      await press('card-recovery-password-check')
+      expect(check.mock.calls).toEqual([[TYPED]])
+      expect(askField()?.value).toBe('')
+      expect(byTestId('card-recovery-password-wrong')).toBeNull()
+      expect(byTestId('card-recovery-password-unchecked')).toBeNull()
+    })
+
+    it('says a wrong password is wrong and empties the field', async () => {
+      const check = jest.fn(async (): Promise<RecoveryPasswordCheck> => 'wrong')
+      await mount({ password: null, missingPassword: askWith(check) })
+      await typeAsk(TYPED)
+      await press('card-recovery-password-check')
+      expect(byTestId('card-recovery-password-wrong')?.textContent).toBe(
+        t('socialRecovery.card.wrongRecoveryPassword')
+      )
+      expect(askField()?.value).toBe('')
+      expect(isDisabled('card-recovery-password-check')).toBe(true)
+    })
+
+    it('says a check that could not run, or that threw, could not check, and keeps the value', async () => {
+      const check = jest
+        .fn<Promise<RecoveryPasswordCheck>, [string]>()
+        .mockResolvedValueOnce('unchecked')
+        .mockRejectedValueOnce(new Error('the check threw'))
+      await mount({ password: null, missingPassword: askWith(check) })
+      await typeAsk(TYPED)
+      await press('card-recovery-password-check')
+      expect(byTestId('card-recovery-password-unchecked')?.textContent).toBe(
+        t('socialRecovery.card.passwordUnchecked')
+      )
+      expect(askField()?.value).toBe(TYPED)
+
+      await press('card-recovery-password-check')
+      expect(byTestId('card-recovery-password-unchecked')?.textContent).toBe(
+        t('socialRecovery.card.passwordUnchecked')
+      )
+      expect(askField()?.value).toBe(TYPED)
+      expect(check).toHaveBeenCalledTimes(2)
+    })
+
+    it('clears the earlier line on a new check and keeps the button off while it runs', async () => {
+      const second = deferred<RecoveryPasswordCheck>()
+      const check = jest
+        .fn<Promise<RecoveryPasswordCheck>, [string]>()
+        .mockResolvedValueOnce('wrong')
+        .mockReturnValueOnce(second.promise)
+      await mount({ password: null, missingPassword: askWith(check) })
+      await typeAsk('not the password')
+      await press('card-recovery-password-check')
+      expect(byTestId('card-recovery-password-wrong')).not.toBeNull()
+
+      await typeAsk(TYPED)
+      await press('card-recovery-password-check')
+      expect(byTestId('card-recovery-password-wrong')).toBeNull()
+      expect(isDisabled('card-recovery-password-check')).toBe(true)
+      await press('card-recovery-password-check')
+      expect(check).toHaveBeenCalledTimes(2)
+
+      await act(async () => {
+        second.resolve('stale')
+      })
+      expect(byTestId('card-recovery-password-wrong')).toBeNull()
+      expect(byTestId('card-recovery-password-unchecked')).toBeNull()
+      expect(isDisabled('card-recovery-password-check')).toBe(false)
     })
   })
 })

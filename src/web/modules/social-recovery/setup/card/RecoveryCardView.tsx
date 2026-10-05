@@ -3,12 +3,13 @@
  * the three carriers, and what warns the holder of a recovery they did not
  * start. The first carrier runs at once; every later one asks the extension
  * password first. At the hidden level with no password in memory, after a
- * reload or in a new tab, the password row says so and leads back to the
- * privacy step, and nothing carries the card, since a card without its
- * password cannot start a recovery. While the ask shows, its own answers
- * stand in for the screen's back and continue.
+ * reload or in a new tab, the password row asks the recovery password again
+ * when a saved setup can check it, and otherwise says so and leads back to the
+ * privacy step; nothing carries the card meanwhile, since a card without its
+ * password cannot start a recovery. While the extension password ask shows,
+ * its own answers stand in for the screen's back and continue.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, View } from 'react-native'
 
 import Alert from '@common/components/Alert'
@@ -28,12 +29,14 @@ import { renderHiddenValue, renderPasswordName } from '@web/modules/social-recov
 import CardFace, { CARD_LABEL_COLUMN } from './CardFace'
 import { cardFileOf } from './file'
 import PrintCardView from './PrintCardView'
+import RecoveryPasswordAsk from './RecoveryPasswordAsk'
 import type { CarrierAction, RecoveryCard, RecoveryCardViewProps } from './types'
 
 const RecoveryCardView = ({
   account,
   level,
   password,
+  missingPassword,
   carriedBefore,
   onCarried,
   carriers,
@@ -105,7 +108,35 @@ const RecoveryCardView = ({
     [asking, run]
   )
 
-  const passwordGoneRow = (
+  let missingBody: ReactNode = null
+  if (missingPassword.kind === 'gone') {
+    missingBody = (
+      <Alert
+        type="warning"
+        size="sm"
+        text={
+          <Alert.Text testID="card-password-gone" size="sm" type="warning">
+            {t('socialRecovery.card.passwordGone')}
+          </Alert.Text>
+        }
+      >
+        <Button
+          testID="card-password-gone-action"
+          type="secondary"
+          size="small"
+          hasBottomSpacing={false}
+          text={t('socialRecovery.card.passwordGoneAction')}
+          onPress={onSetPasswordAgain}
+          style={[flexbox.alignSelfStart, spacings.mtSm]}
+        />
+      </Alert>
+    )
+  } else if (missingPassword.kind === 'ask') {
+    missingBody = <RecoveryPasswordAsk check={missingPassword.check} />
+  }
+
+  // While the setup read runs the row holds its label alone.
+  const missingPasswordRow = (
     <View testID="card-password" style={[flexbox.directionRow, flexbox.alignStart, spacings.mbSm]}>
       <Text
         fontSize={12}
@@ -115,27 +146,7 @@ const RecoveryCardView = ({
       >
         {renderPasswordName('recoveryPassword', t)}
       </Text>
-      <View style={flexbox.flex1}>
-        <Alert
-          type="warning"
-          size="sm"
-          text={
-            <Alert.Text testID="card-password-gone" size="sm" type="warning">
-              {t('socialRecovery.card.passwordGone')}
-            </Alert.Text>
-          }
-        >
-          <Button
-            testID="card-password-gone-action"
-            type="secondary"
-            size="small"
-            hasBottomSpacing={false}
-            text={t('socialRecovery.card.passwordGoneAction')}
-            onPress={onSetPasswordAgain}
-            style={[flexbox.alignSelfStart, spacings.mtSm]}
-          />
-        </Alert>
-      </View>
+      <View style={flexbox.flex1}>{missingBody}</View>
     </View>
   )
 
@@ -171,7 +182,7 @@ const RecoveryCardView = ({
       </View>
     ) : null
 
-  const passwordRow = passwordMissing ? passwordGoneRow : heldPasswordRow
+  const passwordRow = passwordMissing ? missingPasswordRow : heldPasswordRow
 
   return (
     <View testID="card-screen">

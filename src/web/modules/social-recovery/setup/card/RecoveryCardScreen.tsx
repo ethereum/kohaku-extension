@@ -15,8 +15,7 @@ import SetupChrome from '@web/modules/social-recovery/shared/chrome/SetupChrome'
 import { CHAIN_IDS, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
 import {
   createWalletRecords,
-  extensionRecordStorage,
-  readRecoveryPassword
+  extensionRecordStorage
 } from '@web/modules/social-recovery/shared/records'
 
 import { levelFromSearch, levelOfBackup } from './card'
@@ -25,6 +24,7 @@ import { BROWSER_CARRIERS } from './carriers'
 import ExtensionPasswordAsk from './ExtensionPasswordAsk'
 import RecoveryCardView from './RecoveryCardView'
 import type { DraftLevel, PasswordAskAnswer } from './types'
+import { useCardPassword } from './useCardPassword'
 
 const chainId = CHAIN_IDS[WALLET_RECOVERY_CHAIN]
 
@@ -73,10 +73,7 @@ const RecoveryCardScreen = () => {
 
   const level =
     searchLevel ?? (draftLevel && draftLevel.address === address ? draftLevel.level : null)
-  const password = useMemo(
-    () => (address ? readRecoveryPassword(chainId, address) : undefined),
-    [address]
-  )
+  const { password, missingPassword } = useCardPassword(address, level)
   const carriedBefore = useMemo(
     () => (address ? wasCardCarried(chainId, address) : false),
     [address]
@@ -98,6 +95,7 @@ const RecoveryCardScreen = () => {
           account={address}
           level={level}
           password={password}
+          missingPassword={missingPassword}
           carriedBefore={carriedBefore}
           onCarried={onCarried}
           carriers={BROWSER_CARRIERS}
