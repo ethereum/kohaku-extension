@@ -5,6 +5,7 @@ import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
+import { SectionCard, StatusChip } from '@web/modules/social-recovery/shared/chrome'
 import {
   renderFullAddress,
   renderNoun,
@@ -43,21 +44,18 @@ const StopBlock = ({ rows }: StopBlockProps) => {
           {stop.status === 'pending' ? (
             <ActivityIndicator testID={`${testID}-pending`} />
           ) : (
-            <Text
-              fontSize={12}
-              weight="medium"
-              appearance="errorText"
+            <StatusChip
+              text={t('socialRecovery.review.blocked.unavailable.chip')}
+              tone="error"
               testID={`${testID}-unavailable`}
-            >
-              {t('socialRecovery.review.blocked.unavailable.chip')}
-            </Text>
+            />
           )}
         </View>
       )
     }
     return (
       <>
-        <Text fontSize={14} weight="medium" testID={`${testID}-method`}>
+        <Text fontSize={14} weight="medium" style={spacings.mbMi} testID={`${testID}-method`}>
           {stop.paused
             ? t(`${STOP}.methodStopped`, { method: name })
             : t(`${STOP}.methodNotStopped`, { method: name })}
@@ -85,10 +83,12 @@ const StopBlock = ({ rows }: StopBlockProps) => {
   }
 
   return (
-    <View testID="review-stop-block" style={spacings.mbSm}>
-      <Text fontSize={12} weight="semiBold" appearance="secondaryText" style={spacings.mbTy}>
-        {renderNoun('securityStop', t)}
-      </Text>
+    <SectionCard
+      tone="muted"
+      label={renderNoun('securityStop', t)}
+      spacing="item"
+      testID="review-stop-block"
+    >
       {rows.map((row, index) => {
         const testID = `review-stop-${index}`
         return (
@@ -99,7 +99,7 @@ const StopBlock = ({ rows }: StopBlockProps) => {
       })}
       {line(t(`${STOP}.noPause`), 'review-stop-no-pause')}
       {line(t(`${STOP}.ignoresStops`), 'review-stop-ignores-stops')}
-    </View>
+    </SectionCard>
   )
 }
 

@@ -21,6 +21,7 @@ import Spinner from '@common/components/Spinner'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
+import flexbox from '@common/styles/utils/flexbox'
 
 import { renderWriteState } from '../copy'
 import type { WriteStateViewProps } from './types'
@@ -57,18 +58,22 @@ const WriteStateView = ({
 
   return (
     <View testID={testID}>
-      {!!rendered.chip && (
-        <Text fontSize={12} weight="medium" appearance="secondaryText" style={spacings.mbTy}>
-          {rendered.chip}
-        </Text>
-      )}
-      {!!heading && (
-        <Text fontSize={16} weight="semiBold" style={spacings.mbSm}>
-          {heading}
-        </Text>
+      {(!!rendered.chip || !!heading) && (
+        <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap, spacings.mbTy]}>
+          {!!rendered.chip && (
+            <Text fontSize={12} weight="semiBold" appearance="secondaryText" style={spacings.mrSm}>
+              {rendered.chip}
+            </Text>
+          )}
+          {!!heading && (
+            <Text fontSize={16} weight="medium">
+              {heading}
+            </Text>
+          )}
+        </View>
       )}
       {(body ?? rendered.lines).map((line) => (
-        <Text key={line} fontSize={14} style={spacings.mbSm}>
+        <Text key={line} fontSize={14} style={spacings.mbTy}>
           {line}
         </Text>
       ))}
@@ -88,7 +93,14 @@ const WriteStateView = ({
         </Text>
       )}
       {!!rendered.retry && !!onRetry && (
-        <Button type="primary" text={rendered.retry} onPress={onRetry} hasBottomSpacing={false} />
+        <Button
+          type="primary"
+          size="small"
+          text={rendered.retry}
+          onPress={onRetry}
+          hasBottomSpacing={false}
+          style={[flexbox.alignSelfStart, spacings.mtTy]}
+        />
       )}
       {children}
     </View>

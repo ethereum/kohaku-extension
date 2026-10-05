@@ -5,6 +5,8 @@ import Button from '@common/components/Button'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
+import flexbox from '@common/styles/utils/flexbox'
+import { SectionCard, StatusChip } from '@web/modules/social-recovery/shared/chrome'
 import { chipKey } from '@web/modules/social-recovery/shared/display'
 import type { Translate } from '@web/modules/social-recovery/shared/display'
 
@@ -73,39 +75,29 @@ const reasonOf = (blocked: CannotRecoverBlock, t: Translate): string => {
     : t(`${BLOCKED}.cannotRecover.reasonKeyCount`, { count: blocked.count })
 }
 
-const chipOf = (text: string) => (
-  <Text
-    fontSize={12}
-    weight="medium"
-    appearance="errorText"
-    style={spacings.mbTy}
-    testID="review-blocked-chip"
-  >
-    {text}
-  </Text>
-)
-
 const titleOf = (text: string) => (
-  <Text fontSize={14} weight="medium" testID="review-blocked-title">
+  <Text fontSize={16} weight="medium" testID="review-blocked-title">
     {text}
   </Text>
 )
 
 const bodyOf = (text: string) => (
-  <Text fontSize={14} appearance="secondaryText" style={spacings.mbSm} testID="review-blocked-body">
+  <Text fontSize={14} appearance="secondaryText" style={spacings.mbTy} testID="review-blocked-body">
     {text}
   </Text>
 )
 
 const actionOf = (text: string, onPress: () => void, testID: string) => (
-  <Button
-    testID={testID}
-    type="outline"
-    size="small"
-    text={text}
-    onPress={onPress}
-    hasBottomSpacing={false}
-  />
+  <View style={[flexbox.directionRow, spacings.mtTy]}>
+    <Button
+      testID={testID}
+      type="secondary"
+      size="small"
+      text={text}
+      onPress={onPress}
+      hasBottomSpacing={false}
+    />
+  </View>
 )
 
 /** Why Save cannot run, on screen beside it, with the action that clears it where one does. */
@@ -114,13 +106,24 @@ const SaveBlocker = ({ blocked, ...handlers }: SaveBlockerProps) => {
   const { chip, title, body, action } = BLOCKS[blocked.kind]
 
   return (
-    <View style={spacings.mbMd} testID={`review-blocked-${blocked.kind}`}>
-      {chip !== undefined && chipOf(t(chip))}
-      {title !== undefined && titleOf(t(title))}
+    <SectionCard testID={`review-blocked-${blocked.kind}`}>
+      {(chip !== undefined || title !== undefined) && (
+        <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap, spacings.mbTy]}>
+          {chip !== undefined && (
+            <StatusChip
+              text={t(chip)}
+              tone="error"
+              testID="review-blocked-chip"
+              style={spacings.mrSm}
+            />
+          )}
+          {title !== undefined && titleOf(t(title))}
+        </View>
+      )}
       {body !== undefined && bodyOf(t(body))}
       {blocked.kind === 'cannot-recover' && bodyOf(reasonOf(blocked, t))}
       {action !== undefined && actionOf(t(action.label), handlers[action.handler], action.testID)}
-    </View>
+    </SectionCard>
   )
 }
 

@@ -392,8 +392,8 @@ describe('the recovery card view', () => {
         'card-send',
         'card-why',
         'card-warns',
-        'card-back',
-        'card-continue'
+        'card-continue',
+        'card-back'
       ])
     })
 

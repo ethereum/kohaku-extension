@@ -12,6 +12,8 @@ import Button from '@common/components/Button'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
+import flexbox from '@common/styles/utils/flexbox'
+import { PageTitle, SectionCard } from '@web/modules/social-recovery/shared/chrome'
 
 import { kindNameKeyOf } from './passkey'
 import PasskeyCreateBlock from './PasskeyCreateBlock'
@@ -29,67 +31,80 @@ const PasskeyRow = (props: RowProps) => {
 
   return (
     <View testID="enroll-passkey">
-      <Text fontSize={20} weight="semiBold" style={spacings.mbTy}>
-        {t('socialRecovery.enroll.passkey.title')}
-      </Text>
-      <Text testID="passkey-kind-name" fontSize={16} weight="medium" style={spacings.mbTy}>
-        {t(kindNameKeyOf(facts ?? (row.phone ? { place: 'phone' } : undefined)))}
-      </Text>
-      <Text fontSize={14} appearance="secondaryText" style={spacings.mbTy}>
-        {t('socialRecovery.enroll.passkey.authenticators')}
-      </Text>
-      <Button
-        testID="passkey-learn-more"
-        type="ghost"
-        text={t('socialRecovery.actions.learnMore')}
-        onPress={row.toggleExplainer}
-        hasBottomSpacing={false}
-      />
-      {row.explainer && (
-        <Text testID="passkey-explainer" fontSize={14} style={spacings.mbSm}>
-          {t('socialRecovery.enroll.passkey.explainer')}
-        </Text>
-      )}
-      {!deps.passkeysServed && (
-        <Text
-          testID="passkey-chrome-only"
-          fontSize={14}
-          appearance="errorText"
-          style={spacings.mbSm}
+      <PageTitle title={t('socialRecovery.enroll.passkey.title')} />
+      <SectionCard>
+        <View
+          style={[
+            flexbox.directionRow,
+            flexbox.alignCenter,
+            flexbox.justifySpaceBetween,
+            spacings.mbSm
+          ]}
         >
-          {t('socialRecovery.ceremony.chromeOnly')}
-        </Text>
-      )}
-
-      {!enrollment && (
-        <PasskeyCreateBlock
-          name={row.name}
-          setName={row.setName}
-          enrollOutcome={row.enrollOutcome}
-          busy={row.busy}
-          phone={row.phone}
-          create={row.create}
-          served={deps.passkeysServed}
-        />
-      )}
-
-      {!!enrollment && (
-        <View testID="passkey-enrolled">
-          <PasskeyEnrolledSummary enrollment={enrollment} platform={deps.platform} />
-          <PasskeyTestBlock
-            enrollment={enrollment}
-            testOutcome={row.testOutcome}
-            signedSalt={row.signedSalt}
-            skipped={row.skipped}
-            skip={row.skip}
-            canTest={row.canTest}
-            busy={row.busy}
-            served={deps.passkeysServed}
-            runTest={row.runTest}
-            create={row.create}
+          <View style={[flexbox.flex1, spacings.mrSm]}>
+            <Text testID="passkey-kind-name" fontSize={16} weight="medium">
+              {t(kindNameKeyOf(facts ?? (row.phone ? { place: 'phone' } : undefined)))}
+            </Text>
+            <Text fontSize={12} appearance="secondaryText">
+              {t('socialRecovery.enroll.passkey.authenticators')}
+            </Text>
+          </View>
+          <Button
+            testID="passkey-learn-more"
+            type="ghost"
+            size="small"
+            text={t('socialRecovery.actions.learnMore')}
+            onPress={row.toggleExplainer}
+            hasBottomSpacing={false}
+            textUnderline
           />
         </View>
-      )}
+        {row.explainer && (
+          <Text testID="passkey-explainer" fontSize={14} style={spacings.mbSm}>
+            {t('socialRecovery.enroll.passkey.explainer')}
+          </Text>
+        )}
+        {!deps.passkeysServed && (
+          <Text
+            testID="passkey-chrome-only"
+            fontSize={14}
+            appearance="errorText"
+            style={spacings.mbSm}
+          >
+            {t('socialRecovery.ceremony.chromeOnly')}
+          </Text>
+        )}
+
+        {!enrollment && (
+          <PasskeyCreateBlock
+            name={row.name}
+            setName={row.setName}
+            enrollOutcome={row.enrollOutcome}
+            busy={row.busy}
+            phone={row.phone}
+            create={row.create}
+            served={deps.passkeysServed}
+          />
+        )}
+
+        {!!enrollment && (
+          <View testID="passkey-enrolled">
+            <PasskeyEnrolledSummary enrollment={enrollment} platform={deps.platform} />
+            <PasskeyTestBlock
+              enrollment={enrollment}
+              testOutcome={row.testOutcome}
+              signedSalt={row.signedSalt}
+              skipped={row.skipped}
+              skip={row.skip}
+              canTest={row.canTest}
+              busy={row.busy}
+              served={deps.passkeysServed}
+              runTest={row.runTest}
+              create={row.create}
+            />
+          </View>
+        )}
+      </SectionCard>
 
       <PasskeyRowNotes
         undelivered={row.undelivered}

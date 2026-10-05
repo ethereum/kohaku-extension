@@ -8,12 +8,24 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { ActivityIndicator, Pressable, View } from 'react-native'
 
+import DownArrowIcon from '@common/assets/svg/DownArrowIcon'
+import UpArrowIcon from '@common/assets/svg/UpArrowIcon'
+import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
+import useTheme from '@common/hooks/useTheme'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
+import common from '@common/styles/utils/common'
 import flexbox from '@common/styles/utils/flexbox'
+import {
+  ActionsRow,
+  PageTitle,
+  SectionCard,
+  SectionLabel,
+  StatusChip
+} from '@web/modules/social-recovery/shared/chrome'
 import {
   addressBookOf,
   recoveryChainOf,
@@ -66,6 +78,7 @@ const ReviewView = ({
   navigate
 }: ReviewViewProps) => {
   const { t } = useTranslation()
+  const { theme } = useTheme()
   const [load, setLoad] = useState<ReviewLoad | null>(null)
   const [loadFailed, setLoadFailed] = useState(false)
   const [loadAttempt, setLoadAttempt] = useState(0)
@@ -127,13 +140,13 @@ const ReviewView = ({
     [accountReads.privilegeHolders, accountReads.removedKey]
   )
 
-  const header = (text: string) => (
-    <Text fontSize={12} weight="semiBold" appearance="secondaryText" style={spacings.mbTy}>
+  const line = (text: string, testID?: string) => (
+    <Text fontSize={14} style={spacings.mbTy} testID={testID}>
       {text}
     </Text>
   )
-  const line = (text: string, testID?: string) => (
-    <Text fontSize={14} style={spacings.mbTy} testID={testID}>
+  const note = (text: string, testID?: string) => (
+    <Text fontSize={12} appearance="secondaryText" style={spacings.mbTy} testID={testID}>
       {text}
     </Text>
   )
@@ -149,14 +162,7 @@ const ReviewView = ({
   )
 
   const title = (
-    <>
-      <Text fontSize={20} weight="semiBold" style={spacings.mbTy} testID="review-title">
-        {t(`${REVIEW}.title`)}
-      </Text>
-      <Text fontSize={14} appearance="secondaryText" style={spacings.mbLg}>
-        {t(`${REVIEW}.lead`)}
-      </Text>
-    </>
+    <PageTitle title={t(`${REVIEW}.title`)} lead={t(`${REVIEW}.lead`)} titleTestID="review-title" />
   )
 
   if (!load) {
@@ -165,24 +171,27 @@ const ReviewView = ({
         {title}
         {loadFailed ? (
           <>
-            <Text
-              fontSize={14}
-              appearance="errorText"
-              style={spacings.mbMd}
-              testID="review-load-failed"
-            >
-              {t('socialRecovery.records.loadFailed')}
-            </Text>
-            <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
-              {back}
-              <Button
-                testID="review-load-retry"
-                type="outline"
-                text={t('socialRecovery.writes.tryAgain')}
-                onPress={retryLoad}
-                hasBottomSpacing={false}
-              />
-            </View>
+            <Alert
+              type="error"
+              size="sm"
+              text={
+                <Alert.Text size="sm" type="error" testID="review-load-failed">
+                  {t('socialRecovery.records.loadFailed')}
+                </Alert.Text>
+              }
+            />
+            <ActionsRow
+              primary={
+                <Button
+                  testID="review-load-retry"
+                  type="primary"
+                  text={t('socialRecovery.writes.tryAgain')}
+                  onPress={retryLoad}
+                  hasBottomSpacing={false}
+                />
+              }
+              secondary={back}
+            />
           </>
         ) : (
           <ActivityIndicator testID="review-spinner" />
@@ -232,11 +241,23 @@ const ReviewView = ({
     }
   }
 
+  const clientRetry = (client.status === 'update-the-wallet' || client.status === 'failed') && (
+    <Button
+      testID="review-client-retry"
+      type="secondary"
+      size="small"
+      text={t('socialRecovery.writes.tryAgain')}
+      onPress={client.retry}
+      hasBottomSpacing={false}
+      style={spacings.mrSm}
+    />
+  )
+
   return (
     <View testID="review">
       {title}
 
-      <View style={spacings.mbLg}>
+      <SectionCard>
         <PathBlock
           clauses={clauses}
           enrollments={load.enrollments}
@@ -245,10 +266,9 @@ const ReviewView = ({
         />
         {needsHostileMinorityLine(clauses) &&
           line(t(`${REVIEW}.hostileMinority`), 'review-hostile-minority')}
-      </View>
+      </SectionCard>
 
-      <View style={spacings.mbLg} testID="review-rule-lines">
-        {header(t('socialRecovery.shape.header'))}
+      <SectionCard label={t('socialRecovery.shape.header')} testID="review-rule-lines">
         {ruleLines.map((ruleLine, index) => (
           <Text
             // The rule lines of one path are fixed in number and order.
@@ -262,90 +282,133 @@ const ReviewView = ({
           </Text>
         ))}
         {line(t(`${REVIEW}.spareKey`), 'review-spare-key')}
-      </View>
+      </SectionCard>
 
-      <View style={spacings.mbLg}>
-        {header(renderNoun('waitingPeriod', t))}
-        {line(renderWait(draft.wait, t), 'review-wait')}
+      <SectionCard label={renderNoun('waitingPeriod', t)}>
+        <Text fontSize={16} weight="medium" style={spacings.mbTy} testID="review-wait">
+          {renderWait(draft.wait, t)}
+        </Text>
         <Text fontSize={12} appearance="secondaryText">
           {t(`${REVIEW}.minimum`)}
         </Text>
-      </View>
+      </SectionCard>
 
-      <View style={spacings.mbLg} testID="review-costs">
-        {header(t(`${REVIEW}.costsHeader`))}
+      <SectionCard label={t(`${REVIEW}.costsHeader`)} testID="review-costs">
         {line(t('socialRecovery.costLines.recovery'))}
         {line(t(`${REVIEW}.publication.lead`), 'review-publication-lead')}
         {!!publication && line(publication, 'review-publication')}
         {line(t('socialRecovery.costLines.save'), 'review-save-cost')}
-      </View>
+      </SectionCard>
 
-      <View style={spacings.mbLg} testID="review-privacy">
-        {header(t(`${REVIEW}.privacyHeader`))}
+      <SectionCard label={t(`${REVIEW}.privacyHeader`)} testID="review-privacy">
         {privacyLinesOf(draft, addressBook, load.passwordSet, t).map((privacyLine, index) => (
           <Text
             // The privacy lines of one level are fixed in number and order.
             // eslint-disable-next-line react/no-array-index-key
             key={index}
             fontSize={14}
+            weight={index === 0 ? 'medium' : 'regular'}
             style={spacings.mbTy}
             testID={`review-privacy-${index}`}
           >
             {privacyLine}
           </Text>
         ))}
-      </View>
+      </SectionCard>
 
-      <View style={spacings.mbLg}>
-        <Pressable testID="review-verify-details" onPress={() => setExpanded((open) => !open)}>
-          <Text fontSize={14} weight="medium" appearance="primary">
-            {t(`${REVIEW}.verifyDetails`)}
+      <Pressable
+        testID="review-verify-details"
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded((open) => !open)}
+        style={[
+          flexbox.directionRow,
+          flexbox.alignCenter,
+          flexbox.justifySpaceBetween,
+          common.borderRadiusPrimary,
+          spacings.ph,
+          spacings.pvSm,
+          expanded ? spacings.mbTy : spacings.mbLg,
+          {
+            borderWidth: 1,
+            borderColor: theme.secondaryBorder,
+            backgroundColor: theme.secondaryBackground
+          }
+        ]}
+      >
+        <Text fontSize={14} weight="medium">
+          {t(`${REVIEW}.verifyDetails`)}
+        </Text>
+        {expanded ? <UpArrowIcon /> : <DownArrowIcon />}
+      </Pressable>
+      {expanded && (!!ready || client.status === 'loading') && (
+        <SectionCard>
+          {ready ? (
+            <TrustList
+              rows={rows}
+              stopRows={stopRows}
+              doors={doors}
+              client={ready}
+              providerKind={providerKind}
+              onRetry={retry}
+            />
+          ) : (
+            <ActivityIndicator testID="review-trust-spinner" />
+          )}
+        </SectionCard>
+      )}
+
+      <SectionCard label={t(`${REVIEW}.account.header`)} testID="review-account">
+        {!!name && (
+          <Text fontSize={16} weight="medium" style={spacings.mbTy} testID="review-account-label">
+            {name.name}
           </Text>
-        </Pressable>
-        {expanded && (
-          <View style={spacings.mtSm}>
-            {ready ? (
-              <TrustList
-                rows={rows}
-                stopRows={stopRows}
-                doors={doors}
-                client={ready}
-                providerKind={providerKind}
-                onRetry={retry}
-              />
-            ) : (
-              client.status === 'loading' && <ActivityIndicator testID="review-trust-spinner" />
-            )}
-          </View>
         )}
-      </View>
-
-      <View style={spacings.mbLg} testID="review-account">
-        {header(t(`${REVIEW}.account.header`))}
-        {!!name && line(name.name, 'review-account-label')}
-        {line(renderFullAddress(account), 'review-account-address')}
-        {line(t(`${REVIEW}.account.check`), 'review-account-check')}
-        {!!name?.caveat && line(name.caveat, 'review-account-caveat')}
+        <Text
+          fontSize={14}
+          weight="number_medium"
+          selectable
+          style={spacings.mbTy}
+          testID="review-account-address"
+        >
+          {renderFullAddress(account)}
+        </Text>
+        {note(t(`${REVIEW}.account.check`), 'review-account-check')}
+        {!!name?.caveat && note(name.caveat, 'review-account-caveat')}
         {removedKey.status === 'answered' && removedKey.value.kind === 'named' && (
-          <View style={spacings.mtSm} testID="review-removed-key">
-            {header(renderValueLabel('keyBeingRemoved', t))}
-            {line(renderFullAddress(removedKey.value.key), 'review-removed-key-address')}
-            {line(t(`${REVIEW}.keyRemovedLine`), 'review-removed-key-line')}
+          <View style={spacings.mtTy} testID="review-removed-key">
+            <View
+              style={[
+                common.borderRadiusPrimary,
+                spacings.phSm,
+                spacings.pvSm,
+                spacings.mbTy,
+                { backgroundColor: theme.secondaryBackground }
+              ]}
+            >
+              <SectionLabel>{renderValueLabel('keyBeingRemoved', t)}</SectionLabel>
+              <Text
+                fontSize={14}
+                weight="number_medium"
+                selectable
+                testID="review-removed-key-address"
+              >
+                {renderFullAddress(removedKey.value.key)}
+              </Text>
+            </View>
+            <Text fontSize={12} appearance="secondaryText" testID="review-removed-key-line">
+              {t(`${REVIEW}.keyRemovedLine`)}
+            </Text>
           </View>
         )}
         {!!ready && removedKey.status === 'pending' && (
           <ActivityIndicator testID="review-removed-key-pending" />
         )}
-      </View>
+      </SectionCard>
 
       {!!clientRefusal && (
-        <View style={spacings.mbMd} testID="review-client-refusal">
-          <Text fontSize={14} weight="medium">
-            {clientRefusal.title}
-          </Text>
-          <Text fontSize={14} appearance="secondaryText">
-            {clientRefusal.body}
-          </Text>
+        <View style={spacings.mbLg} testID="review-client-refusal">
+          <Alert type="error" size="sm" title={clientRefusal.title} text={clientRefusal.body} />
         </View>
       )}
 
@@ -360,42 +423,42 @@ const ReviewView = ({
       )}
 
       {gate.notTested && (
-        <View style={spacings.mbSm} testID="review-not-tested">
-          <Text fontSize={12} weight="medium" appearance="warningText">
-            {renderChip('method', 'notTested', t)}
-          </Text>
-          <Text fontSize={14} weight="medium">
-            {t(`${REVIEW}.blocked.notTested.title`)}
-          </Text>
+        <SectionCard testID="review-not-tested">
+          <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap, spacings.mbTy]}>
+            <StatusChip
+              text={renderChip('method', 'notTested', t)}
+              tone="warning"
+              style={spacings.mrSm}
+            />
+            <Text fontSize={16} weight="medium">
+              {t(`${REVIEW}.blocked.notTested.title`)}
+            </Text>
+          </View>
           <Text fontSize={14} appearance="secondaryText">
             {t(`${REVIEW}.blocked.notTested.body`)}
           </Text>
-        </View>
+        </SectionCard>
       )}
 
-      <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
-        {back}
-        {(client.status === 'update-the-wallet' || client.status === 'failed') && (
+      <ActionsRow
+        primary={
           <Button
-            testID="review-client-retry"
-            type="outline"
-            text={t('socialRecovery.writes.tryAgain')}
-            onPress={client.retry}
+            testID="review-save"
+            type="primary"
+            text={t(`${REVIEW}.save`)}
+            disabled={!gate.canSave}
+            onPress={() => navigate(WEB_ROUTES.socialRecoverySetupSave)}
             hasBottomSpacing={false}
           />
-        )}
-        <Button
-          testID="review-save"
-          type="primary"
-          text={t(`${REVIEW}.save`)}
-          disabled={!gate.canSave}
-          onPress={() => navigate(WEB_ROUTES.socialRecoverySetupSave)}
-          hasBottomSpacing={false}
-        />
-      </View>
-      <Text fontSize={12} appearance="secondaryText" style={spacings.mbSm}>
-        {t(`${REVIEW}.oneConfirmation`)}
-      </Text>
+        }
+        secondary={
+          <>
+            {clientRetry}
+            {back}
+          </>
+        }
+        note={t(`${REVIEW}.oneConfirmation`)}
+      />
     </View>
   )
 }

@@ -7,7 +7,9 @@ import React from 'react'
 
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
+import spacings from '@common/styles/spacings'
 import { browserErrorNameOf } from '@web/modules/social-recovery/shared/ceremony'
+import { MethodRow } from '@web/modules/social-recovery/shared/chrome'
 
 import { testNoteKeysOf } from './outcome'
 import type { TestResultLinesProps } from './types'
@@ -31,9 +33,11 @@ const TestResultLines = ({ row, lineKey, outcome, children }: TestResultLinesPro
         </Text>
       ))}
       {!!error && (
-        <Text testID={`${row}-test-error`} fontSize={12} appearance="secondaryText">
-          {error}
-        </Text>
+        <MethodRow quiet style={spacings.mtTy}>
+          <Text testID={`${row}-test-error`} fontSize={12} appearance="secondaryText">
+            {error}
+          </Text>
+        </MethodRow>
       )}
     </>
   )

@@ -68,6 +68,8 @@ export interface CardFaceProps {
   account: Address
   /** The password row, or null at the public level. */
   passwordRow: ReactNode
+  /** Lays each label beside its value and quiets the last line; the printed card keeps its own layout. */
+  onScreen?: boolean
   testID?: string
 }
 

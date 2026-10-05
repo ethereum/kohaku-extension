@@ -41,7 +41,7 @@ const GuardianAddressField = ({
       </Text>
       {!!resolved && !!address && (
         <View testID="guardian-resolved" style={spacings.mbSm}>
-          <Text fontSize={14} selectable>
+          <Text fontSize={14} weight="number_medium" selectable>
             {renderFullAddress(address)}
           </Text>
           {!!resolved.caveat && (

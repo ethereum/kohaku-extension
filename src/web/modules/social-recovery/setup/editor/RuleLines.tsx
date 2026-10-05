@@ -5,6 +5,8 @@ import Button from '@common/components/Button'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
+import flexbox from '@common/styles/utils/flexbox'
+import { SectionCard } from '@web/modules/social-recovery/shared/chrome'
 import { renderRuleLines, RULE_LINE_KEYS } from '@web/modules/social-recovery/shared/rule-lines'
 
 import type { RuleLinesProps } from './types'
@@ -18,10 +20,7 @@ const RuleLines = ({ ruleLines, checking, onMakeItAGroup, onAddSecondMethod }: R
   const { t } = useTranslation()
 
   return (
-    <View style={spacings.mbLg} testID="editor-rule-lines">
-      <Text fontSize={16} weight="semiBold" style={spacings.mbSm}>
-        {t('socialRecovery.shape.header')}
-      </Text>
+    <SectionCard tone="muted" label={t('socialRecovery.shape.header')} testID="editor-rule-lines">
       {ruleLines.map((line, index) => {
         const [text] = renderRuleLines([line], t)
         return (
@@ -30,7 +29,7 @@ const RuleLines = ({ ruleLines, checking, onMakeItAGroup, onAddSecondMethod }: R
             // from the path on every render, so a line's place is its identity.
             // eslint-disable-next-line react/no-array-index-key
             key={index}
-            style={spacings.mbSm}
+            style={index < ruleLines.length - 1 ? spacings.mbTy : undefined}
           >
             <Text fontSize={14} testID="editor-rule-line">
               {text}
@@ -38,29 +37,31 @@ const RuleLines = ({ ruleLines, checking, onMakeItAGroup, onAddSecondMethod }: R
             {line.key === RULE_LINE_KEYS.sizingRule && (
               <Button
                 testID="editor-make-it-a-group"
-                type="outline"
+                type="secondary"
                 size="small"
                 text={t('socialRecovery.editor.makeItAGroup')}
                 onPress={onMakeItAGroup}
                 disabled={checking}
                 hasBottomSpacing={false}
+                style={[flexbox.alignSelfStart, spacings.mtTy]}
               />
             )}
             {line.key === RULE_LINE_KEYS.secondMethodOffer && (
               <Button
                 testID="editor-add-second-method"
-                type="outline"
+                type="secondary"
                 size="small"
                 text={t('socialRecovery.editor.addSecondMethod')}
                 onPress={onAddSecondMethod}
                 disabled={checking}
                 hasBottomSpacing={false}
+                style={[flexbox.alignSelfStart, spacings.mtTy]}
               />
             )}
           </View>
         )
       })}
-    </View>
+    </SectionCard>
   )
 }
 

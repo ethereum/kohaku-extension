@@ -31,6 +31,9 @@ Object.assign(globalThis, { TextEncoder, TextDecoder })
 // React only runs effects and state updates inside act() when this flag is set.
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
+// The avatar loads its image files, which Jest cannot read.
+jest.mock('@common/components/Avatar', () => ({ __esModule: true, default: () => null }))
+
 const React = jest.requireActual<typeof import('react')>('react')
 const { createRoot } = jest.requireActual<typeof import('react-dom/client')>('react-dom/client')
 const { act } = jest.requireActual<typeof import('react-dom/test-utils')>('react-dom/test-utils')
@@ -49,6 +52,9 @@ const { getRuleLines, renderRuleLines } = jest.requireActual<
 const { renderShortAddress } = jest.requireActual<
   typeof import('@web/modules/social-recovery/shared/display')
 >('@web/modules/social-recovery/shared/display')
+const { ThemeContext } = jest.requireActual<typeof import('@common/contexts/themeContext')>(
+  '@common/contexts/themeContext'
+)
 const EditorView = jest.requireActual<
   typeof import('@web/modules/social-recovery/setup/editor/EditorView')
 >('@web/modules/social-recovery/setup/editor/EditorView').default
@@ -72,6 +78,7 @@ const {
   PASSKEY,
   PASSPORT,
   presetPath,
+  THEME_CONTEXT,
   twoGroupPath
 } = harness
 
@@ -178,12 +185,14 @@ const mount = async ({
   const render = async () => {
     await act(async () => {
       root.render(
-        <EditorView
-          records={records}
-          client={editorClient}
-          addressBook={BOOK}
-          navigate={navigate}
-        />
+        <ThemeContext.Provider value={THEME_CONTEXT}>
+          <EditorView
+            records={records}
+            client={editorClient}
+            addressBook={BOOK}
+            navigate={navigate}
+          />
+        </ThemeContext.Provider>
       )
     })
     await settle()
@@ -357,6 +366,7 @@ describe('the duplicate refusal on screen', () => {
     expect(picker).toContain(en.socialRecovery.editor.picker.alreadyInPath)
     await press('editor-picker-ecdsa-0')
     expect(byTestId('editor-refusal')?.textContent).toBe(en.socialRecovery.editor.duplicate)
+    expect(byTestId('editor-picker')?.contains(byTestId('editor-refusal'))).toBe(true)
     expect(storage.sets.length).toBe(writesBefore)
     expect(await stored()).toEqual({ draft: draftOf(presetPath()), path: presetPath() })
   })

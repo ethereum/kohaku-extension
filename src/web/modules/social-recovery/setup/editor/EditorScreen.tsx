@@ -3,16 +3,12 @@
  * account's setup records, with the recovery client that runs the path check.
  */
 import React, { useMemo } from 'react'
-import { ScrollView, View } from 'react-native'
 import { isAddress } from 'viem'
 
-import Panel from '@common/components/Panel'
 import Spinner from '@common/components/Spinner'
 import useNavigation from '@common/hooks/useNavigation'
-import spacings from '@common/styles/spacings'
-import flexbox from '@common/styles/utils/flexbox'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
-import Sidebar from '@web/modules/settings/components/Sidebar'
+import SetupChrome from '@web/modules/social-recovery/shared/chrome/SetupChrome'
 import {
   addressBookOf,
   CHAIN_IDS,
@@ -62,26 +58,19 @@ const EditorScreen = () => {
   }, [setup, status, retry])
 
   return (
-    <View style={[flexbox.flex1, flexbox.directionRow]}>
-      <Sidebar activeLink="account-recovery" />
-      <View style={[flexbox.flex1, spacings.pvLg, spacings.phLg]}>
-        <Panel>
-          <ScrollView>
-            {records ? (
-              <EditorView
-                key={account}
-                records={records}
-                client={client}
-                addressBook={addressBook}
-                navigate={navigate}
-              />
-            ) : (
-              <Spinner />
-            )}
-          </ScrollView>
-        </Panel>
-      </View>
-    </View>
+    <SetupChrome>
+      {records ? (
+        <EditorView
+          key={account}
+          records={records}
+          client={client}
+          addressBook={addressBook}
+          navigate={navigate}
+        />
+      ) : (
+        <Spinner />
+      )}
+    </SetupChrome>
   )
 }
 

@@ -1,8 +1,9 @@
 import React from 'react'
 
-import Text from '@common/components/Text'
+import Alert from '@common/components/Alert'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
+import { PageTitle } from '@web/modules/social-recovery/shared/chrome'
 
 import type { EditorHeaderProps } from './types'
 
@@ -16,17 +17,23 @@ const EditorHeader = ({ mode, refused }: EditorHeaderProps) => {
 
   return (
     <>
-      <Text fontSize={20} weight="semiBold" style={spacings.mbTy} testID="editor-title">
-        {t(`socialRecovery.editor.${heading}.title`)}
-      </Text>
-      <Text fontSize={14} appearance="secondaryText" style={spacings.mbLg}>
-        {t(`socialRecovery.editor.${heading}.lead`)}
-      </Text>
+      <PageTitle
+        title={t(`socialRecovery.editor.${heading}.title`)}
+        lead={t(`socialRecovery.editor.${heading}.lead`)}
+        titleTestID="editor-title"
+      />
 
       {refused && (
-        <Text fontSize={14} appearance="errorText" style={spacings.mbMd} testID="editor-refusal">
-          {t('socialRecovery.editor.duplicate')}
-        </Text>
+        <Alert
+          type="error"
+          size="sm"
+          style={spacings.mbLg}
+          text={
+            <Alert.Text size="sm" type="error" testID="editor-refusal">
+              {t('socialRecovery.editor.duplicate')}
+            </Alert.Text>
+          }
+        />
       )}
     </>
   )

@@ -1,11 +1,12 @@
-import React from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import React, { ReactNode } from 'react'
+import { ActivityIndicator } from 'react-native'
 
+import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
-import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
+import { ActionsRow } from '@web/modules/social-recovery/shared/chrome'
 
 import { renderClientRefusal, renderFinding } from './copy'
 import RefusalList from './RefusalList'
@@ -37,107 +38,117 @@ const EditorActions = ({
   const { t } = useTranslation()
   const refusalLines = clientRefusal ? renderClientRefusal(clientRefusal, t) : null
 
+  let primary: ReactNode = null
+  if (client.status === 'loading' || (client.status === 'ready' && checking)) {
+    primary = <ActivityIndicator testID="editor-spinner" />
+  } else if (client.status === 'update-the-wallet' || client.status === 'failed') {
+    primary = (
+      <Button
+        testID="editor-client-retry"
+        type="primary"
+        text={t('socialRecovery.writes.tryAgain')}
+        onPress={client.retry}
+        hasBottomSpacing={false}
+      />
+    )
+  } else if (client.status === 'ready' && checkFailed) {
+    primary = (
+      <Button
+        testID="editor-check-retry"
+        type="primary"
+        text={t('socialRecovery.writes.tryAgain')}
+        disabled={thresholdHeld}
+        onPress={onContinue}
+        hasBottomSpacing={false}
+      />
+    )
+  } else if (client.status === 'ready') {
+    primary = (
+      <Button
+        testID="editor-continue"
+        type="primary"
+        text={t('socialRecovery.actions.continue')}
+        disabled={methodCount === 0 || writeFailed || thresholdHeld}
+        onPress={onContinue}
+        hasBottomSpacing={false}
+      />
+    )
+  }
+
   return (
     <>
       {writeFailed && (
-        <View style={spacings.mbMd}>
-          <Text
-            fontSize={14}
-            appearance="errorText"
-            style={spacings.mbTy}
-            testID="editor-write-failed"
-          >
-            {t('socialRecovery.records.writeFailed')}
-          </Text>
+        <Alert
+          type="error"
+          size="sm"
+          style={spacings.mbMd}
+          text={
+            <Alert.Text size="sm" type="error" testID="editor-write-failed">
+              {t('socialRecovery.records.writeFailed')}
+            </Alert.Text>
+          }
+        >
           <Button
             testID="editor-write-retry"
-            type="outline"
+            type="secondary"
             size="small"
             text={t('socialRecovery.writes.tryAgain')}
             onPress={onRetryWrite}
             disabled={checking}
             hasBottomSpacing={false}
+            style={[flexbox.alignSelfStart, spacings.mtTy]}
           />
-        </View>
+        </Alert>
       )}
 
       <RefusalList refusals={walletRefusals} roles={roles} />
 
       {findings.length > 0 && (
-        <View style={spacings.mbMd} testID="editor-findings">
-          {findings.map((finding, index) => (
-            <Text
+        <Alert
+          type="error"
+          size="sm"
+          style={spacings.mbMd}
+          testID="editor-findings"
+          text={findings.map((finding, index) => (
+            <Alert.Text
               // Two findings can share a code and differ only in their values.
               // eslint-disable-next-line react/no-array-index-key
               key={index}
-              fontSize={14}
-              appearance="errorText"
-              style={spacings.mbTy}
+              size="sm"
+              type="error"
+              style={index < findings.length - 1 ? spacings.mbTy : undefined}
               testID="editor-finding"
             >
               {renderFinding(finding, t)}
-            </Text>
+            </Alert.Text>
           ))}
-        </View>
+        />
       )}
 
       {!!refusalLines && (
-        <View style={spacings.mbMd} testID="editor-client-refusal">
-          <Text fontSize={14} weight="semiBold" appearance="errorText" style={spacings.mbTy}>
-            {refusalLines.title}
-          </Text>
-          <Text fontSize={14} appearance="secondaryText">
-            {refusalLines.body}
-          </Text>
-        </View>
+        <Alert
+          type="error"
+          size="sm"
+          style={spacings.mbMd}
+          title={refusalLines.title}
+          text={refusalLines.body}
+          testID="editor-client-refusal"
+        />
       )}
 
-      {methodCount === 0 && (
-        <Text fontSize={12} appearance="secondaryText" style={spacings.mbSm}>
-          {t('socialRecovery.editor.continueUnlock')}
-        </Text>
-      )}
-      <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
-        <Button
-          testID="editor-back"
-          type="outline"
-          text={t('socialRecovery.ceremony.backAction')}
-          onPress={onBack}
-          hasBottomSpacing={false}
-        />
-        {client.status === 'loading' && <ActivityIndicator testID="editor-spinner" />}
-        {(client.status === 'update-the-wallet' || client.status === 'failed') && (
+      <ActionsRow
+        primary={primary}
+        secondary={
           <Button
-            testID="editor-client-retry"
+            testID="editor-back"
             type="outline"
-            text={t('socialRecovery.writes.tryAgain')}
-            onPress={client.retry}
+            text={t('socialRecovery.ceremony.backAction')}
+            onPress={onBack}
             hasBottomSpacing={false}
           />
-        )}
-        {client.status === 'ready' &&
-          (checking ? (
-            <ActivityIndicator testID="editor-spinner" />
-          ) : checkFailed ? (
-            <Button
-              testID="editor-check-retry"
-              type="outline"
-              text={t('socialRecovery.writes.tryAgain')}
-              disabled={thresholdHeld}
-              onPress={onContinue}
-              hasBottomSpacing={false}
-            />
-          ) : (
-            <Button
-              testID="editor-continue"
-              type="primary"
-              text={t('socialRecovery.actions.continue')}
-              disabled={methodCount === 0 || writeFailed || thresholdHeld}
-              onPress={onContinue}
-              hasBottomSpacing={false}
-            />
-          ))}
-      </View>
+        }
+        note={methodCount === 0 ? t('socialRecovery.editor.continueUnlock') : undefined}
+      />
     </>
   )
 }

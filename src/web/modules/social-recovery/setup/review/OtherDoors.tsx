@@ -1,9 +1,10 @@
 import React from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { ActivityIndicator } from 'react-native'
 
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
+import { MethodRow } from '@web/modules/social-recovery/shared/chrome'
 
 import type { OtherDoorsProps } from './types'
 
@@ -26,18 +27,18 @@ const OtherDoors = ({ doors }: OtherDoorsProps) => {
   )
 
   if (doors.kind === 'pending') {
-    return <ActivityIndicator testID="review-doors-pending" />
+    return <ActivityIndicator testID="review-doors-pending" style={spacings.mbTy} />
   }
   if (doors.kind === 'unreadable') {
-    return line(t(`${DOORS}.unreadable`), 'review-doors')
+    return <MethodRow quiet>{line(t(`${DOORS}.unreadable`), 'review-doors')}</MethodRow>
   }
   if (doors.kind === 'none') {
-    return line(t(`${DOORS}.none`), 'review-doors')
+    return <MethodRow quiet>{line(t(`${DOORS}.none`), 'review-doors')}</MethodRow>
   }
 
   const keys = t(`${DOORS}.keysBeside`, { count: doors.keys })
   return (
-    <View style={spacings.mbSm}>
+    <MethodRow quiet>
       {doors.kind === 'keys'
         ? line(t(`${DOORS}.line`, { doors: keys }), 'review-doors')
         : line(
@@ -61,7 +62,7 @@ const OtherDoors = ({ doors }: OtherDoorsProps) => {
         </>
       )}
       {line(t(`${DOORS}.untouched`), 'review-doors-untouched')}
-    </View>
+    </MethodRow>
   )
 }
 

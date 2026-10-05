@@ -6,10 +6,11 @@
 import React from 'react'
 import { ActivityIndicator, View } from 'react-native'
 
+import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
-import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
+import flexbox from '@common/styles/utils/flexbox'
 
 import type { ClientStateProps } from './types'
 
@@ -23,25 +24,33 @@ const ClientStateLine = ({ client }: ClientStateProps) => {
   }
   const refused = client.status === 'update-the-wallet'
   return (
-    <View testID={`enroll-client-${client.status}`} style={spacings.mbSm}>
-      <Text fontSize={14} weight="medium" appearance="errorText">
-        {refused
+    <Alert
+      testID={`enroll-client-${client.status}`}
+      type="error"
+      size="sm"
+      style={spacings.mbSm}
+      title={
+        refused
           ? t('socialRecovery.client.updateTheWalletTitle')
-          : t('socialRecovery.client.unavailableTitle')}
-      </Text>
-      <Text fontSize={14} appearance="secondaryText" style={spacings.mbTy}>
-        {refused
+          : t('socialRecovery.client.unavailableTitle')
+      }
+      text={
+        refused
           ? t('socialRecovery.client.updateTheWalletBody')
-          : t('socialRecovery.client.unavailableBody')}
-      </Text>
-      <Button
-        testID="enroll-client-retry"
-        type="outline"
-        text={t('socialRecovery.writes.tryAgain')}
-        onPress={client.retry}
-        hasBottomSpacing={false}
-      />
-    </View>
+          : t('socialRecovery.client.unavailableBody')
+      }
+    >
+      <View style={[flexbox.directionRow, spacings.mtTy]}>
+        <Button
+          testID="enroll-client-retry"
+          type="secondary"
+          size="small"
+          text={t('socialRecovery.writes.tryAgain')}
+          onPress={client.retry}
+          hasBottomSpacing={false}
+        />
+      </View>
+    </Alert>
   )
 }
 

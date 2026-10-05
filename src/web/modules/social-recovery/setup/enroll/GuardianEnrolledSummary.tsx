@@ -10,6 +10,7 @@ import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
+import { MethodRow, StatusChip } from '@web/modules/social-recovery/shared/chrome'
 import {
   renderChip,
   renderFullAddress,
@@ -30,22 +31,31 @@ const GuardianEnrolledSummary = ({
   const resolved = resolvedName ? renderResolvedName(resolvedName, 'besideAddressToCheck', t) : null
 
   return (
-    <View testID="guardian-enrolled" style={spacings.mbSm}>
-      <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mbTy]}>
-        <Avatar pfp={address} isSmart={false} size={32} displayTypeBadge={false} />
-        <Text testID="guardian-name" fontSize={16} weight="medium" style={spacings.mrSm}>
-          {resolved ? resolved.name : renderShortAddress(address)}
-        </Text>
-        <Text fontSize={12} appearance="secondaryText" style={spacings.mrSm}>
-          {renderNoun('guardian', t)}
-        </Text>
-        <Text testID="guardian-chip" fontSize={12} weight="medium" appearance="secondaryText">
-          {renderChip('method', TEST_CHIPS[enrollment.test], t)}
-        </Text>
+    <MethodRow testID="guardian-enrolled">
+      <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
+        <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.flex1, spacings.mrSm]}>
+          <Avatar pfp={address} isSmart={false} size={24} displayTypeBadge={false} />
+          <Text testID="guardian-name" fontSize={14} weight="medium" style={spacings.mrSm}>
+            {resolved ? resolved.name : renderShortAddress(address)}
+          </Text>
+          <Text fontSize={12} appearance="secondaryText">
+            {renderNoun('guardian', t)}
+          </Text>
+        </View>
+        <StatusChip
+          testID="guardian-chip"
+          text={renderChip('method', TEST_CHIPS[enrollment.test], t)}
+        />
       </View>
       {!!resolved && (
         <>
-          <Text testID="guardian-full-address" fontSize={14} selectable>
+          <Text
+            testID="guardian-full-address"
+            fontSize={14}
+            weight="number_medium"
+            selectable
+            style={spacings.mtTy}
+          >
             {renderFullAddress(address)}
           </Text>
           {!!resolved.caveat && (
@@ -55,7 +65,7 @@ const GuardianEnrolledSummary = ({
           )}
         </>
       )}
-    </View>
+    </MethodRow>
   )
 }
 

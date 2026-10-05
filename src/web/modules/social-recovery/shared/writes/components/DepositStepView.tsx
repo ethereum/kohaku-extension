@@ -102,7 +102,7 @@ const DepositStepView = ({
   if (variant === 'blocker') {
     return (
       <View testID={testID}>
-        <Text fontSize={16} weight="semiBold" style={spacings.mbSm}>
+        <Text fontSize={16} weight="medium" style={spacings.mbSm}>
           {rendered.blocker.title}
         </Text>
         <Lines lines={[rendered.blocker.line]} />
@@ -114,18 +114,20 @@ const DepositStepView = ({
 
   return (
     <View testID={testID}>
-      {!!rendered.eyebrow && (
-        <Text fontSize={12} weight="medium" appearance="warningText" style={spacings.mbTy}>
-          {rendered.eyebrow}
+      <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap, spacings.mbSm]}>
+        {!!rendered.eyebrow && (
+          <Text fontSize={12} weight="semiBold" appearance="warningText" style={spacings.mrSm}>
+            {rendered.eyebrow}
+          </Text>
+        )}
+        <Text fontSize={16} weight="medium">
+          {rendered.title}
         </Text>
-      )}
-      <Text fontSize={16} weight="semiBold" style={spacings.mbSm}>
-        {rendered.title}
-      </Text>
+      </View>
       <Lines lines={rendered.lead} />
       {keyBlock}
       {rendered.routes.map((route) => (
-        <View key={route.kind} style={spacings.mbSm}>
+        <View key={route.kind} style={spacings.mbTy}>
           <Text fontSize={14} weight="medium">
             {route.line}
           </Text>

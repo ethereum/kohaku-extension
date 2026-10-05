@@ -26,6 +26,9 @@ Object.assign(globalThis, { TextEncoder, TextDecoder })
 // React only runs effects and state updates inside act() when this flag is set.
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
+// The avatar loads its image files, which Jest cannot read.
+jest.mock('@common/components/Avatar', () => ({ __esModule: true, default: () => null }))
+
 const React = jest.requireActual<typeof import('react')>('react')
 const { createRoot } = jest.requireActual<typeof import('react-dom/client')>('react-dom/client')
 const { act } = jest.requireActual<typeof import('react-dom/test-utils')>('react-dom/test-utils')
@@ -38,13 +41,16 @@ const i18n = jest.requireActual<typeof import('@common/config/localization')>(
 const { WEB_ROUTES } = jest.requireActual<typeof import('@common/modules/router/constants/common')>(
   '@common/modules/router/constants/common'
 )
+const { ThemeContext } = jest.requireActual<typeof import('@common/contexts/themeContext')>(
+  '@common/contexts/themeContext'
+)
 const EditorView = jest.requireActual<
   typeof import('@web/modules/social-recovery/setup/editor/EditorView')
 >('@web/modules/social-recovery/setup/editor/EditorView').default
 const { emptySlotOf } = jest.requireActual<
   typeof import('@web/modules/social-recovery/setup/editor/operations')
 >('@web/modules/social-recovery/setup/editor/operations')
-const { AADHAAR, ALICE, BOB, BOOK, makeRecords, PASSKEY, PASSPORT, presetPath } =
+const { AADHAAR, ALICE, BOB, BOOK, makeRecords, PASSKEY, PASSPORT, presetPath, THEME_CONTEXT } =
   jest.requireActual<typeof import('@web/modules/social-recovery/setup/editor/__tests__/harness')>(
     '@web/modules/social-recovery/setup/editor/__tests__/harness'
   )
@@ -135,12 +141,14 @@ const mount = async ({
   const navigate = jest.fn()
   await act(async () => {
     root.render(
-      <EditorView
-        records={records}
-        client={{ status: 'ready', setup: { validateSetup } }}
-        addressBook={BOOK}
-        navigate={navigate}
-      />
+      <ThemeContext.Provider value={THEME_CONTEXT}>
+        <EditorView
+          records={records}
+          client={{ status: 'ready', setup: { validateSetup } }}
+          addressBook={BOOK}
+          navigate={navigate}
+        />
+      </ThemeContext.Provider>
     )
   })
   await settle()

@@ -6,17 +6,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { ActivityIndicator, View } from 'react-native'
 
+import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
-import flexbox from '@common/styles/utils/flexbox'
 import {
   addressBookOf,
   recoveryChainOf,
   WALLET_RECOVERY_CHAIN
 } from '@web/modules/social-recovery/shared/client'
+import { ActionsRow } from '@web/modules/social-recovery/shared/chrome'
 import type { Enrollment } from '@web/modules/social-recovery/shared/records'
 
 import ClientStateLine from './ClientStateLine'
@@ -102,25 +103,41 @@ const EnrollView = ({
   if (load.status === 'failed') {
     return (
       <View testID="enroll-load-failed">
-        <Text fontSize={14} appearance="errorText" style={spacings.mbSm}>
-          {t('socialRecovery.records.loadFailed')}
-        </Text>
-        <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-          <Button
-            testID="enroll-load-retry"
-            type="outline"
-            text={t('socialRecovery.writes.tryAgain')}
-            onPress={() => setAttempt((n) => n + 1)}
-            hasBottomSpacing={false}
-            style={spacings.mrSm}
-          />
-          {back}
-        </View>
+        <Alert
+          type="error"
+          size="sm"
+          text={
+            <Alert.Text size="sm" type="error">
+              {t('socialRecovery.records.loadFailed')}
+            </Alert.Text>
+          }
+        />
+        <ActionsRow
+          primary={
+            <Button
+              testID="enroll-load-retry"
+              type="primary"
+              text={t('socialRecovery.writes.tryAgain')}
+              onPress={() => setAttempt((n) => n + 1)}
+              hasBottomSpacing={false}
+            />
+          }
+          secondary={back}
+        />
       </View>
     )
   }
 
   const enrollment = load.status === 'enrolled' ? load.enrollment : null
+  let note: string | undefined
+  let noteTestID: string | undefined
+  if (enrollment) {
+    note = t('socialRecovery.enroll.saveWithoutTest')
+    noteTestID = 'enroll-save-without-test'
+  } else if (search.kind === 'passkey') {
+    note = t('socialRecovery.enroll.passkey.createFirst')
+    noteTestID = 'enroll-create-first'
+  }
   const row = {
     records,
     setup,
@@ -139,31 +156,25 @@ const EnrollView = ({
     <View testID="enroll-screen">
       {search.kind === 'passkey' ? <PasskeyRow {...row} /> : <GuardianRow {...row} />}
       <ClientStateLine client={client} />
-      {!enrollment && search.kind === 'passkey' && (
-        <Text testID="enroll-create-first" fontSize={12} appearance="secondaryText">
-          {t('socialRecovery.enroll.passkey.createFirst')}
-        </Text>
-      )}
-      <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}>
-        {back}
-        <Button
-          testID="enroll-save"
-          type="primary"
-          text={
-            enrollment?.test === 'failed'
-              ? t('socialRecovery.actions.saveAnyway')
-              : t('socialRecovery.actions.saveAndContinue')
-          }
-          disabled={!enrollment}
-          onPress={toEditor}
-          hasBottomSpacing={false}
-        />
-      </View>
-      {!!enrollment && (
-        <Text testID="enroll-save-without-test" fontSize={12} appearance="secondaryText">
-          {t('socialRecovery.enroll.saveWithoutTest')}
-        </Text>
-      )}
+      <ActionsRow
+        primary={
+          <Button
+            testID="enroll-save"
+            type="primary"
+            text={
+              enrollment?.test === 'failed'
+                ? t('socialRecovery.actions.saveAnyway')
+                : t('socialRecovery.actions.saveAndContinue')
+            }
+            disabled={!enrollment}
+            onPress={toEditor}
+            hasBottomSpacing={false}
+          />
+        }
+        secondary={back}
+        note={note}
+        noteTestID={noteTestID}
+      />
     </View>
   )
 }

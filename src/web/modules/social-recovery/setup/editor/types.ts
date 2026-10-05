@@ -120,6 +120,11 @@ export interface MemberPickerProps {
   onClose: () => void
   /** Holds every pick while the path check runs. */
   disabled?: boolean
+  /**
+   * Whether the last edit (a pick, a move to another group or a change to
+   * required) was refused because the path already holds the credential.
+   */
+  refused?: boolean
 }
 
 export interface CredentialRowProps {

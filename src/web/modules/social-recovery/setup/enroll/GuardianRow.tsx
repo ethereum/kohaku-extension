@@ -9,11 +9,14 @@
 import React from 'react'
 import { View } from 'react-native'
 
+import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
+import flexbox from '@common/styles/utils/flexbox'
 import { noteKeyOfOutcome } from '@web/modules/social-recovery/shared/ceremony'
+import { PageTitle, SectionCard } from '@web/modules/social-recovery/shared/chrome'
 
 import GuardianAddressField from './GuardianAddressField'
 import GuardianChecksBlock from './GuardianChecksBlock'
@@ -32,100 +35,120 @@ const GuardianRow = (props: RowProps) => {
 
   return (
     <View testID="enroll-guardian">
-      <Text fontSize={20} weight="semiBold" style={spacings.mbTy}>
-        {t('socialRecovery.enroll.guardian.title')}
-      </Text>
-      <Text fontSize={14} style={spacings.mbSm}>
-        {t('socialRecovery.enroll.guardian.lead')}
-      </Text>
-      <Text testID="guardian-publication" fontSize={14} style={spacings.mbSm}>
-        {t('socialRecovery.disclosures.guardianPublication')}
-      </Text>
+      <PageTitle
+        title={t('socialRecovery.enroll.guardian.title')}
+        lead={t('socialRecovery.enroll.guardian.lead')}
+      />
+      <SectionCard>
+        <Text testID="guardian-publication" fontSize={14} style={spacings.mbSm}>
+          {t('socialRecovery.disclosures.guardianPublication')}
+        </Text>
 
-      {!enrollment && (
-        <GuardianAddressField
-          value={row.value}
-          setValue={row.setValue}
-          paste={row.paste}
-          canPaste={!!deps.readClipboard}
-          nameCheck={row.nameCheck}
-          address={address}
-        />
-      )}
-
-      {!!enrollment && !!address && (
-        <GuardianEnrolledSummary
-          enrollment={enrollment}
-          address={address}
-          resolvedName={row.resolvedName}
-        />
-      )}
-
-      {!!address && (
-        <View testID="guardian-lines" style={spacings.mbSm}>
-          <Text testID="guardian-smart-account" fontSize={14} style={spacings.mbTy}>
-            {t('socialRecovery.disclosures.smartAccount')}
-          </Text>
-          <Text testID="guardian-call-back" fontSize={14} style={spacings.mbTy}>
-            {t('socialRecovery.enroll.guardian.callBack')}
-          </Text>
-          <Text testID="guardian-owner-answer" fontSize={14}>
-            {t('socialRecovery.enroll.guardian.ownerAnswer')}
-          </Text>
-        </View>
-      )}
-
-      {row.checkLines.length > 0 && <GuardianChecksBlock lines={row.checkLines} />}
-
-      {!enrollment && (
-        <View style={spacings.mbSm}>
-          {!!addNote && (
-            <Text testID="guardian-add-note" fontSize={14} appearance="errorText">
-              {t(addNote)}
-            </Text>
-          )}
-          <Button
-            testID="guardian-add"
-            type="primary"
-            text={t('socialRecovery.actions.add')}
-            disabled={!address || client.status !== 'ready' || row.busy}
-            onPress={row.add}
-            hasBottomSpacing={false}
+        {!enrollment && (
+          <GuardianAddressField
+            value={row.value}
+            setValue={row.setValue}
+            paste={row.paste}
+            canPaste={!!deps.readClipboard}
+            nameCheck={row.nameCheck}
+            address={address}
           />
-        </View>
-      )}
+        )}
 
-      {!!enrollment && (
-        <GuardianTestBlock
-          enrollment={enrollment}
-          testOutcome={row.testOutcome}
-          busy={row.busy}
-          waiting={row.waiting}
-          canTestOffline={!!row.heldKey}
-          runTest={row.runTest}
-          withdraw={row.withdraw}
-        />
-      )}
+        {!!enrollment && !!address && (
+          <GuardianEnrolledSummary
+            enrollment={enrollment}
+            address={address}
+            resolvedName={row.resolvedName}
+          />
+        )}
 
-      {!!enrollment && row.offline && !!challenge && (
-        <OfflineBlock
-          key={challenge.keyTest.message.salt}
-          challenge={challenge}
-          busy={row.busy}
-          onCheck={(signature) => row.check(challenge, signature)}
-          saveFile={deps.saveFile}
-        />
-      )}
+        {!!address && (
+          <View testID="guardian-lines" style={spacings.mbSm}>
+            <Text testID="guardian-smart-account" fontSize={14} style={spacings.mbTy}>
+              {t('socialRecovery.disclosures.smartAccount')}
+            </Text>
+            <Text testID="guardian-call-back" fontSize={14} style={spacings.mbTy}>
+              {t('socialRecovery.enroll.guardian.callBack')}
+            </Text>
+            <Text testID="guardian-owner-answer" fontSize={14}>
+              {t('socialRecovery.enroll.guardian.ownerAnswer')}
+            </Text>
+          </View>
+        )}
+
+        {row.checkLines.length > 0 && <GuardianChecksBlock lines={row.checkLines} />}
+
+        {!enrollment && (
+          <View style={flexbox.alignStart}>
+            {!!addNote && (
+              <Text
+                testID="guardian-add-note"
+                fontSize={14}
+                appearance="errorText"
+                style={spacings.mbTy}
+              >
+                {t(addNote)}
+              </Text>
+            )}
+            <Button
+              testID="guardian-add"
+              type="primary"
+              size="small"
+              text={t('socialRecovery.actions.add')}
+              disabled={!address || client.status !== 'ready' || row.busy}
+              onPress={row.add}
+              hasBottomSpacing={false}
+            />
+          </View>
+        )}
+
+        {!!enrollment && (
+          <GuardianTestBlock
+            enrollment={enrollment}
+            testOutcome={row.testOutcome}
+            busy={row.busy}
+            waiting={row.waiting}
+            canTestOffline={!!row.heldKey}
+            runTest={row.runTest}
+            withdraw={row.withdraw}
+          />
+        )}
+
+        {!!enrollment && row.offline && !!challenge && (
+          <OfflineBlock
+            key={challenge.keyTest.message.salt}
+            challenge={challenge}
+            busy={row.busy}
+            onCheck={(signature) => row.check(challenge, signature)}
+            saveFile={deps.saveFile}
+          />
+        )}
+      </SectionCard>
 
       {row.duplicate && (
-        <Text testID="guardian-duplicate" fontSize={14} appearance="errorText">
-          {t('socialRecovery.editor.duplicate')}
-        </Text>
+        <Alert
+          type="error"
+          size="sm"
+          style={spacings.mbSm}
+          text={
+            <Alert.Text size="sm" type="error" testID="guardian-duplicate">
+              {t('socialRecovery.editor.duplicate')}
+            </Alert.Text>
+          }
+        />
       )}
       {row.writeFailed && (
-        <Text testID="enroll-write-failed" fontSize={14} appearance="errorText">
-          {t('socialRecovery.records.writeFailed')}
-        </Text>
+        <Alert
+          type="error"
+          size="sm"
+          style={spacings.mbSm}
+          text={
+            <Alert.Text size="sm" type="error" testID="enroll-write-failed">
+              {t('socialRecovery.records.writeFailed')}
+            </Alert.Text>
+          }
+        />
       )}
     </View>
   )

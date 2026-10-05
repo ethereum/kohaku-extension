@@ -2,6 +2,9 @@ import type { Root as ReactRoot } from 'react-dom/client'
 import { encodeAbiParameters } from 'viem'
 
 import { parse, stringify } from '@ambire-common/libs/richJson/richJson'
+import type { ThemeContextReturnType } from '@common/contexts/themeContext'
+import themeConfig, { THEME_TYPES } from '@common/styles/themeConfig'
+import type { ThemeProps } from '@common/styles/themeConfig'
 import type {
   Address,
   Clause,
@@ -21,6 +24,16 @@ import { createWalletRecords } from '@web/modules/social-recovery/shared/records
 import { kindOf, sameCredential } from '@web/modules/social-recovery/setup/editor/operations'
 
 export const BOOK = addressBookOf('sepolia')
+
+/** The light theme, which the wallet's buttons read their hover colours from. */
+export const THEME_CONTEXT: ThemeContextReturnType = {
+  theme: Object.fromEntries(
+    Object.entries(themeConfig).map(([name, byType]) => [name, byType[THEME_TYPES.LIGHT]])
+  ) as ThemeProps,
+  themeType: THEME_TYPES.LIGHT,
+  selectedThemeType: THEME_TYPES.LIGHT,
+  setThemeType: () => {}
+}
 
 export const CHAIN_ID = 11155111
 export const ACCOUNT: Address = '0x1111111111111111111111111111111111111111'

@@ -11,9 +11,9 @@ import InputPassword from '@common/components/InputPassword'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
-import flexbox from '@common/styles/utils/flexbox'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
+import { ActionsRow } from '@web/modules/social-recovery/shared/chrome'
 import { renderPasswordName } from '@web/modules/social-recovery/shared/display'
 
 import type { PasswordAskAnswer } from './types'
@@ -96,21 +96,27 @@ const ExtensionPasswordAsk = ({ onConfirmed, onCancel }: PasswordAskAnswer) => {
         onSubmitEditing={submit}
         error={failed ? t('socialRecovery.card.wrongPassword') : undefined}
       />
-      <View style={flexbox.directionRow}>
-        <Button
-          testID="card-password-cancel"
-          type="secondary"
-          text={t('socialRecovery.ceremony.backAction')}
-          onPress={cancel}
-          style={spacings.mrSm}
-        />
-        <Button
-          testID="card-password-confirm"
-          text={t('socialRecovery.actions.continue')}
-          disabled={!password || busy}
-          onPress={submit}
-        />
-      </View>
+      <ActionsRow
+        primary={
+          <Button
+            testID="card-password-confirm"
+            type="primary"
+            hasBottomSpacing={false}
+            text={t('socialRecovery.actions.continue')}
+            disabled={!password || busy}
+            onPress={submit}
+          />
+        }
+        secondary={
+          <Button
+            testID="card-password-cancel"
+            type="outline"
+            hasBottomSpacing={false}
+            text={t('socialRecovery.ceremony.backAction')}
+            onPress={cancel}
+          />
+        }
+      />
     </View>
   )
 }

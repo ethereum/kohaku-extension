@@ -11,17 +11,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, View } from 'react-native'
 
+import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
-import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
-import spacings from '@common/styles/spacings'
 import type {
   Clause,
   Credential,
   Finding,
   SetupDraft
 } from '@web/modules/social-recovery/sdk-interfaces'
+import { ActionsRow } from '@web/modules/social-recovery/shared/chrome'
 import { defaultSetupDraft } from '@web/modules/social-recovery/shared/records'
 import type { SlotKind } from '@web/modules/social-recovery/shared/records'
 import { getRuleLines } from '@web/modules/social-recovery/shared/rule-lines'
@@ -256,8 +256,10 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
     commit(setThreshold(current(), group, threshold), currentRoles(), rest)
   }
 
-  const onMove = (row: number, group: number) =>
-    apply(moveToGroup(current(), row, group), () => withoutRole(currentRoles(), row))
+  const onMove = (row: number, group: number) => {
+    setPicker(null)
+    return apply(moveToGroup(current(), row, group), () => withoutRole(currentRoles(), row))
+  }
 
   // Every edit holds while the check runs, so the check runs on the draft
   // the holder goes on with.
@@ -327,20 +329,25 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
     }
     return (
       <View testID="editor">
-        <Text
-          fontSize={14}
-          appearance="errorText"
-          style={spacings.mbMd}
-          testID="editor-load-failed"
-        >
-          {t('socialRecovery.records.loadFailed')}
-        </Text>
-        <Button
-          testID="editor-load-retry"
-          type="outline"
-          text={t('socialRecovery.writes.tryAgain')}
-          onPress={retryLoad}
-          hasBottomSpacing={false}
+        <Alert
+          type="error"
+          size="sm"
+          text={
+            <Alert.Text size="sm" type="error" testID="editor-load-failed">
+              {t('socialRecovery.records.loadFailed')}
+            </Alert.Text>
+          }
+        />
+        <ActionsRow
+          primary={
+            <Button
+              testID="editor-load-retry"
+              type="primary"
+              text={t('socialRecovery.writes.tryAgain')}
+              onPress={retryLoad}
+              hasBottomSpacing={false}
+            />
+          }
         />
       </View>
     )
@@ -371,7 +378,7 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
 
   return (
     <View testID="editor">
-      <EditorHeader mode={load.mode} refused={refused} />
+      <EditorHeader mode={load.mode} refused={refused && !picker} />
 
       <RequiredRows
         rows={rows}
@@ -398,9 +405,10 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
         checking={checking}
         onOpenSlot={openSlot}
         onThresholdText={onThresholdText}
-        onMakeRequired={(index, member) =>
+        onMakeRequired={(index, member) => {
+          setPicker(null)
           apply(makeRequired(current(), index, member), () => [...currentRoles(), 'required'])
-        }
+        }}
         onRemoveMember={(index, member) =>
           commit(removeMember(current(), index, member), currentRoles())
         }
@@ -420,6 +428,7 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
           onEnrollNew={onEnrollNew}
           onClose={closePicker}
           disabled={checking}
+          refused={refused}
         />
       )}
 

@@ -11,8 +11,8 @@ import Input from '@common/components/Input'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
-import flexbox from '@common/styles/utils/flexbox'
 import { browserErrorNameOf, noteKeyOfOutcome } from '@web/modules/social-recovery/shared/ceremony'
+import { ActionsRow, SectionCard } from '@web/modules/social-recovery/shared/chrome'
 import { NAME_MAX_LENGTH } from '@web/modules/social-recovery/shared/display'
 
 import { clipName } from './passkey'
@@ -41,57 +41,71 @@ const PasskeyCreateBlock = ({
         maxLength={NAME_MAX_LENGTH}
         onChangeText={(text: string) => setName(clipName(text))}
       />
-      <Text testID="passkey-none-yet" fontSize={14} weight="medium" style={spacings.mbTy}>
-        {t('socialRecovery.enroll.passkey.noneYet')}
-      </Text>
-      {!!enrollNote && (
-        <Text testID="passkey-enroll-note" fontSize={14} appearance="errorText">
-          {t(enrollNote)}
+      <SectionCard tone="muted" spacing={served ? 'item' : 'none'}>
+        <Text testID="passkey-none-yet" fontSize={16} weight="medium" style={spacings.mbTy}>
+          {t('socialRecovery.enroll.passkey.noneYet')}
         </Text>
-      )}
-      {!!enrollError && (
-        <Text testID="passkey-enroll-error" fontSize={12} appearance="secondaryText">
-          {enrollError}
-        </Text>
-      )}
-      {enrollRetry && served && (
-        <Button
-          testID="passkey-try-again"
-          type="outline"
-          text={t('socialRecovery.ceremony.tryAgainAction')}
-          disabled={busy}
-          onPress={() => create(phone)}
-          hasBottomSpacing={false}
-        />
-      )}
+        {!!enrollNote && (
+          <Text testID="passkey-enroll-note" fontSize={14} appearance="errorText">
+            {t(enrollNote)}
+          </Text>
+        )}
+        {!!enrollError && (
+          <Text testID="passkey-enroll-error" fontSize={12} appearance="secondaryText">
+            {enrollError}
+          </Text>
+        )}
+        {enrollRetry && served && (
+          <ActionsRow
+            primary={
+              <Button
+                testID="passkey-try-again"
+                type="secondary"
+                size="small"
+                text={t('socialRecovery.ceremony.tryAgainAction')}
+                disabled={busy}
+                onPress={() => create(phone)}
+                hasBottomSpacing={false}
+              />
+            }
+          />
+        )}
+        {served && (
+          <>
+            <Text fontSize={14} style={[spacings.mtSm, spacings.mbTy]}>
+              {t('socialRecovery.enroll.passkey.createLine')}
+            </Text>
+            <ActionsRow
+              primary={
+                <Button
+                  testID="passkey-create-here"
+                  type="primary"
+                  text={t('socialRecovery.enroll.passkey.create')}
+                  disabled={busy}
+                  onPress={() => create(false)}
+                  hasBottomSpacing={false}
+                />
+              }
+              secondary={
+                <Button
+                  testID="passkey-create-on-phone"
+                  type="ghost"
+                  size="small"
+                  text={t('socialRecovery.enroll.passkey.createOnPhoneInstead')}
+                  disabled={busy}
+                  onPress={() => create(true)}
+                  hasBottomSpacing={false}
+                  textUnderline
+                />
+              }
+            />
+          </>
+        )}
+      </SectionCard>
       {served && (
-        <>
-          <Text fontSize={14} appearance="secondaryText" style={spacings.mbSm}>
-            {t('socialRecovery.enroll.passkey.createLine')}
-          </Text>
-          <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mbSm]}>
-            <Button
-              testID="passkey-create-here"
-              type="primary"
-              text={t('socialRecovery.enroll.passkey.create')}
-              disabled={busy}
-              onPress={() => create(false)}
-              hasBottomSpacing={false}
-              style={spacings.mrSm}
-            />
-            <Button
-              testID="passkey-create-on-phone"
-              type="ghost"
-              text={t('socialRecovery.enroll.passkey.createOnPhoneInstead')}
-              disabled={busy}
-              onPress={() => create(true)}
-              hasBottomSpacing={false}
-            />
-          </View>
-          <Text fontSize={12} appearance="secondaryText">
-            {t('socialRecovery.enroll.passkey.testOffered')}
-          </Text>
-        </>
+        <Text fontSize={12} appearance="secondaryText">
+          {t('socialRecovery.enroll.passkey.testOffered')}
+        </Text>
       )}
     </View>
   )

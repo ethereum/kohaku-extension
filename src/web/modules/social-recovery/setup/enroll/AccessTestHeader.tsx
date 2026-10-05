@@ -15,7 +15,7 @@ const AccessTestHeader = () => {
 
   return (
     <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mbTy]}>
-      <Text fontSize={14} weight="semiBold" style={spacings.mrSm}>
+      <Text fontSize={14} weight="medium" style={spacings.mrSm}>
         {t('socialRecovery.enroll.accessTest')}
       </Text>
       <Text fontSize={12} appearance="secondaryText">

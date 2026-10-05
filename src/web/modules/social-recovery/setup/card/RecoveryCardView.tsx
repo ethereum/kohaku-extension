@@ -11,14 +11,21 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, View } from 'react-native'
 
+import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
+import {
+  ActionsRow,
+  PageTitle,
+  SectionCard,
+  StatusChip
+} from '@web/modules/social-recovery/shared/chrome'
 import { renderHiddenValue, renderPasswordName } from '@web/modules/social-recovery/shared/display'
 
-import CardFace from './CardFace'
+import CardFace, { CARD_LABEL_COLUMN } from './CardFace'
 import { cardFileOf } from './file'
 import PrintCardView from './PrintCardView'
 import type { CarrierAction, RecoveryCard, RecoveryCardViewProps } from './types'
@@ -99,60 +106,68 @@ const RecoveryCardView = ({
   )
 
   const passwordGoneRow = (
-    <View testID="card-password" style={spacings.mbSm}>
-      <Text fontSize={12} appearance="secondaryText" style={spacings.mbTy}>
+    <View testID="card-password" style={[flexbox.directionRow, flexbox.alignStart, spacings.mbSm]}>
+      <Text
+        fontSize={12}
+        weight="semiBold"
+        appearance="secondaryText"
+        style={[CARD_LABEL_COLUMN, spacings.mtSm]}
+      >
         {renderPasswordName('recoveryPassword', t)}
       </Text>
-      <Text testID="card-password-gone" fontSize={14} style={spacings.mbSm}>
-        {t('socialRecovery.card.passwordGone')}
-      </Text>
-      <Button
-        testID="card-password-gone-action"
-        type="secondary"
-        size="small"
-        hasBottomSpacing={false}
-        text={t('socialRecovery.card.passwordGoneAction')}
-        onPress={onSetPasswordAgain}
-      />
+      <View style={flexbox.flex1}>
+        <Alert
+          type="warning"
+          size="sm"
+          text={
+            <Alert.Text testID="card-password-gone" size="sm" type="warning">
+              {t('socialRecovery.card.passwordGone')}
+            </Alert.Text>
+          }
+        >
+          <Button
+            testID="card-password-gone-action"
+            type="secondary"
+            size="small"
+            hasBottomSpacing={false}
+            text={t('socialRecovery.card.passwordGoneAction')}
+            onPress={onSetPasswordAgain}
+            style={[flexbox.alignSelfStart, spacings.mtSm]}
+          />
+        </Alert>
+      </View>
     </View>
   )
 
   const heldPasswordRow =
     level === 'hidden' && password ? (
-      <View testID="card-password" style={spacings.mbSm}>
-        <Text fontSize={12} appearance="secondaryText" style={spacings.mbTy}>
+      <View
+        testID="card-password"
+        style={[flexbox.directionRow, flexbox.alignCenter, spacings.mbSm]}
+      >
+        <Text fontSize={12} weight="semiBold" appearance="secondaryText" style={CARD_LABEL_COLUMN}>
           {renderPasswordName('recoveryPassword', t)}
         </Text>
-        <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-          <Text
-            testID="card-password-value"
-            fontSize={14}
-            weight="medium"
-            style={[flexbox.flex1, spacings.mrSm]}
-            selectable={revealed}
-          >
-            {revealed ? password : hidden.dots}
-          </Text>
-          {!revealed && (
-            <Text
-              testID="card-password-chip"
-              fontSize={12}
-              weight="medium"
-              appearance="secondaryText"
-              style={spacings.mrSm}
-            >
-              {hidden.chip}
-            </Text>
-          )}
-          <Button
-            testID="card-reveal"
-            type="secondary"
-            size="small"
-            hasBottomSpacing={false}
-            text={revealed ? t('socialRecovery.card.hide') : t('socialRecovery.card.reveal')}
-            onPress={() => setRevealed((shown) => !shown)}
-          />
-        </View>
+        <Text
+          testID="card-password-value"
+          fontSize={14}
+          weight="medium"
+          style={[flexbox.flex1, spacings.mrSm]}
+          selectable={revealed}
+        >
+          {revealed ? password : hidden.dots}
+        </Text>
+        {!revealed && (
+          <StatusChip testID="card-password-chip" text={hidden.chip} style={spacings.mrSm} />
+        )}
+        <Button
+          testID="card-reveal"
+          type="secondary"
+          size="small"
+          hasBottomSpacing={false}
+          text={revealed ? t('socialRecovery.card.hide') : t('socialRecovery.card.reveal')}
+          onPress={() => setRevealed((shown) => !shown)}
+        />
       </View>
     ) : null
 
@@ -160,92 +175,89 @@ const RecoveryCardView = ({
 
   return (
     <View testID="card-screen">
-      <Text fontSize={20} weight="medium" style={spacings.mbSm}>
-        {t('socialRecovery.card.title')}
-      </Text>
-      <Text fontSize={14} style={spacings.mbLg}>
-        {t('socialRecovery.card.lead')}
-      </Text>
+      <PageTitle title={t('socialRecovery.card.title')} lead={t('socialRecovery.card.lead')} />
       <View style={spacings.mbLg}>
-        <CardFace account={account} passwordRow={passwordRow} testID="recovery-card" />
+        <CardFace account={account} passwordRow={passwordRow} onScreen testID="recovery-card" />
       </View>
-      {asking ? (
-        <View testID="card-password-ask" style={spacings.mbSm}>
-          {renderPasswordAsk(answer)}
-        </View>
-      ) : (
-        <>
-          <View style={[flexbox.directionRow, flexbox.wrap, spacings.mbTy]}>
-            <Button
-              testID="card-download"
-              text={t('socialRecovery.card.downloadPdf')}
-              disabled={passwordMissing}
-              onPress={() => press('download')}
-              style={spacings.mrSm}
-            />
-            <Button
-              testID="card-print"
-              type="secondary"
-              text={t('socialRecovery.card.print')}
-              disabled={passwordMissing}
-              onPress={() => press('print')}
-              style={spacings.mrSm}
-            />
-            <Button
-              testID="card-send"
-              type="secondary"
-              text={t('socialRecovery.card.sendToDevice')}
-              disabled={passwordMissing}
-              onPress={() => press('sendToDevice')}
-            />
-          </View>
-          <Text fontSize={12} appearance="secondaryText" style={spacings.mbLg}>
-            {t('socialRecovery.card.carrierAsks')}
-          </Text>
-        </>
-      )}
-      <Pressable
-        testID="card-why"
-        accessibilityRole="button"
-        accessibilityState={{ expanded: whyOpen }}
-        onPress={() => setWhyOpen((open) => !open)}
-        style={spacings.mbTy}
-      >
-        <Text fontSize={14} weight="medium" appearance="primary">
-          {t('socialRecovery.card.whyNotOnCard')}
-        </Text>
-      </Pressable>
-      {whyOpen && (
-        <Text testID="card-why-body" fontSize={14} style={spacings.mbSm}>
-          {t('socialRecovery.card.whyNotOnCardBody')}
-        </Text>
-      )}
-      <View testID="card-warns" style={spacings.mtLg}>
-        <Text
-          fontSize={12}
-          weight="semiBold"
-          appearance="secondaryText"
-          style={[spacings.mbTy, { textTransform: 'uppercase', letterSpacing: 1 }]}
+      <SectionCard>
+        {asking ? (
+          <View testID="card-password-ask">{renderPasswordAsk(answer)}</View>
+        ) : (
+          <>
+            <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap]}>
+              <Button
+                testID="card-download"
+                type="primary"
+                hasBottomSpacing={false}
+                text={t('socialRecovery.card.downloadPdf')}
+                disabled={passwordMissing}
+                onPress={() => press('download')}
+                style={spacings.mrSm}
+              />
+              <Button
+                testID="card-print"
+                type="secondary"
+                hasBottomSpacing={false}
+                text={t('socialRecovery.card.print')}
+                disabled={passwordMissing}
+                onPress={() => press('print')}
+                style={spacings.mrSm}
+              />
+              <Button
+                testID="card-send"
+                type="secondary"
+                hasBottomSpacing={false}
+                text={t('socialRecovery.card.sendToDevice')}
+                disabled={passwordMissing}
+                onPress={() => press('sendToDevice')}
+              />
+            </View>
+            <Text fontSize={12} appearance="secondaryText" style={spacings.mtSm}>
+              {t('socialRecovery.card.carrierAsks')}
+            </Text>
+          </>
+        )}
+        <Pressable
+          testID="card-why"
+          accessibilityRole="button"
+          accessibilityState={{ expanded: whyOpen }}
+          onPress={() => setWhyOpen((open) => !open)}
+          style={[flexbox.alignSelfStart, spacings.mtSm]}
         >
-          {t('socialRecovery.card.warnsHeader')}
-        </Text>
+          <Text fontSize={14} weight="medium" appearance="primary" underline>
+            {t('socialRecovery.card.whyNotOnCard')}
+          </Text>
+        </Pressable>
+        {whyOpen && (
+          <Text testID="card-why-body" fontSize={14} style={spacings.mtTy}>
+            {t('socialRecovery.card.whyNotOnCardBody')}
+          </Text>
+        )}
+      </SectionCard>
+      <SectionCard testID="card-warns" label={t('socialRecovery.card.warnsHeader')}>
         <Text fontSize={14}>{t('socialRecovery.card.banner')}</Text>
-      </View>
+      </SectionCard>
       {!asking && (
-        <View style={[flexbox.directionRow, spacings.mtLg]}>
-          <Button
-            testID="card-back"
-            type="secondary"
-            text={t('socialRecovery.ceremony.backAction')}
-            onPress={onBack}
-            style={spacings.mrSm}
-          />
-          <Button
-            testID="card-continue"
-            text={t('socialRecovery.actions.continue')}
-            onPress={onContinue}
-          />
-        </View>
+        <ActionsRow
+          primary={
+            <Button
+              testID="card-continue"
+              type="primary"
+              hasBottomSpacing={false}
+              text={t('socialRecovery.actions.continue')}
+              onPress={onContinue}
+            />
+          }
+          secondary={
+            <Button
+              testID="card-back"
+              type="outline"
+              hasBottomSpacing={false}
+              text={t('socialRecovery.ceremony.backAction')}
+              onPress={onBack}
+            />
+          }
+        />
       )}
       {printing && <PrintCardView card={card} />}
     </View>

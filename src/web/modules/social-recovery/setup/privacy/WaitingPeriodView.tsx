@@ -5,17 +5,22 @@
  * privacy step.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Pressable, View } from 'react-native'
+import { View } from 'react-native'
 
+import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
 import Input from '@common/components/Input'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
-import useTheme from '@common/hooks/useTheme'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
-import common from '@common/styles/utils/common'
 import flexbox from '@common/styles/utils/flexbox'
+import {
+  ActionsRow,
+  PageTitle,
+  PillChoice,
+  SectionCard
+} from '@web/modules/social-recovery/shared/chrome'
 import { renderNoun } from '@web/modules/social-recovery/shared/display'
 
 import type { WaitChoice, WaitingPeriodViewProps } from './types'
@@ -41,7 +46,6 @@ const WaitingPeriodView = ({
   ceilingHours = PICKER_CEILING_HOURS
 }: WaitingPeriodViewProps) => {
   const { t } = useTranslation()
-  const { theme } = useTheme()
 
   const [choice, setChoice] = useState<WaitChoice>(DEFAULT_CHOICE)
   const [loaded, setLoaded] = useState(false)
@@ -113,131 +117,121 @@ const WaitingPeriodView = ({
     }
   }, [setup, hours, navigate])
 
-  const chipStyle = (selected: boolean) => [
-    spacings.phSm,
-    spacings.pvTy,
-    spacings.mrSm,
-    spacings.mbSm,
-    common.borderRadiusPrimary,
-    { borderWidth: 1, borderColor: selected ? theme.primary : theme.secondaryBorder }
-  ]
-
   return (
     <View testID="waiting-period-screen">
-      <Text fontSize={20} weight="medium" style={spacings.mbSm}>
-        {renderNoun('waitingPeriod', t)}
-      </Text>
-      <Text fontSize={14} style={spacings.mbLg}>
-        {t(`${WAIT}.lead`)}
-      </Text>
+      <PageTitle title={renderNoun('waitingPeriod', t)} lead={t(`${WAIT}.lead`)} />
       {loadFailed && (
         <Text testID="load-failed" fontSize={14} appearance="errorText" style={spacings.mbSm}>
           {t('socialRecovery.records.loadFailed')}
         </Text>
       )}
-      <Text fontSize={14} weight="medium">
-        {t(`${WAIT}.fieldLabel`)}
-      </Text>
-      <Text fontSize={12} appearance="secondaryText" style={spacings.mbSm}>
-        {t(`${WAIT}.onePerPath`)}
-      </Text>
-      <View style={[flexbox.directionRow, flexbox.wrap]}>
-        {WAIT_CHIPS.map((chip) => {
-          const { id } = chip
-          const selected = choice.kind === 'chip' && choice.id === id
-          return (
-            <Pressable
-              key={id}
-              testID={`wait-chip-${id}`}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: selected }}
-              disabled={!loaded || isChipPastCeiling(chip, ceilingHours)}
-              // The web renderer reads the checked state of a radio from this prop
-              // alone; the React Native types do not declare it, so it goes in a spread.
-              {...{ accessibilityChecked: selected }}
-              onPress={() => setChoice({ kind: 'chip', id })}
-              style={chipStyle(selected)}
-            >
-              <Text fontSize={14}>{t(`${WAIT}.chips.${id}`)}</Text>
-            </Pressable>
-          )
-        })}
-        <Pressable
-          testID="wait-chip-custom"
-          accessibilityRole="radio"
-          accessibilityState={{ checked: choice.kind === 'custom' }}
-          disabled={!loaded}
-          {...{ accessibilityChecked: choice.kind === 'custom' }}
-          onPress={() => choice.kind !== 'custom' && setChoice({ kind: 'custom', text: '' })}
-          style={chipStyle(choice.kind === 'custom')}
-        >
-          <Text fontSize={14}>{t(`${WAIT}.custom`)}</Text>
-        </Pressable>
-      </View>
-      {choice.kind === 'custom' && (
-        <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mbTy]}>
-          <Input
-            testID="wait-custom-hours"
-            value={choice.text}
-            keyboardType="number-pad"
+      <SectionCard>
+        <Text fontSize={16} weight="medium" style={spacings.mbTy}>
+          {t(`${WAIT}.fieldLabel`)}
+        </Text>
+        <Text fontSize={14} style={spacings.mbSm}>
+          {t(`${WAIT}.onePerPath`)}
+        </Text>
+        <View style={[flexbox.directionRow, flexbox.wrap]}>
+          {WAIT_CHIPS.map((chip) => {
+            const { id } = chip
+            return (
+              <PillChoice
+                key={id}
+                testID={`wait-chip-${id}`}
+                label={t(`${WAIT}.chips.${id}`)}
+                selected={choice.kind === 'chip' && choice.id === id}
+                disabled={!loaded || isChipPastCeiling(chip, ceilingHours)}
+                onPress={() => setChoice({ kind: 'chip', id })}
+                style={[spacings.mrSm, spacings.mbSm]}
+              />
+            )
+          })}
+          <PillChoice
+            testID="wait-chip-custom"
+            label={t(`${WAIT}.custom`)}
+            selected={choice.kind === 'custom'}
             disabled={!loaded}
-            onChangeText={(typed) => setChoice({ kind: 'custom', text: typed })}
-            containerStyle={{ ...spacings.mb0, ...spacings.mrSm }}
+            onPress={() => choice.kind !== 'custom' && setChoice({ kind: 'custom', text: '' })}
+            style={spacings.mbSm}
           />
-          <Text fontSize={14}>{t(`${WAIT}.customUnit`)}</Text>
         </View>
-      )}
-      {custom?.status === 'notWholeHours' && (
-        <Text testID="wait-refusal" fontSize={14} appearance="errorText" style={spacings.mbTy}>
-          {t(`${WAIT}.wholeHours`)}
+        {choice.kind === 'custom' && (
+          <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mbSm]}>
+            <Input
+              testID="wait-custom-hours"
+              value={choice.text}
+              keyboardType="number-pad"
+              disabled={!loaded}
+              onChangeText={(typed) => setChoice({ kind: 'custom', text: typed })}
+              containerStyle={{ ...spacings.mb0, ...spacings.mrSm }}
+            />
+            <Text fontSize={14}>{t(`${WAIT}.customUnit`)}</Text>
+          </View>
+        )}
+        {custom?.status === 'notWholeHours' && (
+          <Text testID="wait-refusal" fontSize={14} appearance="errorText" style={spacings.mbTy}>
+            {t(`${WAIT}.wholeHours`)}
+          </Text>
+        )}
+        {custom?.status === 'belowMinimum' && (
+          <Text testID="wait-refusal" fontSize={14} appearance="errorText" style={spacings.mbTy}>
+            {t(`${WAIT}.belowMinimum`)}
+          </Text>
+        )}
+        {pastCeiling && (
+          <Text testID="wait-refusal" fontSize={14} appearance="errorText" style={spacings.mbTy}>
+            {t(`${WAIT}.pastCeiling`, { hours: ceilingHours })}
+          </Text>
+        )}
+        <Text fontSize={12} appearance="secondaryText">
+          {t(`${WAIT}.minimumDefault`)}
         </Text>
-      )}
-      {custom?.status === 'belowMinimum' && (
-        <Text testID="wait-refusal" fontSize={14} appearance="errorText" style={spacings.mbTy}>
-          {t(`${WAIT}.belowMinimum`)}
+      </SectionCard>
+      <SectionCard tone="muted" label={t(`${WAIT}.whatForHeader`)}>
+        <Text testID="notice-window" fontSize={14} style={spacings.mbTy}>
+          {t(`${WAIT}.noticeWindow`)}
         </Text>
-      )}
-      {pastCeiling && (
-        <Text testID="wait-refusal" fontSize={14} appearance="errorText" style={spacings.mbTy}>
-          {t(`${WAIT}.pastCeiling`, { hours: ceilingHours })}
+        <Text fontSize={14} style={spacings.mbTy}>
+          {t(`${WAIT}.nothingElseWatches`)}
         </Text>
-      )}
-      <Text fontSize={12} appearance="secondaryText" style={spacings.mbLg}>
-        {t(`${WAIT}.minimumDefault`)}
-      </Text>
-      <Text fontSize={12} weight="medium" appearance="secondaryText" style={spacings.mbSm}>
-        {t(`${WAIT}.whatForHeader`)}
-      </Text>
-      <Text testID="notice-window" fontSize={14} style={spacings.mbTy}>
-        {t(`${WAIT}.noticeWindow`)}
-      </Text>
-      <Text fontSize={14} style={spacings.mbTy}>
-        {t(`${WAIT}.nothingElseWatches`)}
-      </Text>
-      <Text testID="cancel-cost" fontSize={14} style={spacings.mbLg}>
-        {t('socialRecovery.costLines.cancel')}
-      </Text>
+        <Text testID="cancel-cost" fontSize={14}>
+          {t('socialRecovery.costLines.cancel')}
+        </Text>
+      </SectionCard>
       {writeFailed && (
-        <Text testID="write-failed" fontSize={14} appearance="errorText" style={spacings.mbSm}>
-          {t('socialRecovery.records.writeFailed')}
-        </Text>
+        <Alert
+          type="error"
+          size="sm"
+          style={spacings.mbSm}
+          text={
+            <Alert.Text size="sm" type="error" testID="write-failed">
+              {t('socialRecovery.records.writeFailed')}
+            </Alert.Text>
+          }
+        />
       )}
-      <View style={[flexbox.directionRow, spacings.mtSm]}>
-        <Button
-          testID="back"
-          type="outline"
-          text={t('socialRecovery.ceremony.backAction')}
-          disabled={busy}
-          onPress={() => navigate(WEB_ROUTES.socialRecoverySetupEditor)}
-          style={spacings.mrSm}
-        />
-        <Button
-          testID="continue"
-          text={t('socialRecovery.actions.continue')}
-          disabled={hours === undefined || busy}
-          onPress={onContinue}
-        />
-      </View>
+      <ActionsRow
+        primary={
+          <Button
+            testID="continue"
+            text={t('socialRecovery.actions.continue')}
+            disabled={hours === undefined || busy}
+            onPress={onContinue}
+            hasBottomSpacing={false}
+          />
+        }
+        secondary={
+          <Button
+            testID="back"
+            type="outline"
+            text={t('socialRecovery.ceremony.backAction')}
+            disabled={busy}
+            onPress={() => navigate(WEB_ROUTES.socialRecoverySetupEditor)}
+            hasBottomSpacing={false}
+          />
+        }
+      />
     </View>
   )
 }

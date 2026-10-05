@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react'
-import { View } from 'react-native'
 
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
+import { SectionCard, SectionLabel } from '@web/modules/social-recovery/shared/chrome'
 
 import { renderRulesPanel } from './copy'
 
@@ -13,22 +13,20 @@ const RulesPanel = () => {
   const rulesPanel = useMemo(() => renderRulesPanel(t), [t])
 
   return (
-    <View style={spacings.mbLg} testID="editor-rules">
-      <Text fontSize={16} weight="semiBold" style={spacings.mbSm} testID="editor-rules-header">
-        {rulesPanel.header}
-      </Text>
+    <SectionCard tone="muted" testID="editor-rules">
+      <SectionLabel testID="editor-rules-header">{rulesPanel.header}</SectionLabel>
       {rulesPanel.lines.map((line) => (
         <Text
           key={line}
-          fontSize={14}
+          fontSize={12}
           appearance="secondaryText"
-          style={spacings.mbTy}
+          style={spacings.mbMi}
           testID="editor-rules-line"
         >
           {line}
         </Text>
       ))}
-    </View>
+    </SectionCard>
   )
 }
 

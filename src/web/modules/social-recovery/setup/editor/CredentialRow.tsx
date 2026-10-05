@@ -1,10 +1,12 @@
 import React from 'react'
 import { Pressable, View } from 'react-native'
 
+import Avatar from '@common/components/Avatar'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
+import { StatusChip } from '@web/modules/social-recovery/shared/chrome'
 import { renderShortAddress } from '@web/modules/social-recovery/shared/display'
 
 import { renderFailedTestLine, renderKindName, renderRowChip } from './copy'
@@ -39,23 +41,27 @@ const CredentialRow = ({
     <View>
       <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap]}>
         {!!address && (
-          <Text fontSize={14} weight="medium" style={spacings.mrTy}>
-            {renderShortAddress(address)}
-          </Text>
+          <>
+            <Avatar pfp={address} isSmart={false} size={24} displayTypeBadge={false} />
+            <Text fontSize={14} weight="medium" style={spacings.mrTy}>
+              {renderShortAddress(address)}
+            </Text>
+          </>
         )}
-        <Text fontSize={14} weight="medium" style={spacings.mrTy}>
+        <Text
+          fontSize={14}
+          weight={address ? 'regular' : 'medium'}
+          appearance={address ? 'secondaryText' : 'primaryText'}
+          style={spacings.mrTy}
+        >
           {renderKindName(kind, t, backup)}
         </Text>
         {!!label && (
-          <Text fontSize={14} style={spacings.mrTy}>
+          <Text fontSize={14} appearance="secondaryText" style={spacings.mrTy}>
             {label}
           </Text>
         )}
-        {!!chip && (
-          <Text fontSize={12} weight="medium" appearance="secondaryText">
-            {chip}
-          </Text>
-        )}
+        {!!chip && <StatusChip text={chip} style={{ marginLeft: 'auto' }} />}
       </View>
       {!!failedLine && (
         <Text

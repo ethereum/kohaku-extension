@@ -10,6 +10,7 @@ import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { lossLineKeyOf, renderKindLine } from '@web/modules/social-recovery/shared/ceremony'
+import { MethodRow, StatusChip } from '@web/modules/social-recovery/shared/chrome'
 import { renderChip } from '@web/modules/social-recovery/shared/display'
 
 import { TEST_CHIPS } from './outcome'
@@ -20,17 +21,30 @@ const PasskeyEnrolledSummary = ({ enrollment, platform }: PasskeyEnrolledSummary
   const { facts } = enrollment
 
   return (
-    <>
-      <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mbTy]}>
-        <Text testID="passkey-label" fontSize={16} weight="medium" style={spacings.mrSm}>
+    <MethodRow>
+      <View
+        style={[
+          flexbox.directionRow,
+          flexbox.alignCenter,
+          flexbox.justifySpaceBetween,
+          spacings.mbTy
+        ]}
+      >
+        <Text
+          testID="passkey-label"
+          fontSize={16}
+          weight="medium"
+          style={[flexbox.flex1, spacings.mrSm]}
+        >
           {enrollment.credential.label}
         </Text>
-        <Text testID="passkey-chip" fontSize={12} weight="medium" appearance="secondaryText">
-          {renderChip('method', TEST_CHIPS[enrollment.test], t)}
-        </Text>
+        <StatusChip
+          testID="passkey-chip"
+          text={renderChip('method', TEST_CHIPS[enrollment.test], t)}
+        />
       </View>
       {!!facts && (
-        <Text testID="passkey-kind-line" fontSize={14} weight="medium">
+        <Text testID="passkey-kind-line" fontSize={14} style={spacings.mbTy}>
           {renderKindLine(facts, platform, t)}
         </Text>
       )}
@@ -39,10 +53,10 @@ const PasskeyEnrolledSummary = ({ enrollment, platform }: PasskeyEnrolledSummary
           {t(lossLineKeyOf({ kind: facts?.kind ?? enrollment.backup ?? 'synced' }))}
         </Text>
       )}
-      <Text testID="passkey-origin" fontSize={12} appearance="secondaryText" style={spacings.mbSm}>
+      <Text testID="passkey-origin" fontSize={12} appearance="secondaryText">
         {t('socialRecovery.ceremony.passkeyOrigin')}
       </Text>
-    </>
+    </MethodRow>
   )
 }
 
