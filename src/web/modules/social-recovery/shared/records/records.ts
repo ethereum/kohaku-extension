@@ -53,9 +53,17 @@ import type {
 /** The prefix of every storage key the records use. */
 export const RECORDS_KEY_PREFIX = 'socialRecovery'
 
+/**
+ * Whether a value is a chain id: a bigint that is not negative, or a number
+ * that is a safe integer and not negative, so it keeps every digit.
+ */
+const isChainId = (value: unknown): value is ChainId =>
+  (typeof value === 'bigint' && value >= 0n) ||
+  (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)
+
 const chainPart = (chainId: ChainId | string): string => {
   const text = String(chainId)
-  if (!/^[0-9]+$/.test(text)) {
+  if ((typeof chainId !== 'string' && !isChainId(chainId)) || !/^[0-9]+$/.test(text)) {
     throw new Error(`Invalid chain id: ${text}`)
   }
   return text
@@ -153,7 +161,7 @@ const isCeremonyRequest = (value: unknown): value is CeremonyRequestRecord => {
   if (
     typeof record.account !== 'string' ||
     !isAddress(record.account, { strict: false }) ||
-    (typeof record.chainId !== 'number' && typeof record.chainId !== 'bigint') ||
+    !isChainId(record.chainId) ||
     typeof record.method !== 'string'
   ) {
     return false

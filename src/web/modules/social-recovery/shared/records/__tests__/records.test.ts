@@ -839,7 +839,7 @@ describe('a setup wipe removes the six records in one storage call', () => {
 
 describe('an invalid address or chain id is refused, never stored under a bad key', () => {
   const BAD_ADDRESSES = ['', '0x', 'not-an-address', '0x123', `${ACCOUNT}00`, ACCOUNT.slice(2)]
-  const BAD_CHAINS: unknown[] = [-1, -1n, 1.5, NaN, 'abc', '0x1']
+  const BAD_CHAINS: unknown[] = [-1, -1n, 1.5, NaN, Infinity, 2 ** 53, 'abc', '0x1']
 
   BAD_ADDRESSES.forEach((bad) =>
     it(`refuses the address '${bad}' and writes nothing`, async () => {
@@ -878,6 +878,20 @@ describe('an invalid address or chain id is refused, never stored under a bad ke
       expect(storage.raw.size).toBe(0)
     })
   )
+
+  it('keys a number chain id and the same bigint chain id alike', async () => {
+    const { records } = setup()
+    expect(recordKeys.setup('inventory', 11155111, ACCOUNT)).toBe(
+      recordKeys.setup('inventory', 11155111n, ACCOUNT)
+    )
+    expect(recordKeys.recoverySession(11155111, ACCOUNT)).toBe(
+      recordKeys.recoverySession(11155111n, ACCOUNT)
+    )
+    await records.setup(11155111, ACCOUNT).inventory.write(['passport'])
+    expect(present(await records.setup(11155111n, ACCOUNT).inventory.read()).value).toEqual([
+      'passport'
+    ])
+  })
 })
 
 describe('no record is a bare boolean or zero', () => {
@@ -2342,6 +2356,15 @@ describe('the ceremony request under its request id', () => {
     expect(present(await records.ceremonyRequest('as-number').read()).value.chainId).toBe(11155111)
   })
 
+  const CHAIN_IDS: ChainId[] = [1, 11155111, 1n]
+  CHAIN_IDS.forEach((chainId) =>
+    it(`reads a request whose chain id is ${typeof chainId} ${String(chainId)}`, async () => {
+      const { records } = setup()
+      await records.ceremonyRequest(ID).write({ ...ENROLL, chainId })
+      expect(present(await records.ceremonyRequest(ID).read()).value.chainId).toBe(chainId)
+    })
+  )
+
   it('reads a request whose account is in a letter case that fails the checksum', async () => {
     const { records } = setup()
     await records.ceremonyRequest(ID).write({ ...ENROLL, account: MISCASED })
@@ -2415,6 +2438,37 @@ describe('the ceremony request under its request id', () => {
       await storage.set(recordKeys.ceremonyRequest(ID), value)
       expect(await records.ceremonyRequest(ID).read()).toBe(ABSENT)
       expect(await records.ceremonyRequest(ID).age(T0)).toBeNull()
+    })
+  )
+
+  // A storage that hands back the value it holds as is, so a chain id that rich
+  // JSON would turn into null still reaches the read.
+  const holding = (value: unknown) => {
+    const storage = makeStorage()
+    const get = (async () => value) as typeof storage.get
+    return createWalletRecords({ storage: { ...storage, get }, now: () => T0 })
+  }
+  const BAD_CHAIN_IDS: [string, unknown][] = [
+    ['a fraction', 1.5],
+    ['NaN', NaN],
+    ['Infinity', Infinity],
+    ['negative', -1],
+    ['a negative bigint', -1n],
+    ['a number above the safe range', 2 ** 53]
+  ]
+  BAD_CHAIN_IDS.forEach(([label, chainId]) =>
+    it(`reads a request whose chain id is ${label} as absent`, async () => {
+      const records = holding(stored({ ...ENROLL, chainId }))
+      expect(await records.ceremonyRequest(ID).read()).toBe(ABSENT)
+      expect(await records.ceremonyRequest(ID).age(T0)).toBeNull()
+    })
+  )
+  CHAIN_IDS.forEach((chainId) =>
+    it(`reads a request held as is whose chain id is ${typeof chainId} ${String(
+      chainId
+    )}`, async () => {
+      const records = holding(stored({ ...ENROLL, chainId }))
+      expect(present(await records.ceremonyRequest(ID).read()).value.chainId).toBe(chainId)
     })
   )
 
