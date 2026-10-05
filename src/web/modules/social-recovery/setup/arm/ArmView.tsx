@@ -4,7 +4,8 @@
  * the cost line, and below them the save as it stands: the arrival's block or
  * the Save button, the gas blocker naming the shortfall and the controlling
  * key, the shared submitting and failed states in the save's own words, a
- * setup the run found already there, the check after the landing, then the
+ * save the network dropped with the one way to save again, a setup the run
+ * found already there, the check after the landing, then the
  * saved screen or the disagreed one.
  */
 import React from 'react'
@@ -51,6 +52,7 @@ const ArmView = ({
   onRetry,
   onCheckAgain,
   onCheckSetup,
+  onSaveAgain,
   onRecheck,
   onReread,
   navigate,
@@ -218,6 +220,23 @@ const ArmView = ({
         </DepositStepView>
       )
     }
+    // A dropped save offers one move: release it and save again.
+    if (state.dropped) {
+      return (
+        <View testID="arm-dropped">
+          <Text fontSize={14} style={spacings.mbSm} testID="arm-dropped-line">
+            {t('socialRecovery.arm.dropped')}
+          </Text>
+          <Button
+            testID="arm-save-again"
+            type="primary"
+            text={t('socialRecovery.arm.saveAgain')}
+            onPress={onSaveAgain}
+            hasBottomSpacing={false}
+          />
+        </View>
+      )
+    }
     const keys = saveWriteKeysOf(write, state.follow)
     // Check again waits for the receipt of a stalled hash, or reads again a
     // followed request whose read did not answer.
@@ -258,9 +277,11 @@ const ArmView = ({
     )
   }
 
-  // Back to the review wherever nothing is on its way to the chain; a save
-  // that may still land keeps its stored save in flight, so it offers none.
+  // Back to the review wherever nothing is on its way to the chain, or the
+  // network dropped the save; a save that may still land keeps its stored
+  // save in flight, so it offers none.
   const stopped =
+    !!state.dropped ||
     (write.status === 'failedNotSent' && !mayStillLand(write)) ||
     write.status === 'failedReverted' ||
     write.status === 'gasReadError' ||

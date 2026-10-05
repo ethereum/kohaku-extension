@@ -15,12 +15,13 @@ import type {
   FeeReading,
   KeyHandle,
   ListedAccountFacts,
-  ReceiptWait,
+  ReceiptReads,
   RecoveryChain,
   RecoveryKitClient,
   SendPort,
   SendRequestPort,
   SendRequestState,
+  TransactionKnown,
   UnknownAction
 } from '@web/modules/social-recovery/shared/client'
 import type {
@@ -119,6 +120,17 @@ export type InFlightLookup = 'reading' | 'none' | 'failed'
 export type FollowReading = 'queued' | 'unread' | 'gone'
 
 /**
+ * A check for a dropped save that read every transaction of the run unknown
+ * to the node: when it read (ms since epoch), the chain's block number it read
+ * with them, and the hashes it asked for.
+ */
+export interface UnknownReading {
+  at: number
+  block: number
+  hashes: readonly Hex[]
+}
+
+/**
  * The save's state: the shared write's state, the prepared save of its run,
  * what follows the landing, and the marks of the run: a setup the account
  * already held, the sign screen's last estimation, a receipt wait that failed
@@ -150,6 +162,19 @@ export interface ArmState {
    * followed its hash: the check runs as after a landed receipt.
    */
   landedUnseen?: true
+  /**
+   * The first of the two readings a dropped save needs, kept until the next
+   * check: that check reads it again, or the reading goes.
+   */
+  unknownReading?: UnknownReading
+  /**
+   * True where the run's broadcast save reads as dropped: its broadcast is
+   * older than `DROPPED_AFTER_MS`, two checks apart by a new block or by
+   * `DROPPED_RECHECK_MS` each read every one of its transactions unknown to
+   * the node, and the account holds no setup. The save in flight stays stored
+   * until the holder saves again.
+   */
+  dropped?: true
 }
 
 /** What moves the save. Every event but `write` carries the run it answers. */
@@ -171,6 +196,10 @@ export type ArmEvent =
   | { type: 'landedUnseen'; run: number }
   | { type: 'released'; run: number }
   | { type: 'voided'; run: number }
+  | { type: 'unknownRead'; run: number; reading: UnknownReading }
+  | { type: 'unknownCleared'; run: number }
+  | { type: 'dropped'; run: number }
+  | { type: 'droppedReleased'; run: number }
   | { type: 'estimated'; run: number; reading: FeeReading }
   | { type: 'waitStalled'; run: number }
   | { type: 'waitResumed'; run: number }
@@ -229,6 +258,8 @@ export interface SaveSteps {
   queueMoved(limitMs: number): Promise<void>
   /** The chain's block number now. */
   blockNumber(): Promise<number>
+  /** Whether the node knows the transaction `transactionHash` now; a read that fails rejects. */
+  transactionKnown(transactionHash: Hex): Promise<TransactionKnown>
   /**
    * Sends the batch under `requestId` and follows its receipt from
    * `startBlock`, feeding the write's events to `dispatch`; `onEstimation`
@@ -246,12 +277,14 @@ export interface SaveSteps {
   /**
    * Waits again for the receipt of a hash the run already sent, feeding the
    * answer to `dispatch`; `startBlock` is the block read before the send.
+   * `onKnown` hears it when the wait reads that the node knows the transaction.
    */
   waitAgain(
     transactionHash: Hex,
     startBlock: number | undefined,
     dispatch: (event: WriteEvent) => void,
-    run: number
+    run: number,
+    onKnown?: () => void
   ): Promise<void>
   /** The check after the batch lands. */
   confirm(save: PreparedSave): Promise<SetupConfirmation>
@@ -296,7 +329,7 @@ export type ArmKitClient = Pick<RecoveryKitClient, 'descriptor'> & {
 export interface SaveStepsInput {
   client: ArmKitClient
   reads: ChainReads
-  receipts: ReceiptWait
+  receipts: ReceiptReads
   port: SendPort
   /** The wallet's queue and activity, read for a request another page queued. */
   requests: SendRequestPort
@@ -432,6 +465,8 @@ export interface ArmViewProps {
   onCheckAgain: () => void
   /** Reads the account's setup again, where the refused operation may still land. */
   onCheckSetup: () => void
+  /** Releases a dropped save's stored save in flight and starts a new save. */
+  onSaveAgain: () => void
   /** Runs the gas check again from the deposit blocker. */
   onRecheck: () => void
   /** Reads the check after the landing again. */
@@ -480,4 +515,6 @@ export interface ArmRun {
   checkSetup: () => void
   /** Checks a refusal whose operation may still land as after a landing, where a setup read found a setup. */
   endWhereSetUp: (hasSetup: boolean) => void
+  /** Releases a dropped save's stored save in flight, then starts a new save. */
+  saveAgain: () => void
 }

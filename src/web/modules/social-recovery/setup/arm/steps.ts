@@ -135,6 +135,7 @@ export const saveStepsOf = (input: SaveStepsInput): SaveSteps => {
         }
       }),
     blockNumber,
+    transactionKnown: (transactionHash) => input.receipts.transactionKnown(transactionHash),
     send: ({ calls }, dispatch, run, requestId, startBlock, onEstimation) =>
       driveAccountBatch({
         dispatch,
@@ -152,7 +153,19 @@ export const saveStepsOf = (input: SaveStepsInput): SaveSteps => {
         recoveryKit: recoveryKitMarkOf(client.descriptor),
         requestId
       }),
-    async waitAgain(transactionHash, startBlock, dispatch, run): Promise<void> {
+    async waitAgain(transactionHash, startBlock, dispatch, run, onKnown): Promise<void> {
+      // The wait's own lookup of the transaction is not exposed: one read
+      // beside it answers whether the node knows the transaction as it opens.
+      if (onKnown) {
+        input.receipts
+          .transactionKnown(transactionHash)
+          .then((known) => {
+            if (known === 'known') {
+              onKnown()
+            }
+          })
+          .catch(() => undefined)
+      }
       try {
         const from = startBlock ?? (await blockNumber())
         const receipt = receiptOf(await input.receipts.wait(transactionHash, from))

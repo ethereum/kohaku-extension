@@ -185,6 +185,7 @@ const {
 }: typeof import('@web/modules/social-recovery/shared/records') = require('@web/modules/social-recovery/shared/records')
 const {
   createArmStore,
+  DROPPED_AFTER_MS,
   FOLLOW_REREAD_MS,
   GONE_GRACE_MS,
   RECEIPT_WAIT_MS,
@@ -2174,5 +2175,199 @@ describe('the save in its own words', () => {
     expect(router.search).toBe('?from=review')
     expect(router.hash).toBe('#top')
     expect(router.state).toEqual({ from: 'review' })
+  })
+})
+
+describe('a save the network dropped', () => {
+  const tick = (ms: number) => act(() => harness.advanceTimers(ms))
+  /** Moves the clock without running a timer, as a tab that slept does. */
+  const passTime = (ms: number) => jest.setSystemTime(Date.now() + ms)
+
+  /** The route mounted afresh at its address, as a second tab or a remount reaches it. */
+  const arrive = async () => {
+    act(() => root.unmount())
+    root = createRoot(container)
+    await act(async () => {
+      root.render(tree([SAVE_PATH], 0))
+    })
+    await tick(100)
+  }
+
+  const leave = () => {
+    act(() => root.unmount())
+    root = createRoot(container)
+  }
+
+  const transactionReads = () => receipts.transactionKnown.mock.calls.length
+
+  /** Another page sent the save under its hash and went away; this page's node knows no transaction. */
+  const sentElsewhere = async () => {
+    await writeRecords(draftOf('encrypted'))
+    wireClient('ready')
+    receipts.transactionKnown.mockResolvedValue('unknown')
+    return anotherPageLeaves(true, () => tick(100))
+  }
+
+  const expectDropped = () => {
+    expect(byTestId('arm-dropped-line')?.textContent).toBe(t('socialRecovery.arm.dropped'))
+    expect(byTestId('arm-save-again')?.textContent).toBe(t('socialRecovery.arm.saveAgain'))
+    expect(byTestId('arm-write-submitting')).toBeNull()
+    expect(byTestId('arm-check-again')).toBeNull()
+    expect(byTestId('arm-save')).toBeNull()
+    expect(pageText()).not.toContain(t('socialRecovery.writes.tryAgain'))
+    expect(byTestId('arm-back')).not.toBeNull()
+  }
+
+  const pressSaveAgain = async () => {
+    await act(async () => {
+      byTestId('arm-save-again')?.click()
+    })
+    await tick(100)
+  }
+
+  beforeEach(() => {
+    jest.useFakeTimers()
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
+  })
+
+  const pressCheckAgain = async () => {
+    await act(async () => {
+      byTestId('arm-check-again')?.click()
+    })
+    await tick(100)
+  }
+
+  /**
+   * An arrival an hour after the broadcast: its check keeps a first reading
+   * and the page waits for the receipt; the wait stalls, and the stall reads
+   * the second reading and the save as dropped.
+   */
+  const droppedOnArrival = async () => {
+    receipts.wait.mockImplementationOnce(() => harness.pending())
+    await arrive()
+    expect(byTestId('arm-write-submitting')).not.toBeNull()
+    expect(byTestId('arm-dropped-line')).toBeNull()
+    await tick(RECEIPT_WAIT_MS)
+    expectDropped()
+  }
+
+  it('keeps the submitting state on an arrival an hour after the broadcast, and shows the dropped line and Save again at the stall with no press, with nothing sent', async () => {
+    await sentElsewhere()
+    passTime(DROPPED_AFTER_MS)
+    receipts.wait.mockImplementationOnce(() => harness.pending())
+
+    await arrive()
+    expect(byTestId('arm-write-submitting')).not.toBeNull()
+    expect(byTestId('arm-dropped-line')).toBeNull()
+    expect(receipts.transactionKnown).toHaveBeenCalledWith(harness.TX_HASH)
+    await tick(RECEIPT_WAIT_MS)
+
+    expectDropped()
+    // The first reading, the wait's own read as it opens, and the stall's reading.
+    expect(transactionReads()).toBe(3)
+    expect(receipts.wait).toHaveBeenCalledTimes(1)
+    expect(storedSaves()).toHaveLength(1)
+    expect(port.sendAccountBatch).not.toHaveBeenCalled()
+  })
+
+  it('shows the submitting state, then check again, before the hour, and the dropped line at the stall after a check again past it', async () => {
+    await sentElsewhere()
+    receipts.wait.mockImplementation(() => harness.pending())
+
+    await arrive()
+    expect(byTestId('arm-write-submitting')).not.toBeNull()
+    expect(byTestId('arm-dropped-line')).toBeNull()
+    await tick(RECEIPT_WAIT_MS)
+    expect(byTestId('arm-check-again')).not.toBeNull()
+    expect(byTestId('arm-dropped-line')).toBeNull()
+    expect(receipts.transactionKnown).not.toHaveBeenCalled()
+
+    passTime(DROPPED_AFTER_MS)
+    await pressCheckAgain()
+    expect(byTestId('arm-dropped-line')).toBeNull()
+    expect(byTestId('arm-write-submitting')).not.toBeNull()
+    await tick(RECEIPT_WAIT_MS)
+
+    expectDropped()
+    expect(transactionReads()).toBe(2)
+    expect(receipts.wait).toHaveBeenCalledTimes(1)
+  })
+
+  it('releases the stored save on Save again, then sends once through the ordinary start and saves with one wipe', async () => {
+    const { record } = await sentElsewhere()
+    passTime(DROPPED_AFTER_MS)
+    await droppedOnArrival()
+    const prepares = prepareCommitSetup.mock.calls.length
+    const setupReads = setupState.mock.calls.length
+    const releasedAtSend: number[] = []
+    port.sendAccountBatch.mockImplementation(async () => {
+      releasedAtSend.push(releases())
+      return harness.TX_HASH
+    })
+
+    await pressSaveAgain()
+    await pressSaveAgain()
+
+    expect(byTestId('arm-saved')).not.toBeNull()
+    expect(releasedAtSend).toEqual([1])
+    expect(port.sendAccountBatch).toHaveBeenCalledTimes(1)
+    expect(port.sendAccountBatch.mock.calls[0][4]).not.toBe(record.requestId)
+    expect(prepareCommitSetup).toHaveBeenCalledTimes(prepares + 1)
+    expect(setupState.mock.calls.length).toBeGreaterThanOrEqual(setupReads + 2)
+    expect(confirmSetup).toHaveBeenCalledTimes(1)
+    expect(wipes()).toBe(1)
+    expect(storedSaves()).toHaveLength(0)
+  })
+
+  it('ends Save again as already set up with nothing sent where another tab saved meanwhile', async () => {
+    await sentElsewhere()
+    passTime(DROPPED_AFTER_MS)
+    await droppedOnArrival()
+    chain.setupState = setupStateOf(true)
+
+    await pressSaveAgain()
+
+    expect(byTestId('review-blocked-already-set-up')).not.toBeNull()
+    expect(byTestId('arm-dropped-line')).toBeNull()
+    expect(port.sendAccountBatch).not.toHaveBeenCalled()
+    expect(releases()).toBe(1)
+  })
+
+  it('drops a dropped run when the screen leaves, and the next arrival reads it again from the chain and the stored save, from a first reading', async () => {
+    await sentElsewhere()
+    passTime(DROPPED_AFTER_MS)
+    await droppedOnArrival()
+    const nodeReads = transactionReads()
+    const setupReads = setupState.mock.calls.length
+
+    leave()
+    await droppedOnArrival()
+
+    expect(transactionReads()).toBe(nodeReads + 3)
+    expect(setupState.mock.calls.length).toBeGreaterThan(setupReads)
+    expect(port.sendAccountBatch).not.toHaveBeenCalled()
+  })
+
+  it('reads dropped when the screen comes back after the hour to a save it left waiting for its receipt, at the stall with no press', async () => {
+    await sentElsewhere()
+    receipts.wait.mockImplementation(() => harness.pending())
+    await arrive()
+    expect(byTestId('arm-write-submitting')).not.toBeNull()
+
+    leave()
+    passTime(DROPPED_AFTER_MS)
+    await tick(100)
+    expect(receipts.transactionKnown).not.toHaveBeenCalled()
+    await arrive()
+    expect(byTestId('arm-dropped-line')).toBeNull()
+    expect(transactionReads()).toBe(1)
+    await tick(RECEIPT_WAIT_MS)
+
+    expectDropped()
+    expect(receipts.wait).toHaveBeenCalledTimes(1)
+    expect(port.sendAccountBatch).not.toHaveBeenCalled()
   })
 })

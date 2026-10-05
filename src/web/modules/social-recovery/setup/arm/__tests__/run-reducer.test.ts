@@ -323,23 +323,96 @@ describe("the save's reducer", () => {
       const unclaimed = CLAIMED.slice(0, -1).reduce(armReducer, initialArmState())
       expect(armReducer(unclaimed, { type: 'voided', run: 1 })).toBe(unclaimed)
     })
+
+    it('reads dropped only while it submits under a hash, nothing landed and nothing checked', () => {
+      const dropped = armReducer(sent, { type: 'dropped', run: 1 })
+      expect(dropped.dropped).toBe(true)
+      expect(dropped.write).toBe(sent.write)
+      expect(dropped.requestId).toBe('claimed')
+      expect(armReducer(dropped, { type: 'dropped', run: 1 })).toBe(dropped)
+      // With no hash, for another run, or once a setup was seen: nothing moves.
+      expect(armReducer(claimed, { type: 'dropped', run: 1 })).toBe(claimed)
+      expect(armReducer(sent, { type: 'dropped', run: 2 })).toBe(sent)
+      const seen = armReducer(sent, { type: 'landedUnseen', run: 1 })
+      expect(seen.landedUnseen).toBe(true)
+      expect(armReducer(seen, { type: 'dropped', run: 1 })).toBe(seen)
+      const landed = armReducer(sent, receipt(1, 1))
+      expect(armReducer(landed, { type: 'dropped', run: 1 })).toBe(landed)
+    })
+
+    it('clears dropped when the write leaves submitting, as a late receipt does, and keeps it on a stall', () => {
+      const dropped = armReducer(sent, { type: 'dropped', run: 1 })
+      const landed = armReducer(dropped, receipt(1, 1))
+      expect(landed.write.status).toBe('landed')
+      expect(landed.dropped).toBeUndefined()
+      const reverted = armReducer(dropped, receipt(1, 0))
+      expect(reverted.dropped).toBeUndefined()
+      expect(armReducer(dropped, { type: 'waitStalled', run: 1 }).dropped).toBe(true)
+      // A setup found after the reading lands it the unseen way and leaves dropped behind.
+      const seen = armReducer(dropped, { type: 'landedUnseen', run: 1 })
+      expect(seen.landedUnseen).toBe(true)
+      expect(seen.dropped).toBeUndefined()
+    })
+
+    it('keeps a reading of unknown transactions only while the run could still read dropped, and lets it go at dropped, at a setup seen, when the write leaves submitting and on its clear', () => {
+      const reading = { at: 1, block: 7, hashes: [TX_HASH] }
+      const kept = armReducer(sent, { type: 'unknownRead', run: 1, reading })
+      expect(kept.unknownReading).toBe(reading)
+      expect(kept.write).toBe(sent.write)
+      // With no hash, for another run, or once a setup was seen: nothing is kept.
+      expect(armReducer(claimed, { type: 'unknownRead', run: 1, reading })).toBe(claimed)
+      expect(armReducer(sent, { type: 'unknownRead', run: 2, reading })).toBe(sent)
+      const seen = armReducer(sent, { type: 'landedUnseen', run: 1 })
+      expect(armReducer(seen, { type: 'unknownRead', run: 1, reading })).toBe(seen)
+
+      expect(armReducer(kept, { type: 'dropped', run: 1 }).unknownReading).toBeUndefined()
+      expect(armReducer(kept, { type: 'landedUnseen', run: 1 }).unknownReading).toBeUndefined()
+      expect(armReducer(kept, receipt(1, 1)).unknownReading).toBeUndefined()
+      expect(armReducer(kept, { type: 'unknownCleared', run: 1 }).unknownReading).toBeUndefined()
+      expect(armReducer(kept, { type: 'unknownCleared', run: 2 })).toBe(kept)
+      // A stall keeps it: the next check reads against it.
+      expect(armReducer(kept, { type: 'waitStalled', run: 1 }).unknownReading).toBe(reading)
+    })
+
+    it('saves again from dropped alone: the write back to idle in the same run, the claim and the prepared save gone, the stored save read as none', () => {
+      const dropped = armReducer(sent, { type: 'dropped', run: 1 })
+      const again = armReducer(dropped, { type: 'droppedReleased', run: 1 })
+      expect(again.write.status).toBe('idle')
+      expect(again.write.run).toBe(1)
+      expect(again.dropped).toBeUndefined()
+      expect(again.requestId).toBeUndefined()
+      expect(again.prepared).toBeUndefined()
+      expect(again.lookup).toBe('none')
+      expect(armReducer(again, START).write).toEqual({
+        status: 'checkingGas',
+        write: 'save',
+        run: 2
+      })
+      expect(armReducer(sent, { type: 'droppedReleased', run: 1 })).toBe(sent)
+      expect(armReducer(dropped, { type: 'droppedReleased', run: 2 })).toBe(dropped)
+      const late = armReducer(dropped, receipt(1, 1))
+      expect(armReducer(late, { type: 'droppedReleased', run: 1 })).toBe(late)
+    })
   })
 
-  it('takes a landing seen only in the setup only for a save it holds that may still land or submits with no hash, and reads saved only after the agreed check', () => {
+  it('takes a landing seen only in the setup only for a save it holds that may still land or submits, with or without a hash, and reads saved only after the agreed check', () => {
     const landings = WALK.steps.filter(
       ({ from, event, to }) => event.type === 'landedUnseen' && to.state !== from.state
     )
-    const awaitsHash = ({ write }: ArmState) =>
-      write.status === 'submitting' && !write.transactionHash
+    const submits = ({ write }: ArmState) => write.status === 'submitting'
+    const submitsUnder = ({ write }: ArmState, withHash: boolean) =>
+      write.status === 'submitting' && !!write.transactionHash === withHash
     expect(landings.some(({ from }) => mayStillLand(from.state.write))).toBe(true)
-    expect(landings.some(({ from }) => awaitsHash(from.state))).toBe(true)
+    expect(landings.some(({ from }) => submitsUnder(from.state, false))).toBe(true)
+    // A save followed under its hash whose check finds the setup lands this way too.
+    expect(landings.some(({ from }) => submitsUnder(from.state, true))).toBe(true)
     expect(
       landings
         .filter(
           ({ from, to }) =>
             !from.state.prepared ||
             from.state.after.stage !== 'none' ||
-            !(mayStillLand(from.state.write) || awaitsHash(from.state)) ||
+            !(mayStillLand(from.state.write) || submits(from.state)) ||
             to.state.landedUnseen !== true
         )
         .map(({ from }) => json(from.path))

@@ -184,8 +184,8 @@ const isCeremonyRequest = (value: unknown): value is CeremonyRequestRecord => {
 
 /**
  * Whether a stored value is a save in flight: a draft, a prepared call or
- * batch, the request id, the claim time and, where present, the hash and the
- * start block.
+ * batch, the request id, the claim time and, where present, the hash, the
+ * time of its first write and the start block.
  */
 const isSaveInFlight = (value: unknown): value is SaveInFlightRecord => {
   if (typeof value !== 'object' || value === null) {
@@ -204,6 +204,8 @@ const isSaveInFlight = (value: unknown): value is SaveInFlightRecord => {
     typeof record.claimedAt === 'number' &&
     Number.isFinite(record.claimedAt) &&
     (record.transactionHash === undefined || typeof record.transactionHash === 'string') &&
+    (record.sentAt === undefined ||
+      (typeof record.sentAt === 'number' && Number.isFinite(record.sentAt))) &&
     (record.startBlock === undefined ||
       (Number.isSafeInteger(record.startBlock) && (record.startBlock as number) >= 0))
   )
@@ -799,6 +801,7 @@ export const createWalletRecords = ({
           const value: SaveInFlightRecord = {
             ...current.value,
             transactionHash,
+            ...(current.value.transactionHash === undefined ? { sentAt: now() } : {}),
             ...(startBlock === undefined ? {} : { startBlock })
           }
           if (!isSaveInFlight(value)) {

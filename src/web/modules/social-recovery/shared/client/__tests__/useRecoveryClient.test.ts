@@ -236,6 +236,42 @@ describe('useRecoveryClient over the network record', () => {
     expect(first.getTransaction).not.toHaveBeenCalled()
   })
 
+  it('reads whether the node knows a transaction over the new provider alone', async () => {
+    await render()
+    const [first] = built
+    await pushNetwork(sepolia({ proverRpcUrl: 'https://prover.example/two' }))
+    const second = built[1]
+    const hash = `0x${'ef'.repeat(32)}` as const
+    const receipts = receiptsOf(latest)
+
+    await expect(receipts.transactionKnown(hash)).resolves.toBe('known')
+    second.getTransaction.mockResolvedValueOnce(null)
+    await expect(receipts.transactionKnown(hash)).resolves.toBe('unknown')
+    expect(second.getTransaction).toHaveBeenCalledTimes(2)
+    expect(second.getTransaction).toHaveBeenCalledWith(hash)
+    expect(first.getTransaction).not.toHaveBeenCalled()
+  })
+
+  it('releases a read of a transaction in flight when it destroys the provider', async () => {
+    await render()
+    const [first] = built
+    first.getTransaction.mockImplementation(() => new Promise(() => {}))
+    const hash = `0x${'ef'.repeat(32)}` as const
+    const outcome: { status: 'pending' | 'resolved' | 'rejected'; value?: unknown } = {
+      status: 'pending'
+    }
+    receiptsOf(latest)
+      .transactionKnown(hash)
+      .then(
+        (value) => Object.assign(outcome, { status: 'resolved', value }),
+        (value: unknown) => Object.assign(outcome, { status: 'rejected', value })
+      )
+    await pushNetwork(sepolia({ proverRpcUrl: 'https://prover.example/two' }))
+    expect(first.destroy).toHaveBeenCalledTimes(1)
+    expect(outcome.status).toBe('rejected')
+    expect(outcome.value).toMatchObject({ name: 'ReceiptWaitReleased', transactionHash: hash })
+  })
+
   it('releases a receipt wait in flight when it destroys the provider', async () => {
     await render()
     const [first] = built

@@ -250,6 +250,21 @@ export interface ReceiptWait {
   wait(transactionHash: Hex, startBlock: number): Promise<ProviderTransactionReceipt>
 }
 
+/** Whether the node knows a transaction by its hash, as one read of it answered. */
+export type TransactionKnown = 'known' | 'unknown'
+
+/** The read of a transaction by its hash, over the extension's provider. */
+export interface TransactionLookup {
+  /**
+   * One read of the transaction: `known` where the node answers it, `unknown`
+   * where it answers none. A read that fails rejects; it never reads unknown.
+   */
+  transactionKnown(transactionHash: Hex): Promise<TransactionKnown>
+}
+
+/** The receipt wait with the read of a transaction by its hash, over one provider. */
+export type ReceiptReads = ReceiptWait & TransactionLookup
+
 /** What a receipt wait takes: the signal the caller aborts when it releases the provider. */
 export interface ReceiptWaitOptions {
   readonly signal?: AbortSignal
@@ -462,7 +477,7 @@ export interface DigestVersionRefusal extends Error {
 
 export type RecoveryClientState =
   | { status: 'loading' }
-  | { status: 'ready'; client: RecoveryKitClient; reads: ChainReads; receipts: ReceiptWait }
+  | { status: 'ready'; client: RecoveryKitClient; reads: ChainReads; receipts: ReceiptReads }
   | { status: 'update-the-wallet'; refusal: DigestVersionRefusal }
   | { status: 'failed'; error: unknown }
 

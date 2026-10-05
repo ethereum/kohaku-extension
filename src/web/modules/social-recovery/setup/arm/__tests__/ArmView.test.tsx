@@ -185,6 +185,7 @@ const mount = (overrides: Partial<ArmViewProps> = {}) => {
     onRetry: jest.fn(),
     onCheckAgain: jest.fn(),
     onCheckSetup: jest.fn(),
+    onSaveAgain: jest.fn(),
     onRecheck: jest.fn(),
     onReread: jest.fn(),
     navigate: jest.fn(),
@@ -687,6 +688,70 @@ describe('the write states in the save words', () => {
       state: { ...withWrite({ status: 'submitting', write: 'save', run: 1 }), stalled: true }
     })
     expect(byTestId('arm-check-again')).toBeNull()
+  })
+
+  describe('a save the network dropped', () => {
+    const DROPPED: [string, Partial<ArmState>][] = [
+      ['', {}],
+      [' and its wait stalled', { stalled: true }]
+    ]
+
+    DROPPED.forEach(([named, held]) =>
+      it(`shows only the dropped line and Save again${named}: no write state, no title, no check again, no retry, and the back`, () => {
+        const onSaveAgain = jest.fn()
+        const onCheckAgain = jest.fn()
+        const onRetry = jest.fn()
+        mount({
+          state: {
+            ...withWrite({
+              status: 'submitting',
+              write: 'save',
+              transactionHash: TX_HASH,
+              run: 1
+            }),
+            requestId: 'stored',
+            dropped: true,
+            ...held
+          },
+          onSaveAgain,
+          onCheckAgain,
+          onRetry
+        })
+        expect(textOf('arm-dropped-line')).toBe(t('socialRecovery.arm.dropped'))
+        expect(textOf('arm-save-again')).toBe(t('socialRecovery.arm.saveAgain'))
+        expect(textOf('arm-dropped')).toBe(
+          `${t('socialRecovery.arm.dropped')}${t('socialRecovery.arm.saveAgain')}`
+        )
+        expect(byTestId('arm-write-submitting')).toBeNull()
+        expect(pageText()).not.toContain(t('socialRecovery.writes.submitting'))
+        expect(pageText()).not.toContain(t('socialRecovery.review.after.submitting'))
+        expect(pageText()).not.toContain(t('socialRecovery.review.after.failedTitle'))
+        expect(byTestId('arm-check-again')).toBeNull()
+        expect(byTestId('arm-save')).toBeNull()
+        expect(hasButton(t('socialRecovery.writes.tryAgain'))).toBe(false)
+        expect(hasButton(t('socialRecovery.arm.checkAgain'))).toBe(false)
+        expect(byTestId('arm-back')).not.toBeNull()
+
+        press('arm-save-again')
+        expect(onSaveAgain).toHaveBeenCalledTimes(1)
+        expect(onCheckAgain).not.toHaveBeenCalled()
+        expect(onRetry).not.toHaveBeenCalled()
+      })
+    )
+
+    it('shows neither the dropped line nor Save again for a stalled save under its hash that is not dropped', () => {
+      mount({
+        state: {
+          ...withWrite({ status: 'submitting', write: 'save', transactionHash: TX_HASH, run: 1 }),
+          requestId: 'stored',
+          stalled: true
+        }
+      })
+      expect(byTestId('arm-dropped-line')).toBeNull()
+      expect(byTestId('arm-save-again')).toBeNull()
+      expect(pageText()).not.toContain(t('socialRecovery.arm.dropped'))
+      expect(byTestId('arm-check-again')).not.toBeNull()
+    })
   })
 
   it('shows a replaced save as replaced, without the not-sent sentence', () => {

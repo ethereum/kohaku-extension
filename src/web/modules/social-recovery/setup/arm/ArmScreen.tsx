@@ -157,8 +157,17 @@ const ArmStep = ({ records, chainId, account, navigate }: StepViewProps) => {
     })
   }, [kit, chainReads, receipts, ready, draft, port, requests, records, chainId, account, password])
 
-  const { state, start, recheck, reread, checkAgain, checkSetup, endWhereSetUp, lookAgain } =
-    useArmRun(steps, `${chainId}:${account.toLowerCase()}`)
+  const {
+    state,
+    start,
+    recheck,
+    reread,
+    checkAgain,
+    checkSetup,
+    endWhereSetUp,
+    lookAgain,
+    saveAgain
+  } = useArmRun(steps, `${chainId}:${account.toLowerCase()}`)
   const arrival = arrivalOf({
     facts,
     client: clientState.status,
@@ -251,6 +260,7 @@ const ArmStep = ({ records, chainId, account, navigate }: StepViewProps) => {
       onRetry={start}
       onCheckAgain={checkAgain}
       onCheckSetup={checkSetup}
+      onSaveAgain={saveAgain}
       onRecheck={recheck}
       onReread={reread}
       navigate={navigate}

@@ -49,6 +49,28 @@ export const CLAIMED_SETUP_READ_MS = 20_000
 export const SEND_BLOCK_READ_MS = 10_000
 
 /**
+ * How long after its broadcast a save whose transaction the node does not
+ * know, and whose setup the account does not hold, reads as dropped, in ms.
+ * A stored save that holds a hash and no time of its broadcast counts from
+ * its claim; one that holds no hash never reads as dropped.
+ */
+export const DROPPED_AFTER_MS = 60 * 60 * 1000
+
+/**
+ * How long after a first reading that the node knows none of a save's
+ * transactions a second such reading, at the same block number, reads the save
+ * as dropped, in ms. A second reading at another block number needs no wait.
+ */
+export const DROPPED_RECHECK_MS = 60_000
+
+/**
+ * How long each read of the check for a dropped save may take, the node's
+ * read of a transaction, the block read and the setup read, in ms. A read
+ * past it counts as one that failed.
+ */
+export const DROPPED_READ_MS = 20_000
+
+/**
  * How old a claim may be, in ms, when the stored save's last read before the
  * send answers, for its page to send. Above the two limited reads before that
  * read (`CLAIMED_SETUP_READ_MS + SEND_BLOCK_READ_MS`) and well under

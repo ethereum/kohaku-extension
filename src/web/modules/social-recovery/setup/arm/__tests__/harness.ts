@@ -61,7 +61,7 @@ import type {
   KeyHandle,
   ListedAccountFacts,
   ProviderTransactionReceipt,
-  ReceiptWait,
+  ReceiptReads,
   RemovedKeyReading,
   SendPort,
   SendRefusalReason,
@@ -426,8 +426,9 @@ export const sendPortFor = (send: SendCase, account: Address, estimation?: FeeRe
 
 export const receiptsFor = (
   receipt: ReceiptCase
-): ReceiptWait & { blockNumber: jest.Mock; wait: jest.Mock } => ({
+): ReceiptReads & { blockNumber: jest.Mock; wait: jest.Mock; transactionKnown: jest.Mock } => ({
   blockNumber: jest.fn(async () => START_BLOCK),
+  transactionKnown: jest.fn(async () => 'known' as const),
   wait: jest.fn(async (hash: Hex) => {
     if (receipt === 'reverted') {
       throw minedAndReverted(hash)
@@ -469,6 +470,13 @@ export interface WiredSave {
   inFlight: SaveInFlightAccessor
   requests: RequestsFake
   storage: MemoryStorage
+}
+
+/** A page over a save's storage: its wiring, its store, and its arrival. */
+export interface Page {
+  wired: WiredSave
+  store: ArmStore
+  arrive: () => Promise<void>
 }
 
 export type MemoryStorage = RecordStorage & { raw: Map<string, string> }

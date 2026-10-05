@@ -9,7 +9,8 @@
  * replacement only from the block it is given, so the caller reads the block
  * before the send, as ethers' own signer does before it broadcasts. Where the
  * node does not know the transaction yet, the wait asks again at each new
- * block. Every error comes through as ethers threw it.
+ * block. Every error comes through as ethers threw it. One read of the
+ * transaction by its hash answers whether the node knows it at that moment.
  *
  * A destroyed provider drops its block listeners without settling the waits
  * on them, so the caller that destroys the provider releases the wait first
@@ -20,9 +21,10 @@ import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
 import type {
   ProviderTransaction,
   ReceiptProvider,
-  ReceiptWait,
+  ReceiptReads,
   ReceiptWaitOptions,
-  ReceiptWaitReleased
+  ReceiptWaitReleased,
+  TransactionKnown
 } from './types'
 
 /**
@@ -104,8 +106,20 @@ const untilReleased = <T>(
 export const createReceiptWait = (
   provider: ReceiptProvider,
   { signal }: ReceiptWaitOptions = {}
-): ReceiptWait => ({
+): ReceiptReads => ({
   blockNumber: () => provider.getBlockNumber(),
+
+  async transactionKnown(transactionHash: Hex): Promise<TransactionKnown> {
+    if (signal?.aborted) {
+      throw released(transactionHash)
+    }
+    const transaction = await untilReleased(
+      signal,
+      transactionHash,
+      provider.getTransaction(transactionHash)
+    )
+    return transaction ? 'known' : 'unknown'
+  },
 
   async wait(transactionHash: Hex, startBlock: number) {
     const transaction = await knownTransaction(provider, transactionHash, signal)

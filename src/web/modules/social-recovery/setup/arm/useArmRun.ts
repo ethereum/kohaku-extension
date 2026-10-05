@@ -7,8 +7,9 @@
  * flight instead of starting a second one. The screen also keeps a refusal
  * whose operation may still reach the chain, and a landed save whose check did
  * not answer. When the screen leaves any other ended run (saved, a setup
- * found, failed, the deposit step or disagreed), the run is dropped, and the
- * next arrival reads the chain again before anything starts. Once it has
+ * found, failed, the deposit step, disagreed, or a save the network dropped),
+ * the run is dropped, and the next arrival reads the chain again before
+ * anything starts. Once it has
  * steps, a run that never started reads the save in flight stored on this
  * device, and follows one where it is stored. A follow of a stored save with
  * no hash reads the wallet's queue through the steps of the screen attached
@@ -28,6 +29,7 @@ import {
   outlivesScreen,
   recheckGas,
   rereadConfirmation,
+  saveAgain,
   startSave
 } from './run'
 import type { ArmRun, ArmStore, SaveSteps } from './types'
@@ -100,6 +102,11 @@ export const useArmRun = (steps: SaveSteps | null, runKey: string): ArmRun => {
       checkSetupAgain(store, stepsRef.current).catch(() => undefined)
     }
   }, [store])
+  const startAgain = useCallback(() => {
+    if (stepsRef.current) {
+      saveAgain(store, stepsRef.current).catch(() => undefined)
+    }
+  }, [store])
   const endKeptRunWhereSetUp = useCallback(
     (hasSetup: boolean) => {
       if (stepsRef.current) {
@@ -117,6 +124,7 @@ export const useArmRun = (steps: SaveSteps | null, runKey: string): ArmRun => {
     checkAgain,
     checkSetup,
     endWhereSetUp: endKeptRunWhereSetUp,
-    lookAgain
+    lookAgain,
+    saveAgain: startAgain
   }
 }

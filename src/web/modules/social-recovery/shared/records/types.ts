@@ -349,9 +349,11 @@ export type CeremonyRequestRecord =
  * A setup save this device sent to the wallet and has not settled: the draft
  * the save committed and the prepared value, the two `confirmSetup` takes, the
  * id of the request it queued, when the save claimed it (ms since epoch) and,
- * once the wallet broadcast it, the transaction hash and the block the receipt
- * wait scans from. A reloaded page or another tab finds it and sends nothing,
- * and checks the save against the draft it sent, not the draft stored now.
+ * once the wallet broadcast it, the transaction hash, when the hash was first
+ * written (ms since epoch, absent from a record written before the time was
+ * kept) and the block the receipt wait scans from. A reloaded page or another
+ * tab finds it and sends nothing, and checks the save against the draft it
+ * sent, not the draft stored now.
  */
 export interface SaveInFlightRecord {
   draft: SetupDraft
@@ -359,6 +361,7 @@ export interface SaveInFlightRecord {
   requestId: string
   claimedAt: number
   transactionHash?: Hex
+  sentAt?: number
   startBlock?: number
 }
 
@@ -391,8 +394,9 @@ export interface SaveInFlightAccessor {
   claim(claim: SaveInFlightClaim): Promise<SaveInFlightClaimResult>
   /**
    * Writes the hash where the stored record carries `requestId`, and the start
-   * block where one is given; with none, the record keeps the claim's. Answers
-   * the record the storage holds after the task.
+   * block where one is given; with none, the record keeps the claim's. The
+   * first hash written also writes the time of the write, and a later one
+   * keeps it. Answers the record the storage holds after the task.
    */
   markSent(
     requestId: string,
