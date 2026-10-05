@@ -79,7 +79,19 @@ const WEB_ROUTES = {
   pp2Home: 'PPv2Home',
   pp2Deposit: 'PPv2Deposit',
   pp2Transfer: 'PPv2Transfer',
-  pp2Import: 'PPv2Import'
+  pp2Import: 'PPv2Import',
+
+  // Account recovery (social recovery) routes
+  socialRecovery: 'social-recovery',
+  socialRecoveryCeremony: 'social-recovery/ceremony',
+  socialRecoverySetup: 'social-recovery/setup',
+  socialRecoveryCreate: 'social-recovery/create',
+  socialRecoveryRecover: 'social-recovery/recover',
+  socialRecoveryFastTrack: 'social-recovery/fast-track',
+  socialRecoveryRecovery: 'social-recovery/recovery',
+  socialRecoveryApprove: 'social-recovery/approve',
+  socialRecoveryCancel: 'social-recovery/cancel',
+  socialRecoveryManage: 'social-recovery/manage'
 }
 
 const ROUTES = { ...MOBILE_ROUTES, ...WEB_ROUTES }

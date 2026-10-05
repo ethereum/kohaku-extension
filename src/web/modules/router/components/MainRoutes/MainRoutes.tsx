@@ -53,6 +53,7 @@ import TermsSettingsScreen from '@web/modules/settings/screens/TermsSettingsScre
 import TransactionHistorySettingsScreen from '@web/modules/settings/screens/TransactionHistorySettingsScreen'
 import SignAccountOpScreen from '@web/modules/sign-account-op/screens/SignAccountOpScreen'
 import SignMessageScreen from '@web/modules/sign-message/screens/SignMessageScreen'
+import SocialRecoveryRoutes from '@web/modules/social-recovery/routes/SocialRecoveryRoutes'
 import SwapAndBridgeScreen from '@web/modules/swap-and-bridge/screens/SwapAndBridgeScreen'
 import TransferScreen from '@web/modules/transfer/screens/TransferScreen'
 import ViewOnlyAccountAdderScreen from '@web/modules/view-only-account-adder/ViewOnlyAccountAdderScreen'
@@ -90,6 +91,7 @@ const MainRoutes = () => {
       <Route element={<TabOnlyRoute />}>
         <Route path={WEB_ROUTES.keyStoreSetup} element={<KeyStoreSetupScreen />} />
         <Route path={WEB_ROUTES.keyStoreReset} element={<KeyStoreResetScreen />} />
+        <Route path={`${WEB_ROUTES.socialRecovery}/*`} element={<SocialRecoveryRoutes />} />
 
         <Route element={<KeystoreUnlockedRoute />}>
           <Route path={WEB_ROUTES.getStarted} element={<GetStartedScreen />} />

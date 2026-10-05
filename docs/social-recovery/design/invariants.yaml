@@ -1,0 +1,550 @@
+# Invariants are the axioms of the design, the properties the system must
+# always hold. Each entry ties to the class of bug it rules out and to the
+# mechanical check that covers it. Field notes live in the harness spec.
+# Statements follow rules/writing.md. Modules are the D-4 vocabulary:
+# policy-manager, method-ecdsa, method-passkey, method-aadhaar,
+# method-zkpassport, action, watcher, sdk. The sdk is shipped kit code, so a
+# duty bound to it is a client-side check the contract never sees, its check
+# kind a vector or a client test rather than a Solidity fuzz, settled at the
+# binding pass.
+#
+# Ids follow the D-1 groups. check_ref stays pending until each check is
+# assigned to exactly one task file.
+
+- id: I-1
+  heuristic: key rotation only ever happens through a path the holder set up
+  statement: The policy manager approves and releases a recovery only under a setup the holder committed, every requirement of that setup met in full.
+  bug_class: policy bypass, unauthorized recovery path
+  modules: [policy-manager]
+  check: fuzz
+  check_ref: pending
+  status: grounded
+  source: D-2
+  derived_from: []
+
+- id: I-2
+  heuristic: only the account's own authority changes the recovery configuration
+  statement: Only the account's current authority creates, changes or removes setups, whenever that authority holds and no other write of the same account has moved the nonce the write names. The policy manager accepts configuration writes from the account alone.
+  bug_class: configuration takeover
+  modules: [policy-manager]
+  check: fuzz
+  check_ref: pending
+  status: grounded
+  source: D-2
+  derived_from: []
+
+- id: I-3
+  heuristic: a method you never named cannot recover your account, a corollary of I-1
+  statement: A method the holder's committed rule never names cannot contribute to satisfying that holder's recovery.
+  bug_class: unauthorized method participation
+  modules: [policy-manager]
+  check: fuzz
+  check_ref: pending
+  status: grounded
+  source: D-4
+  derived_from: [I-1]
+
+- id: I-4
+  heuristic: the method you approved is the method that runs, a corollary of I-1
+  statement: A holder's setup pins each credential's exact module address inside its commitment, and the policy manager recommits that address with the credential's config and salt before every dispatch, so the module the holder named is the module that runs, always, on the stated assumption that code at a committed address stays what the holder inspected. The cases where it does not are out of scope by decision. A module that routes its logic elsewhere through indirection keeps its committed address while its behavior moves, a risk shown at adoption as the adopter's own. A module without a declaration of trusted parties still runs at exactly the address the holder named, only the declaration of its trusted parties waived.
+  bug_class: proxy swap under a committed address
+  modules: [policy-manager, method-ecdsa, method-passkey, method-aadhaar, method-zkpassport]
+  check: fuzz
+  check_ref: pending
+  status: grounded
+  source: D-4
+  derived_from: [I-1]
+
+- id: I-5
+  heuristic: anyone can build a method, any holder can adopt one, nobody gatekeeps
+  statement: Deploying a method module requires nobody's permission. A holder adopts any module by naming it in their rule, with no allowlist, registry gate or privileged set standing between. The shipped methods are ordinary instances with no special powers. A method may carry a pause of its own, which stops that method's proofs after adoption until whoever holds it lifts it, for every holder whose setup did not commit to ignore stops, the pause D-111 specifies, and gates nothing before it.
+  bug_class: gatekept extensibility, privileged method set
+  modules: [policy-manager]
+  check: fuzz
+  check_ref: pending
+  status: grounded
+  source: D-4
+  derived_from: []
+
+- id: I-6
+  heuristic: an attempt completes only after the wait the holder set has elapsed
+  statement: An attempt's approval is spent only after the waiting period its setup committed has fully elapsed since the proof set was accepted. The kit enforces no minimum, so the period is the holder's own choice committed with the rule.
+  bug_class: wait bypass, early release
+  modules: [policy-manager]
+  check: fuzz
+  check_ref: pending
+  status: grounded
+  source: D-2
+  derived_from: []
+
+- id: I-7
+  heuristic: the current key can always cancel a running recovery
+  statement: While an attempt is waiting, a cancel sent by the account's current authority succeeds at the policy manager, a call that reaches no method and that no pause can reach. What ends that attempt first, another cancel path or a setup write, makes the holder's own call revert with nothing to cancel, which is the attempt already gone rather than the holder refused. What the account installs on itself is outside the contract's reach, so a hook the same authority added can revert the account's own path, the boundary I-17 states, while the proof-set cancel of I-8 makes no account call and stays open regardless.
+  bug_class: lockout of the legitimate holder
+  modules: [policy-manager]
+  check: fuzz
+  check_ref: pending
+  status: grounded
+  source: D-2
+  derived_from: []
+
+- id: I-8
+  heuristic: a cancel needs what the recovery needed, and anyone may send it
+  statement: An active attempt is also cancelled without the account's key, by a proof set that satisfies the same committed rule an opening set has to satisfy, signed for that exact attempt under the cancel purpose, and sent by anyone. The credentials filling it may belong to different people of the rule than the ones who opened the attempt. A set too weak to open a recovery cancels none by proofs, an approval never counts as a cancel, and a cancel signed for one attempt counts for no other. One cancellation reads no proofs at all, the one a stopped method authorizes, which ends an attempt that method's proofs opened and takes its authorization from that method's own answer rather than from any set, and which the manager refuses for an attempt whose setup committed to keep it through a stop. The manager refuses a stopped method's proofs here as it refuses them at an opening, unless the setup committed to ignore stops, so a cancelling set that needs a stopped method waits for the lift wherever its holder did not choose otherwise, which is why the setup screen asks for redundancy inside the clauses a cancel would use.
+  bug_class: uncancellable hostile recovery, cancel by a set weaker than the rule
+  modules: [policy-manager]
+  check: fuzz
+  check_ref: pending
+  status: grounded
+  source: D-2
+  derived_from: []
+
+- id: I-9
+  heuristic: no complete proof set, no recovery, no ticking clock
+  statement: An attempt starts, with its clock, only when the policy manager accepts a proof set meeting every clause's threshold in one transaction. Proofs are never accepted or stored one at a time. Acceptance is checked once and never regresses, so a proof expiring mid-wait undoes nothing. A rejected or incomplete request changes no account state.
+  bug_class: clock manipulation, junk-attempt state pollution, partial-progress storage
+  modules: [policy-manager]
+  check: fuzz
+  check_ref: pending
+  status: grounded
+  source: D-2
+  derived_from: []
+
+- id: I-10
+  heuristic: at most one attempt per action at a time, so at most one recovery
+  statement: At most one attempt exists per account and per committed action under one policy manager deployment at any moment, so the recovery action holds at most one. A new attempt opens only when none is active for that action, an attempt ends only by being spent or by cancellation, a finished attempt never transitions again. Two deployments holding setups for one account each hold their own, and so do two action addresses carrying one outcome, so a migration clears the old setup before the new is committed and the setup screen refuses a second setup for one outcome. Those last two are the setup screen's, checked where I-15 is checked rather than by the fuzz this entry names, which reaches the one attempt per account and action the manager itself enforces.
+  bug_class: concurrent-attempt overwrite, sibling handover race, attempt resurrection
+  modules: [policy-manager]
+  check: fuzz
+  check_ref: pending
+  status: grounded
+  source: D-2
+  derived_from: []
+
+- id: I-11
+  heuristic: a proof made for one recovery is useless for any other
+  statement: Every proof works for exactly one attempt, on one account, for one committed action, on one chain, under one policy manager and one setup version counted by the setup nonce, filling one place in the rule under the exact credential configuration committed at that place, which a conforming method binds into its verdict rather than receiving as context, an approval proof approving one exact outcome payload with the payment order beside it and a cancel proof naming one exact attempt and no outcome. It never counts twice and never works anywhere else, since attempt numbers are never reused. What the manager delivers unconditionally is the distinct digest, built fresh for each attempt, setup nonce, place, window and outcome, and the refusal of a repeated place. That those bytes are what a credential actually authorized rests on the method binding the digest and the configuration into its verdict, which a conforming method does and an adopted one is trusted to, the wallet method inheriting the same dependency wherever it delegates to a contract guardian.
+  bug_class: proof replay, cross-account replay, place reuse, contract-swap replay
+  modules: [policy-manager, method-ecdsa, method-passkey, method-aadhaar, method-zkpassport]
+  check: fuzz
+  check_ref: pending
+  status: grounded
+  source: D-3
+  derived_from: []
+
+- id: I-12
+  heuristic: editing a setup retires every proof already given, even when the edited setup rewrites the identical rule
+  statement: A proof issued under a setup never satisfies anything after that setup changes, including a change that restores the exact previous rule, across clearing and recommitting alike, since the nonce retires the request and the digest every conforming method verified against. No approval banked under an old setup ever comes back. Removing the kit's authorization alone is not a setup change and retires nothing, the dormant-setup boundary the design states.
+  bug_class: banked-approval resurrection, configuration-cycle replay
+  modules: [policy-manager]
+  check: fuzz
+  check_ref: pending
+  status: grounded
+  source: D-3
+  derived_from: [I-11]
+
+- id: I-13
+  heuristic: a proof past its window opens nothing
+  statement: A request whose validity window has passed opens no attempt and cancels none. The policy manager checks the window before it reads any proof, so a stale request fails on the window rather than on a proof. The window is one field of the request, carried into the digest every verification receives, so a conforming method binds its verdict to it, while its width is the signing client's choice rather than a contract ceiling.
+  bug_class: stale-proof acceptance
+  modules: [policy-manager]
+  check: fuzz
+  check_ref: pending
+  status: grounded
+  source: D-3
+  derived_from: []
+
+- id: I-14
+  heuristic: methods are independent, one failing or hostile method never touches another
+  statement: The policy manager calls every method through a static call and builds its arguments from that call's own digest, configuration and proof alone, so neither the method nor anything it calls writes any state during it and no method is handed another method's or another account's configuration, attempt or authority. A method holds no holder's configuration and no attempt of its own. What a method chooses to read is its own business and outside this guarantee, so a module that conditions its verdict on foreign state is a hostile module, contained the way any other is.
+  bug_class: shared-failure coupling, cross-method state corruption, cross-account interference
+  modules: [policy-manager, method-ecdsa, method-passkey, method-aadhaar, method-zkpassport]
+  check: fuzz
+  check_ref: pending
+  status: grounded
+  source: D-4
+  derived_from: []
+
+- id: I-15
+  heuristic: the holder always sees who could act on their account, before approving
+  statement: Every setup and every edit shows the holder, in the clear, the full configuration being committed together with every party it trusts that the design can name, a conforming method's declaration listing the key admin able to change its keys, the keys it trusts and whoever can stop it, a contract guardian's own wallet named beside that credential, the committed action and its author named as the party that holds the account's authority, a module without one shown as carrying unknown parties. What the holder is shown is who holds each role and who is one acceptance away from it, at the moment they commit or edit. Those roles transfer afterwards without asking them, so a party they were never shown can come to hold one. The setup screen says that, and says that each declaration is its author's own word.
+  bug_class: hidden admin, invisible trust escalation
+  modules: [sdk]
+  check: human-only
+  check_ref: pending
+  status: grounded
+  source: D-4
+  derived_from: []
+
+- id: I-16
+  heuristic: the chain learns only what the holder chose to show
+  statement: The only setup configuration in contract storage is the salted commitment, taken over the account, the action, the setup nonce and the setup body so no two accounts share one, revealing no method, clause structure, threshold, wait or pause choice whatever the holder's disclosure choice. An attempt additionally reveals the distinct methods its accepted set used, which the manager stores and the opening event carries, and which the record keeps after that attempt ends and after the setup is cleared, since the attempt record is overwritten rather than deleted. It reveals a credential only to a reader who can reproduce its preimage, so what hides one is the entropy of its configuration and its salt rather than anything the manager does, the manager taking the salt as a supplied value and hashing it. This kit's own SDK computes a default salt from the account and the place, which hides a wallet guardian only from a reader who cannot guess their address, and which a holder or another client replaces with any value, a client behaviour this entry's fuzz cannot reach and the salt derivation's own vector pins, the one I-21 names. The setup nonce and the running attempt's state also live in that storage, the attempt keeping the outcome payload's hash, the payment order, the distinct methods its accepted set used and the pause choice it was judged under, from the moment its opening event published the cleartext, and reveal nothing of the rule beyond what that event already showed. Any reveal the holder opts into rides the setup event alone, the optional public metadata and the optional backup, encrypted or plain, private by default. Verification always runs against the commitment, never against revealed event data. A submitted request reveals the setup body it carries, the rule with its wait and its pause choice, together with the credentials it used and the action it names, whether or not it is accepted, all of it in the transaction's calldata, and an accepted opening publishes the body and the action in its own event besides.
+  bug_class: setup leakage beyond the holder's choice, guessable commitments
+  modules: [policy-manager]
+  check: fuzz
+  check_ref: pending
+  status: grounded
+  source: D-5
+  derived_from: []
+
+- id: I-17
+  heuristic: the lost key cannot take the account back after recovery
+  statement: After a recovery completes, the replaced authority, which held power on the account when the handover executed, no longer holds it, removed by the committed action's batch in the account's own frame, on the chain the recovery ran on, and the action refuses a handover whose replaced authority holds no power, so a completed recovery never leaves the lost key in place. Authorities installed outside the handover's reach, a second validator, an extra owner, another module, are not touched by it and are the holder's to enumerate at setup.
+  bug_class: re-armed credential within the controlled authority, silent partial disarm
+  modules: [policy-manager, action]
+  check: fuzz
+  check_ref: pending
+  status: grounded
+  source: D-5
+  derived_from: []
+
+- id: I-18
+  heuristic: an approved handover executes at most once and exactly as committed, spent and applied as one atomic batch, nothing more
+  statement: The policy manager releases an approved attempt at most once, through one spend only the account itself performs, after the wait, under the setup it was judged under, and for the committed attempt id and payload hash alone. The recovery action's own code builds one batch and only one, installing exactly the committed new authority at exactly the value that account's authority model reserves for a key, removing exactly the committed replaced one, carrying exactly the payment call the order named, and doing nothing else to the account. Whether that call moves value is the token's and the payee's business rather than the manager's, since the batch checks only that the call did not revert, and a payment that lands nowhere leaves the handover complete, the cost D-110 states. What narrows the batch is that code and its audit rather than the account's grant, which is unlimited once given, the boundary I-17 states. The account's authorization callback refuses every batch that is not that one, which narrows what this action will ask for and never what the account's grant allows. The spend rides that batch, so the whole handover lands or reverts as one unit, and the account never ends with no authority, since the action refuses a handover naming one address on both sides and refuses one naming no new authority at all. That nothing is spent without its writes rests on the action's code and audit rather than on a contract mechanism, since any contract the account authorized can send the spend alone.
+  bug_class: action smuggling at release, half-executed rotation
+  modules: [policy-manager, action]
+  check: fuzz
+  check_ref: pending
+  status: grounded
+  source: D-2
+  derived_from: []
+
+- id: I-19
+  heuristic: a pause only refuses, it never lets a recovery through
+  statement: The policy manager refuses the spend of an attempt whenever a method that attempt used answers the pause read with exactly true, and does not refuse it on any other answer, which is the manager declining to veto rather than a promise that the transaction completes. It refuses a proof from a method that answers the same read with exactly true at an opening and at a cancel by proofs. It makes every one of those reads only when the setup did not commit to ignore stops, a choice read from the revealed body and carried on the attempt from its acceptance, which no caller supplies. A conforming method reports its stop through that read and refuses nothing inside its own verification, so the manager is the only party that turns a stop into a refusal. No state of a pause makes the manager accept a request or spend an attempt the committed setup does not authorize, and neither pausing nor lifting re-judges, widens or replays anything the manager accepted before it. What a stop does grant is the one cancellation it authorizes, which ends an attempt rather than releasing one, and whose own conditions are D-111's rather than this entry's. The manager and the action carry no pause at all.
+  bug_class: pause as a bypass
+  modules: [policy-manager, method-aadhaar, method-zkpassport]
+  check: fuzz
+  check_ref: pending
+  status: assumed
+  source: D-111
+  derived_from: []
+
+# The entries above are the properties a recovery itself rests on. The three
+# below hold the kit to the record it emits and to the bytes two implementations must
+# agree on. They are no weaker, and they are of another order: a reader checking whether
+# a recovery is sound reads those, and a reader checking whether the kit can be built
+# and watched reads these.
+
+- id: I-20
+  heuristic: every setup write and every recovery step emits its event, no event lies
+  statement: Every setup write and every attempt transition emits exactly one event naming it, no emitted event claims a transition that did not occur, so the event stream alone carries the whole state the policy manager holds. Whether the account still authorizes the contract is the account's own fact, read from the account beside that stream.
+  bug_class: silent transition, phantom event, blinded watcher
+  modules: [policy-manager]
+  check: fuzz
+  check_ref: pending
+  status: grounded
+  source: D-2
+  derived_from: []
+
+- id: I-21
+  heuristic: the wallet app and the policy manager always build a shared message the same way, so the approval Ana signs on her phone is the approval the contract accepts
+  statement: Every byte format the kit computes in more than one place yields identical bytes for the same inputs, always, whichever pair computes it, the SDK and the policy manager, the SDK and an action, or an action and the account, so a commitment, a digest or a binding one side produces always matches on the other. The shared formats are the binding digest with its own pre-hashed member, the credential commitment preimage, each credential's default salt derivation, the setup commitment preimage, the attempt request and the cancellation request, the setup body encoding, each action's authorization slot and binding value, which the SDK and the action both compute, the manager's five event layouts with the split between the fields it indexes and the fields it writes into the data, which the manager emits and a client decodes, the account address a creation triple reproduces and the privileged address that creation code writes, which the account's own deployment produced and the SDK recomputes, and the recovered holder's typed-data wrapping, which the SDK and the account of the pinned revision both compute, while each action's outcome payload freezes as that action's own vector, the recovery handover among them.
+  bug_class: cross-implementation encoding drift, a recovery that can never verify
+  modules: [policy-manager, action, sdk]
+  check: kat
+  check_ref: pending
+  status: grounded
+  source: D-3
+  derived_from: []
+
+- id: I-22
+  heuristic: the approval a helper's app produces is exactly the approval the method module expects, so a yes gathered off chain never turns into a rejection on chain
+  statement: Every proof format yields identical bytes in every implementation that computes it, always, the verdict's magic value among them, since every method author reproduces that constant and a wrong one rejects every proof. The SDK that gathers a proof and the method module that verifies it agree on each method's own config layout, which the SDK writes at setup and the module reads at every verification, on the typed message a wallet signature covers, on the passkey assertion's layout and check list, and on how each identity proof takes the digest as a public input, the identity formats joining as their methods ship, so a proof gathered off chain verifies on chain under the same request and the same verifier state. What a verifier accepts can change between the gathering and the submission, which the design records as a provider failure, and no vector certifies against that.
+  bug_class: cross-implementation encoding drift, a gathered proof the chain rejects
+  modules: [sdk, method-ecdsa, method-passkey, method-aadhaar, method-zkpassport]
+  check: kat
+  check_ref: pending
+  status: grounded
+  source: D-3
+  derived_from: []
+
+# The ux chapter's axioms, bound at R-50. Every entry is human-only until the
+# harness runs the ux check kinds on this instance; the check it awaits is named
+# in its own comment line. Modules are the wallet surfaces D-300 names.
+
+- id: I-23
+  heuristic: a guardian is an address, never a name the holder typed
+  statement: The wallet stores no contact label for a guardian. Every guardian renders as its address, or as the name a public name service resolves for that address, beside that address's blockie.
+  bug_class: contact list leak, a phishing map of who to impersonate
+  modules: [ux/setup, ux/recovery, ux/guardian-page, ux/management, ux/cancel]
+  check: human-only            # the strings check's rule 1 holds the address form this entry fixes; the stored-label half stays human, awaiting copy-lint over the surface files
+  check_ref: pending
+  status: grounded
+  source: D-302
+  derived_from: []
+
+- id: I-24
+  heuristic: no screen credits the policy manager with a rule the wallet alone applies
+  statement: Every string about the waiting period's minimum names the wallet as the source of that rule, and so does every string about one credential filling one place only, about one setup per account and action and about the refusal of a re-authorize while an attempt is pending. Every string about this release recovering accounts with one key names the wallet's request builder as the source. No string says the policy manager refuses a shorter wait, a repeated credential, a second setup, a second key or a re-authorize under a pending attempt.
+  bug_class: false guarantee, a holder relying on an enforcement that does not exist
+  modules: [ux/setup, ux/recovery, ux/management, ux/onboarding]
+  check: human-only            # the strings check's rule 6 retires this entry's forbidden phrasings as it retires I-34's; the sentence that the recovery registry and the recovery module carry no pause and no owner is D-395's criterion, which rule 6 pins on the review frames; UXC-11's positive half is a requirement at the prose layer, which no copy-lint reads, so it awaits persona-replay against design/personas/P-2-alice.md and design/personas/P-5-bob.md
+  check_ref: pending
+  status: grounded
+  source: D-305
+  derived_from: []
+
+- id: I-25
+  heuristic: each privacy level says on screen what a stranger can read at that level
+  statement: The privacy step renders one line for each of the three levels, and that line names what a stranger can read at that level.
+  bug_class: overclaimed privacy
+  modules: [ux/setup]
+  check: human-only            # the strings check pins the three level lines through its rule 6; UXC-12 is a requirement at the prose layer, which no copy-lint reads, so what each line says a stranger can read stays human
+  check_ref: pending
+  status: grounded
+  source: D-318
+  derived_from: []
+
+- id: I-26
+  heuristic: the wallet never tells a holder that recovery protects a key from theft
+  statement: No status label claims that the account is protected, and no string says that recovery protects the account or that removing it leaves the account unprotected. Every status label speaks about the recovery setup, never about the account's safety from a stolen key.
+  bug_class: overclaimed protection
+  modules: [ux/onboarding, ux/setup, ux/recovery, ux/management]
+  check: human-only            # the strings check holds the UXC-6 ban through its rule 5, and its rule 2 holds every status label to the fixed chip vocabulary, which carries no Protected label; whether a sentence outside a label claims that recovery protects the account stays human
+  check_ref: pending
+  status: grounded
+  source: D-302
+  derived_from: []
+
+- id: I-27
+  heuristic: nobody approves or submits a recovery without seeing which account it touches, which key comes in, which goes out and what the account pays
+  statement: The approval page, the guardian row and the submission confirmation each render the account being recovered, the new key in full, the key being removed, and the payment order or the words no payment. The page's sign action, every action of the row that carries the link away, copy the link, copy a message with the link, show the QR code and open the approval page, and the submit action stay disabled until all four have rendered.
+  bug_class: blind approval, a phisher naming their own key
+  modules: [ux/guardian-page, ux/recovery]
+  check: human-only            # awaiting persona-replay against design/personas/P-3-carl.md
+  check_ref: pending
+  status: grounded
+  source: D-308
+  derived_from: []
+
+- id: I-28
+  heuristic: an account that has recovery is never shown as one that has none
+  statement: An account whose setup the device cannot read renders as locked, or renders its structure with the values hidden. The sentence that no recovery setup was found appears only when the account carries no setup commitment on the chain the screen names, and no failed read renders as that sentence or as no attempt. On every surface that polls, a read that fails or has not returned never renders as the state the last good read returned, and every surface that draws that state draws it as a failed read with retry. No row state says that a method died, since no read this wallet makes tells a provider that stopped for good from one that is unreachable now.
+  bug_class: false dead end, an abandoned recovery that was possible
+  modules: [ux/setup, ux/recovery, ux/guardian-page, ux/management, ux/watcher]
+  check: human-only            # awaiting persona-replay against design/personas/P-1-sam.md and design/personas/P-6-sara.md
+  check_ref: pending
+  status: grounded
+  source: D-306
+  derived_from: []
+
+- id: I-29
+  heuristic: a recovery running against you reaches your screen, with a way to stop it where you hold the account's key
+  statement: While an attempt is open on an account the wallet holds, every dashboard the holder opens shows the countdown to execution beside the owner's cancel action, while the wallet is unlocked and its poll answers. That poll runs on an alarm of one minute, D-344, so an attempt opened elsewhere reaches the banner within a minute of the browser being open. A locked wallet and a failed poll each show the badge and the banner on unlock, and neither renders as the absence of an attempt, I-28. An address the wallet only watches shows the banner and the countdown with no cancel action, since no key of the wallet can stop that recovery. A dismissal covers that one attempt, and the next attempt shows the banner again.
+  bug_class: unnoticed takeover inside the waiting period
+  modules: [ux/watcher, ux/cancel, ux/management, ux/recovery]
+  check: human-only            # the one-minute alarm awaits a mechanical check, an extension test asserting the alarm period, since a persona replay runs against the screens and no screen shows a poll period; the rest awaits persona-replay against design/personas/P-5-bob.md
+  check_ref: pending
+  status: grounded
+  source: D-307
+  derived_from: [I-28]
+
+- id: I-30
+  heuristic: a control that would cancel a running recovery says so before the holder uses it
+  statement: While an attempt is open on the account, the save action of the path editor, the remove recovery action and the clear action of the overview's dormant warning each render the sentence that the act cancels the running recovery, above the primary action. Where no attempt is open none of the three renders that sentence, since a holder repairing a path after a cancelled attempt would otherwise read that saving destroys a recovery in progress.
+  bug_class: an owner destroying their own attempt unaware, or failing to know an edit is a defense
+  modules: [ux/management]
+  check: human-only            # the strings check pins the three sentences through its rule 6; their placement above the primary action stays human, awaiting persona-replay against design/personas/P-5-bob.md
+  check_ref: pending
+  status: grounded
+  source: D-309
+  derived_from: []
+
+- id: I-31
+  heuristic: the wallet never arms a recovery the kit cannot run
+  statement: The wallet checks that the action fits the account before it commits a setup, and it refuses the commit when that check fails. It refuses a path whose shape cannot be satisfied, an empty clause, a threshold outside its members, a threshold above the two hundred fifty-five its own field can count, a waiting period past the width the kit's field holds and a rule wider than a block can evaluate. That field bounds how many credentials a clause requires and never how many it lists, contracts D-103, so any ceiling the wallet keeps on a clause's membership is the wallet's own rule, and its string names the wallet as the party that refuses.
+  bug_class: dead setup discovered at the loss
+  modules: [ux/setup, ux/management]
+  check: human-only            # awaiting persona-replay against design/personas/P-2-alice.md
+  check_ref: pending
+  status: grounded
+  source: D-305
+  derived_from: []
+
+- id: I-32
+  heuristic: the Recovery Card says how to start a recovery and names no part of the path
+  statement: The Recovery Card carries the account address, the recovery password at the two hidden levels, the guide to starting a recovery, the line that the card alone cannot move funds, the line to keep it away from the device that holds the wallet, and the line that a photograph of it plus the chain reads the recovery path. It carries no method, no guardian address, no threshold and no waiting period.
+  bug_class: a stolen card as a map of what to phish
+  modules: [ux/setup, ux/management]
+  check: human-only            # the strings check pins the card's six lines through its rule 6; what the card must not carry stays human
+  check_ref: pending
+  status: grounded
+  source: D-318
+  derived_from: []
+
+- id: I-33
+  heuristic: the password that unlocks the device and the password that unlocks the setup never share a name
+  statement: The wallet names them the extension password and the recovery password on every screen. No screen takes both into one field.
+  bug_class: a holder entering one secret where the other belongs
+  modules: [ux/setup, ux/recovery, ux/onboarding, ux/management, ux/cancel]
+  check: human-only            # the strings check holds the UXC-9 ban through its rule 5; the one-field clause stays human
+  check_ref: pending
+  status: grounded
+  source: D-302
+  derived_from: []
+
+- id: I-34
+  heuristic: no screen says a privacy level hides that the account has a recovery setup
+  statement: No string says that any privacy level hides the existence of a recovery setup.
+  bug_class: overclaimed privacy
+  modules: [ux/setup, ux/recovery]
+  check: human-only            # the strings check holds the forbidden phrasings through its rule 6; persona-replay against design/personas/P-4-diana.md for the rest
+  check_ref: pending
+  status: grounded
+  source: D-318
+  derived_from: [I-25]
+
+- id: I-35
+  heuristic: the wallet never leaves a setup and its authorization out of step
+  statement: The wallet never commits a setup without writing the action's authorization in the same batch, and never removes one of the two alone while the other stands.
+  bug_class: dormant setup revived under a forgotten rule
+  modules: [ux/setup, ux/management]
+  check: human-only            # awaiting persona-replay against design/personas/P-5-bob.md
+  check_ref: pending
+  status: grounded
+  source: D-309
+  derived_from: []
+
+- id: I-36
+  heuristic: nobody starts a recovery without first reading that no support agent ever asks for one
+  statement: Every entry into a recovery, the recover door on the welcome screen and the recover an account entry in settings, renders the warning that no support agent ever asks a holder to start a recovery, acknowledged as nobody claiming to be support asked me to do this, and so do the extension's password reset and seed import entries. No entry accepts any input before the holder acknowledges that warning.
+  bug_class: a support scam walking a holder into a recovery
+  modules: [ux/onboarding, ux/recovery, ux/management]
+  check: human-only            # the strings check pins the warning and its acknowledgment through its rule 6; the gate on any input stays human, awaiting persona-replay against design/personas/P-1-sam.md and design/personas/P-5-bob.md
+  check_ref: pending
+  status: grounded
+  source: D-316
+  derived_from: []
+
+- id: I-37
+  heuristic: before saving, the holder sees which parties their setup will trust, and which methods name none
+  statement: The review renders, for every method in the path, the parties its declaration names, the words audited, with no outside party for a kit method whose declaration is empty, the party that declaration names as able to stop the method, or the words that nobody can stop it where the declaration names none, or the words unknown outside parties for a module with no declaration. It renders the committed action with its author and each method's stop state, and the key a recovery would remove, read from the account's own privilege stream, with the save disabled while that key cannot be read. For every guardian address it renders the sentence that, if the address is a smart account, whoever controls it can approve for it, whatever a test returned, since no screen marks an address as the holder's own key. The save action stays disabled until each of those has rendered, and a read that fails leaves it disabled with that reason.
+  bug_class: hidden trust, a holder committing to a party they never saw
+  modules: [ux/setup, ux/management]
+  check: human-only            # awaiting persona-replay against design/personas/P-3-carl.md
+  check_ref: pending
+  status: grounded
+  source: D-317
+  derived_from: []
+
+- id: I-38
+  heuristic: an approval never outlives the recovery it was gathered for
+  statement: The wallet deletes every approval it stored, and the attempt id it predicted, once it has submitted them or once the recovery that gathered them can no longer complete, because the deadline passed, another attempt opened, the setup changed, the recoverer abandoned, the account's own key cancelled the attempt, a set of approvals signed for cancel ended it, anyone ended it while a method it used was stopped, or the attempt can no longer execute; a pause by itself wipes nothing. After a submission the countdown's record is the chain's attempt read, which returns the id, D-371, since the manager publishes the id on chain and the approvals are the proof material, D-310. It keeps one line of reason and nothing else, so no approval survives on the device past that moment.
+  bug_class: stale approval reuse, proof material left on a device
+  modules: [ux/recovery]
+  check: human-only            # awaiting persona-replay against design/personas/P-2-alice.md
+  check_ref: pending
+  status: grounded
+  source: D-310
+  derived_from: []
+
+- id: I-39
+  heuristic: a page a phisher wrote cannot vouch for itself, so the guardian's check is the call they place
+  statement: Every surface that asks a guardian to approve instructs a call to the owner on a phone number the guardian already had, never a number the link's sender supplied, and its sign action stays disabled until the guardian acknowledges that call or that they are the owner. A call the guardian received never answers that check, and every such surface says so, since a phisher who calls first performs the ritual in the other direction. That call compares two values, the account being recovered and the new key, which both parties read aloud from their own screens. The recoverer's checklist asks the guardian to place that call rather than placing it for them, and instructs the recoverer to read the two values when the guardian calls.
+  bug_class: phished approval, a guardian signing a key the owner never named
+  modules: [ux/guardian-page, ux/recovery]
+  check: human-only            # awaiting persona-replay against design/personas/P-6-sara.md
+  check_ref: pending
+  status: grounded
+  source: D-308
+  derived_from: []
+
+- id: I-40
+  heuristic: nobody signs an approval whose deadline they were never shown
+  statement: Every surface that asks for an approval or receives one renders the request's deadline before the guardian gives it, with the sentence that anyone holding the request can submit it until that deadline passes.
+  bug_class: unbounded exposure, an approval submitted after the guardian believed it had lapsed
+  modules: [ux/guardian-page, ux/recovery]
+  check: human-only            # the strings check's rule 6 pins the submittable sentence on the frames that carry it today; which surfaces must carry it stays human, awaiting persona-replay against design/personas/P-6-sara.md
+  check_ref: pending
+  status: grounded
+  source: D-392
+  derived_from: []
+
+- id: I-41
+  heuristic: a name is what somebody bought, the address is what the reader checks
+  statement: Wherever a resolved name stands beside a full address the screen asks the reader to check, the screen states that the name can change hands and that the full address is what to check. Wherever a resolved name renders alone for an address the reader is asked to act on, the same caveat renders beside it.
+  bug_class: a bought name read in place of the address it stands beside
+  modules: [ux/setup, ux/recovery, ux/guardian-page, ux/management, ux/watcher, ux/cancel]
+  check: human-only            # the strings check's rule 4 holds the first sentence; a name rendered with no address stays human until the check learns that case, awaiting the copy-lint that runs it in the battery
+  check_ref: pending
+  status: grounded
+  source: D-302
+  derived_from: []
+
+- id: I-42
+  heuristic: the one repair that would complete a hostile recovery is refused while that recovery runs
+  statement: While an attempt is open on the account, the management surface refuses the re-authorize write and states why it refuses. No surface sends that write, or offers it as an action, while that attempt is open.
+  bug_class: an account handed over by a repair the holder took during an attempt
+  modules: [ux/management]
+  check: human-only            # the strings check's rule 6 pins the refusal sentence on the overview frame that draws it; the control's absence stays human, awaiting persona-replay against design/personas/P-5-bob.md
+  check_ref: pending
+  status: grounded
+  source: D-309
+  derived_from: []
+
+- id: I-43
+  heuristic: a recovery installs a key the wallet already holds, never an address somebody typed
+  statement: Every key a recovery installs is a key the wallet's keystore holds or derives from a seed entry it holds, whether the fast track wrote that entry or the holder created or imported it through the ordinary doors. No recovery surface takes a pasted destination address. The extension enforces this itself, checking the candidate against its own keystore before it hands the handover to the request builder, since the keystore is the wallet's and the SDK holds none. The SDK checks only that the candidate address matches the public key supplied with it, and it warns rather than refuses where no certification came with the candidate, so no sdk member enforces this axiom.
+  bug_class: a support scam pointing a recovery at the scammer's own address
+  modules: [ux/onboarding, ux/recovery]
+  check: human-only            # awaiting persona-replay against design/personas/P-1-sam.md
+  check_ref: pending
+  status: grounded
+  source: D-312
+  derived_from: []
+
+- id: I-44
+  heuristic: a submission publishes the fewest members the rule needs and no more
+  statement: On a setup that keeps stops in force the submission leaves out the proofs of every method whose stop is on when the request is built, and on a setup that ignores stops it leaves nothing out for a stop, since the policy manager reads no stop for that holder, contracts D-111. It carries the smallest set of claims that satisfies the rule from what remains. Among equally small sets it carries the one naming the fewest methods that carry a stop, which `ux-interfaces.md` D-373 states for the builder. Every row outside that set reads not needed, whether or not it already holds a claim, and the wallet leaves every claim outside that set out of the submission.
+  bug_class: a member set published permanently that the rule never needed, and a foreign method's stop in front of the spend
+  modules: [ux/recovery]
+  check: human-only            # awaiting persona-replay against design/personas/P-2-alice.md
+  check_ref: pending
+  status: grounded
+  source: D-392
+  derived_from: []
+
+- id: I-45
+  heuristic: a stopped recovery reads as stopped, with the clock it still runs on and the party who may end it
+  statement: A stopped attempt renders as stopped with its fixed end, and its countdown keeps counting to that end rather than freezing. A stopped row at the recoverer's readout renders as stopped. Every surface that renders a stopped attempt states that anyone may end that attempt while the stop holds, the rule the requirement row D-395 rests on, and a stopped row rendered where the manager has accepted no attempt carries no such sentence, since there is no attempt for anyone to end. What each method the path names declares decides whether the sentence that anyone may end the attempt renders, never the family that method belongs to, since a third-party module decides for itself whether it carries a pause.
+  bug_class: a stop read as a frozen countdown, or an attempt anyone can end with nobody told
+  modules: [ux/recovery, ux/watcher, ux/cancel, ux/management]
+  check: human-only            # awaiting persona-replay against design/personas/P-4-diana.md
+  check_ref: pending
+  status: grounded
+  source: D-392
+  derived_from: []
+
+- id: I-46
+  heuristic: the wallet never saves a wait shorter than the time a keyless holder needs to notice
+  statement: The wallet refuses a waiting period shorter than 24 hours, at the picker's chips and at its custom entry alike, and it states that floor as its own rule, the attribution I-24 holds.
+  bug_class: a hostile recovery that executes before the holder opens the wallet
+  modules: [ux/setup, ux/management]
+  check: human-only            # awaiting persona-replay against design/personas/P-2-alice.md
+  check_ref: pending
+  status: grounded
+  source: D-305
+  derived_from: [I-24]
+
+- id: I-47
+  heuristic: a screen never points at a rescue the holder's own rule cannot deliver
+  statement: The sentence the banner generates about who may end a running attempt names only the roads the holder's saved rule carries and the live stop states allow. It never names a road that rule lacks, and while a stop holds on a method the attempt used, on a setup that keeps stops in force, it never says that only the account's own key may end the attempt, since anyone may end it then. On a setup that ignores stops no stop holds on the attempt, and the banner never says that anyone may end it. What each method the path names declares decides whether the banner names the road that anyone may end the attempt, never the family that method belongs to, since a third-party module decides for itself whether it carries a pause. A rule with no cancelling set therefore reads that only this account's own key can cancel the recovery, and the word guardians never renders on a path without a guardian row.
+  bug_class: a holder waiting for a rescue that cannot arrive, or spending a key they did not have to spend
+  modules: [ux/cancel, ux/watcher, ux/recovery, ux/management]
+  check: human-only            # awaiting persona-replay against design/personas/P-5-bob.md
+  check_ref: pending
+  status: grounded
+  source: D-307
+  derived_from: [I-45]
+
+- id: I-48
+  heuristic: the one window where the account and the destination key are not yet public is not forwarded away, and the install a message asks for names its source
+  statement: Every surface that hands an approval link to somebody, the recoverer's message, the phone hand-off step and the page the link opens, states that the link reveals the account being recovered and the new key, and that it is not to be forwarded. The same message names the source the extension is installed from and the publisher to check there, since a guardian who searches for it instead installs whatever a phisher listed.
+  bug_class: an account and a destination key published to strangers before the chain publishes them, or handed to an extension a phisher listed
+  modules: [ux/recovery, ux/guardian-page]
+  check: human-only            # awaiting persona-replay against design/personas/P-6-sara.md
+  check_ref: pending
+  status: grounded
+  source: D-392
+  derived_from: []
