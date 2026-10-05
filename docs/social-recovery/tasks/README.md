@@ -79,7 +79,7 @@ A follow-up task is work the cut did not hold: a seam a task or a review found, 
 
 ## Open questions
 
-Questions the tasks leave open, with the owner of the answer. They are not answered here. The ux owner is @FiboApe; the sdk owner is @0xAaCE.
+Questions the tasks leave open, with the owner of the answer. They are not answered here, except where a row says it was answered or ruled, and by what. The ux owner is @FiboApe; the sdk owner is @0xAaCE.
 
 | # | Tasks | Question | Owner |
 | --- | --- | --- | --- |
