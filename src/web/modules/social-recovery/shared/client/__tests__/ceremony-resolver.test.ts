@@ -39,16 +39,26 @@ import {
   spyOnBuilder,
   thrownBy
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
+import { sepoliaDeploymentVariable } from '@web/modules/social-recovery/shared/client/deployment-env'
+import { FACTS } from '@web/modules/social-recovery/shared/client/kit/builder/__tests__/harness'
 
 jest.mock('@ambire-common/services/provider/getRpcProvider', () => ({
   getRpcProvider: jest.fn()
 }))
+jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
+  ...jest.requireActual('@web/modules/social-recovery/shared/client/deployment-env'),
+  sepoliaDeploymentVariable: jest.fn()
+}))
 
 const buildProvider = getRpcProvider as jest.Mock
+const deploymentVariable = sepoliaDeploymentVariable as jest.MockedFunction<
+  typeof sepoliaDeploymentVariable
+>
 
 afterEach(() => {
   jest.restoreAllMocks()
   buildProvider.mockReset()
+  deploymentVariable.mockReset()
 })
 
 const SLUGS = ['ecdsa', 'passkey', 'aadhaar', 'zkpassport'] as const
@@ -455,6 +465,16 @@ describe('the client builder the ceremony tab uses', () => {
     const caught = await thrownBy(extensionClientFor(() => [SEPOLIA])(world.account, CHAIN_ID))
     expect(caught).toBeInstanceOf(Error)
     expect((caught as { check?: string }).check).toBe('chain-id')
+    expect(world.ethers.destroy).toHaveBeenCalledTimes(1)
+  })
+
+  it('reads code over the same provider, so a deployed action address with no code is refused as undeployed', async () => {
+    deploymentVariable.mockReturnValue(JSON.stringify(FACTS))
+    const world = createWorld()
+    buildProvider.mockReturnValue(world.ethers)
+    const caught = await thrownBy(extensionClientFor(() => [SEPOLIA])(world.account, CHAIN_ID))
+    expect(caught).toMatchObject({ name: 'DeploymentRefusal', check: 'action' })
+    expect(world.ethers.getCode).toHaveBeenCalledWith(FACTS.action, 'latest')
     expect(world.ethers.destroy).toHaveBeenCalledTimes(1)
   })
 

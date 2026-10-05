@@ -28,9 +28,11 @@ jest.mock('@web/hooks/useNetworksControllerState', () => ({
   __esModule: true,
   default: jest.fn()
 }))
+/** The accounts the wallet lists; none unless a test lists one. */
+let mockListed: unknown[] = []
 jest.mock('@web/hooks/useAccountsControllerState', () => ({
   __esModule: true,
-  default: () => ({ accounts: [] })
+  default: () => ({ accounts: mockListed })
 }))
 // viem builds a TextEncoder and a TextDecoder when either entry the client
 // imports loads, which jsdom lacks: Node's own are installed first, whichever
@@ -61,6 +63,9 @@ const act: typeof React.act =
 const SEPOLIA = 11155111
 const ACCOUNT = '0x00000000000000000000000000000000000a11ce' as Address
 const GAS_PRICE = 7n * 10n ** 9n
+const ACCOUNT_CODE = '0x6080604052'
+const KEY = '0x00000000000000000000000000000000000000c1' as Address
+const ARMED = `0x${'00'.repeat(31)}01`
 
 const sepolia = (overrides: Partial<Network> = {}): Network =>
   ({
@@ -94,6 +99,7 @@ const providerMock = (index: number): ProviderMock => {
     }),
     getTransaction: jest.fn(async () => ({ replaceableTransaction: replaceable })),
     getBlockNumber: jest.fn(async () => blockOf(index)),
+    getCode: jest.fn(async () => ACCOUNT_CODE),
     replaceable,
     once: jest.fn(async () => undefined),
     off: jest.fn(async () => undefined),
@@ -164,6 +170,7 @@ beforeEach(() => {
   root = createRoot(document.createElement('div'))
   latest = undefined
   seen = []
+  mockListed = []
 })
 
 afterEach(async () => {
@@ -357,5 +364,45 @@ describe('useRecoveryClient over the network record', () => {
     expect(built[0].destroy).not.toHaveBeenCalled()
     expect(buildClient).toHaveBeenCalledTimes(1)
     expect(latest?.status).toBe('ready')
+  })
+})
+
+describe('useRecoveryClient for a deployed kit', () => {
+  it('hands the build a code read over the same provider', async () => {
+    await render()
+    const { codeRead } = buildClient.mock.calls[0][0] as {
+      codeRead: { code(address: Address): Promise<string> }
+    }
+    await expect(codeRead.code(ACCOUNT)).resolves.toBe(ACCOUNT_CODE)
+    expect(built[0].getCode).toHaveBeenCalledWith(ACCOUNT, 'latest')
+  })
+
+  it("hands the build a listed smart account's creation privileges beside its creation record", async () => {
+    mockListed = [
+      {
+        addr: ACCOUNT,
+        associatedKeys: [KEY],
+        initialPrivileges: [[KEY, ARMED]],
+        creation: { factoryAddr: KEY, bytecode: '0x00', salt: `0x${'00'.repeat(32)}` }
+      }
+    ]
+    await render()
+    expect(buildClient.mock.calls[0][0]).toMatchObject({
+      candidateKeys: [KEY],
+      initialPrivileges: [[KEY, ARMED]]
+    })
+  })
+
+  it('hands the build no creation privileges for a listed basic account', async () => {
+    mockListed = [
+      {
+        addr: ACCOUNT,
+        associatedKeys: [ACCOUNT],
+        initialPrivileges: [[ACCOUNT, ARMED]],
+        creation: null
+      }
+    ]
+    await render()
+    expect(buildClient.mock.calls[0][0]).not.toHaveProperty('initialPrivileges')
   })
 })

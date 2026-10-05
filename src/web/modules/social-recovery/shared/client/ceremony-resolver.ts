@@ -12,7 +12,7 @@ import { addressBookOf, sameAddress } from './addresses'
 import { buildRecoveryClient } from './build-client'
 import { CHAIN_IDS, recoveryChainOf, WALLET_RECOVERY_CHAIN } from './chains'
 import { extensionProviderFor, networkOf } from './extension-provider'
-import { createProviderAdapter } from './provider-adapter'
+import { createCodeRead, createProviderAdapter } from './provider-adapter'
 import type { CeremonyClientFor, CeremonyResolverOptions } from './types'
 
 /**
@@ -97,7 +97,8 @@ export const extensionClientFor =
         chain,
         account,
         addressBook: addressBookOf(chain),
-        provider: createProviderAdapter(provider)
+        provider: createProviderAdapter(provider),
+        codeRead: createCodeRead(provider)
       })
     } finally {
       provider.destroy()

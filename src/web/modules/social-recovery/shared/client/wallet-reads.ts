@@ -34,14 +34,14 @@ export { REMOVED_KEY_UNAVAILABLE_CAUSES } from '@web/modules/social-recovery/sdk
 
 const accountInterface = new Interface(AmbireAccount.abi)
 
-const holdsPrivilege = (privilege: string): boolean =>
+export const holdsPrivilege = (privilege: string): boolean =>
   isHex(privilege) && hexToBigInt(privilege) !== 0n
 
 // The entry point holds a privilege on an ERC-4337 account, but it is no key.
 const isKey = (value: string): value is Address =>
   isAddress(value, { strict: false }) && !isAddressEqual(value, ERC_4337_ENTRYPOINT)
 
-const distinctKeys = (values: readonly string[]): Address[] =>
+export const distinctKeys = (values: readonly string[]): Address[] =>
   values
     .filter(isKey)
     .filter((key, index, keys) => keys.findIndex((other) => isAddressEqual(other, key)) === index)

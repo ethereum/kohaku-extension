@@ -87,6 +87,7 @@ import {
   type SignRequestUpdate,
   type SubmittedOperation
 } from '@web/modules/social-recovery/shared/client'
+import { createCodeRead } from '@web/modules/social-recovery/shared/client/provider-adapter'
 // The stand-in is not part of the barrel a screen imports; tests reach it by path.
 import { sdkStandIn } from '@web/modules/social-recovery/shared/client/stand-in'
 import type { RecoveryClientState } from '@web/modules/social-recovery/shared/client/types'
@@ -104,6 +105,7 @@ export interface ProviderMock {
   send: jest.Mock
   getTransaction: jest.Mock
   getBlockNumber: jest.Mock
+  getCode: jest.Mock
   /** The replacement-aware response each transaction answers, by the start block given. */
   replaceable: jest.Mock
   once: jest.Mock
@@ -436,6 +438,7 @@ export const createWorld = (overrides: Partial<RecoveryClientConfiguration> = {}
     account,
     addressBook,
     provider: adapter,
+    codeRead: createCodeRead(ethers),
     ...overrides
   }
   return { chain, ethers, adapter, config, descriptor, account }

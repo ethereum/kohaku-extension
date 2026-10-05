@@ -365,7 +365,8 @@ describe('the waiting period', () => {
       chain: WALLET_RECOVERY_CHAIN,
       account: ACCOUNT,
       addressBook: BOOK,
-      provider: {} as never
+      provider: {} as never,
+      codeRead: {} as never
     })
     expect(PICKER_CEILING_SECONDS).toBe(BigInt(maximumWait ?? -1))
   })

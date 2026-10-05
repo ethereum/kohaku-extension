@@ -54,6 +54,23 @@ export const clientFactsOf = (
 }
 
 /**
+ * The privileges a listed smart account's creation grants, which a deployed
+ * kit reads as the keys of an account with no code yet. A basic account
+ * gives none.
+ */
+export const creationPrivilegesOf = (
+  account: Pick<Account, 'creation' | 'initialPrivileges'>
+): Pick<AccountFacts, 'initialPrivileges'> =>
+  account.creation
+    ? {
+        initialPrivileges: account.initialPrivileges.map(([key, privilege]): [string, string] => [
+          key,
+          privilege
+        ])
+      }
+    : {}
+
+/**
  * The account's key the keystore holds: the first of the account's associated
  * keys the keystore has an entry for, with that entry's type. Undefined where
  * it holds none.

@@ -8,25 +8,16 @@
  * the removed key; none or several leave it unnamed, and so does an account
  * with no creation record.
  */
-import { getAddress, hexToBigInt, isAddress, isAddressEqual, isHex, size } from 'viem'
+import { getAddress, isAddressEqual, size } from 'viem'
 
-import { ERC_4337_ENTRYPOINT } from '@ambire-common/consts/deploy'
 import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import {
+  distinctKeys,
+  holdsPrivilege
+} from '@web/modules/social-recovery/shared/client/wallet-reads'
 
 import type { FitCheckReading, RemovedKeyReading } from '../../types'
 import type { KitWalletReads, KitWalletReadsInput } from './types'
-
-const holdsPrivilege = (privilege: string): boolean =>
-  isHex(privilege) && hexToBigInt(privilege) !== 0n
-
-// The entry point holds a privilege on an ERC-4337 account, but it is no key.
-const isKey = (value: string): value is Address =>
-  isAddress(value, { strict: false }) && !isAddressEqual(value, ERC_4337_ENTRYPOINT)
-
-const distinctKeys = (values: readonly string[]): Address[] =>
-  values
-    .filter(isKey)
-    .filter((key, index, keys) => keys.findIndex((other) => isAddressEqual(other, key)) === index)
 
 const readingOf = (keys: readonly Address[]): RemovedKeyReading => {
   const [key] = keys

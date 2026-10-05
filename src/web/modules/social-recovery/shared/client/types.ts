@@ -46,6 +46,7 @@ import type { ChainId, SlotKind, WalletRecords } from '@web/modules/social-recov
 import type { UNKNOWN_ACTION } from './audited-actions'
 import type { RECOVERY_CHAINS } from './chains'
 import type { PUBLISHERS } from './deployments'
+import type { DEPLOYMENT_CHECKS } from './kit/builder/construction'
 import type { PROVIDER_READS } from './provider-adapter'
 import type { MISSING_SEND_ACTION, SEND_REFUSAL_REASONS } from './sender'
 import type { RECOVERY_CALLS } from './sending'
@@ -148,6 +149,8 @@ export interface AccountFacts {
   accountImplementation?: Address
   /** The wallet's own keys it asks `isAuthority` about; never the account's signer set. */
   candidateKeys?: Address[]
+  /** The privileges the account's creation grants, the keys of an account with no code yet. */
+  initialPrivileges?: Account['initialPrivileges']
 }
 
 export interface RecoveryClientConfiguration extends AccountFacts {
@@ -159,6 +162,8 @@ export interface RecoveryClientConfiguration extends AccountFacts {
   addressBook: AddressBook
   /** The provider adapter over the extension's own provider (`createProviderAdapter`). */
   provider: IProvider
+  /** The code read beside the provider adapter (`createCodeRead`), which a deployed kit needs. */
+  codeRead: CodeRead
 }
 
 // ---------------------------------------------------------------------------
@@ -473,6 +478,25 @@ export interface DigestVersionRefusal extends Error {
   carried: DomainVersion
   /** What the manager publishes, where the wallet read it. */
   published?: DomainVersion
+}
+
+/**
+ * The refusal of a deployed kit whose contracts disagree with the deployment
+ * this build names: an address with no contract of the expected kind, or an
+ * action bound to another manager, implementation, kit slot or binding.
+ */
+export interface DeploymentRefusal extends Error {
+  name: 'DeploymentRefusal'
+  check: DeploymentCheck
+}
+
+export type DeploymentCheck = typeof DEPLOYMENT_CHECKS[number]
+
+/** The refusal of a client member the deployed kit does not serve yet. */
+export interface NotServedRefusal extends Error {
+  name: 'NotServedRefusal'
+  /** The member, as `<part>.<member>`. */
+  member: string
 }
 
 export type RecoveryClientState =

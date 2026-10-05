@@ -87,6 +87,7 @@ export {
   CREATION_BLOCK_STAND_IN,
   creationRecordOf,
   clientFactsOf,
+  creationPrivilegesOf,
   accountFactsOf,
   stateRefreshOf,
   sameFactsReading
@@ -118,6 +119,9 @@ export type {
   CeremonyResolverOptions,
   DomainVersion,
   DigestVersionRefusal,
+  DeploymentCheck,
+  DeploymentRefusal,
+  NotServedRefusal,
   WalletReads,
   FitCheckReading,
   RemovedKeyReading,

@@ -5,8 +5,9 @@
  * it.
  *
  * Called with no facts, the client takes the listed account's own
- * (`clientFactsOf`): a smart account's creation record and associated keys, so
- * the removed-key read can name the key; a basic account gives none.
+ * (`clientFactsOf`, `creationPrivilegesOf`): a smart account's creation
+ * record, associated keys and creation privileges, so the removed-key read can
+ * name the key; a basic account gives none.
  *
  * A refused digest version comes back as the `update-the-wallet` state the
  * account step draws; any other failure as `failed`, with `retry`, never as an
@@ -18,13 +19,13 @@ import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
 
-import { clientFactsOf } from './account-facts'
+import { clientFactsOf, creationPrivilegesOf } from './account-facts'
 import { addressBookOf, sameAddress } from './addresses'
 import { buildRecoveryClient, isDigestVersionRefusal } from './build-client'
 import { createChainReads } from './chain-reads'
 import { CHAIN_IDS, WALLET_RECOVERY_CHAIN } from './chains'
 import { extensionProviderFor, networkOf, providerKeyOf } from './extension-provider'
-import { createProviderAdapter } from './provider-adapter'
+import { createCodeRead, createProviderAdapter } from './provider-adapter'
 import { createReceiptWait } from './receipts'
 import type { AccountFacts, ExtensionProvider, RecoveryClientState } from './types'
 
@@ -50,7 +51,8 @@ export const useRecoveryClient = (
   const listed = account
     ? accounts?.find((candidate) => sameAddress(candidate.addr, account))
     : undefined
-  const facts = given ?? (listed ? clientFactsOf(listed) : {})
+  const facts =
+    given ?? (listed ? { ...clientFactsOf(listed), ...creationPrivilegesOf(listed) } : {})
   const network = networkOf(networks, WALLET_RECOVERY_CHAIN)
   const networkRef = useRef(network)
   networkRef.current = network
@@ -104,7 +106,8 @@ export const useRecoveryClient = (
       chain: WALLET_RECOVERY_CHAIN,
       account,
       addressBook: addressBookOf(WALLET_RECOVERY_CHAIN),
-      provider: createProviderAdapter(provider)
+      provider: createProviderAdapter(provider),
+      codeRead: createCodeRead(provider)
     })
       .then((client) => {
         if (live) {
