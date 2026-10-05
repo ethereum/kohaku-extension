@@ -187,6 +187,17 @@ export interface ProviderReadFailure extends Error {
   cause: unknown
 }
 
+/** The member of the extension's provider the code read uses. */
+export type CodeReadProvider = Pick<RPCProvider, 'getCode'>
+
+/**
+ * The code an address holds, beside the provider adapter, which makes no code
+ * read. `0x` is an address with no code.
+ */
+export interface CodeRead {
+  code(address: Address, block?: BlockTag): Promise<Hex>
+}
+
 /** The members of the extension's provider the balance and gas reads use. */
 export type ChainReadsProvider = Pick<RPCProvider, 'getBalance' | 'estimateGas' | 'send'>
 

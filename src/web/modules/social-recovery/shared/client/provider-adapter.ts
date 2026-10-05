@@ -28,6 +28,8 @@ import type {
 
 import type {
   AdapterProvider,
+  CodeRead,
+  CodeReadProvider,
   ProviderLog,
   ProviderRead,
   ProviderReadFailure,
@@ -42,7 +44,8 @@ export const PROVIDER_READS = [
   'block',
   'nativeBalance',
   'estimateGas',
-  'gasPrice'
+  'gasPrice',
+  'code'
 ] as const
 
 export const revertedCall = (read: RevertedCall['read'], data: Hex): RevertedCall => {
@@ -238,5 +241,16 @@ export const createProviderAdapter = (provider: AdapterProvider): IProvider => (
       timestamp: header.timestamp,
       hash: hexOf('block', header.hash)
     }
+  }
+})
+
+/**
+ * The code read over the extension's provider: `getCode` at the block tag. A
+ * read the provider could not make, or an answer that is not hex, rejects
+ * with a `ProviderReadFailure`.
+ */
+export const createCodeRead = (provider: CodeReadProvider): CodeRead => ({
+  code(address: Address, block: BlockTag = 'latest'): Promise<Hex> {
+    return attemptRead('code', async () => hexOf('code', await provider.getCode(address, block)))
   }
 })
