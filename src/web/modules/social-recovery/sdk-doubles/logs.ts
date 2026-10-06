@@ -67,8 +67,12 @@ export const kindOfTopic = (topic: Hex | undefined): NotificationKind | undefine
 
 /** The address that emits a notification's log. */
 export const emitterOf = (n: Notification, manager: Address): Address => {
-  if ('method' in n) return n.method
-  if (n.kind === 'privilege-changed') return n.account
+  if ('method' in n) {
+    return n.method
+  }
+  if (n.kind === 'privilege-changed') {
+    return n.account
+  }
   return manager
 }
 
@@ -79,7 +83,9 @@ export const rawLogOf = (n: Notification, manager: Address): RawLog => {
   if (MANAGER_KINDS.includes(n.kind) && 'action' in n) {
     topics.push(topicOf(n.account), topicOf(n.action))
   }
-  if (n.kind === 'privilege-changed') topics.push(topicOf(n.addr))
+  if (n.kind === 'privilege-changed') {
+    topics.push(topicOf(n.addr))
+  }
   return {
     address: emitterOf(n, manager),
     topics,
@@ -95,14 +101,18 @@ export const rawLogOf = (n: Notification, manager: Address): RawLog => {
 /** Reads a raw log back into its notification, or undefined for bytes the doubles did not write. */
 export const notificationOf = (log: RawLog): Notification | undefined => {
   const kind = kindOfTopic(log.topics[0])
-  if (!kind) return undefined
+  if (!kind) {
+    return undefined
+  }
   let fields: Record<string, unknown>
   try {
     fields = hexJson<Record<string, unknown>>(log.data)
   } catch {
     return undefined
   }
-  if (fields.kind !== kind) return undefined
+  if (fields.kind !== kind) {
+    return undefined
+  }
   return {
     ...fields,
     at: {
@@ -117,11 +127,17 @@ export const notificationOf = (log: RawLog): Notification | undefined => {
 
 /** Whether a log matches a filter's addresses and topics (a null topic matches anything). */
 export const matchesFilter = (log: RawLog, filter: FilterSpec): boolean => {
-  if (!filter.addresses.some((a) => sameAddress(a, log.address))) return false
+  if (!filter.addresses.some((a) => sameAddress(a, log.address))) {
+    return false
+  }
   return filter.topics.every((wanted, i) => {
-    if (wanted === null || wanted === undefined) return true
+    if (wanted === null || wanted === undefined) {
+      return true
+    }
     const actual = log.topics[i]?.toLowerCase()
-    if (!actual) return false
+    if (!actual) {
+      return false
+    }
     return Array.isArray(wanted)
       ? wanted.some((w) => w.toLowerCase() === actual)
       : wanted.toLowerCase() === actual

@@ -10,6 +10,7 @@
  *   failed to reach the chain.
  * - A failed gas read names the gas check, not one read.
  */
+import { DEPLOYLESS_SIMULATION_FROM } from '@ambire-common/consts/deploy'
 import i18n from '@common/config/localization'
 import { revertedCall, providerReadFailure } from '@web/modules/social-recovery/shared/client'
 
@@ -50,7 +51,7 @@ import {
   writeReducer,
   WRITES_KEYS,
   initialWriteState
-} from './harness'
+} from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 const t = i18n.t
 const PRICE = 3n * GWEI
@@ -68,8 +69,12 @@ const DEPLOY_AND_TRANSFER = {
 const DEPLOYED_TRANSFER_DATA = transferTransactionOf(ACCOUNT, KEY.addr).data
 
 const gasFor = (call: { data: string }) => {
-  if (call.data === DEPLOY_AND_TRANSFER.data) return DEPLOY_AND_TRANSFER_GAS
-  if (call.data === DEPLOYED_TRANSFER_DATA) return DEPLOYED_TRANSFER_GAS
+  if (call.data === DEPLOY_AND_TRANSFER.data) {
+    return DEPLOY_AND_TRANSFER_GAS
+  }
+  if (call.data === DEPLOYED_TRANSFER_DATA) {
+    return DEPLOYED_TRANSFER_GAS
+  }
   return WRITE_GAS
 }
 
@@ -84,14 +89,19 @@ describe('an account with no code pays its transfer through the factory', () => 
       })
     )
     const transfer = step.routes.find((route) => route.kind === 'transfer')
-    if (transfer?.kind !== 'transfer') throw new Error('expected the transfer route')
+    if (transfer?.kind !== 'transfer') {
+      throw new Error('expected the transfer route')
+    }
     return { step, transfer, reads }
   }
 
   it("estimates the caller's deploy-and-transfer, never a call to the empty account", async () => {
     const { reads } = await transferOf(true)
     expect(reads.estimateGas).toHaveBeenCalledTimes(2)
-    expect(reads.estimateGas.mock.calls[1][0]).toEqual(DEPLOY_AND_TRANSFER)
+    expect(reads.estimateGas.mock.calls[1][0]).toEqual({
+      ...DEPLOY_AND_TRANSFER,
+      from: DEPLOYLESS_SIMULATION_FROM
+    })
   })
 
   it("the undeployed account's transfer route asks for more than the deployed one's", async () => {
@@ -145,7 +155,9 @@ describe('an account with no code pays its transfer through the factory', () => 
 
 describe('a transfer estimate that reverts drops the transfer route and keeps the deposit from outside', () => {
   const reverting = (call: { data: string }) => {
-    if (call.data === DEPLOYED_TRANSFER_DATA) throw revertedCall('estimateGas', '0x')
+    if (call.data === DEPLOYED_TRANSFER_DATA) {
+      throw revertedCall('estimateGas', '0x')
+    }
     return WRITE_GAS
   }
 

@@ -6,7 +6,7 @@ import {
   renderRemaining,
   renderValueLabel,
   renderWalletWord
-} from '..'
+} from '@web/modules/social-recovery/shared/display'
 
 const HOUR = 60 * 60 * 1000
 

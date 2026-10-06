@@ -14,7 +14,7 @@ import {
   momentOf,
   NO_PAYMENT,
   openRecovery
-} from './harness'
+} from '@web/modules/social-recovery/sdk-doubles/__tests__/harness'
 
 describe('policy manager double', () => {
   it('reads the domain, the name, the version and the probe', async () => {

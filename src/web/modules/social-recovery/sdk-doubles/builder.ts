@@ -104,8 +104,9 @@ export class RecoveryKitBuilderDouble implements RecoveryKitBuilder {
   constructor(private readonly chain: ScriptedChain) {}
 
   private set<T>(apply: () => T): this {
-    if (this.frozen)
+    if (this.frozen) {
       throw codedError('builder.frozen', {}, 'The builder refuses a setter after its first build.')
+    }
     apply()
     return this
   }
@@ -175,7 +176,9 @@ export class RecoveryKitBuilderDouble implements RecoveryKitBuilder {
 
   private resolvedDescriptor(): DeploymentDescriptor {
     const d = this.descriptorValue
-    if (!d) throw constructionRefusal('descriptor', 'The builder has no deployment descriptor.')
+    if (!d) {
+      throw constructionRefusal('descriptor', 'The builder has no deployment descriptor.')
+    }
     const missing = DESCRIPTOR_FIELDS.filter((f) => d[f] === undefined || d[f] === null)
     if (missing.length) {
       throw constructionRefusal('descriptor', `The descriptor misses ${missing.join(', ')}.`)
@@ -225,9 +228,13 @@ export class RecoveryKitBuilderDouble implements RecoveryKitBuilder {
 
   /** Constructs each shared part once; the same instances back both clients. */
   private parts(): ClientContext {
-    if (this.context) return this.context
+    if (this.context) {
+      return this.context
+    }
     const descriptor = this.resolvedDescriptor()
-    if (!this.providerPart) throw constructionRefusal('provider', 'The builder has no provider.')
+    if (!this.providerPart) {
+      throw constructionRefusal('provider', 'The builder has no provider.')
+    }
     // `construct` checks this address with `servedAction` once the SDK's own checks pass.
     const actionAddress = this.actionBinding?.address ?? descriptor.action
     const config = this.configuration ?? defaultClientConfiguration()

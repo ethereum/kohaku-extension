@@ -167,7 +167,9 @@ export const createPasskeyDevice = ({
     call: () => Promise<Credential | null>,
     read: (credential: PublicKeyCredentialLike) => DeviceResult
   ): Promise<DeviceResult> => {
-    if (context.signal?.aborted) return { ok: false, stop: dismissed('cancelled', 'AbortError') }
+    if (context.signal?.aborted) {
+      return { ok: false, stop: dismissed('cancelled', 'AbortError') }
+    }
     context.onStep?.(context.handOff ? 'waitingForPhone' : 'waitingForDevice')
     const startedAt = now()
     let credential: Credential | null
@@ -185,8 +187,12 @@ export const createPasskeyDevice = ({
         })
       }
     }
-    if (!credential) return { ok: false, stop: dismissed('cancelled') }
-    if (context.signal?.aborted) return { ok: false, stop: dismissed('cancelled', 'AbortError') }
+    if (!credential) {
+      return { ok: false, stop: dismissed('cancelled') }
+    }
+    if (context.signal?.aborted) {
+      return { ok: false, stop: dismissed('cancelled', 'AbortError') }
+    }
     try {
       return read(credential as unknown as PublicKeyCredentialLike)
     } catch (error) {
@@ -218,7 +224,9 @@ export const createPasskeyDevice = ({
         (credential) => {
           const response = credential.response as AttestationResponseLike
           const authData = enrollmentAuthData(response)
-          if (!authData) throw new Error('The credential carries no authenticator data.')
+          if (!authData) {
+            throw new Error('The credential carries no authenticator data.')
+          }
           if (readAuthenticatorData(authData).rpIdHash !== relyingParty.rpIdHash) {
             return { ok: false, stop: failed('relying-party-mismatch') }
           }
@@ -234,7 +242,9 @@ export const createPasskeyDevice = ({
 
     async sign(input: unknown, context: DeviceCallContext): Promise<DeviceResult> {
       const asked = input as PasskeySigningInput | undefined
-      if (!asked?.challenge) return { ok: false, stop: failed('material-rejected') }
+      if (!asked?.challenge) {
+        return { ok: false, stop: failed('material-rejected') }
+      }
       if (!isOwnRelyingParty(asked.rpId, relyingParty)) {
         return { ok: false, stop: failed('relying-party-mismatch') }
       }

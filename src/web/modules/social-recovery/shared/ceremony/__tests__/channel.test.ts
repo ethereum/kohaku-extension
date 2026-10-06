@@ -4,7 +4,8 @@
  * only for the id, call and method the caller expects, and leaves storage once
  * taken or heard.
  */
-import { ceremony } from './harness'
+import type { ReportIdentity } from '@web/modules/social-recovery/shared/ceremony'
+import { ceremony } from '@web/modules/social-recovery/shared/ceremony/__tests__/harness'
 
 const T0 = 1_790_000_000_000
 
@@ -42,9 +43,7 @@ const subscriptions = () => {
 
 const EXPECTED = { id: 'req-1', call: 'createClaim', method: 'passkey' } as const
 
-type Identity = Parameters<ReturnType<typeof ceremony>['ceremonyReport']>[0]
-
-const reportAt = (reportedAt: number, identity: Partial<Identity> = {}) => {
+const reportAt = (reportedAt: number, identity: Partial<ReportIdentity> = {}) => {
   const { ceremonyReport, passed } = ceremony()
   return ceremonyReport(
     { ...EXPECTED, ...identity },
@@ -116,7 +115,7 @@ describe('takeCeremonyReport', () => {
     expect(store.map.has(key())).toBe(false)
   })
 
-  const OTHERS: [string, Partial<Identity>][] = [
+  const OTHERS: [string, Partial<ReportIdentity>][] = [
     ['another call', { call: 'testAccess' }],
     ['another method', { method: 'zkpassport' }],
     ['another id', { id: 'req-2' }]

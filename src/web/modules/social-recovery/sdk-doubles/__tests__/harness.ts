@@ -51,10 +51,17 @@ import type {
   ModuleInfo,
   PaymentOrder,
   PrivacyLevel,
+  ReadResult,
   SetupDraft,
   TrustedParties
 } from '@web/modules/social-recovery/sdk-interfaces'
-import { keccak256, stringToHex, zeroAddress } from 'viem'
+import {
+  createPasskeyDevice,
+  type CredentialsLike,
+  relyingPartyOf
+} from '@web/modules/social-recovery/shared/ceremony'
+import { normalizeP256S, toBase64Url } from '@web/modules/social-recovery/shared/webauthn'
+import { bytesToBigInt, keccak256, sha256, stringToBytes, stringToHex, zeroAddress } from 'viem'
 
 /** The attempt statuses a test can script. */
 export const ATTEMPT_STATUSES = ['none', 'pending', 'ready', 'cancelled', 'executed'] as const
@@ -67,7 +74,23 @@ export type Canceller = typeof CANCELLERS[number]
 export const METHOD_KINDS = ['wallet', 'passkey', 'zkPassport', 'aadhaar'] as const
 export type MethodKind = typeof METHOD_KINDS[number]
 
+/** Every way to build from a builder; each runs the construction checks. */
+export const BUILD_PATHS = {
+  buildSetupClient: (b: RecoveryKitBuilderDouble) => b.buildSetupClient(),
+  buildRecoveryClient: (b: RecoveryKitBuilderDouble) => b.buildRecoveryClient(),
+  buildMethodsOrchestrator: (b: RecoveryKitBuilderDouble) => b.buildMethodsOrchestrator(),
+  recoveryAction: (b: RecoveryKitBuilderDouble) => b.recoveryAction(),
+  methodModuleReads: (b: RecoveryKitBuilderDouble) => b.methodModuleReads()
+}
+export type BuildPath = keyof typeof BUILD_PATHS
+
 export const PASSWORD = 'correct horse battery staple'
+
+export interface StandingRow {
+  method: Address
+  moduleInfo: ReadResult<ModuleInfo>
+  paused: ReadResult<boolean>
+}
 
 export interface CommittedSetup {
   configuration: Configuration
@@ -189,7 +212,9 @@ export const createWorld = (seed: ChainSeed = {}): World => {
     // "Nobody" here is a security stop's veto; a setup write is the other nobody.
     if (canceller === 'nobody') {
       chain.cancelAttempt('nobody', { vetoingMethod: descriptor.methodZkpassport })
-    } else chain.cancelAttempt(canceller)
+    } else {
+      chain.cancelAttempt(canceller)
+    }
   }
 
   return {
@@ -218,7 +243,9 @@ export const createWorld = (seed: ChainSeed = {}): World => {
     keys,
     script: {
       setupNone: () => {
-        if (chain.setup.status === 'committed') chain.clearSetup()
+        if (chain.setup.status === 'committed') {
+          chain.clearSetup()
+        }
       },
       setupCommitted: (level) => {
         const password = level === 'public' ? undefined : PASSWORD
@@ -226,10 +253,16 @@ export const createWorld = (seed: ChainSeed = {}): World => {
         return { configuration, draft: draft(level), password }
       },
       attempt: (status, canceller = 'account') => {
-        if (status === 'none') return
+        if (status === 'none') {
+          return
+        }
         chain.openAttempt({ ready: status !== 'pending', payload })
-        if (status === 'cancelled') cancel(canceller)
-        if (status === 'executed') chain.executeAttempt()
+        if (status === 'cancelled') {
+          cancel(canceller)
+        }
+        if (status === 'executed') {
+          chain.executeAttempt()
+        }
       },
       authorized: (held) => chain.setAuthorized(held),
       code: (present) => chain.setHasCode(present),
@@ -292,7 +325,7 @@ export const passportAt = (
 export const replyFor = async (world: World, request: ApproverRequest): Promise<ApproverReply> => {
   const orchestrator = world.orchestrator()
   const input = orchestrator.signingInput(request)
-  const reply = await orchestrator.replyFrom(request, input, world.material(request))
+  const reply = await orchestrator.replyFrom(request, input, await world.material(request))
   expect(reply.kind).toBe('recovery-proof-reply')
   return reply as ApproverReply
 }
@@ -370,7 +403,9 @@ export const openingOf = async (world: World, attemptId: bigint) => {
     to: at.number
   })
   const opening = notes.find((n) => n.kind === 'attempt-started' && n.attemptId === attemptId)
-  if (opening?.kind !== 'attempt-started') throw new Error('no opening notification')
+  if (opening?.kind !== 'attempt-started') {
+    throw new Error('no opening notification')
+  }
   return opening
 }
 
@@ -431,6 +466,117 @@ export const expectUnanswered = (
   expect((error as ScriptedReadFailure).code).toBe('read.unanswered')
   expect((error as ScriptedReadFailure).values).toStrictEqual(values)
 }
+
+const ECDSA_P256 = { name: 'ECDSA', namedCurve: 'P-256' } as const
+const ECDSA_SHA256 = { name: 'ECDSA', hash: 'SHA-256' } as const
+
+/* eslint-disable global-require, @typescript-eslint/no-var-requires */
+const webAuthnFakes = () =>
+  require('@web/modules/social-recovery/shared/ceremony/__tests__/harness') as typeof import('@web/modules/social-recovery/shared/ceremony/__tests__/harness')
+/* eslint-enable global-require, @typescript-eslint/no-var-requires */
+
+export const generateKey = async () => {
+  const pair = (await crypto.subtle.generateKey(ECDSA_P256, true, [
+    'sign',
+    'verify'
+  ])) as CryptoKeyPair
+  const raw = new Uint8Array(await crypto.subtle.exportKey('raw', pair.publicKey))
+  return { privateKey: pair.privateKey, point: { x: raw.slice(1, 33), y: raw.slice(33, 65) } }
+}
+
+type Key = Awaited<ReturnType<typeof generateKey>>
+
+/** The browser's credential, which the SDK's own `Credential` shadows in this file. */
+type WebAuthnCredential = Awaited<ReturnType<CredentialsLike['create']>>
+
+export const clientDataOf = (challenge: Uint8Array, origin = webAuthnFakes().EXTENSION_ORIGIN) =>
+  stringToBytes(JSON.stringify({ type: 'webauthn.get', challenge: toBase64Url(challenge), origin }))
+
+/**
+ * The credential `navigator.credentials.get` resolves: authenticator data under
+ * the extension's relying party, the client data over `challenge`, and a DER
+ * signature by `key` over `authenticatorData || sha256(clientDataJSON)`.
+ */
+export const signedAssertion = async (
+  key: Key,
+  challenge: Uint8Array,
+  {
+    clientData = clientDataOf(challenge),
+    signedClientData = clientData,
+    highS = false,
+    withSignature = true,
+    flags = webAuthnFakes().SYNCED_FLAGS,
+    rpIdHash = webAuthnFakes().ORIGIN_HASH
+  }: {
+    clientData?: Uint8Array
+    signedClientData?: Uint8Array
+    highS?: boolean
+    withSignature?: boolean
+    flags?: number
+    rpIdHash?: Hex
+  } = {}
+) => {
+  const { authenticatorData, derSignature, P256_N, toBuffer } = webAuthnFakes()
+  const authData = authenticatorData({ flags, rpIdHash })
+  const raw = new Uint8Array(
+    await crypto.subtle.sign(
+      ECDSA_SHA256,
+      key.privateKey,
+      toBuffer(Uint8Array.from([...authData, ...sha256(signedClientData, 'bytes')]))
+    )
+  )
+  const r = bytesToBigInt(raw.slice(0, 32))
+  const low = bytesToBigInt(raw.slice(32))
+  const lowS = normalizeP256S(low)
+  const signature = derSignature(r, highS ? P256_N - lowS : lowS)
+  const rawId = Uint8Array.from({ length: 20 }, (_, i) => i + 1)
+  return {
+    id: toBase64Url(rawId),
+    rawId: toBuffer(rawId),
+    type: 'public-key',
+    authenticatorAttachment: 'platform',
+    response: {
+      clientDataJSON: toBuffer(clientData),
+      authenticatorData: toBuffer(authData),
+      ...(withSignature ? { signature: toBuffer(signature) } : {}),
+      userHandle: null
+    },
+    getClientExtensionResults: () => ({})
+  }
+}
+
+export type Assertion = Awaited<ReturnType<typeof signedAssertion>>
+
+/** A world, a device over fake WebAuthn calls, and the hosts' shared context. */
+export const setUp = async ({
+  create,
+  get
+}: {
+  create: () => Promise<unknown>
+  get: (options?: CredentialRequestOptions) => Promise<unknown>
+}) => {
+  const { world, requests } = await openRecovery()
+  const credentials = {
+    create: jest.fn(async () => (await create()) as WebAuthnCredential),
+    get: jest.fn(
+      async (options?: CredentialRequestOptions) => (await get(options)) as WebAuthnCredential
+    )
+  }
+  const relyingParty = relyingPartyOf({
+    protocol: 'chrome-extension:',
+    host: webAuthnFakes().EXTENSION_ID
+  })
+  const device = createPasskeyDevice({ credentials, relyingParty })
+  const orchestrator = world.orchestrator()
+  const context = {
+    orchestrator,
+    method: world.methods.passkey,
+    devices: { 'browser-authenticator': device }
+  }
+  return { world, request: requests[0]!, credentials, context, orchestrator }
+}
+
+export type Setup = Awaited<ReturnType<typeof setUp>>
 
 // Jest runs every file under __tests__, this one included; its own check runs
 // only when Jest runs this file, never from a file that imports the harness.

@@ -8,6 +8,10 @@ import type { Network } from '@ambire-common/interfaces/network'
 import { getRpcProvider } from '@ambire-common/services/provider/getRpcProvider'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import type { Address, IProvider } from '@web/modules/social-recovery/sdk-interfaces'
+import type {
+  HookState,
+  ProviderMock
+} from '@web/modules/social-recovery/shared/client/__tests__/harness'
 import { buildRecoveryClient } from '@web/modules/social-recovery/shared/client/build-client'
 import { useRecoveryClient } from '@web/modules/social-recovery/shared/client/useRecoveryClient'
 
@@ -23,6 +27,12 @@ jest.mock('@ambire-common/services/provider/getRpcProvider', () => ({
 jest.mock('@web/hooks/useNetworksControllerState', () => ({
   __esModule: true,
   default: jest.fn()
+}))
+/** The accounts the wallet lists; none unless a test lists one. */
+let mockListed: unknown[] = []
+jest.mock('@web/hooks/useAccountsControllerState', () => ({
+  __esModule: true,
+  default: () => ({ accounts: mockListed })
 }))
 // viem builds a TextEncoder and a TextDecoder when either entry the client
 // imports loads, which jsdom lacks: Node's own are installed first, whichever
@@ -53,6 +63,9 @@ const act: typeof React.act =
 const SEPOLIA = 11155111
 const ACCOUNT = '0x00000000000000000000000000000000000a11ce' as Address
 const GAS_PRICE = 7n * 10n ** 9n
+const ACCOUNT_CODE = '0x6080604052'
+const KEY = '0x00000000000000000000000000000000000000c1' as Address
+const ARMED = `0x${'00'.repeat(31)}01`
 
 const sepolia = (overrides: Partial<Network> = {}): Network =>
   ({
@@ -67,17 +80,6 @@ const sepolia = (overrides: Partial<Network> = {}): Network =>
     ...overrides
   } as Network)
 
-interface ProviderMock {
-  send: jest.Mock
-  getTransaction: jest.Mock
-  getBlockNumber: jest.Mock
-  /** The replacement-aware response each transaction answers, by the start block given. */
-  replaceable: jest.Mock
-  once: jest.Mock
-  off: jest.Mock
-  destroy: jest.Mock
-}
-
 /** The block number each provider built answers: one more for each provider built before it. */
 const blockOf = (index: number) => 7_000_000 + index
 
@@ -87,12 +89,17 @@ const providerMock = (index: number): ProviderMock => {
   }))
   return {
     send: jest.fn(async (method: string) => {
-      if (method === 'eth_chainId') return `0x${SEPOLIA.toString(16)}`
-      if (method === 'eth_gasPrice') return `0x${GAS_PRICE.toString(16)}`
+      if (method === 'eth_chainId') {
+        return `0x${SEPOLIA.toString(16)}`
+      }
+      if (method === 'eth_gasPrice') {
+        return `0x${GAS_PRICE.toString(16)}`
+      }
       throw new Error(`The provider mock does not answer ${method}.`)
     }),
     getTransaction: jest.fn(async () => ({ replaceableTransaction: replaceable })),
     getBlockNumber: jest.fn(async () => blockOf(index)),
+    getCode: jest.fn(async () => ACCOUNT_CODE),
     replaceable,
     once: jest.fn(async () => undefined),
     off: jest.fn(async () => undefined),
@@ -108,8 +115,6 @@ const deferred = <T>() => {
   return { promise, resolve }
 }
 
-type HookState = ReturnType<typeof useRecoveryClient>
-
 let built: ProviderMock[]
 let network: Network
 let latest: HookState | undefined
@@ -121,12 +126,16 @@ const clientOf = (state: HookState | undefined): unknown =>
   state?.status === 'ready' ? state.client : undefined
 
 const readsOf = (state: HookState | undefined) => {
-  if (state?.status !== 'ready') throw new Error(`The hook is ${state?.status}, not ready.`)
+  if (state?.status !== 'ready') {
+    throw new Error(`The hook is ${state?.status}, not ready.`)
+  }
   return state.reads
 }
 
 const receiptsOf = (state: HookState | undefined) => {
-  if (state?.status !== 'ready') throw new Error(`The hook is ${state?.status}, not ready.`)
+  if (state?.status !== 'ready') {
+    throw new Error(`The hook is ${state?.status}, not ready.`)
+  }
   return state.receipts
 }
 
@@ -161,6 +170,7 @@ beforeEach(() => {
   root = createRoot(document.createElement('div'))
   latest = undefined
   seen = []
+  mockListed = []
 })
 
 afterEach(async () => {
@@ -231,6 +241,42 @@ describe('useRecoveryClient over the network record', () => {
     expect(second.replaceable).toHaveBeenCalledWith(blockOf(1))
     expect(first.getBlockNumber).not.toHaveBeenCalled()
     expect(first.getTransaction).not.toHaveBeenCalled()
+  })
+
+  it('reads whether the node knows a transaction over the new provider alone', async () => {
+    await render()
+    const [first] = built
+    await pushNetwork(sepolia({ proverRpcUrl: 'https://prover.example/two' }))
+    const second = built[1]
+    const hash = `0x${'ef'.repeat(32)}` as const
+    const receipts = receiptsOf(latest)
+
+    await expect(receipts.transactionKnown(hash)).resolves.toBe('known')
+    second.getTransaction.mockResolvedValueOnce(null)
+    await expect(receipts.transactionKnown(hash)).resolves.toBe('unknown')
+    expect(second.getTransaction).toHaveBeenCalledTimes(2)
+    expect(second.getTransaction).toHaveBeenCalledWith(hash)
+    expect(first.getTransaction).not.toHaveBeenCalled()
+  })
+
+  it('releases a read of a transaction in flight when it destroys the provider', async () => {
+    await render()
+    const [first] = built
+    first.getTransaction.mockImplementation(() => new Promise(() => {}))
+    const hash = `0x${'ef'.repeat(32)}` as const
+    const outcome: { status: 'pending' | 'resolved' | 'rejected'; value?: unknown } = {
+      status: 'pending'
+    }
+    receiptsOf(latest)
+      .transactionKnown(hash)
+      .then(
+        (value) => Object.assign(outcome, { status: 'resolved', value }),
+        (value: unknown) => Object.assign(outcome, { status: 'rejected', value })
+      )
+    await pushNetwork(sepolia({ proverRpcUrl: 'https://prover.example/two' }))
+    expect(first.destroy).toHaveBeenCalledTimes(1)
+    expect(outcome.status).toBe('rejected')
+    expect(outcome.value).toMatchObject({ name: 'ReceiptWaitReleased', transactionHash: hash })
   })
 
   it('releases a receipt wait in flight when it destroys the provider', async () => {
@@ -318,5 +364,45 @@ describe('useRecoveryClient over the network record', () => {
     expect(built[0].destroy).not.toHaveBeenCalled()
     expect(buildClient).toHaveBeenCalledTimes(1)
     expect(latest?.status).toBe('ready')
+  })
+})
+
+describe('useRecoveryClient for a deployed kit', () => {
+  it('hands the build a code read over the same provider', async () => {
+    await render()
+    const { codeRead } = buildClient.mock.calls[0][0] as {
+      codeRead: { code(address: Address): Promise<string> }
+    }
+    await expect(codeRead.code(ACCOUNT)).resolves.toBe(ACCOUNT_CODE)
+    expect(built[0].getCode).toHaveBeenCalledWith(ACCOUNT, 'latest')
+  })
+
+  it("hands the build a listed smart account's creation privileges beside its creation record", async () => {
+    mockListed = [
+      {
+        addr: ACCOUNT,
+        associatedKeys: [KEY],
+        initialPrivileges: [[KEY, ARMED]],
+        creation: { factoryAddr: KEY, bytecode: '0x00', salt: `0x${'00'.repeat(32)}` }
+      }
+    ]
+    await render()
+    expect(buildClient.mock.calls[0][0]).toMatchObject({
+      candidateKeys: [KEY],
+      initialPrivileges: [[KEY, ARMED]]
+    })
+  })
+
+  it('hands the build no creation privileges for a listed basic account', async () => {
+    mockListed = [
+      {
+        addr: ACCOUNT,
+        associatedKeys: [ACCOUNT],
+        initialPrivileges: [[ACCOUNT, ARMED]],
+        creation: null
+      }
+    ]
+    await render()
+    expect(buildClient.mock.calls[0][0]).not.toHaveProperty('initialPrivileges')
   })
 })

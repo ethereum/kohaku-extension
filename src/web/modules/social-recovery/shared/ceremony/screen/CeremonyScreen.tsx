@@ -65,8 +65,12 @@ import { useCeremonySource } from './CeremonySource'
 import type { Phase } from './types'
 
 const hashOfValue = (value: CeremonyValue): string | null => {
-  if ('proof' in value) return renderHash(value.proof)
-  if ('reply' in value) return renderHash(value.reply.proof)
+  if ('proof' in value) {
+    return renderHash(value.proof)
+  }
+  if ('reply' in value) {
+    return renderHash(value.reply.proof)
+  }
   return null
 }
 
@@ -96,7 +100,9 @@ const CeremonyScreen = () => {
   const visibility = source.visibility ?? (typeof document !== 'undefined' ? document : undefined)
 
   useEffect(() => {
-    if (visibility) gate.current = createVisibilityGate(visibility)
+    if (visibility) {
+      gate.current = createVisibilityGate(visibility)
+    }
     // Reports nobody took within their expiry leave storage. A removal is a
     // storage write, so it waits for the tab to be shown.
     const store = source.store ?? browserReportStore
@@ -131,7 +137,9 @@ const CeremonyScreen = () => {
   const deliver = useCallback(
     async (params: CeremonyParams, result: CeremonyOutcome<CeremonyValue>) => {
       const held = gate.current
-      if (!mounted.current || !held) return
+      if (!mounted.current || !held) {
+        return
+      }
       setPhase('reporting')
 
       // The report is stamped inside the gate, when it is written.
@@ -144,23 +152,31 @@ const CeremonyScreen = () => {
         await sending
       } catch {
         // The tab closed first, and its gate dropped the held write.
-        if (!mounted.current) return
+        if (!mounted.current) {
+          return
+        }
         // The tab stays open: storage refused the write, or the gate it waited
         // in was replaced. The retry writes through the current gate.
         setReportHeld(false)
         setPhase('undelivered')
         return
       }
-      if (!mounted.current) return
+      if (!mounted.current) {
+        return
+      }
       setReportHeld(false)
       setPhase('done')
-      if (params.returnTo) navigate(params.returnTo, { replace: true })
+      if (params.returnTo) {
+        navigate(params.returnTo, { replace: true })
+      }
     },
     [navigate]
   )
 
   const start = useCallback(async () => {
-    if (!parsed.ok || !mayRun) return
+    if (!parsed.ok || !mayRun) {
+      return
+    }
     const { params } = parsed
     const controller = new AbortController()
     abort.current = controller
@@ -173,8 +189,12 @@ const CeremonyScreen = () => {
 
     // A hidden tab dispatches nothing: not the resolve, not the prompt, which
     // the browser refuses without focus anyway.
-    if (visibility) await whenVisible(visibility)
-    if (!live()) return
+    if (visibility) {
+      await whenVisible(visibility)
+    }
+    if (!live()) {
+      return
+    }
 
     // A source with no resolver holds no implementation to run.
     let result: CeremonyOutcome<CeremonyValue> = notSupported('no-implementation')
@@ -190,34 +210,48 @@ const CeremonyScreen = () => {
           : unavailable('service-unanswered')
       }
       if (resolved === null) {
-        if (live()) setPhase('nothing')
+        if (live()) {
+          setPhase('nothing')
+        }
         return
       }
       if (resolved && 'refused' in resolved) {
         // The request names a method this build holds no implementation of.
         result = notSupported(resolved.refused)
       } else if (resolved) {
-        if (!live()) return
+        if (!live()) {
+          return
+        }
         setBinding(resolved.method.deviceBinding)
-        if (visibility) await whenVisible(visibility)
-        if (!live()) return
+        if (visibility) {
+          await whenVisible(visibility)
+        }
+        if (!live()) {
+          return
+        }
         setPhase('running')
         result = await runCeremony(params, resolved, {
           devices: { 'browser-authenticator': browserPasskeyDevice() },
           signal: controller.signal,
           onStep: (next) => {
-            if (live()) setStep(next)
+            if (live()) {
+              setStep(next)
+            }
           }
         })
       }
     }
-    if (!live() || !gate.current) return
+    if (!live() || !gate.current) {
+      return
+    }
     setOutcome(result)
     await deliver(params, result)
   }, [parsed, mayRun, source, visibility, deliver])
 
   useEffect(() => {
-    if (started.current) return
+    if (started.current) {
+      return
+    }
     started.current = true
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     start()
@@ -260,7 +294,9 @@ const CeremonyScreen = () => {
   )
 
   const renderOutcome = (shown: CeremonyOutcome<CeremonyValue>) => {
-    if (!parsed.ok) return null
+    if (!parsed.ok) {
+      return null
+    }
     const { params } = parsed
     const { call, returnTo } = params
     const chip = chipOfOutcome(shown, call)
@@ -360,7 +396,9 @@ const CeremonyScreen = () => {
   }
 
   const renderBody = () => {
-    if (!mayRun) return <Text>{t('socialRecovery.ceremony.tabOnly')}</Text>
+    if (!mayRun) {
+      return <Text>{t('socialRecovery.ceremony.tabOnly')}</Text>
+    }
     if (!parsed.ok || phase === 'nothing') {
       return (
         <View>
@@ -373,7 +411,9 @@ const CeremonyScreen = () => {
         </View>
       )
     }
-    if (outcome) return renderOutcome(outcome)
+    if (outcome) {
+      return renderOutcome(outcome)
+    }
     return renderRunning()
   }
 

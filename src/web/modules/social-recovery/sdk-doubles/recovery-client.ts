@@ -100,15 +100,23 @@ const digestForPlace = (g: Gathering, place: GatheringPlace): Hex =>
 
 /** Every way to pick `size` of `places`, each pick in the order given. */
 const picksOf = (places: number[], size: number): number[][] => {
-  if (size <= 0) return [[]]
-  if (places.length < size) return []
+  if (size <= 0) {
+    return [[]]
+  }
+  if (places.length < size) {
+    return []
+  }
   const [first, ...rest] = places
   return [...picksOf(rest, size - 1).map((pick) => [first, ...pick]), ...picksOf(rest, size)]
 }
 
 const compareRanks = (a: SetRank, b: SetRank): number => {
-  if (a.stopped !== b.stopped) return a.stopped - b.stopped
-  if (a.stoppable !== b.stoppable) return a.stoppable - b.stoppable
+  if (a.stopped !== b.stopped) {
+    return a.stopped - b.stopped
+  }
+  if (a.stoppable !== b.stoppable) {
+    return a.stoppable - b.stoppable
+  }
   const i = a.filed.findIndex((position, j) => position !== b.filed[j])
   return i < 0 ? 0 : a.filed[i] - b.filed[i]
 }
@@ -136,7 +144,9 @@ export class RecoveryClientDouble implements IRecoveryClient {
         // An unanswered read says nothing about the method's stop, so the init
         // refuses rather than record a default nobody read. An undeclared
         // module does answer, with empty values, and is not refused.
-        if (!paused.answered) throw unansweredRead('manager.paused', credential.method, place)
+        if (!paused.answered) {
+          throw unansweredRead('manager.paused', credential.method, place)
+        }
         if (!parties.answered) {
           throw unansweredRead('manager.trustedParties', credential.method, place)
         }
@@ -148,7 +158,9 @@ export class RecoveryClientDouble implements IRecoveryClient {
           standing: paused.value ? 'stopped' : 'not-stopped',
           stoppable: !sameAddress(parties.value.pauseHolder, zeroAddress)
         }
-        if (credential.label) entry.label = credential.label
+        if (credential.label) {
+          entry.label = credential.label
+        }
         return entry
       })
     )
@@ -186,8 +198,9 @@ export class RecoveryClientDouble implements IRecoveryClient {
     if (!isAuthority) {
       rows.push(['handover.removed-not-authority', { removedAuthority, isAuthority }])
     }
-    if (holds)
+    if (holds) {
       rows.push(['handover.new-holds-privilege', { newAuthority, holdsAnyPrivilege: holds }])
+    }
     return rows
   }
 
@@ -221,17 +234,23 @@ export class RecoveryClientDouble implements IRecoveryClient {
           'handover.removed-unknown',
           { account: chain.account, creationTriple: !!config.creation, cause: reading.cause }
         ])
-      } else removedAuthority = reading.key
+      } else {
+        removedAuthority = reading.key
+      }
     }
     const performed: Handover = {
       newAuthority: handover.newAuthority,
       removedAuthority: removedAuthority as Address
     }
     const rows = await this.handoverRows(performed)
-    if (rows.length) refuseWith(...rows)
+    if (rows.length) {
+      refuseWith(...rows)
+    }
 
     const codec = codecFor(this.ctx, actionAddress)
-    if (!codec) throw codedError('action.no-codec', { action: actionAddress })
+    if (!codec) {
+      throw codedError('action.no-codec', { action: actionAddress })
+    }
     const payload = codec.encode(performed)
 
     return {
@@ -326,9 +345,13 @@ export class RecoveryClientDouble implements IRecoveryClient {
       gathering,
       reason: { kind: 'add-refusal', cause }
     })
-    if (this.ctx.chain.addRefusal) return refuse(this.ctx.chain.addRefusal)
+    if (this.ctx.chain.addRefusal) {
+      return refuse(this.ctx.chain.addRefusal)
+    }
     // The shape first: a malformed paste is refused, never thrown.
-    if (!readsGathering(gathering) || !replyReadable(reply)) return refuse('version-unread')
+    if (!readsGathering(gathering) || !replyReadable(reply)) {
+      return refuse('version-unread')
+    }
     const r = gathering.request
     const bound =
       reply.chainId === r.chainId &&
@@ -337,9 +360,13 @@ export class RecoveryClientDouble implements IRecoveryClient {
       sameAddress(reply.action, r.action) &&
       reply.attemptId === r.attemptId &&
       reply.purpose === gathering.purpose
-    if (!bound) return refuse('binding-mismatch')
+    if (!bound) {
+      return refuse('binding-mismatch')
+    }
     const place = gathering.places.find((p) => p.place === reply.place)
-    if (!place) return refuse('place-unknown')
+    if (!place) {
+      return refuse('place-unknown')
+    }
     if (
       !sameAddress(place.method, reply.method) ||
       place.config.toLowerCase() !== reply.config.toLowerCase() ||
@@ -377,7 +404,9 @@ export class RecoveryClientDouble implements IRecoveryClient {
     const findings: RequestFinding[] = []
     const validUntil = Number(r.validUntil)
     const pinned = Number(r.block.timestamp)
-    if (now > validUntil) findings.push(finding('request.expired', 'request', { validUntil, now }))
+    if (now > validUntil) {
+      findings.push(finding('request.expired', 'request', { validUntil, now }))
+    }
     const floor = this.ctx.config.requestWindow?.floor ?? DEFAULT_REQUEST_WINDOW.floor
     if (validUntil - pinned < floor) {
       findings.push(
@@ -484,7 +513,9 @@ export class RecoveryClientDouble implements IRecoveryClient {
       validUntil: Number(r.validUntil),
       proofs
     }
-    if (gathering.purpose === 'cancellation') return common
+    if (gathering.purpose === 'cancellation') {
+      return common
+    }
     return {
       ...common,
       payload: r.payload ?? '0x',
@@ -513,8 +544,9 @@ export class RecoveryClientDouble implements IRecoveryClient {
     const isApproval = purpose === 'approval'
     const state = await manager.stateOf()
     const rows: RequestRow[] = []
-    if (now > request.validUntil)
+    if (now > request.validUntil) {
       rows.push(['request.expired', { validUntil: request.validUntil, now }])
+    }
     if (isApproval) {
       if (state.attempt.state === 'Waiting') {
         rows.push([
@@ -587,7 +619,9 @@ export class RecoveryClientDouble implements IRecoveryClient {
       request.proofs.forEach((p, i) => {
         const stop = stops[i]
         // As at the inits: an unanswered stop read refuses, never reads as not stopped.
-        if (!stop.answered) throw unansweredRead('manager.paused', p.method, Number(p.place))
+        if (!stop.answered) {
+          throw unansweredRead('manager.paused', p.method, Number(p.place))
+        }
         if (stop.value) {
           rows.push(['request.method-stopped', { place: p.place, method: p.method, ignoresPause }])
         }
@@ -622,7 +656,9 @@ export class RecoveryClientDouble implements IRecoveryClient {
   ): PreparedCall {
     const { chain, config } = this.ctx
     const pinned = { ...call, block: { number: block.number, hash: block.hash } }
-    if (!shouldSimulate(options, config.simulate)) return pinned
+    if (!shouldSimulate(options, config.simulate)) {
+      return pinned
+    }
     const error = chain.simulationFailure(member) ?? computed
     return withSimulation(pinned, simulationFrom(chain, call.sender, options), error)
   }
@@ -635,7 +671,9 @@ export class RecoveryClientDouble implements IRecoveryClient {
     this.ctx.chain.guardRefusal('recovery.prepareStartAttempt')
     const block = await pinBlock(this.ctx)
     const errors = await this.validateRequest(request, 'approval', now)
-    if (errors.length) throw validationRefusal({ errors, warnings: [] })
+    if (errors.length) {
+      throw validationRefusal({ errors, warnings: [] })
+    }
     const call = await this.ctx.manager.prepareStartAttempt(request)
     return this.finish(
       call,
@@ -654,7 +692,9 @@ export class RecoveryClientDouble implements IRecoveryClient {
     this.ctx.chain.guardRefusal('recovery.prepareCancelByProofs')
     const block = await pinBlock(this.ctx)
     const errors = await this.validateRequest(request, 'cancellation', now)
-    if (errors.length) throw validationRefusal({ errors, warnings: [] })
+    if (errors.length) {
+      throw validationRefusal({ errors, warnings: [] })
+    }
     const call = await this.ctx.manager.prepareCancelByProofs(request)
     return this.finish(
       call,

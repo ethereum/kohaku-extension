@@ -71,6 +71,7 @@ type MainControllerAccountPickerInitPrivateKeyOrSeedPhraseAction = {
     privKeyOrSeed: string
     seedPassphrase?: string | null
     hdPathTemplate?: HD_PATH_TEMPLATE_TYPE
+    shouldSelectSmartAccountAutomatically?: boolean
   }
 }
 type MainControllerAccountPickerInitFromSavedSeedPhraseAction = {

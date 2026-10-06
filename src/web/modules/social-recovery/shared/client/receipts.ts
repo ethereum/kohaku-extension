@@ -9,7 +9,8 @@
  * replacement only from the block it is given, so the caller reads the block
  * before the send, as ethers' own signer does before it broadcasts. Where the
  * node does not know the transaction yet, the wait asks again at each new
- * block. Every error comes through as ethers threw it.
+ * block. Every error comes through as ethers threw it. One read of the
+ * transaction by its hash answers whether the node knows it at that moment.
  *
  * A destroyed provider drops its block listeners without settling the waits
  * on them, so the caller that destroys the provider releases the wait first
@@ -20,9 +21,10 @@ import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
 import type {
   ProviderTransaction,
   ReceiptProvider,
-  ReceiptWait,
+  ReceiptReads,
   ReceiptWaitOptions,
-  ReceiptWaitReleased
+  ReceiptWaitReleased,
+  TransactionKnown
 } from './types'
 
 /**
@@ -48,13 +50,17 @@ const knownTransaction = (
     const started = Date.now()
     let onRelease: (() => void) | undefined
     const settle = (settled: () => void): void => {
-      if (onRelease) signal?.removeEventListener('abort', onRelease)
+      if (onRelease) {
+        signal?.removeEventListener('abort', onRelease)
+      }
       settled()
     }
     const ask = async (): Promise<void> => {
       try {
         const transaction = await provider.getTransaction(hash)
-        if (signal?.aborted) return
+        if (signal?.aborted) {
+          return
+        }
         if (transaction) {
           settle(() => resolve(transaction))
         } else if (Date.now() - started >= UNKNOWN_TRANSACTION_MS) {
@@ -84,8 +90,12 @@ const untilReleased = <T>(
   transactionHash: Hex,
   run: Promise<T>
 ): Promise<T> => {
-  if (!signal) return run
-  if (signal.aborted) return Promise.reject(released(transactionHash))
+  if (!signal) {
+    return run
+  }
+  if (signal.aborted) {
+    return Promise.reject(released(transactionHash))
+  }
   return new Promise<T>((resolve, reject) => {
     const onRelease = (): void => reject(released(transactionHash))
     signal.addEventListener('abort', onRelease, { once: true })
@@ -96,8 +106,20 @@ const untilReleased = <T>(
 export const createReceiptWait = (
   provider: ReceiptProvider,
   { signal }: ReceiptWaitOptions = {}
-): ReceiptWait => ({
+): ReceiptReads => ({
   blockNumber: () => provider.getBlockNumber(),
+
+  async transactionKnown(transactionHash: Hex): Promise<TransactionKnown> {
+    if (signal?.aborted) {
+      throw released(transactionHash)
+    }
+    const transaction = await untilReleased(
+      signal,
+      transactionHash,
+      provider.getTransaction(transactionHash)
+    )
+    return transaction ? 'known' : 'unknown'
+  },
 
   async wait(transactionHash: Hex, startBlock: number) {
     const transaction = await knownTransaction(provider, transactionHash, signal)
@@ -107,7 +129,9 @@ export const createReceiptWait = (
       transaction.replaceableTransaction(startBlock).wait()
     )
     // ethers answers no receipt only for a wait of zero confirmations.
-    if (!receipt) throw new Error(`No receipt came back for ${transactionHash}.`)
+    if (!receipt) {
+      throw new Error(`No receipt came back for ${transactionHash}.`)
+    }
     return receipt
   }
 })

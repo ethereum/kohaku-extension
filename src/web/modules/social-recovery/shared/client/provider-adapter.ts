@@ -28,6 +28,8 @@ import type {
 
 import type {
   AdapterProvider,
+  CodeRead,
+  CodeReadProvider,
   ProviderLog,
   ProviderRead,
   ProviderReadFailure,
@@ -42,7 +44,8 @@ export const PROVIDER_READS = [
   'block',
   'nativeBalance',
   'estimateGas',
-  'gasPrice'
+  'gasPrice',
+  'code'
 ] as const
 
 export const revertedCall = (read: RevertedCall['read'], data: Hex): RevertedCall => {
@@ -74,7 +77,9 @@ export const isProviderReadFailure = (value: unknown): value is ProviderReadFail
 
 /** A JSON-RPC quantity the node answered, as a bigint. Throws for anything else. */
 export const quantityOf = (value: unknown): bigint => {
-  if (!isHex(value)) throw new Error(`not a quantity: ${JSON.stringify(value)}`)
+  if (!isHex(value)) {
+    throw new Error(`not a quantity: ${JSON.stringify(value)}`)
+  }
   return hexToBigInt(value)
 }
 
@@ -104,21 +109,31 @@ export const revertDataOf = (thrown: unknown): Hex | undefined => {
   let revertedWithoutData = false
 
   const visit = (value: unknown, depth: number): Hex | undefined => {
-    if (depth > 8 || value === null || value === undefined) return undefined
+    if (depth > 8 || value === null || value === undefined) {
+      return undefined
+    }
     if (typeof value === 'string') {
-      if (!value.trim().startsWith('{')) return undefined
+      if (!value.trim().startsWith('{')) {
+        return undefined
+      }
       try {
         return visit(JSON.parse(value), depth + 1)
       } catch {
         return undefined
       }
     }
-    if (typeof value !== 'object' || seen.has(value)) return undefined
+    if (typeof value !== 'object' || seen.has(value)) {
+      return undefined
+    }
     seen.add(value)
     const record = value as Record<string, unknown>
     const message = typeof record.message === 'string' ? record.message : ''
-    if (REVERT_WORD.test(message) && isHex(record.data)) return record.data
-    if (record.code === 3 || EXECUTION_REVERTED.test(message)) revertedWithoutData = true
+    if (REVERT_WORD.test(message) && isHex(record.data)) {
+      return record.data
+    }
+    if (record.code === 3 || EXECUTION_REVERTED.test(message)) {
+      revertedWithoutData = true
+    }
     const keys = Array.from(new Set([...Object.keys(record), 'info', 'error', 'data', 'cause']))
     let found: Hex | undefined
     keys.some((key) => {
@@ -129,13 +144,17 @@ export const revertDataOf = (thrown: unknown): Hex | undefined => {
   }
 
   const data = visit(thrown, 0)
-  if (data) return data
+  if (data) {
+    return data
+  }
   return revertedWithoutData ? '0x' : undefined
 }
 
 /** The thrown value of a call or an estimate: a revert with its data, or a read failure. */
 export const callFailureOf = (read: 'call' | 'estimateGas', thrown: unknown): Error => {
-  if (isRevertedCall(thrown) || isProviderReadFailure(thrown)) return thrown
+  if (isRevertedCall(thrown) || isProviderReadFailure(thrown)) {
+    return thrown
+  }
   const data = revertDataOf(thrown)
   return data === undefined ? providerReadFailure(read, thrown) : revertedCall(read, data)
 }
@@ -222,5 +241,16 @@ export const createProviderAdapter = (provider: AdapterProvider): IProvider => (
       timestamp: header.timestamp,
       hash: hexOf('block', header.hash)
     }
+  }
+})
+
+/**
+ * The code read over the extension's provider: `getCode` at the block tag. A
+ * read the provider could not make, or an answer that is not hex, rejects
+ * with a `ProviderReadFailure`.
+ */
+export const createCodeRead = (provider: CodeReadProvider): CodeRead => ({
+  code(address: Address, block: BlockTag = 'latest'): Promise<Hex> {
+    return attemptRead('code', async () => hexOf('code', await provider.getCode(address, block)))
   }
 })

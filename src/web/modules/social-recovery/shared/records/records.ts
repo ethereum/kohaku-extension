@@ -1,3 +1,4 @@
+/* eslint-disable max-classes-per-file -- the two refusals a records update throws */
 /**
  * The wallet's records: the social recovery records this device keeps, in the
  * extension's local storage and never in a background controller, since the
@@ -16,8 +17,9 @@ import isEqual from 'react-fast-compare'
 import { bytesToHex, isAddress, isAddressEqual } from 'viem'
 
 import { parse, stringify } from '@ambire-common/libs/richJson/richJson'
-import type { Address, Gathering } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Gathering, Hex } from '@web/modules/social-recovery/sdk-interfaces'
 
+import { wipeRecoveryPassword } from './recoveryPassword'
 import { ABSENT, SETUP_RECORD_NAMES } from './types'
 import type {
   CeremonyRequestRecord,
@@ -34,8 +36,12 @@ import type {
   RecordRead,
   RecoverySessionAccessor,
   RecoverySessionRecord,
+  SaveInFlightAccessor,
+  SaveInFlightClaim,
+  SaveInFlightRecord,
   SessionRead,
   SessionRevision,
+  SetupDraftRecord,
   SetupRecordName,
   SetupRecords,
   StoredRecord,
@@ -47,9 +53,19 @@ import type {
 /** The prefix of every storage key the records use. */
 export const RECORDS_KEY_PREFIX = 'socialRecovery'
 
+/**
+ * Whether a value is a chain id: a bigint that is not negative, or a number
+ * that is a safe integer and not negative, so it keeps every digit.
+ */
+const isChainId = (value: unknown): value is ChainId =>
+  (typeof value === 'bigint' && value >= 0n) ||
+  (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)
+
 const chainPart = (chainId: ChainId | string): string => {
   const text = String(chainId)
-  if (!/^[0-9]+$/.test(text)) throw new Error(`Invalid chain id: ${text}`)
+  if ((typeof chainId !== 'string' && !isChainId(chainId)) || !/^[0-9]+$/.test(text)) {
+    throw new Error(`Invalid chain id: ${text}`)
+  }
   return text
 }
 
@@ -62,7 +78,9 @@ const accountPart = (account: Address): string => {
 
 /** A request id as the ceremony tab's route carries it: letters, digits, `_` and `-`. */
 const requestIdPart = (id: string): string => {
-  if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) throw new Error(`Invalid request id: ${id}`)
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) {
+    throw new Error(`Invalid request id: ${id}`)
+  }
   return id
 }
 
@@ -87,7 +105,8 @@ const recoverySessionPrefix = (chainId: ChainId): string =>
  *   `passwordSet`: the six setup records;
  * - `recoverySession`: the live gathering, the reason line a wipe leaves, or in
  *   its landed state the countdown's record;
- * - `decryptedSetupCache`: the setup the recovery password unlocked.
+ * - `decryptedSetupCache`: the setup the recovery password unlocked;
+ * - `saveInFlight`: the setup save sent to the wallet and not yet settled.
  *
  * A ceremony request is keyed by its request id alone,
  * `socialRecovery:ceremonyRequest:<id>`, since the ceremony tab reads it from
@@ -100,12 +119,16 @@ export const recordKeys = {
     `${recoverySessionPrefix(chainId)}${accountPart(account)}`,
   decryptedSetupCache: (chainId: ChainId, account: Address): string =>
     `${RECORDS_KEY_PREFIX}:decryptedSetupCache:${chainPart(chainId)}:${accountPart(account)}`,
+  saveInFlight: (chainId: ChainId, account: Address): string =>
+    `${RECORDS_KEY_PREFIX}:saveInFlight:${chainPart(chainId)}:${accountPart(account)}`,
   ceremonyRequest: (id: string): string =>
     `${RECORDS_KEY_PREFIX}:ceremonyRequest:${requestIdPart(id)}`
 }
 
 const isStoredRecord = (stored: unknown): stored is StoredRecord<unknown> => {
-  if (typeof stored !== 'object' || stored === null || !('value' in stored)) return false
+  if (typeof stored !== 'object' || stored === null || !('value' in stored)) {
+    return false
+  }
   const { savedAt } = stored as { savedAt?: unknown }
   return typeof savedAt === 'number' && Number.isFinite(savedAt)
 }
@@ -118,7 +141,9 @@ const isSessionRecord = (value: unknown): value is RecoverySessionRecord =>
   SESSION_STATES.includes((value as { state?: unknown }).state as string)
 
 const isStoredSession = (stored: unknown): stored is StoredSession => {
-  if (!isStoredRecord(stored) || !isSessionRecord(stored.value)) return false
+  if (!isStoredRecord(stored) || !isSessionRecord(stored.value)) {
+    return false
+  }
   const { revision } = stored as { revision?: unknown }
   return typeof revision === 'string' && revision !== ''
 }
@@ -129,12 +154,14 @@ const isStoredSession = (stored: unknown): stored is StoredSession => {
  * claim's request.
  */
 const isCeremonyRequest = (value: unknown): value is CeremonyRequestRecord => {
-  if (typeof value !== 'object' || value === null) return false
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
   const record = value as Record<string, unknown>
   if (
     typeof record.account !== 'string' ||
     !isAddress(record.account, { strict: false }) ||
-    (typeof record.chainId !== 'number' && typeof record.chainId !== 'bigint') ||
+    !isChainId(record.chainId) ||
     typeof record.method !== 'string'
   ) {
     return false
@@ -153,6 +180,35 @@ const isCeremonyRequest = (value: unknown): value is CeremonyRequestRecord => {
     default:
       return false
   }
+}
+
+/**
+ * Whether a stored value is a save in flight: a draft, a prepared call or
+ * batch, the request id, the claim time and, where present, the hash, the
+ * time of its first write and the start block.
+ */
+const isSaveInFlight = (value: unknown): value is SaveInFlightRecord => {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+  const record = value as Record<string, unknown>
+  const prepared = record.prepared as { kind?: unknown } | null | undefined
+  return (
+    typeof record.draft === 'object' &&
+    record.draft !== null &&
+    typeof prepared === 'object' &&
+    prepared !== null &&
+    (prepared.kind === 'call' || prepared.kind === 'batch') &&
+    typeof record.requestId === 'string' &&
+    record.requestId !== '' &&
+    typeof record.claimedAt === 'number' &&
+    Number.isFinite(record.claimedAt) &&
+    (record.transactionHash === undefined || typeof record.transactionHash === 'string') &&
+    (record.sentAt === undefined ||
+      (typeof record.sentAt === 'number' && Number.isFinite(record.sentAt))) &&
+    (record.startBlock === undefined ||
+      (Number.isSafeInteger(record.startBlock) && (record.startBlock as number) >= 0))
+  )
 }
 
 /**
@@ -183,7 +239,9 @@ const inMemoryQueue = <R>(key: string, task: () => Promise<R>): Promise<R> => {
   queues.set(key, settled)
   settled
     .then(() => {
-      if (queues.get(key) === settled) queues.delete(key)
+      if (queues.get(key) === settled) {
+        queues.delete(key)
+      }
     })
     .catch(() => undefined)
   return run
@@ -200,9 +258,23 @@ const inMemoryQueue = <R>(key: string, task: () => Promise<R>): Promise<R> => {
  */
 const inQueue = <R>(key: string, task: () => Promise<R>): Promise<R> => {
   const locks = typeof navigator === 'undefined' ? undefined : navigator.locks
-  if (locks) return locks.request(key, () => task()) as Promise<R>
+  if (locks) {
+    return locks.request(key, () => task()) as Promise<R>
+  }
   return inMemoryQueue(key, task)
 }
+
+/**
+ * Runs one update that spans several keys while it holds the queue of each,
+ * taken one after another in the order given, so no single-key update of any
+ * of them interleaves with it. Every caller passes its setup keys in the order
+ * of `SETUP_RECORD_NAMES` and the save in flight's key after them, and a
+ * single-key update holds one key alone. An update can wait for another that
+ * holds a key it needs, but never for one that waits for a key it holds, so
+ * the waits never form a cycle.
+ */
+const inQueues = <R>(keys: readonly string[], task: () => Promise<R>): Promise<R> =>
+  keys.reduceRight<() => Promise<R>>((inner, key) => () => inQueue(key, inner), task)()
 
 /**
  * The refusal of a recovery session update whose caller read an older
@@ -226,6 +298,22 @@ export class SessionRevisionConflict extends Error {
 export const isSessionRevisionConflict = (error: unknown): error is SessionRevisionConflict =>
   error instanceof SessionRevisionConflict
 
+/**
+ * The refusal of a start over while a setup save of the account is in flight:
+ * the save may still land, so the setup records stay and nothing was removed.
+ */
+export class SaveInFlightRefusal extends Error {
+  constructor(key: string) {
+    super(`The setup save ${key} is in flight: start over waits until it settles`)
+    this.name = 'SaveInFlightRefusal'
+    // Keeps `instanceof` working where the build compiles classes to functions.
+    Object.setPrototypeOf(this, SaveInFlightRefusal.prototype)
+  }
+}
+
+export const isSaveInFlightRefusal = (error: unknown): error is SaveInFlightRefusal =>
+  error instanceof SaveInFlightRefusal
+
 /** The revision an update passes after this read: the read's revision, or `null` when absent. */
 export const revisionOf = (read: SessionRead | CountdownRead): ExpectedRevision =>
   read.status === 'present' ? read.revision : null
@@ -248,7 +336,9 @@ export const createWalletRecords = ({
 }: WalletRecordsOptions): WalletRecords => {
   const readKey = async <T>(key: string): Promise<RecordRead<T>> => {
     const stored: unknown = await storage.get(key, undefined)
-    if (!isStoredRecord(stored)) return ABSENT
+    if (!isStoredRecord(stored)) {
+      return ABSENT
+    }
     return { status: 'present', value: stored.value as T, savedAt: stored.savedAt }
   }
 
@@ -270,25 +360,46 @@ export const createWalletRecords = ({
     age: async (at?: number) => recordAge(await readKey<T>(key), at ?? now())
   })
 
-  // --- the six setup records -----------------------------------------------
-
-  const wipeSetupRecords = async (chainId: ChainId, account: Address): Promise<void> => {
-    const keys = SETUP_RECORD_NAMES.map((name) => recordKeys.setup(name, chainId, account))
-    await Promise.all(keys.map(removeKey))
+  /**
+   * The save in flight stored under a key. A stored value that is not a save in
+   * flight reads absent.
+   */
+  const readSaveInFlight = async (key: string): Promise<RecordRead<SaveInFlightRecord>> => {
+    const stored: unknown = await storage.get(key, undefined)
+    if (!isStoredRecord(stored) || !isSaveInFlight(stored.value)) {
+      return ABSENT
+    }
+    return { status: 'present', value: stored.value, savedAt: stored.savedAt }
   }
+
+  // --- the six setup records -----------------------------------------------
 
   /**
    * The six setup records of an account: the setup draft, the inventory, the
    * path, the enrollments, the waiting period and the password-set flag.
    */
-  const setup = (chainId: ChainId, account: Address): SetupRecords => ({
-    setupDraft: accessor(recordKeys.setup('setupDraft', chainId, account)),
-    inventory: accessor(recordKeys.setup('inventory', chainId, account)),
-    path: accessor(recordKeys.setup('path', chainId, account)),
-    enrollments: accessor(recordKeys.setup('enrollments', chainId, account)),
-    waitingPeriod: accessor(recordKeys.setup('waitingPeriod', chainId, account)),
-    passwordSet: accessor(recordKeys.setup('passwordSet', chainId, account))
-  })
+  const setup = (chainId: ChainId, account: Address): SetupRecords => {
+    const draftKey = recordKeys.setup('setupDraft', chainId, account)
+    const pathKey = recordKeys.setup('path', chainId, account)
+    return {
+      setupDraft: accessor(draftKey),
+      inventory: accessor(recordKeys.setup('inventory', chainId, account)),
+      path: accessor(pathKey),
+      enrollments: accessor(recordKeys.setup('enrollments', chainId, account)),
+      waitingPeriod: accessor(recordKeys.setup('waitingPeriod', chainId, account)),
+      passwordSet: accessor(recordKeys.setup('passwordSet', chainId, account)),
+      writeDraftAndPath: (draft: SetupDraftRecord) =>
+        inQueues([draftKey, pathKey], async () => {
+          const savedAt = now()
+          const written = {
+            setupDraft: { value: draft, savedAt },
+            path: { value: draft.clauses, savedAt }
+          }
+          await storage.setEntries({ [draftKey]: written.setupDraft, [pathKey]: written.path })
+          return written
+        })
+    }
+  }
 
   /**
    * The latest `savedAt` of the six setup records, the draft's age a resumed
@@ -302,17 +413,47 @@ export const createWalletRecords = ({
     return times.length ? Math.max(...times) : null
   }
 
-  /** The setup landed on chain: wipes the six setup records. Platform credentials are untouched. */
-  const saveSetup = (chainId: ChainId, account: Address) => wipeSetupRecords(chainId, account)
+  /**
+   * The setup landed on chain: wipes the six setup records and the save in
+   * flight in one storage call, so a saved setup leaves no record behind. The
+   * recovery password held in memory stays for the tab's life, so the Recovery
+   * Card can show it. Platform credentials are untouched.
+   */
+  const saveSetup = async (chainId: ChainId, account: Address): Promise<void> => {
+    const keys = [
+      ...SETUP_RECORD_NAMES.map((name) => recordKeys.setup(name, chainId, account)),
+      recordKeys.saveInFlight(chainId, account)
+    ]
+    await inQueues(keys, () => storage.removeKeys(keys))
+  }
 
-  /** The holder starts over: wipes the six setup records. Platform credentials are untouched. */
-  const startOverSetup = (chainId: ChainId, account: Address) => wipeSetupRecords(chainId, account)
+  /**
+   * The holder starts over: wipes the six setup records in one storage call,
+   * then the recovery password held in memory, which no screen shows again.
+   * While a save of the account is in flight it removes nothing and throws
+   * `SaveInFlightRefusal`, since that save may still land. It takes the keys in
+   * the order `saveSetup` takes them, the save in flight last, and reads that
+   * record while it holds them all. Platform credentials are untouched.
+   */
+  const startOverSetup = async (chainId: ChainId, account: Address): Promise<void> => {
+    const setupKeys = SETUP_RECORD_NAMES.map((name) => recordKeys.setup(name, chainId, account))
+    const saveKey = recordKeys.saveInFlight(chainId, account)
+    await inQueues([...setupKeys, saveKey], async () => {
+      if ((await readSaveInFlight(saveKey)).status === 'present') {
+        throw new SaveInFlightRefusal(saveKey)
+      }
+      await storage.removeKeys(setupKeys)
+    })
+    wipeRecoveryPassword(chainId, account)
+  }
 
   // --- the recovery session ------------------------------------------------
 
   const readSessionAt = async (key: string): Promise<SessionRead> => {
     const stored: unknown = await storage.get(key, undefined)
-    if (!isStoredSession(stored)) return ABSENT
+    if (!isStoredSession(stored)) {
+      return ABSENT
+    }
     return {
       status: 'present',
       value: stored.value,
@@ -344,7 +485,9 @@ export const createWalletRecords = ({
   }
 
   const checkRevision = (current: SessionRead, expectedRevision: ExpectedRevision, key: string) => {
-    if (revisionOf(current) !== expectedRevision) throw new SessionRevisionConflict(key)
+    if (revisionOf(current) !== expectedRevision) {
+      throw new SessionRevisionConflict(key)
+    }
   }
 
   /**
@@ -463,7 +606,9 @@ export const createWalletRecords = ({
     expectedRevision: ExpectedRevision
   ): Promise<boolean> =>
     updateSession(chainId, account, expectedRevision, async (current, key) => {
-      if (current.status !== 'present' || current.value.state !== 'live') return false
+      if (current.status !== 'present' || current.value.state !== 'live') {
+        return false
+      }
       const { request } = current.value.gathering
       await writeSessionAt(key, {
         state: 'wiped',
@@ -509,7 +654,9 @@ export const createWalletRecords = ({
     expectedRevision: ExpectedRevision
   ): Promise<boolean> =>
     inSessionQueue(chainId, account, async (current, key) => {
-      if (current.status !== 'present' || current.value.state !== state) return false
+      if (current.status !== 'present' || current.value.state !== state) {
+        return false
+      }
       checkRevision(current, expectedRevision, key)
       await storage.remove(key)
       return true
@@ -601,7 +748,9 @@ export const createWalletRecords = ({
     const key = recordKeys.ceremonyRequest(id)
     const read = async (): Promise<RecordRead<CeremonyRequestRecord>> => {
       const stored: unknown = await storage.get(key, undefined)
-      if (!isStoredRecord(stored) || !isCeremonyRequest(stored.value)) return ABSENT
+      if (!isStoredRecord(stored) || !isCeremonyRequest(stored.value)) {
+        return ABSENT
+      }
       return { status: 'present', value: stored.value, savedAt: stored.savedAt }
     }
     return {
@@ -609,6 +758,67 @@ export const createWalletRecords = ({
       write: (value: CeremonyRequestRecord) => inQueue(key, () => writeKey(key, value)),
       wipe: () => removeKey(key),
       age: async (at?: number) => recordAge(await read(), at ?? now())
+    }
+  }
+
+  // --- the save in flight -------------------------------------------------
+
+  /**
+   * The setup save of one account sent to the wallet and not yet settled. A
+   * stored value that is not a save in flight reads absent, and a claim writes
+   * over it.
+   */
+  const saveInFlight = (chainId: ChainId, account: Address): SaveInFlightAccessor => {
+    const key = recordKeys.saveInFlight(chainId, account)
+    const read = () => readSaveInFlight(key)
+    return {
+      read,
+      claim: (claim: SaveInFlightClaim) =>
+        inQueue(key, async () => {
+          const current = await read()
+          if (current.status === 'present') {
+            return { claimed: false, record: { value: current.value, savedAt: current.savedAt } }
+          }
+          const value: SaveInFlightRecord = {
+            draft: claim.draft,
+            prepared: claim.prepared,
+            requestId: claim.requestId,
+            claimedAt: claim.claimedAt,
+            ...(claim.startBlock === undefined ? {} : { startBlock: claim.startBlock })
+          }
+          if (!isSaveInFlight(value)) {
+            throw new Error(`Invalid save in flight, not written: ${key}`)
+          }
+          const record = await writeKey<SaveInFlightRecord>(key, value)
+          return { claimed: true, record }
+        }),
+      markSent: (requestId: string, transactionHash: Hex, startBlock?: number) =>
+        inQueue(key, async () => {
+          const current = await read()
+          if (current.status !== 'present' || current.value.requestId !== requestId) {
+            return current
+          }
+          const value: SaveInFlightRecord = {
+            ...current.value,
+            transactionHash,
+            ...(current.value.transactionHash === undefined ? { sentAt: now() } : {}),
+            ...(startBlock === undefined ? {} : { startBlock })
+          }
+          if (!isSaveInFlight(value)) {
+            throw new Error(`Invalid save in flight, not written: ${key}`)
+          }
+          const record = await writeKey<SaveInFlightRecord>(key, value)
+          return { status: 'present' as const, ...record }
+        }),
+      release: (requestId: string) =>
+        inQueue(key, async () => {
+          const current = await read()
+          if (current.status !== 'present' || current.value.requestId !== requestId) {
+            return false
+          }
+          await storage.remove(key)
+          return true
+        })
     }
   }
 
@@ -626,6 +836,7 @@ export const createWalletRecords = ({
     countdown,
     listCountdowns,
     decryptedSetupCache,
+    saveInFlight,
     ceremonyRequest
   }
 }

@@ -18,7 +18,9 @@ export const createVisibilityGate = (source: VisibilitySource): VisibilityGate =
   let disposed = false
 
   const flush = () => {
-    if (!isVisible(source)) return
+    if (!isVisible(source)) {
+      return
+    }
     const ready = held
     held = []
     ready.forEach((h) => h.run())
@@ -29,7 +31,9 @@ export const createVisibilityGate = (source: VisibilitySource): VisibilityGate =
 
   return {
     dispatch<T>(dispatch: () => T | Promise<T>): Promise<T> {
-      if (disposed) return Promise.reject(new Error('The visibility gate is disposed.'))
+      if (disposed) {
+        return Promise.reject(new Error('The visibility gate is disposed.'))
+      }
       if (isVisible(source)) {
         try {
           return Promise.resolve(dispatch())
@@ -52,7 +56,9 @@ export const createVisibilityGate = (source: VisibilitySource): VisibilityGate =
     },
     pending: () => held.length,
     dispose: () => {
-      if (disposed) return
+      if (disposed) {
+        return
+      }
       disposed = true
       source.removeEventListener('visibilitychange', onChange)
       const dropped = held
@@ -70,7 +76,9 @@ export const whenVisible = (source: VisibilitySource): Promise<void> =>
       return
     }
     const onChange = () => {
-      if (!isVisible(source)) return
+      if (!isVisible(source)) {
+        return
+      }
       source.removeEventListener('visibilitychange', onChange)
       resolve()
     }

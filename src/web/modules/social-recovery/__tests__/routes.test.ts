@@ -1,7 +1,15 @@
 /**
- * The social recovery routes: the ten WEB_ROUTES keys and their paths, one
- * routesConfig entry per path with the feature name as its title, and no path
- * shared with a route outside the module.
+ * @jest-environment jsdom
+ *
+ * The social recovery routes: the seventeen WEB_ROUTES keys and their paths,
+ * one routesConfig entry per path with the feature name as its title, no path
+ * shared with a route outside the module, and the settings sidebar's entry
+ * that opens the setup.
+ *
+ * The settings sidebar reads `location` while it loads, so the suite runs in
+ * jsdom. Its list of links is plain data; the two hooks its component body
+ * uses pull in the background controllers and an untranspiled keyboard
+ * package, so they are replaced by empty modules and never run here.
  *
  * routesConfig is keyed by the route PATH, like every existing entry
  * (`[ROUTES.x]: { route: ROUTES.x, ... }`), so an entry is looked up as
@@ -9,6 +17,11 @@
  */
 import routesConfig from '@common/modules/router/config/routesConfig/routesConfig'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
+import { SETTINGS_LINKS } from '@web/modules/settings/components/Sidebar/Sidebar'
+import type { RouteEntry } from '@web/modules/social-recovery/__tests__/stubs/types'
+
+jest.mock('@web/hooks/useKeystoreControllerState', () => ({ __esModule: true, default: jest.fn() }))
+jest.mock('@common/components/ScrollableWrapper', () => ({ __esModule: true, default: jest.fn() }))
 
 // routesConfig imports `Platform` from react-native; jest.config.js maps
 // react-native to react-native-web, so no mock is needed here.
@@ -26,18 +39,23 @@ const EXPECTED_ROUTES: Record<string, string> = {
   socialRecoveryRecovery: 'social-recovery/recovery',
   socialRecoveryApprove: 'social-recovery/approve',
   socialRecoveryCancel: 'social-recovery/cancel',
-  socialRecoveryManage: 'social-recovery/manage'
+  socialRecoveryManage: 'social-recovery/manage',
+  socialRecoverySetupEditor: 'social-recovery/setup/editor',
+  socialRecoverySetupEnroll: 'social-recovery/setup/enroll',
+  socialRecoverySetupWaitingPeriod: 'social-recovery/setup/waiting-period',
+  socialRecoverySetupPrivacy: 'social-recovery/setup/privacy',
+  socialRecoverySetupReview: 'social-recovery/setup/review',
+  socialRecoverySetupSave: 'social-recovery/setup/save',
+  socialRecoverySetupCard: 'social-recovery/setup/card'
 }
 
-type Entry = { route: string; title: string; name: string; withTitlePrefix?: boolean }
-
 const webRoutes = WEB_ROUTES as unknown as Record<string, string>
-const config = routesConfig as unknown as Record<string, Entry>
+const config = routesConfig as unknown as Record<string, RouteEntry>
 
 const socialRecoveryKeys = Object.keys(webRoutes).filter((key) => key.startsWith('socialRecovery'))
 
 describe('social recovery routes', () => {
-  it('declares the ten social recovery keys with their paths', () => {
+  it('declares the seventeen social recovery keys with their paths', () => {
     Object.entries(EXPECTED_ROUTES).forEach(([key, path]) => {
       expect({ key, path: webRoutes[key] }).toEqual({ key, path })
     })
@@ -89,5 +107,12 @@ describe('social recovery routes', () => {
       .map((key) => webRoutes[key])
     const clashes = socialRecoveryKeys.filter((key) => others.includes(webRoutes[key]))
     expect(clashes).toEqual([])
+  })
+
+  it('offers exactly one settings sidebar entry, named for the feature, and it opens the setup', () => {
+    const entries = SETTINGS_LINKS.filter(({ path }) => path.startsWith('social-recovery'))
+    expect(entries.map(({ path, label }) => ({ path, label }))).toEqual([
+      { path: WEB_ROUTES.socialRecoverySetup, label: FEATURE_NAME }
+    ])
   })
 })

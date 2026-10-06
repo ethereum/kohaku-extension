@@ -22,7 +22,7 @@ import {
   renderChip,
   REQUEST_CHIPS,
   SESSION_CHIPS
-} from '..'
+} from '@web/modules/social-recovery/shared/display'
 
 const STATUS_PREFIX = 'socialRecovery.status.'
 

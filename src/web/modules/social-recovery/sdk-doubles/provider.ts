@@ -37,8 +37,12 @@ export class ProviderDouble implements IProvider {
   async call(to: Address, data: Hex): Promise<Hex> {
     this.chain.guard('provider.call')
     const answer = this.chain.calls.get(`${to.toLowerCase()}:${data.toLowerCase()}`)
-    if (!answer) return '0x'
-    if ('revert' in answer) throw revertedCall(answer.revert)
+    if (!answer) {
+      return '0x'
+    }
+    if ('revert' in answer) {
+      throw revertedCall(answer.revert)
+    }
     return answer.result
   }
 

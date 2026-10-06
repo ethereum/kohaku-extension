@@ -28,7 +28,9 @@ import type { DepositStepViewProps } from '@web/modules/social-recovery/shared/w
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 
-const harness = jest.requireActual<typeof import('./harness')>('./harness')
+const harness = jest.requireActual<
+  typeof import('@web/modules/social-recovery/shared/writes/__tests__/harness')
+>('@web/modules/social-recovery/shared/writes/__tests__/harness')
 const { depositStepFor, GAS_KEYS, mockReads, OTHER_KEY, renderDepositStep, runGasCheck, stepOf } =
   harness
 const { t } = jest.requireActual<typeof import('@common/config/localization')>(
@@ -80,7 +82,9 @@ const loadView = (): React.ComponentType<DepositStepViewProps> => {
     loaded,
     loaded.exports
   )
-  if (!loaded.exports.default) throw new Error('DepositStepView exports no component')
+  if (!loaded.exports.default) {
+    throw new Error('DepositStepView exports no component')
+  }
   return loaded.exports.default
 }
 const DepositStepView = loadView()
@@ -104,7 +108,9 @@ afterEach(() => {
 
 /** Renders the view with `step`, mounting it on the first call. */
 const show = async (step: DepositStep, props: Omit<DepositStepViewProps, 'step'> = {}) => {
-  if (!root) root = createRoot(container)
+  if (!root) {
+    root = createRoot(container)
+  }
   await act(async () => {
     root?.render(React.createElement(DepositStepView, { step, ...props }))
   })
@@ -138,7 +144,9 @@ const pressCopy = async () => {
   const button = Array.from(container.querySelectorAll('button')).find(
     (candidate) => candidate.textContent === t(GAS_KEYS.copy)
   )
-  if (!button) throw new Error('The copy button is not on the step')
+  if (!button) {
+    throw new Error('The copy button is not on the step')
+  }
   await settle(() => button.click())
 }
 

@@ -10,10 +10,12 @@ import type {
 } from '@web/modules/social-recovery/sdk-interfaces'
 import type {
   ChainReads,
+  EstimationListener,
   GasEstimateCall,
   KeyHandle,
   ProviderReadFailure,
   ReceiptWait,
+  RecoveryKitMark,
   SendPort
 } from '@web/modules/social-recovery/shared/client'
 
@@ -101,13 +103,19 @@ export interface LandedState {
  * the wallet met before any transaction hash: a refused signature, a gas
  * estimate that would revert, or a broadcast that failed. `replaced` is
  * present where another transaction took the call's place before it was mined
- * (`cancelled` or `replaced`), so the call itself never ran.
+ * (`cancelled` or `replaced`), so the call itself never ran. `mayStillLand`
+ * is present where the wallet submitted the call as an operation another party
+ * sends, which this wallet cannot follow and which may still reach the chain,
+ * so no retry is offered. `otherRequest` is present where another request for
+ * the account waited in the wallet, so the call was not sent.
  */
 export interface FailedNotSentState {
   status: 'failedNotSent'
   write: WriteKind
   error: unknown
   replaced?: ReplacedReason
+  mayStillLand?: true
+  otherRequest?: true
 }
 
 /**
@@ -279,20 +287,40 @@ export type WriteEvent =
 
 export type WriteAnswer = Extract<WriteEvent, { type: typeof WRITE_ANSWER_TYPES[number] }>
 
-/** What `driveSend` takes: the machine's dispatch and run, the two client parts and what the key sends. */
-export interface SendDrive {
+/** What every drive takes: the machine's dispatch and run, and the receipt wait. */
+export interface DriveRun {
   /** The machine's dispatch. */
   dispatch: (event: WriteEvent) => void
   /** The run of the submitting state the send answers. */
   run: number
-  /** The send port the client hands out (`createSendPort`). */
-  port: SendPort
   /** The receipt wait over the extension's provider (`createReceiptWait`). */
   receipts: ReceiptWait
+}
+
+/** What `driveSend` takes: the drive's run, the send port and what the key sends. */
+export interface SendDrive extends DriveRun {
+  /** The send port the client hands out (`createSendPort`). */
+  port: SendPort
   /** The key that sends the transaction and pays its gas. */
   key: KeyHandle
   /** The transaction the gas check estimated, from that key (`gasTransactionOf`). */
   transaction: GasEstimateCall
+}
+
+/** What `driveAccountBatch` takes: the drive's run, the send port and the batch the account runs. */
+export interface AccountBatchDrive extends DriveRun {
+  /** The send port the client hands out (`createSendPort`). */
+  port: SendPort
+  /** The account the wallet lists that runs the batch on itself. */
+  account: Address
+  /** The batch's calls, in order, each with the account as its sender. */
+  calls: readonly PreparedCall[]
+  /** Hears each reading of the sign screen's estimation for the batch. */
+  onEstimation?: EstimationListener
+  /** The recovery kit's mark, for the batch that arms the kit (`recoveryKitMarkOf`). */
+  recoveryKit?: RecoveryKitMark
+  /** The id the batch's request is queued under (`newSendRequestId`); the port makes one by default. */
+  requestId?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -309,12 +337,15 @@ export interface GasNetwork {
  * An account this wallet holds, by its address and the name the wallet gives
  * it. `deployed` is false where the account has no code yet (the wallet's own
  * account state knows), so its transfer must deploy it through the account
- * factory first.
+ * factory first. `factory` is the factory the account's creation record names,
+ * the one its address derives from; the gas check takes `ACCOUNT_FACTORY`
+ * where it is absent.
  */
 export interface WalletAccountRef {
   address: Address
   name: string
   deployed?: boolean
+  factory?: Address
 }
 
 /** The estimate of one transaction: its gas, the gas price, their product and the amount asked for. */
@@ -387,8 +418,9 @@ export interface GasCheckInput {
    * The transaction the key sends where the write rides the account's own
    * execute: a call whose sender is the account, or a batch. The account
    * library builds it from the prepared write, to the account the key operates
-   * (`operates`), or to `ACCOUNT_FACTORY` where it deploys an account with no
-   * code yet; `gasCallOf` refuses those calls. A call anyone may send
+   * (`operates`), or to that account's factory (`operates.factory`,
+   * `ACCOUNT_FACTORY` by default) where it deploys an account with no code
+   * yet; `gasCallOf` refuses those calls. A call anyone may send
    * is estimated as it stands, so this is ignored for one.
    */
   transaction?: GasEstimateCall
@@ -403,7 +435,7 @@ export interface GasCheckInput {
    * adds what the value costs). By default the account's own `executeBySender`
    * (`transferTransactionOf`), which holds only for an account with code. For
    * an account with no code yet (`operates.deployed` false, or a write whose
-   * own transaction deploys it through `ACCOUNT_FACTORY`), the check takes no
+   * own transaction deploys it through the account's factory), the check takes no
    * default: pass the factory's deploy-and-transfer transaction, or the step
    * offers the deposit from outside alone.
    */

@@ -8,7 +8,8 @@
  */
 /* eslint-disable no-bitwise -- byte handling of the authenticator data and of DER */
 import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
-import { bytesToHex, numberToBytes, sha256, stringToBytes } from 'viem'
+import { bytesOf } from '@web/modules/social-recovery/shared/webauthn'
+import { bytesToHex, sha256, stringToBytes } from 'viem'
 
 import type {
   AuthenticatorData,
@@ -59,13 +60,6 @@ export const AUTHENTICATOR_FLAGS = {
   extensionData: 0x80
 } as const
 
-const toBytes = (data: ArrayBuffer | ArrayBufferView): Uint8Array =>
-  data instanceof Uint8Array
-    ? data
-    : ArrayBuffer.isView(data)
-    ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
-    : new Uint8Array(data)
-
 const formatAaguid = (bytes: Uint8Array): string => {
   const hex = bytesToHex(bytes).slice(2)
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(
@@ -76,8 +70,10 @@ const formatAaguid = (bytes: Uint8Array): string => {
 
 /** Reads the rp id hash, the flags, the counter and the AAGUID of an authenticator data. */
 export const readAuthenticatorData = (data: ArrayBuffer | ArrayBufferView): AuthenticatorData => {
-  const bytes = toBytes(data)
-  if (bytes.length < 37) throw new Error('The authenticator data is shorter than 37 bytes.')
+  const bytes = bytesOf(data)
+  if (bytes.length < 37) {
+    throw new Error('The authenticator data is shorter than 37 bytes.')
+  }
   const flagsByte = bytes[32]
   const flags: AuthenticatorFlags = {
     userPresent: (flagsByte & AUTHENTICATOR_FLAGS.userPresent) !== 0,
@@ -98,46 +94,6 @@ export const readAuthenticatorData = (data: ArrayBuffer | ArrayBufferView): Auth
     signCount,
     ...(aaguid ? { aaguid } : {})
   }
-}
-
-/**
- * The authenticator data inside a CBOR attestation object, for a browser whose
- * attestation response carries no `getAuthenticatorData()`. It reads the byte
- * string under the text key `authData`, the one layout attestation `none`
- * produces, and returns null where it finds none.
- */
-export const authDataFromAttestationObject = (
-  attestationObject: ArrayBuffer | ArrayBufferView
-): Uint8Array | null => {
-  const bytes = toBytes(attestationObject)
-  // CBOR text string of length 8 (0x68) followed by "authData".
-  const key = [0x68, ...Array.from(stringToBytes('authData'))]
-  for (let i = 0; i + key.length < bytes.length; i++) {
-    if (key.every((b, j) => bytes[i + j] === b)) {
-      let at = i + key.length
-      const head = bytes[at]
-      const major = head >> 5
-      const info = head & 0x1f
-      if (major !== 2) return null
-      at += 1
-      let length: number
-      if (info < 24) length = info
-      else if (info === 24) {
-        length = bytes[at]
-        at += 1
-      } else if (info === 25) {
-        length = (bytes[at] << 8) | bytes[at + 1]
-        at += 2
-      } else if (info === 26) {
-        length =
-          ((bytes[at] << 24) | (bytes[at + 1] << 16) | (bytes[at + 2] << 8) | bytes[at + 3]) >>> 0
-        at += 4
-      } else return null
-      if (at + length > bytes.length) return null
-      return bytes.slice(at, at + length)
-    }
-  }
-  return null
 }
 
 // ---------------------------------------------------------------------------
@@ -168,11 +124,21 @@ export const authenticatorPlaceOf = (
   attachment: string | null | undefined,
   transports: readonly string[] = []
 ): AuthenticatorPlace => {
-  if (attachment === 'platform') return 'this-device'
-  if (transports.includes('hybrid')) return 'phone'
-  if (attachment === 'cross-platform' || transports.some((t) => ['usb', 'nfc', 'ble'].includes(t)))
+  if (attachment === 'platform') {
+    return 'this-device'
+  }
+  if (transports.includes('hybrid')) {
+    return 'phone'
+  }
+  if (
+    attachment === 'cross-platform' ||
+    transports.some((t) => ['usb', 'nfc', 'ble'].includes(t))
+  ) {
     return 'security-key'
-  if (transports.includes('internal')) return 'this-device'
+  }
+  if (transports.includes('internal')) {
+    return 'this-device'
+  }
   return 'unknown'
 }
 
@@ -197,86 +163,6 @@ export const passkeyFactsOf = (input: {
     transports,
     ...(data.aaguid ? { aaguid: data.aaguid } : {})
   }
-}
-
-// ---------------------------------------------------------------------------
-// The high-s rule
-// ---------------------------------------------------------------------------
-
-/** The order `n` of the P-256 curve. */
-export const P256_N = BigInt('0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551')
-
-/** Half the order: an `s` above it is high. */
-export const P256_HALF_N = P256_N / BigInt(2)
-
-/** The low form of `s`: `n - s` where `s > n/2`, `s` itself otherwise. */
-export const normalizeP256S = (s: bigint): bigint => (s > P256_HALF_N ? P256_N - s : s)
-
-export const isHighS = (s: bigint): boolean => s > P256_HALF_N
-
-const readDerLength = (bytes: Uint8Array, at: number): { length: number; next: number } => {
-  const first = bytes[at]
-  if (first === undefined) throw new Error('The DER signature ends early.')
-  if (first < 0x80) return { length: first, next: at + 1 }
-  const count = first & 0x7f
-  if (count < 1 || count > 2) throw new Error('The DER signature has an unsupported length.')
-  let length = 0
-  for (let i = 0; i < count; i++) {
-    const b = bytes[at + 1 + i]
-    if (b === undefined) throw new Error('The DER signature ends early.')
-    length = (length << 8) | b
-  }
-  return { length, next: at + 1 + count }
-}
-
-const readDerInteger = (bytes: Uint8Array, at: number): { value: bigint; next: number } => {
-  if (bytes[at] !== 0x02) throw new Error('The DER signature holds no integer where one belongs.')
-  const { length, next } = readDerLength(bytes, at + 1)
-  if (length === 0 || next + length > bytes.length)
-    throw new Error('The DER signature holds a malformed integer.')
-  const value = BigInt(bytesToHex(bytes.slice(next, next + length)))
-  return { value, next: next + length }
-}
-
-/** The `r` and `s` of an ECDSA signature in DER, the form an authenticator returns. */
-export const parseDerSignature = (der: ArrayBuffer | ArrayBufferView): { r: bigint; s: bigint } => {
-  const bytes = toBytes(der)
-  if (bytes[0] !== 0x30) throw new Error('The signature is not a DER sequence.')
-  const { length, next } = readDerLength(bytes, 1)
-  if (next + length !== bytes.length) throw new Error('The DER sequence length does not match.')
-  const r = readDerInteger(bytes, next)
-  const s = readDerInteger(bytes, r.next)
-  if (s.next !== bytes.length) throw new Error('The DER signature carries trailing bytes.')
-  return { r: r.value, s: s.value }
-}
-
-const derInteger = (value: bigint): number[] => {
-  if (value < BigInt(0)) throw new Error('A DER integer of a signature is never negative.')
-  const body = Array.from(numberToBytes(value))
-  // A leading byte with its top bit set would read negative: prefix a zero.
-  if (body[0] >= 0x80) body.unshift(0)
-  return [0x02, body.length, ...body]
-}
-
-/** The DER encoding of `(r, s)`. */
-export const encodeDerSignature = ({ r, s }: { r: bigint; s: bigint }): Uint8Array => {
-  const content = [...derInteger(r), ...derInteger(s)]
-  const length = content.length < 0x80 ? [content.length] : [0x81, content.length]
-  return Uint8Array.from([0x30, ...length, ...content])
-}
-
-/**
- * The signature the method receives: a high `s` becomes `n - s` and the DER is
- * re-encoded; a low `s` returns the same bytes unchanged. Google Password
- * Manager can return a high `s`, and the verifier rejects one.
- */
-export const normalizeDerSignature = (
-  der: ArrayBuffer | ArrayBufferView
-): { signature: Uint8Array; normalized: boolean } => {
-  const bytes = toBytes(der)
-  const { r, s } = parseDerSignature(bytes)
-  if (!isHighS(s)) return { signature: bytes, normalized: false }
-  return { signature: encodeDerSignature({ r, s: normalizeP256S(s) }), normalized: true }
 }
 
 // ---------------------------------------------------------------------------
@@ -339,7 +225,9 @@ export const stopOfCeremonyError = (
         return unavailable('unreachable', name)
       }
       const isTest = context.lifecycle ? context.lifecycle === 'testAccess' : context.call === 'get'
-      if (isTest) return failed('browser-error', name)
+      if (isTest) {
+        return failed('browser-error', name)
+      }
       if (/focus|permissions? policy|feature policy/i.test(message)) {
         return dismissed('refused', name)
       }
@@ -358,26 +246,16 @@ export const stopOfCeremonyError = (
   }
 }
 
-// ---------------------------------------------------------------------------
-// Bytes
-// ---------------------------------------------------------------------------
-
-/** base64url without padding, the form a credential id travels in. */
-export const toBase64Url = (data: ArrayBuffer | ArrayBufferView): string => {
-  const bytes = toBytes(data)
-  let binary = ''
-  bytes.forEach((b) => {
-    binary += String.fromCharCode(b)
-  })
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-}
-
-/** The bytes of a base64url string, with or without padding. */
-export const fromBase64Url = (text: string): Uint8Array => {
-  const base64 = text.replace(/-/g, '+').replace(/_/g, '/')
-  const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4)
-  const binary = atob(padded)
-  return Uint8Array.from(binary, (c) => c.charCodeAt(0))
-}
-
-export { toBytes }
+export {
+  authDataFromAttestationObject,
+  encodeDerSignature,
+  fromBase64Url,
+  isHighS,
+  normalizeDerSignature,
+  normalizeP256S,
+  P256_HALF_N,
+  P256_N,
+  parseDerSignature,
+  toBase64Url,
+  bytesOf as toBytes
+} from '@web/modules/social-recovery/shared/webauthn'

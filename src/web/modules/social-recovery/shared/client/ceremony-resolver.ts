@@ -12,7 +12,7 @@ import { addressBookOf, sameAddress } from './addresses'
 import { buildRecoveryClient } from './build-client'
 import { CHAIN_IDS, recoveryChainOf, WALLET_RECOVERY_CHAIN } from './chains'
 import { extensionProviderFor, networkOf } from './extension-provider'
-import { createProviderAdapter } from './provider-adapter'
+import { createCodeRead, createProviderAdapter } from './provider-adapter'
 import type { CeremonyClientFor, CeremonyResolverOptions } from './types'
 
 /**
@@ -35,25 +35,37 @@ export const createCeremonyResolver =
   ({ records, clientFor, now = Date.now }: CeremonyResolverOptions): CeremonyResolver =>
   async (params) => {
     const read = await records.ceremonyRequest(params.id).read()
-    if (read.status === 'absent' || !isWithinExpiry(read.savedAt, now())) return null
+    if (read.status === 'absent' || !isWithinExpiry(read.savedAt, now())) {
+      return null
+    }
     const stored = read.value
-    if (stored.call !== params.call || stored.method !== params.method) return null
-    if (recoveryChainOf(stored.chainId) !== WALLET_RECOVERY_CHAIN) return null
+    if (stored.call !== params.call || stored.method !== params.method) {
+      return null
+    }
+    if (recoveryChainOf(stored.chainId) !== WALLET_RECOVERY_CHAIN) {
+      return null
+    }
 
     const client = await clientFor(stored.account, stored.chainId)
     const method = client.methodFor(stored.method)
-    if (!method) return { refused: 'no-implementation' }
+    if (!method) {
+      return { refused: 'no-implementation' }
+    }
     const orchestrator = client.approving
     const serves = (module: Address) =>
       method.modules(client.descriptor).some((address) => sameAddress(address, module))
 
     switch (stored.call) {
       case 'enroll':
-        if (!serves(stored.methodAddress)) return null
+        if (!serves(stored.methodAddress)) {
+          return null
+        }
         return { orchestrator, method, methodAddress: stored.methodAddress, params: stored.params }
       case 'testAccess':
       case 'createClaim':
-        if (!serves(stored.request.method)) return null
+        if (!serves(stored.request.method)) {
+          return null
+        }
         return { orchestrator, method, request: stored.request, params: stored.params }
       case 'healthCheck':
       default:
@@ -72,16 +84,21 @@ export const extensionClientFor =
   (networks: () => readonly Network[] | undefined): CeremonyClientFor =>
   async (account, chainId) => {
     const chain = recoveryChainOf(chainId)
-    if (!chain) throw new Error(`Chain ${String(chainId)} carries no recovery deployment.`)
+    if (!chain) {
+      throw new Error(`Chain ${String(chainId)} carries no recovery deployment.`)
+    }
     const network = networkOf(networks(), chain)
-    if (!network) throw new Error(`The extension holds no network for chain ${CHAIN_IDS[chain]}.`)
+    if (!network) {
+      throw new Error(`The extension holds no network for chain ${CHAIN_IDS[chain]}.`)
+    }
     const provider = extensionProviderFor(network)
     try {
       return await buildRecoveryClient({
         chain,
         account,
         addressBook: addressBookOf(chain),
-        provider: createProviderAdapter(provider)
+        provider: createProviderAdapter(provider),
+        codeRead: createCodeRead(provider)
       })
     } finally {
       provider.destroy()

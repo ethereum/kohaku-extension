@@ -30,17 +30,23 @@ export const runCeremony = async (
   }
   switch (params.call) {
     case 'enroll':
-      if (!resolved.methodAddress) return failed('thrown', 'The ceremony names no method address.')
+      if (!resolved.methodAddress) {
+        return failed('thrown', 'The ceremony names no method address.')
+      }
       return enrollHost({
         ...context,
         methodAddress: resolved.methodAddress,
         params: resolved.params
       })
     case 'testAccess':
-      if (!resolved.request) return failed('thrown', 'The ceremony names no request.')
+      if (!resolved.request) {
+        return failed('thrown', 'The ceremony names no request.')
+      }
       return testAccessHost({ ...context, request: resolved.request, params: resolved.params })
     case 'createClaim':
-      if (!resolved.request) return failed('thrown', 'The ceremony names no request.')
+      if (!resolved.request) {
+        return failed('thrown', 'The ceremony names no request.')
+      }
       return createClaimHost({ ...context, request: resolved.request, params: resolved.params })
     case 'healthCheck':
     default:

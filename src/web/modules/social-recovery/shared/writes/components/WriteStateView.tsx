@@ -6,12 +6,12 @@
  * the rules from the machine, so this component only lays them out.
  *
  * A write's screen may set its own title over the state (the setup could not
- * be saved, the recovery could not be started) and its own sentence after the
- * reading, from its own keys. The reverted reading already speaks in the
- * write's own words (`revertedKeyOf`), so a note belongs after the not-sent
- * reading, where the screen adds what stays on this device. Its own actions,
- * such as back or the cancel's move-funds action where `offersMoveFunds`
- * answers true, go in as children.
+ * be saved, the recovery could not be started), its own lines in place of the
+ * state's, and its own sentence after the reading, from its own keys. The
+ * reverted reading already speaks in the write's own words (`revertedKeyOf`),
+ * so a note belongs after the not-sent reading, where the screen adds what
+ * stays on this device. Its own actions, such as back or the cancel's
+ * move-funds action where `offersMoveFunds` answers true, go in as children.
  */
 import React from 'react'
 import { View } from 'react-native'
@@ -21,11 +21,20 @@ import Spinner from '@common/components/Spinner'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
+import flexbox from '@common/styles/utils/flexbox'
 
 import { renderWriteState } from '../copy'
 import type { WriteStateViewProps } from './types'
 
-const WriteStateView = ({ state, title, note, onRetry, children, testID }: WriteStateViewProps) => {
+const WriteStateView = ({
+  state,
+  title,
+  body,
+  note,
+  onRetry,
+  children,
+  testID
+}: WriteStateViewProps) => {
   const { t } = useTranslation()
 
   if (state.status === 'checkingGas') {
@@ -49,18 +58,22 @@ const WriteStateView = ({ state, title, note, onRetry, children, testID }: Write
 
   return (
     <View testID={testID}>
-      {!!rendered.chip && (
-        <Text fontSize={12} weight="medium" appearance="secondaryText" style={spacings.mbTy}>
-          {rendered.chip}
-        </Text>
+      {(!!rendered.chip || !!heading) && (
+        <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap, spacings.mbTy]}>
+          {!!rendered.chip && (
+            <Text fontSize={12} weight="semiBold" appearance="secondaryText" style={spacings.mrSm}>
+              {rendered.chip}
+            </Text>
+          )}
+          {!!heading && (
+            <Text fontSize={16} weight="medium">
+              {heading}
+            </Text>
+          )}
+        </View>
       )}
-      {!!heading && (
-        <Text fontSize={16} weight="semiBold" style={spacings.mbSm}>
-          {heading}
-        </Text>
-      )}
-      {rendered.lines.map((line) => (
-        <Text key={line} fontSize={14} style={spacings.mbSm}>
+      {(body ?? rendered.lines).map((line) => (
+        <Text key={line} fontSize={14} style={spacings.mbTy}>
           {line}
         </Text>
       ))}
@@ -80,7 +93,14 @@ const WriteStateView = ({ state, title, note, onRetry, children, testID }: Write
         </Text>
       )}
       {!!rendered.retry && !!onRetry && (
-        <Button type="primary" text={rendered.retry} onPress={onRetry} hasBottomSpacing={false} />
+        <Button
+          type="primary"
+          size="small"
+          text={rendered.retry}
+          onPress={onRetry}
+          hasBottomSpacing={false}
+          style={[flexbox.alignSelfStart, spacings.mtTy]}
+        />
       )}
       {children}
     </View>

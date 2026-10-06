@@ -26,7 +26,7 @@ import {
   TX_HASH,
   waitTimedOut,
   WRITE_KINDS
-} from './harness'
+} from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 const HASHES: [string, string][] = [
   ['64 lower-case hex digits', TX_HASH],

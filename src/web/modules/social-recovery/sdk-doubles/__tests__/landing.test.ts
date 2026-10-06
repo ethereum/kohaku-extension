@@ -20,7 +20,7 @@ import {
   startLanded,
   World,
   ZERO
-} from './harness'
+} from '@web/modules/social-recovery/sdk-doubles/__tests__/harness'
 
 const stream = async (world: World, filter = world.events.accountFilter()) => {
   const at = await world.provider.block('latest')

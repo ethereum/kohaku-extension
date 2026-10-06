@@ -21,11 +21,14 @@
  * out test-network funds.
  */
 import { Interface } from 'ethers'
-import { etherUnits } from 'viem'
+import { etherUnits, parseUnits } from 'viem'
 
-import { AMBIRE_ACCOUNT_FACTORY } from '@ambire-common/consts/deploy'
+import { AMBIRE_ACCOUNT_FACTORY, DEPLOYLESS_SIMULATION_FROM } from '@ambire-common/consts/deploy'
 import type { Address, Hex } from '@web/modules/social-recovery/sdk-interfaces'
-import type { GasEstimateCall } from '@web/modules/social-recovery/shared/client'
+import type {
+  GasEstimateCall,
+  ListedAccountFacts
+} from '@web/modules/social-recovery/shared/client'
 import { gasCallOf, isRevertedCall, sameAddress } from '@web/modules/social-recovery/shared/client'
 
 import { assertWriteDoor, isRecoveryCall, payerOf } from './kinds'
@@ -35,7 +38,8 @@ import type {
   DepositStepInput,
   GasCheck,
   GasCheckInput,
-  GasEstimate
+  GasEstimate,
+  WalletAccountRef
 } from './types'
 
 /**
@@ -49,9 +53,39 @@ export const FEE_HEADROOM_PERCENT = 20
 /**
  * The factory the account library deploys a Kohaku account through
  * (ambire-common `AMBIRE_ACCOUNT_FACTORY`). A save for an account with no code
- * yet goes to it, the deployment prepended to the batch.
+ * yet goes to its factory, the deployment prepended to the batch: this one
+ * where the account the key operates names no other.
  */
 export const ACCOUNT_FACTORY = AMBIRE_ACCOUNT_FACTORY as Address
+
+/**
+ * The factory that deploys the account the key operates: the one its creation
+ * record names, `ACCOUNT_FACTORY` where it names none.
+ */
+export const accountFactoryOf = (operates: WalletAccountRef | undefined): Address =>
+  operates?.factory ?? ACCOUNT_FACTORY
+
+/**
+ * The ref of a listed account, from the wallet's facts for it: its address,
+ * its label, whether it has code, and the factory its creation record names
+ * (absent for an account with no creation record).
+ */
+export const walletAccountRefOf = (facts: ListedAccountFacts): WalletAccountRef => ({
+  address: facts.account.addr as Address,
+  name: facts.account.preferences.label,
+  deployed: facts.deployed,
+  ...(facts.creation ? { factory: facts.creation.factory } : {})
+})
+
+/**
+ * The transaction the provider estimates for one the key sends. The factory's
+ * deploy-and-execute carries the account library's stand-in signature, which
+ * the account accepts only from the simulation sender, so a transaction to the
+ * factory is estimated from that sender (the library's own estimate does the
+ * same). Any other goes from the key as it stands.
+ */
+const estimatedCallOf = (call: GasEstimateCall, factory: Address): GasEstimateCall =>
+  sameAddress(call.to, factory) ? { ...call, from: DEPLOYLESS_SIMULATION_FROM as Address } : call
 
 /**
  * The gas a call that carries value to an address with no code, no nonce and
@@ -69,7 +103,7 @@ const ceilDiv = (a: bigint, b: bigint): bigint => (a + b - 1n) / b
 /** The digits after the point the step renders an amount with. */
 export const GAS_DISPLAY_DECIMALS = 6
 
-const DISPLAY_UNIT = 10n ** BigInt(etherUnits.wei - GAS_DISPLAY_DECIMALS)
+const DISPLAY_UNIT = parseUnits('1', etherUnits.wei - GAS_DISPLAY_DECIMALS)
 
 /** An amount to send, rounded up to the step's precision, so what the step shows covers it. */
 export const roundUpForDisplay = (wei: bigint): bigint => ceilDiv(wei, DISPLAY_UNIT) * DISPLAY_UNIT
@@ -94,9 +128,9 @@ export const gasEstimateOf = (
  * The transaction the check estimates: a call anyone may send as it stands,
  * from the key (`gasCallOf`); a write the account sends as the transaction the
  * account library built for it. That one must come from the key and go to the
- * account the key operates, or to `ACCOUNT_FACTORY` where it deploys the
- * account, so the check never estimates a transaction of another
- * account. Throws a TypeError where it is missing or fails either tie.
+ * account the key operates, or to that account's factory (`accountFactoryOf`)
+ * where it deploys the account, so the check never estimates a transaction of
+ * another account. Throws a TypeError where it is missing or fails either tie.
  */
 export const gasTransactionOf = (
   input: Pick<GasCheckInput, 'prepared' | 'key' | 'transaction' | 'operates'>
@@ -122,7 +156,7 @@ export const gasTransactionOf = (
   }
   if (
     !sameAddress(transaction.to, operates.address) &&
-    !sameAddress(transaction.to, ACCOUNT_FACTORY)
+    !sameAddress(transaction.to, accountFactoryOf(operates))
   ) {
     throw new TypeError(
       `The transaction to estimate goes to ${transaction.to}, not to the account ${operates.address} the key operates or the account factory.`
@@ -157,10 +191,11 @@ export const transferTransactionOf = (account: Address, key: Address): GasEstima
  * its own `executeBySender` (`transferTransactionOf`, or the caller's, to the
  * account). An account with no code yet has nothing to call: its transfer
  * deploys it through the factory and runs the call in one transaction, which
- * the account library builds, so the caller passes it (to `ACCOUNT_FACTORY`)
- * and the check never estimates a call to the empty address. Where the caller
- * passed none for such an account, this answers undefined: the check cannot
- * price the transfer, so the step offers the deposit from outside alone.
+ * the account library builds, so the caller passes it (to the account's
+ * factory, `accountFactoryOf`) and the check never estimates a call to the
+ * empty address. Where the caller passed none for such an account, this
+ * answers undefined: the check cannot price the transfer, so the step offers
+ * the deposit from outside alone.
  * Throws a TypeError where the transaction comes from another address or goes
  * elsewhere.
  */
@@ -173,8 +208,9 @@ export const transferEstimateCallOf = (
       'The transfer route drains the account the key operates: pass that account.'
     )
   }
+  const factory = accountFactoryOf(operates)
   const noCode =
-    operates.deployed === false || (!!transaction && sameAddress(transaction.to, ACCOUNT_FACTORY))
+    operates.deployed === false || (!!transaction && sameAddress(transaction.to, factory))
   if (!transferTransaction) {
     return noCode ? undefined : transferTransactionOf(operates.address, key.addr)
   }
@@ -183,7 +219,7 @@ export const transferEstimateCallOf = (
       `The transfer to estimate comes from ${transferTransaction.from}, not from the sending key ${key.addr}.`
     )
   }
-  const to = noCode ? ACCOUNT_FACTORY : operates.address
+  const to = noCode ? factory : operates.address
   if (!sameAddress(transferTransaction.to, to)) {
     throw new TypeError(
       `The transfer to estimate goes to ${transferTransaction.to}, not to ${to}${
@@ -259,7 +295,9 @@ export const depositStepOf = (args: DepositStepInput): DepositStep => {
  * The gas check. Checks that the write comes through its door (`assertWriteDoor`)
  * and that the transaction it estimates is this write's (`gasTransactionOf`),
  * then makes three reads through the extension's provider: the estimate of
- * this transaction, the gas price and the key's balance. Answers `enough`
+ * this transaction, the gas price and the key's balance. A transaction to the
+ * account's factory is estimated from the simulation sender (`estimatedCallOf`
+ * above); the balance read stays the key's. Answers `enough`
  * where the balance covers the estimate with its headroom. Otherwise, off the
  * fast track, it estimates the transfer route's own transaction through the
  * same provider (`transferEstimateCallOf`) and answers the deposit step.
@@ -281,8 +319,9 @@ export const checkGas = async (input: GasCheckInput): Promise<GasCheck> => {
   }
   const transaction = gasTransactionOf(input)
   const transferCall = fastTrack ? undefined : transferEstimateCallOf(input)
+  const factory = accountFactoryOf(input.operates)
   const [gas, gasPrice, balance] = await Promise.all([
-    input.reads.estimateGas(transaction),
+    input.reads.estimateGas(estimatedCallOf(transaction, factory)),
     input.reads.gasPrice(),
     input.reads.nativeBalance(input.key.addr)
   ])
@@ -294,12 +333,14 @@ export const checkGas = async (input: GasCheckInput): Promise<GasCheck> => {
   if (transferCall) {
     try {
       transferFee = transferFeeOf(
-        await input.reads.estimateGas(transferCall),
+        await input.reads.estimateGas(estimatedCallOf(transferCall, factory)),
         gasPrice,
         input.feeHeadroomPercent
       )
     } catch (thrown) {
-      if (!isRevertedCall(thrown)) throw thrown
+      if (!isRevertedCall(thrown)) {
+        throw thrown
+      }
     }
   }
   return {

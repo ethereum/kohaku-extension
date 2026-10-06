@@ -40,7 +40,7 @@ import {
   resetVisibility,
   setVisibility,
   SYNCED_FLAGS
-} from './harness'
+} from '@web/modules/social-recovery/shared/ceremony/__tests__/harness'
 
 const mockUi = { isTab: true, isPopup: false, isActionWindow: false }
 const mockSource: { current: Record<string, unknown>; listeners: Set<() => void> } = {
@@ -136,7 +136,9 @@ beforeAll(async () => {
   // eslint-disable-next-line no-console
   const printError = console.error.bind(console)
   jest.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
-    if (String(args[0]).includes('ReactDOMTestUtils.act')) return
+    if (String(args[0]).includes('ReactDOMTestUtils.act')) {
+      return
+    }
     printedErrors += 1
     printError(...args)
   })
@@ -551,7 +553,9 @@ afterEach(() => {
 const answeringBrowser = (hide = false) => {
   browser = installCredentials({
     get: async () => {
-      if (hide) setVisibility('hidden')
+      if (hide) {
+        setVisibility('hidden')
+      }
       return fakeAssertion({ r: BigInt(5), s: BigInt(6) }).credential
     }
   })
@@ -786,7 +790,9 @@ describe('a cancel while the ceremony resolves', () => {
     })
     resolve.mockImplementation(async () => {
       await released
-      if (!answer) throw new Error('the source has no resolve')
+      if (!answer) {
+        throw new Error('the source has no resolve')
+      }
       return answer()
     })
     const page = await render(CLAIM)

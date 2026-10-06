@@ -32,7 +32,7 @@ import {
   WINDOW,
   World,
   ZERO
-} from './harness'
+} from '@web/modules/social-recovery/sdk-doubles/__tests__/harness'
 
 const codes = (findings: Finding[]) => findings.map((f) => f.code)
 const wallet = (world: World, label: string, extra: Partial<Credential> = {}): Credential => ({
@@ -199,7 +199,7 @@ describe('validateSetup computes its own findings', () => {
     const rpIdHash = sha256(stringToHex('wallet.example'))
     const passkey: Credential = {
       method: world.descriptor.methodPasskey,
-      config: world.methods.passkey.codec.encodeConfig({ publicKey: '0x04aa', rpIdHash })
+      config: world.methods.passkey.codec.encodeConfig({ x: rpIdHash, y: rpIdHash, rpIdHash })
     }
     const draft = draftOf(world, [{ threshold: 1, credentials: [wallet(world, 'a'), passkey] }])
     const described = await (await world.setupClient()).describeSetup(draft)

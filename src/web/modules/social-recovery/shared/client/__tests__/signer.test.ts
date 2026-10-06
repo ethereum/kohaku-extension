@@ -35,6 +35,7 @@ import {
   isSignerNotWired,
   isSignFlowFailure,
   KeyHandle,
+  listedIn,
   memberNamesOf,
   MISSING_BACKGROUND_ACTION,
   queued,
@@ -49,7 +50,7 @@ import {
   thrownBy,
   track,
   WINDOW_ID
-} from './harness'
+} from '@web/modules/social-recovery/shared/client/__tests__/harness'
 
 /** The key the tests sign with, a basic account the wallet lists. */
 const WALLET = new Wallet(`0x${'11'.repeat(32)}`)
@@ -622,6 +623,354 @@ describe('the signer facade over the request queue', () => {
       await advance(DEFAULT_SIGN_TIMEOUT_MS * 2)
       expect(signing).toEqual({ status: 'resolved', value: SIG.bytes })
       expect(dispatched(q.dispatch).map((a) => a.type)).toEqual([ADD])
+    })
+  })
+
+  describe('a withdrawal by its caller', () => {
+    const sign = (q: QueueWorld, kind: 'bytes' | 'typed', signal: AbortSignal) =>
+      track(
+        kind === 'bytes'
+          ? q.signer.signBytes(HANDLE, BYTES, { signal })
+          : q.signer.signTypedData(HANDLE, TYPED, { signal })
+      )
+    const KINDS: [string, 'bytes' | 'typed'][] = [
+      ['raw bytes', 'bytes'],
+      ['typed data', 'typed']
+    ]
+
+    KINDS.forEach(([title, kind]) => {
+      it(`withdraws a queued request over ${title} once when its signal aborts, and ignores a later signature`, async () => {
+        const q = queueOver([basicAccount(KEY)])
+        const controller = new AbortController()
+        const signing = sign(q, kind, controller.signal)
+        const { userRequest } = addedRequest(q.dispatch)
+        q.push(queued(userRequest.id))
+        await flush()
+        expect(signing.status).toBe('pending')
+
+        controller.abort()
+        await flush()
+        expect(signing.status).toBe('rejected')
+        expect(isSignFlowFailure(signing.value)).toBe(true)
+        expect((signing.value as SignFlowFailure).reason).toBe('withdrawn')
+        expect(dispatched(q.dispatch)).toEqual([
+          expect.objectContaining({ type: ADD }),
+          { type: REMOVE, params: { id: userRequest.id } }
+        ])
+        expect(q.listeners()).toBe(0)
+
+        q.push(signedFor(userRequest.id, kind === 'bytes' ? SIG.bytes : SIG.typed))
+        controller.abort()
+        await advance(DEFAULT_SIGN_TIMEOUT_MS * 2)
+        expect(signing.status).toBe('rejected')
+        expect((signing.value as SignFlowFailure).reason).toBe('withdrawn')
+        expect(dispatched(q.dispatch).filter((a) => a.type === REMOVE)).toHaveLength(1)
+      })
+
+      it(`refuses a signal over ${title} already aborted at the call and queues nothing`, async () => {
+        const q = queueOver([basicAccount(KEY)])
+        const controller = new AbortController()
+        controller.abort()
+        const signing = sign(q, kind, controller.signal)
+        await flush()
+        expect(signing.status).toBe('rejected')
+        expect(isSignFlowFailure(signing.value)).toBe(true)
+        expect((signing.value as SignFlowFailure).reason).toBe('withdrawn')
+        expect(q.dispatch).not.toHaveBeenCalled()
+        expect(q.listeners()).toBe(0)
+      })
+
+      it(`changes nothing when the signal over ${title} aborts after the answer came`, async () => {
+        const q = queueOver([basicAccount(KEY)])
+        const controller = new AbortController()
+        const signing = sign(q, kind, controller.signal)
+        const signature = kind === 'bytes' ? SIG.bytes : SIG.typed
+        const { userRequest } = addedRequest(q.dispatch)
+        q.push(queued(userRequest.id))
+        q.push(signedFor(userRequest.id, signature))
+        await flush()
+        expect(signing).toEqual({ status: 'resolved', value: signature })
+
+        controller.abort()
+        await flush()
+        expect(signing).toEqual({ status: 'resolved', value: signature })
+        expect(dispatched(q.dispatch).map((a) => a.type)).toEqual([ADD])
+      })
+    })
+
+    it('does not withdraw a request whose signal aborts while its signature is being checked', async () => {
+      const q = queueOver([basicAccount(KEY)])
+      const controller = new AbortController()
+      const signing = sign(q, 'typed', controller.signal)
+      const { userRequest } = addedRequest(q.dispatch)
+      q.push(queued(userRequest.id))
+      q.push(signedFor(userRequest.id, SIG.typed))
+      controller.abort()
+      await flush()
+      expect(signing).toEqual({ status: 'resolved', value: SIG.typed })
+      expect(dispatched(q.dispatch).map((a) => a.type)).toEqual([ADD])
+    })
+
+    it('withdraws only the request its signal was given to', async () => {
+      const q = queueOver([basicAccount(KEY)])
+      const controller = new AbortController()
+      const aborted = sign(q, 'bytes', controller.signal)
+      const kept = track(q.signer.signBytes(HANDLE, BYTES))
+      const [abortedId, keptId] = dispatched(q.dispatch).flatMap((a) =>
+        a.type === ADD ? [a.params.userRequest.id] : []
+      )
+      q.push(queued(abortedId, keptId))
+      controller.abort()
+      await flush()
+      expect(aborted.status).toBe('rejected')
+      expect(kept.status).toBe('pending')
+      expect(dispatched(q.dispatch).filter((a) => a.type === REMOVE)).toEqual([
+        { type: REMOVE, params: { id: abortedId } }
+      ])
+      q.push(signedFor(keptId, SIG.bytes))
+      await flush()
+      expect(kept).toEqual({ status: 'resolved', value: SIG.bytes })
+    })
+
+    it('still times out with options that carry no signal, and withdraws its request once', async () => {
+      const q = queueOver([basicAccount(KEY)], { timeoutMs: 1000 })
+      const signing = track(q.signer.signTypedData(HANDLE, TYPED, {}))
+      const { userRequest } = addedRequest(q.dispatch)
+      q.push(queued(userRequest.id))
+      await advance(1000)
+      expect(signing.status).toBe('rejected')
+      expect((signing.value as SignFlowFailure).reason).toBe('timeout')
+      expect(dispatched(q.dispatch).filter((a) => a.type === REMOVE)).toEqual([
+        { type: REMOVE, params: { id: userRequest.id } }
+      ])
+    })
+
+    it('does not withdraw twice when the signal aborts after the timeout', async () => {
+      const q = queueOver([basicAccount(KEY)], { timeoutMs: 1000 })
+      const controller = new AbortController()
+      const signing = sign(q, 'bytes', controller.signal)
+      q.push(queued(addedRequest(q.dispatch).userRequest.id))
+      await advance(1000)
+      controller.abort()
+      await flush()
+      expect((signing.value as SignFlowFailure).reason).toBe('timeout')
+      expect(dispatched(q.dispatch).filter((a) => a.type === REMOVE)).toHaveLength(1)
+    })
+
+    it('lets one abort of a signal reused across two calls touch only the call still waiting', async () => {
+      const q = queueOver([basicAccount(KEY)])
+      const controller = new AbortController()
+      const first = sign(q, 'bytes', controller.signal)
+      const firstId = addedRequest(q.dispatch).userRequest.id
+      q.push(queued(firstId))
+      q.push(signedFor(firstId, SIG.bytes))
+      await flush()
+      expect(first).toEqual({ status: 'resolved', value: SIG.bytes })
+
+      const second = sign(q, 'typed', controller.signal)
+      const [, secondId] = dispatched(q.dispatch).flatMap((a) =>
+        a.type === ADD ? [a.params.userRequest.id] : []
+      )
+      q.push(queued(secondId))
+      await flush()
+      expect(second.status).toBe('pending')
+
+      controller.abort()
+      await flush()
+      expect(first).toEqual({ status: 'resolved', value: SIG.bytes })
+      expect(second.status).toBe('rejected')
+      expect((second.value as SignFlowFailure).reason).toBe('withdrawn')
+      expect(dispatched(q.dispatch).filter((a) => a.type === REMOVE)).toEqual([
+        { type: REMOVE, params: { id: secondId } }
+      ])
+    })
+
+    it('reports an input error or an unwired key before a signal already aborted at the call', async () => {
+      const controller = new AbortController()
+      controller.abort()
+      const { signal } = controller
+
+      const q = queueOver([basicAccount(KEY)])
+      const domainOnly = await thrownBy(
+        q.signer.signTypedData(HANDLE, { ...TYPED, primaryType: 'EIP712Domain' }, { signal })
+      )
+      expect(isSignFlowFailure(domainOnly)).toBe(false)
+      expect((domainOnly as Error).message).toContain('EIP712Domain alone')
+
+      const unlisted = queueOver([])
+      const unwired = await thrownBy(unlisted.signer.signBytes(HANDLE, BYTES, { signal }))
+      expect(isSignerNotWired(unwired)).toBe(true)
+      expect(isSignFlowFailure(unwired)).toBe(false)
+
+      expect(q.dispatch).not.toHaveBeenCalled()
+      expect(unlisted.dispatch).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('a withdrawal before the queue holds the request where it can be removed', () => {
+    const WAIT_MS = ABSENCE_GRACE_MS * 4
+    const removes = (q: QueueWorld) => dispatched(q.dispatch).filter((a) => a.type === REMOVE)
+    const removeOf = (id: string | number) => ({ type: REMOVE, params: { id } })
+    const started = (signal?: AbortSignal) => {
+      const q = queueOver([basicAccount(KEY)], { timeoutMs: WAIT_MS })
+      const signing = track(q.signer.signBytes(HANDLE, BYTES, { signal }))
+      return { q, signing, id: addedRequest(q.dispatch).userRequest.id }
+    }
+
+    const LISTS: [string, (id: string | number) => ReturnType<typeof listedIn>, number][] = [
+      ['the queue', (id) => listedIn([id], []), 0],
+      ['the list waiting for an account switch', (id) => listedIn([], [id]), 1]
+    ]
+    LISTS.forEach(([where, listing, listenersAfter]) => {
+      it(`rejects at once when aborted while the add is in flight, and removes the request once ${where} lists it`, async () => {
+        const controller = new AbortController()
+        const { q, signing, id } = started(controller.signal)
+        controller.abort()
+        await flush()
+        expect(signing.status).toBe('rejected')
+        expect((signing.value as SignFlowFailure).reason).toBe('withdrawn')
+        expect(removes(q)).toEqual([])
+
+        q.push(queued('dapp-request'))
+        await flush()
+        expect(removes(q)).toEqual([])
+
+        q.push(listing(id))
+        await flush()
+        expect(removes(q)).toEqual([removeOf(id)])
+        expect(q.listeners()).toBe(listenersAfter)
+      })
+    })
+
+    it('removes a request present in the queue at the abort once, and stops listening at once', async () => {
+      const controller = new AbortController()
+      const { q, signing, id } = started(controller.signal)
+      q.push(listedIn([id], []))
+      controller.abort()
+      await flush()
+      expect((signing.value as SignFlowFailure).reason).toBe('withdrawn')
+      expect(removes(q)).toEqual([removeOf(id)])
+      expect(q.listeners()).toBe(0)
+    })
+
+    it('removes a request waiting for an account switch at the abort, and again once the accepted switch queues it', async () => {
+      const controller = new AbortController()
+      const { q, signing, id } = started(controller.signal)
+      q.push(listedIn([], [id]))
+      controller.abort()
+      await flush()
+      expect(signing.status).toBe('rejected')
+      expect((signing.value as SignFlowFailure).reason).toBe('withdrawn')
+      expect(removes(q)).toEqual([removeOf(id)])
+      expect(q.listeners()).toBe(1)
+
+      q.push(listedIn([], [id]))
+      q.push(listedIn([], [id]))
+      expect(removes(q)).toHaveLength(1)
+
+      q.push(listedIn([id], []))
+      expect(removes(q)).toEqual([removeOf(id), removeOf(id)])
+      expect(q.listeners()).toBe(0)
+
+      q.push(listedIn([id], []))
+      q.push(signedFor(id, SIG.bytes))
+      await advance(WAIT_MS * 2)
+      expect(removes(q)).toHaveLength(2)
+      expect(signing.status).toBe('rejected')
+      expect((signing.value as SignFlowFailure).reason).toBe('withdrawn')
+    })
+
+    it('removes the request again when the switch moves it with a state between the two lists', async () => {
+      const controller = new AbortController()
+      const { q, id } = started(controller.signal)
+      q.push(listedIn([], [id]))
+      controller.abort()
+      q.push(listedIn([], []))
+      await advance(ABSENCE_GRACE_MS - 1)
+      q.push(listedIn([id], []))
+      expect(removes(q)).toEqual([removeOf(id), removeOf(id)])
+      expect(q.listeners()).toBe(0)
+    })
+
+    it('stops listening once a withdrawn request stays out of both lists for the grace', async () => {
+      const controller = new AbortController()
+      const { q, id } = started(controller.signal)
+      q.push(listedIn([], [id]))
+      controller.abort()
+      q.push(listedIn([], []))
+      await advance(ABSENCE_GRACE_MS - 1)
+      expect(q.listeners()).toBe(1)
+      await advance(1)
+      expect(q.listeners()).toBe(0)
+      q.push(listedIn([id], []))
+      expect(removes(q)).toEqual([removeOf(id)])
+    })
+
+    it('sends no removal for an add that never reaches either list, and stops listening at the wait', async () => {
+      const controller = new AbortController()
+      const { q, signing } = started(controller.signal)
+      await advance(400)
+      controller.abort()
+      await flush()
+      expect((signing.value as SignFlowFailure).reason).toBe('withdrawn')
+      q.push(queued('dapp-request'))
+      q.push(listedIn([], []))
+      await advance(WAIT_MS - 1)
+      expect(q.listeners()).toBe(1)
+      await advance(1)
+      expect(q.listeners()).toBe(0)
+      expect(removes(q)).toEqual([])
+    })
+
+    it('stops watching a request still waiting for a switch once the wait passes after the abort', async () => {
+      const controller = new AbortController()
+      const { q, id } = started(controller.signal)
+      q.push(listedIn([], [id]))
+      await advance(400)
+      controller.abort()
+      await advance(WAIT_MS - 1)
+      q.push(listedIn([], [id]))
+      expect(q.listeners()).toBe(1)
+      await advance(1)
+      expect(q.listeners()).toBe(0)
+      q.push(listedIn([id], []))
+      expect(removes(q)).toEqual([removeOf(id)])
+    })
+
+    describe('on the timeout', () => {
+      it('removes a request whose add the queue never listed once a state lists it', async () => {
+        const { q, signing, id } = started()
+        await advance(WAIT_MS)
+        expect((signing.value as SignFlowFailure).reason).toBe('timeout')
+        expect(removes(q)).toEqual([])
+        q.push(listedIn([id], []))
+        expect(removes(q)).toEqual([removeOf(id)])
+        expect(q.listeners()).toBe(0)
+      })
+
+      it('removes a request waiting for a switch, and again once the switch queues it', async () => {
+        const { q, signing, id } = started()
+        q.push(listedIn([], [id]))
+        await advance(WAIT_MS)
+        expect((signing.value as SignFlowFailure).reason).toBe('timeout')
+        expect(removes(q)).toEqual([removeOf(id)])
+        q.push(listedIn([], [id]))
+        expect(removes(q)).toHaveLength(1)
+        q.push(listedIn([id], []))
+        expect(removes(q)).toEqual([removeOf(id), removeOf(id)])
+        expect(q.listeners()).toBe(0)
+      })
+
+      it('sends no removal for an add no state ever lists, and stops listening a wait after the timeout', async () => {
+        const { q, signing } = started()
+        await advance(WAIT_MS)
+        expect((signing.value as SignFlowFailure).reason).toBe('timeout')
+        await advance(WAIT_MS - 1)
+        expect(q.listeners()).toBe(1)
+        await advance(1)
+        expect(q.listeners()).toBe(0)
+        expect(removes(q)).toEqual([])
+      })
     })
   })
 

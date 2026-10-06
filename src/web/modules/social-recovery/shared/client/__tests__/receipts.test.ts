@@ -18,6 +18,7 @@ import type { Address, Hex } from '@web/modules/social-recovery/sdk-interfaces'
 import {
   BLOCK_POLL_MS,
   createReceiptWait,
+  flush,
   mineAndWait,
   NodeReceipt,
   NodeScript,
@@ -28,7 +29,7 @@ import {
   track,
   UNKNOWN_TRANSACTION_MS,
   watchEthersWaits
-} from './harness'
+} from '@web/modules/social-recovery/shared/client/__tests__/harness'
 
 const SENDER = '0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A' as Address
 const TARGET = '0x0000000000000000000000000000000000c70101' as Address
@@ -346,5 +347,83 @@ describe('once the caller releases the provider', () => {
     release.abort()
     await mineAndWait(node, 0)
     expect(waiting.status).toBe('resolved')
+  })
+})
+
+describe('whether the node knows a transaction', () => {
+  it('answers known for a transaction the node holds, pending or mined, with one read of it by hash', async () => {
+    const pendingNode = nodeWith({ blockNumber: START, transactions: [sent()] })
+    const minedNode = minedWith(1)
+    await expect(createReceiptWait(pendingNode.provider).transactionKnown(HASH)).resolves.toBe(
+      'known'
+    )
+    await expect(createReceiptWait(minedNode.provider).transactionKnown(HASH)).resolves.toBe(
+      'known'
+    )
+    expect(pendingNode.asked('eth_getTransactionByHash')).toBe(1)
+    expect(minedNode.asked('eth_getTransactionByHash')).toBe(1)
+  })
+
+  it('answers unknown where the node answers no transaction for the hash, with one read', async () => {
+    const never = nodeWith({ blockNumber: START })
+    const forgotten = nodeWith({ blockNumber: START, transactions: [sent()], forgotten: [HASH] })
+    await expect(createReceiptWait(never.provider).transactionKnown(HASH)).resolves.toBe('unknown')
+    await expect(createReceiptWait(forgotten.provider).transactionKnown(HASH)).resolves.toBe(
+      'unknown'
+    )
+    expect(never.asked('eth_getTransactionByHash')).toBe(1)
+    expect(forgotten.asked('eth_getTransactionByHash')).toBe(1)
+  })
+
+  it('answers unknown where the provider answers null', async () => {
+    const node = nodeWith({ blockNumber: START, transactions: [sent()] })
+    jest.spyOn(node.provider, 'getTransaction').mockResolvedValue(null)
+    await expect(createReceiptWait(node.provider).transactionKnown(HASH)).resolves.toBe('unknown')
+  })
+
+  it('rejects with the error of a read that failed, never answering unknown', async () => {
+    const node = nodeWith({ blockNumber: START })
+    const failure = new Error('The node is not reachable.')
+    jest.spyOn(node.provider, 'getTransaction').mockRejectedValue(failure)
+    await expect(createReceiptWait(node.provider).transactionKnown(HASH)).rejects.toBe(failure)
+  })
+
+  it('rejects, naming the hash, a read that starts after the caller released the provider', async () => {
+    const node = nodeWith({ blockNumber: START, transactions: [sent()] })
+    const release = new AbortController()
+    release.abort()
+    await expect(
+      createReceiptWait(node.provider, { signal: release.signal }).transactionKnown(HASH)
+    ).rejects.toMatchObject({ name: 'ReceiptWaitReleased', transactionHash: HASH })
+  })
+
+  it('asks the node nothing for a read that starts after the caller released the provider', async () => {
+    const node = nodeWith({ blockNumber: START, transactions: [sent()] })
+    const asked = jest.spyOn(node.provider, 'getTransaction')
+    const release = new AbortController()
+    release.abort()
+    const reading = track(
+      createReceiptWait(node.provider, { signal: release.signal }).transactionKnown(HASH)
+    )
+    await flush()
+    expect(reading.status).toBe('rejected')
+    expect(reading.value).toMatchObject({ name: 'ReceiptWaitReleased', transactionHash: HASH })
+    expect(asked).not.toHaveBeenCalled()
+    expect(node.asked('eth_getTransactionByHash')).toBe(0)
+  })
+
+  it('rejects a read in flight when the caller releases the provider, naming the hash', async () => {
+    const node = nodeWith({ blockNumber: START, transactions: [sent()] })
+    jest.spyOn(node.provider, 'getTransaction').mockImplementation(() => new Promise(() => {}))
+    const release = new AbortController()
+    const reading = track(
+      createReceiptWait(node.provider, { signal: release.signal }).transactionKnown(HASH)
+    )
+    await flush()
+    expect(reading.status).toBe('pending')
+    release.abort()
+    await flush()
+    expect(reading.status).toBe('rejected')
+    expect(reading.value).toMatchObject({ name: 'ReceiptWaitReleased', transactionHash: HASH })
   })
 })

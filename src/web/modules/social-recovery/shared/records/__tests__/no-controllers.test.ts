@@ -11,7 +11,9 @@ const RECORDS_DIR = path.resolve(__dirname, '..')
 const productionFiles = (dir: string): string[] =>
   fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const full = path.join(dir, entry.name)
-    if (entry.isDirectory()) return entry.name === '__tests__' ? [] : productionFiles(full)
+    if (entry.isDirectory()) {
+      return entry.name === '__tests__' ? [] : productionFiles(full)
+    }
     return /\.(ts|tsx|js|jsx)$/.test(entry.name) ? [full] : []
   })
 

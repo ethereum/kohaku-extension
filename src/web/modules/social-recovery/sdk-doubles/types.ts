@@ -41,6 +41,7 @@ import type {
   ValidationResult,
   Verdict
 } from '@web/modules/social-recovery/sdk-interfaces'
+import type { P256Point } from '@web/modules/social-recovery/shared/webauthn'
 
 import type { ATTEMPT_STATUSES, CANCELLERS, ScriptedChain } from './chain'
 import type { APPROVAL_TYPES, CANCELLATION_TYPES } from './encoding'
@@ -387,9 +388,17 @@ export interface WalletConfigFields {
   address: Address
 }
 
-export interface PasskeyConfigFields {
-  publicKey: Hex
+/** The credential's P-256 point beside the hash of the relying party id it was enrolled under. */
+export interface PasskeyConfigFields extends P256Point {
   rpIdHash: Hex
+}
+
+/** The assertion as the authenticator produced it, with `s` in the low half. */
+export interface PasskeyProofFields {
+  authenticatorData: Hex
+  clientDataJSON: Hex
+  r: Hex
+  s: Hex
 }
 
 export interface ZkPassportConfigFields {
@@ -420,9 +429,17 @@ export interface PasskeyEnrollInput {
   rp?: { id?: string }
 }
 
-/** What the authenticator hands back at enrollment. */
+/** The members of the browser's attestation response the passkey's enroll reads. */
+export interface PasskeyAttestationResponse {
+  getPublicKey?: unknown
+  getPublicKeyAlgorithm?: unknown
+  getAuthenticatorData?: unknown
+  attestationObject?: unknown
+}
+
+/** What the authenticator hands back at enrollment: the browser's `PublicKeyCredential`. */
 export interface PasskeyEnrollMaterial {
-  credential?: { publicKey?: unknown }
+  credential?: { response?: PasskeyAttestationResponse }
 }
 
 export interface PasskeySigningParams {
@@ -430,9 +447,36 @@ export interface PasskeySigningParams {
   credentialId?: string
 }
 
-/** What the authenticator hands back for a request. */
+/** The members of the browser's assertion response the passkey's reply reads. */
+export interface PasskeyAssertionResponse {
+  authenticatorData?: unknown
+  clientDataJSON?: unknown
+  signature?: unknown
+}
+
+/** What the authenticator hands back for a request: the assertion, its signature in DER. */
 export interface PasskeyReplyMaterial {
-  assertion?: unknown
+  assertion?: { response?: PasskeyAssertionResponse }
+}
+
+/** The key pair the passkey double's willing device signs with, its public point in hex. */
+export interface PasskeyApproverKey {
+  privateKey: CryptoKey
+  x: Hex
+  y: Hex
+}
+
+/** The assertion the passkey double's willing device returns. */
+export interface PasskeySatisfyingMaterial {
+  assertion: {
+    response: { authenticatorData: Uint8Array; clientDataJSON: Uint8Array; signature: Uint8Array }
+  }
+}
+
+/** The members of the client data the passkey's verify reads. */
+export interface PasskeyClientData {
+  type?: unknown
+  challenge?: unknown
 }
 
 export interface ZkPassportParams {

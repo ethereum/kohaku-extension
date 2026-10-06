@@ -7,8 +7,11 @@
 import fs from 'fs'
 import path from 'path'
 
-type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
-type JsonObject = { [key: string]: JsonValue }
+import type {
+  JsonObject,
+  JsonValue,
+  StringEntry
+} from '@web/modules/social-recovery/__tests__/stubs/types'
 
 const EN_JSON_PATH = path.resolve(
   __dirname,
@@ -21,10 +24,12 @@ const en = JSON.parse(enRaw) as JsonObject
 const isObject = (value: JsonValue | undefined): value is JsonObject =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-type Entry = { keyPath: string; value: string }
-
 // Walks every string value below `node`, depth first, keeping the key path.
-const collectStrings = (node: JsonValue, keyPath: string, out: Entry[] = []): Entry[] => {
+const collectStrings = (
+  node: JsonValue,
+  keyPath: string,
+  out: StringEntry[] = []
+): StringEntry[] => {
   if (typeof node === 'string') {
     out.push({ keyPath, value: node })
   } else if (Array.isArray(node)) {
@@ -36,7 +41,7 @@ const collectStrings = (node: JsonValue, keyPath: string, out: Entry[] = []): En
 }
 
 // Walks every key below `node`, keeping the key path.
-const collectKeys = (node: JsonValue, keyPath: string, out: Entry[] = []): Entry[] => {
+const collectKeys = (node: JsonValue, keyPath: string, out: StringEntry[] = []): StringEntry[] => {
   if (Array.isArray(node)) {
     node.forEach((item, i) => collectKeys(item, `${keyPath}[${i}]`, out))
   } else if (isObject(node)) {
@@ -213,7 +218,7 @@ describe('socialRecovery required keys', () => {
     it(`${keyPath} exists, passes every ban and uses allowed placeholders`, () => {
       const entry = strings.find((candidate) => candidate.keyPath === keyPath)
       expect(entry).toBeDefined()
-      const { value } = entry as Entry
+      const { value } = entry as StringEntry
       expect(value.trim().length).toBeGreaterThan(0)
       expect(CASE_INSENSITIVE_BANS.filter(({ pattern }) => pattern.test(value))).toEqual([])
       expect(PROTECTED_BAN.test(value)).toBe(false)

@@ -62,7 +62,11 @@ const CreateSeedPhraseWriteScreen = () => {
     setSubmitButtonPressed(true)
     dispatch({
       type: 'MAIN_CONTROLLER_ACCOUNT_PICKER_INIT_PRIVATE_KEY_OR_SEED_PHRASE',
-      params: { privKeyOrSeed: tempSeed.seed, hdPathTemplate: tempSeed.hdPathTemplate }
+      params: {
+        privKeyOrSeed: tempSeed.seed,
+        hdPathTemplate: tempSeed.hdPathTemplate,
+        shouldSelectSmartAccountAutomatically: true
+      }
     })
   }, [dispatch, tempSeed])
 

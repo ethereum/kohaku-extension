@@ -1,7 +1,7 @@
 import type { Network } from '@ambire-common/interfaces/network'
 import { providerKeyOf } from '@web/modules/social-recovery/shared/client/extension-provider'
 
-import { SEPOLIA } from './harness'
+import { SEPOLIA } from '@web/modules/social-recovery/shared/client/__tests__/harness'
 
 const sepolia = (overrides: Partial<Network> = {}): Network =>
   ({

@@ -38,17 +38,27 @@ import {
   sameAddress,
   spyOnBuilder,
   thrownBy
-} from './harness'
+} from '@web/modules/social-recovery/shared/client/__tests__/harness'
+import { sepoliaDeploymentVariable } from '@web/modules/social-recovery/shared/client/deployment-env'
+import { FACTS } from '@web/modules/social-recovery/shared/client/kit/builder/__tests__/harness'
 
 jest.mock('@ambire-common/services/provider/getRpcProvider', () => ({
   getRpcProvider: jest.fn()
 }))
+jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
+  ...jest.requireActual('@web/modules/social-recovery/shared/client/deployment-env'),
+  sepoliaDeploymentVariable: jest.fn()
+}))
 
 const buildProvider = getRpcProvider as jest.Mock
+const deploymentVariable = sepoliaDeploymentVariable as jest.MockedFunction<
+  typeof sepoliaDeploymentVariable
+>
 
 afterEach(() => {
   jest.restoreAllMocks()
   buildProvider.mockReset()
+  deploymentVariable.mockReset()
 })
 
 const SLUGS = ['ecdsa', 'passkey', 'aadhaar', 'zkpassport'] as const
@@ -59,7 +69,9 @@ describe("the client's method implementation by slug", () => {
       const world = createWorld()
       const client = await buildRecoveryClient(world.config)
       const method = client.methodFor(slug)
-      if (!method) throw new Error(`no method for ${slug}`)
+      if (!method) {
+        throw new Error(`no method for ${slug}`)
+      }
       const module = world.config.addressBook.methods[slug]
       expect(method.modules(world.descriptor).some((served) => sameAddress(served, module))).toBe(
         true
@@ -174,7 +186,9 @@ const resolverWorld = (
 
 /** The ceremony a resolver answered; throws where it answered null or a refusal. */
 const ceremonyOf = (answer: Awaited<ReturnType<CeremonyResolver>>) => {
-  if (!answer || 'refused' in answer) throw new Error(`no ceremony: ${JSON.stringify(answer)}`)
+  if (!answer || 'refused' in answer) {
+    throw new Error(`no ceremony: ${JSON.stringify(answer)}`)
+  }
   return answer
 }
 
@@ -451,6 +465,16 @@ describe('the client builder the ceremony tab uses', () => {
     const caught = await thrownBy(extensionClientFor(() => [SEPOLIA])(world.account, CHAIN_ID))
     expect(caught).toBeInstanceOf(Error)
     expect((caught as { check?: string }).check).toBe('chain-id')
+    expect(world.ethers.destroy).toHaveBeenCalledTimes(1)
+  })
+
+  it('reads code over the same provider, so a deployed action address with no code is refused as undeployed', async () => {
+    deploymentVariable.mockReturnValue(JSON.stringify(FACTS))
+    const world = createWorld()
+    buildProvider.mockReturnValue(world.ethers)
+    const caught = await thrownBy(extensionClientFor(() => [SEPOLIA])(world.account, CHAIN_ID))
+    expect(caught).toMatchObject({ name: 'DeploymentRefusal', check: 'action' })
+    expect(world.ethers.getCode).toHaveBeenCalledWith(FACTS.action, 'latest')
     expect(world.ethers.destroy).toHaveBeenCalledTimes(1)
   })
 

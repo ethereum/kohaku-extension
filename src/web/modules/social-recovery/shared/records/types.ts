@@ -13,6 +13,8 @@ import type {
   Credential,
   Gathering,
   Hex,
+  PreparedBatch,
+  PreparedCall,
   SetupDraft
 } from '@web/modules/social-recovery/sdk-interfaces'
 
@@ -22,9 +24,13 @@ import type {
  * in-memory double. `get` may return the default for a falsy stored value.
  * `getAll` returns every stored entry by key, what the helper's `get()` with no
  * key returns; the list functions need it and refuse a storage without it.
+ * `setEntries` and `removeKeys` write or remove several keys in one storage
+ * call, so a change that spans records lands whole or not at all.
  */
 export interface RecordStorage extends Storage {
   getAll?(): Promise<Record<string, unknown>>
+  setEntries(entries: Record<string, unknown>): Promise<void>
+  removeKeys(keys: string[]): Promise<void>
 }
 
 /** The chain a record belongs to, as the network's chain id. */
@@ -55,6 +61,19 @@ export const ABSENT: AbsentRecord = Object.freeze({ status: 'absent' as const })
 export type SetupDraftRecord = SetupDraft
 
 /**
+ * The draft every setup starts from until its later steps overwrite it: a wait
+ * of 48 hours in seconds, no clause yet, the pause opted out of, and the
+ * private default with an encrypted backup. Each call returns a fresh draft
+ * with a fresh `clauses` list, so a caller may change what it gets.
+ */
+export const defaultSetupDraft = (): SetupDraftRecord => ({
+  wait: BigInt(48 * 60 * 60),
+  clauses: [],
+  ignoresPause: true,
+  privacy: { publicMetadata: '0x', backup: 'encrypted' }
+})
+
+/**
  * 2. The inventory, the answer to "What do you have": another device,
  * guardians with wallets, a passport, an Aadhaar identity, and keys the holder
  * keeps on paper or hardware. The guided setup wizard fills it at its "What do
@@ -72,6 +91,13 @@ export type InventoryRecord = InventoryItem[]
 
 /** 3. The path: the clauses the setup draft holds, the record the rule lines read. */
 export type PathRecord = SetupDraft['clauses']
+
+/**
+ * The kinds of method an empty slot of the path waits for, one per method
+ * module the address book names.
+ */
+export const SLOT_KINDS = ['ecdsa', 'passkey', 'zkpassport', 'aadhaar'] as const
+export type SlotKind = typeof SLOT_KINDS[number]
 
 /** The access test verdicts an enrollment carries: passed, or one of the four verdict states. */
 export const ENROLLMENT_TEST_VERDICTS = [
@@ -91,16 +117,45 @@ export type EnrollmentTestVerdict = typeof ENROLLMENT_TEST_VERDICTS[number]
 export const PASSKEY_BACKUP_KINDS = ['synced', 'device-bound'] as const
 export type PasskeyBackupKind = typeof PASSKEY_BACKUP_KINDS[number]
 
+/** Where the authenticator sat, read from its attachment and its transports. */
+export type EnrollmentAuthenticatorPlace = 'this-device' | 'phone' | 'security-key' | 'unknown'
+
+/** How the authenticator is attached, or `null` when the browser did not say. */
+export type EnrollmentAuthenticatorAttachment = 'platform' | 'cross-platform' | null
+
+/**
+ * What the passkey ceremony reported about the credential at enrollment. The
+ * chain keeps only the public key, so these facts live on this device alone.
+ */
+export interface EnrollmentFacts {
+  kind: PasskeyBackupKind
+  backedUp: boolean
+  place: EnrollmentAuthenticatorPlace
+  attachment: EnrollmentAuthenticatorAttachment
+  transports: string[]
+  aaguid?: string
+}
+
+/** The last access test that passed: its challenge salt and when it passed (ms since epoch). */
+export interface EnrollmentLastTest {
+  salt: Hex
+  at: number
+}
+
 /**
  * One enrollment not yet saved on chain: the credential it produced, its
  * access test verdict with the cause a failed test reported, and for a passkey
- * its backup kind.
+ * its backup kind, its credential id (base64url, as the ceremony reports it)
+ * and the facts the ceremony reported. `lastTest` is the last test that passed.
  */
 export interface Enrollment {
   credential: Credential
   test: EnrollmentTestVerdict
   cause?: string
   backup?: PasskeyBackupKind
+  credentialId?: string
+  facts?: EnrollmentFacts
+  lastTest?: EnrollmentLastTest
 }
 
 /** 4. The enrollments. */
@@ -287,6 +342,72 @@ export type CeremonyRequestRecord =
   | (CeremonyRequestTarget & { call: 'healthCheck' })
 
 // ---------------------------------------------------------------------------
+// The save in flight
+// ---------------------------------------------------------------------------
+
+/**
+ * A setup save this device sent to the wallet and has not settled: the draft
+ * the save committed and the prepared value, the two `confirmSetup` takes, the
+ * id of the request it queued, when the save claimed it (ms since epoch) and,
+ * once the wallet broadcast it, the transaction hash, when the hash was first
+ * written (ms since epoch, absent from a record written before the time was
+ * kept) and the block the receipt wait scans from. A reloaded page or another
+ * tab finds it and sends nothing, and checks the save against the draft it
+ * sent, not the draft stored now.
+ */
+export interface SaveInFlightRecord {
+  draft: SetupDraft
+  prepared: PreparedCall | PreparedBatch
+  requestId: string
+  claimedAt: number
+  transactionHash?: Hex
+  sentAt?: number
+  startBlock?: number
+}
+
+/**
+ * What a claim of the save in flight writes: the start block too, where the
+ * page read it before the wallet broadcast.
+ */
+export type SaveInFlightClaim = Pick<
+  SaveInFlightRecord,
+  'draft' | 'prepared' | 'requestId' | 'claimedAt' | 'startBlock'
+>
+
+/**
+ * The answer of a claim: `claimed` where this claim wrote the record, and the
+ * record the storage holds after it, this claim's or the one already there.
+ */
+export interface SaveInFlightClaimResult {
+  claimed: boolean
+  record: StoredRecord<SaveInFlightRecord>
+}
+
+/**
+ * The save in flight of one account on one chain. Each member is one task in
+ * the key's queue, so a claim is the admission between pages: of two claims
+ * started together, one writes and the other reads the winner's record.
+ */
+export interface SaveInFlightAccessor {
+  read(): Promise<RecordRead<SaveInFlightRecord>>
+  /** Writes the record where none is stored; where one is, writes nothing. */
+  claim(claim: SaveInFlightClaim): Promise<SaveInFlightClaimResult>
+  /**
+   * Writes the hash where the stored record carries `requestId`, and the start
+   * block where one is given; with none, the record keeps the claim's. The
+   * first hash written also writes the time of the write, and a later one
+   * keeps it. Answers the record the storage holds after the task.
+   */
+  markSent(
+    requestId: string,
+    transactionHash: Hex,
+    startBlock?: number
+  ): Promise<RecordRead<SaveInFlightRecord>>
+  /** Removes the record where it carries `requestId`; answers whether it removed it. */
+  release(requestId: string): Promise<boolean>
+}
+
+// ---------------------------------------------------------------------------
 // What `createWalletRecords` returns
 // ---------------------------------------------------------------------------
 
@@ -299,8 +420,20 @@ export interface RecordAccessor<T> {
   age(at?: number): Promise<number | null>
 }
 
+/** The setup draft and the path one write stores together. */
+export interface DraftAndPath {
+  setupDraft: StoredRecord<SetupDraftRecord>
+  path: StoredRecord<PathRecord>
+}
+
 export type SetupRecords = {
   [N in SetupRecordName]: RecordAccessor<SetupRecordValues[N]>
+} & {
+  /**
+   * Writes the setup draft and its clauses as the path in one storage call, so
+   * a draft never lands without its path.
+   */
+  writeDraftAndPath(draft: SetupDraftRecord): Promise<DraftAndPath>
 }
 
 export interface RecoverySessionAccessor {
@@ -335,7 +468,12 @@ export interface WalletRecordsOptions {
 export interface WalletRecords {
   setup(chainId: ChainId, account: Address): SetupRecords
   setupSavedAt(chainId: ChainId, account: Address): Promise<number | null>
+  /** Removes the six setup records and the save in flight in one storage call. */
   saveSetup(chainId: ChainId, account: Address): Promise<void>
+  /**
+   * Removes the six setup records in one storage call. While a save of the
+   * account is in flight it removes nothing and throws `SaveInFlightRefusal`.
+   */
   startOverSetup(chainId: ChainId, account: Address): Promise<void>
   recoverySession(chainId: ChainId, account: Address): RecoverySessionAccessor
   listRecoverySessions(chainId: ChainId): Promise<ListedRecord<RecoverySessionRecord>[]>
@@ -363,6 +501,7 @@ export interface WalletRecords {
   countdown(chainId: ChainId, account: Address): CountdownAccessor
   listCountdowns(chainId: ChainId): Promise<ListedRecord<CountdownRecord>[]>
   decryptedSetupCache(chainId: ChainId, account: Address): RecordAccessor<DecryptedSetupCacheRecord>
+  saveInFlight(chainId: ChainId, account: Address): SaveInFlightAccessor
   /**
    * The ceremony request stored under one request id, one from
    * `newCeremonyRequestId`. The caller writes it before it opens the ceremony

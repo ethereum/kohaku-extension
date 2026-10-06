@@ -7,6 +7,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 
+import { PROXY_AMBIRE_ACCOUNT } from '@ambire-common/consts/deploy'
 import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
 
 import {
@@ -22,7 +23,7 @@ import {
   RECOVERY_CHAINS,
   SEPOLIA,
   UNKNOWN_ACTION
-} from './harness'
+} from '@web/modules/social-recovery/shared/client/__tests__/harness'
 
 const ABSENT = '0x9999999999999999999999999999999999999999' as Address
 
@@ -123,8 +124,17 @@ describe('the deployment descriptors', () => {
 
   it('uses distinct placeholder addresses on the two chains', () => {
     const all = RECOVERY_CHAINS.flatMap((chain) =>
-      Object.values(PLACEHOLDER_ADDRESSES[chain]).map((a) => a.toLowerCase())
+      Object.entries(PLACEHOLDER_ADDRESSES[chain])
+        .filter(([field]) => field !== 'servedImplementation')
+        .map(([, a]) => a.toLowerCase())
     )
     expect(new Set(all).size).toBe(all.length)
+  })
+
+  it('serves the account library implementation on both chains', () => {
+    RECOVERY_CHAINS.forEach((chain) => {
+      expect(PLACEHOLDER_ADDRESSES[chain].servedImplementation).toBe(PROXY_AMBIRE_ACCOUNT)
+      expect(deploymentDescriptor(chain).servedImplementation).toBe(PROXY_AMBIRE_ACCOUNT)
+    })
   })
 })

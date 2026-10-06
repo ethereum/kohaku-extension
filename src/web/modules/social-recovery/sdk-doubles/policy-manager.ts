@@ -36,7 +36,9 @@ export class PolicyManagerDouble implements IPolicyManagerInteractor {
   // ---- the three module views ----
 
   async moduleInfo(module: Address): Promise<ReadResult<ModuleInfo>> {
-    if (this.chain.unanswered('manager.moduleInfo', module)) return { answered: false }
+    if (this.chain.unanswered('manager.moduleInfo', module)) {
+      return { answered: false }
+    }
     const declaration = this.chain.method(module)
     // A module with no declaration is an address whose views revert: an answer, not a failure.
     if (!declaration) {
@@ -46,13 +48,17 @@ export class PolicyManagerDouble implements IPolicyManagerInteractor {
   }
 
   async paused(module: Address): Promise<ReadResult<boolean>> {
-    if (this.chain.unanswered('manager.paused', module)) return { answered: false }
+    if (this.chain.unanswered('manager.paused', module)) {
+      return { answered: false }
+    }
     // Two-valued: only an exact true is stopped; anything else is not stopped.
     return { answered: true, value: this.chain.method(module)?.paused === true }
   }
 
   async trustedParties(module: Address): Promise<ReadResult<TrustedParties>> {
-    if (this.chain.unanswered('manager.trustedParties', module)) return { answered: false }
+    if (this.chain.unanswered('manager.trustedParties', module)) {
+      return { answered: false }
+    }
     const declaration = this.chain.method(module)
     // Like `moduleInfo`: a module with no declaration reverts, which is the
     // contract answering, so the read is answered with empty values and

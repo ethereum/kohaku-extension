@@ -42,5 +42,5 @@ The doubles run over one scripted chain record. It holds the setup as none or co
 
 - The `interfaces` list names eight of the twelve interfaces `sdk.md` D-201 declares. The builder hands an integrator `IMethodModuleReads` and never `IPolicyManagerInteractor`, and `IRecoveryActionInteractor` and never `IRecoveryActionArming` (sdk.md D-201, D-208). `IMethodModuleReads` and `IRecoveryMethod` (which PT-041 lists) are missing from the eight. Settle the member list before writing.
 - Every TypeScript block of `sdk.md` is marked illustrative and nothing in `ux-interfaces.md` is frozen; record the `sdk.md` commit the doubles copy.
-- The body scripts three privacy levels; cut-q-23 renders two until the sdk adopts the middle level.
+- The body scripts three privacy levels; the doubles carry three levels, by the owner's ruling of 2026-10-02.
 - The three members scripted under cut-q-22 (verify per reply, removed-key read, fit check on code-to-be) have no SDK member today; decide whether the extension owns them.

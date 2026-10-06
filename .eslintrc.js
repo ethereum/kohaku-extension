@@ -48,6 +48,13 @@ module.exports = {
           }
         ]
       }
+    },
+    {
+      // Account recovery: every branch and loop body has braces.
+      files: ['src/web/modules/social-recovery/**/*.{ts,tsx,js,jsx}'],
+      rules: {
+        curly: ['error', 'all']
+      }
     }
   ]
 }

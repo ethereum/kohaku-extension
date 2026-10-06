@@ -1,6 +1,11 @@
 import type { ValidationRefusal } from '@web/modules/social-recovery/sdk-interfaces'
 
-import { createWorld, eachIt, expectThrown, isHex } from './harness'
+import {
+  createWorld,
+  eachIt,
+  expectThrown,
+  isHex
+} from '@web/modules/social-recovery/sdk-doubles/__tests__/harness'
 
 describe('recovery action double', () => {
   it('answers supportsAccount from whether the account holds code', async () => {

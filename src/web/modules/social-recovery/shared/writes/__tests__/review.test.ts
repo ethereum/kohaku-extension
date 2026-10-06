@@ -11,6 +11,7 @@
  *   to the account the key operates or the account factory.
  * - A transaction another one replaced before it was mined never ran.
  */
+import { DEPLOYLESS_SIMULATION_FROM } from '@ambire-common/consts/deploy'
 import i18n from '@common/config/localization'
 import { KIT_ERROR_NAMES, type KitErrorName } from '@web/modules/social-recovery/sdk-interfaces'
 import { isProviderReadFailure } from '@web/modules/social-recovery/shared/client'
@@ -47,7 +48,7 @@ import {
   writeReducer,
   WRITES_KEYS,
   WriteState
-} from './harness'
+} from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 const REVERTED_AND_GONE = /\bthe gas it spent is gone\b/i
 const STILL_READY = /\bthe recovery is still ready\b/i
@@ -112,7 +113,9 @@ describe('a retry is offered only where a retry can fix the cause', () => {
     })
     const fixable = KIT_ERROR_NAMES.find((name) => !NO_RETRY_CAUSES.submission.includes(name))
     expect(fixable).toBeDefined()
-    if (fixable) expect(canRetry(failWithReceipt('submission', kitError(fixable)))).toBe(true)
+    if (fixable) {
+      expect(canRetry(failWithReceipt('submission', kitError(fixable)))).toBe(true)
+    }
   })
 
   WRITE_KINDS.forEach((write) =>
@@ -143,7 +146,9 @@ describe("the transfer route carries the transfer's own fee", () => {
         await runGasCheck({ write, reads: mockReads({ balance: before, gas, price: PRICE }) })
       )
       const transfer = step.routes.find((route) => route.kind === 'transfer')
-      if (!transfer) throw new Error('expected the transfer route')
+      if (!transfer) {
+        throw new Error('expected the transfer route')
+      }
 
       const after = before + transfer.amount - TRANSFER_COST
       const recheck = await runGasCheck({
@@ -236,7 +241,10 @@ describe("an owner write's transaction is tied to the prepared write", () => {
     const reads = mockReads({ balance: 10n ** 18n, gas: 180_000n })
     const deploy = { ...ownerTransaction('save'), to: ACCOUNT_FACTORY }
     expect((await runGasCheck({ write: 'save', reads, transaction: deploy })).kind).toBe('enough')
-    expect(reads.estimateGas.mock.calls[0][0]).toEqual(deploy)
+    expect(reads.estimateGas.mock.calls[0][0]).toEqual({
+      ...deploy,
+      from: DEPLOYLESS_SIMULATION_FROM
+    })
   })
 })
 

@@ -34,7 +34,7 @@ import {
   replyFailure,
   rowChipOf,
   SYNCED_FLAGS
-} from './harness'
+} from '@web/modules/social-recovery/shared/ceremony/__tests__/harness'
 
 const NOTE = (key: string) => `socialRecovery.ceremony.${key}`
 
@@ -78,7 +78,9 @@ describe('NotAllowedError at enrollment (create)', () => {
   it('returns the cancelled or refused note', async () => {
     const { outcome } = await run('enroll')
     expect(outcome.type).toBe('note')
-    if (outcome.type === 'note') expect(['cancelled', 'refused']).toContain(outcome.note)
+    if (outcome.type === 'note') {
+      expect(['cancelled', 'refused']).toContain(outcome.note)
+    }
   })
 
   it('ran the ceremony once and the method zero times', async () => {
@@ -113,7 +115,9 @@ describe('NotAllowedError at testAccess (get)', () => {
   it("reads failed with the browser's error name as its cause", async () => {
     const { outcome } = await run('testAccess')
     expect(outcome).toMatchObject({ type: 'verdict', verdict: 'failed', retry: true })
-    if (outcome.type === 'verdict') expect(outcome.cause).toContain('NotAllowedError')
+    if (outcome.type === 'verdict') {
+      expect(outcome.cause).toContain('NotAllowedError')
+    }
     expect(browserErrorNameOf(outcome)).toBe('NotAllowedError')
   })
 
@@ -187,7 +191,9 @@ describe("the browser's other errors", () => {
     browserRejects(() => new DOMException('The relying party ID is not valid.', 'SecurityError'))
     const { outcome, method, orchestrator } = await run('enroll')
     expect(outcome).toMatchObject({ type: 'verdict', verdict: 'failed' })
-    if (outcome.type === 'verdict') expect(outcome.cause).toContain('relying-party-mismatch')
+    if (outcome.type === 'verdict') {
+      expect(outcome.cause).toContain('relying-party-mismatch')
+    }
     expect(noteKeyOf(outcome, 'enroll')).toBe(NOTE('providerRefused'))
     expect(methodRunCount(method, orchestrator)).toBe(0)
   })
@@ -244,7 +250,9 @@ describe("the method's device-refused", () => {
     const method = fakeMethod({ configFrom: enrollFailure('device-refused') })
     const { outcome } = await run('enroll', method)
     expect(outcome).toMatchObject({ type: 'verdict', verdict: 'failed' })
-    if (outcome.type === 'verdict') expect(outcome.cause).toContain('device-refused')
+    if (outcome.type === 'verdict') {
+      expect(outcome.cause).toContain('device-refused')
+    }
   })
   ;(['none', 'in-browser-prover'] as const).forEach((binding) =>
     it(`reads a verdict, not the note, for a ${binding} method at a claim`, async () => {
@@ -257,7 +265,9 @@ describe("the method's device-refused", () => {
         resolvedDevice: externalDevice()
       })
       expect(outcome).toMatchObject({ type: 'verdict', verdict: 'failed' })
-      if (outcome.type === 'verdict') expect(outcome.cause).toContain('device-refused')
+      if (outcome.type === 'verdict') {
+        expect(outcome.cause).toContain('device-refused')
+      }
     })
   )
   ;(['testAccess', 'createClaim'] as const).forEach((host) =>
@@ -266,7 +276,9 @@ describe("the method's device-refused", () => {
       const method = fakeMethod({ replyFrom: replyFailure('device-refused') })
       const { outcome } = await run(host, method)
       expect(outcome).toMatchObject({ type: 'verdict', verdict: 'failed' })
-      if (outcome.type === 'verdict') expect(outcome.cause).toContain('device-refused')
+      if (outcome.type === 'verdict') {
+        expect(outcome.cause).toContain('device-refused')
+      }
     })
   )
 })

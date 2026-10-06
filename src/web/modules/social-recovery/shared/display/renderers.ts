@@ -78,7 +78,9 @@ const truncateHex = (value: Hex, lead: number, tail: number): string => {
     throw new TypeError(`Not hex: ${value}`)
   }
   const digits = value.slice(2)
-  if (digits.length <= lead + tail) return value
+  if (digits.length <= lead + tail) {
+    return value
+  }
   return `0x${digits.slice(0, lead)}${ELLIPSIS}${digits.slice(-tail)}`
 }
 
@@ -133,7 +135,9 @@ const splitCharacters = (text: string): string[] => {
  */
 export const ellipsizeName = (name: string): string => {
   const chars = splitCharacters(name)
-  if (chars.length <= NAME_MAX_LENGTH) return name
+  if (chars.length <= NAME_MAX_LENGTH) {
+    return name
+  }
   return `${chars.slice(0, NAME_MAX_LENGTH - 1).join('')}${ELLIPSIS}`
 }
 
@@ -162,7 +166,9 @@ export const renderResolvedName = (
   use: NameUse,
   t: Translate = i18n.t
 ): RenderedName | null => {
-  if (name.trim() === '') return null
+  if (name.trim() === '') {
+    return null
+  }
   return {
     name: ellipsizeName(name),
     caveat: nameNeedsCaveat(use) ? t('socialRecovery.display.nameCaveat') : null

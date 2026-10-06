@@ -3,13 +3,19 @@
  * doubles. Screens import this module and never `sdk-doubles/`, so the swap to
  * the real SDK touches this folder alone.
  *
- * The React hook lives in its own file, `useRecoveryClient`, imported by path,
- * so this module loads in a Node test without the UI's contexts.
+ * The React hooks live in their own files, `useRecoveryClient` and
+ * `useAccountFacts`, imported by path, so this module loads in a Node test
+ * without the UI's contexts.
  */
 export { RECOVERY_CHAINS, CHAIN_IDS, WALLET_RECOVERY_CHAIN, recoveryChainOf } from './chains'
-export { PLACEHOLDER_ADDRESSES, addressBookOf, sameAddress } from './addresses'
+export { PUBLISHERS, DEPLOYMENTS, deploymentOf, deploymentFactsFrom } from './deployments'
 export {
-  PUBLISHERS,
+  PLACEHOLDER_ADDRESSES,
+  addressBookOf,
+  deploymentAddressesOf,
+  sameAddress
+} from './addresses'
+export {
   AUDITED_ACTIONS,
   UNKNOWN_ACTION,
   auditedActionsOn,
@@ -38,7 +44,7 @@ export {
   digestVersionRefusal,
   isDigestVersionRefusal
 } from './build-client'
-export { REMOVED_KEY_UNAVAILABLE_CAUSES } from './wallet-reads'
+export { REMOVED_KEY_UNAVAILABLE_CAUSES, createPrivilegeReads } from './wallet-reads'
 export { createCeremonyResolver, extensionClientFor } from './ceremony-resolver'
 export {
   SIGNER_MEMBERS,
@@ -65,11 +71,27 @@ export {
   DEFAULT_SEND_TIMEOUT_MS,
   SEND_SETTLE_MS,
   createSendPort,
-  sendRefusal
+  REQUEST_STATE_READ_MS,
+  newSendRequestId,
+  sendRequestStateOf,
+  sendRefusal,
+  accountBatchRefusal,
+  isSendRefusal
 } from './sender'
 export { sendRequestPort } from './sender-port'
 export { UNKNOWN_TRANSACTION_MS, createReceiptWait } from './receipts'
 export { SPONSOR_RAIL, RECOVERY_CALLS, sendingKeyOf } from './sending'
+export { shapeNoteOf, privacyLevelOf } from './setup-notes'
+export { recoveryKitMarkOf, accountBatchTransactionOf } from './account-batch'
+export {
+  CREATION_BLOCK_STAND_IN,
+  creationRecordOf,
+  clientFactsOf,
+  creationPrivilegesOf,
+  accountFactsOf,
+  stateRefreshOf,
+  sameFactsReading
+} from './account-facts'
 export type {
   RecoveryChain,
   AddressBook,
@@ -77,6 +99,10 @@ export type {
   PublisherKey,
   AuditedAction,
   UnknownAction,
+  DeployedAuditedAction,
+  DeploymentFacts,
+  DeploymentAddresses,
+  Deployment,
   AccountFacts,
   RecoveryClientConfiguration,
   AdapterProvider,
@@ -93,15 +119,23 @@ export type {
   CeremonyResolverOptions,
   DomainVersion,
   DigestVersionRefusal,
+  DeploymentCheck,
+  DeploymentRefusal,
+  NotServedRefusal,
   WalletReads,
   FitCheckReading,
   RemovedKeyReading,
   RemovedKeyUnavailableCause,
+  PrivilegeAccount,
+  PrivilegeReadsProvider,
+  PrivilegeHoldersReading,
+  PrivilegeReads,
   KeyHandle,
   TypedDataToSign,
   SignerFacade,
   SignerMember,
   SignerFacadeOptions,
+  SignOptions,
   SignRequestAction,
   SignRequestPort,
   SignRequestUpdate,
@@ -115,20 +149,39 @@ export type {
   ProviderTransaction,
   ProviderTransactionReceipt,
   ReceiptWait,
+  ReceiptReads,
+  TransactionKnown,
+  TransactionLookup,
   SendRequestAction,
   ActionWindowState,
+  QueuedRequest,
   SendQueueState,
+  HeldRequestQueue,
+  SendRequestState,
   SubmittedOperation,
   ActivityState,
   MainStatusState,
+  SignAccountOpState,
   SendRequestUpdate,
   SendRequestPort,
   SendPort,
+  FeeOption,
+  FeeReading,
+  EstimationListener,
   SendPortOptions,
   SendRefusal,
   SendRefusalReason,
   RecoveryCall,
-  SendingKeys
+  SendingKeys,
+  AccountFactsSources,
+  ListedAccountFacts,
+  AccountFactsUnavailableCause,
+  AccountFactsReading,
+  AccountFactsResult,
+  AccountStateRefresh,
+  StateRefreshProgress,
+  AccountBatchSource,
+  RecoveryKitMark
 } from './types'
 // `sdkStandIn` stays out of this module: tests and development code import
 // `shared/client/stand-in` by path, so no screen reaches the scripted chain.

@@ -18,7 +18,7 @@ import {
   renderGasBalance,
   runGasCheck,
   stepOf
-} from './harness'
+} from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 const ONE_AND_A_HALF_ETHER = 1_500_000_000_000_000_000n
 const { nativeAssetSymbol: ETH } = NETWORK

@@ -4,21 +4,28 @@
  * the balance and gas reads and the receipt wait on the same provider beside
  * it.
  *
+ * Called with no facts, the client takes the listed account's own
+ * (`clientFactsOf`, `creationPrivilegesOf`): a smart account's creation
+ * record, associated keys and creation privileges, so the removed-key read can
+ * name the key; a basic account gives none.
+ *
  * A refused digest version comes back as the `update-the-wallet` state the
  * account step draws; any other failure as `failed`, with `retry`, never as an
  * empty answer.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
 
-import { addressBookOf } from './addresses'
+import { clientFactsOf, creationPrivilegesOf } from './account-facts'
+import { addressBookOf, sameAddress } from './addresses'
 import { buildRecoveryClient, isDigestVersionRefusal } from './build-client'
 import { createChainReads } from './chain-reads'
 import { CHAIN_IDS, WALLET_RECOVERY_CHAIN } from './chains'
 import { extensionProviderFor, networkOf, providerKeyOf } from './extension-provider'
-import { createProviderAdapter } from './provider-adapter'
+import { createCodeRead, createProviderAdapter } from './provider-adapter'
 import { createReceiptWait } from './receipts'
 import type { AccountFacts, ExtensionProvider, RecoveryClientState } from './types'
 
@@ -36,9 +43,16 @@ const buildKeyOf = (
 
 export const useRecoveryClient = (
   account: Address | undefined,
-  facts: AccountFacts = {}
+  given?: AccountFacts
 ): RecoveryClientState & { retry: () => void } => {
   const { networks } = useNetworksControllerState()
+  const { accounts } = useAccountsControllerState()
+  // With no facts given, the client takes the listed account's own.
+  const listed = account
+    ? accounts?.find((candidate) => sameAddress(candidate.addr, account))
+    : undefined
+  const facts =
+    given ?? (listed ? { ...clientFactsOf(listed), ...creationPrivilegesOf(listed) } : {})
   const network = networkOf(networks, WALLET_RECOVERY_CHAIN)
   const networkRef = useRef(network)
   networkRef.current = network
@@ -48,7 +62,9 @@ export const useRecoveryClient = (
   const networkKey = network ? providerKeyOf(network) : networks ? 'missing' : 'loading'
   const factsRef = useRef(facts)
   factsRef.current = facts
-  const factsKey = JSON.stringify(facts)
+  // Until the wallet pushed its accounts, the listed account's facts are not
+  // known, and the client waits for them rather than build without them.
+  const factsKey = !given && !accounts ? 'loading' : JSON.stringify(facts)
   const [attempt, setAttempt] = useState(0)
   const buildKey = buildKeyOf(account, networkKey, factsKey, attempt)
   const [stored, setStored] = useState<{ key: string; state: RecoveryClientState }>({
@@ -60,7 +76,7 @@ export const useRecoveryClient = (
     const key = buildKeyOf(account, networkKey, factsKey, attempt)
     const setState = (next: RecoveryClientState) => setStored({ key, state: next })
     const current = networkRef.current
-    if (!account || networkKey === 'loading') {
+    if (!account || networkKey === 'loading' || factsKey === 'loading') {
       setState(LOADING)
       return undefined
     }
@@ -90,7 +106,8 @@ export const useRecoveryClient = (
       chain: WALLET_RECOVERY_CHAIN,
       account,
       addressBook: addressBookOf(WALLET_RECOVERY_CHAIN),
-      provider: createProviderAdapter(provider)
+      provider: createProviderAdapter(provider),
+      codeRead: createCodeRead(provider)
     })
       .then((client) => {
         if (live) {
@@ -103,7 +120,9 @@ export const useRecoveryClient = (
         }
       })
       .catch((error: unknown) => {
-        if (!live) return
+        if (!live) {
+          return
+        }
         setState(
           isDigestVersionRefusal(error)
             ? { status: 'update-the-wallet', refusal: error }

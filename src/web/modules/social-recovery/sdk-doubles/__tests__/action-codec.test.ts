@@ -1,6 +1,6 @@
 import type { Handover } from '@web/modules/social-recovery/sdk-interfaces'
 
-import { createWorld, isHex } from './harness'
+import { createWorld, isHex } from '@web/modules/social-recovery/sdk-doubles/__tests__/harness'
 
 describe('action codec double', () => {
   it('serves the descriptor’s action', () => {

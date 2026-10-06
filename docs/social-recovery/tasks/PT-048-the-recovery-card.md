@@ -40,4 +40,4 @@ On the card screen the recovery password renders as a hidden value with a reveal
 
 ## Deltas against the chapter at `bd8780f`
 
-- Consistent with D-318 and D-312 (2026-09-22, the address whole with no grouping). "The two hidden levels" becomes one hidden level while cut-q-23 stands.
+- Consistent with D-318 and D-312 (2026-09-22, the address whole with no grouping). The card carries the recovery password at the two hidden levels, Private and Shape visible, by the owner's ruling of 2026-10-02.

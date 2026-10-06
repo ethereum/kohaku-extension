@@ -1,4 +1,11 @@
-import { createWorld, eachIt, expectThrown, isHex, membersOf, PASSWORD } from './harness'
+import {
+  createWorld,
+  eachIt,
+  expectThrown,
+  isHex,
+  membersOf,
+  PASSWORD
+} from '@web/modules/social-recovery/sdk-doubles/__tests__/harness'
 
 describe('provider double', () => {
   it('sends nothing: it holds the four reads alone, and a prepared write passed to call lands nothing', async () => {

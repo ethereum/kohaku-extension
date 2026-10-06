@@ -91,7 +91,14 @@ const WEB_ROUTES = {
   socialRecoveryRecovery: 'social-recovery/recovery',
   socialRecoveryApprove: 'social-recovery/approve',
   socialRecoveryCancel: 'social-recovery/cancel',
-  socialRecoveryManage: 'social-recovery/manage'
+  socialRecoveryManage: 'social-recovery/manage',
+  socialRecoverySetupEditor: 'social-recovery/setup/editor',
+  socialRecoverySetupEnroll: 'social-recovery/setup/enroll',
+  socialRecoverySetupWaitingPeriod: 'social-recovery/setup/waiting-period',
+  socialRecoverySetupPrivacy: 'social-recovery/setup/privacy',
+  socialRecoverySetupReview: 'social-recovery/setup/review',
+  socialRecoverySetupSave: 'social-recovery/setup/save',
+  socialRecoverySetupCard: 'social-recovery/setup/card'
 }
 
 const ROUTES = { ...MOBILE_ROUTES, ...WEB_ROUTES }

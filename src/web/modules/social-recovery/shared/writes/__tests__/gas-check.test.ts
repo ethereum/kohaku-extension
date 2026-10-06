@@ -20,7 +20,7 @@ import {
   SUBMISSION,
   transferTransactionOf,
   WRITE_KINDS
-} from './harness'
+} from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
 
@@ -170,7 +170,9 @@ describe('the gas check', () => {
       )
       const transfer = step.routes.find((route) => route.kind === 'transfer')
       const outside = step.routes.find((route) => route.kind === 'outside')
-      if (transfer?.kind !== 'transfer' || !outside) throw new Error('expected both routes')
+      if (transfer?.kind !== 'transfer' || !outside) {
+        throw new Error('expected both routes')
+      }
       expect(transfer.fee.gas).toBeGreaterThanOrEqual(40_000n)
       expect(transfer.amount).toBeGreaterThanOrEqual(step.shortfall + transfer.fee.required)
       expect(outside.amount).toBeGreaterThanOrEqual(step.shortfall)

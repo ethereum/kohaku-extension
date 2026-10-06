@@ -13,7 +13,8 @@
  * - The send port's background is the same kind of fake behind the
  *   `SendRequestPort`: a test pushes the `requests` state, with the action
  *   window open or closed, and the `activity` state listing the operation the
- *   wallet broadcast, as the real background would push them.
+ *   wallet broadcast, and the `signAccountOp` state of the sign screen's
+ *   estimation, as the real background would push them.
  * - The receipt wait runs on the extension's own provider for a plain
  *   JSON-RPC network, whose `send` answers the transactions, receipts, blocks
  *   and nonces a test scripts, as a node's JSON (`scriptedNode`), so ethers'
@@ -23,9 +24,12 @@
  * - The ceremony tab's resolver reads the wallet's records over an in-memory
  *   storage and a client of the approving side alone, built by a `jest.fn`.
  */
-import { AbiCoder, id, toBeHex, toQuantity } from 'ethers'
+import { AbiCoder, id, toBeHex, toQuantity, Wallet } from 'ethers'
 
+import { Session } from '@ambire-common/classes/session'
+import type { AccountOnchainState } from '@ambire-common/interfaces/account'
 import type { Network } from '@ambire-common/interfaces/network'
+import type { SignUserRequest } from '@ambire-common/interfaces/userRequest'
 import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
 
 import {
@@ -39,6 +43,7 @@ import {
   ScriptedChain,
   SetupClientDouble
 } from '@web/modules/social-recovery/sdk-doubles'
+import type { VisibilitySource } from '@web/modules/social-recovery/shared/ceremony'
 import type {
   Address,
   BlockTag,
@@ -46,7 +51,8 @@ import type {
   DeploymentDescriptor,
   Hex,
   IProvider,
-  IRecoveryMethod
+  IRecoveryMethod,
+  PreparedCall
 } from '@web/modules/social-recovery/sdk-interfaces'
 import {
   addressBookOf,
@@ -60,6 +66,7 @@ import {
   WALLET_RECOVERY_CHAIN,
   type ApprovingClient,
   type ExtensionProvider,
+  type HeldRequestQueue,
   type KeyHandle,
   type ListedAccount,
   type MainStatusState,
@@ -67,17 +74,23 @@ import {
   type RecoveryClientConfiguration,
   type SendPort,
   type SendPortOptions,
+  type SendQueueState,
+  type SendRefusal,
+  type SendRefusalReason,
   type SendRequestPort,
   type SendRequestUpdate,
   type SignerFacade,
+  type SignAccountOpState,
   type SignerFacadeOptions,
   type SignRequestAction,
   type SignRequestPort,
   type SignRequestUpdate,
   type SubmittedOperation
 } from '@web/modules/social-recovery/shared/client'
+import { createCodeRead } from '@web/modules/social-recovery/shared/client/provider-adapter'
 // The stand-in is not part of the barrel a screen imports; tests reach it by path.
 import { sdkStandIn } from '@web/modules/social-recovery/shared/client/stand-in'
+import type { RecoveryClientState } from '@web/modules/social-recovery/shared/client/types'
 import {
   createWalletRecords,
   type RecordStorage
@@ -85,6 +98,27 @@ import {
 
 export * from '@web/modules/social-recovery/shared/client'
 export { sdkStandIn }
+
+export type HookState = RecoveryClientState & { retry: () => void }
+
+export interface ProviderMock {
+  send: jest.Mock
+  getTransaction: jest.Mock
+  getBlockNumber: jest.Mock
+  getCode: jest.Mock
+  /** The replacement-aware response each transaction answers, by the start block given. */
+  replaceable: jest.Mock
+  once: jest.Mock
+  off: jest.Mock
+  destroy: jest.Mock
+}
+
+export type AdapterWorld = Pick<World, 'chain' | 'ethers' | 'adapter'>
+
+/** The batch transport under an ethers JSON-RPC provider's `send`. */
+export interface JsonRpcTransport {
+  _send(payload: unknown): Promise<unknown[]>
+}
 
 export const SEPOLIA = 11155111
 export const MAINNET = 1
@@ -141,6 +175,7 @@ export interface EthersMock {
   getBalance: jest.Mock
   estimateGas: jest.Mock
   send: jest.Mock
+  getCode: jest.Mock
   destroy: jest.Mock
   /** The chain id this provider answers; defaults to the chain's descriptor. */
   answeredChainId: number
@@ -170,7 +205,9 @@ export const ethersOver = (chain: ScriptedChain): EthersMock => {
     const to = (tx.to ?? '').toLowerCase()
     const data = (tx.data ?? '').toLowerCase()
     if (to === chain.descriptor.manager.toLowerCase()) {
-      if (data.startsWith(SELECTOR.eip712Domain)) return encodedDomain(chain)
+      if (data.startsWith(SELECTOR.eip712Domain)) {
+        return encodedDomain(chain)
+      }
       if (data.startsWith(SELECTOR.name)) {
         return coder.encode(['string'], [chain.manager.name]) as Hex
       }
@@ -179,7 +216,9 @@ export const ethersOver = (chain: ScriptedChain): EthersMock => {
       }
     }
     const scripted = chain.calls.get(`${to}:${data}`)
-    if (scripted && 'result' in scripted) return scripted.result
+    if (scripted && 'result' in scripted) {
+      return scripted.result
+    }
     return '0x'
   }
   const blockOf = (tag: unknown) => {
@@ -192,6 +231,7 @@ export const ethersOver = (chain: ScriptedChain): EthersMock => {
   mock.getBlock = jest.fn(async (tag: unknown) => blockOf(tag))
   mock.getBalance = jest.fn(async () => NODE_ANSWERS.balance)
   mock.estimateGas = jest.fn(async () => NODE_ANSWERS.gas)
+  mock.getCode = jest.fn(async () => '0x')
   mock.destroy = jest.fn()
   mock.send = jest.fn(async (method: string, params: unknown[]) => {
     switch (method) {
@@ -321,7 +361,9 @@ export const functionMembersOf = (value: object): string[] => [
   ...new Set(
     chainOf(value).flatMap((proto) =>
       Object.getOwnPropertyNames(proto).filter((n) => {
-        if (n === 'constructor') return false
+        if (n === 'constructor') {
+          return false
+        }
         const descriptor = Object.getOwnPropertyDescriptor(proto, n)
         return !!descriptor && typeof descriptor.value === 'function'
       })
@@ -343,7 +385,9 @@ export const memberNamesOf = (value: object): string[] => [
  * (the extension's own provider, which the adapter may hold).
  */
 export const keysUnder = (value: unknown, depth: number, skip: unknown[] = []): string[] => {
-  if (depth < 0 || value === null || typeof value !== 'object' || skip.includes(value)) return []
+  if (depth < 0 || value === null || typeof value !== 'object' || skip.includes(value)) {
+    return []
+  }
   return memberNamesOf(value as object).flatMap((k) => {
     let child: unknown
     try {
@@ -394,6 +438,7 @@ export const createWorld = (overrides: Partial<RecoveryClientConfiguration> = {}
     account,
     addressBook,
     provider: adapter,
+    codeRead: createCodeRead(ethers),
     ...overrides
   }
   return { chain, ethers, adapter, config, descriptor, account }
@@ -477,6 +522,18 @@ export const queued = (...requestIds: (string | number)[]): SignRequestUpdate =>
   }
 })
 
+/** The `requests` state with some request ids queued and others waiting for an account switch. */
+export const listedIn = (
+  queuedIds: (string | number)[],
+  waitingIds: (string | number)[]
+): SignRequestUpdate => ({
+  controller: 'requests',
+  state: {
+    userRequests: queuedIds.map((requestId) => ({ id: requestId })),
+    userRequestsWaitingAccountSwitch: waitingIds.map((requestId) => ({ id: requestId }))
+  }
+})
+
 /** The `signMessage` state carrying a signed message for a request id. */
 export const signedFor = (requestId: string | number, signature: unknown): SignRequestUpdate => ({
   controller: 'signMessage',
@@ -524,6 +581,12 @@ export interface SendWorld {
   push: (update: SendRequestUpdate) => void
   /** How many listeners are subscribed now. */
   listeners: () => number
+  /** The request queue the wallet holds now, which the port pulls; a test may replace it and push it. */
+  queue: HeldAndPushedQueue
+  /** The port the sender runs over. */
+  port: SendRequestPort
+  /** Puts a queue state in the getter and pushes it, as the wallet does. */
+  show: (state: HeldAndPushedQueue) => void
 }
 
 /**
@@ -540,17 +603,64 @@ export const sendQueueOver = (
   world.dispatch = jest.fn()
   world.push = (update) => [...listeners].forEach((l) => l(update))
   world.listeners = () => listeners.size
-  const port: SendRequestPort = {
+  world.queue = {}
+  world.port = {
     dispatch: world.dispatch,
     subscribe(listener) {
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
     accounts: () => world.accounts,
+    queue: () => world.queue,
     windowId: () => WINDOW_ID
   }
-  world.sender = createSendPort(port, { chainId: SEPOLIA, ...options })
+  world.show = (state) => {
+    world.queue = state
+    world.push({ controller: 'requests', state })
+  }
+  world.sender = createSendPort(world.port, { chainId: SEPOLIA, ...options })
   return world
+}
+
+export interface FakeVisibility {
+  /** The page's document as the send port reads it. */
+  source: VisibilitySource
+  /** Shows the page and fires `visibilitychange`. */
+  show: () => void
+  /** Hides the page and fires `visibilitychange`. */
+  hide: () => void
+  /** How many `visibilitychange` listeners are added now. */
+  listeners: () => number
+}
+
+/** A page's document that a test shows and hides by hand, with no DOM. */
+export const fakeVisibility = (initial: 'visible' | 'hidden' = 'visible'): FakeVisibility => {
+  let state: string = initial
+  // A list, not a set, so a listener added twice counts twice.
+  const listeners: (() => void)[] = []
+  const fire = (next: string) => {
+    state = next
+    ;[...listeners].forEach((listener) => listener())
+  }
+  return {
+    source: {
+      get visibilityState() {
+        return state
+      },
+      addEventListener: (_type, listener) => {
+        listeners.push(listener)
+      },
+      removeEventListener: (_type, listener) => {
+        const at = listeners.indexOf(listener)
+        if (at >= 0) {
+          listeners.splice(at, 1)
+        }
+      }
+    },
+    show: () => fire('visible'),
+    hide: () => fire('hidden'),
+    listeners: () => listeners.length
+  }
 }
 
 /** The id of the action window the queue opened, as its window props carry it. */
@@ -658,6 +768,138 @@ export const waitingForSwitch = (...requestIds: (string | number)[]): SendReques
   }
 })
 
+/** The kinds of request a test puts in the wallet's queue. */
+export type QueuedKind = 'calls' | 'message' | 'typedMessage'
+
+/** What a request in the wallet's queue is for: its kind, its account and its chain. */
+export interface QueuedFor {
+  account: string
+  chainId?: bigint
+  kind?: QueuedKind
+}
+
+/** A `requests` state the wallet both holds and pushes. */
+export type HeldAndPushedQueue = HeldRequestQueue & SendQueueState
+
+const QUEUED_ACTIONS: Record<QueuedKind, SignUserRequest['action']> = {
+  calls: { kind: 'calls', calls: [] },
+  message: { kind: 'message', message: '0x' },
+  typedMessage: { kind: 'typedMessage', domain: {}, types: {}, message: {}, primaryType: '' }
+}
+
+/** One request in the wallet's queue, with the kind, account and chain the queue keeps. */
+export const queuedRequest = (
+  requestId: string | number,
+  { account, chainId = BigInt(SEPOLIA), kind = 'calls' }: QueuedFor
+): SignUserRequest => ({
+  id: requestId,
+  action: QUEUED_ACTIONS[kind],
+  session: new Session(),
+  meta: { isSignAction: true, accountAddr: account, chainId }
+})
+
+/** The `requests` state holding these requests, those waiting for an account switch, and the window open. */
+export const queueHolding = (
+  requests: SignUserRequest[],
+  waiting: SignUserRequest[] = []
+): HeldAndPushedQueue => ({
+  userRequests: requests,
+  userRequestsWaitingAccountSwitch: waiting,
+  actions: { actionWindow: { windowProps: { id: ACTION_WINDOW_ID } } }
+})
+
+/** The push of a `requests` state. */
+export const requestsPush = (state: SendQueueState): SendRequestUpdate => ({
+  controller: 'requests',
+  state
+})
+
+/** A smart account the wallet lists, as the wallet holds its address: checksummed. */
+export const SMART_ACCOUNT = new Wallet(`0x${'33'.repeat(32)}`).address as Address
+
+/** The smart account's controlling key, which the wallet does not list as an account. */
+export const CONTROLLING_KEY = new Wallet(`0x${'44'.repeat(32)}`).address as Address
+
+/** A batch the smart account runs on itself: a call that carries value, then one that does not. */
+export const BATCH: readonly PreparedCall[] = [
+  {
+    kind: 'call',
+    target: SMART_ACCOUNT,
+    value: 3n,
+    data: '0xaaaa0001',
+    sender: 'account',
+    block: { number: 7_000_000, hash: `0x${'0b'.repeat(32)}` }
+  },
+  {
+    kind: 'call',
+    target: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
+    value: 0n,
+    data: '0xbbbb0002',
+    sender: 'account',
+    block: { number: 7_000_000, hash: `0x${'0b'.repeat(32)}` }
+  }
+]
+
+/** The `signAccountOp` state the background pushes while the sign screen holds an operation. */
+export const signAccountOpPush = (state: SignAccountOpState): SendRequestUpdate => ({
+  controller: 'signAccountOp',
+  state
+})
+
+/** A send the port was asked for, its state read after the pending microtasks ran. */
+export type TrackedSend = ReturnType<typeof track>
+
+/**
+ * One way to ask the send port for a transaction: a key's own transaction, or
+ * the batch an account runs. The refusals behave the same for each, so the
+ * tests that read them run over every subject.
+ */
+export interface SendSubject {
+  title: string
+  /** The address every refusal message names. */
+  names: Address
+  /** Starts one send over a queue listing the sender, and answers the request id the port queued. */
+  sending: (options?: Partial<SendPortOptions>) => { q: SendWorld; send: TrackedSend; id: string }
+  /** The port settled with a refusal for `reason`, naming what it was asked to send. */
+  expectRefusal: (seen: TrackedSend, reason: SendRefusalReason) => void
+}
+
+export interface SendSubjectParts {
+  title: string
+  names: Address
+  /** The accounts the wallet lists for this subject's sender. */
+  accounts: () => ListedAccount[]
+  /** Asks the port for the subject's transaction. */
+  start: (sender: SendPort) => Promise<Hex>
+  /** Checks that a refusal names what the port was asked to send. */
+  expectNamed: (refusal: SendRefusal) => void
+}
+
+export const sendSubject = ({
+  title,
+  names,
+  accounts,
+  start,
+  expectNamed
+}: SendSubjectParts): SendSubject => ({
+  title,
+  names,
+  sending: (options = {}) => {
+    const q = sendQueueOver(accounts(), options)
+    const send = track(start(q.sender))
+    const requestId = addedRequest(q.dispatch).userRequest.id
+    return { q, send, id: String(requestId) }
+  },
+  expectRefusal: (seen, reason) => {
+    expect(seen.status).toBe('rejected')
+    expect(seen.value).toBeInstanceOf(Error)
+    const refusal = seen.value as SendRefusal
+    expect(refusal.name).toBe('SendRefusal')
+    expect(refusal.reason).toBe(reason)
+    expectNamed(refusal)
+  }
+})
+
 /** One transaction the scripted node knows: pending while it carries no block. */
 export interface NodeTransaction {
   hash: Hex
@@ -754,7 +996,9 @@ const nodeAnswer = (script: NodeScript, method: string, params: readonly unknown
       return toQuantity(script.nonces[String(params[0]).toLowerCase()] ?? 0)
     case 'eth_getBlockByNumber': {
       const blockNumber = Number(params[0])
-      if (blockNumber > script.blockNumber) return null
+      if (blockNumber > script.blockNumber) {
+        return null
+      }
       return {
         hash: blockHashOf(blockNumber),
         parentHash: blockHashOf(blockNumber - 1),
@@ -856,7 +1100,9 @@ export const watchEthersWaits = async (
   hash: Hex
 ): Promise<Promise<unknown>[]> => {
   const response = await node.provider.getTransaction(hash)
-  if (!response) throw new Error(`The scripted node does not answer ${hash}.`)
+  if (!response) {
+    throw new Error(`The scripted node does not answer ${hash}.`)
+  }
   const proto = Object.getPrototypeOf(response) as EthersWait
   const { wait } = proto
   const settled: Promise<unknown>[] = []
@@ -885,6 +1131,33 @@ export const networkRecord = (chain: RecoveryChain, overrides: Partial<Network> 
   } as Network)
 
 /**
+ * An account's state on one chain as the wallet reads it: a smart account of
+ * the current version with code, nonce 5, unless the overrides say otherwise.
+ */
+export const onchainState = (
+  accountAddr: string,
+  overrides: Partial<AccountOnchainState> = {}
+): AccountOnchainState => ({
+  accountAddr,
+  isDeployed: true,
+  eoaNonce: null,
+  nonce: 5n,
+  erc4337Nonce: 0n,
+  associatedKeys: {},
+  deployError: false,
+  balance: 0n,
+  isEOA: false,
+  isErc4337Enabled: false,
+  isErc4337Nonce: false,
+  isV2: true,
+  currentBlock: 7_000_000n,
+  isSmarterEoa: false,
+  delegatedContract: null,
+  delegatedContractName: null,
+  ...overrides
+})
+
+/**
  * The wallet's records over one in-memory storage: what a caller writes, the
  * tab reads. The records stamp each write with `clock.t`.
  */
@@ -899,6 +1172,12 @@ export const recordsInMemory = (clock: { t: number } = { t: Date.now() }) => {
     remove: async (key) => {
       entries.delete(key)
       return null
+    },
+    setEntries: async (items) => {
+      Object.entries(items).forEach(([key, value]) => entries.set(key, value))
+    },
+    removeKeys: async (keys) => {
+      keys.forEach((key) => entries.delete(key))
     }
   }
   return { entries, storage, clock, records: createWalletRecords({ storage, now: () => clock.t }) }

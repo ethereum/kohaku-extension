@@ -17,7 +17,7 @@ import {
   spyOnBuilder,
   spyOnPrepares,
   thrownBy
-} from './harness'
+} from '@web/modules/social-recovery/shared/client/__tests__/harness'
 
 afterEach(() => jest.restoreAllMocks())
 

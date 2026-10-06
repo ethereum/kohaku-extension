@@ -38,7 +38,7 @@ import {
   WRITE_KINDS,
   writeReducer,
   WriteState
-} from './harness'
+} from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 // The not-sent reading: nothing reached the chain, and the account stands as it did.
 const NOTHING_REACHED_THE_CHAIN = /\b(?:nothing reached the chain|before it reached the chain)\b/i

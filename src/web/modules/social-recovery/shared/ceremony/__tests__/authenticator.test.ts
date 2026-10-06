@@ -13,7 +13,7 @@ import {
   installCredentials,
   P256Point,
   SYNCED_FLAGS
-} from './harness'
+} from '@web/modules/social-recovery/shared/ceremony/__tests__/harness'
 
 let point: P256Point
 let creds: ReturnType<typeof installCredentials>

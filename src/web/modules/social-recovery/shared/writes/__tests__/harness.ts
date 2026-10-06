@@ -237,14 +237,18 @@ export const rpcReads = (answers: {
   price?: bigint
 }): ChainReads => {
   const answer = async (value: bigint | Error): Promise<bigint> => {
-    if (value instanceof Error) throw value
+    if (value instanceof Error) {
+      throw value
+    }
     return value
   }
   const provider: ChainReadsProvider = {
     getBalance: () => answer(answers.balance),
     estimateGas: () => answer(answers.gas),
     send: async (method: string) => {
-      if (method === 'eth_gasPrice') return numberToHex(answers.price ?? 2n * GWEI)
+      if (method === 'eth_gasPrice') {
+        return numberToHex(answers.price ?? 2n * GWEI)
+      }
       throw new Error(`unexpected request ${method}`)
     }
   }
@@ -257,7 +261,9 @@ export const nodeRevert = (): Error =>
 
 /** The deposit step of a check that came up short; throws where the key held enough. */
 export const stepOf = (check: GasCheck): DepositStep => {
-  if (check.kind !== 'deposit') throw new Error(`Expected the deposit step, got ${check.kind}`)
+  if (check.kind !== 'deposit') {
+    throw new Error(`Expected the deposit step, got ${check.kind}`)
+  }
   return check.step
 }
 
@@ -509,14 +515,21 @@ export const providerReceipt = (
 export type FakeAnswer<T> = { value: T } | { error: unknown } | { pending: Promise<T> }
 
 const answered = async <T>(answer: FakeAnswer<T>): Promise<T> => {
-  if ('pending' in answer) return answer.pending
-  if ('error' in answer) throw answer.error
+  if ('pending' in answer) {
+    return answer.pending
+  }
+  if ('error' in answer) {
+    throw answer.error
+  }
   return answer.value
 }
 
-/** A send port whose `send` answers as given, recording each call. */
-export const fakeSendPort = (answer: FakeAnswer<Hex>): SendPort & { send: jest.Mock } => ({
-  send: jest.fn(() => answered(answer))
+/** A send port whose `send` and `sendAccountBatch` answer as given, recording each call. */
+export const fakeSendPort = (
+  answer: FakeAnswer<Hex>
+): SendPort & { send: jest.Mock; sendAccountBatch: jest.Mock } => ({
+  send: jest.fn(() => answered(answer)),
+  sendAccountBatch: jest.fn(() => answered(answer))
 })
 
 /** The block the fake receipt wait reads as the chain's latest, unless a test gives another. */
@@ -572,8 +585,9 @@ export const collectStrings = (
   out: string[] = [],
   seen = new Set<unknown>()
 ): string[] => {
-  if (typeof value === 'string') out.push(value)
-  else if (value && typeof value === 'object' && !seen.has(value)) {
+  if (typeof value === 'string') {
+    out.push(value)
+  } else if (value && typeof value === 'object' && !seen.has(value)) {
     seen.add(value)
     Object.values(value as Record<string, unknown>).forEach((v) => collectStrings(v, out, seen))
   }
