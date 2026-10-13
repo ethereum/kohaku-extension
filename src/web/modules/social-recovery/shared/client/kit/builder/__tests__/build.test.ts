@@ -1,8 +1,8 @@
 /**
  * The client of a deployed kit once its checks passed: the methods it serves
  * by slug, the action bound to the account with its real disarming call, the
- * wallet's reads over the chain, and the members it does not serve yet, each
- * refusing by name.
+ * wallet's reads over the chain, the recovery gathering over the manager, and
+ * the members it does not serve yet, each refusing by name.
  */
 import {
   decodeFunctionData,
@@ -12,6 +12,7 @@ import {
   getAddress,
   type Hex,
   parseAbi,
+  zeroAddress,
   zeroHash
 } from 'viem'
 
@@ -43,6 +44,9 @@ import {
   METHOD_ECDSA,
   METHOD_PASSKEY,
   METHOD_ZKPASSPORT,
+  NO_STATE,
+  stateAnswer,
+  stateOfCall,
   thrownBy
 } from '@web/modules/social-recovery/shared/client/kit/setup-client/__tests__/harness'
 import type {
@@ -222,18 +226,38 @@ describe("the wallet's reads", () => {
   })
 })
 
+describe('the recovery side', () => {
+  it("opens a gathering over the manager's state of the deployed action", async () => {
+    const { node, client } = clientOver()
+    node.answer(
+      MANAGER,
+      stateOfCall(DEPLOYED_ACTION),
+      stateAnswer({ ...NO_STATE, attemptState: 1 })
+    )
+    const thrown = await thrownBy(
+      client.recovery.initRecoveryGathering(
+        { password: 'unused' },
+        { newAuthority: KEY_A },
+        { token: zeroAddress, amount: 0n, payee: zeroAddress },
+        { window: 3600 }
+      )
+    )
+    expect(thrown).toMatchObject({
+      name: 'ValidationRefusal',
+      findings: { errors: [expect.objectContaining({ code: 'request.attempt-active' })] }
+    })
+    expect(node.calls).toEqual([{ to: MANAGER, data: stateOfCall(DEPLOYED_ACTION), block: HEAD }])
+  })
+})
+
 describe('the members the deployed kit does not serve yet', () => {
   const RECOVERY_REJECTS = [
-    'initRecoveryGathering',
-    'initCancelGathering',
     'prepareStartAttempt',
     'prepareCancelByProofs',
     'prepareCancelByOwner',
     'prepareCancelByVeto',
-    'prepareExecuteHandover',
-    'recoveryState'
+    'prepareExecuteHandover'
   ] as const
-  const RECOVERY_THROWS = ['getApproverRequests', 'addApproverReply', 'assess', 'complete'] as const
   const EVENTS_THROW = ['accountFilter', 'methodFilter', 'privilegeFilter', 'decodeLog'] as const
 
   RECOVERY_REJECTS.forEach((member) =>
@@ -245,16 +269,6 @@ describe('the members the deployed kit does not serve yet', () => {
         member: `recovery.${member}`
       })
       expect(node.calls).toEqual([])
-    })
-  )
-
-  RECOVERY_THROWS.forEach((member) =>
-    it(`throws recovery.${member} by name`, () => {
-      const { client } = clientOver()
-      const run = client.recovery[member] as () => unknown
-      expect(run).toThrow(
-        expect.objectContaining({ name: 'NotServedRefusal', member: `recovery.${member}` })
-      )
     })
   )
 

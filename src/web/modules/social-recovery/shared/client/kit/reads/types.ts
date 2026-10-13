@@ -2,7 +2,9 @@ import type {
   ActionInfo,
   ActionState,
   Address,
+  AttemptRequest,
   BlockTag,
+  CancelRequest,
   Domain,
   Hex,
   IProvider,
@@ -26,6 +28,10 @@ export interface ActionReadsChain {
 export interface ManagerReads {
   /** The manager's record for an account and an action; every address has one. */
   stateOf(account: Address, action: Address, block?: BlockTag): Promise<ActionState>
+  /** The digest one place of an opening request signs, as the manager derives it. */
+  hashApproval(request: AttemptRequest, place: bigint): Promise<Hex>
+  /** The digest one place of a cancellation request signs, as the manager derives it. */
+  hashCancel(request: CancelRequest, place: bigint): Promise<Hex>
   eip712Domain(): Promise<Domain>
   name(): Promise<string>
   version(): Promise<string>

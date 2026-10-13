@@ -1,6 +1,6 @@
 /**
  * The pure encodings a setup needs: salts, credential and setup commitments,
- * the setup body and the calldata of the setup's writes.
+ * the setup body and its reader, and the calldata of the setup's writes.
  */
 export {
   defaultSaltOf,
@@ -9,7 +9,12 @@ export {
   ecdsaConfigOf,
   passkeyConfigOf
 } from './credentials'
-export { setupBodyOf } from './setup-body'
+export { readSetupBody, setupBodyOf } from './setup-body'
 export { setupCommitmentOf, deadCommitmentOf } from './commitments'
 export { kitSlotOf, kitBindingOf, commitSetupData, armingData, disarmingData } from './calls'
-export type { PlacedCredential, PasskeyConfigFields, CommitSetupCall } from './types'
+export type {
+  PlacedCredential,
+  PasskeyConfigFields,
+  CommitSetupCall,
+  SetupBodyFields
+} from './types'

@@ -5,11 +5,12 @@
  * layout: three top-level values, `abi.encode(uint48 wait, bool ignoresPause,
  * (uint8 threshold, bytes32[] credentials)[] clauses)`, with no outer tuple.
  */
-import { encodeAbiParameters } from 'viem'
+import { decodeAbiParameters, encodeAbiParameters } from 'viem'
 
 import type { Address, Configuration, Hex } from '@web/modules/social-recovery/sdk-interfaces'
 
 import { credentialCommitmentOf, placedCredentialsOf } from './credentials'
+import type { SetupBodyFields } from './types'
 
 const SETUP_BODY = [
   { name: 'wait', type: 'uint48' },
@@ -41,4 +42,21 @@ export const setupBodyOf = (account: Address, configuration: Configuration): Hex
         .map((p) => credentialCommitmentOf(p.credential.method, p.credential.config, p.salt))
     }))
   ])
+}
+
+/**
+ * The fields of a setup body: the wait, the pause choice and each clause's
+ * threshold over its credentials' commitments, in place order. Throws where
+ * the bytes do not decode in the body's layout.
+ */
+export const readSetupBody = (body: Hex): SetupBodyFields => {
+  const [wait, ignoresPause, clauses] = decodeAbiParameters(SETUP_BODY, body)
+  return {
+    wait,
+    ignoresPause,
+    clauses: clauses.map(({ threshold, credentials }) => ({
+      threshold,
+      credentials: [...credentials]
+    }))
+  }
 }

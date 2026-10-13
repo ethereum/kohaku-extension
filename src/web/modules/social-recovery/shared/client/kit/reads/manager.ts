@@ -4,8 +4,10 @@ import {
   type ActionState,
   type Address,
   ATTEMPT_STATES,
+  type AttemptRequest,
   type AttemptState,
   type BlockTag,
+  type CancelRequest,
   type Domain,
   type Hex,
   type IProvider
@@ -62,6 +64,62 @@ export const createManagerReads = (provider: IProvider, manager: Address): Manag
         }
       },
       block
+    )
+  },
+
+  hashApproval(request: AttemptRequest, place: bigint): Promise<Hex> {
+    return viewOf(
+      provider,
+      manager,
+      encodeFunctionData({
+        abi: POLICY_MANAGER_ABI,
+        functionName: 'hashApproval',
+        args: [
+          {
+            account: request.account,
+            action: request.action,
+            attemptId: request.attemptId,
+            setupNonce: request.setupNonce,
+            setupBody: request.setupBody,
+            payload: request.payload,
+            order: request.order,
+            validUntil: request.validUntil,
+            proofs: request.proofs
+          },
+          place
+        ]
+      }),
+      (answer) =>
+        decodeFunctionResult({
+          abi: POLICY_MANAGER_ABI,
+          functionName: 'hashApproval',
+          data: answer
+        })
+    )
+  },
+
+  hashCancel(request: CancelRequest, place: bigint): Promise<Hex> {
+    return viewOf(
+      provider,
+      manager,
+      encodeFunctionData({
+        abi: POLICY_MANAGER_ABI,
+        functionName: 'hashCancel',
+        args: [
+          {
+            account: request.account,
+            action: request.action,
+            attemptId: request.attemptId,
+            setupNonce: request.setupNonce,
+            setupBody: request.setupBody,
+            validUntil: request.validUntil,
+            proofs: request.proofs
+          },
+          place
+        ]
+      }),
+      (answer) =>
+        decodeFunctionResult({ abi: POLICY_MANAGER_ABI, functionName: 'hashCancel', data: answer })
     )
   },
 

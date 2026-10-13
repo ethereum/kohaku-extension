@@ -367,6 +367,24 @@ export interface RuleEvaluation {
   failingClause?: number
 }
 
+/** One clause as the rule evaluation counts it: a threshold over its places, in body order. */
+export interface CountedClause {
+  threshold: number
+  credentials: readonly unknown[]
+}
+
+/** The reading of a setup body's bytes into its clauses, one per layout. */
+export type SetupBodyReader = (setupBody: Hex) => { clauses: CountedClause[] }
+
+/** The rule evaluation over a setup body's bytes, whichever layout they carry. */
+export type RuleEvaluator = (setupBody: Hex, filled: number[]) => RuleEvaluation
+
+/** What an assessment takes beyond the gathering: the window floor and the rule evaluation. */
+export interface AssessOptions {
+  floor: number
+  evaluate: RuleEvaluator
+}
+
 // ---------------------------------------------------------------------------
 // The method doubles and their records
 // ---------------------------------------------------------------------------

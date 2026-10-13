@@ -1,10 +1,10 @@
 /**
  * The members the deployed kit's client does not serve yet: the recovery
- * side, the setup's clear, the events feed and the verify of a pasted reply.
- * Each refuses with a `NotServedRefusal` naming the member, and none falls
- * back to the scripted stand-in.
+ * side's prepares and its events feed, the setup's clear and events feed,
+ * and the verify of a pasted reply. Each refuses with a `NotServedRefusal`
+ * naming the member, and none falls back to the scripted stand-in.
  */
-import type { IEventManager, IRecoveryClient } from '@web/modules/social-recovery/sdk-interfaces'
+import type { IEventManager } from '@web/modules/social-recovery/sdk-interfaces'
 
 import type { NotServedRefusal } from '../../types'
 
@@ -30,21 +30,4 @@ export const notServedEvents = (part: string): IEventManager => ({
   privilegeFilter: refuse(`${part}.events.privilegeFilter`),
   fetch: reject(`${part}.events.fetch`),
   decodeLog: refuse(`${part}.events.decodeLog`)
-})
-
-/** The recovery client, every member refused. */
-export const notServedRecoveryClient = (): IRecoveryClient => ({
-  initRecoveryGathering: reject('recovery.initRecoveryGathering'),
-  initCancelGathering: reject('recovery.initCancelGathering'),
-  getApproverRequests: refuse('recovery.getApproverRequests'),
-  addApproverReply: refuse('recovery.addApproverReply'),
-  assess: refuse('recovery.assess'),
-  complete: refuse('recovery.complete'),
-  prepareStartAttempt: reject('recovery.prepareStartAttempt'),
-  prepareCancelByProofs: reject('recovery.prepareCancelByProofs'),
-  prepareCancelByOwner: reject('recovery.prepareCancelByOwner'),
-  prepareCancelByVeto: reject('recovery.prepareCancelByVeto'),
-  prepareExecuteHandover: reject('recovery.prepareExecuteHandover'),
-  recoveryState: reject('recovery.recoveryState'),
-  events: notServedEvents('recovery')
 })

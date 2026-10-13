@@ -4,6 +4,7 @@
  * not decode. The answers are encoded here from hand-written signatures.
  */
 import {
+  decodeFunctionData,
   encodeErrorResult,
   encodeFunctionData,
   encodeFunctionResult,
@@ -12,7 +13,13 @@ import {
   zeroHash
 } from 'viem'
 
-import type { Address, BlockTag, IProvider } from '@web/modules/social-recovery/sdk-interfaces'
+import type {
+  Address,
+  AttemptRequest,
+  BlockTag,
+  CancelRequest,
+  IProvider
+} from '@web/modules/social-recovery/sdk-interfaces'
 import {
   isProviderReadFailure,
   isRevertedCall,
@@ -37,6 +44,8 @@ const MANAGER_VIEWS = parseAbi([
   'function name() view returns (string)',
   'function version() view returns (string)',
   'function supportsInterface(bytes4 id) view returns (bool)',
+  'function hashApproval((address account, address action, uint64 attemptId, uint64 setupNonce, bytes setupBody, bytes payload, (address token, uint256 amount, address payee) order, uint48 validUntil, (uint256 place, address method, bytes config, bytes32 salt, bytes proof)[] proofs) request, uint256 place) view returns (bytes32)',
+  'function hashCancel((address account, address action, uint64 attemptId, uint64 setupNonce, bytes setupBody, uint48 validUntil, (uint256 place, address method, bytes config, bytes32 salt, bytes proof)[] proofs) request, uint256 place) view returns (bytes32)',
   'error PolicyManager_NoSetup(address account, address action)'
 ])
 
@@ -235,5 +244,95 @@ describe('the manager reads its domain and its identity', () => {
       .catch((error: unknown) => error)
     expect(isProviderReadFailure(thrown)).toBe(true)
     expect(thrown).toMatchObject({ read: 'call' })
+  })
+})
+
+describe('the manager reads the digests of a request', () => {
+  const DIGEST: Hex = `0x${'d1'.repeat(32)}`
+  const BODY: Hex = '0xc0ffee'
+  const approval: AttemptRequest = {
+    account: ACCOUNT,
+    action: ACTION,
+    attemptId: 5n,
+    setupNonce: 3n,
+    setupBody: BODY,
+    payload: '0xabcdef',
+    order: { token: TOKEN, amount: 250n, payee: PAYEE },
+    validUntil: 1_700_000_600,
+    proofs: []
+  }
+  const cancellation: CancelRequest = {
+    account: ACCOUNT,
+    action: ACTION,
+    attemptId: 4n,
+    setupNonce: 3n,
+    setupBody: BODY,
+    validUntil: 1_700_000_300,
+    proofs: []
+  }
+  const approvalCall = encodeFunctionData({
+    abi: MANAGER_VIEWS,
+    functionName: 'hashApproval',
+    args: [approval, 2n]
+  })
+  const cancelCall = encodeFunctionData({
+    abi: MANAGER_VIEWS,
+    functionName: 'hashCancel',
+    args: [cancellation, 0n]
+  })
+  const digestAnswer = (functionName: 'hashApproval' | 'hashCancel'): Hex =>
+    encodeFunctionResult({ abi: MANAGER_VIEWS, functionName, result: DIGEST })
+
+  it('sends the opening request and the place, and decodes the digest', async () => {
+    const { provider, call } = providerAnswering([[approvalCall, digestAnswer('hashApproval')]])
+    await expect(createManagerReads(provider, MANAGER).hashApproval(approval, 2n)).resolves.toBe(
+      DIGEST
+    )
+    const [to, data] = call.mock.calls[0]
+    expect(to).toBe(MANAGER)
+    const decoded = decodeFunctionData({ abi: MANAGER_VIEWS, data })
+    expect(decoded.functionName).toBe('hashApproval')
+    expect(decoded.args).toEqual([approval, 2n])
+  })
+
+  it('sends the cancellation request without a payload or an order', async () => {
+    const { provider, call } = providerAnswering([[cancelCall, digestAnswer('hashCancel')]])
+    const withExtras = { ...cancellation, payload: '0xabcdef' } as CancelRequest
+    await expect(createManagerReads(provider, MANAGER).hashCancel(withExtras, 0n)).resolves.toBe(
+      DIGEST
+    )
+    const decoded = decodeFunctionData({ abi: MANAGER_VIEWS, data: call.mock.calls[0][1] })
+    expect(decoded.functionName).toBe('hashCancel')
+    expect(decoded.args).toEqual([cancellation, 0n])
+  })
+
+  it('keeps the data of a revert', async () => {
+    const data = encodeErrorResult({
+      abi: MANAGER_VIEWS,
+      errorName: 'PolicyManager_NoSetup',
+      args: [ACCOUNT, ACTION]
+    })
+    const { provider } = providerAnswering([[approvalCall, revertedCall('call', data)]])
+    const thrown = await createManagerReads(provider, MANAGER)
+      .hashApproval(approval, 2n)
+      .catch((error: unknown) => error)
+    expect(isRevertedCall(thrown)).toBe(true)
+    expect(thrown).toMatchObject({ data })
+  })
+
+  it('refuses an answer that does not decode as a failed call read', async () => {
+    const { provider } = providerAnswering([
+      [approvalCall, '0x'],
+      [cancelCall, '0x1234']
+    ])
+    const reads = createManagerReads(provider, MANAGER)
+    const thrown = [
+      await reads.hashApproval(approval, 2n).catch((error: unknown) => error),
+      await reads.hashCancel(cancellation, 0n).catch((error: unknown) => error)
+    ]
+    thrown.forEach((error) => {
+      expect(isProviderReadFailure(error)).toBe(true)
+      expect(error).toMatchObject({ read: 'call' })
+    })
   })
 })

@@ -6,6 +6,7 @@ import type {
   DeploymentDescriptor,
   Hex,
   IProvider,
+  IRecoveryClient,
   ISetupClient,
   PrivacyLevel,
   RawLog,
@@ -34,7 +35,10 @@ export interface FakeNode {
   }
   codeRead: { code: jest.Mock<Promise<Hex>, [Address, BlockTag?]> }
   head: BlockHeader
-  answer(to: Address, data: Hex, answer: Hex | Error): void
+  /** Answers one exact call; a function answers it afresh on each call. */
+  answer(to: Address, data: Hex, answer: Hex | Error | ((data: Hex) => Hex | Error)): void
+  /** Answers every call to `to` whose selector is `selector` and has no exact answer. */
+  answerWith(to: Address, selector: Hex, answer: (data: Hex) => Hex | Error): void
   setCode(address: Address, code: Hex): void
   addLog(log: RawLog): void
   /** Every call answered or refused, in order. */
@@ -48,6 +52,9 @@ export interface ScriptedState {
   setupCommittedAtBlock: number
   /** The attempt's state, as the enum's index. */
   attemptState?: number
+  nextAttemptId?: bigint
+  attemptId?: bigint
+  consumableAfter?: number
 }
 
 /** What one fake method module answers. */
@@ -59,6 +66,8 @@ export interface ScriptedMethod {
   paused?: Hex | Error
   /** An error every view of the module throws, `paused()` aside. */
   views?: Error
+  /** The holder `trustedParties()` names for the module's stop; none by default. */
+  pauseHolder?: Address
 }
 
 /** What the fake action answers for the world's account. */
@@ -69,6 +78,8 @@ export interface ScriptedAction {
   authorized?: boolean
   /** The keys the action answers `isAuthority` true for; every other key answers false. */
   authorities?: Address[]
+  /** The keys the action answers `holdsAnyPrivilege` true for; every other key answers false. */
+  holders?: Address[]
   probe?: boolean
 }
 
@@ -96,6 +107,11 @@ export interface KitWorld {
   descriptor: DeploymentDescriptor
   config: ClientConfiguration
   setup: ISetupClient
+  /** The kit's recovery client over the same node, restoring through `setup`. */
+  recovery: IRecoveryClient
   removedKey: jest.Mock
   draft(level: PrivacyLevel, overrides?: Partial<SetupDraft>): SetupDraft
 }
+
+/** The digest a fake manager answers for a request: its own derivation, or a fixed answer. */
+export type ScriptedDigest = Hex | Error | 'derived'
