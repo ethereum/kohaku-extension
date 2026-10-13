@@ -2,8 +2,8 @@
  * The setup client of a deployed kit, over the chain's reads: the setup-side
  * state, the description and the validation of a draft, the commit's prepare
  * and its check after the landing, and the restore of the committed
- * configuration from its backup. The clear and the events feed are not
- * served yet and refuse.
+ * configuration from its backup, and the events feed it is given. The clear
+ * is not served yet and refuses.
  *
  * Every member pins one block first and makes each read at it. A setup
  * commits `keccak256(abi.encode(account, action, nonce, body))` at the next
@@ -60,7 +60,7 @@ import {
 } from '../formats'
 import { draftFindingsOf, isBackupRefusal } from '../validation'
 import { storedCommitCallOf } from './commit-call'
-import { notServedEvents, notServedRefusal } from './not-served'
+import { notServedRefusal } from './not-served'
 import { accountBatchOf, accountCallOf, pinnedBlockOf } from './prepared'
 import { withNamedRevert } from './reverts'
 import type { KitSetupContext, MethodStandingReads } from './types'
@@ -266,7 +266,7 @@ export const createKitSetupClient = (ctx: KitSetupContext): ISetupClient => {
   }
 
   return {
-    events: notServedEvents('setup'),
+    events: ctx.eventManager,
 
     validateSetup(draft: SetupDraft): Promise<ValidationResult> {
       return withNamedRevert(async () => findingsAt(draft, await pin()))

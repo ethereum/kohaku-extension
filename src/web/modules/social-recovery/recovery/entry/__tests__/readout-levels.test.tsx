@@ -275,6 +275,27 @@ describe('the readout at Shape visible', () => {
     expect(await storedCache()).not.toBeNull()
   })
 
+  it('renders a refused setup event read as a failed read with a retry, never as Private', async () => {
+    const world = await commitLostSetup('shape-visible')
+    const refusal = Object.assign(new Error('not served'), {
+      name: 'NotServedRefusal',
+      member: 'setup.events.fetch'
+    })
+    const { events } = world.client.setup
+    const fetch = events.fetch.bind(events)
+    // The restore with no password reads the setup event first; the note read follows it.
+    jest.spyOn(events, 'fetch').mockImplementationOnce(fetch).mockRejectedValueOnce(refusal)
+    const page = await open()
+    expect(events.fetch).toHaveBeenCalledTimes(2)
+    expect(page.has('readout-read-failed')).toBe(true)
+    expect(page.has('readout-locked-private')).toBe(false)
+    expect(page.has('readout-locked-shape-visible')).toBe(false)
+    expectConfigured(page)
+
+    await page.press('readout-read-failed-block-retry')
+    expect(page.has('readout-locked-shape-visible')).toBe(true)
+  })
+
   it('renders a wrong password as the blocker and keeps the values masked', async () => {
     await commitLostSetup('shape-visible')
     const page = await open()

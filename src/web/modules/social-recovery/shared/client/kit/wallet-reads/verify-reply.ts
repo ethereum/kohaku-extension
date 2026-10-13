@@ -30,7 +30,7 @@ import type {
 import { sameAddress } from '../../addresses'
 import { isRevertedCall } from '../../provider-adapter'
 import { VERIFY_MAGIC_VALUE } from '../reads'
-import type { ReplyVerifyReads } from './types'
+import type { KitWalletReads, ReplyVerifyReads } from './types'
 
 const sameBytes = (a: Hex, b: Hex): boolean => a.toLowerCase() === b.toLowerCase()
 
@@ -46,7 +46,7 @@ const digestOf = (request: ApproverRequest): Hex | null => {
 }
 
 export const createReplyVerify =
-  (moduleReads: ReplyVerifyReads) =>
+  (moduleReads: ReplyVerifyReads): KitWalletReads['verifyReply'] =>
   async (request: ApproverRequest, reply: ApproverReply): Promise<Verdict> => {
     if (!replyReadable(reply) || !requestReadable(request)) {
       return 'rejected'

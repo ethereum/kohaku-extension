@@ -612,15 +612,3 @@ describe('the recovery-side state', () => {
     })
   })
 })
-
-describe('the members not served yet', () => {
-  it('refuses the events feed by name', async () => {
-    const { events } = worldWith().recovery
-    const accountFilter = events.accountFilter as () => unknown
-    expect(accountFilter).toThrow(
-      expect.objectContaining({ member: 'recovery.events.accountFilter' })
-    )
-    const fetch = events.fetch as () => Promise<unknown>
-    expect(await thrownBy(fetch())).toMatchObject({ member: 'recovery.events.fetch' })
-  })
-})

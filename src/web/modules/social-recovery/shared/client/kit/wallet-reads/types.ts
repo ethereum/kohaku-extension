@@ -23,6 +23,8 @@ export interface KitWalletReadsInput {
   provider: IProvider
   /** The block tags the reads of an account with no creation record pin at. */
   blockTags?: ClientConfiguration['blockTags']
+  /** The widest block range one privilege log query asks for. */
+  logChunkWidth?: ClientConfiguration['logChunkWidth']
 }
 
 /** The one module view the verify of a pasted reply reads. */

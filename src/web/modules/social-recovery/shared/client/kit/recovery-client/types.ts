@@ -3,6 +3,7 @@ import type {
   ClientConfiguration,
   DeploymentDescriptor,
   Gathering,
+  IEventManager,
   IMethodModuleReads,
   IProvider,
   ISetupClient
@@ -23,6 +24,8 @@ export interface KitRecoveryContext {
   /** The restore of the committed configuration the gatherings are built over. */
   setup: Pick<ISetupClient, 'getSetup'>
   walletReads: Pick<WalletReads, 'removedKey'>
+  /** The events feed the client serves as its own. */
+  eventManager: IEventManager
 }
 
 /** The members of a gathering's request that differ between an approval and a cancellation. */

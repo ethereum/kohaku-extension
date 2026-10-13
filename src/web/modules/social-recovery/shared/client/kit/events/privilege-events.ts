@@ -55,15 +55,21 @@ export const decodePrivilegeLog = (log: RawLog): PrivilegeChangedLog | undefined
   }
 }
 
-/** The privilege writes of Ambire accounts, read through the provider adapter. */
-export const createPrivilegeEvents = (provider: IProvider): PrivilegeEvents => {
+/**
+ * The privilege writes of Ambire accounts, read through the provider adapter
+ * in chunks of at most `chunkWidth` blocks.
+ */
+export const createPrivilegeEvents = (
+  provider: IProvider,
+  chunkWidth?: number
+): PrivilegeEvents => {
   const events: PrivilegeEvents = {
     privilegeFilter(account: Address): FilterSpec {
       return { addresses: [account], topics: [PRIVILEGE_CHANGED_TOPIC] }
     },
 
     async privilegeLogsOf(account: Address, scan: LogScan): Promise<PrivilegeChangedLog[]> {
-      const logs = await logsInChunks(provider, events.privilegeFilter(account), scan)
+      const logs = await logsInChunks(provider, events.privilegeFilter(account), scan, chunkWidth)
       return logs
         .filter((log) => !log.removed)
         .map(decodePrivilegeLog)

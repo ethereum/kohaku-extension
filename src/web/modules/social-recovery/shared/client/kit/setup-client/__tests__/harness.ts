@@ -44,7 +44,10 @@ import type {
   SetupDraft
 } from '@web/modules/social-recovery/sdk-interfaces'
 import { shapeNoteOf } from '@web/modules/social-recovery/shared/client'
-import { createSetupEvents } from '@web/modules/social-recovery/shared/client/kit/events'
+import {
+  createKitEventManager,
+  createSetupEvents
+} from '@web/modules/social-recovery/shared/client/kit/events'
 import {
   createActionReads,
   createManagerReads,
@@ -804,6 +807,11 @@ export const kitWorld = (options: KitWorldOptions = {}): KitWorld => {
   const manager = createManagerReads(node.provider, MANAGER)
   const action = createActionReads({ provider: node.provider, codeRead: node.codeRead }, ACTION)
   const moduleReads = moduleReadsOf(createMethodReads(node.provider))
+  const eventManager = createKitEventManager({
+    provider: node.provider,
+    descriptor,
+    account: ACCOUNT
+  })
   const setup = createKitSetupClient({
     account: ACCOUNT,
     descriptor,
@@ -814,6 +822,7 @@ export const kitWorld = (options: KitWorldOptions = {}): KitWorld => {
     action,
     moduleReads,
     events: createSetupEvents(node.provider, MANAGER),
+    eventManager,
     walletReads: { removedKey },
     initialPrivileges: options.initialPrivileges ?? []
   })
@@ -826,7 +835,8 @@ export const kitWorld = (options: KitWorldOptions = {}): KitWorld => {
     action,
     moduleReads,
     setup,
-    walletReads: { removedKey }
+    walletReads: { removedKey },
+    eventManager
   })
   return { node, descriptor, config, setup, recovery, removedKey, draft: draftAt }
 }

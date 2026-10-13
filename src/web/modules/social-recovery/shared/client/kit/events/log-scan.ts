@@ -20,26 +20,36 @@ export const positionOf = (log: RawLog): LogPosition => ({
   removed: log.removed ?? false
 })
 
-/** The ranges of at most `LOG_CHUNK_BLOCKS` blocks that cover `from` to `to`, both included. */
-export const chunksOf = (from: number, to: number): BlockRange[] => {
+/**
+ * The ranges of at most `width` blocks that cover `from` to `to`, both
+ * included. A width below one block would never advance, so it is refused
+ * before the loop rather than looped on.
+ */
+export const chunksOf = (from: number, to: number, width = LOG_CHUNK_BLOCKS): BlockRange[] => {
+  if (!Number.isInteger(width) || width < 1) {
+    throw new RangeError(
+      `a log chunk width must be a whole number of blocks above zero, not ${width}`
+    )
+  }
   const chunks: BlockRange[] = []
-  for (let first = from; first <= to; first += LOG_CHUNK_BLOCKS) {
-    chunks.push({ from: first, to: Math.min(first + LOG_CHUNK_BLOCKS - 1, to) })
+  for (let first = from; first <= to; first += width) {
+    chunks.push({ from: first, to: Math.min(first + width - 1, to) })
   }
   return chunks
 }
 
 /**
- * The logs of a filter over a scan, one chunk after the other, in chain
- * order. A scan with no last block reads `latest` first.
+ * The logs of a filter over a scan, one chunk of at most `width` blocks after
+ * the other, in chain order. A scan with no last block reads `latest` first.
  */
 export const logsInChunks = async (
   provider: IProvider,
   filter: FilterSpec,
-  scan: LogScan
+  scan: LogScan,
+  width = LOG_CHUNK_BLOCKS
 ): Promise<RawLog[]> => {
   const last = scan.to ?? (await provider.block('latest')).number
-  return chunksOf(scan.from, last).reduce<Promise<RawLog[]>>(async (earlier, range) => {
+  return chunksOf(scan.from, last, width).reduce<Promise<RawLog[]>>(async (earlier, range) => {
     const logs = await earlier
     return [...logs, ...(await provider.logs(filter, range))]
   }, Promise.resolve([]))

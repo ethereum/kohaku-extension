@@ -1,7 +1,9 @@
 import type {
   Address,
+  DeploymentDescriptor,
   FilterSpec,
   Hex,
+  IProvider,
   Notification
 } from '@web/modules/social-recovery/sdk-interfaces'
 
@@ -12,6 +14,21 @@ export type SetupCommittedLog = Extract<Notification, { kind: 'setup-committed' 
 export type SetupClearedLog = Extract<Notification, { kind: 'setup-cleared' }>
 
 export type SetupLog = SetupCommittedLog | SetupClearedLog
+
+/** A decoded `AttemptStarted`, `AttemptCancelled` or `AttemptConsumed` log. */
+export type AttemptLog = Extract<
+  Notification,
+  { kind: 'attempt-started' | 'attempt-cancelled' | 'attempt-consumed' }
+>
+
+/** What the events feed of one account's deployment reads through. */
+export interface KitEventManagerInput {
+  provider: IProvider
+  descriptor: Pick<DeploymentDescriptor, 'manager' | 'action'>
+  account: Address
+  /** The widest block range one log query asks for; the kit's own default where none is given. */
+  chunkWidth?: number
+}
 
 /** The blocks a log scan covers: from a first block to a last one, or to `latest` where none is given. */
 export interface LogScan {

@@ -14,7 +14,7 @@
  * `LogPrivilegeChanged` writes name, beside the keys the wallet knows, and a
  * candidate counts where the account's `privileges` view still holds a value
  * for it at that block and the action's `isAuthority` agrees. The writes are
- * read in chunks of `LOG_CHUNK_BLOCKS` from the account's creation block,
+ * read in chunks of the configured width from the account's creation block,
  * which the wallet does not know, so from `CREATION_BLOCK_STAND_IN`, to the
  * pinned block. The privileges the creation code writes emit no log, so a key
  * only the creation wrote is found only where the wallet knows it.
@@ -54,13 +54,14 @@ export const createKitWalletReads = ({
   moduleReads,
   codeRead,
   provider,
-  blockTags
+  blockTags,
+  logChunkWidth
 }: KitWalletReadsInput): KitWalletReads => {
   // The wallet's account record holds its address as a string; a malformed one throws here.
   const addressOf = (): Address => getAddress(account.addr)
   const hasCode = async (block?: BlockTag): Promise<boolean> =>
     size(await codeRead.code(addressOf(), block)) > 0
-  const privilegeEvents = createPrivilegeEvents(provider)
+  const privilegeEvents = createPrivilegeEvents(provider, logChunkWidth)
   const accountReads = createAccountReads(provider)
 
   const removedKeyWithNoCreation = async (): Promise<RemovedKeyReading> => {

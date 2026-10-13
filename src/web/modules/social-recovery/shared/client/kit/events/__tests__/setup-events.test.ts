@@ -166,6 +166,13 @@ describe('the chunks of a log scan', () => {
   it('covers nothing where the first block is after the last', () => {
     expect(chunksOf(8, 7)).toEqual([])
   })
+
+  it('refuses a width that is not a whole number of blocks above zero', () => {
+    const NOT_A_WIDTH = [0, -1, 1.5, Number.NaN]
+    NOT_A_WIDTH.forEach((width) => {
+      expect(() => chunksOf(0, 10, width)).toThrow(RangeError)
+    })
+  })
 })
 
 describe('a chunked log scan', () => {
@@ -207,6 +214,16 @@ describe('a chunked log scan', () => {
     const { provider, logsRead } = chainWithLogs([])
     logsRead.mockRejectedValueOnce(failure)
     await expect(logsInChunks(provider, filter, { from: 1, to: 5 })).rejects.toBe(failure)
+  })
+
+  it("reads a manager's setup logs in chunks of the width it is given", async () => {
+    const { provider, logsRead } = chainWithLogs([])
+    await createSetupEvents(provider, MANAGER, 2).setupLogsOf(ACCOUNT, { from: 100, to: 104 })
+    expect(logsRead.mock.calls.map(([, range]) => range)).toEqual([
+      { from: 100, to: 101 },
+      { from: 102, to: 103 },
+      { from: 104, to: 104 }
+    ])
   })
 })
 

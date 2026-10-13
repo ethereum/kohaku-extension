@@ -1,8 +1,7 @@
 /**
  * The recovery client of a deployed kit, over the chain's reads: the two
  * gathering inits, the four record operations over the gathering and the
- * recovery-side state, and the five prepares. The events feed is not served
- * yet and refuses.
+ * recovery-side state, the five prepares, and the events feed it is given.
  *
  * Each init pins one block and makes its reads at it, restores the committed
  * configuration through the setup client, and checks once that the digest the
@@ -72,7 +71,7 @@ import {
   startAttemptData,
   transferData
 } from '../formats'
-import { accountCallOf, notServedEvents, pinnedBlockOf, withNamedRevert } from '../setup-client'
+import { accountCallOf, pinnedBlockOf, withNamedRevert } from '../setup-client'
 import { decodedHandoverOf, handoverRowsOf } from './handover'
 import type { GatheringRequestFields, KitRecoveryContext } from './types'
 import { evaluateBody, requestFindingsOf } from './validation'
@@ -231,7 +230,7 @@ export const createKitRecoveryClient = (ctx: KitRecoveryContext): IRecoveryClien
     })
 
   return {
-    events: notServedEvents('recovery'),
+    events: ctx.eventManager,
 
     initRecoveryGathering(
       source: ConfigurationSource,

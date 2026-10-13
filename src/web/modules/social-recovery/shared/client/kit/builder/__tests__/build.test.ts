@@ -2,8 +2,8 @@
  * The client of a deployed kit once its checks passed: the methods it serves
  * by slug, the action bound to the account with its real disarming call, the
  * wallet's reads over the chain with the verify of a pasted reply, the
- * recovery gathering and prepares over the manager, and the members it does
- * not serve yet, each refusing by name.
+ * recovery gathering and prepares over the manager, the one events feed both
+ * sides serve, and the members it does not serve yet, each refusing by name.
  */
 import {
   decodeFunctionData,
@@ -12,6 +12,7 @@ import {
   encodeFunctionResult,
   getAddress,
   type Hex,
+  pad,
   parseAbi,
   zeroAddress,
   zeroHash
@@ -21,6 +22,13 @@ import { PROXY_AMBIRE_ACCOUNT } from '@ambire-common/consts/deploy'
 import { defaultClientConfiguration } from '@web/modules/social-recovery/sdk-doubles'
 import type { Address, ClientConfiguration } from '@web/modules/social-recovery/sdk-interfaces'
 import { buildKitClient } from '@web/modules/social-recovery/shared/client/kit/builder'
+import {
+  ATTEMPT_CANCELLED_TOPIC,
+  ATTEMPT_CONSUMED_TOPIC,
+  ATTEMPT_STARTED_TOPIC,
+  SETUP_CLEARED_TOPIC,
+  SETUP_COMMITTED_TOPIC
+} from '@web/modules/social-recovery/shared/client/kit/events'
 import {
   DEPLOYED_ACTION,
   DEPLOYED_KIT_SLOT,
@@ -89,8 +97,13 @@ const clientOver = (
   facts: DeploymentFacts = FACTS,
   {
     privilegeAccount = LISTED_ACCOUNT,
-    blockTags
-  }: { privilegeAccount?: PrivilegeAccount; blockTags?: ClientConfiguration['blockTags'] } = {}
+    blockTags,
+    logChunkWidth
+  }: {
+    privilegeAccount?: PrivilegeAccount
+    blockTags?: ClientConfiguration['blockTags']
+    logChunkWidth?: number
+  } = {}
 ) => {
   const node = fakeNode()
   scriptDeployment(node)
@@ -103,7 +116,8 @@ const clientOver = (
     addressBook: BOOK,
     config: defaultClientConfiguration({
       accountImplementation: PROXY_AMBIRE_ACCOUNT,
-      ...(blockTags && { blockTags })
+      ...(blockTags && { blockTags }),
+      ...(logChunkWidth !== undefined && { logChunkWidth })
     }),
     provider: node.provider,
     codeRead: node.codeRead,
@@ -233,6 +247,28 @@ describe("the wallet's reads", () => {
     })
   })
 
+  it("reads an unlisted account's privilege writes in chunks of the configured width", async () => {
+    const { node, client } = clientOver(FACTS, {
+      privilegeAccount: {
+        addr: ACCOUNT,
+        associatedKeys: [],
+        initialPrivileges: [],
+        creation: null
+      },
+      logChunkWidth: 400_000
+    })
+    node.setCode(ACCOUNT, CONTRACT_CODE)
+    await expect(client.walletReads.removedKey()).resolves.toEqual({
+      kind: 'unavailable',
+      cause: 'no-key-entry'
+    })
+    expect(node.provider.logs.mock.calls.map(([, range]) => range)).toEqual([
+      { from: 0, to: 399_999 },
+      { from: 400_000, to: 799_999 },
+      { from: 800_000, to: HEAD }
+    ])
+  })
+
   it("verifies a pasted reply through the guardian method's own verify view", async () => {
     const { node, client } = clientOver()
     scriptMethod(node, METHOD_ECDSA, { verify: VERIFY_MAGIC })
@@ -286,23 +322,58 @@ describe('the recovery side', () => {
   })
 })
 
-describe('the members the deployed kit does not serve yet', () => {
-  const EVENTS_THROW = ['accountFilter', 'methodFilter', 'privilegeFilter', 'decodeLog'] as const
+describe('the events feed', () => {
+  it("reads the manager's logs of the account at the deployed action, one feed on both sides", async () => {
+    const { node, client } = clientOver()
+    const { events } = client.setup
+    await expect(
+      events.fetch(events.accountFilter(), { from: HEAD - 10, to: HEAD })
+    ).resolves.toEqual([])
+    expect(node.provider.logs).toHaveBeenCalledWith(
+      {
+        addresses: [MANAGER],
+        topics: [
+          [
+            SETUP_COMMITTED_TOPIC,
+            SETUP_CLEARED_TOPIC,
+            ATTEMPT_STARTED_TOPIC,
+            ATTEMPT_CANCELLED_TOPIC,
+            ATTEMPT_CONSUMED_TOPIC
+          ],
+          pad(ACCOUNT.toLowerCase() as Hex),
+          pad(DEPLOYED_ACTION.toLowerCase() as Hex)
+        ]
+      },
+      { from: HEAD - 10, to: HEAD }
+    )
+    expect(client.recovery.events).toBe(events)
+  })
 
-  EVENTS_THROW.forEach((member) =>
-    it(`throws the events feed member ${member} by name, on both sides`, () => {
-      const { client } = clientOver()
-      ;(['setup', 'recovery'] as const).forEach((part) => {
-        const run = client[part].events[member] as () => unknown
-        expect(run).toThrow(expect.objectContaining({ member: `${part}.events.${member}` }))
-      })
+  it('reads in chunks of the configured width, which a node with a narrow ceiling serves', async () => {
+    const { node, client } = clientOver(FACTS, { logChunkWidth: 2 })
+    const read = node.provider.logs.getMockImplementation()!
+    node.provider.logs.mockImplementation(async (filter, range) => {
+      if (range.to - range.from + 1 > 2) {
+        throw new Error('range too wide')
+      }
+      return read(filter, range)
     })
-  )
+    const { events } = client.setup
+    await expect(events.fetch(events.accountFilter(), { from: 100, to: 104 })).resolves.toEqual([])
+    expect(node.provider.logs.mock.calls.map(([, range]) => range)).toEqual([
+      { from: 100, to: 101 },
+      { from: 102, to: 103 },
+      { from: 104, to: 104 }
+    ])
+  })
+})
 
-  it('rejects the events fetch and the clear by name', async () => {
+describe('the members the deployed kit does not serve yet', () => {
+  it("refuses the events feed's method filter and rejects the clear by name", async () => {
     const { client } = clientOver()
-    const fetch = client.recovery.events.fetch as () => Promise<unknown>
-    expect(await thrownBy(fetch())).toMatchObject({ member: 'recovery.events.fetch' })
+    expect(() => client.recovery.events.methodFilter()).toThrow(
+      expect.objectContaining({ name: 'NotServedRefusal', member: 'events.methodFilter' })
+    )
     expect(await thrownBy(client.setup.prepareClearSetup())).toMatchObject({
       member: 'setup.prepareClearSetup'
     })
