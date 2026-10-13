@@ -1,0 +1,15 @@
+diff --git a/node_modules/react-native-modalize/lib/index.js b/node_modules/react-native-modalize/lib/index.js
+index 0000000..0000000 100644
+--- a/node_modules/react-native-modalize/lib/index.js
++++ b/node_modules/react-native-modalize/lib/index.js
+@@ -87,7 +87,9 @@
+     const handleHeight = withHandle ? 20 : isHandleOutside ? 35 : 20;
+     const fullHeight = screenHeight - modalTopOffset;
+     const computedHeight = fullHeight - handleHeight - (devices_1.isIphoneX ? 34 : 0);
+-    const endHeight = modalHeight || computedHeight;
++    // A window shorter than the top offset and the handle, even for one frame, gives a negative
++    // height, and the translateY interpolation over [-40, 0, endHeight] throws on a decreasing range.
++    const endHeight = modalHeight || Math.max(computedHeight, 0);
+     const adjustValue = adjustToContentHeight ? undefined : endHeight;
+     const snaps = snapPoint ? [0, endHeight - snapPoint, endHeight] : [0, endHeight];
+     const [modalHeightValue, setModalHeightValue] = React.useState(adjustValue);
