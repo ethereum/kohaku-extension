@@ -18,7 +18,7 @@ export interface KitRecoveryContext {
   config: ClientConfiguration
   provider: IProvider
   manager: Pick<ManagerReads, 'stateOf' | 'hashApproval' | 'hashCancel'>
-  action: Pick<ActionReads, 'isAuthority' | 'holdsAnyPrivilege'>
+  action: Pick<ActionReads, 'isAuthority' | 'holdsAnyPrivilege' | 'keyValue'>
   moduleReads: IMethodModuleReads
   /** The restore of the committed configuration the gatherings are built over. */
   setup: Pick<ISetupClient, 'getSetup'>

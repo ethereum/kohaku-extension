@@ -656,7 +656,8 @@ describe('a countdown another tab replaced with another attempt', () => {
     await view.press('wait-execute')
     expect(world.kit.prepareExecuteHandover).toHaveBeenLastCalledWith(
       expect.objectContaining({ attemptId: NEXT_ATTEMPT }),
-      PAYLOAD
+      PAYLOAD,
+      { from: expect.stringMatching(/^0x[0-9a-fA-F]{40}$/) }
     )
     expect(world.port.send).toHaveBeenCalledTimes(sends)
     const stored = await storedCountdown(world)

@@ -1,13 +1,13 @@
 /**
  * The client of a deployed kit for one account, once its construction checks
  * passed: the setup client over the chain's reads, the recovery client's
- * gathering over the same reads and the setup client's restore, the action
- * and the module reads bound to the account, the wallet's removed-key and fit
- * reads, and the approving side. The approving side reads no chain: it is the
+ * gathering and prepares over the same reads and the setup client's restore,
+ * the action and the module reads bound to the account, the wallet's
+ * removed-key and fit reads, and the approving side. The approving side reads no chain: it is the
  * shipped method implementations and the orchestrator over them, keyed by the
  * deployment's method addresses, and it serves only the methods the
- * deployment names. The recovery side's prepares, the clear, the events feed
- * and the verify of a pasted reply are not served yet and refuse.
+ * deployment names. The clear, the events feed and the verify of a pasted
+ * reply are not served yet and refuse.
  */
 import {
   ActionCodecDouble,

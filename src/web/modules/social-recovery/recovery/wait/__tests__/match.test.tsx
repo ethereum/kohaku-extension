@@ -151,7 +151,9 @@ describe('the recovery own attempt', () => {
     expect(view.isDisabled('wait-execute')).toBe(false)
     await view.press('wait-execute')
     expect(world.port.send).toHaveBeenCalledTimes(1)
-    expect(world.kit.prepareExecuteHandover).toHaveBeenCalledWith(chain.attempt, PAYLOAD)
+    expect(world.kit.prepareExecuteHandover).toHaveBeenCalledWith(chain.attempt, PAYLOAD, {
+      from: expect.stringMatching(/^0x[0-9a-fA-F]{40}$/)
+    })
   })
 
   it('matches the payload hash the chain reports in capitals', async () => {

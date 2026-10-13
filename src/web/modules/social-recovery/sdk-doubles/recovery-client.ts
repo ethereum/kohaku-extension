@@ -336,7 +336,7 @@ export class RecoveryClientDouble implements IRecoveryClient {
       }
     }
     const recomputed = setupCommitmentOf(
-      chain.account,
+      request.account,
       request.action,
       request.setupNonce,
       request.setupBody
@@ -537,7 +537,12 @@ export class RecoveryClientDouble implements IRecoveryClient {
       const payee = sameAddress(attempt.order.payee, zeroAddress)
         ? simulationFrom(chain, 'anyone', options)
         : attempt.order.payee
-      describes.push(describe('transfer', [payee, attempt.order.amount], attempt.order.token))
+      // The zero token is the native coin, sent as value with no data.
+      describes.push(
+        sameAddress(attempt.order.token, zeroAddress)
+          ? { to: payee, value: attempt.order.amount, data: '0x' }
+          : describe('transfer', [payee, attempt.order.amount], attempt.order.token)
+      )
     }
     const call = composeCall(chain, {
       name: 'executeHandover',

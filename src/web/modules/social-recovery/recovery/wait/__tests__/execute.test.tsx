@@ -125,7 +125,13 @@ describe('execute now', () => {
     view = await mountWait(world.account)
 
     await view.press('wait-execute')
-    expect(world.kit.prepareExecuteHandover).toHaveBeenCalledWith(world.kit.chain.attempt, PAYLOAD)
+    expect(world.kit.prepareExecuteHandover).toHaveBeenCalledWith(
+      world.kit.chain.attempt,
+      PAYLOAD,
+      {
+        from: expect.stringMatching(/^0x[0-9a-fA-F]{40}$/)
+      }
+    )
     expect(world.kit.reads.nativeBalance).toHaveBeenCalled()
     expect(world.kit.reads.estimateGas).toHaveBeenCalled()
     expect(world.port.send).toHaveBeenCalledTimes(1)
@@ -317,7 +323,8 @@ describe('a later recovery of the same account in the same tab', () => {
     expect(world.port.send).toHaveBeenCalledTimes(2)
     expect(world.kit.prepareExecuteHandover).toHaveBeenLastCalledWith(
       world.kit.chain.attempt,
-      PAYLOAD
+      PAYLOAD,
+      { from: expect.stringMatching(/^0x[0-9a-fA-F]{40}$/) }
     )
   })
 

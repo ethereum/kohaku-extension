@@ -74,6 +74,8 @@ export const OTHER_ACTION: Address = '0xa7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7
 export const THIRD_ACTION: Address = '0xa8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8a8'
 export const KEY_A: Address = '0xb1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1'
 export const KEY_B: Address = '0xb2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2'
+/** The privilege value the action grants a new key; a made-up word. */
+export const KEY_VALUE: Hex = `0x${'00'.repeat(31)}01`
 export const ACCOUNT_CODE: Hex = '0x6080604052'
 export const CONTRACT_CODE: Hex = '0x60806040'
 
@@ -99,6 +101,7 @@ export const ACTION_ABI = parseAbi([
   'function AMBIRE_IMPLEMENTATION() view returns (address)',
   'function KIT_SLOT() view returns (address)',
   'function BINDING() view returns (bytes32)',
+  'function KEY_VALUE() view returns (bytes32)',
   'function isAuthorized(address account) view returns (bool)',
   'function isAuthority(address account, address key) view returns (bool)',
   'function holdsAnyPrivilege(address account, address candidate) view returns (bool)',
@@ -218,7 +221,7 @@ export const stateAnswer = (state: ScriptedState): Hex =>
       state.setupCommittedAtBlock,
       [
         state.attemptId ?? 0n,
-        state.attemptId === undefined ? 0n : state.setupNonce,
+        state.attemptId === undefined ? 0n : state.attemptSetupNonce ?? state.setupNonce,
         state.consumableAfter ?? 0,
         state.attemptState ?? 0,
         false,
@@ -519,6 +522,17 @@ export const scriptAction = (node: FakeNode, script: ScriptedAction = {}): void 
       boolOf('holdsAnyPrivilege', listed(script.holders, key))
     )
   })
+  node.answer(
+    at,
+    encodeFunctionData({ abi: ACTION_ABI, functionName: 'KEY_VALUE' }),
+    script.keyValue instanceof Error
+      ? script.keyValue
+      : encodeFunctionResult({
+          abi: ACTION_ABI,
+          functionName: 'KEY_VALUE',
+          result: script.keyValue ?? KEY_VALUE
+        })
+  )
   node.answer(
     at,
     encodeFunctionData({ abi: ACTION_ABI, functionName: 'name' }),

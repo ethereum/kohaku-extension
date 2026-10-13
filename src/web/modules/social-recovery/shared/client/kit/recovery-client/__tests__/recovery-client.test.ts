@@ -614,25 +614,6 @@ describe('the recovery-side state', () => {
 })
 
 describe('the members not served yet', () => {
-  const PREPARES = [
-    'prepareStartAttempt',
-    'prepareCancelByProofs',
-    'prepareCancelByOwner',
-    'prepareCancelByVeto',
-    'prepareExecuteHandover'
-  ] as const
-  PREPARES.forEach((member) =>
-    it(`rejects recovery.${member} by name, with no read`, async () => {
-      const world = worldWith()
-      const run = world.recovery[member] as () => Promise<unknown>
-      expect(await thrownBy(run())).toMatchObject({
-        name: 'NotServedRefusal',
-        member: `recovery.${member}`
-      })
-      expect(world.node.calls).toEqual([])
-    })
-  )
-
   it('refuses the events feed by name', async () => {
     const { events } = worldWith().recovery
     const accountFilter = events.accountFilter as () => unknown

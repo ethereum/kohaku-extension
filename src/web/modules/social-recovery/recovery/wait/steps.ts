@@ -110,7 +110,9 @@ export const executeStepsOf = (input: ExecuteStepsInput): ExecuteSteps => {
   return {
     readCountdown: readOwn,
     async prepare() {
-      const prepared = await client.recovery.prepareExecuteHandover(attempt, payload)
+      // The sender names who an open payee is paid to, for the screen's row.
+      const from = plan.kind === 'key' ? plan.key.addr : plan.account
+      const prepared = await client.recovery.prepareExecuteHandover(attempt, payload, { from })
       assertWriteDoor('execution', prepared)
       return prepared
     },

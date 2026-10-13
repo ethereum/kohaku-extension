@@ -1,14 +1,20 @@
 /**
  * The recovery client of a deployed kit, over the chain's reads: the two
  * gathering inits, the four record operations over the gathering and the
- * recovery-side state. The prepares and the events feed are not served yet
- * and refuse.
+ * recovery-side state, and the five prepares. The events feed is not served
+ * yet and refuses.
  *
  * Each init pins one block and makes its reads at it, restores the committed
  * configuration through the setup client, and checks once that the digest the
  * approvers will sign, derived here, is the digest the deployed manager
  * derives for the same request: a difference refuses the init, so no
  * approver is ever asked to sign a digest the manager would not accept.
+ *
+ * Each prepare pins one block, makes its reads at it and carries it. The start
+ * and the cancellation by proofs refuse while the request validation names an
+ * error. No prepare runs a simulation, so `simulate` is not read: a revert
+ * surfaces at the gas estimate the sending step makes before any send. The
+ * execute prepare reads `from` only to name the executor an open payee pays.
  */
 import {
   ActionCodecDouble,
@@ -19,22 +25,24 @@ import {
   completeGathering,
   DEFAULT_REQUEST_WINDOW,
   digestOfSubmission,
-  evaluatorOf,
   RECORD_VERSION,
   refuseWith,
   restoreRefusal,
-  unansweredRead
+  unansweredRead,
+  validationRefusal
 } from '@web/modules/social-recovery/sdk-doubles'
 import { deserializeOrder, serializeOrder } from '@web/modules/social-recovery/sdk-doubles/encoding'
-import type { RequestRow } from '@web/modules/social-recovery/sdk-doubles/types'
+import { ARBITRARY_SENDER } from '@web/modules/social-recovery/sdk-doubles/prepared'
 import type {
   ActionState,
   Address,
+  Attempt,
   AttemptRequest,
   BlockHeader,
   CancelRequest,
   Configuration,
   ConfigurationSource,
+  DescribedCall,
   Gathering,
   GatheringPlace,
   GatheringPurpose,
@@ -44,20 +52,45 @@ import type {
   Hex,
   IRecoveryClient,
   PaymentOrder,
+  PrepareOptions,
+  PreparedCall,
   RecoveryState
 } from '@web/modules/social-recovery/sdk-interfaces'
-import { zeroAddress } from 'viem'
+import { keccak256, zeroAddress, zeroHash } from 'viem'
 
 import { sameAddress } from '../../addresses'
-import { placedCredentialsOf, readSetupBody, setupBodyOf, setupCommitmentOf } from '../formats'
-import { notServedEvents, notServedRefusal, pinnedBlockOf, withNamedRevert } from '../setup-client'
+import {
+  cancelByOwnerData,
+  cancelByProofsData,
+  cancelByVetoData,
+  consumeData,
+  executeHandoverData,
+  placedCredentialsOf,
+  privilegeData,
+  setupBodyOf,
+  setupCommitmentOf,
+  startAttemptData,
+  transferData
+} from '../formats'
+import { accountCallOf, notServedEvents, pinnedBlockOf, withNamedRevert } from '../setup-client'
+import { decodedHandoverOf, handoverRowsOf } from './handover'
 import type { GatheringRequestFields, KitRecoveryContext } from './types'
+import { evaluateBody, requestFindingsOf } from './validation'
 
-/** The rule evaluation over the kit's ABI-encoded setup body. */
-const evaluate = evaluatorOf(readSetupBody)
+/** One call anyone may send to `target`, carrying no value, pinned at `block`. */
+const anyoneCallOf = (target: Address, data: Hex, block: BlockHeader): PreparedCall => ({
+  kind: 'call',
+  target,
+  value: 0n,
+  data,
+  sender: 'anyone',
+  block: { number: block.number, hash: block.hash }
+})
+
+const describedCall = (to: Address, data: Hex): DescribedCall => ({ to, value: 0n, data })
 
 export const createKitRecoveryClient = (ctx: KitRecoveryContext): IRecoveryClient => {
-  const { account, descriptor, config, provider, manager, action, moduleReads } = ctx
+  const { account, descriptor, config, provider, manager, moduleReads } = ctx
   const actionAddress = descriptor.action
   const pin = () => pinnedBlockOf(provider, config)
 
@@ -129,29 +162,6 @@ export const createKitRecoveryClient = (ctx: KitRecoveryContext): IRecoveryClien
     action: actionAddress,
     block: { number: block.number, timestamp: String(block.timestamp), hash: block.hash }
   })
-
-  /** The handover rows over two authorities (zero keys, one address twice, the reads). */
-  const handoverRows = async (handover: Handover, block: BlockHeader): Promise<RequestRow[]> => {
-    const { newAuthority, removedAuthority } = handover
-    if (sameAddress(newAuthority, zeroAddress) || sameAddress(removedAuthority, zeroAddress)) {
-      return [['handover.malformed', { newAuthority, removedAuthority, cause: 'zero-key' }]]
-    }
-    if (sameAddress(newAuthority, removedAuthority)) {
-      return [['handover.same-authority', { newAuthority, removedAuthority }]]
-    }
-    const [isAuthority, holds] = await Promise.all([
-      action.isAuthority(account, removedAuthority, block.number),
-      action.holdsAnyPrivilege(account, newAuthority, block.number)
-    ])
-    const rows: RequestRow[] = []
-    if (!isAuthority) {
-      rows.push(['handover.removed-not-authority', { removedAuthority, isAuthority }])
-    }
-    if (holds) {
-      rows.push(['handover.new-holds-privilege', { newAuthority, holdsAnyPrivilege: holds }])
-    }
-    return rows
-  }
 
   /** The digest at place 0 of a gathering's request, derived here and by the manager, compared. */
   const crossCheck = async (gathering: Gathering): Promise<void> => {
@@ -260,7 +270,7 @@ export const createKitRecoveryClient = (ctx: KitRecoveryContext): IRecoveryClien
           newAuthority: handover.newAuthority,
           removedAuthority: removedAuthority as Address
         }
-        const rows = await handoverRows(performed, block)
+        const rows = await handoverRowsOf(ctx, performed, block)
         if (rows.length) {
           refuseWith(...rows)
         }
@@ -300,19 +310,104 @@ export const createKitRecoveryClient = (ctx: KitRecoveryContext): IRecoveryClien
     addApproverReply: addReplyTo,
 
     assess(gathering, now) {
-      return assessGathering(gathering, now, { floor, evaluate })
+      return assessGathering(gathering, now, { floor, evaluate: evaluateBody })
     },
 
     complete(gathering, selection, now) {
-      return completeGathering(gathering, selection, now, evaluate)
+      return completeGathering(gathering, selection, now, evaluateBody)
     },
 
-    prepareStartAttempt: () => Promise.reject(notServedRefusal('recovery.prepareStartAttempt')),
-    prepareCancelByProofs: () => Promise.reject(notServedRefusal('recovery.prepareCancelByProofs')),
-    prepareCancelByOwner: () => Promise.reject(notServedRefusal('recovery.prepareCancelByOwner')),
-    prepareCancelByVeto: () => Promise.reject(notServedRefusal('recovery.prepareCancelByVeto')),
-    prepareExecuteHandover: () =>
-      Promise.reject(notServedRefusal('recovery.prepareExecuteHandover')),
+    prepareStartAttempt(request: AttemptRequest, now: number): Promise<PreparedCall> {
+      return withNamedRevert(async () => {
+        const block = await pin()
+        const errors = await requestFindingsOf(ctx, request, 'approval', now, block)
+        if (errors.length) {
+          throw validationRefusal({ errors, warnings: [] })
+        }
+        return anyoneCallOf(descriptor.manager, startAttemptData(request), block)
+      })
+    },
+
+    prepareCancelByProofs(request: CancelRequest, now: number): Promise<PreparedCall> {
+      return withNamedRevert(async () => {
+        const block = await pin()
+        const errors = await requestFindingsOf(ctx, request, 'cancellation', now, block)
+        if (errors.length) {
+          throw validationRefusal({ errors, warnings: [] })
+        }
+        return anyoneCallOf(descriptor.manager, cancelByProofsData(request), block)
+      })
+    },
+
+    prepareCancelByOwner(): Promise<PreparedCall> {
+      return withNamedRevert(async () =>
+        accountCallOf(descriptor.manager, cancelByOwnerData(actionAddress), await pin())
+      )
+    },
+
+    prepareCancelByVeto(method: Address): Promise<PreparedCall> {
+      return withNamedRevert(async () => {
+        const block = await pin()
+        const state = await manager.stateOf(account, actionAddress, block.number)
+        if (state.attempt.state !== 'Waiting') {
+          refuseWith([
+            'request.no-active-attempt',
+            { action: actionAddress, state: state.attempt.state }
+          ])
+        }
+        return anyoneCallOf(
+          descriptor.manager,
+          cancelByVetoData(account, actionAddress, state.attempt.attemptId, method),
+          block
+        )
+      })
+    },
+
+    prepareExecuteHandover(
+      attempt: Attempt,
+      payload: Hex,
+      options?: PrepareOptions
+    ): Promise<PreparedCall> {
+      return withNamedRevert(async () => {
+        const block = await pin()
+        // The calls the action will run, for a screen and never for signing:
+        // the consume, the grant and the revoke the payload decodes to, and the
+        // payment where the order carries an amount. An undecodable payload
+        // describes no grant and no revoke; the chain refuses it at the estimate.
+        const describes: DescribedCall[] = [
+          describedCall(
+            descriptor.manager,
+            consumeData(actionAddress, attempt.attemptId, keccak256(payload))
+          )
+        ]
+        const handover = decodedHandoverOf(actionAddress, payload)
+        if (handover) {
+          const keyValue = await ctx.action.keyValue()
+          describes.push(
+            describedCall(account, privilegeData(handover.newAuthority, keyValue)),
+            describedCall(account, privilegeData(handover.removedAuthority, zeroHash))
+          )
+        }
+        if (attempt.order.amount > 0n) {
+          // An open payee is described as paid to the executor: the sender the
+          // call simulates as, the given `from` or else the arbitrary sender.
+          // The zero token is the native coin, sent as value with no data.
+          const { token, amount } = attempt.order
+          const payee = sameAddress(attempt.order.payee, zeroAddress)
+            ? options?.from ?? ARBITRARY_SENDER
+            : attempt.order.payee
+          describes.push(
+            sameAddress(token, zeroAddress)
+              ? { to: payee, value: amount, data: '0x' }
+              : describedCall(token, transferData(payee, amount))
+          )
+        }
+        return {
+          ...anyoneCallOf(actionAddress, executeHandoverData(account, payload), block),
+          describes
+        }
+      })
+    },
 
     recoveryState(): Promise<RecoveryState> {
       return withNamedRevert(async () => {

@@ -54,6 +54,8 @@ export interface ScriptedState {
   attemptState?: number
   nextAttemptId?: bigint
   attemptId?: bigint
+  /** The setup nonce the attempt was judged under; the current one by default. */
+  attemptSetupNonce?: bigint
   consumableAfter?: number
 }
 
@@ -80,6 +82,8 @@ export interface ScriptedAction {
   authorities?: Address[]
   /** The keys the action answers `holdsAnyPrivilege` true for; every other key answers false. */
   holders?: Address[]
+  /** The `KEY_VALUE()` answer, or the error the call throws; the harness's word by default. */
+  keyValue?: Hex | Error
   probe?: boolean
 }
 

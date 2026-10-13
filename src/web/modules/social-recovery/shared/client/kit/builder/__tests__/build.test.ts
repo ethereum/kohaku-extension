@@ -1,8 +1,8 @@
 /**
  * The client of a deployed kit once its checks passed: the methods it serves
  * by slug, the action bound to the account with its real disarming call, the
- * wallet's reads over the chain, the recovery gathering over the manager, and
- * the members it does not serve yet, each refusing by name.
+ * wallet's reads over the chain, the recovery gathering and prepares over the
+ * manager, and the members it does not serve yet, each refusing by name.
  */
 import {
   decodeFunctionData,
@@ -58,6 +58,7 @@ const ARMED = '0x000000000000000000000000000000000000000000000000000000000000000
 
 const PRIVILEGE_EVENT = parseAbi(['event LogPrivilegeChanged(address indexed addr, bytes32 priv)'])
 const PRIVILEGES_VIEW = parseAbi(['function privileges(address) view returns (bytes32)'])
+const CANCEL_BY_OWNER = parseAbi(['function cancelByOwner(address action)'])
 
 const BOOK = {
   manager: MANAGER,
@@ -248,29 +249,26 @@ describe('the recovery side', () => {
     })
     expect(node.calls).toEqual([{ to: MANAGER, data: stateOfCall(DEPLOYED_ACTION), block: HEAD }])
   })
+
+  it("prepares the owner's cancel the account sends to the manager, at the pinned block", async () => {
+    const { node, client } = clientOver()
+    const call = await client.recovery.prepareCancelByOwner()
+    expect([call.kind, call.target, call.value, call.sender]).toEqual([
+      'call',
+      MANAGER,
+      0n,
+      'account'
+    ])
+    expect(call.block).toEqual({ number: HEAD, hash: node.head.hash })
+    expect(decodeFunctionData({ abi: CANCEL_BY_OWNER, data: call.data })).toEqual({
+      functionName: 'cancelByOwner',
+      args: [getAddress(DEPLOYED_ACTION)]
+    })
+  })
 })
 
 describe('the members the deployed kit does not serve yet', () => {
-  const RECOVERY_REJECTS = [
-    'prepareStartAttempt',
-    'prepareCancelByProofs',
-    'prepareCancelByOwner',
-    'prepareCancelByVeto',
-    'prepareExecuteHandover'
-  ] as const
   const EVENTS_THROW = ['accountFilter', 'methodFilter', 'privilegeFilter', 'decodeLog'] as const
-
-  RECOVERY_REJECTS.forEach((member) =>
-    it(`rejects recovery.${member} by name`, async () => {
-      const { node, client } = clientOver()
-      const run = client.recovery[member] as () => Promise<unknown>
-      expect(await thrownBy(run())).toMatchObject({
-        name: 'NotServedRefusal',
-        member: `recovery.${member}`
-      })
-      expect(node.calls).toEqual([])
-    })
-  )
 
   EVENTS_THROW.forEach((member) =>
     it(`throws the events feed member ${member} by name, on both sides`, () => {
