@@ -71,8 +71,8 @@ export const createKitEventManager = ({
     /**
      * The owned notifications of the filter's logs over the range, read in
      * chunks in chain order. A log a reorg removed is dropped, and a log
-     * that does not decode is skipped. A failed chunk read rejects the whole
-     * read with the adapter's failure.
+     * that does not decode is skipped. A chunk that still fails after its
+     * retries rejects the whole read with the adapter's failure.
      */
     async fetch(filter: FilterSpec, range: BlockRange): Promise<Notification[]> {
       if (range.to < range.from) {

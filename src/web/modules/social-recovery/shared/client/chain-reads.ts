@@ -8,7 +8,7 @@
  */
 import type { Address, BlockTag, PreparedCall } from '@web/modules/social-recovery/sdk-interfaces'
 
-import { attemptRead, callFailureOf, quantityOf } from './provider-adapter'
+import { attemptRead, callFailureOf, quantityOf, retryWhileRateLimited } from './provider-adapter'
 import type { ChainReads, ChainReadsProvider, GasEstimateCall } from './types'
 
 /**
@@ -24,12 +24,14 @@ export const createChainReads = (provider: ChainReadsProvider): ChainReads => ({
 
   async estimateGas(call: GasEstimateCall): Promise<bigint> {
     try {
-      return await provider.estimateGas({
-        from: call.from,
-        to: call.to,
-        data: call.data,
-        value: call.value
-      })
+      return await retryWhileRateLimited(() =>
+        provider.estimateGas({
+          from: call.from,
+          to: call.to,
+          data: call.data,
+          value: call.value
+        })
+      )
     } catch (thrown) {
       throw callFailureOf('estimateGas', thrown)
     }

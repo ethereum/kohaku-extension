@@ -99,6 +99,8 @@ export const MANAGER_ABI = parseAbi([
   'function clearSetup(address action, uint64 nonce)',
   'event SetupCommitted(address indexed account, address indexed action, uint64 nonce, bytes32 setupCommitment, bytes publicMetadata, bytes privateMetadata)',
   'event SetupCleared(address indexed account, address indexed action, uint64 nonce)',
+  'event AttemptStarted(address indexed account, address indexed action, uint64 attemptId, uint64 setupNonce, bytes setupBody, uint256[] usedPlaces, address[] usedMethods, bytes payload, (address token, uint256 amount, address payee) order, uint48 consumableAfter)',
+  'event AttemptConsumed(address indexed account, address indexed action, uint64 attemptId)',
   'function hashApproval((address account, address action, uint64 attemptId, uint64 setupNonce, bytes setupBody, bytes payload, (address token, uint256 amount, address payee) order, uint48 validUntil, (uint256 place, address method, bytes config, bytes32 salt, bytes proof)[] proofs) request, uint256 place) view returns (bytes32)',
   'function hashCancel((address account, address action, uint64 attemptId, uint64 setupNonce, bytes setupBody, uint48 validUntil, (uint256 place, address method, bytes config, bytes32 salt, bytes proof)[] proofs) request, uint256 place) view returns (bytes32)',
   'error PolicyManager_WrongSetupNonce(uint64 supplied, uint64 expected)',
@@ -148,8 +150,9 @@ const topicMatches = (expected: FilterSpec['topics'][number], actual: Hex | unde
 export const fakeNode = (): FakeNode => {
   const routes = new Map<string, Hex | Error | ((data: Hex) => Hex | Error)>()
   const handlers = new Map<string, (data: Hex) => Hex | Error>()
-  const codes = new Map<string, Hex>()
+  const codes = new Map<string, { code: Hex; from: number }>()
   const logs: RawLog[] = []
+  const senders = new Map<string, Address | Error>()
   const calls: NodeCall[] = []
   const head = { number: HEAD, timestamp: HEAD_TIMESTAMP, hash: pad(`0x${HEAD.toString(16)}`) }
   const keyOf = (to: Address, data: Hex) => `${to.toLowerCase()}:${data.toLowerCase()}`
@@ -187,8 +190,18 @@ export const fakeNode = (): FakeNode => {
   return {
     provider,
     codeRead: {
-      code: jest.fn(async (address: Address) => codes.get(address.toLowerCase()) ?? '0x')
+      code: jest.fn(async (address: Address, block?: BlockTag) => {
+        const held = codes.get(address.toLowerCase())
+        return held && (typeof block !== 'number' || block >= held.from) ? held.code : '0x'
+      })
     },
+    transactionRead: jest.fn(async (hash: Hex) => {
+      const sender = senders.get(hash.toLowerCase())
+      if (sender instanceof Error) {
+        throw sender
+      }
+      return sender ?? null
+    }),
     head,
     answer: (to, data, answer) => {
       routes.set(keyOf(to, data), answer)
@@ -196,11 +209,14 @@ export const fakeNode = (): FakeNode => {
     answerWith: (to, selector, answer) => {
       handlers.set(keyOf(to, selector), answer)
     },
-    setCode: (address, code) => {
-      codes.set(address.toLowerCase(), code)
+    setCode: (address, code, from = 0) => {
+      codes.set(address.toLowerCase(), { code, from })
     },
     addLog: (log) => {
       logs.push(log)
+    },
+    setSender: (hash, sender) => {
+      senders.set(hash.toLowerCase(), sender)
     },
     calls
   }
@@ -594,7 +610,7 @@ export const scriptAction = (node: FakeNode, script: ScriptedAction = {}): void 
 }
 
 // ---------------------------------------------------------------------------
-// The setup logs
+// The setup and attempt logs
 // ---------------------------------------------------------------------------
 
 let logIndex = 0
@@ -637,6 +653,52 @@ export const clearedLog = (action: Address, nonce: bigint, blockNumber: number):
       args: { account: ACCOUNT, action }
     }) as Hex[],
     encodeAbiParameters(parseAbiParameters('uint64'), [nonce]),
+    blockNumber
+  )
+
+/** An attempt's start at `action` carrying `payload`, every other field fixed. */
+export const attemptStartedLog = (
+  attemptId: bigint,
+  payload: Hex,
+  blockNumber: number,
+  action: Address = ACTION
+): RawLog =>
+  logAt(
+    encodeEventTopics({
+      abi: MANAGER_ABI,
+      eventName: 'AttemptStarted',
+      args: { account: ACCOUNT, action }
+    }) as Hex[],
+    encodeAbiParameters(
+      parseAbiParameters(
+        'uint64, uint64, bytes, uint256[], address[], bytes, (address token, uint256 amount, address payee), uint48'
+      ),
+      [
+        attemptId,
+        1n,
+        '0x',
+        [0n],
+        [METHOD_ECDSA],
+        payload,
+        { token: zeroAddress, amount: 0n, payee: zeroAddress },
+        0
+      ]
+    ),
+    blockNumber
+  )
+
+export const attemptConsumedLog = (
+  attemptId: bigint,
+  blockNumber: number,
+  action: Address = ACTION
+): RawLog =>
+  logAt(
+    encodeEventTopics({
+      abi: MANAGER_ABI,
+      eventName: 'AttemptConsumed',
+      args: { account: ACCOUNT, action }
+    }) as Hex[],
+    encodeAbiParameters(parseAbiParameters('uint64'), [attemptId]),
     blockNumber
   )
 

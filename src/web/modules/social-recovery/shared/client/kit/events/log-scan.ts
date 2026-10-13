@@ -1,3 +1,4 @@
+import { delayPromise } from '@common/utils/promises'
 import type {
   BlockRange,
   FilterSpec,
@@ -6,10 +7,22 @@ import type {
   RawLog
 } from '@web/modules/social-recovery/sdk-interfaces'
 
+import { rateLimited } from '../../provider-adapter'
 import type { LogScan } from './types'
 
 /** The widest block range one log query asks for, since a node may cap the range. */
 export const LOG_CHUNK_BLOCKS = 10_000
+
+/**
+ * A chunk whose read fails is read again, up to this many more times, after
+ * a pause that starts at `LOG_CHUNK_RETRY_MS` and doubles each time: a
+ * transient failure on one chunk must not fail a read that would pass a
+ * second later. A failure the node's rate limit caused is not read again
+ * here, since the provider adapter already made that read again with its own
+ * pauses.
+ */
+export const LOG_CHUNK_RETRIES = 3
+export const LOG_CHUNK_RETRY_MS = 1_000
 
 /** Where a raw log sits in the chain; a log with no removed flag reads as not removed. */
 export const positionOf = (log: RawLog): LogPosition => ({
@@ -38,9 +51,29 @@ export const chunksOf = (from: number, to: number, width = LOG_CHUNK_BLOCKS): Bl
   return chunks
 }
 
+/** One chunk's logs; a failed read rejects with its last failure once the retries are spent. */
+const chunkLogs = async (
+  provider: IProvider,
+  filter: FilterSpec,
+  range: BlockRange,
+  retriesLeft = LOG_CHUNK_RETRIES,
+  pauseMs = LOG_CHUNK_RETRY_MS
+): Promise<RawLog[]> => {
+  try {
+    return await provider.logs(filter, range)
+  } catch (failure) {
+    if (retriesLeft === 0 || rateLimited(failure)) {
+      throw failure
+    }
+    await delayPromise(pauseMs)
+    return chunkLogs(provider, filter, range, retriesLeft - 1, pauseMs * 2)
+  }
+}
+
 /**
  * The logs of a filter over a scan, one chunk of at most `width` blocks after
  * the other, in chain order. A scan with no last block reads `latest` first.
+ * A failed chunk is read again before the scan fails.
  */
 export const logsInChunks = async (
   provider: IProvider,
@@ -51,6 +84,6 @@ export const logsInChunks = async (
   const last = scan.to ?? (await provider.block('latest')).number
   return chunksOf(scan.from, last, width).reduce<Promise<RawLog[]>>(async (earlier, range) => {
     const logs = await earlier
-    return [...logs, ...(await provider.logs(filter, range))]
+    return [...logs, ...(await chunkLogs(provider, filter, range))]
   }, Promise.resolve([]))
 }

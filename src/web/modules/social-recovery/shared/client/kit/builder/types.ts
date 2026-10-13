@@ -10,7 +10,8 @@ import type {
   CodeRead,
   DeploymentFacts,
   PrivilegeAccount,
-  RecoveryChain
+  RecoveryChain,
+  TransactionRead
 } from '../../types'
 import type { ActionReads, ManagerReads } from '../reads'
 
@@ -33,6 +34,8 @@ export interface KitClientInput {
   config: ClientConfiguration
   provider: IProvider
   codeRead: CodeRead
+  /** The sender of a transaction, which the removed key of an account with no creation record reads. */
+  transactionRead: TransactionRead
   manager: ManagerReads
   action: ActionReads
   /** The account with the keys the wallet knows for it. */

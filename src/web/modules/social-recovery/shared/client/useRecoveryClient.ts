@@ -27,7 +27,7 @@ import { buildRecoveryClient, isDigestVersionRefusal } from './build-client'
 import { createChainReads } from './chain-reads'
 import { CHAIN_IDS, WALLET_RECOVERY_CHAIN } from './chains'
 import { extensionProviderFor, networkOf, providerKeyOf } from './extension-provider'
-import { createCodeRead, createProviderAdapter } from './provider-adapter'
+import { createCodeRead, createProviderAdapter, createTransactionRead } from './provider-adapter'
 import { createReceiptWait } from './receipts'
 import type { AccountFacts, ExtensionProvider, RecoveryClientState } from './types'
 
@@ -109,7 +109,8 @@ export const useRecoveryClient = (
       account,
       addressBook: addressBookOf(WALLET_RECOVERY_CHAIN),
       provider: createProviderAdapter(provider),
-      codeRead: createCodeRead(provider)
+      codeRead: createCodeRead(provider),
+      transactionRead: createTransactionRead(provider)
     })
       .then((client) => {
         if (live) {

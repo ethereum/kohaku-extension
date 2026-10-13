@@ -1,10 +1,12 @@
 import type {
   Address,
   ClientConfiguration,
+  DeploymentDescriptor,
+  IEventManager,
   IProvider
 } from '@web/modules/social-recovery/sdk-interfaces'
 
-import type { CodeRead, PrivilegeAccount, WalletReads } from '../../types'
+import type { CodeRead, PrivilegeAccount, TransactionRead, WalletReads } from '../../types'
 import type { ActionReads, MethodReads } from '../reads/types'
 
 /** What the wallet's two account reads take. */
@@ -25,6 +27,12 @@ export interface KitWalletReadsInput {
   blockTags?: ClientConfiguration['blockTags']
   /** The widest block range one privilege log query asks for. */
   logChunkWidth?: ClientConfiguration['logChunkWidth']
+  /** The deployment whose manager and action name the account's keys, and the block its scans start at. */
+  descriptor: Pick<DeploymentDescriptor, 'manager' | 'action' | 'deployedAt'>
+  /** The account's events feed, for its latest setup commit and its attempts at the action. */
+  events: Pick<IEventManager, 'accountFilter' | 'fetch'>
+  /** The sender of the transaction that carried a setup commit. */
+  transactionRead: TransactionRead
 }
 
 /** The one module view the verify of a pasted reply reads. */

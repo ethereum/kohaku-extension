@@ -1,60 +1,96 @@
 /**
  * The key a recovery would remove from a deployed account the wallet holds no
- * creation record for, read over a fake provider at one pinned block: the
- * account's privilege writes are scanned in chunks from the creation block
- * stand-in to that block, each address they name is asked about with the
- * account's `privileges` view and then with the action's `isAuthority`, and
- * exactly one key that passes both is the removed key. The logs and the view
- * answers are encoded here from hand-written signatures.
+ * creation record for, read over a fake node at one pinned block. The
+ * candidates come from the keys the wallet knows, the sender of the
+ * account's latest setup commit at the action, the new key of its latest
+ * consumed handover and the addresses its privilege writes name. The
+ * manager's logs are read from its deployment block, the privilege writes
+ * from the first block at which the account has code. The candidates of every source
+ * are judged together, each asked about once with the account's `privileges`
+ * view and then with the action's `isAuthority`, and every key that passes
+ * both counts, whichever source named it.
+ * The logs and the view answers are encoded here from hand-written
+ * signatures.
  */
 import {
   decodeFunctionData,
   encodeAbiParameters,
   encodeEventTopics,
+  encodeFunctionResult,
+  getAddress,
   type Hex,
   pad,
   parseAbi,
+  toFunctionSelector,
   zeroHash
 } from 'viem'
 
+import { ERC_4337_ENTRYPOINT } from '@ambire-common/consts/deploy'
 import type {
   Address,
-  BlockHeader,
   BlockRange,
-  BlockTag,
-  ClientConfiguration,
   FilterSpec,
   RawLog
 } from '@web/modules/social-recovery/sdk-interfaces'
-import { CREATION_BLOCK_STAND_IN } from '@web/modules/social-recovery/shared/client'
-import { providerReadFailure } from '@web/modules/social-recovery/shared/client/provider-adapter'
+import { eachIt } from '@web/modules/social-recovery/shared/chrome/__fixtures__/table'
+import { createKitEventManager } from '@web/modules/social-recovery/shared/client/kit/events'
+import { pastRetryPauses } from '@web/modules/social-recovery/shared/client/kit/events/__fixtures__/retries'
+import {
+  createActionReads,
+  createMethodReads
+} from '@web/modules/social-recovery/shared/client/kit/reads'
+import {
+  ACCOUNT,
+  ACCOUNT_CODE,
+  ACTION,
+  attemptConsumedLog,
+  attemptStartedLog,
+  committedLog,
+  CONTRACT_CODE,
+  DEPLOYED_AT,
+  DESCRIPTOR,
+  fakeNode,
+  HEAD,
+  KEY_A,
+  KEY_B,
+  MANAGER,
+  OTHER_ACTION
+} from '@web/modules/social-recovery/shared/client/kit/setup-client/__tests__/harness'
 import { createKitWalletReads } from '@web/modules/social-recovery/shared/client/kit/wallet-reads'
+import type { UnlistedWorldOptions } from '@web/modules/social-recovery/shared/client/kit/wallet-reads/__fixtures__/types'
+import { providerReadFailure } from '@web/modules/social-recovery/shared/client/provider-adapter'
 
-const ACCOUNT: Address = '0xabCDeF0123456789AbcdEf0123456789aBCDEF01'
-const OTHER_ACCOUNT: Address = '0x2222222222222222222222222222222222222222'
-const KEY_A: Address = '0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa'
-const KEY_B: Address = '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB'
-const KEY_C: Address = '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC'
+const KEY_C: Address = '0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3'
+const CONTROLLER: Address = '0xc4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4'
+const NEW_KEY: Address = '0xc5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5'
+const RELAYER: Address = '0xc6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6'
+const STRANGER: Address = '0xc7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7'
 const ACTION_HOLDER: Address = '0x6666666666666666666666666666666666666666'
-const ENTRY_POINT: Address = '0x0000000071727De22E5E9d8BAf0edAc6f37da032'
-const IMPLEMENTATION: Address = '0x0F2AA7bcda3d9D210dF69a394b6965CB2566c828'
-const ACCOUNT_CODE: Hex = '0x6080604052'
+const ENTRY_POINT = getAddress(ERC_4337_ENTRYPOINT)
+const COMMITMENT: Hex = `0x${'5a'.repeat(32)}`
 const HOLDS: Hex = pad('0x01')
 
 const PRIVILEGE_EVENT = parseAbi(['event LogPrivilegeChanged(address indexed addr, bytes32 priv)'])
 const PRIVILEGES_VIEW = parseAbi(['function privileges(address) view returns (bytes32)'])
+const IS_AUTHORITY = parseAbi([
+  'function isAuthority(address account, address key) view returns (bool)'
+])
 const [PRIVILEGE_TOPIC] = encodeEventTopics({
   abi: PRIVILEGE_EVENT,
   eventName: 'LogPrivilegeChanged'
 })
 
+const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+const lower = (key: string) => key.toLowerCase()
+/** A named key, whatever the case its source spelled it in. */
+const named = (key: Address) => ({
+  kind: 'named',
+  key: expect.stringMatching(new RegExp(`^${key}$`, 'i'))
+})
+const listed = (keys: readonly Address[], key: Address) => keys.some((held) => same(held, key))
+
 let logIndex = 0
-const privilegeLog = (
-  addr: Address,
-  priv: Hex,
-  blockNumber: number,
-  extra: Partial<RawLog> = {}
-): RawLog => {
+const privilegeLog = (addr: Address, priv: Hex, blockNumber: number, removed = false) => {
   logIndex += 1
   return {
     address: ACCOUNT,
@@ -67,187 +103,290 @@ const privilegeLog = (
     blockNumber,
     blockHash: pad(`0x${blockNumber.toString(16)}`),
     logIndex,
-    transactionHash: pad(`0x${(blockNumber * 1000 + logIndex).toString(16)}`),
-    ...extra
+    transactionHash: pad(`0x${(blockNumber * 10 + logIndex).toString(16)}`),
+    removed
   }
 }
 
-const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+const commitAt = (blockNumber: number, action: Address = ACTION) =>
+  committedLog({ action, nonce: 1n, setupCommitment: COMMITMENT }, blockNumber)
 
-/**
- * A deployed account with no creation record. The fake node answers every log
- * of the range whatever the filter, so the read's own filtering shows.
- */
+/** The action's payload of a handover to `newAuthority`. */
+const handoverTo = (newAuthority: Address): Hex =>
+  encodeAbiParameters(
+    [{ type: 'address' }, { type: 'address' }],
+    [newAuthority, '0x0000000000000000000000000000000000000bad']
+  )
+
 const worldOf = ({
-  head = 100,
   code = ACCOUNT_CODE,
+  deployedAt = DEPLOYED_AT,
+  createdAt = deployedAt,
   logs = [],
+  senders = [],
   holders = [],
   authorities = [],
   associatedKeys = [],
   knownKeys,
   blockTags
-}: {
-  head?: number
-  code?: Hex
-  logs?: RawLog[]
-  holders?: Address[]
-  authorities?: Address[]
-  associatedKeys?: string[]
-  knownKeys?: Address[]
-  blockTags?: ClientConfiguration['blockTags']
-}) => {
-  const block = jest.fn<Promise<BlockHeader>, [BlockTag]>(async () => ({
-    number: head,
-    timestamp: 1_700_000_000,
-    hash: pad('0x01')
-  }))
-  const logsRead = jest.fn(
-    async (_filter: FilterSpec, range: BlockRange): Promise<RawLog[]> =>
-      logs.filter((log) => log.blockNumber >= range.from && log.blockNumber <= range.to)
+}: UnlistedWorldOptions = {}) => {
+  const node = fakeNode()
+  node.setCode(ACCOUNT, code, createdAt)
+  node.setCode(ACTION, CONTRACT_CODE)
+  logs.forEach((log) => node.addLog(log))
+  senders.forEach(([hash, sender]) =>
+    node.setSender(hash, sender instanceof Error ? sender : getAddress(sender))
   )
-  const call = jest.fn<Promise<Hex>, [Address, Hex, Address | undefined, BlockTag]>(
-    async (...[, data]) => {
-      const {
-        args: [key]
-      } = decodeFunctionData({ abi: PRIVILEGES_VIEW, data })
-      return holders.some((holder) => same(holder, key)) ? HOLDS : zeroHash
-    }
-  )
-  const provider = { chainId: jest.fn(async () => 11155111), call, logs: logsRead, block }
-  const codeRead = { code: jest.fn<Promise<Hex>, [Address, BlockTag?]>(async () => code) }
-  const action = {
-    isAuthority: jest.fn<Promise<boolean>, [Address, Address, BlockTag?]>(async (...[, key]) =>
-      authorities.some((authority) => same(authority, key))
-    ),
-    supportsAccount: jest.fn<Promise<boolean>, [Address]>(async () => true),
-    ambireImplementation: jest.fn(async () => IMPLEMENTATION)
-  }
+  node.answerWith(ACCOUNT, toFunctionSelector('privileges(address)'), (data) => {
+    const {
+      args: [key]
+    } = decodeFunctionData({ abi: PRIVILEGES_VIEW, data })
+    return listed(holders, key) ? HOLDS : zeroHash
+  })
+  node.answerWith(ACTION, toFunctionSelector('isAuthority(address,address)'), (data) => {
+    const {
+      args: [, key]
+    } = decodeFunctionData({ abi: IS_AUTHORITY, data })
+    return encodeFunctionResult({
+      abi: IS_AUTHORITY,
+      functionName: 'isAuthority',
+      result: listed(authorities, key)
+    })
+  })
+  const descriptor = { ...DESCRIPTOR, deployedAt }
   const reads = createKitWalletReads({
     account: { addr: ACCOUNT, associatedKeys, initialPrivileges: [], creation: null },
     knownKeys,
-    action,
-    moduleReads: { verify: jest.fn() },
-    codeRead,
-    provider,
-    blockTags
+    action: createActionReads({ provider: node.provider, codeRead: node.codeRead }, ACTION),
+    moduleReads: createMethodReads(node.provider),
+    codeRead: node.codeRead,
+    provider: node.provider,
+    blockTags,
+    descriptor,
+    events: createKitEventManager({ provider: node.provider, descriptor, account: ACCOUNT }),
+    transactionRead: node.transactionRead
   })
   const askedPrivileges = () =>
-    call.mock.calls.map(([, data]) => decodeFunctionData({ abi: PRIVILEGES_VIEW, data }).args[0])
-  return { reads, block, logsRead, call, codeRead, action, askedPrivileges }
+    node.calls
+      .filter(({ to }) => same(to, ACCOUNT))
+      .map(({ data }) => lower(decodeFunctionData({ abi: PRIVILEGES_VIEW, data }).args[0]))
+  const askedAuthority = () =>
+    node.calls
+      .filter(({ to }) => same(to, ACTION))
+      .map(({ data, block }) => [
+        lower(decodeFunctionData({ abi: IS_AUTHORITY, data }).args[1]),
+        block
+      ])
+  const scans = () =>
+    (node.provider.logs.mock.calls as [FilterSpec, BlockRange][]).map(([filter, range]) => ({
+      filter,
+      range
+    }))
+  const scansOf = (address: Address) =>
+    scans()
+      .filter(({ filter }) => same(filter.addresses[0], address))
+      .map(({ range }) => range)
+  return { node, reads, askedPrivileges, askedAuthority, scans, scansOf }
 }
 
-describe('the privilege writes scan of an account with no creation record', () => {
-  it('reads the chunks from the stand-in block to the pinned head with the account filter', async () => {
-    const { reads, block, logsRead } = worldOf({ head: 25_000 })
-    await reads.removedKey()
-    expect(block.mock.calls).toEqual([['latest']])
-    expect(logsRead.mock.calls).toEqual(
-      [
-        { from: CREATION_BLOCK_STAND_IN, to: 9_999 },
-        { from: 10_000, to: 19_999 },
-        { from: 20_000, to: 25_000 }
-      ].map((range) => [{ addresses: [ACCOUNT], topics: [PRIVILEGE_TOPIC] }, range])
-    )
+describe("the sender of the account's latest setup commit", () => {
+  it('is the removed key where no privilege write names it and the wallet knows none, once the action counts it', async () => {
+    const commit = commitAt(DEPLOYED_AT + 10)
+    const { node, reads, askedAuthority } = worldOf({
+      logs: [commit],
+      senders: [[commit.transactionHash, CONTROLLER]],
+      holders: [CONTROLLER],
+      authorities: [CONTROLLER]
+    })
+    await expect(reads.removedKey()).resolves.toEqual(named(CONTROLLER))
+    expect(node.transactionRead.mock.calls).toEqual([[commit.transactionHash]])
+    expect(askedAuthority()).toEqual([[CONTROLLER, HEAD]])
   })
 
-  it('pins every read at the block of the configured read tag', async () => {
-    const { reads, block, logsRead, call, codeRead, action } = worldOf({
-      head: 4_321,
-      logs: [privilegeLog(KEY_A, HOLDS, 40)],
-      holders: [KEY_A],
-      authorities: [KEY_A],
-      blockTags: { read: 'finalized', watch: 'finalized' }
+  it('is read from the latest commit at the action, never an earlier one or one at another action', async () => {
+    const earlier = commitAt(DEPLOYED_AT + 10)
+    const latest = commitAt(DEPLOYED_AT + 20)
+    const elsewhere = commitAt(DEPLOYED_AT + 30, OTHER_ACTION)
+    const { node, reads } = worldOf({
+      logs: [earlier, latest, elsewhere],
+      senders: [
+        [earlier.transactionHash, KEY_A],
+        [latest.transactionHash, CONTROLLER],
+        [elsewhere.transactionHash, KEY_B]
+      ],
+      holders: [KEY_A, KEY_B, CONTROLLER],
+      authorities: [KEY_A, KEY_B, CONTROLLER]
     })
-    await expect(reads.removedKey()).resolves.toEqual({ kind: 'named', key: KEY_A })
-    expect(block.mock.calls).toEqual([['finalized']])
-    expect(codeRead.code.mock.calls).toEqual([[ACCOUNT, 4_321]])
-    expect(logsRead.mock.calls.map(([, range]) => range.to)).toEqual([4_321])
-    expect(call.mock.calls.map(([to, , , at]) => [to, at])).toEqual([[ACCOUNT, 4_321]])
-    expect(action.isAuthority.mock.calls).toEqual([[ACCOUNT, KEY_A, 4_321]])
+    await expect(reads.removedKey()).resolves.toEqual(named(CONTROLLER))
+    expect(node.transactionRead.mock.calls).toEqual([[latest.transactionHash]])
+  })
+
+  eachIt<[string, Address | null]>([
+    ['a relayer the action does not count', RELAYER],
+    ['no sender, the node knowing no such transaction', null]
+  ])('is dropped for %s, and the next source answers', async (_, sender) => {
+    const commit = commitAt(DEPLOYED_AT + 10)
+    const { reads } = worldOf({
+      logs: [commit, privilegeLog(KEY_A, HOLDS, DEPLOYED_AT + 5)],
+      senders: sender ? [[commit.transactionHash, sender]] : [],
+      holders: [KEY_A, RELAYER],
+      authorities: [KEY_A]
+    })
+    await expect(reads.removedKey()).resolves.toEqual(named(KEY_A))
+  })
+
+  it('leaves the key unnamed where a later privilege write gave a second key authority', async () => {
+    const commit = commitAt(DEPLOYED_AT + 10)
+    const { reads } = worldOf({
+      logs: [commit, privilegeLog(KEY_C, HOLDS, DEPLOYED_AT + 20)],
+      senders: [[commit.transactionHash, CONTROLLER]],
+      holders: [CONTROLLER, KEY_C],
+      authorities: [CONTROLLER, KEY_C]
+    })
+    await expect(reads.removedKey()).resolves.toEqual({
+      kind: 'unavailable',
+      cause: 'several-key-entries'
+    })
+  })
+
+  it('rejects where the transaction read fails, never answering a refusal', async () => {
+    const commit = commitAt(DEPLOYED_AT + 10)
+    const failure = providerReadFailure('transaction', new Error('timeout'))
+    const { reads } = worldOf({
+      logs: [commit, privilegeLog(KEY_A, HOLDS, DEPLOYED_AT + 5)],
+      senders: [[commit.transactionHash, failure]],
+      holders: [KEY_A],
+      authorities: [KEY_A]
+    })
+    await expect(reads.removedKey()).rejects.toBe(failure)
   })
 })
 
-describe('the removed key of a deployed account with no creation record', () => {
-  it('names the one signer its privilege writes name', async () => {
+describe("the new key of the account's latest consumed handover", () => {
+  it('is the removed key where the setup commit names none, never an earlier consumed or a later unconsumed one', async () => {
+    const commit = commitAt(DEPLOYED_AT + 1)
     const { reads } = worldOf({
-      logs: [privilegeLog(KEY_A, HOLDS, 10)],
+      logs: [
+        commit,
+        attemptStartedLog(5n, handoverTo(KEY_B), DEPLOYED_AT + 10),
+        attemptConsumedLog(5n, DEPLOYED_AT + 20),
+        attemptStartedLog(7n, handoverTo(NEW_KEY), DEPLOYED_AT + 30),
+        attemptConsumedLog(7n, DEPLOYED_AT + 40),
+        attemptStartedLog(8n, handoverTo(KEY_C), DEPLOYED_AT + 50)
+      ],
+      senders: [[commit.transactionHash, RELAYER]],
+      holders: [KEY_B, KEY_C, NEW_KEY],
+      authorities: [KEY_B, KEY_C, NEW_KEY]
+    })
+    await expect(reads.removedKey()).resolves.toEqual(named(NEW_KEY))
+  })
+
+  it('is dropped where its payload does not decode, and the privilege writes answer', async () => {
+    const { reads } = worldOf({
+      logs: [
+        attemptStartedLog(7n, '0x1234', DEPLOYED_AT + 10),
+        attemptConsumedLog(7n, DEPLOYED_AT + 20),
+        privilegeLog(KEY_A, HOLDS, DEPLOYED_AT + 30)
+      ],
       holders: [KEY_A],
       authorities: [KEY_A]
     })
-    await expect(reads.removedKey()).resolves.toEqual({ kind: 'named', key: KEY_A })
+    await expect(reads.removedKey()).resolves.toEqual(named(KEY_A))
   })
 
-  it('excludes a key whose privilege dropped to zero, without asking the action about it', async () => {
-    const { reads, action } = worldOf({
+  it('is no candidate where the consumed attempt started before the scanned range', async () => {
+    const { reads, askedPrivileges } = worldOf({
       logs: [
-        privilegeLog(KEY_A, HOLDS, 10),
-        privilegeLog(KEY_B, HOLDS, 11),
-        privilegeLog(KEY_B, zeroHash, 12)
+        attemptStartedLog(7n, handoverTo(NEW_KEY), DEPLOYED_AT - 5),
+        attemptStartedLog(6n, handoverTo(KEY_B), DEPLOYED_AT + 10),
+        attemptConsumedLog(7n, DEPLOYED_AT + 20)
       ],
-      holders: [KEY_A],
+      holders: [KEY_B, NEW_KEY],
+      authorities: [KEY_B, NEW_KEY]
+    })
+    await expect(reads.removedKey()).resolves.toEqual({
+      kind: 'unavailable',
+      cause: 'no-key-entry'
+    })
+    expect(askedPrivileges()).toEqual([])
+  })
+})
+
+describe('the logs a node answers beyond the filter', () => {
+  /** Answers the manager's and the account's one-chunk scans with the same logs, whichever comes first. */
+  const answerBothScans = (world: ReturnType<typeof worldOf>, logs: RawLog[]) => {
+    world.node.provider.logs.mockResolvedValueOnce(logs).mockResolvedValueOnce(logs)
+  }
+
+  it('leave out a privilege write another address emitted', async () => {
+    const world = worldOf({ holders: [KEY_A, KEY_B], authorities: [KEY_A, KEY_B] })
+    answerBothScans(world, [
+      { ...privilegeLog(KEY_B, HOLDS, DEPLOYED_AT + 5), address: STRANGER },
+      privilegeLog(KEY_A, HOLDS, DEPLOYED_AT + 10)
+    ])
+    await expect(world.reads.removedKey()).resolves.toEqual(named(KEY_A))
+    expect(world.askedPrivileges()).toEqual([KEY_A])
+  })
+
+  it('leave out a manager log another address emitted, and a commit at another action', async () => {
+    const commit = commitAt(DEPLOYED_AT + 10)
+    const foreign = { ...commitAt(DEPLOYED_AT + 20), address: STRANGER }
+    const elsewhere = commitAt(DEPLOYED_AT + 30, OTHER_ACTION)
+    const world = worldOf({
+      senders: [
+        [commit.transactionHash, KEY_A],
+        [foreign.transactionHash, KEY_B],
+        [elsewhere.transactionHash, KEY_C]
+      ],
+      holders: [KEY_A, KEY_B, KEY_C, NEW_KEY],
+      authorities: [KEY_A, KEY_B, KEY_C, NEW_KEY]
+    })
+    answerBothScans(world, [
+      commit,
+      foreign,
+      elsewhere,
+      { ...attemptStartedLog(9n, handoverTo(NEW_KEY), DEPLOYED_AT + 40), address: STRANGER },
+      { ...attemptConsumedLog(9n, DEPLOYED_AT + 50), address: STRANGER }
+    ])
+    await expect(world.reads.removedKey()).resolves.toEqual(named(KEY_A))
+    expect(world.node.transactionRead.mock.calls).toEqual([[commit.transactionHash]])
+    expect(world.askedPrivileges()).toEqual([KEY_A])
+  })
+})
+
+describe('the keys the wallet knows', () => {
+  it('rank no higher than the setup commit: a wallet key and another commit sender, both signers, leave the key unnamed', async () => {
+    const commit = commitAt(DEPLOYED_AT + 10)
+    const { reads, askedPrivileges } = worldOf({
+      knownKeys: [KEY_A],
+      logs: [commit],
+      senders: [[commit.transactionHash, KEY_B]],
+      holders: [KEY_A, KEY_B],
       authorities: [KEY_A, KEY_B]
     })
-    await expect(reads.removedKey()).resolves.toEqual({ kind: 'named', key: KEY_A })
-    expect(action.isAuthority.mock.calls.map(([, key]) => key)).toEqual([KEY_A])
+    await expect(reads.removedKey()).resolves.toEqual({
+      kind: 'unavailable',
+      cause: 'several-key-entries'
+    })
+    expect(askedPrivileges()).toEqual([KEY_A, KEY_B])
   })
 
-  it('excludes a holder the action does not count as a signer', async () => {
+  it('name a wallet key where the commit sender is no signer', async () => {
+    const commit = commitAt(DEPLOYED_AT + 10)
     const { reads } = worldOf({
-      logs: [privilegeLog(KEY_A, HOLDS, 10), privilegeLog(ACTION_HOLDER, HOLDS, 11)],
-      holders: [KEY_A, ACTION_HOLDER],
+      knownKeys: [KEY_A],
+      logs: [commit],
+      senders: [[commit.transactionHash, RELAYER]],
+      holders: [KEY_A, RELAYER],
       authorities: [KEY_A]
     })
-    await expect(reads.removedKey()).resolves.toEqual({ kind: 'named', key: KEY_A })
+    await expect(reads.removedKey()).resolves.toEqual(named(KEY_A))
   })
 
-  it('counts only the logs the account emitted', async () => {
-    const { reads, askedPrivileges } = worldOf({
-      logs: [
-        privilegeLog(KEY_A, HOLDS, 10),
-        privilegeLog(KEY_C, HOLDS, 11, { address: OTHER_ACCOUNT })
-      ],
-      holders: [KEY_A, KEY_C],
-      authorities: [KEY_A, KEY_C]
-    })
-    await expect(reads.removedKey()).resolves.toEqual({ kind: 'named', key: KEY_A })
-    expect(askedPrivileges()).toEqual([KEY_A])
-  })
-
-  it('drops a log a reorg removed', async () => {
-    const { reads, askedPrivileges } = worldOf({
-      logs: [privilegeLog(KEY_A, HOLDS, 10), privilegeLog(KEY_C, HOLDS, 11, { removed: true })],
-      holders: [KEY_A, KEY_C],
-      authorities: [KEY_A, KEY_C]
-    })
-    await expect(reads.removedKey()).resolves.toEqual({ kind: 'named', key: KEY_A })
-    expect(askedPrivileges()).toEqual([KEY_A])
-  })
-
-  it('never asks about the entry point', async () => {
-    const { reads, askedPrivileges } = worldOf({
-      logs: [privilegeLog(ENTRY_POINT, HOLDS, 10), privilegeLog(KEY_A, HOLDS, 11)],
-      holders: [KEY_A, ENTRY_POINT],
-      authorities: [KEY_A, ENTRY_POINT]
-    })
-    await expect(reads.removedKey()).resolves.toEqual({ kind: 'named', key: KEY_A })
-    expect(askedPrivileges()).toEqual([KEY_A])
-  })
-
-  it('asks once about a key several writes name', async () => {
-    const { reads, askedPrivileges } = worldOf({
-      logs: [privilegeLog(KEY_A, pad('0x02'), 10), privilegeLog(KEY_A, HOLDS, 20)],
-      holders: [KEY_A],
-      authorities: [KEY_A]
-    })
-    await expect(reads.removedKey()).resolves.toEqual({ kind: 'named', key: KEY_A })
-    expect(askedPrivileges()).toEqual([KEY_A])
-  })
-
-  it('refuses to name a key where several signers remain', async () => {
+  it('leave the key unnamed where two of them are signers', async () => {
     const { reads } = worldOf({
-      logs: [privilegeLog(KEY_A, HOLDS, 10), privilegeLog(KEY_B, HOLDS, 10_500)],
-      head: 12_000,
+      knownKeys: [KEY_A],
+      associatedKeys: [KEY_B],
       holders: [KEY_A, KEY_B],
       authorities: [KEY_A, KEY_B]
     })
@@ -256,27 +395,226 @@ describe('the removed key of a deployed account with no creation record', () => 
       cause: 'several-key-entries'
     })
   })
+})
 
-  it('finds a key no write names where the wallet knows it', async () => {
-    const { reads } = worldOf({ knownKeys: [KEY_B], holders: [KEY_B], authorities: [KEY_B] })
-    await expect(reads.removedKey()).resolves.toEqual({ kind: 'named', key: KEY_B })
+describe('the candidates of every source', () => {
+  it('ask once about a key several sources name', async () => {
+    const commit = commitAt(DEPLOYED_AT + 10)
+    const { reads, askedPrivileges, askedAuthority } = worldOf({
+      knownKeys: [KEY_A],
+      logs: [commit, privilegeLog(KEY_A, HOLDS, DEPLOYED_AT + 20)],
+      senders: [[commit.transactionHash, KEY_A]],
+      holders: [KEY_A],
+      authorities: [KEY_A]
+    })
+    await expect(reads.removedKey()).resolves.toEqual(named(KEY_A))
+    expect(askedPrivileges()).toEqual([KEY_A])
+    expect(askedAuthority()).toEqual([[KEY_A, HEAD]])
   })
 
-  it('names no key where no write names one and the wallet knows none', async () => {
-    const { reads, call } = worldOf({ holders: [KEY_A], authorities: [KEY_A] })
+  it('leave the key unnamed, with no key read, where no source names one', async () => {
+    const { reads, askedPrivileges } = worldOf({ holders: [KEY_A], authorities: [KEY_A] })
     await expect(reads.removedKey()).resolves.toEqual({
       kind: 'unavailable',
       cause: 'no-key-entry'
     })
-    expect(call).not.toHaveBeenCalled()
+    expect(askedPrivileges()).toEqual([])
   })
 })
 
-describe('the removed key of an account with no creation record and no code', () => {
-  it('is unavailable for want of a creation record, with no scan and no key read', async () => {
-    const { reads, logsRead, call, action } = worldOf({
+/** The ranges a scan from `from` to the pinned head reads, in chunks of ten thousand blocks. */
+const chunksFrom = (from: number) => {
+  const chunks: BlockRange[] = []
+  for (let start = from; start <= HEAD; start += 10_000) {
+    chunks.push({ from: start, to: Math.min(start + 9_999, HEAD) })
+  }
+  return chunks
+}
+
+describe('the scans of an account with no creation record', () => {
+  it("read the privilege writes from the account's first block with code, the manager's logs from its deployment block", async () => {
+    const deployedAt = HEAD - 25_000
+    const createdAt = deployedAt - 10_000
+    const { reads, scans, scansOf } = worldOf({
+      deployedAt,
+      createdAt,
+      logs: [privilegeLog(KEY_B, HOLDS, deployedAt - 1), privilegeLog(KEY_A, HOLDS, deployedAt)],
+      holders: [KEY_A, KEY_B],
+      authorities: [KEY_A, KEY_B]
+    })
+    await expect(reads.removedKey()).resolves.toEqual({
+      kind: 'unavailable',
+      cause: 'several-key-entries'
+    })
+    expect(
+      scans()
+        .filter(({ filter }) => same(filter.addresses[0], ACCOUNT))
+        .map(({ filter, range }) => [filter, range])
+    ).toEqual(
+      chunksFrom(createdAt).map((range) => [
+        { addresses: [ACCOUNT], topics: [PRIVILEGE_TOPIC] },
+        range
+      ])
+    )
+    expect(scansOf(MANAGER)).toEqual(chunksFrom(deployedAt))
+    expect(scans()).toHaveLength(chunksFrom(createdAt).length + chunksFrom(deployedAt).length)
+  })
+
+  it('name a key written before the manager existed, where it is the one signer', async () => {
+    const createdAt = DEPLOYED_AT - 3_000
+    const { reads, scansOf } = worldOf({
+      createdAt,
+      logs: [privilegeLog(KEY_B, HOLDS, createdAt)],
+      holders: [KEY_B],
+      authorities: [KEY_B]
+    })
+    await expect(reads.removedKey()).resolves.toEqual(named(KEY_B))
+    expect(Math.min(...scansOf(ACCOUNT).map(({ from }) => from))).toBe(createdAt)
+  })
+
+  it('find the first block with code by the search, and never ask for logs below it', async () => {
+    const createdAt = DEPLOYED_AT - 123_457
+    const { node, reads, scansOf } = worldOf({
+      createdAt,
+      logs: [privilegeLog(KEY_A, HOLDS, createdAt - 1), privilegeLog(KEY_B, HOLDS, createdAt + 1)],
+      holders: [KEY_A, KEY_B],
+      authorities: [KEY_A, KEY_B]
+    })
+    await expect(reads.removedKey()).resolves.toEqual(named(KEY_B))
+    expect(scansOf(ACCOUNT)[0].from).toBe(createdAt)
+    expect(Math.min(...scansOf(ACCOUNT).map(({ from }) => from))).toBe(createdAt)
+    const searched = node.codeRead.code.mock.calls.map(([, block]) => block)
+    expect(searched).toContain(createdAt)
+    expect(searched).toContain(createdAt - 1)
+  })
+
+  it("read the privilege writes from the account's creation where the account came after the manager", async () => {
+    const createdAt = DEPLOYED_AT + 50
+    const { reads, scansOf } = worldOf({
+      createdAt,
+      logs: [privilegeLog(KEY_A, HOLDS, createdAt)],
+      holders: [KEY_A],
+      authorities: [KEY_A]
+    })
+    await expect(reads.removedKey()).resolves.toEqual(named(KEY_A))
+    expect(scansOf(ACCOUNT)).toEqual(chunksFrom(createdAt))
+    expect(scansOf(MANAGER)).toEqual(chunksFrom(DEPLOYED_AT))
+  })
+
+  eachIt<[string, number]>([
+    ['the first block', 0],
+    ['the second block', 1],
+    ['a block long before the manager', DEPLOYED_AT - 123_457],
+    ["the manager's deployment block", DEPLOYED_AT],
+    ['the block before the pinned head', HEAD - 1],
+    ['the pinned head', HEAD]
+  ])(
+    'search for an account created at %s with at most one code read per halving of the blocks up to the pinned head',
+    async (_, createdAt) => {
+      const { node, reads, scansOf } = worldOf({ createdAt })
+      await expect(reads.removedKey()).resolves.toEqual({
+        kind: 'unavailable',
+        cause: 'no-key-entry'
+      })
+      const blocks = node.codeRead.code.mock.calls.map(([, block]) => block)
+      expect(blocks[0]).toBe(HEAD)
+      expect(blocks.length - 1).toBeLessThanOrEqual(Math.floor(Math.log2(HEAD)) + 1)
+      expect(scansOf(ACCOUNT)[0].from).toBe(createdAt)
+    }
+  )
+
+  it('pin every read at the block of the configured read tag', async () => {
+    const commit = commitAt(DEPLOYED_AT + 10)
+    const { node, reads, scans } = worldOf({
+      logs: [commit],
+      senders: [[commit.transactionHash, KEY_A]],
+      holders: [KEY_A],
+      authorities: [KEY_A],
+      blockTags: { read: 'finalized', watch: 'finalized' }
+    })
+    await expect(reads.removedKey()).resolves.toEqual(named(KEY_A))
+    expect(node.provider.block.mock.calls).toEqual([['finalized']])
+    const codeBlocks = node.codeRead.code.mock.calls.map(([, block]) => block)
+    expect(codeBlocks[0]).toBe(HEAD)
+    expect(codeBlocks.every((block) => typeof block === 'number' && block <= HEAD)).toBe(true)
+    expect(new Set(scans().map(({ range }) => range.to))).toEqual(new Set([HEAD]))
+    expect(new Set(node.calls.map(({ block }) => block))).toEqual(new Set([HEAD]))
+  })
+})
+
+describe("the account's privilege writes", () => {
+  it('name the one signer', async () => {
+    const { reads } = worldOf({
+      logs: [privilegeLog(KEY_A, HOLDS, DEPLOYED_AT + 10)],
+      holders: [KEY_A],
+      authorities: [KEY_A]
+    })
+    await expect(reads.removedKey()).resolves.toEqual(named(KEY_A))
+  })
+
+  it('exclude a key whose privilege dropped to zero, without asking the action about it', async () => {
+    const { reads, askedAuthority } = worldOf({
+      logs: [
+        privilegeLog(KEY_A, HOLDS, DEPLOYED_AT + 10),
+        privilegeLog(KEY_B, HOLDS, DEPLOYED_AT + 11),
+        privilegeLog(KEY_B, zeroHash, DEPLOYED_AT + 12)
+      ],
+      holders: [KEY_A],
+      authorities: [KEY_A, KEY_B]
+    })
+    await expect(reads.removedKey()).resolves.toEqual(named(KEY_A))
+    expect(askedAuthority()).toEqual([[KEY_A, HEAD]])
+  })
+
+  it('exclude a holder the action does not count as a signer', async () => {
+    const { reads } = worldOf({
+      logs: [
+        privilegeLog(KEY_A, HOLDS, DEPLOYED_AT + 10),
+        privilegeLog(ACTION_HOLDER, HOLDS, DEPLOYED_AT + 11)
+      ],
+      holders: [KEY_A, ACTION_HOLDER],
+      authorities: [KEY_A]
+    })
+    await expect(reads.removedKey()).resolves.toEqual(named(KEY_A))
+  })
+
+  it('drop a log a reorg removed and never ask about the entry point', async () => {
+    const { reads, askedPrivileges } = worldOf({
+      logs: [
+        privilegeLog(ENTRY_POINT, HOLDS, DEPLOYED_AT + 10),
+        privilegeLog(KEY_A, HOLDS, DEPLOYED_AT + 11),
+        privilegeLog(KEY_C, HOLDS, DEPLOYED_AT + 12, true)
+      ],
+      holders: [KEY_A, KEY_C, ENTRY_POINT],
+      authorities: [KEY_A, KEY_C, ENTRY_POINT]
+    })
+    await expect(reads.removedKey()).resolves.toEqual(named(KEY_A))
+    expect(askedPrivileges()).toEqual([KEY_A])
+  })
+
+  it('leave the key unnamed where two signers remain', async () => {
+    const { reads } = worldOf({
+      logs: [
+        privilegeLog(KEY_A, HOLDS, DEPLOYED_AT + 10),
+        privilegeLog(KEY_B, HOLDS, DEPLOYED_AT + 20)
+      ],
+      holders: [KEY_A, KEY_B],
+      authorities: [KEY_A, KEY_B]
+    })
+    await expect(reads.removedKey()).resolves.toEqual({
+      kind: 'unavailable',
+      cause: 'several-key-entries'
+    })
+  })
+})
+
+describe('an account with no creation record and no code', () => {
+  it('is unavailable for want of a creation record, with no scan, no transaction read and no key read', async () => {
+    const commit = commitAt(DEPLOYED_AT + 10)
+    const { node, reads } = worldOf({
       code: '0x',
-      logs: [privilegeLog(KEY_A, HOLDS, 10)],
+      logs: [commit, privilegeLog(KEY_A, HOLDS, DEPLOYED_AT + 20)],
+      senders: [[commit.transactionHash, KEY_A]],
       holders: [KEY_A],
       authorities: [KEY_A]
     })
@@ -284,30 +622,45 @@ describe('the removed key of an account with no creation record and no code', ()
       kind: 'unavailable',
       cause: 'no-creation-record'
     })
-    expect(logsRead).not.toHaveBeenCalled()
-    expect(call).not.toHaveBeenCalled()
-    expect(action.isAuthority).not.toHaveBeenCalled()
+    expect(node.provider.logs).not.toHaveBeenCalled()
+    expect(node.transactionRead).not.toHaveBeenCalled()
+    expect(node.calls).toEqual([])
   })
 })
 
 describe('a failed read of an account with no creation record', () => {
-  const failures: [string, (world: ReturnType<typeof worldOf>, failure: Error) => void][] = [
-    ['the pinned block', ({ block }, failure) => block.mockRejectedValueOnce(failure)],
-    ['the code', ({ codeRead }, failure) => codeRead.code.mockRejectedValueOnce(failure)],
-    ['a log chunk', ({ logsRead }, failure) => logsRead.mockRejectedValueOnce(failure)],
-    ['a privileges view', ({ call }, failure) => call.mockRejectedValueOnce(failure)],
-    ['an authority', ({ action }, failure) => action.isAuthority.mockRejectedValueOnce(failure)]
-  ]
-  failures.forEach(([label, fail]) =>
-    it(`rejects where ${label} read fails, never answering a refusal`, async () => {
-      const failure = providerReadFailure('call', new Error('timeout'))
-      const world = worldOf({
-        logs: [privilegeLog(KEY_A, HOLDS, 10)],
-        holders: [KEY_A],
-        authorities: [KEY_A]
-      })
-      fail(world, failure)
-      await expect(world.reads.removedKey()).rejects.toBe(failure)
+  const failure = providerReadFailure('call', new Error('timeout'))
+  eachIt<[string, (world: ReturnType<typeof worldOf>) => void]>([
+    ['the pinned block', ({ node }) => node.provider.block.mockRejectedValueOnce(failure)],
+    ['the code', ({ node }) => node.codeRead.code.mockRejectedValueOnce(failure)],
+    [
+      'the code at a past block',
+      ({ node }) =>
+        node.codeRead.code.mockResolvedValueOnce(ACCOUNT_CODE).mockRejectedValueOnce(failure)
+    ],
+    ['a log chunk, on every try,', ({ node }) => node.provider.logs.mockRejectedValue(failure)],
+    [
+      'a privileges view',
+      ({ node }) =>
+        node.answerWith(ACCOUNT, toFunctionSelector('privileges(address)'), () => failure)
+    ],
+    [
+      'an authority',
+      ({ node }) =>
+        node.answerWith(ACTION, toFunctionSelector('isAuthority(address,address)'), () => failure)
+    ]
+  ])('rejects where %s read fails, never answering a refusal', async (_, fail) => {
+    const world = worldOf({
+      logs: [privilegeLog(KEY_A, HOLDS, DEPLOYED_AT + 10)],
+      holders: [KEY_A],
+      authorities: [KEY_A]
     })
-  )
+    fail(world)
+    jest.useFakeTimers()
+    await expect(pastRetryPauses(world.reads.removedKey())).rejects.toBe(failure)
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
+  })
 })

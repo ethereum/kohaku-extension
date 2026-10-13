@@ -30,6 +30,7 @@ import {
   SETUP_CLEARED_TOPIC,
   SETUP_COMMITTED_TOPIC
 } from '@web/modules/social-recovery/shared/client/kit/events'
+import { pastRetryPauses } from '@web/modules/social-recovery/shared/client/kit/events/__fixtures__/retries'
 
 const MANAGER: Address = '0x734B9Aa580d4A184Ea129E791C4C9Fb8734B3aC6'
 const ACCOUNT: Address = '0xabCDeF0123456789AbcdEf0123456789aBCDEF01'
@@ -275,11 +276,18 @@ describe('a fetch of the events feed', () => {
     expect(block).not.toHaveBeenCalled()
   })
 
-  it('rejects where a chunk read fails', async () => {
+  it('rejects where a chunk read fails on every try', async () => {
+    jest.useFakeTimers()
     const failure = new Error('range too wide')
     const { events, logsRead } = nodeWithLogs([])
-    logsRead.mockRejectedValueOnce(failure)
-    await expect(events.fetch(events.privilegeFilter(), { from: 1, to: 5 })).rejects.toBe(failure)
+    logsRead.mockRejectedValue(failure)
+    await expect(
+      pastRetryPauses(events.fetch(events.privilegeFilter(), { from: 1, to: 5 }))
+    ).rejects.toBe(failure)
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
   })
 })
 

@@ -439,6 +439,7 @@ export const createWorld = (overrides: Partial<RecoveryClientConfiguration> = {}
     addressBook,
     provider: adapter,
     codeRead: createCodeRead(ethers),
+    transactionRead: async () => null,
     ...overrides
   }
   return { chain, ethers, adapter, config, descriptor, account }

@@ -919,7 +919,8 @@ const clientOver = (chain: CommittedWorld['chain']) =>
     account: LOST,
     addressBook: ADDRESS_BOOK,
     provider: sdkStandIn.providerFor(chain),
-    codeRead: { code: async () => '0x' }
+    codeRead: { code: async () => '0x' },
+    transactionRead: async () => null
   })
 
 /** The ready state of the screen's hook over a built client. */

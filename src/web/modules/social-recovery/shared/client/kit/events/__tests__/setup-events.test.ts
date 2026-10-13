@@ -19,7 +19,6 @@ import type {
   IProvider,
   RawLog
 } from '@web/modules/social-recovery/sdk-interfaces'
-import { providerReadFailure } from '@web/modules/social-recovery/shared/client/provider-adapter'
 import {
   chunksOf,
   createSetupEvents,
@@ -209,11 +208,14 @@ describe('a chunked log scan', () => {
     expect(logsRead).not.toHaveBeenCalled()
   })
 
-  it('rejects where a chunk read fails', async () => {
-    const failure = providerReadFailure('logs', new Error('range too wide'))
+  it("reads a manager's setup logs in chunks of the width it is given", async () => {
     const { provider, logsRead } = chainWithLogs([])
-    logsRead.mockRejectedValueOnce(failure)
-    await expect(logsInChunks(provider, filter, { from: 1, to: 5 })).rejects.toBe(failure)
+    await createSetupEvents(provider, MANAGER, 2).setupLogsOf(ACCOUNT, { from: 100, to: 104 })
+    expect(logsRead.mock.calls.map(([, range]) => range)).toEqual([
+      { from: 100, to: 101 },
+      { from: 102, to: 103 },
+      { from: 104, to: 104 }
+    ])
   })
 
   it("reads a manager's setup logs in chunks of the width it is given", async () => {

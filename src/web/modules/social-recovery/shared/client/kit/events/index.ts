@@ -21,7 +21,13 @@ export {
   decodeAttemptLog
 } from './attempt-events'
 export { createKitEventManager } from './event-manager'
-export { LOG_CHUNK_BLOCKS, chunksOf, logsInChunks } from './log-scan'
+export {
+  LOG_CHUNK_BLOCKS,
+  LOG_CHUNK_RETRIES,
+  LOG_CHUNK_RETRY_MS,
+  chunksOf,
+  logsInChunks
+} from './log-scan'
 export type {
   AttemptLog,
   CommitQuery,

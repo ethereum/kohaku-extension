@@ -72,6 +72,7 @@ const configOver = (
   addressBook: addressBookOf('sepolia'),
   provider: node.provider,
   codeRead: node.codeRead,
+  transactionRead: node.transactionRead,
   ...overrides
 })
 

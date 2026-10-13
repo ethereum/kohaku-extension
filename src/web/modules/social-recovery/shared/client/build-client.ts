@@ -8,7 +8,7 @@
  * provider adapter, the descriptor, the account and the client configuration,
  * and nothing else of the extension: no signer and no storage. With a
  * deployed kit, the client reads the deployed contracts through the provider
- * adapter and the code read beside it.
+ * adapter and the code and transaction reads beside it.
  *
  * The SDK's construction checks run before anything is built, in the SDK's
  * order: the provider's chain id, the manager domain's chain id and verifying
@@ -147,7 +147,7 @@ const buildDeployedClient = async (
   descriptor: DeploymentDescriptor,
   clientConfiguration: ClientConfiguration
 ): Promise<RecoveryKitClient> => {
-  const { provider, codeRead } = config
+  const { provider, codeRead, transactionRead } = config
   const manager = createManagerReads(provider, descriptor.manager)
   await checkChainAndDomain(
     provider,
@@ -165,6 +165,7 @@ const buildDeployedClient = async (
     config: clientConfiguration,
     provider,
     codeRead,
+    transactionRead,
     manager,
     action,
     privilegeAccount: {

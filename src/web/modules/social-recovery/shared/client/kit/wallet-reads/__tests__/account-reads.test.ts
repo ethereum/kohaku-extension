@@ -5,8 +5,9 @@
  * privileges where it has none; the fit check reads the deployed code, or
  * compares the implementation to be with the action's.
  */
-import { type Hex, pad, zeroHash } from 'viem'
+import { getAddress, type Hex, pad, zeroHash } from 'viem'
 
+import { ERC_4337_ENTRYPOINT } from '@ambire-common/consts/deploy'
 import type { Address, BlockTag } from '@web/modules/social-recovery/sdk-interfaces'
 import { providerReadFailure } from '@web/modules/social-recovery/shared/client/provider-adapter'
 import { createKitWalletReads } from '@web/modules/social-recovery/shared/client/kit/wallet-reads'
@@ -15,7 +16,7 @@ const ACCOUNT: Address = '0xabCDeF0123456789AbcdEf0123456789aBCDEF01'
 const KEY_A: Address = '0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa'
 const KEY_B: Address = '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB'
 const KEY_C: Address = '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC'
-const ENTRY_POINT: Address = '0x0000000071727De22E5E9d8BAf0edAc6f37da032'
+const ENTRY_POINT = getAddress(ERC_4337_ENTRYPOINT)
 const IMPLEMENTATION: Address = '0x0F2AA7bcda3d9D210dF69a394b6965CB2566c828'
 const OTHER_IMPLEMENTATION: Address = '0x5555555555555555555555555555555555555555'
 const ACCOUNT_CODE: Hex = '0x6080604052'
@@ -64,7 +65,10 @@ const worldOf = ({
     action,
     moduleReads: { verify: jest.fn() },
     codeRead,
-    provider
+    provider,
+    descriptor: { manager: OTHER_IMPLEMENTATION, action: OTHER_IMPLEMENTATION, deployedAt: 0 },
+    events: { accountFilter: jest.fn(), fetch: jest.fn(async () => []) },
+    transactionRead: jest.fn(async () => null)
   })
   return { reads, codeRead, action }
 }

@@ -12,6 +12,7 @@ import {
   encodeFunctionResult,
   getAddress,
   type Hex,
+  isAddressEqual,
   pad,
   parseAbi,
   zeroAddress,
@@ -45,7 +46,9 @@ import {
   ACTION_ABI,
   approverReplyTo,
   approverRequestAt,
+  committedLog,
   CONTRACT_CODE,
+  DEPLOYED_AT,
   DESCRIPTOR,
   fakeNode,
   guardianAt,
@@ -121,6 +124,7 @@ const clientOver = (
     }),
     provider: node.provider,
     codeRead: node.codeRead,
+    transactionRead: node.transactionRead,
     manager: createManagerReads(node.provider, MANAGER),
     action: createActionReads(
       { provider: node.provider, codeRead: node.codeRead },
@@ -202,7 +206,7 @@ describe("the wallet's reads", () => {
       },
       blockTags: { read: 'finalized', watch: 'finalized' }
     })
-    node.setCode(ACCOUNT, CONTRACT_CODE)
+    node.setCode(ACCOUNT, CONTRACT_CODE, DEPLOYED_AT)
     node.addLog({
       address: ACCOUNT,
       topics: encodeEventTopics({
@@ -231,7 +235,10 @@ describe("the wallet's reads", () => {
       key: getAddress(KEY_A)
     })
     expect(node.provider.block).toHaveBeenCalledWith('finalized')
-    expect(node.provider.logs).toHaveBeenCalledTimes(Math.ceil((HEAD + 1) / 10_000))
+    expect(node.provider.logs.mock.calls.map(([, range]) => range)).toEqual([
+      { from: DEPLOYED_AT, to: HEAD },
+      { from: DEPLOYED_AT, to: HEAD }
+    ])
     expect(node.calls.map(({ to, block }) => [to, block])).toEqual([
       [ACCOUNT, HEAD],
       [DEPLOYED_ACTION, HEAD]
@@ -247,7 +254,35 @@ describe("the wallet's reads", () => {
     })
   })
 
-  it("reads an unlisted account's privilege writes in chunks of the configured width", async () => {
+  it("names the sender of an unlisted account's latest setup commit through the transaction read", async () => {
+    const { node, client } = clientOver(FACTS, {
+      privilegeAccount: { addr: ACCOUNT, associatedKeys: [], initialPrivileges: [], creation: null }
+    })
+    node.setCode(ACCOUNT, CONTRACT_CODE, DEPLOYED_AT)
+    const commit = committedLog(
+      { action: DEPLOYED_ACTION, nonce: 1n, setupCommitment: ARMED },
+      HEAD - 5
+    )
+    node.addLog(commit)
+    node.setSender(commit.transactionHash, getAddress(KEY_A))
+    node.answer(
+      ACCOUNT,
+      encodeFunctionData({ abi: PRIVILEGES_VIEW, functionName: 'privileges', args: [KEY_A] }),
+      ARMED
+    )
+    node.answer(
+      DEPLOYED_ACTION,
+      encodeFunctionData({ abi: ACTION_ABI, functionName: 'isAuthority', args: [ACCOUNT, KEY_A] }),
+      encodeFunctionResult({ abi: ACTION_ABI, functionName: 'isAuthority', result: true })
+    )
+    await expect(client.walletReads.removedKey()).resolves.toEqual({
+      kind: 'named',
+      key: getAddress(KEY_A)
+    })
+    expect(node.transactionRead.mock.calls).toEqual([[commit.transactionHash]])
+  })
+
+  it("reads an unlisted account's privilege writes and manager logs in chunks of the configured width", async () => {
     const { node, client } = clientOver(FACTS, {
       privilegeAccount: {
         addr: ACCOUNT,
@@ -262,11 +297,16 @@ describe("the wallet's reads", () => {
       kind: 'unavailable',
       cause: 'no-key-entry'
     })
-    expect(node.provider.logs.mock.calls.map(([, range]) => range)).toEqual([
+    const rangesAt = (address: Address) =>
+      node.provider.logs.mock.calls
+        .filter(([filter]) => filter.addresses.some((at: Address) => isAddressEqual(at, address)))
+        .map(([, range]) => range)
+    expect(rangesAt(ACCOUNT)).toEqual([
       { from: 0, to: 399_999 },
       { from: 400_000, to: 799_999 },
       { from: 800_000, to: HEAD }
     ])
+    expect(rangesAt(MANAGER)).toEqual([{ from: DEPLOYED_AT, to: HEAD }])
   })
 
   it("verifies a pasted reply through the guardian method's own verify view", async () => {

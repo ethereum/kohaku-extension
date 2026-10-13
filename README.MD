@@ -58,7 +58,7 @@ Make sure your `SEPOLIA_RPC_URL` is a strong RPC that can handle heavy load. If 
 
 The account recovery setup (choose a recovery path, enroll guardians and passkeys, pick a privacy level, review, save on chain, download the Recovery Card) runs end to end against deployed recovery contracts. The contracts are deployed on public Sepolia (chain id 11155111) since 2026-10-08. Their addresses are not in this repository: the project gives them to you, and the build reads them from `.env`.
 
-What you can test this way: the whole setup flow, up to a real save transaction and the Recovery Card. What you cannot test yet: recovering an account, approving or cancelling a recovery as a guardian, and viewing or editing a saved setup. Those screens belong to later milestones; the wallet's client refuses them as "not served" against real contracts.
+What you can test this way: the whole setup flow, up to a real save transaction and the Recovery Card; recovering an account from the "Recover an account" entry, from gathering the guardians' replies to the recovery's execution; and a guardian approving or cancelling a recovery. What you cannot test yet: viewing or editing a saved setup, and clearing a setup. Those screens belong to later milestones.
 
 ### What you need
 
@@ -154,7 +154,7 @@ A reference run on 2026-10-05, on the Tenderly fork used before the Sepolia depl
 - **Only a created wallet works.** An imported recovery phrase gets basic accounts only (see step 3).
 - **Sepolia is a public test network.** Use a throwaway wallet, never a wallet you care about.
 - **The wallet's dashboard fails now and then** with "Something went wrong, but your funds are safe!" (an animation error, seen in the full tab and in the popup). It is outside the recovery module and does not depend on the network; see step 3 for the ways around it.
-- **Guardians do not act yet.** Enrolling a guardian by address needs nothing from the guardian. The screens where a guardian approves, and the "Recover an account" entry, are not connected to the real contracts in this milestone.
+- **Guardians act only in a recovery.** Enrolling a guardian by address needs nothing from the guardian. A guardian approves or cancels a recovery from the guardian's screens, and the "Recover an account" entry runs the recovery against the real contracts.
 - **A passkey stored by a password manager** (Google Password Manager, iCloud Keychain) shows as synced, not as bound to this device. Both work for the setup.
 - **The sign window's fee estimate is high** (about a third above the fee that was paid in testing).
 - **The Recovery Card shows your recovery password** when you press Reveal or download it. Treat a card from a test like any secret you would not paste in a chat.
