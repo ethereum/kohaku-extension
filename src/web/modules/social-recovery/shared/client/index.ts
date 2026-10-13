@@ -95,6 +95,7 @@ export {
   sameFactsReading,
   seedBasicAccountOf
 } from './account-facts'
+export { passkeyConfigFieldsOf } from './kit/formats'
 export type {
   RecoveryChain,
   AddressBook,

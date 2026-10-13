@@ -127,6 +127,7 @@ const worldOf = ({
     account: { addr: ACCOUNT, associatedKeys, initialPrivileges: [], creation: null },
     knownKeys,
     action,
+    moduleReads: { verify: jest.fn() },
     codeRead,
     provider,
     blockTags

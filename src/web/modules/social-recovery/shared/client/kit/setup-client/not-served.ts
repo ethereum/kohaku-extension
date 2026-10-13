@@ -1,8 +1,8 @@
 /**
  * The members the deployed kit's client does not serve yet: the recovery
- * side's events feed, the setup's clear and events feed, and the verify of
- * a pasted reply. Each refuses with a `NotServedRefusal`
- * naming the member, and none falls back to the scripted stand-in.
+ * side's events feed and the setup's clear and events feed. Each refuses
+ * with a `NotServedRefusal` naming the member, and none falls back to the
+ * scripted stand-in.
  */
 import type { IEventManager } from '@web/modules/social-recovery/sdk-interfaces'
 

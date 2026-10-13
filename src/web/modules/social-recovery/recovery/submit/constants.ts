@@ -35,6 +35,3 @@ export const ALREADY_RUNNING_CAUSES = ['AttemptAlreadyActive', 'WrongAttemptId']
 
 /** The request errors with which the prepare refuses a start because an attempt already runs. */
 export const ALREADY_RUNNING_FINDINGS = ['request.attempt-active', 'request.attempt-id'] as const
-
-/** The member the deployed kit refuses as not served yet, where a verify is no check. */
-export const VERIFY_MEMBER = 'walletReads.verifyReply'

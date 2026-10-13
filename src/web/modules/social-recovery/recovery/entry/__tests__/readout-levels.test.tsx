@@ -359,6 +359,24 @@ describe("the passkey's origin", () => {
     expect(page.textOf('readout-row-0-0-line-0')).toBe(ORIGIN_MISMATCH)
   })
 
+  it('marks a passkey of another origin whose config carries bytes after its three words', async () => {
+    const [clause] = OTHER_ORIGIN_SETUP.clauses
+    const [credential] = clause.credentials
+    await commitLostSetup('public', {
+      ...OTHER_ORIGIN_SETUP,
+      clauses: [
+        {
+          ...clause,
+          credentials: [{ ...credential, config: `${credential.config}${'ab'.repeat(32)}` }]
+        }
+      ]
+    })
+    const page = await open()
+    expect(page.textOf('readout-row-0-0-line-0')).toBe(ORIGIN_MISMATCH)
+    expect(page.isDisabled('readout-continue')).toBe(true)
+    expect(page.textOf('readout-continue-reason')).toBe(ORIGIN_MISMATCH)
+  })
+
   it('leaves a passkey created under this origin unmarked', async () => {
     await commitLostSetup('public')
     const page = await open()

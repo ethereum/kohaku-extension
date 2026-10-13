@@ -1,8 +1,9 @@
 /**
  * The client of a deployed kit once its checks passed: the methods it serves
  * by slug, the action bound to the account with its real disarming call, the
- * wallet's reads over the chain, the recovery gathering and prepares over the
- * manager, and the members it does not serve yet, each refusing by name.
+ * wallet's reads over the chain with the verify of a pasted reply, the
+ * recovery gathering and prepares over the manager, and the members it does
+ * not serve yet, each refusing by name.
  */
 import {
   decodeFunctionData,
@@ -34,9 +35,12 @@ import {
   ACCOUNT,
   ACCOUNT_ABI,
   ACTION_ABI,
+  approverReplyTo,
+  approverRequestAt,
   CONTRACT_CODE,
   DESCRIPTOR,
   fakeNode,
+  guardianAt,
   HEAD,
   KEY_A,
   MANAGER,
@@ -45,9 +49,12 @@ import {
   METHOD_PASSKEY,
   METHOD_ZKPASSPORT,
   NO_STATE,
+  scriptMethod,
   stateAnswer,
   stateOfCall,
-  thrownBy
+  thrownBy,
+  VERIFY_MAGIC,
+  verifyCallsOf
 } from '@web/modules/social-recovery/shared/client/kit/setup-client/__tests__/harness'
 import type {
   DeploymentFacts,
@@ -225,6 +232,18 @@ describe("the wallet's reads", () => {
       fits: true
     })
   })
+
+  it("verifies a pasted reply through the guardian method's own verify view", async () => {
+    const { node, client } = clientOver()
+    scriptMethod(node, METHOD_ECDSA, { verify: VERIFY_MAGIC })
+    const request = approverRequestAt(guardianAt(0), 0)
+    const reply = approverReplyTo(request)
+
+    expect(await client.walletReads.verifyReply(request, reply)).toBe('satisfied')
+    expect(verifyCallsOf(node)).toEqual([
+      expect.objectContaining({ module: METHOD_ECDSA, proof: reply.proof })
+    ])
+  })
 })
 
 describe('the recovery side', () => {
@@ -280,17 +299,12 @@ describe('the members the deployed kit does not serve yet', () => {
     })
   )
 
-  it('rejects the events fetch, the clear and the verify of a pasted reply by name', async () => {
+  it('rejects the events fetch and the clear by name', async () => {
     const { client } = clientOver()
     const fetch = client.recovery.events.fetch as () => Promise<unknown>
     expect(await thrownBy(fetch())).toMatchObject({ member: 'recovery.events.fetch' })
     expect(await thrownBy(client.setup.prepareClearSetup())).toMatchObject({
       member: 'setup.prepareClearSetup'
-    })
-    const verify = client.walletReads.verifyReply as () => Promise<unknown>
-    expect(await thrownBy(verify())).toMatchObject({
-      name: 'NotServedRefusal',
-      member: 'walletReads.verifyReply'
     })
   })
 })

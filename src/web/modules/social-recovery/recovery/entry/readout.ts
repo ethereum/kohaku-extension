@@ -375,14 +375,20 @@ const maskedRowOf = (method: Address, context: ReadoutRowContext, t: Translate):
   }
 }
 
-/** The relying-party hash a passkey config commits, or null where the config is not a passkey's. */
+const PASSKEY_CONFIG_WORDS = [
+  { type: 'bytes32' },
+  { type: 'bytes32' },
+  { type: 'bytes32' }
+] as const
+
+/**
+ * The relying-party hash a passkey config commits, read as the chain decodes
+ * it: bytes after the three words are ignored. Null where the config is too
+ * short to hold them.
+ */
 const passkeyRpIdHashOf = (config: Hex): Hex | null => {
   try {
-    const [, , rpIdHash] = decodeAbiParameters(
-      [{ type: 'bytes32' }, { type: 'bytes32' }, { type: 'bytes32' }],
-      config
-    )
-    return rpIdHash
+    return decodeAbiParameters(PASSKEY_CONFIG_WORDS, config)[2]
   } catch {
     return null
   }

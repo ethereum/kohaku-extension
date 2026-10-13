@@ -70,6 +70,8 @@ export interface ScriptedMethod {
   views?: Error
   /** The holder `trustedParties()` names for the module's stop; none by default. */
   pauseHolder?: Address
+  /** The word `verify(config, digest, proof)` answers for every proof, or the error it throws; unscripted by default. */
+  verify?: Hex | Error
 }
 
 /** What the fake action answers for the world's account. */

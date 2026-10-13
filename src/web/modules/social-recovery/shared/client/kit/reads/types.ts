@@ -74,7 +74,11 @@ export interface MethodReads {
   /** The name, the version and the method interface probe. */
   moduleInfo(module: Address): Promise<ModuleInfo>
   trustedParties(module: Address): Promise<TrustedParties>
-  /** The module's answer over one proof: the magic value where it accepts it. */
+  /**
+   * The module's raw answer over one proof, every byte of it: the magic value
+   * left-aligned in one 32-byte word where it accepts it. An empty answer
+   * rejects as a failed read.
+   */
   verify(module: Address, config: Hex, digest: Hex, proof: Hex): Promise<Hex>
   /**
    * Whether the module is stopped, read as the manager reads it: only a

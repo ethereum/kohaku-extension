@@ -22,9 +22,15 @@ import {
 } from 'viem'
 
 import { PROXY_AMBIRE_ACCOUNT } from '@ambire-common/consts/deploy'
-import { defaultClientConfiguration } from '@web/modules/social-recovery/sdk-doubles'
+import {
+  defaultClientConfiguration,
+  digestOfRequest,
+  RECORD_VERSION
+} from '@web/modules/social-recovery/sdk-doubles'
 import type {
   Address,
+  ApproverReply,
+  ApproverRequest,
   BlockRange,
   BlockTag,
   Configuration,
@@ -116,7 +122,8 @@ export const METHOD_ABI = parseAbi([
   'function version() view returns (string)',
   'function supportsInterface(bytes4 id) view returns (bool)',
   'function trustedParties() view returns (address, address, bytes32[], address, address)',
-  'function paused() view returns (bool)'
+  'function paused() view returns (bool)',
+  'function verify(bytes config, bytes32 digest, bytes proof) view returns (bytes4)'
 ])
 
 export const ACCOUNT_ABI = parseAbi(['function setAddrPrivilege(address addr, bytes32 priv)'])
@@ -124,6 +131,8 @@ export const ACCOUNT_ABI = parseAbi(['function setAddrPrivilege(address addr, by
 /** The interface the methods and the action declare, as the deployed contracts answer them. */
 export const METHOD_PROBE: Hex = '0xf057a368'
 export const ACTION_PROBE: Hex = '0x59cd148e'
+/** What a method's `verify` answers for a proof it accepts: the selector of `verify(bytes,bytes32,bytes)`. */
+export const VERIFY_MAGIC: Hex = '0x024ad318'
 
 const topicMatches = (expected: FilterSpec['topics'][number], actual: Hex | undefined): boolean => {
   if (expected === null || expected === undefined) {
@@ -400,6 +409,12 @@ const methodCall = (
     ? encodeFunctionData({ abi: METHOD_ABI, functionName, args: [METHOD_PROBE] })
     : encodeFunctionData({ abi: METHOD_ABI, functionName })
 
+const VERIFY_SELECTOR: Hex = slice(
+  encodeFunctionData({ abi: METHOD_ABI, functionName: 'verify', args: ['0x', zeroHash, '0x'] }),
+  0,
+  4
+)
+
 export const METHOD_CALLS = {
   name: methodCall('name'),
   version: methodCall('version'),
@@ -465,7 +480,28 @@ export const scriptMethod = (
   )
   // The deployed methods carry no stop: `paused()` reverts with no data.
   node.answer(method, METHOD_CALLS.paused, script.paused ?? reverting())
+  const { verify } = script
+  if (verify !== undefined) {
+    node.answerWith(method, VERIFY_SELECTOR, () =>
+      verify instanceof Error
+        ? verify
+        : view(encodeFunctionResult({ abi: METHOD_ABI, functionName: 'verify', result: verify }))
+    )
+  }
 }
+
+/** The `verify` calls the fake node was asked, decoded, in order. */
+export const verifyCallsOf = (node: FakeNode) =>
+  node.calls
+    .filter(({ data }) => slice(data, 0, 4) === VERIFY_SELECTOR)
+    .map(({ to, data }) => {
+      const decoded = decodeFunctionData({ abi: METHOD_ABI, data })
+      if (decoded.functionName !== 'verify') {
+        throw new Error(`Not a verify call: ${decoded.functionName}.`)
+      }
+      const [config, digest, proof] = decoded.args
+      return { module: to, config, digest, proof }
+    })
 
 const boolOf = (
   functionName:
@@ -691,6 +727,55 @@ export const DESCRIPTOR: DeploymentDescriptor = {
   shippedMethods: [METHOD_ECDSA, METHOD_PASSKEY, METHOD_AADHAAR, METHOD_ZKPASSPORT],
   auditedActions: [ACTION]
 }
+
+/** The request an approver of `credential` at `place` answers, on an approval of the world's account. */
+export const approverRequestAt = (
+  credential: Credential,
+  place: number,
+  overrides: Partial<ApproverRequest> = {}
+): ApproverRequest => ({
+  kind: 'recovery-proof-request',
+  version: RECORD_VERSION,
+  purpose: 'approval',
+  chainId: String(DESCRIPTOR.chainId),
+  manager: MANAGER,
+  digestVersion: DESCRIPTOR.digestVersion,
+  account: ACCOUNT,
+  action: ACTION,
+  attemptId: '7',
+  setupNonce: '3',
+  setupBodyHash: keccak256('0x01'),
+  payload: '0x02',
+  order: { token: zeroAddress, amount: '0', payee: zeroAddress },
+  validUntil: String(HEAD_TIMESTAMP + 7200),
+  place,
+  method: credential.method,
+  config: credential.config,
+  salt: pad(`0x${(place + 1).toString(16)}`),
+  ...overrides
+})
+
+/** The reply to `request`, made against its own digest. */
+export const approverReplyTo = (
+  request: ApproverRequest,
+  overrides: Partial<ApproverReply> = {}
+): ApproverReply => ({
+  kind: 'recovery-proof-reply',
+  version: RECORD_VERSION,
+  chainId: request.chainId,
+  manager: request.manager,
+  account: request.account,
+  action: request.action,
+  attemptId: request.attemptId,
+  purpose: request.purpose,
+  place: request.place,
+  method: request.method,
+  config: request.config,
+  salt: request.salt,
+  digest: digestOfRequest(request),
+  proof: `0x${'0f'.repeat(65)}`,
+  ...overrides
+})
 
 /**
  * The world of a fresh account: no code, no setup, the action unarmed, the

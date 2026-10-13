@@ -1,5 +1,6 @@
 /**
- * The key a recovery would remove and the fit check, read from the chain.
+ * The key a recovery would remove, the fit check and the verify of a pasted
+ * reply, read from the chain.
  *
  * The keys the wallet knows for an account are its creation privileges, its
  * associated keys and the keys the wallet holds for it. Where the account has
@@ -32,6 +33,7 @@ import { createPrivilegeEvents } from '../events'
 import { createAccountReads } from '../reads'
 import { pinnedBlockOf } from '../setup-client'
 import type { KitWalletReads, KitWalletReadsInput } from './types'
+import { createReplyVerify } from './verify-reply'
 
 const readingOf = (keys: readonly Address[]): RemovedKeyReading => {
   const [key] = keys
@@ -49,6 +51,7 @@ export const createKitWalletReads = ({
   knownKeys = [],
   accountImplementation,
   action,
+  moduleReads,
   codeRead,
   provider,
   blockTags
@@ -118,6 +121,8 @@ export const createKitWalletReads = ({
         implementation: toBe,
         fits: isAddressEqual(toBe, await action.ambireImplementation())
       }
-    }
+    },
+
+    verifyReply: createReplyVerify(moduleReads)
   }
 }

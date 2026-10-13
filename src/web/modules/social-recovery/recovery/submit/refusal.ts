@@ -1,12 +1,11 @@
 /**
  * The refusals the submission reads from a thrown value or a reverted
  * receipt: the manager refuses the start because another attempt runs on the
- * account, and the deployed kit serves no verify yet. A thrown value is a
- * real boundary, so each is read by its shape.
+ * account. A thrown value is a real boundary, so each is read by its shape.
  */
 import type { WriteState } from '@web/modules/social-recovery/shared/writes'
 
-import { ALREADY_RUNNING_CAUSES, ALREADY_RUNNING_FINDINGS, VERIFY_MEMBER } from './constants'
+import { ALREADY_RUNNING_CAUSES, ALREADY_RUNNING_FINDINGS } from './constants'
 import type { AlreadyRunningCause, AlreadyRunningFinding } from './types'
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -41,7 +40,3 @@ export const revertedRunning = (write: WriteState): boolean =>
   write.status === 'failedReverted' &&
   write.cause.kind === 'named' &&
   isAlreadyRunningCause(write.cause.name)
-
-/** Whether a thrown value is the deployed kit's refusal of the verify as not served yet. */
-export const verifyNotServed = (error: unknown): boolean =>
-  isObject(error) && error.name === 'NotServedRefusal' && error.member === VERIFY_MEMBER

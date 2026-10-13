@@ -101,11 +101,11 @@ const SubmitView = ({
           </Text>
         )
       case 'verified':
-        return verify.checked ? (
+        return (
           <Text fontSize={14} testID="submit-check-line">
             {t(`${SUBMIT}.checkLine`)}
           </Text>
-        ) : null
+        )
       case 'rejected':
         return (
           <Alert

@@ -3,8 +3,7 @@
  * carries goes through the same static call the registry runs at submission,
  * against the request of its own place. One rejected names its row; a read
  * that throws, or a verdict that judges nothing, is a check that failed and
- * is tried again. The deployed kit's refusal of the verify as not served yet
- * is no check at all, and the start's own prepare stays the judge.
+ * is tried again.
  */
 import type {
   ApproverReply,
@@ -12,7 +11,6 @@ import type {
   Gathering
 } from '@web/modules/social-recovery/sdk-interfaces'
 
-import { verifyNotServed } from './refusal'
 import type { SubmitKitClient, VerifyReading, VerifyStepResult } from './types'
 
 const verifyOne = async (
@@ -29,8 +27,8 @@ const verifyOne = async (
       return 'satisfied'
     }
     return verdict === 'rejected' ? 'rejected' : 'failed'
-  } catch (error: unknown) {
-    return verifyNotServed(error) ? 'not-served' : 'failed'
+  } catch {
+    return 'failed'
   }
 }
 
@@ -62,5 +60,5 @@ export const verifyAgain = async (
   if (results.includes('failed')) {
     return { status: 'failed' }
   }
-  return { status: 'verified', checked: results.every((result) => result === 'satisfied') }
+  return { status: 'verified' }
 }

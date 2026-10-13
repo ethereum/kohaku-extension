@@ -357,42 +357,16 @@ describe('the guardian paste', () => {
     expectSettled(1, '', 'added')
   })
 
-  it('lets the add decide where the client serves no verify yet: a matching reply adds', async () => {
+  it('reads a refusal of the verify by the client as a failed check and writes nothing', async () => {
     await open()
     kit.verifyReply.mockRejectedValue(notServedRefusal('walletReads.verifyReply'))
-    const reply = replyOf(gathering, 1)
-
-    await paste(1, lineOf(reply))
-
-    expect(await repliesHeld()).toEqual([reply])
-    expectSettled(1, '', 'added')
-  })
-
-  it('lets the add decide where the client serves no verify yet: a digest the add refuses matches nothing', async () => {
-    await open()
-    kit.verifyReply.mockRejectedValue(notServedRefusal('walletReads.verifyReply'))
-    kit.addApproverReply.mockImplementation((held: Gathering) => ({
-      gathering: held,
-      reason: { kind: 'add-refusal', cause: 'digest-mismatch' }
-    }))
     const before = sessionWrites()
     const line = lineOf(replyOf(gathering, 1))
 
     await paste(1, line)
 
-    expect(errorLines(1)).toEqual(NO_MATCH)
-    expect(sessionWrites()).toBe(before)
-    expectSettled(1, line, 'error')
-  })
-
-  it('reads a not-served refusal of another member as a failed check', async () => {
-    await open()
-    kit.verifyReply.mockRejectedValue(notServedRefusal('walletReads.removedKey'))
-    const line = lineOf(replyOf(gathering, 1))
-
-    await paste(1, line)
-
     expect(errorLines(1)).toEqual([t(`${PASTE}.checkFailed`)])
+    expect(sessionWrites()).toBe(before)
     expect(await repliesHeld()).toEqual([])
     expectSettled(1, line, 'error')
   })

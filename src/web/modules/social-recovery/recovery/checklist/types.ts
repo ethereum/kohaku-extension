@@ -564,7 +564,7 @@ export type PasteJudgement =
 /** What a paste came to: the reply added to its place, or one written error. */
 export type PasteOutcome = { kind: 'added'; place: number } | { kind: 'error'; error: PasteError }
 
-/** What the verify of one reply came to; a check the client does not serve passes the reply on to the add. */
+/** What the verify of one reply came to: passed on to the add, rejected, or a check that failed. */
 export type VerifyStep = 'pass' | 'rejected' | 'failed'
 
 export type VerifyReply = (request: ApproverRequest, reply: ApproverReply) => Promise<Verdict>

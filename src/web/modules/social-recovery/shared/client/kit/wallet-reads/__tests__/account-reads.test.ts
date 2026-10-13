@@ -62,6 +62,7 @@ const worldOf = ({
     knownKeys,
     accountImplementation,
     action,
+    moduleReads: { verify: jest.fn() },
     codeRead,
     provider
   })

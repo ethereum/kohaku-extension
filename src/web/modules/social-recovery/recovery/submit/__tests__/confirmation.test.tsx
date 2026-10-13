@@ -374,14 +374,14 @@ describe('the submission confirmation', () => {
       expect(mounted.isDisabled('submit-action')).toBe(false)
     })
 
-    it('unlocks where the kit serves no verify yet, and claims no check', async () => {
+    it('reads check failed and stays locked where the client refuses the verify', async () => {
       const world = await openWorld()
       world.kit.verifyReply.mockRejectedValue(notServed('walletReads.verifyReply'))
       const mounted = await open(world)
       await openDetails(mounted)
-      expect(mounted.isDisabled('submit-action')).toBe(false)
+      expect(mounted.textOf('submit-check-failed')).toContain(t(`${SUBMIT}.checkFailed`))
+      expect(mounted.isDisabled('submit-action')).toBe(true)
       expect(mounted.byTestId('submit-check-line')).toBeNull()
-      expect(mounted.byTestId('submit-check-failed')).toBeNull()
     })
   })
 

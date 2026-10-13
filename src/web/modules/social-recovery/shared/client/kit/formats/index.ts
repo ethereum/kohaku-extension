@@ -8,7 +8,8 @@ export {
   credentialCommitmentOf,
   placedCredentialsOf,
   ecdsaConfigOf,
-  passkeyConfigOf
+  passkeyConfigOf,
+  passkeyConfigFieldsOf
 } from './credentials'
 export { readSetupBody, setupBodyOf } from './setup-body'
 export { setupCommitmentOf, deadCommitmentOf } from './commitments'
