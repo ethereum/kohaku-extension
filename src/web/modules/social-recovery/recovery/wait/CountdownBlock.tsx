@@ -2,8 +2,9 @@
  * The running recovery as the last poll read it: its chip, the day it started
  * (on chain, the attempt's end less the setup's waiting period, where this
  * device holds the setup; else the day the submission landed here), the
- * countdown against the pinned block's time, the end in the reader's zone
- * from the attempt the manager reports, the account and the new key, the
+ * countdown against the pinned block's time while the wait runs, the end in
+ * the reader's zone from the attempt the manager reports (in the past tense
+ * once execution is due), the account and the new key, the
  * recovery path where this device holds the setup (one line by its shape,
  * else its rule lines), and the transaction that started it on chain.
  */
@@ -93,13 +94,15 @@ const CountdownBlock = ({
           {t(`${WAIT}.started`, { date: dateOf(startedMs, timeZone) })}
         </Text>
       </View>
-      {remainingMs !== null && (
+      {!due && remainingMs !== null && (
         <Text fontSize={20} weight="number_medium" style={spacings.mbTy} testID="wait-time-left">
           {renderCountdown({ remainingMs }, t)}
         </Text>
       )}
       <Text fontSize={14} style={spacings.mbTy} testID="wait-finishes">
-        {t(`${WAIT}.finishes`, { date: dateOf(phase.attempt.consumableAfter * 1000, timeZone) })}
+        {t(due ? `${WAIT}.ended` : `${WAIT}.finishes`, {
+          date: dateOf(phase.attempt.consumableAfter * 1000, timeZone)
+        })}
       </Text>
       <Text
         fontSize={12}

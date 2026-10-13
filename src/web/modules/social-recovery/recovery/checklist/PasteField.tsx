@@ -33,7 +33,7 @@ const PasteField = ({ place, busy, paste, addReply }: PasteFieldProps) => {
   )
 
   const onAdd = useCallback(async () => {
-    if (!paste || checking) {
+    if (!paste || checking || busy) {
       return
     }
     setChecking(true)
@@ -57,7 +57,7 @@ const PasteField = ({ place, busy, paste, addReply }: PasteFieldProps) => {
         setChecking(false)
       }
     }
-  }, [paste, checking, text, addReply])
+  }, [paste, checking, busy, text, addReply])
 
   const lines = error ? pasteErrorLinesOf(error, t) : []
 

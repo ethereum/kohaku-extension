@@ -58,7 +58,7 @@ const { ThemeContext } = jest.requireActual<typeof import('@common/contexts/them
 const EditorView = jest.requireActual<
   typeof import('@web/modules/social-recovery/setup/editor/EditorView')
 >('@web/modules/social-recovery/setup/editor/EditorView').default
-const { emptySlotOf } = jest.requireActual<
+const { emptySlotOf, methodKindOf } = jest.requireActual<
   typeof import('@web/modules/social-recovery/setup/editor/operations')
 >('@web/modules/social-recovery/setup/editor/operations')
 const harness = jest.requireActual<
@@ -339,7 +339,11 @@ describe('every edit on screen', () => {
 
 describe('the rule lines on screen', () => {
   const shown = () => allByTestId('editor-rule-line')
-  const expected = (clauses: Clause[]) => renderRuleLines(getRuleLines(clauses), t)
+  const expected = (clauses: Clause[]) =>
+    renderRuleLines(
+      getRuleLines(clauses, { kindOfMethod: (method) => methodKindOf(method, BOOK) }),
+      t
+    )
 
   it("equal the rule-lines lane's for a preset shape", async () => {
     await mount({ clauses: presetPath() })
@@ -355,6 +359,25 @@ describe('the rule lines on screen', () => {
     await press('editor-add-second-method')
     expect(byTestId('editor-add-second-method-menu')).not.toBeNull()
     expect(navigate).not.toHaveBeenCalled()
+  })
+
+  it("equal the lane's for one passkey alone, with the passkey offer and the platform line", async () => {
+    const clauses = [{ threshold: 1, credentials: [PASSKEY] }]
+    await mount({ clauses })
+    expect(shown()).toContain(en.socialRecovery.ruleLines.secondMethodOffer)
+    expect(shown()).toContain(en.socialRecovery.ruleLines.platformFate)
+  })
+
+  it("equal the lane's for one guardian alone, with the offer of any second method and no passkey line", async () => {
+    const clauses = [{ threshold: 1, credentials: [ALICE] }]
+    await mount({ clauses })
+    expect(shown()).toEqual(expected(clauses))
+    expect(shown()).toEqual([
+      en.socialRecovery.ruleLines.singleMethod,
+      en.socialRecovery.ruleLines.secondMethodOfferAny
+    ])
+    await press('editor-add-second-method')
+    expect(byTestId('editor-add-second-method-menu')).not.toBeNull()
   })
 
   it('equal the lane\'s for two required rows, with "Make it a group"', async () => {

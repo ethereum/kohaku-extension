@@ -9,6 +9,7 @@ import {
   configurationOf,
   dateOf,
   DEVICE_NOW,
+  elapse,
   GUARDIANS,
   guardianCredential,
   HOUR,
@@ -55,6 +56,21 @@ describe('the countdown', () => {
     )
     await tick(5_000)
     expect(view.textOf('wait-time-left')).toBe(waiting(2 * HOUR - 5))
+  })
+
+  it('once execution is due, draws the due chip alone, no countdown, and the end in the past tense', async () => {
+    const world = await openWorld()
+    world.kit.chain.attempt = { ...world.kit.chain.attempt, consumableAfter: CHAIN_TIME + HOUR }
+    elapse(world.kit)
+    view = await mountWait(world.account)
+
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    expect(view.textOf('wait-chip')).toBe(t('socialRecovery.status.attempt.executionDue'))
+    expect(view.byTestId('wait-time-left')).toBeNull()
+    expect(view.textOf('wait-finishes')).toBe(
+      t('socialRecovery.wait.ended', { date: dateOf((CHAIN_TIME + HOUR) * 1000, zone) })
+    )
+    expect(view.text().split(t('socialRecovery.status.attempt.executionDue'))).toHaveLength(2)
   })
 
   it('moves only on the next poll when the device clock jumps', async () => {
@@ -444,6 +460,17 @@ describe('the path line by shape', () => {
       ])
     ]
   ]
+
+  it('reads one guardian alone with the offer of any second method, never the passkey lines', async () => {
+    const world = await openWorld({ cache: true, configuration: ONE_GUARDIAN })
+    view = await mountWait(world.account)
+
+    const path = view.textOf('wait-path')
+    expect(path).toContain(t('socialRecovery.ruleLines.singleMethod'))
+    expect(path).toContain(t('socialRecovery.ruleLines.secondMethodOfferAny'))
+    expect(path).not.toContain(t('socialRecovery.ruleLines.secondMethodOffer'))
+    expect(path).not.toContain(t('socialRecovery.ruleLines.platformFate'))
+  })
 
   RULE_LINES.forEach(([name, configuration]) => {
     it(`keeps the rule lines for ${name}`, async () => {

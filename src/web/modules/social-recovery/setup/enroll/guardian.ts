@@ -60,12 +60,24 @@ export const guardianTargetOf = (value: string): GuardianTarget => {
 export const codeCheckOf = (code: Hex): 'none' | 'contract' => (code === '0x' ? 'none' : 'contract')
 
 /**
- * The same-seed check over the keys the wallet derived: a key at the address
- * derived from a seed the wallet holds. An address at an index the wallet
- * never derived is not detected.
+ * The same-seed check over the keys this wallet stores: `same` for a stored
+ * key at the address derived from the seed of one of the account's own keys,
+ * `held` for any other stored key at the address (from another phrase, or
+ * imported alone), `not` where the wallet stores no key there. A hardware key
+ * at the address reads `not`, since losing this device does not lose it. An
+ * address at an index the wallet never derived is not detected.
  */
-export const seedCheckOf = (keys: readonly HeldKey[], address: Address): 'same' | 'not' =>
-  keys.some((key) => sameAddress(key.addr, address) && !!key.fromSeedId) ? 'same' : 'not'
+export const seedCheckOf = (
+  keys: readonly HeldKey[],
+  ownSeedIds: readonly string[],
+  address: Address
+): NonNullable<GuardianChecks['seed']> => {
+  const held = keys.filter((key) => key.type === 'internal' && sameAddress(key.addr, address))
+  if (held.some((key) => !!key.fromSeedId && ownSeedIds.includes(key.fromSeedId))) {
+    return 'same'
+  }
+  return held.length > 0 ? 'held' : 'not'
+}
 
 /** The key the wallet holds at the address, which signs the test on this device. */
 export const heldKeyOf = (keys: readonly HeldKey[], address: Address): HeldKey | undefined =>
@@ -97,6 +109,8 @@ export const checkLinesOf = (checks: GuardianChecks): CheckLine[] => {
     lines.push({ key: `${GUARDIAN}.notSameSeed`, tone: 'good' })
   } else if (checks.seed === 'same') {
     lines.push({ key: `${GUARDIAN}.sameSeed`, tone: 'risk' })
+  } else if (checks.seed === 'held') {
+    lines.push({ key: `${GUARDIAN}.heldHere`, tone: 'warning' })
   }
   return lines
 }

@@ -788,6 +788,13 @@ describe('the lead', () => {
     expect(textOf('review-spare-key')).toBe(t('socialRecovery.review.spareKey'))
   })
 
+  it("names a wait under one hour in minutes, and the floor in a release build's words", async () => {
+    await mount({ wait: 300n })
+
+    expect(textOf('review-wait')).toBe('5 minutes')
+    expect(pageText()).toContain("This wallet's minimum is 24 hours. The chain enforces none.")
+  })
+
   it('carries the publication line once with its second sentence and the save cost', async () => {
     await mount({ clauses: [required(ALICE)] })
 

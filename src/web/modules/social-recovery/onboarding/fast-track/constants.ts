@@ -36,8 +36,9 @@ export const KEY_STEP_LIMIT_MS = 60_000
  * The gas the fast track's check assumes for the submission. The client
  * prepares the submission only once the approvals are gathered, so before the
  * checklist there is no call to estimate; the check prices this amount at the
- * node's gas price, with the usual headroom, until the client can estimate the
- * submission without its approvals.
+ * fee the wallet's send pays, with the usual headroom, until the client can
+ * estimate the submission without its approvals. A submission on a path of one
+ * guardian measured about 400,000 gas; the amount keeps room for longer paths.
  */
 export const SUBMISSION_GAS_STAND_IN = 800_000n
 

@@ -9,7 +9,7 @@ import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { MethodRow, PathTreeHeader, SectionCard } from '@web/modules/social-recovery/shared/chrome'
 
-import { renderHeldThreshold } from './copy'
+import { renderHeldThreshold, renderRefusal } from './copy'
 import KindMenuButton from './KindMenuButton'
 import { ADD_KINDS } from './operations'
 import SlotRow from './SlotRow'
@@ -18,8 +18,9 @@ import type { GroupCardProps } from './types'
 
 /**
  * One group: its threshold field and the line refusing text that is not a
- * whole number, its members and their actions, the menu that adds a member
- * of any kind, and its remove.
+ * whole number or a threshold above the group's members (as soon as the group
+ * holds one, before Continue), its members and their actions, the menu that
+ * adds a member of any kind, and its remove.
  */
 const GroupCard = ({
   group: { clause, index },
@@ -39,6 +40,8 @@ const GroupCard = ({
   onRemoveGroup
 }: GroupCardProps) => {
   const { t } = useTranslation()
+  const members = clause.credentials.length
+  const aboveMembers = heldText === undefined && members > 0 && clause.threshold > members
 
   return (
     <SectionCard spacing="item" testID={`editor-group-${index}`}>
@@ -58,7 +61,7 @@ const GroupCard = ({
           testID={`editor-group-${index}-threshold`}
           threshold={clause.threshold}
           heldText={heldText}
-          members={clause.credentials.length}
+          members={members}
           disabled={checking}
           onChangeText={(text) => onThresholdText(index, text)}
         />
@@ -71,6 +74,18 @@ const GroupCard = ({
           text={
             <Alert.Text size="sm" type="error" testID={`editor-group-${index}-threshold-refusal`}>
               {renderHeldThreshold(t)}
+            </Alert.Text>
+          }
+        />
+      )}
+      {aboveMembers && (
+        <Alert
+          type="error"
+          size="sm"
+          style={spacings.mbSm}
+          text={
+            <Alert.Text size="sm" type="error" testID={`editor-group-${index}-above-members`}>
+              {renderRefusal({ key: 'thresholdAboveMembers', clause: index }, t)}
             </Alert.Text>
           }
         />

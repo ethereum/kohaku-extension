@@ -70,9 +70,9 @@ const feeOption = (paidBy: Address, availableAmount: bigint): FeePaymentOption =
   ({ paidBy, availableAmount, gasUsed: 90_000n, addedNative: 0n, token: NATIVE } as never)
 
 /** The account's own native token, too little for any speed. */
-const OWN = feeOption(SMART_ACCOUNT, 5n * 10n ** 14n)
+const OWN = feeOption(SMART_ACCOUNT, 500_000_000_000_000n)
 /** The listed basic account's native token, enough for every speed. */
-const BY_PAYER = feeOption(PAYER, 10n ** 18n)
+const BY_PAYER = feeOption(PAYER, 1_000_000_000_000_000_000n)
 
 const speeds = (slow: bigint, medium: bigint, fast: bigint): SpeedCalc[] =>
   [
@@ -87,11 +87,15 @@ const speeds = (slow: bigint, medium: bigint, fast: bigint): SpeedCalc[] =>
  */
 const FEE_SPEEDS: SignAccountOpState['feeSpeeds'] = {
   [`${SMART_ACCOUNT}:${zeroAddress}:eth:feeToken`]: speeds(
-    10n ** 15n,
-    2n * 10n ** 15n,
-    6n * 10n ** 15n
+    1_000_000_000_000_000n,
+    2_000_000_000_000_000n,
+    6_000_000_000_000_000n
   ),
-  [`EOA:${zeroAddress}:eth:feeToken`]: speeds(3n * 10n ** 15n, 4n * 10n ** 15n, 8n * 10n ** 15n)
+  [`EOA:${zeroAddress}:eth:feeToken`]: speeds(
+    3_000_000_000_000_000n,
+    4_000_000_000_000_000n,
+    8_000_000_000_000_000n
+  )
 }
 
 /** The sign screen's state for the operation whose calls came from `requestId`. */
@@ -117,16 +121,16 @@ const READING: FeeReading = {
     {
       paidBy: SMART_ACCOUNT,
       token: TOKEN,
-      balance: 5n * 10n ** 14n,
-      amount: 2n * 10n ** 15n,
+      balance: 500_000_000_000_000n,
+      amount: 2_000_000_000_000_000n,
       available: false,
       selected: false
     },
     {
       paidBy: PAYER,
       token: TOKEN,
-      balance: 10n ** 18n,
-      amount: 4n * 10n ** 15n,
+      balance: 1_000_000_000_000_000_000n,
+      amount: 4_000_000_000_000_000n,
       available: true,
       selected: true
     }
@@ -345,8 +349,8 @@ describe("the reading of the sign screen's estimation", () => {
     q.push(signAccountOpPush(signScreen(id, { feeSpeeds: {} })))
     const [[reading]] = heard.mock.calls
     expect(reading.options).toEqual([
-      { paidBy: SMART_ACCOUNT, token: TOKEN, balance: 5n * 10n ** 14n, selected: false },
-      { paidBy: PAYER, token: TOKEN, balance: 10n ** 18n, selected: true }
+      { paidBy: SMART_ACCOUNT, token: TOKEN, balance: 500_000_000_000_000n, selected: false },
+      { paidBy: PAYER, token: TOKEN, balance: 1_000_000_000_000_000_000n, selected: true }
     ])
   })
 
@@ -364,8 +368,8 @@ describe("the reading of the sign screen's estimation", () => {
       false
     ])
     expect(reading.options.map((option: { amount?: bigint }) => option.amount)).toEqual([
-      6n * 10n ** 15n,
-      8n * 10n ** 15n
+      6_000_000_000_000_000n,
+      8_000_000_000_000_000n
     ])
   })
 

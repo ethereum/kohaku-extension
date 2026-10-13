@@ -15,6 +15,9 @@ const FLOOR_MINUTES = Number(process.env.SOCIAL_RECOVERY_WAIT_FLOOR_MINUTES)
 const MINUTES_MODE =
   Number.isInteger(FLOOR_MINUTES) && FLOOR_MINUTES > 0 && FLOOR_MINUTES < RELEASE_FLOOR_HOURS * 60
 
+/** Whether the custom entry counts minutes, as in a test build, rather than hours. */
+export const CUSTOM_UNIT_IS_MINUTES = MINUTES_MODE
+
 /** The seconds one unit of the custom entry counts: an hour, or a minute in a test build. */
 export const CUSTOM_UNIT_SECONDS = MINUTES_MODE ? 60 : 3600
 
@@ -40,6 +43,9 @@ const SECONDS_PER_HOUR = 3600n
 
 export const secondsOfHours = (hours: number): SetupDraft['wait'] =>
   BigInt(Math.round(hours * Number(SECONDS_PER_HOUR)))
+
+/** The shortest waiting period this wallet saves, in seconds. */
+export const WAIT_FLOOR_SECONDS = secondsOfHours(WAIT_FLOOR_HOURS)
 
 /**
  * Reads the custom entry, which counts whole hours. An entry with anything but
@@ -80,8 +86,13 @@ export const hoursOfChoice = (choice: WaitChoice, ceilingHours: number): number 
   return custom.status === 'accepted' ? custom.hours : undefined
 }
 
+const DEFAULT_CHIP = WAIT_CHIPS[1]
+
 /** The picker's state when no waiting period is stored: 48 hours. */
-export const DEFAULT_CHOICE: WaitChoice = { kind: 'chip', id: 'hours48' }
+export const DEFAULT_CHOICE: WaitChoice = { kind: 'chip', id: DEFAULT_CHIP.id }
+
+/** The length the picker holds when no waiting period is stored, in seconds. */
+export const DEFAULT_WAIT_SECONDS = secondsOfHours(DEFAULT_CHIP.hours)
 
 /**
  * The picker's state for a stored waiting period: its chip, or the custom

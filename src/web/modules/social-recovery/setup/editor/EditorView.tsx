@@ -273,8 +273,18 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
     if (client.status !== 'ready' || !loadRef.current || checkingRef.current || thresholdHeld) {
       return
     }
-    const refusals = shapeRefusalsOf(loadRef.current.draft, loadRef.current.roles)
-    setWalletRefusals(refusals)
+    const { roles } = loadRef.current
+    const refusals = shapeRefusalsOf(loadRef.current.draft, roles)
+    // A group's card draws its own threshold above its members, so the list
+    // below the path leaves that one out; Continue still stops on it.
+    setWalletRefusals(
+      refusals.filter(
+        (refusal) =>
+          refusal.key !== 'thresholdAboveMembers' ||
+          refusal.clause === undefined ||
+          roles[refusal.clause] !== 'group'
+      )
+    )
     if (refusals.length > 0) {
       setFindings([])
       setCheckFailed(false)

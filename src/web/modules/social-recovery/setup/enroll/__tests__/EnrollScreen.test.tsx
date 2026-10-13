@@ -29,6 +29,11 @@ const mockSelected: {
 const mockViewRenders: EnrollViewProps[] = []
 const mockViewMounts: { count: number } = { count: 0 }
 const mockNavigate = jest.fn()
+// The wallet's listed accounts and stored keys, so a test can give it seeds.
+const mockWallet: {
+  accounts: { addr: string; associatedKeys: string[] }[]
+  keys: { addr: string; type: string; meta?: { fromSeedId?: string } }[]
+} = { accounts: [], keys: [] }
 
 jest.mock('@web/hooks/useSelectedAccountControllerState', () => ({
   __esModule: true,
@@ -44,11 +49,11 @@ jest.mock('@web/hooks/useSelectedAccountControllerState', () => ({
 }))
 jest.mock('@web/hooks/useAccountsControllerState', () => ({
   __esModule: true,
-  default: () => ({ accounts: [] })
+  default: () => ({ accounts: mockWallet.accounts })
 }))
 jest.mock('@web/hooks/useKeystoreControllerState', () => ({
   __esModule: true,
-  default: () => ({ keys: [] })
+  default: () => ({ keys: mockWallet.keys })
 }))
 jest.mock('@web/hooks/useNetworksControllerState', () => ({
   __esModule: true,
@@ -104,6 +109,9 @@ const themeConfig: typeof import('@common/styles/themeConfig') = require('@commo
 const {
   WEB_ROUTES
 }: typeof import('@common/modules/router/constants/common') = require('@common/modules/router/constants/common')
+const {
+  seedCheckOf
+}: typeof import('@web/modules/social-recovery/setup/enroll/guardian') = require('@web/modules/social-recovery/setup/enroll/guardian')
 const EnrollScreen: typeof import('@web/modules/social-recovery/setup/enroll/EnrollScreen').default =
   require('@web/modules/social-recovery/setup/enroll/EnrollScreen').default
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
@@ -131,6 +139,8 @@ describe('the enroll screen while the wallet selects another account', () => {
   let root: Root
 
   beforeEach(() => {
+    mockWallet.accounts = []
+    mockWallet.keys = []
     sessionStorage.clear()
     mockViewRenders.length = 0
     mockViewMounts.count = 0
@@ -194,5 +204,26 @@ describe('the enroll screen while the wallet selects another account', () => {
     expect(mockViewMounts.count).toBe(2)
     expect(lastProps().account).toBe(OTHER_ACCOUNT)
     expect(byTestId('setup-other-account')).toBeNull()
+  })
+
+  it("reads a guardian from the smart account's seed as the same seed, and one from the other seed as held", async () => {
+    const controller: Address = '0x3333333333333333333333333333333333333333'
+    const fromAccountSeed: Address = '0x4444444444444444444444444444444444444444'
+    const fromOtherSeed: Address = '0x5555555555555555555555555555555555555555'
+    const otherSeedBasic: Address = '0x6666666666666666666666666666666666666666'
+    mockWallet.keys = [
+      { addr: controller, type: 'internal', meta: { fromSeedId: 'seed-account' } },
+      { addr: fromAccountSeed, type: 'internal', meta: { fromSeedId: 'seed-account' } },
+      { addr: otherSeedBasic, type: 'internal', meta: { fromSeedId: 'seed-other' } },
+      { addr: fromOtherSeed, type: 'internal', meta: { fromSeedId: 'seed-other' } }
+    ]
+    mockWallet.accounts = [
+      { addr: ACCOUNT, associatedKeys: [controller] },
+      { addr: otherSeedBasic, associatedKeys: [otherSeedBasic] }
+    ]
+    await open(ACCOUNT)
+    const { keys, ownSeedIds } = lastProps().deps
+    expect(seedCheckOf(keys, ownSeedIds, fromAccountSeed)).toBe('same')
+    expect(seedCheckOf(keys, ownSeedIds, fromOtherSeed)).toBe('held')
   })
 })

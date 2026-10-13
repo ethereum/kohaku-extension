@@ -255,11 +255,13 @@ const rest = (ms: number): Promise<void> =>
 
 /**
  * Whether the run ended with nothing on its way to the chain, so its claim
- * goes: a send never made that cannot still land (refused, replaced), or a
- * revert. A landing, a send that may still land and a receipt wait keep it.
+ * goes: a send never made that cannot still land (refused, replaced), a read
+ * before the send that failed, or a revert. A landing, a send that may still
+ * land and a receipt wait keep it.
  */
 const endedWithNothingInFlight = (state: ExecuteState): boolean =>
   state.write.status === 'failedReverted' ||
+  state.write.status === 'gasReadError' ||
   (state.write.status === 'failedNotSent' && !mayStillLand(state.write))
 
 /** Releases the claim the run sent or followed where the run ended with nothing on its way to the chain. */

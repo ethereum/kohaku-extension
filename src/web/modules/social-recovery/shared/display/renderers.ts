@@ -337,6 +337,17 @@ export const renderRemaining = (remainingMs: number, t: Translate = i18n.t): str
 }
 
 /**
+ * A waiting period's length: whole minutes under one hour, `5 minutes`, else
+ * whole hours, `48 hours`. Both round down.
+ */
+export const renderWaitLength = (seconds: bigint, t: Translate = i18n.t): string => {
+  if (seconds < 3600n) {
+    return t('socialRecovery.display.remainingMinutes', { count: Number(seconds / 60n) })
+  }
+  return t('socialRecovery.display.remainingHours', { count: Number(seconds / 3600n) })
+}
+
+/**
  * The deadline as a date and time in the reader's zone, the zone named, with
  * the time left beside it: `Valid until 13 Aug, 18:04 CEST ·
  * 23 hours left`. `now` and the reader's zone are parameters, so the output

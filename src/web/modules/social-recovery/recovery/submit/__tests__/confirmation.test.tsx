@@ -142,6 +142,15 @@ describe('the submission confirmation', () => {
       expect(details).not.toMatch(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b/)
     })
 
+    it('gives a wait under one hour in whole minutes, never as zero hours', async () => {
+      const world = await openWorld({ configuration: { ...MIXED_PATH, wait: 300n } })
+      const mounted = await open(world)
+      await openDetails(mounted)
+      expect(mounted.textOf('submit-waiting-period')).toBe(
+        t(`${SUBMIT}.waitingPeriod`, { duration: '5 minutes' })
+      )
+    })
+
     it('says the account’s own key can cancel during the wait', async () => {
       const world = await openWorld()
       const mounted = await open(world)

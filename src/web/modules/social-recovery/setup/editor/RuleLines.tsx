@@ -8,10 +8,17 @@ import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { SectionCard } from '@web/modules/social-recovery/shared/chrome'
 import { renderRuleLines, RULE_LINE_KEYS } from '@web/modules/social-recovery/shared/rule-lines'
+import type { RuleLineKey } from '@web/modules/social-recovery/shared/rule-lines'
 
 import KindMenuButton from './KindMenuButton'
 import { SECOND_METHOD_KINDS } from './operations'
 import type { RuleLinesProps } from './types'
+
+/** The lines that offer a second method, under which the menu that adds one draws. */
+const SECOND_METHOD_OFFERS: readonly RuleLineKey[] = [
+  RULE_LINE_KEYS.secondMethodOffer,
+  RULE_LINE_KEYS.secondMethodOfferAny
+]
 
 /**
  * The rule-lines block: the lines of the path as it stands, with the menu
@@ -45,7 +52,7 @@ const RuleLines = ({
             <Text fontSize={14} testID="editor-rule-line">
               {text}
             </Text>
-            {line.key === RULE_LINE_KEYS.secondMethodOffer && (
+            {SECOND_METHOD_OFFERS.includes(line.key) && (
               <KindMenuButton
                 testID="editor-add-second-method"
                 text={t('socialRecovery.editor.addSecondMethod')}

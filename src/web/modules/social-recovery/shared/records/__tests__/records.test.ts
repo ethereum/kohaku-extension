@@ -143,14 +143,14 @@ const CACHE: DecryptedSetupCacheRecord = { configuration: CONFIGURATION, setupNo
 const PREPARED_CALL: PreparedCall = {
   kind: 'call',
   target: ACCOUNT,
-  value: 10n ** 21n + 1n,
+  value: 1_000_000_000_000_000_000_000n + 1n,
   data: '0xabcdef',
   sender: 'account',
   block: { number: 7_000_000, hash: `0x${'ab'.repeat(32)}` }
 }
 const PREPARED_BATCH: PreparedBatch = {
   kind: 'batch',
-  calls: [PREPARED_CALL, { ...PREPARED_CALL, value: 2n ** 70n, data: '0x01' }],
+  calls: [PREPARED_CALL, { ...PREPARED_CALL, value: 1_180_591_620_717_411_303_424n, data: '0x01' }],
   atomic: true,
   block: PREPARED_CALL.block
 }
@@ -2506,7 +2506,7 @@ describe('the setup save in flight', () => {
   // A committed draft whose wait is beyond a safe integer, so only a bigint keeps it.
   const SECOND_DRAFT: SetupDraft = {
     ...SETUP_DRAFT,
-    wait: 2n ** 64n + 1n,
+    wait: 18_446_744_073_709_551_616n + 1n,
     clauses: [
       {
         threshold: 2,
@@ -2589,8 +2589,8 @@ describe('the setup save in flight', () => {
     const batch = present(await tab.saveInFlight(CHAIN_ID, OTHER_ACCOUNT).read()).value.prepared
     expect(call).toEqual(PREPARED_CALL)
     expect(batch).toEqual(PREPARED_BATCH)
-    expect(call.kind === 'call' && call.value).toBe(10n ** 21n + 1n)
-    expect(batch.kind === 'batch' && batch.calls[1].value).toBe(2n ** 70n)
+    expect(call.kind === 'call' && call.value).toBe(1_000_000_000_000_000_000_000n + 1n)
+    expect(batch.kind === 'batch' && batch.calls[1].value).toBe(1_180_591_620_717_411_303_424n)
   })
 
   it('a claim stores the committed draft, and another page reads the same draft back with its bigint wait', async () => {
@@ -2599,7 +2599,7 @@ describe('the setup save in flight', () => {
     const tab = createWalletRecords({ storage, now: () => T0 })
     const { draft } = present(await tab.saveInFlight(CHAIN_ID, ACCOUNT).read()).value
     expect(draft).toEqual(SECOND_DRAFT)
-    expect(draft.wait).toBe(2n ** 64n + 1n)
+    expect(draft.wait).toBe(18_446_744_073_709_551_616n + 1n)
   })
 
   it('keeps the draft it was claimed with when the setup draft record changes after the claim', async () => {
@@ -2648,7 +2648,7 @@ describe('the setup save in flight', () => {
     const tab = createWalletRecords({ storage, now: () => T0 })
     const { draft } = present(await tab.saveInFlight(CHAIN_ID, ACCOUNT).read()).value
     expect(draft).toEqual(SECOND_DRAFT)
-    expect(draft.wait).toBe(2n ** 64n + 1n)
+    expect(draft.wait).toBe(18_446_744_073_709_551_616n + 1n)
   })
 
   const CLAIM_BLOCK = 7_000_100

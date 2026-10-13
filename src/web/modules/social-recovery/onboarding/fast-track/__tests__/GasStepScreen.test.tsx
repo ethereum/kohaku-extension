@@ -44,7 +44,7 @@ const CHECKLIST = `/social-recovery/recovery/checklist?account=${LOST_ACCOUNT}`
 const READOUT = `/social-recovery/recovery/readout?account=${LOST_ACCOUNT}`
 const ACCOUNT_STEP = `/social-recovery/recovery/account?route=fresh-install&to=${ORDINARY_KEY}`
 const POLL_MS = 5_000
-const ONE_ETHER = 10n ** 18n
+const ONE_ETHER = 1_000_000_000_000_000_000n
 // The chain reads the harness answers for the client, as the step loads them.
 const client: typeof import('@web/modules/social-recovery/shared/client') = jest.requireMock(
   '@web/modules/social-recovery/shared/client'
@@ -196,7 +196,9 @@ describe('the gas step', () => {
 
     await press('fast-track-gas-back')
 
-    expect(movesAway()).toMatchObject([{ to: ACCOUNT_STEP.slice(1), replace: true }])
+    expect(movesAway()).toMatchObject([
+      { to: ACCOUNT_STEP.slice(1), replace: true, state: { acknowledged: true } }
+    ])
     expect(where()).toBe(ACCOUNT_STEP)
   })
 
@@ -330,7 +332,7 @@ describe('the gas step', () => {
 
       expect(byTestId('fast-track-gas')).toBeNull()
       expect(byTestId('fast-track-gas-failed')?.textContent).toContain(
-        'Could not finish the gas check. The node did not answer.'
+        'Could not finish the checks before sending. The node did not answer. Nothing was sent.'
       )
       expect(byTestId('fast-track-gas-retry')).not.toBeNull()
       expect(text()).not.toContain(DEPOSIT_LINE)

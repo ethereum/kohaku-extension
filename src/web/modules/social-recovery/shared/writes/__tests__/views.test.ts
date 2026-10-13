@@ -200,10 +200,10 @@ describe('DepositStepView: what renderDepositStep answers', () => {
 
   it('the waiting line shows the latest balance the screen polled', async () => {
     const step = await depositStepFor('submission', true)
-    const r = renderDepositStep(step, { balance: 5n * 10n ** 15n })
+    const r = renderDepositStep(step, { balance: 5_000_000_000_000_000n })
     expect(r.waiting[0]).toBe(
       t(GAS_KEYS.balanceWaiting, {
-        balance: renderGasBalance(5n * 10n ** 15n, NETWORK.nativeAssetSymbol)
+        balance: renderGasBalance(5_000_000_000_000_000n, NETWORK.nativeAssetSymbol)
       })
     )
   })

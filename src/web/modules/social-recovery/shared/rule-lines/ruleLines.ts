@@ -26,6 +26,7 @@ export const RULE_LINE_KEYS = {
   bothMustAnswer: `${PREFIX}.bothMustAnswer`,
   singleMethod: `${PREFIX}.singleMethod`,
   secondMethodOffer: `${PREFIX}.secondMethodOffer`,
+  secondMethodOfferAny: `${PREFIX}.secondMethodOfferAny`,
   platformFate: `${PREFIX}.platformFate`,
   anyNOfM: `${PREFIX}.anyNOfM`,
   eitherOneAlone: `${PREFIX}.eitherOneAlone`,
@@ -159,8 +160,10 @@ const clausesOf = (path: RuleLinesInput): readonly Clause[] =>
   Array.isArray(path) ? path : (path as Pick<SetupDraft, 'clauses'>).clauses
 
 /**
- * The rule lines of a path. A single method earns its warning, the offer of a
- * second method and the platform line, and nothing else. Otherwise, in this
+ * The rule lines of a path. A single method earns its warning and the offer of
+ * a second method, and nothing else: a single passkey is offered a second
+ * passkey and earns the platform line, a single method of any other kind, or
+ * of no known kind, is offered a second method of any kind. Otherwise, in this
  * order: the rows' line when the path has no group, each group's threshold line
  * followed by its failure domain line, and the different places line.
  */
@@ -193,11 +196,15 @@ export const getRuleLines = (path: RuleLinesInput, options: RuleLinesOptions = {
   }
 
   if (methodCount === 1) {
-    return [
-      line(RULE_LINE_KEYS.singleMethod),
-      line(RULE_LINE_KEYS.secondMethodOffer),
-      line(RULE_LINE_KEYS.platformFate)
-    ]
+    const [single] = clauses.flatMap((clause) => clause.credentials)
+    if (familyOf(single, options.kindOfMethod) === 'passkey') {
+      return [
+        line(RULE_LINE_KEYS.singleMethod),
+        line(RULE_LINE_KEYS.secondMethodOffer),
+        line(RULE_LINE_KEYS.platformFate)
+      ]
+    }
+    return [line(RULE_LINE_KEYS.singleMethod), line(RULE_LINE_KEYS.secondMethodOfferAny)]
   }
 
   const lines: RuleLine[] = []

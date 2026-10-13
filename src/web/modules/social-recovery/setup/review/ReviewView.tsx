@@ -36,9 +36,11 @@ import {
   renderChip,
   renderNoun,
   renderResolvedName,
-  renderValueLabel
+  renderValueLabel,
+  renderWaitLength
 } from '@web/modules/social-recovery/shared/display'
 import { defaultSetupDraft } from '@web/modules/social-recovery/shared/records/types'
+import { WAIT_FLOOR_SECONDS } from '@web/modules/social-recovery/setup/privacy/wait'
 
 import {
   kindNameOf,
@@ -285,7 +287,7 @@ const ReviewView = ({
           {renderWait(draft.wait, t)}
         </Text>
         <Text fontSize={12} appearance="secondaryText">
-          {t(`${REVIEW}.minimum`)}
+          {t(`${REVIEW}.minimum`, { minimum: renderWaitLength(WAIT_FLOOR_SECONDS, t) })}
         </Text>
       </SectionCard>
 

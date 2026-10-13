@@ -42,6 +42,7 @@ import {
   startSave
 } from '@web/modules/social-recovery/setup/arm'
 import type { ArmStore } from '@web/modules/social-recovery/setup/arm'
+import { CLAIMED_SETUP_READ_MS } from '@web/modules/social-recovery/setup/arm/constants'
 
 import {
   advanceTimers,
@@ -59,6 +60,7 @@ import {
   minedAndReverted,
   nodeError,
   PASSWORD,
+  pending,
   replacedTransaction,
   runSave,
   setupStateOf,
@@ -164,7 +166,7 @@ describe('the gas check before the send', () => {
   it('checks the gas again from the deposit step on the same prepared save, and sends once the key holds enough', async () => {
     const wired = wireSave(account, script({ gas: 'deposit' }))
     const store = await runSave(wired.steps)
-    wired.reads.nativeBalance.mockResolvedValue(10n ** 18n)
+    wired.reads.nativeBalance.mockResolvedValue(1_000_000_000_000_000_000n)
 
     await recheckGas(store, wired.steps, { timeoutMs: SHORT_TIMEOUT_MS })
 
@@ -179,6 +181,40 @@ describe('the gas check before the send', () => {
 
     expect(store.state().write.status).toBe('gasReadError')
     expect(wired.port.sendAccountBatch).not.toHaveBeenCalled()
+  })
+})
+
+describe('the setup read after the claim', () => {
+  beforeEach(() => {
+    jest.useFakeTimers()
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
+  })
+
+  it('reads a setup read after the claim that never answers within its limit as a failed read, with the retry, sends nothing and releases the claim', async () => {
+    const wired = wireSave(account, script())
+    wired.setupState
+      .mockResolvedValueOnce(setupStateOf(false))
+      .mockImplementationOnce(() => pending())
+    const store = createArmStore()
+    const running = startSave(store, wired.steps, { timeoutMs: SHORT_TIMEOUT_MS })
+    await advanceTimers(0)
+    expect(wired.setupState).toHaveBeenCalledTimes(2)
+    expect((await wired.inFlight.read()).status).toBe('present')
+
+    await advanceTimers(CLAIMED_SETUP_READ_MS - 1)
+    expect(store.state().write.status).toBe('submitting')
+
+    await advanceTimers(1)
+    await running
+
+    expect(store.state().write.status).toBe('gasReadError')
+    expect(canRetry(store.state().write)).toBe(true)
+    expect(mayStillLand(store.state().write)).toBe(false)
+    expect(wired.port.sendAccountBatch).not.toHaveBeenCalled()
+    expect((await wired.inFlight.read()).status).toBe('absent')
   })
 })
 
@@ -581,11 +617,11 @@ describe('the setup read at the start of every run', () => {
     expect(wired.saveSetup).not.toHaveBeenCalled()
   })
 
-  it('reads a setup read that throws as never sent, with the retry, and sends nothing', async () => {
+  it('reads a setup read the node refused as a failed read, with the retry, and sends nothing', async () => {
     const wired = wireSave(account, script({ setup: 'throws' }))
     const store = await runSave(wired.steps)
 
-    expect(store.state().write.status).toBe('failedNotSent')
+    expect(store.state().write.status).toBe('gasReadError')
     expect(canRetry(store.state().write)).toBe(true)
     expect(mayStillLand(store.state().write)).toBe(false)
     expect(store.state().stop).toBeUndefined()
@@ -608,7 +644,7 @@ describe('the setup read at the start of every run', () => {
     [
       'a gas check that could not read',
       { gas: 'read-fails' },
-      (wired) => wired.reads.nativeBalance.mockResolvedValue(10n ** 18n)
+      (wired) => wired.reads.nativeBalance.mockResolvedValue(1_000_000_000_000_000_000n)
     ],
     [
       'a refusal of the port',
@@ -841,7 +877,7 @@ describe("the deposit step's Continue", () => {
     expect(store.state().write.status).toBe('needsDeposit')
     const balances = wired.reads.nativeBalance.mock.calls.length
     const estimates = wired.reads.estimateGas.mock.calls.length
-    wired.reads.nativeBalance.mockResolvedValue(10n ** 18n)
+    wired.reads.nativeBalance.mockResolvedValue(1_000_000_000_000_000_000n)
     wired.setupState.mockResolvedValue(setupStateOf(true))
 
     await recheckGas(store, wired.steps, { timeoutMs: SHORT_TIMEOUT_MS })
@@ -860,7 +896,7 @@ describe("the deposit step's Continue", () => {
     const store = await runSave(wired.steps)
     const balances = wired.reads.nativeBalance.mock.calls.length
     const setupReads = wired.setupState.mock.calls.length
-    wired.reads.nativeBalance.mockResolvedValue(10n ** 18n)
+    wired.reads.nativeBalance.mockResolvedValue(1_000_000_000_000_000_000n)
 
     await recheckGas(store, wired.steps, { timeoutMs: SHORT_TIMEOUT_MS })
 
@@ -1353,7 +1389,9 @@ describe("the sign screen's estimation before a save never sent", () => {
   SHORT_READINGS.forEach(([named, estimation]) => {
     it(`runs the gas check again after a reading with ${named}, and shows the deposit step in a new run that read the setup`, async () => {
       const wired = wireSave(account, script({ send: 'refused', estimation }))
-      wired.reads.nativeBalance.mockResolvedValueOnce(10n ** 18n).mockResolvedValueOnce(0n)
+      wired.reads.nativeBalance
+        .mockResolvedValueOnce(1_000_000_000_000_000_000n)
+        .mockResolvedValueOnce(0n)
       const store = await runSave(wired.steps)
       const { write } = store.state()
 
@@ -1403,7 +1441,7 @@ describe("the sign screen's estimation before a save never sent", () => {
       script({ send: 'refused', estimation: feeReading({ error: true }) })
     )
     wired.reads.nativeBalance
-      .mockResolvedValueOnce(10n ** 18n)
+      .mockResolvedValueOnce(1_000_000_000_000_000_000n)
       .mockRejectedValueOnce(new Error('node down'))
     const store = await runSave(wired.steps)
 
@@ -1417,7 +1455,9 @@ describe("the sign screen's estimation before a save never sent", () => {
       account,
       script({ send: 'refused', estimation: feeReading({ error: true }) })
     )
-    wired.reads.nativeBalance.mockResolvedValueOnce(10n ** 18n).mockResolvedValueOnce(0n)
+    wired.reads.nativeBalance
+      .mockResolvedValueOnce(1_000_000_000_000_000_000n)
+      .mockResolvedValueOnce(0n)
     // No setup before the prepare nor after the claim; the new run's read finds one.
     wired.setupState
       .mockResolvedValueOnce(setupStateOf(false))

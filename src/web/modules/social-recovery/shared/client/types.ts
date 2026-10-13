@@ -230,7 +230,7 @@ export interface ChainReads {
   nativeBalance(address: Address, block?: BlockTag): Promise<bigint>
   /** The gas one transaction would use. A call that would revert rejects with its revert data. */
   estimateGas(call: GasEstimateCall): Promise<bigint>
-  /** The node's gas price, in wei per gas. */
+  /** The fee per gas a send from the wallet pays, in wei per gas: the latest block's base fee twice plus a priority fee with a floor. */
   gasPrice(): Promise<bigint>
 }
 

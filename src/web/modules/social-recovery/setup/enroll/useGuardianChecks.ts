@@ -100,7 +100,7 @@ const useGuardianChecks = ({
     ...(!enrollment && target.kind === 'address' ? { checksum: target.checksum } : {}),
     ...(!enrollment && nameCheck ? { name: nameCheck } : {}),
     ...(code ? { code } : {}),
-    ...(address ? { seed: seedCheckOf(deps.keys, address) } : {})
+    ...(address ? { seed: seedCheckOf(deps.keys, deps.ownSeedIds, address) } : {})
   }
 
   return { nameCheck, address, checkLines: checkLinesOf(checks) }

@@ -417,6 +417,7 @@ export const depsOf = (overrides: Partial<EnrollDeps> = {}): FakeDeps => {
     resolveName: async () => '',
     chain: { readCode: async () => '0x', isValidSignature: async () => false },
     keys: [] as HeldKey[],
+    ownSeedIds: [] as string[],
     signTypedData: async () => {
       throw new Error('no key signs here')
     },

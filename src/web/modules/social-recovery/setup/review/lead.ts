@@ -14,7 +14,11 @@ import type {
 } from '@web/modules/social-recovery/sdk-interfaces'
 import { privacyLevelOf, sameAddress } from '@web/modules/social-recovery/shared/client'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
-import { renderChip, renderFullAddress } from '@web/modules/social-recovery/shared/display'
+import {
+  renderChip,
+  renderFullAddress,
+  renderWaitLength
+} from '@web/modules/social-recovery/shared/display'
 import type { MethodChip, Translate } from '@web/modules/social-recovery/shared/display'
 import {
   enrollmentOf,
@@ -211,7 +215,8 @@ const SECONDS_PER_HOUR = 3600n
 
 /**
  * The waiting period as the picker named it: a chip's word where it is one of
- * the four lengths, otherwise its count of hours.
+ * the four lengths, otherwise its length in whole hours, or in whole minutes
+ * under one hour.
  */
 export const renderWait = (wait: SetupDraft['wait'], t: Translate): string => {
   const chip =
@@ -221,7 +226,7 @@ export const renderWait = (wait: SetupDraft['wait'], t: Translate): string => {
   if (chip) {
     return t(`socialRecovery.privacy.waitingPeriod.chips.${chip.id}`)
   }
-  return t('socialRecovery.display.remainingHours', { count: Number(wait / SECONDS_PER_HOUR) })
+  return renderWaitLength(wait, t)
 }
 
 /** The kinds of every row of the path, empty slots by the kind they wait for. */

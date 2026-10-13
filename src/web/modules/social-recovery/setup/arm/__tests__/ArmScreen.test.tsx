@@ -195,6 +195,9 @@ const {
 const {
   DROPPED_AFTER_MS
 }: typeof import('@web/modules/social-recovery/shared/writes') = require('@web/modules/social-recovery/shared/writes')
+const {
+  providerReadFailure
+}: typeof import('@web/modules/social-recovery/shared/client') = require('@web/modules/social-recovery/shared/client')
 const eventBus: typeof import('@web/extension-services/event/eventBus').default =
   require('@web/extension-services/event/eventBus').default
 const ArmScreen: typeof import('@web/modules/social-recovery/setup/arm/ArmScreen').default =
@@ -750,7 +753,7 @@ describe('a save in progress across remounts', () => {
       () => {
         const gate = deferred<bigint>()
         reads.nativeBalance.mockImplementationOnce(() => gate.promise)
-        return () => gate.resolve(10n ** 18n)
+        return () => gate.resolve(1_000_000_000_000_000_000n)
       }
     ],
     [
@@ -1260,7 +1263,7 @@ describe('a save the wallet did not send', () => {
     chain.estimation = feeReading({ error: true })
     await writeRecords(draftOf('encrypted'))
     wireClient('ready')
-    reads.nativeBalance.mockResolvedValueOnce(10n ** 18n).mockResolvedValueOnce(0n)
+    reads.nativeBalance.mockResolvedValueOnce(1_000_000_000_000_000_000n).mockResolvedValueOnce(0n)
     await openByPush()
 
     expect(byTestId('arm-gas-blocker')).not.toBeNull()
@@ -1578,7 +1581,7 @@ describe("another page's save that lands during this page's gas check", () => {
     const confirms = confirmSetup.mock.calls.length
 
     await act(async () => {
-      gas.resolve(10n ** 18n)
+      gas.resolve(1_000_000_000_000_000_000n)
     })
     await settle()
 
@@ -1592,17 +1595,20 @@ describe("another page's save that lands during this page's gas check", () => {
     expect(wipes()).toBe(1)
   })
 
-  it('reads a setup read after the claim that throws as never sent, with Try again, and Try again sends once', async () => {
+  it('reads a setup read after the claim that the node refused as a failed read, with Try again, and Try again sends once', async () => {
     const gas = await pressSaveAndHoldGas()
-    setupState.mockRejectedValueOnce(new Error('the node did not answer the setup read'))
+    setupState.mockRejectedValueOnce(
+      providerReadFailure('call', new Error('the node did not answer the setup read'))
+    )
 
     await act(async () => {
-      gas.resolve(10n ** 18n)
+      gas.resolve(1_000_000_000_000_000_000n)
     })
     await settle()
 
-    expect(byTestId('arm-write-failedNotSent')).not.toBeNull()
-    expect(pageText()).toContain(t('socialRecovery.review.after.notSent'))
+    expect(byTestId('arm-write-gasReadError')).not.toBeNull()
+    expect(pageText()).toContain(t('socialRecovery.writes.gasCheckFailed'))
+    expect(pageText()).not.toContain(t('socialRecovery.review.after.notSent'))
     expect(port.sendAccountBatch).not.toHaveBeenCalled()
     expect(releases()).toBe(1)
     expect(storedSaves()).toHaveLength(0)
@@ -2033,7 +2039,7 @@ describe('a save another page of this device sent', () => {
         const { firstPort, record } = await anotherPageLeaves(false, () => tick(100))
         const readsAway = activityReads()
         await act(async () => {
-          gas.resolve(10n ** 18n)
+          gas.resolve(1_000_000_000_000_000_000n)
         })
         await tick(10 * GONE_GRACE_MS)
 

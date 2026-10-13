@@ -368,7 +368,7 @@ export const chainReadsFor = (gas: GasCase): MockChainReads => ({
     if (gas === 'read-fails') {
       throw providerReadFailure('nativeBalance', new Error('node down'))
     }
-    return gas === 'deposit' ? 0n : 10n ** 18n
+    return gas === 'deposit' ? 0n : 1_000_000_000_000_000_000n
   }),
   estimateGas: jest.fn(async () => 300_000n),
   gasPrice: jest.fn(async () => 2n * GWEI)
@@ -378,8 +378,8 @@ export const chainReadsFor = (gas: GasCase): MockChainReads => ({
 export const feeOption = (available: boolean): FeeOption => ({
   paidBy: KEY.addr,
   token: { address: zeroAddress, symbol: 'ETH', decimals: 18 },
-  balance: available ? 10n ** 18n : 0n,
-  amount: 10n ** 15n,
+  balance: available ? 1_000_000_000_000_000_000n : 0n,
+  amount: 1_000_000_000_000_000n,
   available,
   selected: true
 })
@@ -632,7 +632,7 @@ export const wireSave = (
   })
   const setupState = jest.fn(async () => {
     if (script.setup === 'throws') {
-      throw new Error('the node did not answer the setup read')
+      throw providerReadFailure('call', new Error('the node did not answer the setup read'))
     }
     return setupStateOf(script.setup === 'set-up')
   })

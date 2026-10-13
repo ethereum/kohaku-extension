@@ -28,6 +28,7 @@ import {
   outside,
   replyOf,
   seedCache,
+  settle,
   seedEntry,
   seedSession,
   servedRequestOf,
@@ -51,6 +52,9 @@ const {
 const {
   notServedRefusal
 }: typeof import('@web/modules/social-recovery/shared/client/kit/setup-client') = require('@web/modules/social-recovery/shared/client/kit/setup-client')
+const {
+  CHECKLIST_POLL_MS
+}: typeof import('@web/modules/social-recovery/recovery/checklist/constants') = require('@web/modules/social-recovery/recovery/checklist/constants')
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
 
 const PASTE = 'socialRecovery.checklist.paste'
@@ -550,6 +554,37 @@ describe('the guardian paste', () => {
       expect(input(1)?.readOnly).toBe(false)
       expect(errorLines(1)).toEqual([t(`${PASTE}.checkFailed`)])
       expectSettled(1, line, 'error')
+    })
+  })
+
+  describe('under a failed poll', () => {
+    afterEach(() => {
+      jest.useRealTimers()
+    })
+
+    it('refuses a paste whose check was in flight when the poll failed, with the held line, and writes nothing', async () => {
+      jest.useFakeTimers()
+      jest.setSystemTime(NOW)
+      await open()
+      const verdict = deferred<'satisfied'>()
+      kit.verifyReply.mockImplementation(() => verdict.promise)
+      const line = lineOf(replyOf(gathering, 1))
+      const before = sessionWrites()
+      await view?.type(id(1, 'paste-input'), line)
+      await view?.press(id(1, 'paste-add'))
+
+      kit.recoveryState.mockRejectedValue(new Error('node unavailable'))
+      await settle(CHECKLIST_POLL_MS)
+      expect(view?.byTestId('checklist-poll-failed')).not.toBeNull()
+
+      verdict.resolve('satisfied')
+      await outside(() => verdict.promise)
+
+      expect(sessionWrites() - before).toBe(0)
+      expect(await repliesHeld()).toEqual([])
+      expect(errorLines(1)).toEqual([t('socialRecovery.checklist.pollFailed.held')])
+      expect(view?.valueOf(id(1, 'paste-input'))).toBe(line)
+      expect(view?.byTestId(id(1, 'verified'))).toBeNull()
     })
   })
 

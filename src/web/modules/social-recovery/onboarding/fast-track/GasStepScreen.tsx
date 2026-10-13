@@ -33,7 +33,7 @@ import {
   extensionRecordStorage
 } from '@web/modules/social-recovery/shared/records'
 
-import { FRESH_INSTALL_ROUTE } from './constants'
+import { ACKNOWLEDGED_STATE, FRESH_INSTALL_ROUTE } from './constants'
 import GasStepView from './GasStepView'
 import {
   accountParamOf,
@@ -120,7 +120,10 @@ const GasStepScreen = () => {
     }
   }
   const backToAccount = () =>
-    navigate(accountStepPathOf(present?.receivingAccount), { replace: true })
+    navigate(accountStepPathOf(present?.receivingAccount), {
+      replace: true,
+      state: ACKNOWLEDGED_STATE
+    })
 
   return (
     <PlainChrome title={t('socialRecovery.routes.recover')} testID="fast-track-gas-screen">

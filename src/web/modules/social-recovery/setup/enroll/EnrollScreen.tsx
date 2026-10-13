@@ -27,6 +27,7 @@ import {
   createSignerFacade,
   extensionProviderFor,
   networkOf,
+  sameAddress,
   signRequestPort,
   WALLET_RECOVERY_CHAIN
 } from '@web/modules/social-recovery/shared/client'
@@ -141,6 +142,20 @@ const EnrollScreen = () => {
     [keys]
   )
 
+  // The seeds of the keys that control the account, so a guardian from one of
+  // them reads as sharing the account's seed and one from another seed does not.
+  const ownSeedIds = useMemo(() => {
+    const listed = account
+      ? accounts?.find((candidate) => sameAddress(candidate.addr, account))
+      : undefined
+    return heldKeys.flatMap((key) =>
+      key.fromSeedId &&
+      listed?.associatedKeys.some((associated) => sameAddress(associated, key.addr))
+        ? [key.fromSeedId]
+        : []
+    )
+  }, [accounts, account, heldKeys])
+
   const deps = useMemo<EnrollDeps>(
     () => ({
       passkeysServed: pagePasskeysServed(),
@@ -153,11 +168,12 @@ const EnrollScreen = () => {
       resolveName: resolveMainnetName,
       chain,
       keys: heldKeys,
+      ownSeedIds,
       signTypedData: (key, typedData, options) => signer.signTypedData(key, typedData, options),
       readClipboard: browserClipboard(),
       saveFile: saveChallengeFile
     }),
-    [chain, heldKeys, signer]
+    [chain, heldKeys, ownSeedIds, signer]
   )
 
   return (

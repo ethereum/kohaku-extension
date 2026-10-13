@@ -65,7 +65,12 @@ const PREFIX = 'socialRecovery.ruleLines.'
 
 const shortKey = (key: string): string => (key.startsWith(PREFIX) ? key.slice(PREFIX.length) : key)
 
-const SINGLE_METHOD: Expected[] = [
+// A single method whose kind the lines cannot tell, as every enrolled method
+// read without a resolver: the offer of a second method of any kind.
+const SINGLE_METHOD: Expected[] = [{ key: 'singleMethod' }, { key: 'secondMethodOfferAny' }]
+
+// A single passkey: the offer of a second passkey and the platform line.
+const SINGLE_PASSKEY: Expected[] = [
   { key: 'singleMethod' },
   { key: 'secondMethodOffer' },
   { key: 'platformFate' }
@@ -74,7 +79,7 @@ const SINGLE_METHOD: Expected[] = [
 // Each shape the editor accepts, with the lines it earns in order.
 const SHAPES: { name: string; clauses: Clause[]; expected: Expected[] }[] = [
   {
-    name: 'one row: the single-method warning with the second passkey or hardware key offer',
+    name: 'one row: the single-method warning with the offer of a second method of any kind',
     clauses: [row(PASSKEY)],
     expected: SINGLE_METHOD
   },
@@ -803,6 +808,36 @@ describe('getRuleLines: an enrolled method and a slot of one kind', () => {
   it('without a resolver, an enrolled passkey and a passkey slot are two failure domains', () => {
     const clauses = [slotGroup(1, [enrolled('passkey'), PASSKEY_SLOT()])]
     expect(keysOf(clauses)).toEqual(['eitherOneAlone', 'differentPlaces'])
+  })
+
+  const SINGLE_CASES: [string, Clause[], Expected[]][] = [
+    [
+      'one enrolled passkey',
+      [{ threshold: 1, credentials: [enrolled('passkey')] }],
+      SINGLE_PASSKEY
+    ],
+    ['one passkey slot', [slotGroup(1, [PASSKEY_SLOT()])], SINGLE_PASSKEY],
+    ['one enrolled guardian', [{ threshold: 1, credentials: [enrolled('ecdsa')] }], SINGLE_METHOD],
+    ['one guardian slot', [slotGroup(1, [GUARDIAN_SLOT()])], SINGLE_METHOD],
+    [
+      'one enrolled passport',
+      [{ threshold: 1, credentials: [enrolled('zkpassport')] }],
+      SINGLE_METHOD
+    ]
+  ]
+
+  SINGLE_CASES.forEach(([name, clauses, expected]) => {
+    it(`${name} alone: the single-method warning and the offer its kind earns`, () => {
+      const lines = linesOf(clauses, WITH_KINDS)
+      expect(lines.map((l) => shortKey(l.key))).toEqual(expected.map((e) => e.key))
+      expect(renderRuleLines(lines, t)).toEqual(expected.map(englishOf))
+    })
+  })
+
+  it('one guardian alone never reads the passkey offer or the platform line', () => {
+    const keys = keysOfWith([{ threshold: 1, credentials: [enrolled('ecdsa')] }], WITH_KINDS)
+    expect(keys).not.toContain('secondMethodOffer')
+    expect(keys).not.toContain('platformFate')
   })
 
   it('a resolver changes no line of a path with no slot whose modules it does not know', () => {

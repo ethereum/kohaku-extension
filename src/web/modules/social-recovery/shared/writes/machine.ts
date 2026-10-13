@@ -11,9 +11,10 @@
  *                                          landed | failedNotSent | failedReverted
  *
  * A failed state that offers the retry goes back to `checkingGas` on `start`,
- * since a retry runs the gas check again at that moment's fee. A read of the
- * gas check that could not run (a `ProviderReadFailure`) is `gasReadError`,
- * never the not-sent reading: the write was never about to be sent.
+ * since a retry runs the gas check again at that moment's fee. A read that
+ * could not run (a `ProviderReadFailure`) before the wallet answered a hash,
+ * in the gas check or in a check the write makes after it, is `gasReadError`,
+ * never the not-sent reading: nothing was handed to the wallet.
  *
  * Each accepted `start` opens a new run, one more than the last. Every answer
  * of the work a run started (`WRITE_ANSWER_TYPES`: the gas check, the hash,
@@ -157,7 +158,10 @@ export const writeReducer = (state: WriteMachineState, event: WriteEvent): Write
       if (state.status !== 'checkingGas' && state.status !== 'submitting') {
         return state
       }
-      if (state.status === 'checkingGas' && isProviderReadFailure(event.error)) {
+      const beforeTheSend =
+        state.status === 'checkingGas' ||
+        (state.status === 'submitting' && !state.transactionHash && !event.transactionHash)
+      if (beforeTheSend && isProviderReadFailure(event.error)) {
         return { status: 'gasReadError', write, error: event.error, run }
       }
       const context = { write, attemptAfter: event.attemptAfter }

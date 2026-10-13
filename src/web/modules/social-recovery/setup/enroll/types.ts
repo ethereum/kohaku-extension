@@ -132,7 +132,11 @@ export interface GuardianChecks {
   checksum?: 'ok' | 'failed'
   name?: NameCheck
   code?: 'none' | 'contract'
-  seed?: 'same' | 'not'
+  /**
+   * `same`: a key derived from the seed of one of the account's own keys;
+   * `held`: another key this wallet holds; `not`: a key this wallet does not hold.
+   */
+  seed?: 'same' | 'held' | 'not'
 }
 
 /** A provider that reads a name's address, destroyed after the read. */
@@ -197,6 +201,8 @@ export interface EnrollDeps {
   /** The chain reads, null while the extension holds no provider for the recovery chain. */
   chain: GuardianChain | null
   keys: readonly HeldKey[]
+  /** The seeds the account's own controlling keys were derived from. */
+  ownSeedIds: readonly string[]
   /** Signs typed data through the request queue with a key the wallet holds. */
   signTypedData: (key: KeyHandle, typedData: TypedDataToSign, options?: SignOptions) => Promise<Hex>
   /** Reads the clipboard, null where the page has no clipboard. */

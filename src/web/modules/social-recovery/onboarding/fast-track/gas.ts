@@ -10,8 +10,8 @@ import type { SubmissionCheckInput } from './types'
 
 /**
  * The fast track's gas check for the submission, before the client has a
- * prepared submission to estimate. It reads the node's gas price and the
- * sending key's balance, prices the assumed gas with the usual headroom, and
+ * prepared submission to estimate. It reads the fee the wallet's send pays and
+ * the sending key's balance, prices the assumed gas with the usual headroom, and
  * answers `enough` where the balance covers it, otherwise the fast track's
  * deposit step: the deposit from outside into the sending key, with no
  * transfer from an account, since the account cannot pay before it is

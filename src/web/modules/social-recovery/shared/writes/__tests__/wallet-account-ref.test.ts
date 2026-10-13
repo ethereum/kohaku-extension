@@ -103,7 +103,7 @@ describe("the ref of a listed account, from the wallet's facts", () => {
     const facts = factsOf(otherFactory, false)
     const transaction = accountBatchTransactionOf(facts, KEY, SAVE.calls)
     expect(transaction.to).toBe(OTHER_FACTORY)
-    const reads = mockReads({ balance: 10n ** 18n, gas: 310_000n })
+    const reads = mockReads({ balance: 1_000_000_000_000_000_000n, gas: 310_000n })
     const check = await runGasCheck({
       write: 'save',
       prepared: SAVE,

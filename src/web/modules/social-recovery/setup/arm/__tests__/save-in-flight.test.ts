@@ -642,7 +642,7 @@ describe('the setup read after the claim', () => {
     const writes = jest.spyOn(storage, 'set')
     const removals = jest.spyOn(storage, 'remove')
 
-    gas.resolve(10n ** 18n)
+    gas.resolve(1_000_000_000_000_000_000n)
     await advanceTimers(SHORT_TIMEOUT_MS)
     await running
 
@@ -1345,9 +1345,16 @@ describe('the block the send starts from', () => {
     expect((await stored(wired))?.startBlock).toBe(START_BLOCK + 3)
   })
 
-  /** After a run that ended on the send's block: nothing sent, the claim released, the retry offered. */
-  const expectEndedNotSent = async (wired: WiredSave, store: ArmStore) => {
-    expect(store.state().write.status).toBe('failedNotSent')
+  /**
+   * After a run that ended on the send's block: nothing sent, the claim
+   * released, the retry offered; a read past its limit reads as a failed read.
+   */
+  const expectEndedNotSent = async (
+    wired: WiredSave,
+    store: ArmStore,
+    status: 'failedNotSent' | 'gasReadError' = 'failedNotSent'
+  ) => {
+    expect(store.state().write.status).toBe(status)
     expect(canRetry(store.state().write)).toBe(true)
     expect(mayStillLand(store.state().write)).toBe(false)
     expect(store.state().requestId).toBeUndefined()
@@ -1367,7 +1374,7 @@ describe('the block the send starts from', () => {
     expect(isSaved(store.state())).toBe(true)
   }
 
-  it('ends a block read past its limit with nothing sent, the claim released and the retry, and the retry sends once', async () => {
+  it('ends a block read past its limit as a failed read with nothing sent, the claim released and the retry, and the retry sends once', async () => {
     const wired = wireSave(account, script())
     const late = deferred<number>()
     wired.receipts.blockNumber
@@ -1384,7 +1391,7 @@ describe('the block the send starts from', () => {
     expect(await stored(wired)).toBeDefined()
 
     await advanceTimers(1)
-    await expectEndedNotSent(wired, store)
+    await expectEndedNotSent(wired, store, 'gasReadError')
 
     const before = store.state()
     late.resolve(START_BLOCK)
@@ -1697,7 +1704,7 @@ describe('the stored save read again before the send', () => {
 })
 
 describe('the time limit of the setup read after the claim', () => {
-  it('releases the claim at the limit with nothing sent and the retry, takes nothing from a late answer, and the retry sends once', async () => {
+  it('releases the claim at the limit as a failed read with nothing sent and the retry, takes nothing from a late answer, and the retry sends once', async () => {
     const wired = wireSave(account, script())
     const late = deferred<ReturnType<typeof setupStateOf>>()
     wired.setupState
@@ -1713,7 +1720,7 @@ describe('the time limit of the setup read after the claim', () => {
     expect(await stored(wired)).toBeDefined()
 
     await advanceTimers(1)
-    expect(store.state().write.status).toBe('failedNotSent')
+    expect(store.state().write.status).toBe('gasReadError')
     expect(canRetry(store.state().write)).toBe(true)
     expect(mayStillLand(store.state().write)).toBe(false)
     expect(store.state().requestId).toBeUndefined()
@@ -1942,7 +1949,7 @@ describe('a follow that starts after its screen left', () => {
       const removals = jest.spyOn(storage, 'remove')
 
       if (when === 'while no screen is attached') {
-        gas.resolve(10n ** 18n)
+        gas.resolve(1_000_000_000_000_000_000n)
         await advanceTimers(10 * GONE_GRACE_MS)
         expect(store.state().requestId).toBe(record.requestId)
         expect(store.state().write.status).toBe('submitting')
@@ -1954,7 +1961,7 @@ describe('a follow that starts after its screen left', () => {
       unawaited(attachSteps(store, after.steps, OPTIONS))
       if (when === 'after the next screen attached') {
         await advanceTimers(0)
-        gas.resolve(10n ** 18n)
+        gas.resolve(1_000_000_000_000_000_000n)
       }
       await advanceTimers(0)
 

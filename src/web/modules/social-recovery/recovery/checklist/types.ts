@@ -279,12 +279,13 @@ export interface HeldConfiguration {
   source: ConfigurationSourceKind
 }
 
-/** What adding a reply came to. */
+/** What adding a reply came to; `held` where a failed poll held every add. */
 export type AddReplyResult =
   | { kind: 'added' }
   | { kind: 'refused'; cause: string }
   | { kind: 'conflict' }
   | { kind: 'write-failed' }
+  | { kind: 'held' }
 
 export interface ChecklistState {
   load: ChecklistLoad
@@ -553,6 +554,8 @@ export type PasteError =
   | { kind: 'noMatch' }
   | { kind: 'checkFailed' }
   | { kind: 'writeFailed' }
+  /** A failed poll holds every add until a poll succeeds. */
+  | { kind: 'held' }
   /** Another tab changed the session; the checklist renders the reload. */
   | { kind: 'conflict' }
 

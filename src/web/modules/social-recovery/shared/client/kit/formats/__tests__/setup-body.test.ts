@@ -94,7 +94,7 @@ const EXPECTED_CLAUSES = [
   }
 ]
 
-const MAX_UINT48 = 2n ** 48n - 1n
+const MAX_UINT48 = 281_474_976_710_656n - 1n
 
 describe('the setup body', () => {
   it('is the wait, the pause choice and the clauses as three top-level values', () => {

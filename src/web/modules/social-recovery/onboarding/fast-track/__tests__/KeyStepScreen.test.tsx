@@ -255,7 +255,7 @@ describe('the key step', () => {
           type: 'ACCOUNTS_CONTROLLER_RESET_ACCOUNTS_NEWLY_ADDED_STATE',
           params: undefined
         },
-        { kind: 'navigate', to: ACCOUNT_STEP.slice(1), replace: true, state: undefined }
+        { kind: 'navigate', to: ACCOUNT_STEP.slice(1), replace: true, state: ACKNOWLEDGED }
       ])
       expect(where()).toBe(ACCOUNT_STEP)
       expect(dispatched('MAIN_CONTROLLER_ACCOUNT_PICKER_RESET')).toHaveLength(1)
@@ -500,7 +500,7 @@ describe('the key step', () => {
       expect(mockEdge.made).toBe(0)
       expect(dispatched()).toEqual([])
       expect(movesAway()).toEqual([
-        { kind: 'navigate', to: ACCOUNT_STEP.slice(1), replace: true, state: undefined }
+        { kind: 'navigate', to: ACCOUNT_STEP.slice(1), replace: true, state: ACKNOWLEDGED }
       ])
       expect(where()).toBe(ACCOUNT_STEP)
     })
@@ -617,7 +617,7 @@ describe('the key step', () => {
         }
       ])
       expect(movesAway()).toEqual([
-        { kind: 'navigate', to: ACCOUNT_STEP.slice(1), replace: true, state: undefined }
+        { kind: 'navigate', to: ACCOUNT_STEP.slice(1), replace: true, state: ACKNOWLEDGED }
       ])
       expect(where()).toBe(ACCOUNT_STEP)
     })
@@ -642,7 +642,7 @@ describe('the key step', () => {
         }
       ])
       expect(movesAway()).toEqual([
-        { kind: 'navigate', to: ACCOUNT_STEP.slice(1), replace: true, state: undefined }
+        { kind: 'navigate', to: ACCOUNT_STEP.slice(1), replace: true, state: ACKNOWLEDGED }
       ])
       expect(where()).toBe(ACCOUNT_STEP)
     })

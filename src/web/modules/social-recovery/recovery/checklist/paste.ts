@@ -128,6 +128,9 @@ export const errorOfAdd = (result: Exclude<AddReplyResult, { kind: 'added' }>): 
   if (result.kind === 'write-failed') {
     return { kind: 'writeFailed' }
   }
+  if (result.kind === 'held') {
+    return { kind: 'held' }
+  }
   if (result.cause === 'version-unread') {
     return { kind: 'notAnApproval' }
   }
@@ -164,6 +167,8 @@ export const pasteErrorLinesOf = (error: PasteError, t: Translate): string[] => 
       return [t(`${PASTE}.checkFailed`)]
     case 'writeFailed':
       return [t('socialRecovery.checklist.writeFailed')]
+    case 'held':
+      return [t('socialRecovery.checklist.pollFailed.held')]
     case 'conflict':
     default:
       return []

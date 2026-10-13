@@ -778,6 +778,13 @@ describe('a direct open', () => {
     expect(page.has('entry-account-field')).toBe(false)
   })
 
+  it('shows no condensed warning on the fresh-install route where the key step passed the acknowledgment', async () => {
+    const page = await open(FRESH_INSTALL)
+    expect(page.has('entry-gate')).toBe(false)
+    expect(page.has('recovery-warning')).toBe(false)
+    expect(page.has('entry-account-field')).toBe(true)
+  })
+
   it('shows the warning for a navigation state that does not say acknowledged', async () => {
     const page = await open(LOGGED_IN, { acknowledged: 'true' })
     expect(page.has('entry-gate')).toBe(true)

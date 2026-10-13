@@ -206,7 +206,7 @@ describe("the fast track's gas check for the submission", () => {
   const network = { name: 'Sepolia', nativeAssetSymbol: 'ETH' }
 
   it('reads the sending key and answers enough where its balance covers the estimate', async () => {
-    const nativeBalance = jest.fn(async () => 10n ** 18n)
+    const nativeBalance = jest.fn(async () => 1_000_000_000_000_000_000n)
 
     const check = await submissionCheckOf({
       reads: { gasPrice: async () => 1_000_000_000n, nativeBalance },

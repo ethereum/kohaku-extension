@@ -113,6 +113,39 @@ describe('a call the wallet never sent, the first reading', () => {
         expect(rendered(readFailed)).not.toMatch(NOTHING_REACHED_THE_CHAIN)
         expect(rendered(readFailed)).not.toMatch(REVERTED)
       })
+
+      it('a read refused after the gas check and before the wallet answered a hash is gasReadError, with the retry', () => {
+        const submitting = submittingFor(write)
+        const readFailed = writeReducer(submitting, {
+          type: 'error',
+          run: submitting.run,
+          error: providerReadFailure('call', new Error('too many requests'))
+        })
+        expect(readFailed.status).toBe('gasReadError')
+        expect(rendered(readFailed)).not.toMatch(NOTHING_REACHED_THE_CHAIN)
+        expect(writeReducer(readFailed, { type: 'start' }).status).toBe('checkingGas')
+      })
+
+      it('a read refused once the wallet answered a hash is never read as a failed read', () => {
+        const sent = sentFor(write)
+        const readFailed = writeReducer(sent, {
+          type: 'error',
+          run: sent.run,
+          error: providerReadFailure('call', new Error('too many requests'))
+        })
+        expect(readFailed.status).not.toBe('gasReadError')
+      })
+
+      it('a read refused with a hash the error names is never read as a failed read', () => {
+        const submitting = submittingFor(write)
+        const readFailed = writeReducer(submitting, {
+          type: 'error',
+          run: submitting.run,
+          transactionHash: TX_HASH,
+          error: providerReadFailure('call', new Error('too many requests'))
+        })
+        expect(readFailed.status).not.toBe('gasReadError')
+      })
     })
   )
 })

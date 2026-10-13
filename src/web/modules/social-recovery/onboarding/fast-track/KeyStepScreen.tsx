@@ -54,7 +54,10 @@ const KeyStep = () => {
     closed.current = true
     dispatch({ type: 'MAIN_CONTROLLER_ACCOUNT_PICKER_RESET' })
     dispatch({ type: 'ACCOUNTS_CONTROLLER_RESET_ACCOUNTS_NEWLY_ADDED_STATE' })
-    navigate(accountStepPathOf(listed ?? selectedBasicAccountOf(selected)), { replace: true })
+    navigate(accountStepPathOf(listed ?? selectedBasicAccountOf(selected)), {
+      replace: true,
+      state: ACKNOWLEDGED_STATE
+    })
   }, [listed, listedByEarlierAdd, selected, dropping, dispatch, navigate])
 
   const proceed = useCallback(() => {
@@ -107,7 +110,7 @@ const KeyStepScreen = () => {
     if (away && !dropping) {
       navigate(away, {
         replace: true,
-        ...(away === WEB_ROUTES.socialRecoveryFastTrack ? { state: ACKNOWLEDGED_STATE } : {})
+        ...(away !== WEB_ROUTES.keyStoreUnlock ? { state: ACKNOWLEDGED_STATE } : {})
       })
     }
   }, [away, dropping, navigate])

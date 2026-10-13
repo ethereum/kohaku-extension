@@ -40,6 +40,7 @@ import {
 } from './rows'
 import { submitPathOf, waitPathOf } from './search'
 import type {
+  AddReply,
   AlertKeys,
   AnsweredMemory,
   ChecklistFailure,
@@ -233,6 +234,14 @@ const ChecklistView = ({
   // holds every add, launch and continue until a poll succeeds; a request past
   // its deadline holds them for good.
   const held = poll.status === 'failed' || checklist.deathFailed || checklist.dying || pastDeadline
+  // A paste whose check was in flight when the hold began is refused at its
+  // add, read at that moment, so it never writes while the rows may be stale.
+  const heldRef = useRef(held)
+  heldRef.current = held
+  const addHeldReply = useCallback<AddReply>(
+    async (reply) => (heldRef.current ? { kind: 'held' } : addReply(reply)),
+    [addReply]
+  )
   const addable = isLive && poll.status === 'answered' && !held
   useEffect(() => {
     if (addable && pending && !pendingFailed && !checklist.busy) {
@@ -420,7 +429,7 @@ const ChecklistView = ({
           setNote={(place, note) => {
             checklist.setNote(place, note).catch(() => undefined)
           }}
-          addReply={addReply}
+          addReply={addHeldReply}
         />
       )
     }
