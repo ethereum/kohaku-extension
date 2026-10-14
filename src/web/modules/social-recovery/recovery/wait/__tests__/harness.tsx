@@ -46,6 +46,7 @@ import type {
   ProviderTransactionReceipt,
   RecoveryKitClient,
   SendPort,
+  SendRequestPort,
   TransactionKnown
 } from '@web/modules/social-recovery/shared/client'
 import type {
@@ -74,6 +75,10 @@ export interface MockWallet {
   accounts: Account[]
   keys: Key[]
   port: SendPort | null
+  /** The account the wallet has selected. */
+  selected: Address | null
+  /** The request port the screen built the send port over. */
+  requests: SendRequestPort | null
 }
 
 export const mockWallet: MockWallet = {
@@ -84,7 +89,9 @@ export const mockWallet: MockWallet = {
   facts: new Map(),
   accounts: [],
   keys: [],
-  port: null
+  port: null,
+  selected: null,
+  requests: null
 }
 
 // The chrome's account latch is the chrome's own, tested in its folder.
@@ -111,6 +118,10 @@ jest.mock('@web/hooks/useBackgroundService', () => ({
   __esModule: true,
   default: () => ({ dispatch: mockWallet.dispatch, windowId: undefined })
 }))
+jest.mock('@web/hooks/useSelectedAccountControllerState', () => ({
+  __esModule: true,
+  default: () => ({ account: mockWallet.selected ? { addr: mockWallet.selected } : null })
+}))
 jest.mock('@web/hooks/useRequestsControllerState', () => {
   const queue = { userRequests: [] }
   return { __esModule: true, default: () => queue }
@@ -129,7 +140,10 @@ jest.mock('@web/modules/social-recovery/shared/client/useAccountFacts', () => {
 })
 jest.mock('@web/modules/social-recovery/shared/client', () => ({
   ...jest.requireActual('@web/modules/social-recovery/shared/client'),
-  createSendPort: () => mockWallet.port
+  createSendPort: (requests: SendRequestPort) => {
+    mockWallet.requests = requests
+    return mockWallet.port
+  }
 }))
 const mockFrame = (name: string) => {
   const R = jest.requireActual('react')
@@ -167,6 +181,7 @@ const {
   getSmartAccount
 }: typeof import('@ambire-common/libs/account/account') = require('@ambire-common/libs/account/account')
 const {
+  accountBatchRefusal,
   sendRefusal
 }: typeof import('@web/modules/social-recovery/shared/client') = require('@web/modules/social-recovery/shared/client')
 const {
@@ -949,6 +964,8 @@ export const openWorld = async ({
   mockWallet.clients = new Map([[account.toLowerCase(), readyClient(kit)]])
   mockWallet.facts = new Map([[receivingAccount.addr.toLowerCase(), readyFacts(facts)]])
   mockWallet.port = port
+  mockWallet.selected = null
+  mockWallet.requests = null
   return {
     account,
     storage,
@@ -960,6 +977,38 @@ export const openWorld = async ({
     sendingKey,
     entry
   }
+}
+
+/**
+ * Holds the account's batch while the wallet selects another account, as the
+ * send port does. Once the test lands the selection, the port asks the run's
+ * gate: where it allows the add, the request is added and the batch answers
+ * `TX_HASH`; otherwise nothing is added and the batch ends with the port's
+ * timeout.
+ */
+export const batchAwaitingSelection = (world: World) => {
+  const added: string[] = []
+  const held: { land?: () => Promise<void> } = {}
+  world.port.sendAccountBatch.mockImplementation(
+    (...[account, , , , requestId, options]: Parameters<SendPort['sendAccountBatch']>) =>
+      new Promise<Hex>((resolve, reject) => {
+        held.land = async () => {
+          if (options?.canAdd && (await options.canAdd())) {
+            added.push(String(requestId))
+            resolve(TX_HASH)
+            return
+          }
+          reject(accountBatchRefusal('timeout', account))
+        }
+      })
+  )
+  const selectAccount = async () => {
+    if (!held.land) {
+      throw new Error('no batch waits for the selection')
+    }
+    await held.land()
+  }
+  return { selectAccount, added: () => [...added] }
 }
 
 /** Puts the pinned block at the attempt's end, so the wait reads elapsed. */

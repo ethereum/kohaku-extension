@@ -943,6 +943,7 @@ describe("the UI's own port over the event bus", () => {
         dispatch,
         () => [basicAccount(KEY)],
         () => undefined,
+        () => KEY,
         WINDOW_ID
       ),
       { chainId: SEPOLIA }
@@ -965,11 +966,48 @@ describe("the UI's own port over the event bus", () => {
     expect(listenerCounts()).toEqual(before)
   })
 
+  it('selects the sending account first and adds the request once, only after the wallet pushes that selection', async () => {
+    const dispatch = jest.fn()
+    const sender = createSendPort(
+      sendRequestPort(
+        dispatch,
+        () => [basicAccount(KEY)],
+        () => undefined,
+        () => OTHER_KEY,
+        WINDOW_ID
+      ),
+      { chainId: SEPOLIA }
+    )
+    const send = track(sender.send(HANDLE, TRANSACTION))
+    await flush()
+    expect(actionsOf(dispatch)).toContainEqual({
+      type: 'MAIN_CONTROLLER_SELECT_ACCOUNT',
+      params: { accountAddr: KEY }
+    })
+    expect(typesOf(dispatch)).not.toContain(ADD)
+
+    eventBus.emit('selectedAccount', { account: { addr: KEY } })
+    await flush()
+    expect(typesOf(dispatch).filter((t) => t === ADD)).toHaveLength(1)
+    eventBus.emit('selectedAccount', { account: { addr: KEY } })
+    await flush()
+    expect(typesOf(dispatch).filter((t) => t === ADD)).toHaveLength(1)
+
+    const { userRequest } = addedRequest(dispatch)
+    eventBus.emit(
+      'activity',
+      activityListing(userRequest.id, operationFor(userRequest.id, { hash: HASH })).state
+    )
+    await flush()
+    expect(send).toEqual({ status: 'resolved', value: HASH })
+  })
+
   it('refuses a key while the wallet lists no accounts yet', async () => {
     const dispatch = jest.fn()
     const sender = createSendPort(
       sendRequestPort(
         dispatch,
+        () => undefined,
         () => undefined,
         () => undefined
       ),

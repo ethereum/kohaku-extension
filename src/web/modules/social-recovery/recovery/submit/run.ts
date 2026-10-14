@@ -854,8 +854,30 @@ const claimAndSend = async (store: SubmitStore, steps: SubmitSteps, run: number)
       marked = steps.markSent(ours, event.transactionHash).catch(() => undefined)
     }
   }
+  // The run may still add only while the live session is its own and holds
+  // this request's claim, with no hash, younger than the claim's age: past
+  // it, another page may have released the claim and sent again.
+  const canAdd = async (): Promise<boolean> => {
+    if (!awaitingHashIn(store.state(), run) || store.state().requestId !== requestId) {
+      return false
+    }
+    const read = await readWithin(() => steps.readSession(), READ_LIMIT_MS)
+    if (
+      read.status !== 'present' ||
+      read.value.state !== 'live' ||
+      !steps.ownsSession(read.value)
+    ) {
+      return false
+    }
+    const held = read.value.submission
+    return (
+      held?.requestId === requestId &&
+      held.transactionHash === undefined &&
+      steps.now() - held.claimedAt < steps.claimAgeMs
+    )
+  }
   try {
-    await steps.send(prepared, sendDispatch, run, startBlock, requestId, () => marked)
+    await steps.send(prepared, sendDispatch, run, startBlock, requestId, () => marked, canAdd)
   } catch (error: unknown) {
     dispatch({ type: 'error', run, error })
   }

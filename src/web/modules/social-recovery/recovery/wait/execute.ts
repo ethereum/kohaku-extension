@@ -504,9 +504,24 @@ const claimAndSend = async (
       )
     }
   }
+  // The run may still add only while the countdown holds this request's
+  // claim, with no hash, younger than the claim's age: past it, another page
+  // may have released the claim and sent again.
+  const canAdd = async (): Promise<boolean> => {
+    if (!awaitingHashIn(store.state(), run) || store.state().requestId !== claim.requestId) {
+      return false
+    }
+    const read = await within(() => steps.readCountdown(), READ_LIMIT_MS)
+    const held = read?.status === 'present' ? read.value.execution : undefined
+    return (
+      held?.requestId === claim.requestId &&
+      held.transactionHash === undefined &&
+      steps.now() - held.claimedAt < steps.claimAgeMs
+    )
+  }
   SENDING.add(store)
   try {
-    await steps.send(prepared, sendDispatch, run, startBlock, claim.requestId)
+    await steps.send(prepared, sendDispatch, run, startBlock, claim.requestId, canAdd)
   } catch (error: unknown) {
     dispatch({ type: 'error', run, error })
   } finally {

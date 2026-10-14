@@ -9,6 +9,7 @@ import type {
   PreparedCall
 } from '@web/modules/social-recovery/sdk-interfaces'
 import type {
+  AddGate,
   ChainReads,
   EstimationListener,
   GasEstimateCall,
@@ -305,6 +306,8 @@ export interface SendDrive extends DriveRun {
   key: KeyHandle
   /** The transaction the gas check estimated, from that key (`gasTransactionOf`). */
   transaction: GasEstimateCall
+  /** Asked before an add that waited for the account's selection (`SendOptions`). */
+  canAdd?: AddGate
 }
 
 /** What `driveAccountBatch` takes: the drive's run, the send port and the batch the account runs. */
@@ -321,6 +324,8 @@ export interface AccountBatchDrive extends DriveRun {
   recoveryKit?: RecoveryKitMark
   /** The id the batch's request is queued under (`newSendRequestId`); the port makes one by default. */
   requestId?: string
+  /** Asked before an add that waited for the account's selection (`SendOptions`). */
+  canAdd?: AddGate
 }
 
 // ---------------------------------------------------------------------------

@@ -254,7 +254,7 @@ export const submitStepsOf = (input: SubmitStepsInput): SubmitSteps => {
       }
     },
     transactionKnown: (transactionHash) => input.receipts.transactionKnown(transactionHash),
-    send: (prepared, dispatch, run, startBlock, requestId, beforeReceipt) =>
+    send: (prepared, dispatch, run, startBlock, requestId, beforeReceipt, canAdd) =>
       plan.kind === 'key'
         ? driveSend({
             dispatch,
@@ -262,7 +262,8 @@ export const submitStepsOf = (input: SubmitStepsInput): SubmitSteps => {
             receipts: receiptsFrom(startBlock, beforeReceipt),
             port: input.port,
             key: plan.key,
-            transaction: gasTransactionOf({ prepared, key: plan.key })
+            transaction: gasTransactionOf({ prepared, key: plan.key }),
+            canAdd
           })
         : driveAccountBatch({
             dispatch,
@@ -271,7 +272,8 @@ export const submitStepsOf = (input: SubmitStepsInput): SubmitSteps => {
             port: input.port,
             account: plan.account,
             calls: [prepared],
-            requestId
+            requestId,
+            canAdd
           }),
     async waitAgain(transactionHash, startBlock, dispatch, run) {
       try {

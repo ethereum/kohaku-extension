@@ -10,6 +10,7 @@ import type {
 } from '@web/modules/social-recovery/sdk-interfaces'
 import type { VisibilitySource } from '@web/modules/social-recovery/shared/ceremony'
 import type {
+  AddGate,
   ChainReads,
   ReceiptReads,
   RecoveryKitClient,
@@ -276,7 +277,9 @@ export interface ExecuteSteps {
     dispatch: (event: WriteEvent) => void,
     run: number,
     startBlock: number,
-    requestId: string
+    requestId: string,
+    /** Whether the run still holds its claim, asked before an add that waited for the account's selection. */
+    canAdd: AddGate
   ): Promise<void>
   /** Waits once more for the receipt of a hash the run follows. */
   waitAgain(

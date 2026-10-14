@@ -1197,9 +1197,29 @@ const sendClaimed = async (
       }, RECEIPT_WAIT_MS)
     }
   }
+  // The run may still add only while the stored save is its own and younger
+  // than the claim's send limit: past it, a page that read the save gone may
+  // have voided it and saved under another claim.
+  const canAdd = async (): Promise<boolean> => {
+    if (!stillFollowing(store, run, requestId)) {
+      return false
+    }
+    const stored = await storedSaveWithin(() => steps.readInFlight(), SEND_BLOCK_READ_MS)
+    return (
+      stored.status === 'present' &&
+      stored.value.requestId === requestId &&
+      Date.now() - stored.value.claimedAt < CLAIM_SEND_LIMIT_MS
+    )
+  }
   try {
-    sending = steps.send(prepared, sendDispatch, run, requestId, sendBlock, (reading) =>
-      store.dispatch({ type: 'estimated', run, reading })
+    sending = steps.send(
+      prepared,
+      sendDispatch,
+      run,
+      requestId,
+      sendBlock,
+      (reading) => store.dispatch({ type: 'estimated', run, reading }),
+      canAdd
     )
     await sending
   } catch (error: unknown) {

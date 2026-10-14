@@ -575,6 +575,7 @@ export const requestsFake = (): RequestsFake => {
     },
     accounts: () => [],
     queue: () => ({ userRequests: fake.queued.map(queuedRequestOf) }),
+    selectedAccount: () => undefined,
     windowId: () => undefined,
     pushQueue: () =>
       push({ controller: 'requests', state: { userRequests: fake.queued.map(queuedRequestOf) } })

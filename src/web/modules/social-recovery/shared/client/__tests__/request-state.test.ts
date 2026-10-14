@@ -57,7 +57,8 @@ const wallet = () => {
   const port = sendRequestPort(
     dispatch,
     () => held.accounts,
-    () => held.queue
+    () => held.queue,
+    () => undefined
   )
   const actions = () => dispatched<SendRequestAction>(dispatch)
   const asks = () => actions().flatMap((a) => (a.type === SET ? [a.params] : []))

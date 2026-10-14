@@ -19,6 +19,7 @@ import { isAddress, isAddressEqual } from 'viem'
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useRequestsControllerState from '@web/hooks/useRequestsControllerState'
+import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import {
   addressBookOf,
   auditedActionOf,
@@ -54,6 +55,7 @@ const ArmStep = ({ records, chainId, account, navigate }: StepViewProps) => {
   const { accounts } = useAccountsControllerState()
   const { dispatch, windowId } = useBackgroundService()
   const queue = useRequestsControllerState()
+  const { account: selectedAccount } = useSelectedAccountControllerState()
   const facts = useAccountFacts(account)
   const clientState = useRecoveryClient(account)
   const { load, retry: retryLoad } = useSaveLoad(records, chainId, account)
@@ -103,12 +105,15 @@ const ArmStep = ({ records, chainId, account, navigate }: StepViewProps) => {
   accountsRef.current = accounts
   const queueRef = useRef<HeldRequestQueue | undefined>(queue)
   queueRef.current = queue
+  const selectedRef = useRef<string | undefined>(selectedAccount?.addr)
+  selectedRef.current = selectedAccount?.addr
   const requests = useMemo(
     () =>
       sendRequestPort(
         dispatch,
         () => accountsRef.current,
         () => queueRef.current,
+        () => selectedRef.current,
         windowId
       ),
     [dispatch, windowId]

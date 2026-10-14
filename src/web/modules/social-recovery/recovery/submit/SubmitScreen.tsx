@@ -17,6 +17,7 @@ import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
 import useRequestsControllerState from '@web/hooks/useRequestsControllerState'
+import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import EntryReadFallback from '@web/modules/social-recovery/shared/chrome/EntryReadFallback'
 import RecoveryChrome from '@web/modules/social-recovery/shared/chrome/RecoveryChrome'
 import useRecoveryEntryRead from '@web/modules/social-recovery/shared/chrome/useRecoveryEntryRead'
@@ -62,6 +63,7 @@ const SubmitBody = ({ records, account, entry }: SubmitBodyProps) => {
   const { keys } = useKeystoreControllerState()
   const { dispatch, windowId } = useBackgroundService()
   const queue = useRequestsControllerState()
+  const { account: selectedAccount } = useSelectedAccountControllerState()
   const { ens } = useReverseLookup({ address: account })
   const clientState = useRecoveryClient(account)
   const facts = useAccountFacts(entry.receivingAccount)
@@ -160,12 +162,15 @@ const SubmitBody = ({ records, account, entry }: SubmitBodyProps) => {
   accountsRef.current = accounts
   const queueRef = useRef<HeldRequestQueue | undefined>(queue)
   queueRef.current = queue
+  const selectedRef = useRef<string | undefined>(selectedAccount?.addr)
+  selectedRef.current = selectedAccount?.addr
   const requests = useMemo(
     () =>
       sendRequestPort(
         dispatch,
         () => accountsRef.current,
         () => queueRef.current,
+        () => selectedRef.current,
         windowId
       ),
     [dispatch, windowId]

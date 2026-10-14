@@ -8,6 +8,7 @@ import type {
   RecoveryState
 } from '@web/modules/social-recovery/sdk-interfaces'
 import type {
+  AddGate,
   ChainReads,
   KeyHandle,
   ListedAccountFacts,
@@ -300,7 +301,9 @@ export interface SubmitSteps {
     startBlock: number,
     requestId: string,
     /** Awaited before the receipt wait, so the claim holds the hash before a receipt can end the run. */
-    beforeReceipt: () => Promise<void>
+    beforeReceipt: () => Promise<void>,
+    /** Whether the run still holds its claim, asked before an add that waited for the account's selection. */
+    canAdd: AddGate
   ): Promise<void>
   waitAgain(
     transactionHash: Hex,

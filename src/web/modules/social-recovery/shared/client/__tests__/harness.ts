@@ -77,6 +77,7 @@ import {
   type SendQueueState,
   type SendRefusal,
   type SendRefusalReason,
+  type SendRequestAction,
   type SendRequestPort,
   type SendRequestUpdate,
   type SignerFacade,
@@ -599,6 +600,8 @@ export interface SendWorld {
   port: SendRequestPort
   /** Puts a queue state in the getter and pushes it, as the wallet does. */
   show: (state: HeldAndPushedQueue) => void
+  /** The account the wallet has selected; a select the port dispatches moves it and pushes it. */
+  selected: string | undefined
 }
 
 /**
@@ -612,10 +615,17 @@ export const sendQueueOver = (
 ): SendWorld => {
   const listeners = new Set<(update: SendRequestUpdate) => void>()
   const world = { accounts } as SendWorld
-  world.dispatch = jest.fn()
   world.push = (update) => [...listeners].forEach((l) => l(update))
+  world.dispatch = jest.fn((action: SendRequestAction) => {
+    if (action.type === 'MAIN_CONTROLLER_SELECT_ACCOUNT') {
+      world.selected = action.params.accountAddr
+      world.push({ controller: 'selectedAccount', state: { account: { addr: world.selected } } })
+    }
+  })
   world.listeners = () => listeners.size
   world.queue = {}
+  // The wallet selects its first listed account until a select moves it.
+  world.selected = accounts[0]?.addr
   world.port = {
     dispatch: world.dispatch,
     subscribe(listener) {
@@ -624,6 +634,7 @@ export const sendQueueOver = (
     },
     accounts: () => world.accounts,
     queue: () => world.queue,
+    selectedAccount: () => world.selected,
     windowId: () => WINDOW_ID
   }
   world.show = (state) => {

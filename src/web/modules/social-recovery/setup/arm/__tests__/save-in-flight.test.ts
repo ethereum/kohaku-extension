@@ -172,6 +172,37 @@ describe('the claim before the send', () => {
     expect(await stored(wired)).toBeUndefined()
   })
 
+  it('lets the send add its request while the stored save is its own, and never once another page voided it', async () => {
+    const wired = wireSave(account, script())
+    const sign = deferred<typeof TX_HASH>()
+    wired.port.sendAccountBatch.mockImplementationOnce(() => sign.promise)
+    unawaited(startSave(createArmStore(), wired.steps, OPTIONS))
+    await advanceTimers(0)
+    const record = await stored(wired)
+    const options = wired.port.sendAccountBatch.mock.calls[0][5]
+    expect(await options.canAdd()).toBe(true)
+
+    await wired.steps.release(record!.requestId)
+    expect(await stored(wired)).toBeUndefined()
+    expect(await options.canAdd()).toBe(false)
+    sign.resolve(TX_HASH)
+  })
+
+  it('lets the send add its request only within the send limit after the claim', async () => {
+    const wired = wireSave(account, script())
+    const sign = deferred<typeof TX_HASH>()
+    wired.port.sendAccountBatch.mockImplementationOnce(() => sign.promise)
+    unawaited(startSave(createArmStore(), wired.steps, OPTIONS))
+    await advanceTimers(0)
+    const options = wired.port.sendAccountBatch.mock.calls[0][5]
+    expect(await options.canAdd()).toBe(true)
+
+    await advanceTimers(CLAIM_SEND_LIMIT_MS)
+    expect((await stored(wired))?.transactionHash).toBeUndefined()
+    expect(await options.canAdd()).toBe(false)
+    sign.resolve(TX_HASH)
+  })
+
   it('reads a claim that throws as never sent, with the retry, and sends nothing', async () => {
     const wired = wireSave(account, script())
     jest.spyOn(wired.storage, 'get').mockRejectedValueOnce(new Error('storage unavailable'))

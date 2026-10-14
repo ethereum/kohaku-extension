@@ -43,7 +43,9 @@ import {
   type ProviderTransactionReceipt,
   type ReceiptProvider,
   type ReceiptWait,
-  type SendPort
+  type SendPort,
+  type SendRequestAction,
+  type SendRequestUpdate
 } from '@web/modules/social-recovery/shared/client'
 import type { Translate } from '@web/modules/social-recovery/shared/display'
 import * as writes from '@web/modules/social-recovery/shared/writes'
@@ -476,6 +478,22 @@ export interface DrivenMachine {
   dispatch: (event: WriteEvent) => void
   events: WriteEvent[]
   state: () => WriteMachineState
+}
+
+/** A scripted wallet behind a send port: what it selects, dispatched and pushes. */
+export interface ScriptedWallet {
+  selected: string | undefined
+  dispatch: jest.Mock<void, [SendRequestAction]>
+  push: (update: SendRequestUpdate) => void
+  /** The wallet selects `addr` and pushes its selection. */
+  select: (addr: string) => void
+}
+
+/** A send kind: the account it is queued against, another account, and its drive over a port. */
+export interface SendKind {
+  account: string
+  other: string
+  drive: (sender: SendPort) => { machine: DrivenMachine; done: Promise<void> }
 }
 
 export const drivenMachine = (from: WriteMachineState): DrivenMachine => {

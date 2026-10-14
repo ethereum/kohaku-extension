@@ -6,6 +6,7 @@ import {
   attemptCancelled,
   attemptConsumed,
   attemptStarted,
+  batchAwaitingSelection,
   CHAIN_ID,
   CLAIM_BLOCK,
   claimElsewhere,
@@ -340,6 +341,50 @@ describe('the claim of the execution', () => {
     await tick(POLL_MS)
     expect(view.byTestId('wait-execute-submitting')).not.toBeNull()
     expect((await executionOf(world.records, world.account))?.transactionHash).toBe(TX_HASH)
+  })
+
+  it('lets the send add its request while the countdown holds its claim, and never once another page released it', async () => {
+    const world = await openWorld()
+    elapse(world.kit)
+    holdSend(world)
+    const view = await mount(mountWait(world.account))
+    await view.press('wait-execute')
+    const claim = await executionOf(world.records, world.account)
+    if (!claim) {
+      throw new Error('no claim')
+    }
+    const [, , options] = world.port.send.mock.calls[0]
+    expect(await options.canAdd()).toBe(true)
+
+    const countdown = world.records.countdown(CHAIN_ID, world.account)
+    const read = await countdown.read()
+    await countdown.releaseExecution(
+      claim.requestId,
+      read.status === 'present' ? read.revision : null
+    )
+    expect(await options.canAdd()).toBe(false)
+  })
+
+  it('adds nothing where the wallet selects the account after the claim’s age while the claim is still its own, and offers the retry', async () => {
+    const world = await openWorld({ receiving: 'smart' })
+    elapse(world.kit)
+    const wallet = batchAwaitingSelection(world)
+    const view = await mount(mountWait(world.account))
+    await view.press('wait-execute')
+    const claim = await executionOf(world.records, world.account)
+    expect(claim?.transactionHash).toBeUndefined()
+
+    await tick(BATCH_CLAIM_AGE_MS + 300)
+    expect((await executionOf(world.records, world.account))?.requestId).toBe(claim?.requestId)
+    expect(view.byTestId('wait-execute-submitting')).not.toBeNull()
+
+    const landing = wallet.selectAccount()
+    await tick()
+    await landing
+    expect(wallet.added()).toEqual([])
+    expect(view.byTestId('wait-execute-failedNotSent')).not.toBeNull()
+    expect(await executionOf(world.records, world.account)).toBeUndefined()
+    expect(view.hasButton(t('socialRecovery.writes.tryAgain'))).toBe(true)
   })
 
   it('writes the claim back with its hash where another page released it while the wallet held the send', async () => {

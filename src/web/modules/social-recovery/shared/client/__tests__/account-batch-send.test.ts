@@ -474,7 +474,13 @@ describe("the UI's own port over the event bus", () => {
     const before = eventBus.events.signAccountOp?.length ?? 0
     const dispatch = jest.fn()
     const sender = createSendPort(
-      sendRequestPort(dispatch, LISTED, () => undefined, WINDOW_ID),
+      sendRequestPort(
+        dispatch,
+        LISTED,
+        () => undefined,
+        () => SMART_ACCOUNT,
+        WINDOW_ID
+      ),
       {
         chainId: SEPOLIA
       }
@@ -497,7 +503,13 @@ describe("the UI's own port over the event bus", () => {
     const before = eventBus.events.signAccountOp?.length ?? 0
     const dispatch = jest.fn()
     const sender = createSendPort(
-      sendRequestPort(dispatch, LISTED, () => undefined, WINDOW_ID),
+      sendRequestPort(
+        dispatch,
+        LISTED,
+        () => undefined,
+        () => SMART_ACCOUNT,
+        WINDOW_ID
+      ),
       {
         chainId: SEPOLIA
       }
@@ -532,6 +544,7 @@ describe("the UI's own port over the event bus", () => {
     const sender = createSendPort(
       sendRequestPort(
         dispatch,
+        () => undefined,
         () => undefined,
         () => undefined
       ),

@@ -9,6 +9,7 @@ import type {
 } from '@web/modules/social-recovery/sdk-interfaces'
 import type {
   AccountFactsReading,
+  AddGate,
   AuditedAction,
   ChainReads,
   EstimationListener,
@@ -262,7 +263,9 @@ export interface SaveSteps {
     run: number,
     requestId: string,
     startBlock: number,
-    onEstimation?: EstimationListener
+    onEstimation: EstimationListener,
+    /** Whether the run still holds its claim, asked before an add that waited for the account's selection. */
+    canAdd: AddGate
   ): Promise<void>
   /**
    * Waits again for the receipt of a hash the run already sent, feeding the
