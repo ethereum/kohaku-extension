@@ -28,3 +28,10 @@ export const loggedInPlanOf = (facts: ListedAccountFacts, account: Address): Sen
   }
   return { kind: 'key', key }
 }
+
+/**
+ * The address the payment line names as the sender: a key's own send names
+ * the key, and a smart account's own batch names the account.
+ */
+export const sendingAddressOf = (plan: SendingPlan): Address =>
+  plan.kind === 'key' ? plan.key.addr : plan.account

@@ -20,7 +20,6 @@ import {
   flushTimers as flush,
   gatherAgain,
   landedReceipt,
-  landedSession,
   leaveClaim,
   mockWallet,
   mountSubmit,
@@ -28,7 +27,6 @@ import {
   openWorld,
   pageOn,
   regathered,
-  RIVAL_PAYLOAD,
   sessionOf,
   stepsOf,
   submit,
@@ -48,8 +46,8 @@ const {
 }: typeof import('@web/modules/social-recovery/shared/writes') = require('@web/modules/social-recovery/shared/writes')
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
 
-const { BALANCE_POLL_MS, checkAgain, FOLLOW_REREAD_MS, isLanded, lookForClaim, startSubmission } =
-  submit
+const { BALANCE_POLL_MS, checkAgain, isLanded, lookForClaim, startSubmission } = submit
+submit
 
 describe('a gathering another tab abandoned and opened again', () => {
   const pages: { store: SubmitStore; steps: ReturnType<typeof stepsOf> }[] = []
@@ -177,16 +175,17 @@ describe('a gathering another tab abandoned and opened again', () => {
     expect((await claimOf(device))?.requestId).toBe('new-page')
   })
 
-  it('goes to the checklist where the claim it follows gave way to a new live session', async () => {
+  it('releases a claim with no hash on arrival, then goes to the checklist on Start where another tab gathered again', async () => {
     const device = await openDevice()
     await leaveClaim(device, NOW - 1_000)
     const page = track(pageOn(device))
     lookForClaim(page.store, page.steps).catch(() => undefined)
     await flush()
-    expect(page.store.state().follow).toBeDefined()
+    expect(await claimOf(device)).toBeNull()
+    expect(page.store.state().write.status).toBe('idle')
 
     await gatherAgain(device.records(), device.account, regathered(device.gathering))
-    await advanceTimers(FOLLOW_REREAD_MS)
+    await startSubmission(page.store, page.steps)
     await flush()
     expect(page.store.state().toChecklist).toBe(true)
     expect(page.port.send).not.toHaveBeenCalled()
@@ -220,7 +219,7 @@ describe('a gathering another tab abandoned and opened again', () => {
     await checkAgain(page.store, page.steps)
     await flush()
     expect(isLanded(page.store.state())).toBe(false)
-    expect(page.store.state().follow).toBeUndefined()
+    expect(page.store.state().followed).toBeUndefined()
     expect(page.store.state().write.status).toBe('failedNotSent')
     expect(device.kit.receipts.wait).not.toHaveBeenCalled()
     const stored = await sessionOf(records, device.account)
@@ -228,27 +227,5 @@ describe('a gathering another tab abandoned and opened again', () => {
     expect(stored?.state === 'live' && stored.gathering.request).toEqual(next.request)
     expect((await claimOf(device))?.requestId).toBe('new-page')
     expect(page.port.send).toHaveBeenCalledTimes(1)
-  })
-
-  it('reads a session another request landed as not this one’s landing, and goes to the checklist', async () => {
-    const device = await openDevice()
-    await leaveClaim(device, NOW - 1_000)
-    const page = track(pageOn(device))
-    lookForClaim(page.store, page.steps).catch(() => undefined)
-    await flush()
-    expect(page.store.state().follow).toBeDefined()
-
-    const next = regathered(device.gathering, RIVAL_PAYLOAD)
-    const records = device.records()
-    const written = await gatherAgain(records, device.account, next)
-    await records.landSubmission(CHAIN_ID, device.account, written.revision)
-    await advanceTimers(FOLLOW_REREAD_MS)
-    await flush()
-    expect(isLanded(page.store.state())).toBe(false)
-    expect(page.store.state().toChecklist).toBe(true)
-    expect(await sessionOf(device.records(), device.account)).toEqual(
-      landedSession(device.account, next)
-    )
-    expect(page.port.send).not.toHaveBeenCalled()
   })
 })

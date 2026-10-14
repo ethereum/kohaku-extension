@@ -1075,7 +1075,8 @@
       "newKeyFastTrack": "The key this wallet created for the recovery",
       "newKeyLoggedIn": "The key of {{account}} on this device",
       "noPayment": "This recovery names no payment.",
-      "ownKeyPays": "Your own key sends this request and pays its gas.",
+      "accountPays": "The account {{account}} sends this request and pays its gas.",
+      "ownKeyPays": "Your key {{key}} sends this request and pays its gas.",
       "waitingPeriod": "The waiting period lasts {{duration}} from the moment the submission lands.",
       "ownerCanCancel": "The account's own key can cancel this recovery during the waiting period.",
       "path": {

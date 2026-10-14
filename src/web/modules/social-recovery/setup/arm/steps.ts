@@ -108,6 +108,9 @@ export const saveStepsOf = (input: SaveStepsInput): SaveSteps => {
     async release(requestId): Promise<void> {
       await inFlight.release(requestId)
     },
+    async releaseUnsent(requestId): Promise<void> {
+      await inFlight.releaseUnsent(requestId)
+    },
     requestState: (requestId) =>
       sendRequestStateOf(input.requests, requestId, input.account, input.chainId),
     queueMoved: (limitMs) =>

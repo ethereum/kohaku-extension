@@ -68,6 +68,7 @@ import type {
   SendRequestAction,
   SendRequestPort,
   SendRequestUpdate,
+  SignAccountOpState,
   SubmittedOperation
 } from '@web/modules/social-recovery/shared/client'
 import { createWalletRecords } from '@web/modules/social-recovery/shared/records'
@@ -497,6 +498,8 @@ export interface RequestsFake extends SendRequestPort {
   dispatch: jest.Mock
   queued: string[]
   activity: SubmittedOperation[] | null
+  /** The sign screen's state the wallet answers an ask for it with; empty where none is open. */
+  signer: SignAccountOpState
   /** Pushes the queue as it stands now, as the background pushes a change of it. */
   pushQueue(): void
 }
@@ -543,7 +546,14 @@ export const requestsFake = (): RequestsFake => {
   const fake: RequestsFake = {
     queued: [],
     activity: [],
+    signer: {},
     dispatch: jest.fn((action: SendRequestAction) => {
+      if (action.type === 'INIT_CONTROLLER_STATE') {
+        unawaited(
+          Promise.resolve().then(() => push({ controller: 'signAccountOp', state: fake.signer }))
+        )
+        return
+      }
       if (action.type !== 'MAIN_CONTROLLER_ACTIVITY_SET_ACC_OPS_FILTERS') {
         return
       }

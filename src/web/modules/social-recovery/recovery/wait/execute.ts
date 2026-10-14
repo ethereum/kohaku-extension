@@ -11,13 +11,11 @@
  *                                     ├─ another page's claim ─▶ followed (nothing sent)
  *                                     └─ its own ──▶ submitting ──▶ failedNotSent | failedReverted | landed
  *   followed, a hash ──▶ its receipt, as after a send
- *   followed, no hash ──▶ the countdown read again until a hash arrives, the
- *                         claim goes, or the claim grows older than the
- *                         plan's claim age (thirty minutes for a key's own
- *                         send, ten for the account's batch): the manager's events from
- *                         the claim's block then name the attempt consumed
- *                         (the poll goes on to the done screen) or not (the
- *                         claim released, execute offered again)
+ *   followed, no hash ──▶ judged on every read by where the wallet holds its
+ *                         request: held in its queue, waited on as in flight;
+ *                         broadcast, followed under that hash; held nowhere,
+ *                         not sent (the claim released where it still carries
+ *                         no hash, execute offered again)
  *
  * The countdown is read before anything is prepared, so a retry, a reload or
  * a second tab never sends a second execution for the same attempt: a claim
@@ -50,6 +48,7 @@ import type {
 } from '@web/modules/social-recovery/shared/records'
 import {
   apartFrom,
+  claimReadingOf,
   coversHashes,
   DROPPED_AFTER_MS,
   DROPPED_RECHECK_MS,
@@ -294,13 +293,14 @@ const waitForReceipt = async (store: ExecuteStore, steps: ExecuteSteps): Promise
 /**
  * Reads the followed claim with no hash while a screen is attached: a hash
  * that arrives is waited on; a claim that went, or another page's claim in its
- * place, ends the follow (the latter is followed in turn). A claim older than
- * the plan's claim age by the clock read before the countdown read is
- * judged by the manager's events from the claim's block: the attempt consumed
- * leaves the done screen to the poll; none means the send never went out, and
- * where the claim still carries no hash it is released and execute offered
- * again. A read that fails, or that does not answer within `READ_LIMIT_MS`,
- * is read again after a rest, never taken as an answer.
+ * place, ends the follow (the latter is followed in turn). On every read the
+ * claim is judged by where the wallet holds its request, with no age: while
+ * the wallet's queue still holds it, it is waited on; once the queue broadcast
+ * it, its hash is written on the claim and followed; held nowhere, the send
+ * never went out (`claimReadingOf`), so the claim is released where it still
+ * carries no hash and execute offered again. A read that fails, or that does
+ * not answer within `READ_LIMIT_MS`, is read again after a rest, never taken
+ * as an answer.
  */
 const readFollow = async (store: ExecuteStore): Promise<void> => {
   if (FOLLOWING.has(store)) {
@@ -317,7 +317,6 @@ const readFollow = async (store: ExecuteStore): Promise<void> => {
       if (!steps || !follow || !awaitingHashIn(state, run)) {
         return
       }
-      const clock = steps.now()
       // eslint-disable-next-line no-await-in-loop
       const read = await steps.readCountdown().catch(() => undefined)
       if (store.state().follow !== follow) {
@@ -354,41 +353,55 @@ const readFollow = async (store: ExecuteStore): Promise<void> => {
         waitAfter = true
         return
       }
-      if (held && clock - held.claimedAt >= steps.claimAgeMs) {
+      if (held) {
         // eslint-disable-next-line no-await-in-loop
-        const consumed = await within(() => steps.consumedSince(follow.startBlock), READ_LIMIT_MS)
+        const hold = await within(() => steps.requestHold(follow.requestId), READ_LIMIT_MS)
         if (store.state().follow !== follow) {
           // eslint-disable-next-line no-continue
           continue
         }
-        if (consumed === true) {
+        if (hold?.status === 'broadcast') {
+          // eslint-disable-next-line no-await-in-loop
+          const marked = await steps.markSent(follow, hold.transactionHash).catch(() => undefined)
+          if (marked === 'replaced') {
+            store.dispatch({ type: 'replaced', run })
+            return
+          }
+          writeEvent(store)({
+            type: 'sent',
+            run,
+            transactionHash: hold.transactionHash,
+            startBlock: follow.startBlock
+          })
+          waitAfter = true
           return
         }
-        if (consumed === false) {
-          // A hash written meanwhile is followed, never released.
+        if (hold?.status === 'free') {
           // eslint-disable-next-line no-await-in-loop
-          const again = await steps.readCountdown().catch(() => undefined)
-          const now = again?.status === 'present' ? again.value.execution : undefined
+          const released = await steps.releaseClaim(follow.requestId, []).catch(() => undefined)
           if (store.state().follow !== follow) {
             // eslint-disable-next-line no-continue
             continue
           }
-          if (again?.status === 'replaced') {
+          if (released?.status === 'replaced') {
             store.dispatch({ type: 'replaced', run })
             return
           }
-          if (now?.requestId === follow.requestId && !now.transactionHash) {
-            // eslint-disable-next-line no-await-in-loop
-            const released = await steps.release(follow.requestId).catch(() => undefined)
-            if (released === 'replaced') {
-              store.dispatch({ type: 'replaced', run })
-              return
-            }
-            if (released === 'written' && store.state().follow === follow) {
-              store.dispatch({ type: 'voided', run })
-              return
-            }
-          } else if (again) {
+          if (released?.status === 'released') {
+            store.dispatch({ type: 'voided', run })
+            return
+          }
+          if (released?.status === 'hashed') {
+            writeEvent(store)({
+              type: 'sent',
+              run,
+              transactionHash: released.transactionHash,
+              startBlock: follow.startBlock
+            })
+            waitAfter = true
+            return
+          }
+          if (released?.status === 'gone') {
             // eslint-disable-next-line no-continue
             continue
           }
@@ -420,7 +433,7 @@ const followClaim = async (
   if (store.state() === before) {
     return
   }
-  if (claim.transactionHash) {
+  if (claimReadingOf(claim).kind === 'inFlight') {
     await waitForReceipt(store, steps)
     return
   }
@@ -505,19 +518,15 @@ const claimAndSend = async (
     }
   }
   // The run may still add only while the countdown holds this request's
-  // claim, with no hash, younger than the claim's age: past it, another page
-  // may have released the claim and sent again.
+  // claim with no hash: a page that arrived since may have released the
+  // claim and executed again.
   const canAdd = async (): Promise<boolean> => {
     if (!awaitingHashIn(store.state(), run) || store.state().requestId !== claim.requestId) {
       return false
     }
     const read = await within(() => steps.readCountdown(), READ_LIMIT_MS)
     const held = read?.status === 'present' ? read.value.execution : undefined
-    return (
-      held?.requestId === claim.requestId &&
-      held.transactionHash === undefined &&
-      steps.now() - held.claimedAt < steps.claimAgeMs
-    )
+    return held?.requestId === claim.requestId && held.transactionHash === undefined
   }
   SENDING.add(store)
   try {

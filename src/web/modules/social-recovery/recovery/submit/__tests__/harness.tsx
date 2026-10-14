@@ -628,14 +628,36 @@ export const rawStorage = async (storage: TestStorage): Promise<string> => {
 // The run over its steps
 // ---------------------------------------------------------------------------
 
-/** A request queue that holds nothing. */
-const NO_REQUESTS: SendRequestPort = {
-  dispatch: () => undefined,
-  subscribe: () => () => undefined,
-  accounts: () => [],
-  queue: () => ({}),
-  selectedAccount: () => undefined,
-  windowId: () => undefined
+/** A request queue that holds nothing, beside a wallet with no sign screen open. */
+const noRequests = (): SendRequestPort => {
+  const listeners = new Set<(update: SendRequestUpdate) => void>()
+  return {
+    dispatch: (action) => {
+      if (action.type === 'INIT_CONTROLLER_STATE') {
+        Promise.resolve()
+          .then(() =>
+            listeners.forEach((listener) => listener({ controller: 'signAccountOp', state: {} }))
+          )
+          .catch(() => undefined)
+      }
+    },
+    subscribe: (listener) => {
+      listeners.add(listener)
+      return () => {
+        listeners.delete(listener)
+      }
+    },
+    accounts: () => [],
+    queue: () => ({}),
+    selectedAccount: () => undefined,
+    windowId: () => undefined
+  }
+}
+
+/** The key the pages of a device send from. */
+export const DEVICE_PLAN: SendingPlan = {
+  kind: 'key',
+  key: { addr: '0x00000000000000000000000000000000000b0b01', type: 'internal' }
 }
 
 /** The request id of the claim a page that went away left behind. */
@@ -660,6 +682,12 @@ export const requestQueue = (initial: QueueAnswer, ids: string[] = [LEFT_CLAIM])
   >()
   const port: SendRequestPort = {
     dispatch: (action) => {
+      if (action.type === 'INIT_CONTROLLER_STATE') {
+        queueMicrotask(() =>
+          listeners.forEach((listener) => listener({ controller: 'signAccountOp', state: {} }))
+        )
+        return
+      }
       if (action.type !== 'MAIN_CONTROLLER_ACTIVITY_SET_ACC_OPS_FILTERS') {
         return
       }
@@ -696,7 +724,10 @@ export const requestQueue = (initial: QueueAnswer, ids: string[] = [LEFT_CLAIM])
         listeners.delete(listener)
       }
     },
-    accounts: () => [],
+    // The device's key is itself a basic account the wallet lists, as its own send needs.
+    accounts: () => [
+      { addr: DEVICE_PLAN.key.addr, associatedKeys: [DEVICE_PLAN.key.addr], creation: null }
+    ],
     queue: () =>
       (queue.answer.status === 'queued'
         ? { userRequests: queue.ids.map((id) => ({ id })) }
@@ -721,6 +752,10 @@ export const selectionWallet = (listed: Account) => {
     push: (update: SendRequestUpdate) => listeners.forEach((listener) => listener(update))
   }
   wallet.dispatch.mockImplementation((action) => {
+    if (action.type === 'INIT_CONTROLLER_STATE') {
+      queueMicrotask(() => wallet.push({ controller: 'signAccountOp', state: {} }))
+      return
+    }
     if (action.type !== 'MAIN_CONTROLLER_ACTIVITY_SET_ACC_OPS_FILTERS') {
       return
     }
@@ -788,7 +823,7 @@ export const stepsOf = (input: {
     reads: input.kit.reads,
     receipts: input.kit.receipts,
     port: input.port,
-    requests: input.requests ?? NO_REQUESTS,
+    requests: input.requests ?? noRequests(),
     records: input.records,
     chainId: CHAIN_ID,
     account: input.account,
@@ -799,16 +834,34 @@ export const stepsOf = (input: {
     now: input.now ?? (() => Date.now())
   })
 
-/** The steps with a claim whose write answers `ms` late, so the claim's age runs from after the send's start. */
-export const slowClaim = (steps: SubmitSteps, ms: number): SubmitSteps => ({
-  ...steps,
-  claim: async (claim) => {
-    await new Promise((resolve) => {
-      setTimeout(resolve, ms)
-    })
-    return steps.claim(claim)
+/**
+ * The steps of a page the browser froze once its claim was written: its reads
+ * of the session hold until `thaw`.
+ */
+export const frozenAfterClaim = (steps: SubmitSteps): { steps: SubmitSteps; thaw: () => void } => {
+  let thaw: () => void = () => undefined
+  const thawed = new Promise<void>((resolve) => {
+    thaw = resolve
+  })
+  let claimed = false
+  return {
+    steps: {
+      ...steps,
+      claim: async (claim) => {
+        const answer = await steps.claim(claim)
+        claimed = true
+        return answer
+      },
+      readSession: async () => {
+        if (claimed) {
+          await thawed
+        }
+        return steps.readSession()
+      }
+    },
+    thaw: () => thaw()
   }
-})
+}
 
 /** Lets every pending answer settle: the fakes answer in microtasks, which run before a timer. */
 export const drain = async (rounds = 12): Promise<void> => {
@@ -845,12 +898,6 @@ export const flushTimers = async (): Promise<void> => {
 
 /** The clock every page of a device reads, in ms. */
 export const CLAIM_NOW = 1_800_000_000_000
-
-/** The key the pages of a device send from. */
-export const DEVICE_PLAN: SendingPlan = {
-  kind: 'key',
-  key: { addr: '0x00000000000000000000000000000000000b0b01', type: 'internal' }
-}
 
 /** One device: a recovery's live session on one storage, the chain's kit, and the records each page opens. */
 export interface Device {

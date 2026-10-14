@@ -2,8 +2,8 @@
  * The submission's steps over the wallet's own seams: the session and its
  * claim in the records, the attempt read and the prepare through the client,
  * the shared gas check on the sending key, the send through the request queue
- * by route, the receipt wait, the manager's events for a claim with no hash,
- * and the landing of the session.
+ * by route, the receipt wait, where the wallet holds the request of a claim
+ * with no hash, and the landing of the session.
  *
  * Every update of the session reads it first and passes the revision it read;
  * where another tab moved it meanwhile (a reply poll, a note), the update is
@@ -14,12 +14,16 @@
  */
 import { keccak256 } from 'viem'
 
-import type { Gathering, Hex, RecoveryState } from '@web/modules/social-recovery/sdk-interfaces'
+import type {
+  Address,
+  Gathering,
+  Hex,
+  RecoveryState
+} from '@web/modules/social-recovery/sdk-interfaces'
 import {
   accountBatchTransactionOf,
-  newSendRequestId,
-  sameAddress,
-  sendRequestStateOf
+  listedBasicAccountOf,
+  newSendRequestId
 } from '@web/modules/social-recovery/shared/client'
 import { isSessionRevisionConflict } from '@web/modules/social-recovery/shared/records'
 import type {
@@ -34,15 +38,15 @@ import {
   driveSend,
   gasTransactionOf,
   receiptOf,
+  requestHoldOf,
   walletAccountRefOf
 } from '@web/modules/social-recovery/shared/writes'
 
-import { CONFLICT_RETRIES, KEY_SEND_CLAIM_AGE_MS, SUBMISSION_CLAIM_AGE_MS } from './constants'
+import { CONFLICT_RETRIES } from './constants'
 import type {
   AttemptReading,
   ClaimRelease,
   LandOutcome,
-  RequestHold,
   SubmitClaim,
   SubmitSteps,
   SubmitStepsInput
@@ -235,24 +239,15 @@ export const submitStepsOf = (input: SubmitStepsInput): SubmitSteps => {
         await session.releaseSubmission(requestId, revision)
         return { status: 'released' }
       }),
-    claimAgeMs: plan.kind === 'key' ? KEY_SEND_CLAIM_AGE_MS : SUBMISSION_CLAIM_AGE_MS,
-    async requestHold(requestId): Promise<RequestHold> {
-      // A key's own send carries no request id the queue could be asked about.
-      if (plan.kind === 'key') {
-        return { status: 'free' }
-      }
-      const state = await sendRequestStateOf(input.requests, requestId, plan.account, chainId)
-      switch (state.status) {
-        case 'broadcast':
-          return { status: 'broadcast', transactionHash: state.transactionHash }
-        case 'gone':
-          return { status: 'free' }
-        case 'unread':
-          throw new Error(`The wallet did not answer where it holds request ${requestId}.`)
-        default:
-          return { status: 'held' }
-      }
-    },
+    requestHold: (requestId) =>
+      requestHoldOf(
+        input.requests,
+        requestId,
+        plan.kind === 'key'
+          ? (listedBasicAccountOf(input.requests.accounts(), plan.key)?.addr as Address | undefined)
+          : plan.account,
+        chainId
+      ),
     transactionKnown: (transactionHash) => input.receipts.transactionKnown(transactionHash),
     send: (prepared, dispatch, run, startBlock, requestId, beforeReceipt, canAdd) =>
       plan.kind === 'key'
@@ -263,6 +258,7 @@ export const submitStepsOf = (input: SubmitStepsInput): SubmitSteps => {
             port: input.port,
             key: plan.key,
             transaction: gasTransactionOf({ prepared, key: plan.key }),
+            requestId,
             canAdd
           })
         : driveAccountBatch({
@@ -286,29 +282,6 @@ export const submitStepsOf = (input: SubmitStepsInput): SubmitSteps => {
       } catch (error: unknown) {
         dispatch({ type: 'error', run, error, transactionHash })
       }
-    },
-    async startedSince(claim) {
-      const state = await client.recovery.recoveryState()
-      if (attemptOf(state) === 'ours') {
-        return true
-      }
-      const to = state.block.number
-      if (to < claim.startBlock) {
-        throw new Error(`The node reads block ${to}, before the claim's block ${claim.startBlock}.`)
-      }
-      const { events } = client.recovery
-      const notifications = await events.fetch(events.accountFilter(), {
-        from: claim.startBlock,
-        to
-      })
-      return notifications.some(
-        (notification) =>
-          notification.kind === 'attempt-started' &&
-          !notification.at.removed &&
-          notification.attemptId === attemptId &&
-          sameAddress(notification.account, account) &&
-          keccak256(notification.payload).toLowerCase() === payloadHash.toLowerCase()
-      )
     },
     land: () =>
       // A session another page landed meanwhile for this request, on any try,

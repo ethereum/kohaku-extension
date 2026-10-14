@@ -534,6 +534,11 @@ export interface SaveInFlightAccessor {
   ): Promise<RecordRead<SaveInFlightRecord>>
   /** Removes the record where it carries `requestId`; answers whether it removed it. */
   release(requestId: string): Promise<boolean>
+  /**
+   * Removes the record where it carries `requestId` and still no hash;
+   * answers whether it removed it.
+   */
+  releaseUnsent(requestId: string): Promise<boolean>
 }
 
 // ---------------------------------------------------------------------------

@@ -804,6 +804,17 @@ export interface QueuedFor {
 /** A `requests` state the wallet both holds and pushes. */
 export type HeldAndPushedQueue = HeldRequestQueue & SendQueueState
 
+/**
+ * What a wallet a reading asks holds: its queue, the accounts it lists, and
+ * the sign screen's state it pushes when asked for it (null where no sign
+ * screen is open, `silent` where it never answers).
+ */
+export interface HeldWallet {
+  queue?: HeldRequestQueue
+  accounts: ListedAccount[]
+  signer: SignAccountOpState | null | 'silent'
+}
+
 const QUEUED_ACTIONS: Record<QueuedKind, SignUserRequest['action']> = {
   calls: { kind: 'calls', calls: [] },
   message: { kind: 'message', message: '0x' },

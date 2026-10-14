@@ -110,6 +110,7 @@ import type {
   QueueLists,
   RecoveryKitMark,
   SendPort,
+  KeySendOptions,
   SendOptions,
   SendPortOptions,
   SendRefusal,
@@ -370,6 +371,63 @@ const neverBroadcast = (operation: SubmittedOperation): boolean =>
 const isQueued = (port: SendRequestPort, id: string): boolean =>
   queuedRequestsOf(port.queue()).some((queued) => queued.id === id)
 
+/**
+ * Asks the wallet for the sign screen's state, which no page holds until the
+ * screen changes, and calls `answer` with whether each pushed state holds the
+ * request. Returns the unsubscribe.
+ */
+const askSignerHold = (
+  port: SendRequestPort,
+  id: string,
+  answer: (holds: boolean) => void
+): (() => void) => {
+  const unsubscribe = port.subscribe((update) => {
+    if (update.controller === 'signAccountOp') {
+      answer(holdsRequest(update.state, id))
+    }
+  })
+  port.dispatch({ type: 'INIT_CONTROLLER_STATE', params: { controller: 'signAccountOp' } })
+  return unsubscribe
+}
+
+/**
+ * Where the wallet holds a request, read from its queue and its sign screen
+ * only: `queued` where either holds it, `gone` where the sign screen answered
+ * without it and the queue does not hold it, `unread` where the sign screen
+ * did not answer within `REQUEST_STATE_READ_MS`. For a request whose account
+ * the wallet no longer lists, so no activity of it can be read.
+ */
+export const heldRequestStateOf = (
+  port: SendRequestPort,
+  requestId: string
+): Promise<SendRequestState> => {
+  if (isQueued(port, requestId)) {
+    return Promise.resolve({ status: 'queued' })
+  }
+  return new Promise<SendRequestState>((resolve) => {
+    let done = false
+    let unsubscribe: () => void = () => {}
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const finish = (state: SendRequestState) => {
+      if (done) {
+        return
+      }
+      done = true
+      clearTimeout(timer)
+      unsubscribe()
+      resolve(state)
+    }
+    timer = setTimeout(() => finish({ status: 'unread' }), REQUEST_STATE_READ_MS)
+    unsubscribe = askSignerHold(port, requestId, (holds) =>
+      finish(holds || isQueued(port, requestId) ? { status: 'queued' } : { status: 'gone' })
+    )
+    // The wallet may answer before the subscription is handed back.
+    if (done) {
+      unsubscribe()
+    }
+  })
+}
+
 /** The state of a request whose operation the activity lists. */
 const operationStateOf = (operation: SubmittedOperation, id: string): SendRequestState => {
   if (!TRANSACTION_OPERATIONS.includes(operation.identifiedBy?.type ?? '')) {
@@ -384,12 +442,16 @@ const operationStateOf = (operation: SubmittedOperation, id: string): SendReques
 
 /**
  * Where a request the send port queued stands, read from the queue the wallet
- * holds now and from the account's own activity on the chain, whichever
- * account the wallet has selected. The activity is read through a session of
- * its own, asked page by page, newest first, until a page lists the request's
- * operation or the list ends; the session is closed in every outcome. A page
- * the activity does not answer within `REQUEST_STATE_READ_MS` ends the read as
- * `unread`.
+ * holds now, from the sign screen and from the account's own activity on the
+ * chain, whichever account the wallet has selected. The activity is read
+ * through a session of its own, asked page by page, newest first, until a
+ * page lists the request's operation or the list ends; the session is closed
+ * in every outcome. The sign screen takes no update while it signs or pauses,
+ * so it can still hold, and broadcast, a request the queue already dropped
+ * and the activity does not list yet; such a request reads `queued`, and
+ * `gone` needs the sign screen's answer. A page the activity does not answer,
+ * or a sign screen that does not answer, within `REQUEST_STATE_READ_MS` ends
+ * the read as `unread`.
  */
 export const sendRequestStateOf = (
   port: SendRequestPort,
@@ -410,6 +472,9 @@ export const sendRequestStateOf = (
     let page = ACTIVITY_PAGE.fromPage
     let timer: ReturnType<typeof setTimeout> | undefined
     let unsubscribe: () => void = () => {}
+    let stopSigner: () => void = () => {}
+    let signerAnswered = false
+    let activityEnded = false
 
     const finish = (state: SendRequestState) => {
       if (done) {
@@ -420,6 +485,7 @@ export const sendRequestStateOf = (
         clearTimeout(timer)
       }
       unsubscribe()
+      stopSigner()
       port.dispatch({
         type: 'MAIN_CONTROLLER_ACTIVITY_RESET_ACC_OPS_FILTERS',
         params: { sessionId }
@@ -439,6 +505,16 @@ export const sendRequestStateOf = (
           pagination: { fromPage: page, itemsPerPage: ACTIVITY_PAGE.itemsPerPage }
         }
       })
+    }
+
+    // Once the activity's list ended without the request and the sign screen
+    // answered without it. The queue may push a state between moving a
+    // request from one of its lists to the other, so it is read once more
+    // before `gone`.
+    const endWhereNowhere = () => {
+      if (activityEnded && signerAnswered) {
+        finish(isQueued(port, requestId) ? { status: 'queued' } : { status: 'gone' })
+      }
     }
 
     unsubscribe = port.subscribe((update) => {
@@ -461,11 +537,22 @@ export const sendRequestStateOf = (
         ask()
         return
       }
-      // The queue may push a state between moving a request from one of its
-      // lists to the other, so it is read once more before `gone`.
-      finish(isQueued(port, requestId) ? { status: 'queued' } : { status: 'gone' })
+      activityEnded = true
+      endWhereNowhere()
     })
     ask()
+    stopSigner = askSignerHold(port, requestId, (holds) => {
+      if (holds) {
+        finish({ status: 'queued' })
+        return
+      }
+      signerAnswered = true
+      endWhereNowhere()
+    })
+    // The wallet may answer before the subscription is handed back.
+    if (done) {
+      stopSigner()
+    }
   })
 }
 
@@ -716,13 +803,13 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
         armSettle()
       }
 
-      // While the port waited for the account's selection, another page may
-      // have released the caller's claim and sent again, so the caller is
-      // asked first. A page that sends between the caller's read and this add
-      // still meets this request in the queue, and both are withdrawn. A yes
-      // counts only while the wallet still selects the sending account; where
-      // the user selected another account meanwhile, the port waits, and the
-      // next push that names the sending account asks again.
+      // Between the caller's claim and this add, another page may have
+      // released the claim and sent again, so the caller is asked first. A
+      // page that sends between the caller's read and this add still meets
+      // this request in the queue, and both are withdrawn. A yes counts only
+      // while the wallet still selects the sending account; where the user
+      // selected another account meanwhile, the port waits, and the next push
+      // that names the sending account asks again.
       const addWhereHeld = () => {
         const { canAdd } = request
         if (!canAdd) {
@@ -741,7 +828,10 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
             settle('timeout', false)
           }
         }
-        canAdd().then(answer, () => answer(false))
+        // A gate that throws, even before it hands back a promise, refuses.
+        Promise.resolve()
+          .then(canAdd)
+          .then(answer, () => answer(false))
       }
 
       // The queue withdraws a request only from its own list, never one that
@@ -923,7 +1013,7 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
         params: { sessionId: id, filters: { account, chainId }, pagination: { ...ACTIVITY_PAGE } }
       })
       if (isSelected(lastSelected)) {
-        add()
+        addWhereHeld()
       } else {
         selecting = true
         port.dispatch({ type: 'MAIN_CONTROLLER_SELECT_ACCOUNT', params: { accountAddr: account } })
@@ -932,7 +1022,7 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
   }
 
   return Object.freeze({
-    send(key: KeyHandle, transaction: GasEstimateCall, sendOptions?: SendOptions): Promise<Hex> {
+    send(key: KeyHandle, transaction: GasEstimateCall, sendOptions?: KeySendOptions): Promise<Hex> {
       if (!sameAddress(transaction.from, key.addr)) {
         return Promise.reject(
           new TypeError(
@@ -945,7 +1035,7 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
         return Promise.reject(sendRefusal('not-wired', key))
       }
       return follow({
-        id: newSendRequestId(),
+        id: sendOptions?.requestId ?? newSendRequestId(),
         // The queue, the sign screen and the activity compare addresses with
         // exact case, so the request carries the listed account's own address.
         account: listed.addr as Address,

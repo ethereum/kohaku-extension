@@ -243,6 +243,8 @@ export interface SaveSteps {
   ): Promise<RecordRead<SaveInFlightRecord>>
   /** Removes the stored save in flight of `requestId`. */
   release(requestId: string): Promise<void>
+  /** Removes the stored save in flight of `requestId` where it still holds no hash. */
+  releaseUnsent(requestId: string): Promise<void>
   /** Where the wallet holds the request `requestId`: its queue, its activity, or neither. */
   requestState(requestId: string): Promise<SendRequestState>
   /** Resolves on the next change of the wallet's queue, or after `limitMs`; never rejects. */
@@ -264,7 +266,7 @@ export interface SaveSteps {
     requestId: string,
     startBlock: number,
     onEstimation: EstimationListener,
-    /** Whether the run still holds its claim, asked before an add that waited for the account's selection. */
+    /** Whether the run still holds its claim, asked right before the add. */
     canAdd: AddGate
   ): Promise<void>
   /**
@@ -296,6 +298,8 @@ export interface FollowHold {
   steps: SaveSteps
   run: number
   requestId: string
+  /** When the followed save was claimed, by the clock its page sends under. */
+  claimedAt: number
   startBlock?: number
 }
 
@@ -303,14 +307,6 @@ export interface FollowHold {
 export interface FollowAt {
   hold: FollowHold
   steps: SaveSteps
-}
-
-/**
- * The gone readings of a follow since its last other reading: the hold and
- * the steps they were read through, and the time of the first (ms since epoch).
- */
-export interface GoneCount extends FollowAt {
-  since: number
 }
 
 /** The part of the recovery client the save runs on. */

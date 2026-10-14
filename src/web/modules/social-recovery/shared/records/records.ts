@@ -1264,6 +1264,19 @@ export const createWalletRecords = ({
           }
           await storage.remove(key)
           return true
+        }),
+      releaseUnsent: (requestId: string) =>
+        inQueue(key, async () => {
+          const current = await read()
+          if (
+            current.status !== 'present' ||
+            current.value.requestId !== requestId ||
+            current.value.transactionHash !== undefined
+          ) {
+            return false
+          }
+          await storage.remove(key)
+          return true
         })
     }
   }

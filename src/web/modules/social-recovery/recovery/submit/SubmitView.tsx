@@ -197,7 +197,12 @@ const SubmitView = ({
         </View>
       )}
       <LeadBlock route={route} lead={lead} onRetryRemoved={onRetryRemoved} />
-      <DetailsBlock route={route} ready={load} onOpened={onDetailsOpened} />
+      <DetailsBlock
+        route={route}
+        ready={load}
+        sendingPlan={sending.status === 'ready' ? sending.plan : undefined}
+        onOpened={onDetailsOpened}
+      />
       <SectionCard testID="submit-verify">{verifyBlock()}</SectionCard>
       {sendingBlock()}
       {!submitting && (

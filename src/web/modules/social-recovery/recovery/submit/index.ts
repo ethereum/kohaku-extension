@@ -10,9 +10,7 @@ export {
   ALREADY_RUNNING_FINDINGS,
   BALANCE_POLL_MS,
   FOLLOW_REREAD_MS,
-  KEY_SEND_CLAIM_AGE_MS,
   READ_LIMIT_MS,
-  SUBMISSION_CLAIM_AGE_MS,
   SUBMIT_STAGE
 } from './constants'
 export * from './types'

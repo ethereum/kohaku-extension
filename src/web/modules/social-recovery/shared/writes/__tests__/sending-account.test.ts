@@ -221,6 +221,25 @@ const sendingAccountCases = ({ account, other, drive }: SendKind) => {
 
 describe("the send of a key's own transaction", () => {
   sendingAccountCases(KEY_SEND)
+
+  it('is queued under the request id it is given', async () => {
+    const { wallet, sender } = walletWith(KEY_ACCOUNT.addr)
+    const machine = drivenMachine(submittingFor('submission'))
+    const done = driveSend({
+      dispatch: machine.dispatch,
+      run: machine.state().run,
+      receipts: fakeReceiptWait({ value: providerReceipt(TX_HASH, 1) }),
+      port: sender,
+      key: KEY,
+      transaction: ownerTransaction('submission'),
+      requestId: REQUEST_ID
+    })
+    await advanceTimersAsync(0)
+    expect(requestIdOf(wallet.dispatch)).toBe(REQUEST_ID)
+    broadcast(wallet, REQUEST_ID)
+    await done
+    expect(machine.events.map((event) => event.type)).toEqual(['sent', 'receipt'])
+  })
 })
 
 describe("the send of an account's batch", () => {
@@ -259,7 +278,7 @@ describe('a selection that never lands while the wallet signs another operation'
   })
 })
 
-describe('the gate of an add that waited for the selection', () => {
+describe('the gate before an add', () => {
   const driveGated = (sender: SendPort, canAdd: AddGate) => {
     const machine = drivenMachine(submittingFor('save'))
     const done = driveAccountBatch({
@@ -275,15 +294,36 @@ describe('the gate of an add that waited for the selection', () => {
     return { machine, done }
   }
 
-  it('is not asked where the wallet selected the sending account already', async () => {
+  it('adds nothing and reads a timeout where the wallet selected the account already and it answers that the claim is gone', async () => {
     const { wallet, sender } = walletWith(SMART_ACCOUNT.addr)
     const canAdd = jest.fn(async () => false)
-    const { done } = driveGated(sender, canAdd)
+    const { machine, done } = driveGated(sender, canAdd)
     await advanceTimersAsync(0)
+    expect(canAdd).toHaveBeenCalledTimes(1)
+    expect(queuedAccountsOf(wallet.dispatch)).toEqual([])
+
+    await advanceTimersAsync(SEND_SETTLE_MS + 1)
+    await done
+    expect(machine.events).toEqual([
+      expect.objectContaining({
+        type: 'error',
+        error: expect.objectContaining({ reason: 'timeout' })
+      })
+    ])
+    expect(typesOf(wallet.dispatch)).not.toContain(REMOVE)
+  })
+
+  it('adds the request once where the wallet selected the account already and it answers that the claim still holds', async () => {
+    const { wallet, sender } = walletWith(SMART_ACCOUNT.addr)
+    const canAdd = jest.fn(async () => true)
+    const { machine, done } = driveGated(sender, canAdd)
+    await advanceTimersAsync(0)
+    expect(canAdd).toHaveBeenCalledTimes(1)
     expect(queuedAccountsOf(wallet.dispatch)).toEqual([SMART_ACCOUNT.addr])
-    expect(canAdd).not.toHaveBeenCalled()
+
     broadcast(wallet, REQUEST_ID)
     await done
+    expect(machine.events.map((event) => event.type)).toEqual(['sent', 'receipt'])
   })
 
   it('adds nothing and reads a timeout where it answers that the claim is gone', async () => {
@@ -371,6 +411,31 @@ describe('the gate of an add that waited for the selection', () => {
     await advanceTimersAsync(0)
     expect(gate.canAdd).toHaveBeenCalledTimes(2)
     expect(queuedAccountsOf(wallet.dispatch)).toEqual([])
+    gate.answer(true)
+    await advanceTimersAsync(0)
+    expect(queuedAccountsOf(wallet.dispatch)).toEqual([SMART_ACCOUNT.addr])
+
+    broadcast(wallet, REQUEST_ID)
+    await done
+    expect(machine.events.map((event) => event.type)).toEqual(['sent', 'receipt'])
+  })
+
+  it('adds nothing on a yes where the wallet selected the account already and the user selected another account during the read, and adds once the sending account is selected again', async () => {
+    const { wallet, sender } = walletWith(SMART_ACCOUNT.addr)
+    const gate = heldGate()
+    const { machine, done } = driveGated(sender, gate.canAdd)
+    await advanceTimersAsync(0)
+    expect(gate.canAdd).toHaveBeenCalledTimes(1)
+    wallet.select(KEY_ACCOUNT.addr)
+    await advanceTimersAsync(0)
+    gate.answer(true)
+    await advanceTimersAsync(0)
+    expect(queuedAccountsOf(wallet.dispatch)).toEqual([])
+    expect(typesOf(wallet.dispatch)).not.toContain(SELECT)
+
+    wallet.select(SMART_ACCOUNT.addr)
+    await advanceTimersAsync(0)
+    expect(gate.canAdd).toHaveBeenCalledTimes(2)
     gate.answer(true)
     await advanceTimersAsync(0)
     expect(queuedAccountsOf(wallet.dispatch)).toEqual([SMART_ACCOUNT.addr])

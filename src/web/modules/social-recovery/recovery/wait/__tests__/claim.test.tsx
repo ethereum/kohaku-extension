@@ -4,7 +4,6 @@
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import {
   attemptCancelled,
-  attemptConsumed,
   attemptStarted,
   batchAwaitingSelection,
   CHAIN_ID,
@@ -16,6 +15,7 @@ import {
   hashElsewhere,
   landedReceipt,
   minedAndReverted,
+  mockWallet,
   mountWait,
   mountWaitInAnotherPage,
   moveDeviceClock,
@@ -32,7 +32,7 @@ import {
   useWaitClock
 } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
 import type { Mounted, World } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
-import type { Hex, Notification } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
 import type { ProviderTransactionReceipt } from '@web/modules/social-recovery/shared/client'
 import { recordKeys } from '@web/modules/social-recovery/shared/records'
 import type { StoredSession } from '@web/modules/social-recovery/shared/records'
@@ -40,11 +40,6 @@ import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures_
 
 const POLL_MS = 30_000
 const REREAD_MS = 5_000
-const READ_LIMIT_MS = 20_000
-/** The claim age of a send from a key's own address. */
-const CLAIM_AGE_MS = 30 * 60_000
-/** The claim age of a send as the account's own batch. */
-const BATCH_CLAIM_AGE_MS = 10 * 60_000
 /** The block the execution's own claim reads before it, as the fake chain answers it. */
 const OWN_CLAIM_BLOCK = START_BLOCK + 8
 
@@ -63,13 +58,6 @@ const holdSend = (world: World) => {
   const hash = deferred<Hex>()
   world.port.send.mockImplementation(() => hash.promise)
   return hash
-}
-
-/** The manager's events from the claim's block answer `fromClaim`; the poll's range reads the chain's events. */
-const eventsFromClaim = (world: World, fromClaim: () => Promise<Notification[]>) => {
-  world.kit.fetch.mockImplementation(async (_filter: unknown, range: { from: number }) =>
-    range.from === CLAIM_BLOCK ? fromClaim() : world.kit.chain.events
-  )
 }
 
 const claimRangeReads = (world: World) =>
@@ -150,28 +138,57 @@ describe('the claim of the execution', () => {
     expect(await executionOf(world.records, world.account)).toEqual(claim)
   })
 
-  it("follows another page's claim where the holder presses while the look for a claim still reads the countdown", async () => {
-    const world = await openWorld()
-    elapse(world.kit)
+  /** Holds the look for a claim's read of the countdown until the test lets it go. */
+  const holdLookup = (world: World) => {
     const key = recordKeys.recoverySession(CHAIN_ID, world.account)
-    const { get } = world.storage
+    const { storage } = world
+    const { get } = storage
     const lookup = deferred<void>()
-    world.storage.get = async (name, fallback) => {
+    storage.get = async (name, fallback) => {
       if (name === key && /lookForClaim/.test(new Error().stack ?? '')) {
         await lookup.promise
       }
       return get(name, fallback)
     }
+    return lookup
+  }
+
+  it("follows another page's claim under a hash where the holder presses while the look for a claim still reads the countdown", async () => {
+    const world = await openWorld()
+    elapse(world.kit)
+    holdReceipt(world)
+    const lookup = holdLookup(world)
+    const view = await mount(mountWait(world.account))
+
+    await claimElsewhere(world.records, world.account, { transactionHash: OTHER_TX_HASH })
+    await view.press('wait-execute')
+    lookup.resolve()
+    await tick(0)
+    expect(view.byTestId('wait-execute-submitting')).not.toBeNull()
+    expect(world.kit.receipts.wait).toHaveBeenCalledWith(OTHER_TX_HASH, CLAIM_BLOCK)
+    expect(world.kit.prepareExecuteHandover).not.toHaveBeenCalled()
+    expect(world.port.send).not.toHaveBeenCalled()
+    expect((await executionOf(world.records, world.account))?.requestId).toBe(OTHER_REQUEST)
+  })
+
+  it("releases another page's claim with no hash where the holder presses while the look for a claim still reads the countdown, sends nothing, and offers execute again", async () => {
+    const world = await openWorld()
+    elapse(world.kit)
+    const lookup = holdLookup(world)
     const view = await mount(mountWait(world.account))
 
     await claimElsewhere(world.records, world.account)
     await view.press('wait-execute')
     lookup.resolve()
     await tick(0)
-    expect(view.byTestId('wait-execute-submitting')).not.toBeNull()
+    expect(await executionOf(world.records, world.account)).toBeUndefined()
+    expect(view.byTestId('wait-execute-submitting')).toBeNull()
+    expect(view.isDisabled('wait-execute')).toBe(false)
     expect(world.kit.prepareExecuteHandover).not.toHaveBeenCalled()
     expect(world.port.send).not.toHaveBeenCalled()
-    expect((await executionOf(world.records, world.account))?.requestId).toBe(OTHER_REQUEST)
+
+    await view.press('wait-execute')
+    expect(world.port.send).toHaveBeenCalledTimes(1)
   })
 
   it("sends a smart account's batch under the claim's own request id", async () => {
@@ -215,7 +232,7 @@ describe('the claim of the execution', () => {
     expect((await executionOf(world.records, world.account))?.transactionHash).toBe(TX_HASH)
   })
 
-  it('lets a second page follow the claim with nothing sent, then wait on the hash the first page writes', async () => {
+  it('lets a second page release the claim with no hash and offer execute, while the first page keeps its send, writes the claim back with its hash and reaches the done screen', async () => {
     const world = await openWorld()
     elapse(world.kit)
     const hash = holdSend(world)
@@ -223,42 +240,78 @@ describe('the claim of the execution', () => {
     const first = await mount(mountWait(world.account))
     await first.press('wait-execute')
     expect(world.port.send).toHaveBeenCalledTimes(1)
+    const own = (await executionOf(world.records, world.account))?.requestId
 
     const second = await mount(mountWaitInAnotherPage(world.account))
-    expect(second.byTestId('wait-execute-submitting')).not.toBeNull()
-    expect(second.byTestId('wait-execute')).toBeNull()
-    expect(second.text()).toContain(t('socialRecovery.wait.executionDue.executing'))
+    expect(await executionOf(world.records, world.account)).toBeUndefined()
+    expect(second.byTestId('wait-execute-submitting')).toBeNull()
+    expect(second.isDisabled('wait-execute')).toBe(false)
+    // The page whose send runs is no arrival: it keeps its own state.
+    expect(first.byTestId('wait-execute-submitting')).not.toBeNull()
 
     hash.resolve(TX_HASH)
     await tick(0)
-    expect(world.kit.receipts.wait).toHaveBeenCalledTimes(1)
-    await tick(REREAD_MS)
-    expect(world.kit.receipts.wait).toHaveBeenCalledTimes(2)
-    expect(world.kit.receipts.wait).toHaveBeenLastCalledWith(TX_HASH, OWN_CLAIM_BLOCK)
+    expect(await executionOf(world.records, world.account)).toEqual(
+      expect.objectContaining({ requestId: own, transactionHash: TX_HASH })
+    )
+    expect(world.kit.receipts.wait).toHaveBeenCalledWith(TX_HASH, OWN_CLAIM_BLOCK)
 
     receipt.resolve(landedReceipt())
     consume(world.kit, world.account)
     await tick(POLL_MS)
-    // Both pages navigate through the one wallet: each goes on to the done screen once.
-    expect(second.paths()).toEqual([donePath(world), donePath(world)])
+    expect(first.paths()).toContain(donePath(world))
     expect(world.port.send).toHaveBeenCalledTimes(1)
     expect(world.kit.prepareExecuteHandover).toHaveBeenCalledTimes(1)
   })
 
-  it('follows a claim another page wrote after this page offered execute, and prepares and sends nothing on a press', async () => {
+  it('follows a claim under a hash another page wrote after this page offered execute, and prepares and sends nothing on a press', async () => {
     const world = await openWorld()
     elapse(world.kit)
+    holdReceipt(world)
     const view = await mount(mountWait(world.account))
     expect(view.isDisabled('wait-execute')).toBe(false)
 
-    await claimElsewhere(world.records, world.account)
+    await claimElsewhere(world.records, world.account, { transactionHash: OTHER_TX_HASH })
     await view.press('wait-execute')
     expect(view.byTestId('wait-execute-submitting')).not.toBeNull()
+    expect(world.kit.receipts.wait).toHaveBeenCalledWith(OTHER_TX_HASH, CLAIM_BLOCK)
     expect(world.kit.prepareExecuteHandover).not.toHaveBeenCalled()
     expect(world.port.send).not.toHaveBeenCalled()
   })
 
-  it('follows the claim another page wrote while this page checked the gas, and sends nothing', async () => {
+  it('releases a claim with no hash another page wrote after this page offered execute, and prepares and sends nothing on that press', async () => {
+    const world = await openWorld()
+    elapse(world.kit)
+    const view = await mount(mountWait(world.account))
+
+    await claimElsewhere(world.records, world.account)
+    await view.press('wait-execute')
+    expect(await executionOf(world.records, world.account)).toBeUndefined()
+    expect(view.byTestId('wait-execute-submitting')).toBeNull()
+    expect(view.isDisabled('wait-execute')).toBe(false)
+    expect(world.kit.prepareExecuteHandover).not.toHaveBeenCalled()
+    expect(world.port.send).not.toHaveBeenCalled()
+  })
+
+  it('follows a claim under a hash another page wrote while this page checked the gas, and sends nothing', async () => {
+    const world = await openWorld()
+    elapse(world.kit)
+    holdReceipt(world)
+    const estimate = deferred<bigint>()
+    world.kit.reads.estimateGas.mockImplementation(() => estimate.promise)
+    const view = await mount(mountWait(world.account))
+    await view.press('wait-execute')
+
+    await claimElsewhere(world.records, world.account, { transactionHash: OTHER_TX_HASH })
+    estimate.resolve(300_000n)
+    await tick(0)
+    expect(world.port.send).not.toHaveBeenCalled()
+    expect(view.byTestId('wait-execute-submitting')).not.toBeNull()
+    expect(view.byTestId('wait-execute')).toBeNull()
+    expect((await executionOf(world.records, world.account))?.requestId).toBe(OTHER_REQUEST)
+  })
+
+  it('releases a claim with no hash another page wrote while this page checked the gas, sends nothing, and offers execute again', async () => {
     const world = await openWorld()
     elapse(world.kit)
     const estimate = deferred<bigint>()
@@ -270,26 +323,9 @@ describe('the claim of the execution', () => {
     estimate.resolve(300_000n)
     await tick(0)
     expect(world.port.send).not.toHaveBeenCalled()
-    expect(view.byTestId('wait-execute-submitting')).not.toBeNull()
-    expect(view.byTestId('wait-execute')).toBeNull()
-    expect((await executionOf(world.records, world.account))?.requestId).toBe(OTHER_REQUEST)
-  })
-
-  it('follows a hash the other page writes on its claim meanwhile, and waits on its receipt from the claim block', async () => {
-    const world = await openWorld()
-    elapse(world.kit)
-    holdReceipt(world)
-    await claimElsewhere(world.records, world.account)
-    const view = await mount(mountWait(world.account))
-    expect(view.byTestId('wait-execute-submitting')).not.toBeNull()
-    expect(world.kit.receipts.wait).not.toHaveBeenCalled()
-
-    await hashElsewhere(world.records, world.account)
-    await tick(REREAD_MS)
-    expect(world.kit.receipts.wait).toHaveBeenCalledWith(OTHER_TX_HASH, CLAIM_BLOCK)
-    expect(view.byTestId('wait-execute')).toBeNull()
-    expect(world.port.send).not.toHaveBeenCalled()
-    expect(world.kit.prepareExecuteHandover).not.toHaveBeenCalled()
+    expect(await executionOf(world.records, world.account)).toBeUndefined()
+    expect(view.byTestId('wait-execute-submitting')).toBeNull()
+    expect(view.isDisabled('wait-execute')).toBe(false)
   })
 
   it('releases the claim where the wallet refused the send, and the retry claims again', async () => {
@@ -343,7 +379,7 @@ describe('the claim of the execution', () => {
     expect((await executionOf(world.records, world.account))?.transactionHash).toBe(TX_HASH)
   })
 
-  it('lets the send add its request while the countdown holds its claim, and never once another page released it', async () => {
+  it('lets the send add its request while the countdown holds its claim, and never once another page released it and claimed under its own request', async () => {
     const world = await openWorld()
     elapse(world.kit)
     holdSend(world)
@@ -363,19 +399,28 @@ describe('the claim of the execution', () => {
       read.status === 'present' ? read.revision : null
     )
     expect(await options.canAdd()).toBe(false)
+    await claimElsewhere(world.records, world.account)
+    expect(await options.canAdd()).toBe(false)
   })
 
-  it('adds nothing where the wallet selects the account after the claim’s age while the claim is still its own, and offers the retry', async () => {
+  it('adds nothing where another page released the claim while the wallet selected the account, and offers the retry', async () => {
     const world = await openWorld({ receiving: 'smart' })
     elapse(world.kit)
     const wallet = batchAwaitingSelection(world)
     const view = await mount(mountWait(world.account))
     await view.press('wait-execute')
     const claim = await executionOf(world.records, world.account)
-    expect(claim?.transactionHash).toBeUndefined()
+    if (!claim) {
+      throw new Error('no claim')
+    }
+    expect(claim.transactionHash).toBeUndefined()
 
-    await tick(BATCH_CLAIM_AGE_MS + 300)
-    expect((await executionOf(world.records, world.account))?.requestId).toBe(claim?.requestId)
+    const countdown = world.records.countdown(CHAIN_ID, world.account)
+    const read = await countdown.read()
+    await countdown.releaseExecution(
+      claim.requestId,
+      read.status === 'present' ? read.revision : null
+    )
     expect(view.byTestId('wait-execute-submitting')).not.toBeNull()
 
     const landing = wallet.selectAccount()
@@ -450,20 +495,26 @@ describe('a reloaded page', () => {
     views.splice(0).forEach((view) => view.unmount())
   })
 
-  it('follows its own claim the wallet still holds, and sends nothing', async () => {
+  it('releases its own earlier claim with no hash, offers execute, and sends once on the press', async () => {
     const world = await openWorld()
     elapse(world.kit)
     holdSend(world)
     const before = await mountWait(world.account)
     await before.press('wait-execute')
     before.unmount()
+    expect(await executionOf(world.records, world.account)).toBeDefined()
 
+    world.port.send.mockImplementation(async () => TX_HASH)
+    holdReceipt(world)
     const after = await mount(mountWaitInAnotherPage(world.account))
-    expect(after.byTestId('wait-execute-submitting')).not.toBeNull()
-    expect(after.byTestId('wait-execute')).toBeNull()
-    await tick(POLL_MS)
+    expect(await executionOf(world.records, world.account)).toBeUndefined()
+    expect(after.byTestId('wait-execute-submitting')).toBeNull()
+    expect(after.isDisabled('wait-execute')).toBe(false)
     expect(world.port.send).toHaveBeenCalledTimes(1)
-    expect(world.kit.prepareExecuteHandover).toHaveBeenCalledTimes(1)
+
+    await after.press('wait-execute')
+    expect(world.port.send).toHaveBeenCalledTimes(2)
+    expect((await executionOf(world.records, world.account))?.transactionHash).toBe(TX_HASH)
   })
 
   it('waits on the receipt of the hash its own claim carries, and reaches the done screen with nothing sent again', async () => {
@@ -487,7 +538,7 @@ describe('a reloaded page', () => {
   })
 })
 
-describe('a claim with no hash that grew old', () => {
+describe('a claim with no hash found on arrival', () => {
   useWaitClock()
   let view: Mounted | undefined
 
@@ -496,155 +547,141 @@ describe('a claim with no hash that grew old', () => {
     view = undefined
   })
 
-  it('is followed while it is younger than the claim age, and released once it is older with no consume event since its block', async () => {
-    const world = await openWorld()
+  /** A claim `ageMs` old whose request the wallet holds nowhere is released and execute offered, with no events read. */
+  const releasedOnArrival = async (world: World, ageMs: number) => {
     elapse(world.kit)
-    await claimElsewhere(world.records, world.account)
+    await claimElsewhere(world.records, world.account, { claimedAt: Date.now() - ageMs })
+    // The wallet's queue holds no request under the claim, and its activity lists none.
+    mockWallet.activity = []
     view = await mountWait(world.account)
-
     await tick(REREAD_MS)
-    await tick(REREAD_MS)
-    expect(view.byTestId('wait-execute-submitting')).not.toBeNull()
-    expect(claimRangeReads(world)).toEqual([])
-    expect((await executionOf(world.records, world.account))?.requestId).toBe(OTHER_REQUEST)
-
-    moveDeviceClock(CLAIM_AGE_MS)
-    await tick(REREAD_MS)
-    expect(claimRangeReads(world)).toEqual([
-      [expect.anything(), { from: CLAIM_BLOCK, to: world.kit.chain.blockNumber }]
-    ])
     expect(await executionOf(world.records, world.account)).toBeUndefined()
     expect(view.byTestId('wait-execute-submitting')).toBeNull()
     expect(view.isDisabled('wait-execute')).toBe(false)
+    expect(claimRangeReads(world)).toEqual([])
     expect(world.port.send).not.toHaveBeenCalled()
+    expect(world.port.sendAccountBatch).not.toHaveBeenCalled()
+  }
+
+  it('is released and execute offered a minute after its claim where the smart account sends', async () => {
+    await releasedOnArrival(await openWorld({ route: 'logged-in', receiving: 'smart' }), 60_000)
   })
 
-  it('is kept where a consume event of the attempt exists from its block, and the next poll opens the done screen', async () => {
-    const world = await openWorld()
-    elapse(world.kit)
-    await claimElsewhere(world.records, world.account, { claimedAt: Date.now() - CLAIM_AGE_MS })
-    eventsFromClaim(world, async () => [...world.kit.chain.events, attemptConsumed(world.account)])
-    view = await mountWait(world.account)
-
-    await tick(REREAD_MS)
-    expect(claimRangeReads(world).length).toBeGreaterThan(0)
-    expect((await executionOf(world.records, world.account))?.requestId).toBe(OTHER_REQUEST)
-    expect(view.byTestId('wait-execute')).toBeNull()
-    expect(view.paths()).toEqual([])
-    expect(world.port.send).not.toHaveBeenCalled()
-
-    consume(world.kit, world.account)
-    await tick(POLL_MS)
-    expect(view.paths()).toEqual([donePath(world)])
-    expect(world.port.send).not.toHaveBeenCalled()
+  it('is released and execute offered long after its claim where the key sends', async () => {
+    await releasedOnArrival(
+      await openWorld({ route: 'logged-in', receiving: 'basic' }),
+      31 * 60_000
+    )
   })
 
-  it('reads the events from its block again where that read does not answer within its limit, and keeps the claim meanwhile', async () => {
-    const world = await openWorld()
-    elapse(world.kit)
-    await claimElsewhere(world.records, world.account, { claimedAt: Date.now() - CLAIM_AGE_MS })
-    let answer = () => new Promise<Notification[]>(() => {})
-    eventsFromClaim(world, () => answer())
-    view = await mountWait(world.account)
-    expect(claimRangeReads(world)).toHaveLength(1)
+  it('is released and execute offered hours after its claim on a fresh install', async () => {
+    await releasedOnArrival(
+      await openWorld({ route: 'fresh-install', receiving: 'basic' }),
+      3 * 60 * 60_000
+    )
+  })
 
-    await tick(READ_LIMIT_MS)
+  it("is read in flight on a reload while the wallet's queue holds the key's own send, and offers no execute", async () => {
+    const world = await openWorld({ route: 'fresh-install', receiving: 'basic' })
+    elapse(world.kit)
+    await claimElsewhere(world.records, world.account)
+    mockWallet.queued = [OTHER_REQUEST]
+    view = await mountWait(world.account)
     await tick(REREAD_MS)
-    expect(claimRangeReads(world)).toHaveLength(2)
-    expect((await executionOf(world.records, world.account))?.requestId).toBe(OTHER_REQUEST)
+    await tick(REREAD_MS)
     expect(view.byTestId('wait-execute-submitting')).not.toBeNull()
     expect(view.byTestId('wait-execute')).toBeNull()
-
-    answer = async () => world.kit.chain.events
-    await tick(READ_LIMIT_MS)
-    await tick(REREAD_MS)
-    expect(claimRangeReads(world)).toHaveLength(3)
-    expect(await executionOf(world.records, world.account)).toBeUndefined()
-    expect(view.isDisabled('wait-execute')).toBe(false)
+    expect((await executionOf(world.records, world.account))?.requestId).toBe(OTHER_REQUEST)
     expect(world.port.send).not.toHaveBeenCalled()
   })
 
-  it('is followed under the hash the other page wrote while its events were read, never released', async () => {
-    const world = await openWorld()
+  it('is followed under the hash the wallet broadcast the key’s own send with before the page wrote it', async () => {
+    const world = await openWorld({ route: 'fresh-install', receiving: 'basic' })
     elapse(world.kit)
     holdReceipt(world)
-    await claimElsewhere(world.records, world.account, { claimedAt: Date.now() - CLAIM_AGE_MS })
-    eventsFromClaim(world, async () => {
-      await hashElsewhere(world.records, world.account)
-      return world.kit.chain.events
-    })
+    await claimElsewhere(world.records, world.account)
+    mockWallet.activity = [
+      {
+        status: 'broadcasted-but-not-confirmed',
+        identifiedBy: { type: 'Transaction' },
+        txnId: OTHER_TX_HASH,
+        calls: [{ fromUserRequestId: OTHER_REQUEST }]
+      }
+    ]
     view = await mountWait(world.account)
-    await tick(0)
-
-    expect(claimRangeReads(world).length).toBeGreaterThan(0)
-    expect(await executionOf(world.records, world.account)).toEqual({
-      requestId: OTHER_REQUEST,
-      startBlock: CLAIM_BLOCK,
-      claimedAt: Date.now() - CLAIM_AGE_MS,
-      transactionHash: OTHER_TX_HASH
-    })
+    await tick(REREAD_MS)
     expect(world.kit.receipts.wait).toHaveBeenCalledWith(OTHER_TX_HASH, CLAIM_BLOCK)
-    expect(view.byTestId('wait-execute')).toBeNull()
+    expect((await executionOf(world.records, world.account))?.transactionHash).toBe(OTHER_TX_HASH)
+    expect(view.byTestId('wait-execute-submitting')).not.toBeNull()
     expect(world.port.send).not.toHaveBeenCalled()
   })
-})
 
-describe('the claim age by the route that sends', () => {
-  useWaitClock()
-  let view: Mounted | undefined
-
-  afterEach(() => {
-    view?.unmount()
-    view = undefined
-  })
-
-  it("follows a hashless claim younger than ten minutes on the account's batch route, and releases it once older", async () => {
+  it("is read in flight while the wallet's queue holds its request, offers no execute, and is released once the queue lets the request go", async () => {
     const world = await openWorld({ receiving: 'smart' })
     elapse(world.kit)
-    await claimElsewhere(world.records, world.account, {
-      claimedAt: Date.now() - BATCH_CLAIM_AGE_MS + 60_000
-    })
+    await claimElsewhere(world.records, world.account)
+    mockWallet.queued = [OTHER_REQUEST]
     view = await mountWait(world.account)
-
+    await tick(REREAD_MS)
     await tick(REREAD_MS)
     expect(view.byTestId('wait-execute-submitting')).not.toBeNull()
-    expect(claimRangeReads(world)).toEqual([])
+    expect(view.byTestId('wait-execute')).toBeNull()
     expect((await executionOf(world.records, world.account))?.requestId).toBe(OTHER_REQUEST)
 
-    moveDeviceClock(60_000)
+    mockWallet.queued = []
+    mockWallet.activity = []
     await tick(REREAD_MS)
-    expect(claimRangeReads(world)).toHaveLength(1)
+    await tick(REREAD_MS)
     expect(await executionOf(world.records, world.account)).toBeUndefined()
+    expect(view.byTestId('wait-execute-submitting')).toBeNull()
     expect(view.isDisabled('wait-execute')).toBe(false)
     expect(world.port.sendAccountBatch).not.toHaveBeenCalled()
   })
 
-  const keyRoutes = [
-    { route: 'logged-in', name: "a basic account's own key" },
-    { route: 'fresh-install', name: "the receiving basic account's own key on the fresh install" }
-  ] as const
-  keyRoutes.forEach(({ route, name }) => {
-    it(`follows a hashless claim ten minutes old where ${name} sends, and releases it once older than thirty`, async () => {
-      const world = await openWorld({ route })
-      elapse(world.kit)
-      await claimElsewhere(world.records, world.account, {
-        claimedAt: Date.now() - BATCH_CLAIM_AGE_MS
-      })
-      view = await mountWait(world.account)
+  it('is followed under the hash the wallet broadcast its request with, written on the claim', async () => {
+    const world = await openWorld({ receiving: 'smart' })
+    elapse(world.kit)
+    holdReceipt(world)
+    await claimElsewhere(world.records, world.account)
+    mockWallet.activity = [
+      {
+        status: 'broadcasted-but-not-confirmed',
+        identifiedBy: { type: 'Transaction' },
+        txnId: OTHER_TX_HASH,
+        calls: [{ fromUserRequestId: OTHER_REQUEST }]
+      }
+    ]
+    view = await mountWait(world.account)
+    await tick(REREAD_MS)
+    expect(world.kit.receipts.wait).toHaveBeenCalledWith(OTHER_TX_HASH, CLAIM_BLOCK)
+    expect((await executionOf(world.records, world.account))?.transactionHash).toBe(OTHER_TX_HASH)
+    expect(view.byTestId('wait-execute-submitting')).not.toBeNull()
+    expect(world.port.sendAccountBatch).not.toHaveBeenCalled()
+  })
 
-      await tick(REREAD_MS)
-      await tick(REREAD_MS)
-      expect(view.byTestId('wait-execute-submitting')).not.toBeNull()
-      expect(claimRangeReads(world)).toEqual([])
-      expect((await executionOf(world.records, world.account))?.requestId).toBe(OTHER_REQUEST)
-
-      moveDeviceClock(CLAIM_AGE_MS - BATCH_CLAIM_AGE_MS)
-      await tick(REREAD_MS)
-      expect(claimRangeReads(world)).toHaveLength(1)
-      expect(await executionOf(world.records, world.account)).toBeUndefined()
-      expect(view.isDisabled('wait-execute')).toBe(false)
-      expect(world.port.send).not.toHaveBeenCalled()
-    })
+  it('is followed under the hash it took before its release, never released', async () => {
+    const world = await openWorld()
+    elapse(world.kit)
+    holdReceipt(world)
+    await claimElsewhere(world.records, world.account)
+    const key = recordKeys.recoverySession(CHAIN_ID, world.account)
+    const { get } = world.storage
+    world.storage.get = async (name, fallback) => {
+      // The other page writes its hash after the look for a claim read none, as the release reads it.
+      if (name === key && /followClaim/.test(new Error().stack ?? '')) {
+        world.storage.get = get
+        await hashElsewhere(world.records, world.account)
+      }
+      return get(name, fallback)
+    }
+    view = await mountWait(world.account)
+    await tick(0)
+    expect(await executionOf(world.records, world.account)).toEqual(
+      expect.objectContaining({ requestId: OTHER_REQUEST, transactionHash: OTHER_TX_HASH })
+    )
+    expect(view.byTestId('wait-execute-submitting')).not.toBeNull()
+    expect(world.kit.receipts.wait).toHaveBeenCalledWith(OTHER_TX_HASH, CLAIM_BLOCK)
+    expect(world.port.send).not.toHaveBeenCalled()
   })
 })
 
@@ -714,6 +751,31 @@ describe('a countdown another tab replaced with another attempt', () => {
     )
   }
 
+  it('releases nothing on a new countdown that replaced the one whose claim with no hash it found, and offers execute for it', async () => {
+    const world = await openWorld()
+    elapse(world.kit)
+    holdReceipt(world)
+    await claimElsewhere(world.records, world.account)
+    const key = recordKeys.recoverySession(CHAIN_ID, world.account)
+    const { get } = world.storage
+    world.storage.get = async (name, fallback) => {
+      // Another tab lands a later attempt after the look for a claim read this one's claim.
+      if (name === key && /followClaim/.test(new Error().stack ?? '')) {
+        world.storage.get = get
+        await replaceCountdown(world)
+      }
+      return get(name, fallback)
+    }
+    const view = await mount(mountWait(world.account))
+    const replaced = await storedCountdown(world)
+    await tick(0)
+    expect(await storedCountdown(world)).toEqual(replaced)
+    expect(view.byTestId('wait-execute-submitting')).toBeNull()
+    expect(world.port.send).not.toHaveBeenCalled()
+
+    await expectExecuteOfNextAttempt(view, world, 1)
+  })
+
   it('claims nothing on the new countdown and sends nothing where it replaced the one the run checked the gas for, then offers execute for it', async () => {
     const world = await openWorld()
     elapse(world.kit)
@@ -751,45 +813,6 @@ describe('a countdown another tab replaced with another attempt', () => {
     expect(await storedCountdown(world)).toEqual(replaced)
     expect(world.kit.receipts.wait).toHaveBeenCalledWith(TX_HASH, OWN_CLAIM_BLOCK)
     expect(view.byTestId('wait-execute')).not.toBeNull()
-  })
-
-  it("stops following another page's claim where the countdown is replaced, releases nothing on the new one, and offers execute for it", async () => {
-    const world = await openWorld()
-    elapse(world.kit)
-    holdReceipt(world)
-    await claimElsewhere(world.records, world.account)
-    const view = await mount(mountWait(world.account))
-    expect(view.byTestId('wait-execute-submitting')).not.toBeNull()
-
-    await replaceCountdown(world)
-    const replaced = await storedCountdown(world)
-    await tick(REREAD_MS)
-    expect(await storedCountdown(world)).toEqual(replaced)
-    expect(view.byTestId('wait-execute-submitting')).toBeNull()
-    expect(world.port.send).not.toHaveBeenCalled()
-
-    await expectExecuteOfNextAttempt(view, world, 1)
-  })
-
-  it('releases nothing on the new countdown where it carries the same claim and the followed claim grew old', async () => {
-    const world = await openWorld()
-    elapse(world.kit)
-    holdReceipt(world)
-    // From the claim's block the manager names the later attempt consumed, never the old one.
-    eventsFromClaim(world, async () => [
-      { ...attemptConsumed(world.account), attemptId: NEXT_ATTEMPT }
-    ])
-    await claimElsewhere(world.records, world.account)
-    const view = await mount(mountWait(world.account))
-    expect(view.byTestId('wait-execute-submitting')).not.toBeNull()
-
-    await replaceCountdown(world, true)
-    const replaced = await storedCountdown(world)
-    moveDeviceClock(CLAIM_AGE_MS)
-    await tick(REREAD_MS)
-    expect(await storedCountdown(world)).toEqual(replaced)
-    expect((await executionOf(world.records, world.account))?.requestId).toBe(OTHER_REQUEST)
-    expect(world.port.send).not.toHaveBeenCalled()
   })
 
   it('releases nothing on the new countdown where it replaced the run between the two readings of a send no node knows', async () => {

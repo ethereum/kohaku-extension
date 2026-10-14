@@ -12,13 +12,11 @@
  *                                     ├─ another page's claim ─▶ followed (nothing sent)
  *                                     └─ its own ──▶ submitting ──▶ failedNotSent | failedReverted | landed
  *   followed, a hash ──▶ its receipt, as after a send
- *   followed, no hash ──▶ the session read again until a hash arrives, the
- *                         claim goes, or the claim grows older than the
- *                         steps' claim age: where the wallet no longer holds
- *                         the request, the manager's events then name the
- *                         attempt started (the landing) or not (the claim
- *                         released where it still carries no hash, the start
- *                         offered again)
+ *   followed, no hash ──▶ judged on every read by where the wallet holds its
+ *                         request: held in its queue, waited on as in flight;
+ *                         broadcast, followed under that hash; held nowhere,
+ *                         not sent (the claim released where it still carries
+ *                         no hash, the start offered again)
  *   followed, the session wiped or gone ──▶ back to the checklist
  *   submitting with a hash, on arrival or check again, the claim older than
  *   `DROPPED_AFTER_MS`, two readings apart (a higher block, or
@@ -46,6 +44,7 @@ import { providerReadFailure, readWithin } from '@web/modules/social-recovery/sh
 import type { SubmissionInFlightRecord } from '@web/modules/social-recovery/shared/records'
 import {
   apartFrom,
+  claimReadingOf,
   coversHashes,
   DROPPED_AFTER_MS,
   DROPPED_RECHECK_MS,
@@ -59,7 +58,7 @@ import { BALANCE_POLL_MS, FOLLOW_REREAD_MS, READ_LIMIT_MS } from './constants'
 import { preparedRefusalRunning, revertedRunning } from './refusal'
 import type {
   FollowedClaim,
-  OldClaimReading,
+  ClaimJudgement,
   SubmitEvent,
   SubmitState,
   SubmitSteps,
@@ -616,16 +615,14 @@ const waitForReceipt = async (store: SubmitStore, steps: SubmitSteps): Promise<v
 }
 
 /**
- * The judgement of a followed claim with no hash older than the steps' claim
- * age: where the wallet still holds its request, it is waited on; broadcast,
- * the hash is written on the claim and followed; else the manager's events
- * name the attempt started, or the claim is released where it still carries
- * no hash. A claim that took a hash meanwhile is followed under it.
+ * The judgement of a followed claim with no hash, by where the wallet holds
+ * its request: still held in its queue, or a read that did not answer, it is
+ * waited on as a send in flight; broadcast, the hash is written on the claim
+ * and followed; held nowhere, the send did not go out (`claimReadingOf`), and
+ * the claim is released where it still carries no hash. A claim that took a
+ * hash meanwhile is followed under it.
  */
-const judgeOldClaim = async (
-  steps: SubmitSteps,
-  follow: FollowedClaim
-): Promise<OldClaimReading> => {
+const judgeClaim = async (steps: SubmitSteps, follow: FollowedClaim): Promise<ClaimJudgement> => {
   const hold = await readWithin(() => steps.requestHold(follow.requestId), READ_LIMIT_MS).catch(
     () => undefined
   )
@@ -636,15 +633,6 @@ const judgeOldClaim = async (
     await steps.markSent(follow, hold.transactionHash).catch(() => undefined)
     return { status: 'hashed', transactionHash: hold.transactionHash }
   }
-  const started = await readWithin(() => steps.startedSince(follow), READ_LIMIT_MS).catch(
-    () => undefined
-  )
-  if (started === undefined) {
-    return { status: 'wait' }
-  }
-  if (started) {
-    return { status: 'started' }
-  }
   const released = await steps.releaseClaim(follow.requestId, []).catch(() => undefined)
   return released ?? { status: 'wait' }
 }
@@ -654,14 +642,12 @@ const judgeOldClaim = async (
  * that arrives is waited on; a claim that went, or another page's claim in its
  * place, ends the follow (the latter is followed in turn); a session landed
  * under this request's attempt lands here too, and a session of another
- * request goes back to the checklist. A claim older than the steps' claim age
- * by the clock read before the session read is judged: while the wallet's
- * queue still holds its request it is waited on, and once the queue broadcast
- * it, it is followed under that hash; else the manager's events decide, an
- * attempt started under the request's attempt number being the landing, and
- * none meaning the send never went out, so the claim is released and the
- * start offered again. A read that fails is read again after a rest, never
- * taken as an answer.
+ * request goes back to the checklist. On every read the claim is judged by
+ * where the wallet holds its request, with no age: while the wallet's queue
+ * still holds it, it is waited on; once the queue broadcast it, it is followed
+ * under that hash; held nowhere, the send never went out, so the claim is
+ * released and the start offered again. A read that fails is read again after
+ * a rest, never taken as an answer.
  */
 const readFollow = async (store: SubmitStore): Promise<void> => {
   if (FOLLOWING.has(store)) {
@@ -678,7 +664,6 @@ const readFollow = async (store: SubmitStore): Promise<void> => {
       if (!steps || !follow || !awaitingHashIn(state, run)) {
         return
       }
-      const clock = steps.now()
       // eslint-disable-next-line no-await-in-loop
       const read = await readWithin(() => steps.readSession(), READ_LIMIT_MS).catch(() => undefined)
       if (store.state().follow !== follow) {
@@ -731,18 +716,12 @@ const readFollow = async (store: SubmitStore): Promise<void> => {
         waitAfter = true
         return
       }
-      if (held && clock - held.claimedAt >= steps.claimAgeMs) {
+      if (held) {
         // eslint-disable-next-line no-await-in-loop
-        const judged = await judgeOldClaim(steps, follow)
+        const judged = await judgeClaim(steps, follow)
         if (store.state().follow !== follow) {
           // eslint-disable-next-line no-continue
           continue
-        }
-        if (judged.status === 'started') {
-          store.dispatch({ type: 'landedUnseen', run })
-          // eslint-disable-next-line no-await-in-loop
-          await settle(store, steps, run)
-          return
         }
         if (judged.status === 'hashed') {
           writeEvent(store)({
@@ -789,7 +768,7 @@ const followClaim = async (
   if (store.state() === before) {
     return
   }
-  if (claim.transactionHash) {
+  if (claimReadingOf(claim).kind === 'inFlight') {
     await waitForReceipt(store, steps)
     return
   }
@@ -855,8 +834,8 @@ const claimAndSend = async (store: SubmitStore, steps: SubmitSteps, run: number)
     }
   }
   // The run may still add only while the live session is its own and holds
-  // this request's claim, with no hash, younger than the claim's age: past
-  // it, another page may have released the claim and sent again.
+  // this request's claim with no hash: a page that arrived since may have
+  // released the claim and started again.
   const canAdd = async (): Promise<boolean> => {
     if (!awaitingHashIn(store.state(), run) || store.state().requestId !== requestId) {
       return false
@@ -870,11 +849,7 @@ const claimAndSend = async (store: SubmitStore, steps: SubmitSteps, run: number)
       return false
     }
     const held = read.value.submission
-    return (
-      held?.requestId === requestId &&
-      held.transactionHash === undefined &&
-      steps.now() - held.claimedAt < steps.claimAgeMs
-    )
+    return held?.requestId === requestId && held.transactionHash === undefined
   }
   try {
     await steps.send(prepared, sendDispatch, run, startBlock, requestId, () => marked, canAdd)

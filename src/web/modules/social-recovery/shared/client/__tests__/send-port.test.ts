@@ -319,6 +319,44 @@ describe('the send port over the request queue', () => {
   })
 })
 
+describe('a gate that throws before it hands back a promise', () => {
+  it('settles the send as a timeout, adds nothing and leaves no listener', async () => {
+    const q = sendQueueOver([basicAccount(KEY)])
+    const canAdd = (): Promise<boolean> => {
+      throw new Error('The gate broke.')
+    }
+    const caught = thrownBy(q.sender.send(HANDLE, TRANSACTION, { canAdd }))
+    await flush()
+    await advance(SEND_SETTLE_MS + 1)
+    const refusal = (await caught) as SendRefusal
+    expect(refusal.name).toBe('SendRefusal')
+    expect(refusal.reason).toBe('timeout')
+    expect(typesOf(q.dispatch)).not.toContain(ADD)
+    expect(q.listeners()).toBe(0)
+  })
+
+  it('settles the send as a timeout, adds nothing and leaves no listener where it throws once the wallet pushes the selection of the sending account', async () => {
+    const q = sendQueueOver([basicAccount(KEY)])
+    q.selected = OTHER_KEY
+    const canAdd = jest.fn((): Promise<boolean> => {
+      throw new Error('The gate broke.')
+    })
+    const caught = thrownBy(q.sender.send(HANDLE, TRANSACTION, { canAdd }))
+    await flush()
+    expect(actionsOf(q.dispatch)).toContainEqual({
+      type: 'MAIN_CONTROLLER_SELECT_ACCOUNT',
+      params: { accountAddr: KEY }
+    })
+    expect(canAdd).toHaveBeenCalledTimes(1)
+    await advance(SEND_SETTLE_MS + 1)
+    const refusal = (await caught) as SendRefusal
+    expect(refusal.name).toBe('SendRefusal')
+    expect(refusal.reason).toBe('timeout')
+    expect(typesOf(q.dispatch)).not.toContain(ADD)
+    expect(q.listeners()).toBe(0)
+  })
+})
+
 describe('a key that is not itself a basic account the wallet lists', () => {
   const controllingKey = addressOf('controlling-key-at-index-plus-100000')
   const KEYS: [string, SendWorld['accounts']][] = [

@@ -186,12 +186,15 @@ const {
 }: typeof import('@web/modules/social-recovery/shared/records') = require('@web/modules/social-recovery/shared/records')
 const {
   createArmStore,
-  FOLLOW_REREAD_MS,
-  GONE_GRACE_MS,
   RECEIPT_WAIT_MS,
   saveStepsOf,
   startSave
 }: typeof import('@web/modules/social-recovery/setup/arm') = require('@web/modules/social-recovery/setup/arm')
+const {
+  CLAIM_SEND_LIMIT_MS
+}: typeof import('@web/modules/social-recovery/setup/arm/constants') = require('@web/modules/social-recovery/setup/arm/constants')
+/** Ten minutes: far past any wait of a follow, for a screen that is away. */
+const FAR_MS = 10 * 60_000
 const {
   DROPPED_AFTER_MS
 }: typeof import('@web/modules/social-recovery/shared/writes') = require('@web/modules/social-recovery/shared/writes')
@@ -248,6 +251,10 @@ const activity: { current: SubmittedOperation[] | null } = { current: [] }
  * asks for over the event bus, as the background pushes it.
  */
 const backgroundDispatch = jest.fn((action: SendRequestAction) => {
+  if (action.type === 'INIT_CONTROLLER_STATE') {
+    harness.unawaited(Promise.resolve().then(() => eventBus.emit('signAccountOp', null)))
+    return
+  }
   const items = activity.current
   if (action.type !== 'MAIN_CONTROLLER_ACTIVITY_SET_ACC_OPS_FILTERS' || items === null) {
     return
@@ -1715,10 +1722,13 @@ describe('a save another page of this device sent', () => {
       jest.useRealTimers()
     })
 
+    // The other page went away a while ago: past its claim's send limit, it no longer sends.
     const leave = async () => {
       await writeRecords(draftOf('encrypted'))
       wireClient('ready')
-      return anotherPageLeaves(false, () => tick(100))
+      const left = await anotherPageLeaves(false, () => tick(100))
+      jest.setSystemTime(Date.now() + CLAIM_SEND_LIMIT_MS)
+      return left
     }
 
     it('shows the save waiting while the wallet queue holds the request, then follows its hash to saved when the wallet broadcasts it', async () => {
@@ -1800,38 +1810,28 @@ describe('a save another page of this device sent', () => {
       await tick(0)
       expect(activityReads()).toBe(before + 1)
 
-      await tick(10 * GONE_GRACE_MS)
+      await tick(FAR_MS)
       expect(byTestId('arm-save')).toBeNull()
       expect(storedSaves()).toHaveLength(1)
       expect(port.sendAccountBatch).not.toHaveBeenCalled()
     })
 
-    it('keeps reading a gone request with no setup until the grace period, then offers Save again with the stored save released', async () => {
+    it('reads a request the wallet neither queues nor broadcast as never sent at once, and offers Save again with the stored save released', async () => {
       await leave()
 
       await arrive()
-      await tick(GONE_GRACE_MS - 1_000)
 
-      expect(byTestId('arm-write-submitting')).not.toBeNull()
-      expect(byTestId('arm-save')).toBeNull()
-      expect(storedSaves()).toHaveLength(1)
-
-      await tick(1_000)
-
+      expect(byTestId('arm-write-submitting')).toBeNull()
       expect(byTestId('arm-save')).not.toBeNull()
       expect(storedSaves()).toHaveLength(0)
       expect(port.sendAccountBatch).not.toHaveBeenCalled()
     })
 
-    it("shows the save's own sentence in each reading of the followed request, and the submitting one while it is queued", async () => {
+    it("shows the submitting sentence while the followed request is queued, and the save's own sentence once its read does not answer", async () => {
       const { record } = await leave()
-      await arrive()
-      expect(pageText()).toContain(t('socialRecovery.arm.lookingForSave'))
-      expect(pageText()).not.toContain(t('socialRecovery.review.after.submitting'))
-      expect(byTestId('arm-check-again')).toBeNull()
-
       setQueue([record.requestId])
-      await tick(FOLLOW_REREAD_MS)
+      await arrive()
+      expect(byTestId('arm-check-again')).toBeNull()
       expect(pageText()).toContain(t('socialRecovery.review.after.submitting'))
       expect(pageText()).not.toContain(t('socialRecovery.arm.lookingForSave'))
       expect(pageText()).not.toContain(t('socialRecovery.arm.unread'))
@@ -1861,7 +1861,7 @@ describe('a save another page of this device sent', () => {
       setQueue(['claimed meanwhile'])
 
       await arrive()
-      await tick(GONE_GRACE_MS + 1_000)
+      await tick(1_000)
 
       expect(releases()).toBe(1)
       expect(storedSaves()).toHaveLength(1)
@@ -1897,7 +1897,7 @@ describe('a save another page of this device sent', () => {
     ]
 
     AWAY.forEach(([named, away, back]) => {
-      it(`pauses on ${named} the follow of a request queued at the unmount, voids nothing far past the grace, and after it reads the live queue to saved`, async () => {
+      it(`pauses on ${named} the follow of a request queued at the unmount, voids nothing long after, and after it reads the live queue to saved`, async () => {
         const { record } = await leave()
         await writeRecords(draftOf('clear'), true, other.addr)
         setQueue([record.requestId])
@@ -1909,7 +1909,7 @@ describe('a save another page of this device sent', () => {
         // The wallet broadcasts the request while its screen is away.
         activity.current = [harness.operationFor(record.requestId, { hash: harness.TX_HASH })]
         setQueue([])
-        await tick(10 * GONE_GRACE_MS)
+        await tick(FAR_MS)
 
         expect(activityReads()).toBe(readsAway)
         expect(storedSaves()).toHaveLength(1)
@@ -1923,37 +1923,6 @@ describe('a save another page of this device sent', () => {
         expect(confirmSetup).toHaveBeenCalledTimes(1)
         expect(wipes()).toBe(1)
         expect(storedSaves()).toHaveLength(0)
-        expect(port.sendAccountBatch).not.toHaveBeenCalled()
-      })
-
-      it(`pauses on ${named} the follow of a request not yet queued, voids nothing far past the grace, and after it follows the request queued, then broadcast, to saved`, async () => {
-        const { record } = await leave()
-        await writeRecords(draftOf('clear'), true, other.addr)
-        await arrive()
-        expect(pageText()).toContain(t('socialRecovery.arm.lookingForSave'))
-
-        await away()
-        const readsAway = activityReads()
-        await tick(10 * GONE_GRACE_MS)
-
-        expect(activityReads()).toBe(readsAway)
-        expect(storedSaves()).toHaveLength(1)
-        expect(releases()).toBe(0)
-
-        // The wallet takes the request in late.
-        setQueue([record.requestId])
-        await back()
-        expect(byTestId('arm-write-submitting')).not.toBeNull()
-        expect(byTestId('arm-save')).toBeNull()
-        expect(pageText()).toContain(t('socialRecovery.review.after.submitting'))
-
-        activity.current = [harness.operationFor(record.requestId, { hash: harness.TX_HASH })]
-        setQueue([])
-        await tick(100)
-
-        expect(byTestId('arm-saved')).not.toBeNull()
-        expect(confirmSetup).toHaveBeenCalledTimes(1)
-        expect(wipes()).toBe(1)
         expect(port.sendAccountBatch).not.toHaveBeenCalled()
       })
     })
@@ -2041,7 +2010,7 @@ describe('a save another page of this device sent', () => {
         await act(async () => {
           gas.resolve(1_000_000_000_000_000_000n)
         })
-        await tick(10 * GONE_GRACE_MS)
+        await tick(FAR_MS)
 
         expect(activityReads()).toBe(readsAway)
         expect(storedSaves()).toHaveLength(1)

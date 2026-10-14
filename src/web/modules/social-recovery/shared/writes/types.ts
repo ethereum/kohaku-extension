@@ -306,7 +306,9 @@ export interface SendDrive extends DriveRun {
   key: KeyHandle
   /** The transaction the gas check estimated, from that key (`gasTransactionOf`). */
   transaction: GasEstimateCall
-  /** Asked before an add that waited for the account's selection (`SendOptions`). */
+  /** The id the transaction's request is queued under (`newSendRequestId`); the port makes one by default. */
+  requestId?: string
+  /** Asked right before the add (`SendOptions`). */
   canAdd?: AddGate
 }
 
@@ -324,7 +326,7 @@ export interface AccountBatchDrive extends DriveRun {
   recoveryKit?: RecoveryKitMark
   /** The id the batch's request is queued under (`newSendRequestId`); the port makes one by default. */
   requestId?: string
-  /** Asked before an add that waited for the account's selection (`SendOptions`). */
+  /** Asked right before the add (`SendOptions`). */
   canAdd?: AddGate
 }
 
@@ -533,3 +535,21 @@ export interface UnknownReading {
   block: number
   hashes: readonly Hex[]
 }
+
+/** A claim of a write as a page finds it stored: the hash, once the wallet answered one. */
+export interface StoredClaim {
+  transactionHash?: Hex
+}
+
+/** A stored claim as a page that did not write it first reads it: in flight under its hash, or with no hash, for the wallet's queue to decide. */
+export type ClaimReading = { kind: 'inFlight'; transactionHash: Hex } | { kind: 'noHash' }
+
+/**
+ * Where the wallet holds the request a claim was queued under: still held
+ * (queued, or on a route it cannot follow), broadcast under a hash, or no
+ * longer held anywhere.
+ */
+export type RequestHold =
+  | { status: 'held' }
+  | { status: 'broadcast'; transactionHash: Hex }
+  | { status: 'free' }

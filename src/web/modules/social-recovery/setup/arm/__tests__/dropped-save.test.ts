@@ -1050,7 +1050,7 @@ describe('save again', () => {
       ? pages
       : [pages[1], pages[0]]
     expect(isSaved(sender.store.state())).toBe(true)
-    // The other page lost the claim and follows the sender's request with nothing sent.
+    // The other page lost the claim to one under its send limit: it waits on it and sends nothing.
     expect(other.store.state().requestId).toBe(sentRequest)
     expect(other.store.state().write.status).toBe('submitting')
     expect(other.wired.port.sendAccountBatch).not.toHaveBeenCalled()

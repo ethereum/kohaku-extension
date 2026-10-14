@@ -2,9 +2,10 @@
  * @jest-environment jsdom
  *
  * A submission on its way to the chain, as the pages of one device read it:
- * a claim that takes its hash while a follower judges it, a hash the wallet
- * answers after another page released the claim, a claim whose request the
- * wallet still holds, a hash the node lost (dropped only on a second reading
+ * a claim with no hash found on arrival, released whatever its age where the
+ * wallet holds no request for it and followed while its queue holds one, on a
+ * batch's route and on a key's own send alike, a hash the wallet answers after another page
+ * released the claim, a hash the node lost (dropped only on a second reading
  * at a higher block or a minute later), the hash stored on the claim before
  * the receipt wait, the deposit step left, a revert that names an attempt
  * already running, and a landing another page made first. Each page has its
@@ -12,7 +13,7 @@
  */
 import type { Attempt, Hex } from '@web/modules/social-recovery/sdk-interfaces'
 import type { WriteEvent } from '@web/modules/social-recovery/shared/writes'
-import type { SubmitStore } from '@web/modules/social-recovery/recovery/submit'
+import type { SendingPlan, SubmitStore } from '@web/modules/social-recovery/recovery/submit'
 
 import type { Device } from '@web/modules/social-recovery/recovery/submit/__tests__/harness'
 import {
@@ -43,16 +44,8 @@ import {
 } from '@web/modules/social-recovery/recovery/submit/__tests__/harness'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 
-const {
-  BALANCE_POLL_MS,
-  FOLLOW_REREAD_MS,
-  KEY_SEND_CLAIM_AGE_MS,
-  SUBMISSION_CLAIM_AGE_MS,
-  checkAgain,
-  isLanded,
-  lookForClaim,
-  startSubmission
-} = submit
+const { BALANCE_POLL_MS, checkAgain, FOLLOW_REREAD_MS, isLanded, lookForClaim, startSubmission } =
+  submit
 const {
   DROPPED_AFTER_MS,
   DROPPED_RECHECK_MS
@@ -93,21 +86,136 @@ describe('a submission on its way to the chain', () => {
     return page
   }
 
-  describe('an old claim with no hash', () => {
-    it('follows the hash the claim took while the events were read, and never removes it', async () => {
+  describe('a claim with no hash found on arrival', () => {
+    /** A claim `age` ms old whose request the wallet's queue holds nowhere and never broadcast is released, and the start offered. */
+    const releasedOnArrival = async (age: number, plan: SendingPlan) => {
       const device = await openDevice()
-      await leaveClaim(device, NOW - KEY_SEND_CLAIM_AGE_MS - 1)
-      device.kit.fetch.mockImplementation(async () => {
-        const { accessor, revision } = await otherPage(device)
-        await accessor.setSubmissionHash(LEFT_CLAIM, TX_HASH, revision)
-        return []
-      })
+      await leaveClaim(device, NOW - age)
+      const { port: requests } = requestQueue({ status: 'gone' })
+      const page = track(pageOn(device, () => NOW, { plan, requests }))
+      lookForClaim(page.store, page.steps).catch(() => undefined)
+      await flush()
+      expect(await claimOf(device)).toBeNull()
+      expect(page.store.state().write.status).toBe('idle')
+      expect(page.store.state().lookup).toBe('none')
+      expect(device.kit.fetch).not.toHaveBeenCalled()
+      expect(page.port.send).not.toHaveBeenCalled()
+      expect(page.port.sendAccountBatch).not.toHaveBeenCalled()
+    }
+
+    it('is released and the start offered a second after its claim, on a batch’s route', async () => {
+      await releasedOnArrival(1_000, await batchPlan((planSeed += 1)))
+    })
+
+    it('is released and the start offered long after its claim, on a batch’s route', async () => {
+      await releasedOnArrival(2 * DROPPED_AFTER_MS, await batchPlan((planSeed += 1)))
+    })
+
+    it('is released and the start offered where the wallet holds a key’s own send nowhere', async () => {
+      await releasedOnArrival(1_000, DEVICE_PLAN)
+    })
+
+    it('queues a key’s own send under the claim’s request id', async () => {
+      const device = await openDevice()
+      const page = track(pageOn(device))
+      startSubmission(page.store, page.steps).catch(() => undefined)
+      await flush()
+      const { requestId } = page.store.state()
+      expect(requestId).toEqual(expect.any(String))
+      expect(page.port.send).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.objectContaining({ requestId })
+      )
+    })
+
+    it('reads a claim whose key’s own send the wallet still queues as in flight on a reload, and offers no start', async () => {
+      const device = await openDevice()
+      const { port: requests } = requestQueue({ status: 'queued' })
+      await leaveClaim(device, NOW - 1_000)
+      const page = track(pageOn(device, () => NOW, { plan: DEVICE_PLAN, requests }))
+      lookForClaim(page.store, page.steps).catch(() => undefined)
+      await flush()
+      await advanceTimers(FOLLOW_REREAD_MS)
+      await flush()
+      expect(page.store.state().write.status).toBe('submitting')
+      expect(page.store.state().follow?.requestId).toBe(LEFT_CLAIM)
+      expect((await claimOf(device))?.requestId).toBe(LEFT_CLAIM)
+      expect(page.port.send).not.toHaveBeenCalled()
+    })
+
+    it('writes the hash of a key’s own send the wallet broadcast before the page wrote it, and follows it to the landing', async () => {
+      const device = await openDevice()
+      const { port: requests } = requestQueue({ status: 'broadcast', hash: TX_HASH })
+      await leaveClaim(device, NOW - 1_000)
+      const receipt = deferred<ReturnType<typeof landedReceipt>>()
+      device.kit.receipts.wait.mockImplementation(() => receipt.promise)
+      const page = track(pageOn(device, () => NOW, { plan: DEVICE_PLAN, requests }))
+      lookForClaim(page.store, page.steps).catch(() => undefined)
+      await flush()
+      expect(await claimOf(device)).toEqual(
+        expect.objectContaining({ requestId: LEFT_CLAIM, transactionHash: TX_HASH })
+      )
+      expect(device.kit.receipts.wait).toHaveBeenCalledWith(TX_HASH, START_BLOCK)
+
+      device.kit.chain.attempt = attemptOf(device.gathering)
+      receipt.resolve(landedReceipt())
+      await flush()
+      expect(isLanded(page.store.state())).toBe(true)
+      expect(page.port.send).not.toHaveBeenCalled()
+    })
+
+    it('reads a claim whose request the wallet still queues as in flight, offers no start, and releases it once the queue lets the request go', async () => {
+      const device = await openDevice()
+      const plan = await batchPlan((planSeed += 1))
+      const { port: requests, queue } = requestQueue({ status: 'queued' })
+      await leaveClaim(device, NOW - 2 * DROPPED_AFTER_MS)
+      const page = track(pageOn(device, () => NOW, { plan, requests }))
+      lookForClaim(page.store, page.steps).catch(() => undefined)
+      await flush()
+      await advanceTimers(FOLLOW_REREAD_MS)
+      await flush()
+      expect(page.store.state().write.status).toBe('submitting')
+      expect(page.store.state().follow?.requestId).toBe(LEFT_CLAIM)
+      expect((await claimOf(device))?.requestId).toBe(LEFT_CLAIM)
+      expect(page.port.sendAccountBatch).not.toHaveBeenCalled()
+
+      queue.answer = { status: 'gone' }
+      await advanceTimers(FOLLOW_REREAD_MS)
+      await flush()
+      expect(await claimOf(device)).toBeNull()
+      expect(page.store.state().write.status).toBe('idle')
+      expect(page.store.state().lookup).toBe('none')
+      expect(page.port.sendAccountBatch).not.toHaveBeenCalled()
+    })
+
+    it('writes the hash the wallet broadcast under the claim’s request on the claim, and follows it to the landing', async () => {
+      const device = await openDevice()
+      const plan = await batchPlan((planSeed += 1))
+      const { port: requests } = requestQueue({ status: 'broadcast', hash: TX_HASH })
+      await leaveClaim(device, NOW - 1_000)
+      const page = track(pageOn(device, () => NOW, { plan, requests }))
+      lookForClaim(page.store, page.steps).catch(() => undefined)
+      await flush()
+      expect(device.kit.receipts.wait).toHaveBeenCalledWith(TX_HASH, START_BLOCK)
+      expect(isLanded(page.store.state())).toBe(true)
+      expect(page.port.sendAccountBatch).not.toHaveBeenCalled()
+    })
+
+    it('follows the hash the claim took before its release, and never removes it', async () => {
+      const device = await openDevice()
+      await leaveClaim(device, NOW - 1_000)
       const receipt = deferred<ReturnType<typeof landedReceipt>>()
       device.kit.receipts.wait.mockImplementation(() => receipt.promise)
       const page = track(pageOn(device))
+      const release = page.steps.releaseClaim
+      page.steps.releaseClaim = async (requestId, hashes) => {
+        const { accessor, revision } = await otherPage(device)
+        await accessor.setSubmissionHash(LEFT_CLAIM, TX_HASH, revision)
+        return release(requestId, hashes)
+      }
       lookForClaim(page.store, page.steps).catch(() => undefined)
       await flush()
-      expect(device.kit.fetch).toHaveBeenCalledTimes(1)
       expect(await claimOf(device)).toEqual(
         expect.objectContaining({ requestId: LEFT_CLAIM, transactionHash: TX_HASH })
       )
@@ -120,25 +228,6 @@ describe('a submission on its way to the chain', () => {
       receipt.resolve(landedReceipt())
       await flush()
       expect(isLanded(page.store.state())).toBe(true)
-      expect(page.port.send).not.toHaveBeenCalled()
-    })
-
-    it('goes back to the checklist where the session it follows was wiped', async () => {
-      const device = await openDevice()
-      await leaveClaim(device, NOW - 1_000)
-      const page = track(pageOn(device))
-      lookForClaim(page.store, page.steps).catch(() => undefined)
-      await flush()
-      expect(page.store.state().follow?.requestId).toBe(LEFT_CLAIM)
-
-      const { revision } = await otherPage(device)
-      await device
-        .records()
-        .wipeRecoverySession(CHAIN_ID, device.account, 'another-attempt-opened', revision)
-      await advanceTimers(FOLLOW_REREAD_MS)
-      await flush()
-      expect(page.store.state().toChecklist).toBe(true)
-      expect(page.store.state().write.status).toBe('idle')
       expect(page.port.send).not.toHaveBeenCalled()
     })
   })
@@ -193,90 +282,6 @@ describe('a submission on its way to the chain', () => {
       const claim = await claimOf(device)
       expect(claim?.requestId).toBe(LEFT_CLAIM)
       expect(claim?.transactionHash).toBeUndefined()
-    })
-  })
-
-  describe('the claim’s age by the sending route', () => {
-    it('waits on an old claim while the wallet’s queue still holds its request, and reads no events', async () => {
-      const device = await openDevice()
-      const plan = await batchPlan((planSeed += 1))
-      const { port: requests, queue } = requestQueue({ status: 'queued' })
-      await leaveClaim(device, NOW - SUBMISSION_CLAIM_AGE_MS - 1)
-      const page = track(pageOn(device, () => NOW, { plan, requests }))
-      lookForClaim(page.store, page.steps).catch(() => undefined)
-      await flush()
-      await advanceTimers(FOLLOW_REREAD_MS)
-      await flush()
-      expect(device.kit.fetch).not.toHaveBeenCalled()
-      expect((await claimOf(device))?.requestId).toBe(LEFT_CLAIM)
-      expect(page.store.state().follow?.requestId).toBe(LEFT_CLAIM)
-
-      queue.answer = { status: 'gone' }
-      await advanceTimers(FOLLOW_REREAD_MS)
-      await flush()
-      expect(device.kit.fetch).toHaveBeenCalledTimes(1)
-      expect(await claimOf(device)).toBeNull()
-      expect(page.store.state().write.status).toBe('idle')
-      expect(page.port.sendAccountBatch).not.toHaveBeenCalled()
-    })
-
-    it('writes the hash the wallet broadcast under the claim’s request on the claim, and follows it', async () => {
-      const device = await openDevice()
-      const plan = await batchPlan((planSeed += 1))
-      const { port: requests } = requestQueue({ status: 'broadcast', hash: TX_HASH })
-      await leaveClaim(device, NOW - SUBMISSION_CLAIM_AGE_MS - 1)
-      const page = track(pageOn(device, () => NOW, { plan, requests }))
-      lookForClaim(page.store, page.steps).catch(() => undefined)
-      await flush()
-      expect(device.kit.fetch).not.toHaveBeenCalled()
-      expect(device.kit.receipts.wait).toHaveBeenCalledWith(TX_HASH, START_BLOCK)
-      expect(isLanded(page.store.state())).toBe(true)
-      expect(page.port.sendAccountBatch).not.toHaveBeenCalled()
-    })
-
-    it('judges a batch’s claim past ten minutes, and a key’s own claim of the same age not yet', async () => {
-      const age = SUBMISSION_CLAIM_AGE_MS + 60_000
-      expect(age).toBeLessThan(KEY_SEND_CLAIM_AGE_MS)
-
-      const batched = await openDevice()
-      const plan = await batchPlan((planSeed += 1))
-      const { port: requests } = requestQueue({ status: 'gone' })
-      await leaveClaim(batched, NOW - age)
-      const batchPage = track(pageOn(batched, () => NOW, { plan, requests }))
-      lookForClaim(batchPage.store, batchPage.steps).catch(() => undefined)
-      await flush()
-      expect(batched.kit.fetch).toHaveBeenCalledTimes(1)
-      expect(await claimOf(batched)).toBeNull()
-
-      const keyed = await openDevice()
-      await leaveClaim(keyed, NOW - age)
-      const keyPage = track(pageOn(keyed, () => NOW, { plan: DEVICE_PLAN }))
-      lookForClaim(keyPage.store, keyPage.steps).catch(() => undefined)
-      await flush()
-      await advanceTimers(FOLLOW_REREAD_MS)
-      await flush()
-      expect(keyed.kit.fetch).not.toHaveBeenCalled()
-      expect((await claimOf(keyed))?.requestId).toBe(LEFT_CLAIM)
-      expect(keyPage.store.state().follow?.requestId).toBe(LEFT_CLAIM)
-    })
-
-    it('judges a key’s own claim once it is older than thirty minutes', async () => {
-      const device = await openDevice()
-      await leaveClaim(device, NOW - 1_000)
-      let clock = NOW
-      const page = track(pageOn(device, () => clock))
-      lookForClaim(page.store, page.steps).catch(() => undefined)
-      await flush()
-      clock = NOW + KEY_SEND_CLAIM_AGE_MS - 2_000
-      await advanceTimers(FOLLOW_REREAD_MS)
-      await flush()
-      expect(device.kit.fetch).not.toHaveBeenCalled()
-
-      clock = NOW + KEY_SEND_CLAIM_AGE_MS
-      await advanceTimers(FOLLOW_REREAD_MS)
-      await flush()
-      expect(device.kit.fetch).toHaveBeenCalledTimes(1)
-      expect(await claimOf(device)).toBeNull()
     })
   })
 

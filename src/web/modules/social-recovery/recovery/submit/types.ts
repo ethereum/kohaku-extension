@@ -33,6 +33,7 @@ import type {
 import type {
   GasCheck,
   GasNetwork,
+  RequestHold,
   UnknownReading,
   WriteEvent,
   WriteMachineState
@@ -218,10 +219,9 @@ export interface SubmitStore {
 /** What the attempt read says of the attempt this request would start. */
 export type AttemptReading = 'ours' | 'other' | 'none'
 
-/** The judgement of a followed claim with no hash older than the claim's age. */
-export type OldClaimReading =
+/** The judgement of a followed claim with no hash, by where the wallet holds its request. */
+export type ClaimJudgement =
   | { status: 'wait' }
-  | { status: 'started' }
   | { status: 'hashed'; transactionHash: Hex }
   | { status: 'released' }
   | { status: 'gone' }
@@ -254,16 +254,6 @@ export type ClaimRelease =
   | { status: 'hashed'; transactionHash: Hex }
   | { status: 'gone' }
 
-/**
- * Where the wallet holds the request a claim was queued under: still held
- * (queued, or on a route it cannot follow), broadcast under a hash, or no
- * longer held anywhere.
- */
-export type RequestHold =
-  | { status: 'held' }
-  | { status: 'broadcast'; transactionHash: Hex }
-  | { status: 'free' }
-
 /** The submission's steps over the wallet's seams. */
 export interface SubmitSteps {
   readSession(): Promise<SessionRead>
@@ -289,8 +279,6 @@ export interface SubmitSteps {
   release(requestId: string): Promise<void>
   /** Releases the claim under `requestId` where it carries no hash or one of `hashes`. */
   releaseClaim(requestId: string, hashes: readonly Hex[]): Promise<ClaimRelease>
-  /** How old a claim with no hash grows before the manager's events judge it, in ms. */
-  claimAgeMs: number
   /** Where the wallet holds the request a claim was queued under. */
   requestHold(requestId: string): Promise<RequestHold>
   transactionKnown(transactionHash: Hex): Promise<TransactionKnown>
@@ -302,7 +290,7 @@ export interface SubmitSteps {
     requestId: string,
     /** Awaited before the receipt wait, so the claim holds the hash before a receipt can end the run. */
     beforeReceipt: () => Promise<void>,
-    /** Whether the run still holds its claim, asked before an add that waited for the account's selection. */
+    /** Whether the run still holds its claim, asked right before the add. */
     canAdd: AddGate
   ): Promise<void>
   waitAgain(
@@ -311,8 +299,6 @@ export interface SubmitSteps {
     dispatch: (event: WriteEvent) => void,
     run: number
   ): Promise<void>
-  /** Whether the manager's events name this request's attempt started since the claim's block. */
-  startedSince(claim: FollowedClaim): Promise<boolean>
   /** The session landed as the countdown's record, read again after another tab moved it. */
   land(): Promise<LandOutcome>
 }
@@ -400,6 +386,8 @@ export interface LeadBlockProps {
 export interface DetailsBlockProps {
   route: RecoveryRoute
   ready: SubmitReady
+  /** How the submission is sent and who pays its gas, once the sending key is read. */
+  sendingPlan?: SendingPlan
   /** Called each time the expander opens, so the lock knows the payment line rendered. */
   onOpened: () => void
 }

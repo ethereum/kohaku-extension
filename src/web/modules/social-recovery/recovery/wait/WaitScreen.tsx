@@ -275,13 +275,28 @@ const WaitBody = ({
       reads: chainReads,
       receipts,
       port,
+      requests,
       plan,
       network,
       attempt: due,
       payload,
       now
     })
-  }, [kit, chainReads, receipts, landed, due, payload, plan, network, port, now, records, account])
+  }, [
+    kit,
+    chainReads,
+    receipts,
+    landed,
+    due,
+    payload,
+    plan,
+    network,
+    port,
+    requests,
+    now,
+    records,
+    account
+  ])
   const run = useExecuteRun(
     steps,
     `${CHAIN_ID}:${account.toLowerCase()}:${landed ? landed.attemptId.toString() : ''}`

@@ -32,6 +32,9 @@ const { getAddress }: typeof import('viem') = require('viem')
 const {
   renderWait
 }: typeof import('@web/modules/social-recovery/setup/review') = require('@web/modules/social-recovery/setup/review')
+const {
+  renderShortAddress
+}: typeof import('@web/modules/social-recovery/shared/display') = require('@web/modules/social-recovery/shared/display')
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
 
 const SUBMIT = 'socialRecovery.submit'
@@ -122,12 +125,50 @@ describe('the submission confirmation', () => {
       expect(mounted.byTestId('submit-payment')).not.toBeNull()
     })
 
-    it('says the recovery names no payment and that the recoverer’s own key pays', async () => {
-      const world = await openWorld()
+    it('says the recovery names no payment and names the smart account that sends its own batch', async () => {
+      const world = await openWorld({ route: 'logged-in', receiving: 'smart' })
       const mounted = await open(world)
       await openDetails(mounted)
+      const sender = getAddress(world.receiving.addr)
       expect(mounted.textOf('submit-no-payment')).toBe(t(`${SUBMIT}.noPayment`))
-      expect(mounted.textOf('submit-own-key-pays')).toBe(t(`${SUBMIT}.ownKeyPays`))
+      expect(mounted.textOf('submit-account-pays')).toBe(
+        t(`${SUBMIT}.accountPays`, { account: renderShortAddress(sender) })
+      )
+      expect(mounted.byTestId('submit-own-key-pays')).toBeNull()
+      expect(mounted.textOf('submit-sending-key')).toBe(sender)
+      expect(mounted.textOf('submit-payment')).not.toContain(getAddress(world.sendingKey))
+    })
+
+    /** The payment block names the key that sends the start as its own transaction. */
+    const namesTheSendingKey = async (route: 'fresh-install' | 'logged-in') => {
+      const world = await openWorld({ route, receiving: 'basic' })
+      const mounted = await open(world)
+      await openDetails(mounted)
+      const sender = getAddress(world.sendingKey)
+      expect(mounted.textOf('submit-own-key-pays')).toBe(
+        t(`${SUBMIT}.ownKeyPays`, { key: renderShortAddress(sender) })
+      )
+      expect(mounted.byTestId('submit-account-pays')).toBeNull()
+      expect(mounted.textOf('submit-sending-key')).toBe(sender)
+    }
+
+    it('names the key that sends its own transaction on the fresh install', async () => {
+      await namesTheSendingKey('fresh-install')
+    })
+
+    it('names the key that sends its own transaction on the logged-in route', async () => {
+      await namesTheSendingKey('logged-in')
+    })
+
+    it('names no sender where the wallet holds no key that can send', async () => {
+      const world = await openWorld()
+      mockWallet.facts = { status: 'unavailable', cause: 'not-listed', retry: jest.fn() }
+      const mounted = await open(world)
+      await openDetails(mounted)
+      expect(mounted.byTestId('submit-no-payment')).not.toBeNull()
+      expect(mounted.byTestId('submit-own-key-pays')).toBeNull()
+      expect(mounted.byTestId('submit-account-pays')).toBeNull()
+      expect(mounted.byTestId('submit-sending-key')).toBeNull()
     })
 
     it('gives the waiting period as a duration and never as an end date', async () => {
