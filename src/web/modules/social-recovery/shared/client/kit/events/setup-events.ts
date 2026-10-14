@@ -17,12 +17,11 @@ import type {
   FilterSpec,
   Hex,
   IProvider,
-  LogPosition,
   RawLog
 } from '@web/modules/social-recovery/sdk-interfaces'
 
 import { POLICY_MANAGER_ABI } from '../abi'
-import { logsInChunks } from './log-scan'
+import { logsInChunks, positionOf } from './log-scan'
 import type { CommitQuery, LogScan, SetupCommittedLog, SetupEvents, SetupLog } from './types'
 
 export const [SETUP_COMMITTED_TOPIC] = encodeEventTopics({
@@ -38,16 +37,9 @@ export const [SETUP_CLEARED_TOPIC] = encodeEventTopics({
 // Both events carry the event's topic, the account and the action.
 const SETUP_LOG_TOPICS = 3
 
-const addressTopic = (address: Address): Hex =>
+/** An address as the 32-byte topic an indexed address parameter takes. */
+export const addressTopic = (address: Address): Hex =>
   encodeAbiParameters([{ type: 'address' }], [address])
-
-const positionOf = (log: RawLog): LogPosition => ({
-  blockNumber: log.blockNumber,
-  blockHash: log.blockHash,
-  logIndex: log.logIndex,
-  transactionHash: log.transactionHash,
-  removed: log.removed ?? false
-})
 
 /**
  * One raw log as a setup commit or clear, or undefined for a log of another
@@ -93,10 +85,17 @@ export const decodeSetupLog = (log: RawLog): SetupLog | undefined => {
   }
 }
 
-/** The setup logs of the manager at `manager`, read through the provider adapter. */
-export const createSetupEvents = (provider: IProvider, manager: Address): SetupEvents => {
+/**
+ * The setup logs of the manager at `manager`, read through the provider
+ * adapter in chunks of at most `chunkWidth` blocks.
+ */
+export const createSetupEvents = (
+  provider: IProvider,
+  manager: Address,
+  chunkWidth?: number
+): SetupEvents => {
   const setupLogsIn = async (filter: FilterSpec, scan: LogScan): Promise<SetupLog[]> => {
-    const logs = await logsInChunks(provider, filter, scan)
+    const logs = await logsInChunks(provider, filter, scan, chunkWidth)
     return logs
       .filter(
         (log) =>

@@ -35,7 +35,7 @@ export {
   revertDataOf
 } from './provider-adapter'
 export { createChainReads, gasCallOf } from './chain-reads'
-export { networkOf, extensionProviderFor } from './extension-provider'
+export { networkOf, extensionProviderFor, providerKeyOf } from './extension-provider'
 export {
   MANAGER_DOMAIN_NAME,
   buildRecoveryClient,
@@ -73,6 +73,7 @@ export {
   createSendPort,
   REQUEST_STATE_READ_MS,
   newSendRequestId,
+  heldRequestStateOf,
   sendRequestStateOf,
   sendRefusal,
   accountBatchRefusal,
@@ -83,15 +84,19 @@ export { UNKNOWN_TRANSACTION_MS, createReceiptWait } from './receipts'
 export { SPONSOR_RAIL, RECOVERY_CALLS, sendingKeyOf } from './sending'
 export { shapeNoteOf, privacyLevelOf } from './setup-notes'
 export { recoveryKitMarkOf, accountBatchTransactionOf } from './account-batch'
+export { within, readWithin } from './limits'
 export {
   CREATION_BLOCK_STAND_IN,
   creationRecordOf,
   clientFactsOf,
   creationPrivilegesOf,
   accountFactsOf,
+  heldKeyOf,
   stateRefreshOf,
-  sameFactsReading
+  sameFactsReading,
+  seedBasicAccountOf
 } from './account-facts'
+export { passkeyConfigFieldsOf } from './kit/formats'
 export type {
   RecoveryChain,
   AddressBook,
@@ -155,6 +160,7 @@ export type {
   SendRequestAction,
   ActionWindowState,
   QueuedRequest,
+  SelectedAccountState,
   SendQueueState,
   HeldRequestQueue,
   SendRequestState,
@@ -168,6 +174,9 @@ export type {
   FeeOption,
   FeeReading,
   EstimationListener,
+  AddGate,
+  KeySendOptions,
+  SendOptions,
   SendPortOptions,
   SendRefusal,
   SendRefusalReason,

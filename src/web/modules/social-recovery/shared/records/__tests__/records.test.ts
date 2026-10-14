@@ -1,7 +1,8 @@
 /**
  * The wallet's records: the six setup records, the recovery session and its
- * five wipe events, the countdown the landed session carries, the decrypted
- * setup cache, and the ceremony request the ceremony tab reads.
+ * five wipe events and its row notes, the countdown the landed session carries,
+ * the recovery entry, the decrypted setup cache, and the ceremony request the
+ * ceremony tab reads.
  *
  * Every test runs against an in-memory double of
  * src/web/extension-services/background/webapi/storage.ts that behaves like it:
@@ -9,7 +10,7 @@
  * default when the stored string is falsy and parses it otherwise. So a field
  * holding `undefined` loses its key and a `bigint` survives, as in the extension.
  */
-import { parse, stringify } from '@ambire-common/libs/richJson/richJson'
+import { parse } from '@ambire-common/libs/richJson/richJson'
 import en from '@common/config/localization/translations/en.json'
 import type {
   Address,
@@ -44,6 +45,7 @@ import {
   recordKeys,
   RecordRead,
   RecordStorage,
+  RecoveryEntryRecord,
   RecoverySessionRecord,
   RecoveryWipeEvent,
   revisionOf,
@@ -61,6 +63,7 @@ import {
   WIPE_REASON_STRING_KEYS,
   wipeRecoveryPassword
 } from '@web/modules/social-recovery/shared/records'
+import { makeStorage } from '@web/modules/social-recovery/shared/records/__fixtures__/storage'
 import type {
   RichJsonStorageDouble,
   SessionUpdate
@@ -87,84 +90,6 @@ jest.mock('@web/constants/browserapi', () => {
     }
   }
 })
-
-// The helper's `formatValue`: parse a string, or return it as is when it is not JSON.
-const formatValue = (stored: string): unknown => {
-  try {
-    return parse(stored)
-  } catch (error) {
-    return stored
-  }
-}
-
-const makeStorage = (): RichJsonStorageDouble => {
-  const raw = new Map<string, string>()
-  const calls = {
-    set: [] as string[],
-    remove: [] as string[],
-    setEntries: [] as string[][],
-    removeKeys: [] as string[][]
-  }
-  const faults: RichJsonStorageDouble['faults'] = {}
-  // The helper's serialization: a string as is, anything else through richJson.
-  // `browser.storage.local.set({ [key]: undefined })` stores nothing.
-  const serialize = (value: unknown): string | undefined =>
-    typeof value === 'string' ? value : stringify(value)
-  const set = async (key: string, value: unknown): Promise<null> => {
-    calls.set.push(key)
-    const serialized = serialize(value)
-    if (serialized !== undefined) {
-      raw.set(key, serialized)
-    }
-    return null
-  }
-  const remove = async (key: string): Promise<null> => {
-    calls.remove.push(key)
-    raw.delete(key)
-    return null
-  }
-  // One `browser.storage.local` call over several keys lands whole or not at
-  // all: every value is serialized first, and an injected fault stores nothing.
-  const takeFault = (name: keyof RichJsonStorageDouble['faults']) => {
-    const fault = faults[name]
-    delete faults[name]
-    if (fault) {
-      throw fault
-    }
-  }
-  return {
-    raw,
-    calls,
-    faults,
-    // The helper's rule: `if (!res[key]) return defaultValue`, then `formatValue`.
-    get: async (key, defaultValue) => {
-      const stored = key && raw.get(key)
-      if (!stored) {
-        return defaultValue
-      }
-      return formatValue(stored)
-    },
-    getAll: async () =>
-      Object.fromEntries([...raw.entries()].map(([key, stored]) => [key, formatValue(stored)])),
-    set,
-    remove,
-    setEntries: async (entries) => {
-      calls.setEntries.push(Object.keys(entries))
-      takeFault('setEntries')
-      const serialized = Object.entries(entries).map(([key, value]) => [key, serialize(value)])
-      serialized.forEach(([key, value]) => {
-        if (value !== undefined) {
-          raw.set(key as string, value)
-        }
-      })
-    },
-    removeKeys: async (keys) => {
-      calls.removeKeys.push([...keys])
-      takeFault('removeKeys')
-      keys.forEach((key) => raw.delete(key))
-    }
-  }
-}
 
 // A record the platform keeps for the holder's credentials, which neither save
 // nor start over may touch.
@@ -218,14 +143,14 @@ const CACHE: DecryptedSetupCacheRecord = { configuration: CONFIGURATION, setupNo
 const PREPARED_CALL: PreparedCall = {
   kind: 'call',
   target: ACCOUNT,
-  value: 10n ** 21n + 1n,
+  value: 1_000_000_000_000_000_000_000n + 1n,
   data: '0xabcdef',
   sender: 'account',
   block: { number: 7_000_000, hash: `0x${'ab'.repeat(32)}` }
 }
 const PREPARED_BATCH: PreparedBatch = {
   kind: 'batch',
-  calls: [PREPARED_CALL, { ...PREPARED_CALL, value: 2n ** 70n, data: '0x01' }],
+  calls: [PREPARED_CALL, { ...PREPARED_CALL, value: 1_180_591_620_717_411_303_424n, data: '0x01' }],
   atomic: true,
   block: PREPARED_CALL.block
 }
@@ -376,12 +301,15 @@ const writeAllSetup = async (records: WalletRecords, account: Address = ACCOUNT)
   await six.passwordSet.write(SETUP_SAMPLES.passwordSet)
 }
 
+// The attempt the landed session keeps from the request of `GATHERING`.
+const LANDED_ATTEMPT = { attemptId: PREDICTED_ATTEMPT_ID.toString(), setupNonce: '3' }
+
 // The one line a wipe keeps for an event: the reason, the account and, for an
 // expired request, its deadline. The submission landing keeps the landed state,
-// the countdown's record, which holds the account address alone.
+// the countdown's record.
 const wipedLine = (event: RecoveryWipeEvent): RecoverySessionRecord =>
   event === 'submission-landed'
-    ? { state: 'landed', account: ACCOUNT }
+    ? { state: 'landed', account: ACCOUNT, ...LANDED_ATTEMPT }
     : {
         state: 'wiped',
         reason: event,
@@ -1070,7 +998,7 @@ describe('the recovery session', () => {
         expect(text).not.toContain(PROOF_B)
         expect(text).not.toContain('gathering')
         expect(text).not.toContain('replies')
-        expect(text).not.toContain('attemptId')
+        expect(text.includes('attemptId')).toBe(event === 'submission-landed')
         expect(text).not.toContain('setupBody')
         expect(text).not.toContain('digest')
       })
@@ -1130,7 +1058,8 @@ describe('the recovery session', () => {
       wipedLine('submission-landed')
     )
     expect(present(await records.countdown(CHAIN_ID, ACCOUNT).read()).value).toEqual({
-      account: ACCOUNT
+      account: ACCOUNT,
+      ...LANDED_ATTEMPT
     })
   })
 
@@ -1189,19 +1118,19 @@ describe('the recovery session', () => {
 })
 
 describe('the countdown record after the submission lands', () => {
-  it('holds the account address alone and the session is gone', async () => {
+  it('holds the account and the landed attempt, and the live session is gone', async () => {
     const { records } = setup()
     await writeSession(records, GATHERING)
     await landSession(records)
     const countdown = present(await records.countdown(CHAIN_ID, ACCOUNT).read())
-    expect(countdown.value).toEqual({ account: ACCOUNT })
+    expect(countdown.value).toEqual({ account: ACCOUNT, ...LANDED_ATTEMPT })
     expect(countdown.savedAt).toBe(T0)
     expect(present(await records.recoverySession(CHAIN_ID, ACCOUNT).read()).value).toEqual(
       wipedLine('submission-landed')
     )
     const listed = await records.listCountdowns(CHAIN_ID)
     expect(listed).toHaveLength(1)
-    expect(listed[0].record.value).toEqual({ account: ACCOUNT })
+    expect(listed[0].record.value).toEqual({ account: ACCOUNT, ...LANDED_ATTEMPT })
   })
 
   it('takes the account from the live session', async () => {
@@ -1210,7 +1139,8 @@ describe('the countdown record after the submission lands', () => {
     await writeSession(records, gathering(checksummed, []), checksummed)
     await landSession(records, checksummed.toLowerCase() as Address)
     expect(present(await records.countdown(CHAIN_ID, checksummed).read()).value).toEqual({
-      account: checksummed
+      account: checksummed,
+      ...LANDED_ATTEMPT
     })
   })
 
@@ -1263,7 +1193,8 @@ describe('the countdown record after the submission lands', () => {
     )
     expect(dump(storage)).toBe(before)
     expect(present(await records.countdown(CHAIN_ID, ACCOUNT).read()).value).toEqual({
-      account: ACCOUNT
+      account: ACCOUNT,
+      ...LANDED_ATTEMPT
     })
   })
 
@@ -1350,7 +1281,7 @@ describe('the session survives the submission as the countdown record, with no i
     expect(storage.calls.remove).toEqual([])
   })
 
-  it('the landed session record holds the account address alone, and the countdown reads back from it', async () => {
+  it('the landed session record holds the account and the landed attempt, and the countdown reads back from it', async () => {
     const { storage, records } = await landAndReset()
     // One record on this device: the session's own key.
     expect(storage.raw.size).toBe(1)
@@ -1358,14 +1289,15 @@ describe('the session survives the submission as the countdown record, with no i
     expect(key).toBe(storage.calls.set[0])
     expect(present(await records.recoverySession(CHAIN_ID, ACCOUNT).read()).value).toEqual({
       state: 'landed',
-      account: ACCOUNT
+      account: ACCOUNT,
+      ...LANDED_ATTEMPT
     })
     expect(present(await records.countdown(CHAIN_ID, ACCOUNT).read()).value).toEqual({
-      account: ACCOUNT
+      account: ACCOUNT,
+      ...LANDED_ATTEMPT
     })
     const text = dump(storage)
     expect(text).not.toContain(PROOF_A)
-    expect(text).not.toContain('attemptId')
   })
 
   it('listCountdowns and listRecoverySessions come from a prefix scan, with no index key present', async () => {
@@ -1471,7 +1403,7 @@ describe('the session survives the submission as the countdown record, with no i
     const restarted = createWalletRecords({ storage, now: () => T0 })
     const listed = await restarted.listCountdowns(CHAIN_ID)
     expect(listed).toHaveLength(1)
-    expect(listed[0].record.value).toEqual({ account: ACCOUNT })
+    expect(listed[0].record.value).toEqual({ account: ACCOUNT, ...LANDED_ATTEMPT })
   })
 })
 
@@ -1656,7 +1588,8 @@ describe('clearWipedSession removes only a wiped session', () => {
     expect(storage.calls.remove).toEqual([])
     expect(dump(storage)).toBe(before)
     expect(present(await records.countdown(CHAIN_ID, ACCOUNT).read()).value).toEqual({
-      account: ACCOUNT
+      account: ACCOUNT,
+      ...LANDED_ATTEMPT
     })
     expect(await records.listCountdowns(CHAIN_ID)).toHaveLength(1)
   })
@@ -1680,7 +1613,8 @@ describe('clearWipedSession removes only a wiped session', () => {
     expect(cleared.sort()).toEqual([false, true])
     expect(await records.recoverySession(CHAIN_ID, OTHER_ACCOUNT).read()).toBe(ABSENT)
     expect(present(await records.countdown(CHAIN_ID, ACCOUNT).read()).value).toEqual({
-      account: ACCOUNT
+      account: ACCOUNT,
+      ...LANDED_ATTEMPT
     })
     expect((await records.listCountdowns(CHAIN_ID)).map((c) => c.account)).toEqual([ACCOUNT])
     expect(present(await records.recoverySession(CHAIN_ID, third).read()).value).toEqual({
@@ -1858,7 +1792,7 @@ describe('a session update refuses when the session changed after its caller rea
     expect(dump(storage)).toBe(before)
     expect(before).not.toContain(PROOF_A)
     const countdown = await records.countdown(CHAIN_ID, ACCOUNT).read()
-    expect(present(countdown).value).toEqual({ account: ACCOUNT })
+    expect(present(countdown).value).toEqual({ account: ACCOUNT, ...LANDED_ATTEMPT })
     expect(revisionOf(countdown)).toBe(landed.revision)
   })
 
@@ -1876,7 +1810,8 @@ describe('a session update refuses when the session changed after its caller rea
     expect(landed).toMatchObject(CONFLICT)
     await landSession(records)
     expect(present(await records.countdown(CHAIN_ID, ACCOUNT).read()).value).toEqual({
-      account: ACCOUNT
+      account: ACCOUNT,
+      ...LANDED_ATTEMPT
     })
     expect(dump(storage)).not.toContain(PROOF_A)
     expect(dump(storage)).not.toContain(PROOF_B)
@@ -2275,7 +2210,11 @@ describe('updates of one session run one at a time, across wrappers and pages', 
       expect(await landSession(records)).toMatchObject({ value: { account: ACCOUNT } })
       expect(await endSessionCountdown(records)).toBe(true)
     })
-    expect(locks.names).toEqual(Array(7).fill(SESSION_KEY))
+    expect(locks.names).toEqual([
+      ...Array(3).fill(SESSION_KEY),
+      recordKeys.recoveryEntry(CHAIN_ID, ACCOUNT),
+      ...Array(4).fill(SESSION_KEY)
+    ])
   })
 
   it('with the Web Locks API, two reply writes from one read run one at a time through the lock', async () => {
@@ -2567,7 +2506,7 @@ describe('the setup save in flight', () => {
   // A committed draft whose wait is beyond a safe integer, so only a bigint keeps it.
   const SECOND_DRAFT: SetupDraft = {
     ...SETUP_DRAFT,
-    wait: 2n ** 64n + 1n,
+    wait: 18_446_744_073_709_551_616n + 1n,
     clauses: [
       {
         threshold: 2,
@@ -2650,8 +2589,8 @@ describe('the setup save in flight', () => {
     const batch = present(await tab.saveInFlight(CHAIN_ID, OTHER_ACCOUNT).read()).value.prepared
     expect(call).toEqual(PREPARED_CALL)
     expect(batch).toEqual(PREPARED_BATCH)
-    expect(call.kind === 'call' && call.value).toBe(10n ** 21n + 1n)
-    expect(batch.kind === 'batch' && batch.calls[1].value).toBe(2n ** 70n)
+    expect(call.kind === 'call' && call.value).toBe(1_000_000_000_000_000_000_000n + 1n)
+    expect(batch.kind === 'batch' && batch.calls[1].value).toBe(1_180_591_620_717_411_303_424n)
   })
 
   it('a claim stores the committed draft, and another page reads the same draft back with its bigint wait', async () => {
@@ -2660,7 +2599,7 @@ describe('the setup save in flight', () => {
     const tab = createWalletRecords({ storage, now: () => T0 })
     const { draft } = present(await tab.saveInFlight(CHAIN_ID, ACCOUNT).read()).value
     expect(draft).toEqual(SECOND_DRAFT)
-    expect(draft.wait).toBe(2n ** 64n + 1n)
+    expect(draft.wait).toBe(18_446_744_073_709_551_616n + 1n)
   })
 
   it('keeps the draft it was claimed with when the setup draft record changes after the claim', async () => {
@@ -2709,7 +2648,7 @@ describe('the setup save in flight', () => {
     const tab = createWalletRecords({ storage, now: () => T0 })
     const { draft } = present(await tab.saveInFlight(CHAIN_ID, ACCOUNT).read()).value
     expect(draft).toEqual(SECOND_DRAFT)
-    expect(draft.wait).toBe(2n ** 64n + 1n)
+    expect(draft.wait).toBe(18_446_744_073_709_551_616n + 1n)
   })
 
   const CLAIM_BLOCK = 7_000_100
@@ -3069,6 +3008,674 @@ describe('start over is refused while a setup save is in flight', () => {
     })
     it(`with the Web Locks API, a claim and a start over started together, ${label}, end in a consistent order`, async () => {
       await withNavigator({ locks: exclusiveLocks() }, () => raceClaimAndStartOver(claimFirst))
+    })
+  })
+})
+
+const RECEIVER: Address = '0x8888888888888888888888888888888888888888'
+const ENTRY: RecoveryEntryRecord = {
+  account: ACCOUNT,
+  route: 'fresh-install',
+  receivingAccount: RECEIVER
+}
+const OTHER_ENTRY: RecoveryEntryRecord = {
+  account: OTHER_ACCOUNT,
+  route: 'logged-in',
+  receivingAccount: RECEIVER
+}
+const ENTRY_KEY = recordKeys.recoveryEntry(CHAIN_ID, ACCOUNT)
+
+// Records every `set` and `remove` of the storage in one ordered list.
+const logWrites = (storage: RichJsonStorageDouble) => {
+  const log: [string, string][] = []
+  const { set, remove } = storage
+  // eslint-disable-next-line no-param-reassign
+  storage.set = async (key, value) => {
+    log.push(['set', key])
+    return set(key, value)
+  }
+  // eslint-disable-next-line no-param-reassign
+  storage.remove = async (key) => {
+    log.push(['remove', key])
+    return remove(key)
+  }
+  return log
+}
+
+// Makes the next `set` or `remove` of `key` reject, storing nothing.
+const failNext = (storage: RichJsonStorageDouble, call: 'set' | 'remove', key: string) => {
+  const { set, remove } = storage
+  let armed = true
+  const fails = (k: string) => {
+    if (armed && k === key) {
+      armed = false
+      throw new Error(`storage ${call} failed`)
+    }
+  }
+  if (call === 'set') {
+    // eslint-disable-next-line no-param-reassign
+    storage.set = async (k, value) => {
+      fails(k)
+      return set(k, value)
+    }
+  } else {
+    // eslint-disable-next-line no-param-reassign
+    storage.remove = async (k) => {
+      fails(k)
+      return remove(k)
+    }
+  }
+}
+
+describe('the recovery entry', () => {
+  it('an entry written is read back by a new instance on the same storage, as after a closed tab', async () => {
+    const { storage, records, clock } = setup()
+    await records.recoveryEntry(CHAIN_ID, ACCOUNT).write(ENTRY)
+    await records.recoveryEntry(CHAIN_ID, OTHER_ACCOUNT).write(OTHER_ENTRY)
+    clock.t = T0 + HOUR
+    const reopened = createWalletRecords({ storage, now: () => clock.t })
+    expect(await reopened.recoveryEntry(CHAIN_ID, ACCOUNT).read()).toEqual({
+      status: 'present',
+      value: ENTRY,
+      savedAt: T0
+    })
+    expect(present(await reopened.recoveryEntry(CHAIN_ID, OTHER_ACCOUNT).read()).value).toEqual(
+      OTHER_ENTRY
+    )
+  })
+
+  it('a later write replaces the entry of the same account', async () => {
+    const { records } = setup()
+    const entry = records.recoveryEntry(CHAIN_ID, ACCOUNT)
+    await entry.write(ENTRY)
+    await entry.write({ ...ENTRY, route: 'logged-in', receivingAccount: OTHER_ACCOUNT })
+    expect(present(await entry.read()).value).toEqual({
+      account: ACCOUNT,
+      route: 'logged-in',
+      receivingAccount: OTHER_ACCOUNT
+    })
+  })
+
+  it('the list finds the entries of its chain and none of another chain or another record', async () => {
+    const { records } = setup()
+    await writeSession(records, GATHERING)
+    await records.recoveryEntry(CHAIN_ID, OTHER_ACCOUNT).write(OTHER_ENTRY)
+    await records.recoveryEntry(CHAIN_ID, ACCOUNT).write(ENTRY)
+    await records.recoveryEntry(1n, OTHER_ACCOUNT).write(OTHER_ENTRY)
+    expect(await records.listRecoveryEntries(CHAIN_ID)).toEqual([
+      { account: ACCOUNT, record: { value: ENTRY, savedAt: T0 } },
+      { account: OTHER_ACCOUNT, record: { value: OTHER_ENTRY, savedAt: T0 } }
+    ])
+    expect(await records.listRecoveryEntries(1n)).toEqual([
+      { account: OTHER_ACCOUNT, record: { value: OTHER_ENTRY, savedAt: T0 } }
+    ])
+    expect(await records.listRecoveryEntries(10n)).toEqual([])
+  })
+
+  it('a stored value that is not an entry never reads as a present entry and is not listed', async () => {
+    const malformed: unknown[] = [
+      { value: { ...ENTRY, route: 'settings' }, savedAt: T0 },
+      { value: { account: ACCOUNT, route: 'fresh-install' }, savedAt: T0 },
+      { value: { ...ENTRY, receivingAccount: '0x123' }, savedAt: T0 },
+      { value: { ...ENTRY, account: 'not an address' }, savedAt: T0 },
+      { value: { ...ENTRY, account: 42 }, savedAt: T0 },
+      { value: { ...ENTRY, receivingAccount: 0 }, savedAt: T0 },
+      { value: null, savedAt: T0 },
+      { value: true, savedAt: T0 },
+      { value: ENTRY },
+      { value: ENTRY, savedAt: 'yesterday' },
+      ENTRY,
+      'fresh-install',
+      true
+    ]
+    await Promise.all(
+      malformed.map(async (stored) => {
+        const { storage, records } = setup()
+        await storage.set(ENTRY_KEY, stored)
+        expect(await records.recoveryEntry(CHAIN_ID, ACCOUNT).read()).toBe(ABSENT)
+        expect(await records.listRecoveryEntries(CHAIN_ID)).toEqual([])
+      })
+    )
+  })
+
+  it('a write refuses an entry for another account and writes nothing', async () => {
+    const { storage, records } = setup()
+    const entry = records.recoveryEntry(CHAIN_ID, ACCOUNT)
+    await expect(entry.write({ ...ENTRY, account: OTHER_ACCOUNT })).rejects.toThrow(
+      /Invalid recovery entry/
+    )
+    expect(storage.raw.size).toBe(0)
+  })
+
+  it('an entry written under one letter case of the account reads under another', async () => {
+    const { records } = setup()
+    const entry: RecoveryEntryRecord = { ...ENTRY, account: CHECKSUMMED }
+    await records.recoveryEntry(CHAIN_ID, LOWER).write(entry)
+    expect(present(await records.recoveryEntry(CHAIN_ID, MISCASED).read()).value).toEqual(entry)
+  })
+
+  it('a clear removes the entry alone, and a clear of an absent entry is harmless', async () => {
+    const { storage, records } = setup()
+    await expect(records.recoveryEntry(CHAIN_ID, ACCOUNT).clear()).resolves.toBeUndefined()
+    expect(storage.raw.size).toBe(0)
+    await writeSession(records, GATHERING)
+    await records.recoveryEntry(CHAIN_ID, ACCOUNT).write(ENTRY)
+    await records.recoveryEntry(CHAIN_ID, OTHER_ACCOUNT).write(OTHER_ENTRY)
+    await records.recoveryEntry(CHAIN_ID, ACCOUNT).clear()
+    await records.recoveryEntry(CHAIN_ID, ACCOUNT).clear()
+    expect(await records.recoveryEntry(CHAIN_ID, ACCOUNT).read()).toBe(ABSENT)
+    expect(storage.raw.has(ENTRY_KEY)).toBe(false)
+    expect(present(await records.recoveryEntry(CHAIN_ID, OTHER_ACCOUNT).read()).value).toEqual(
+      OTHER_ENTRY
+    )
+    expect(present(await records.recoverySession(CHAIN_ID, ACCOUNT).read()).value).toEqual({
+      state: 'live',
+      gathering: GATHERING
+    })
+  })
+
+  DIRECT_EVENTS.filter((event) => event !== 'recoverer-abandoned').forEach((event) =>
+    it(`the ${event} wipe leaves the entry, through a new gathering and the clear of the wiped session`, async () => {
+      const { storage, records } = setup()
+      await writeSession(records, GATHERING)
+      await records.recoveryEntry(CHAIN_ID, ACCOUNT).write(ENTRY)
+      const stored = storage.raw.get(ENTRY_KEY)
+      expect(await wipeSession(records, event)).toBe(true)
+      expect(storage.raw.get(ENTRY_KEY)).toBe(stored)
+      await writeSession(records, GATHERING)
+      expect(storage.raw.get(ENTRY_KEY)).toBe(stored)
+      await wipeSession(records, event)
+      expect(await clearWiped(records)).toBe(true)
+      expect(storage.raw.get(ENTRY_KEY)).toBe(stored)
+      expect(present(await records.recoveryEntry(CHAIN_ID, ACCOUNT).read()).value).toEqual(ENTRY)
+    })
+  )
+
+  it('the landing and the end of the countdown leave the entry', async () => {
+    const { storage, records } = setup()
+    await writeSession(records, GATHERING)
+    await records.recoveryEntry(CHAIN_ID, ACCOUNT).write(ENTRY)
+    const stored = storage.raw.get(ENTRY_KEY)
+    await landSession(records)
+    expect(storage.raw.get(ENTRY_KEY)).toBe(stored)
+    expect(await endSessionCountdown(records)).toBe(true)
+    expect(storage.raw.get(ENTRY_KEY)).toBe(stored)
+    expect(present(await records.recoveryEntry(CHAIN_ID, ACCOUNT).read()).value).toEqual(ENTRY)
+  })
+
+  it('an abandon wipes the session and then removes the entry, and leaves another account and chain', async () => {
+    const { storage, records } = setup()
+    await writeSession(records, GATHERING)
+    await records.recoveryEntry(CHAIN_ID, ACCOUNT).write(ENTRY)
+    await records.recoveryEntry(CHAIN_ID, OTHER_ACCOUNT).write(OTHER_ENTRY)
+    await records.recoveryEntry(1n, ACCOUNT).write(ENTRY)
+    const revision = await revisionNow(records, ACCOUNT, CHAIN_ID)
+    const log = logWrites(storage)
+    expect(
+      await records.wipeRecoverySession(CHAIN_ID, ACCOUNT, 'recoverer-abandoned', revision)
+    ).toBe(true)
+    expect(log).toEqual([
+      ['set', SESSION_KEY],
+      ['remove', ENTRY_KEY]
+    ])
+    expect(await records.recoveryEntry(CHAIN_ID, ACCOUNT).read()).toBe(ABSENT)
+    expect(present(await records.recoverySession(CHAIN_ID, ACCOUNT).read()).value).toEqual(
+      wipedLine('recoverer-abandoned')
+    )
+    expect(present(await records.recoveryEntry(CHAIN_ID, OTHER_ACCOUNT).read()).value).toEqual(
+      OTHER_ENTRY
+    )
+    expect(present(await records.recoveryEntry(1n, ACCOUNT).read()).value).toEqual(ENTRY)
+  })
+
+  it('an abandon whose removal of the entry fails leaves the wiped session and the entry, nothing half-written', async () => {
+    const { storage, records } = setup()
+    await writeSession(records, GATHERING)
+    await records.recoveryEntry(CHAIN_ID, ACCOUNT).write(ENTRY)
+    const stored = storage.raw.get(ENTRY_KEY)
+    failNext(storage, 'remove', ENTRY_KEY)
+    await expect(wipeSession(records, 'recoverer-abandoned')).rejects.toThrow(
+      /storage remove failed/
+    )
+    expect(present(await records.recoverySession(CHAIN_ID, ACCOUNT).read()).value).toEqual(
+      wipedLine('recoverer-abandoned')
+    )
+    expect(dump(storage)).not.toContain(PROOF_A)
+    expect(storage.raw.get(ENTRY_KEY)).toBe(stored)
+    expect(present(await records.recoveryEntry(CHAIN_ID, ACCOUNT).read()).value).toEqual(ENTRY)
+    // The entry's own clear finishes the abandon.
+    await records.recoveryEntry(CHAIN_ID, ACCOUNT).clear()
+    expect(await records.recoveryEntry(CHAIN_ID, ACCOUNT).read()).toBe(ABSENT)
+  })
+
+  it('an abandon again after one whose removal of the entry failed removes the entry and wipes nothing', async () => {
+    const { storage, records } = setup()
+    await writeSession(records, GATHERING)
+    await records.recoveryEntry(CHAIN_ID, ACCOUNT).write(ENTRY)
+    failNext(storage, 'remove', ENTRY_KEY)
+    await expect(wipeSession(records, 'recoverer-abandoned')).rejects.toThrow(
+      /storage remove failed/
+    )
+    const session = storage.raw.get(SESSION_KEY)
+    const revision = await revisionNow(records, ACCOUNT, CHAIN_ID)
+    expect(
+      await records.wipeRecoverySession(CHAIN_ID, ACCOUNT, 'recoverer-abandoned', revision)
+    ).toBe(false)
+    expect(await records.recoveryEntry(CHAIN_ID, ACCOUNT).read()).toBe(ABSENT)
+    expect(storage.raw.has(ENTRY_KEY)).toBe(false)
+    expect(storage.raw.get(SESSION_KEY)).toBe(session)
+  })
+
+  it('an entry written with a field beyond its three is stored without it', async () => {
+    const { storage, records } = setup()
+    const extra = { ...ENTRY, gathering: 'kept nowhere' } as RecoveryEntryRecord
+    await records.recoveryEntry(CHAIN_ID, ACCOUNT).write(extra)
+    expect(storage.raw.get(ENTRY_KEY)).not.toContain('kept nowhere')
+    expect(storage.raw.get(ENTRY_KEY)).not.toContain('gathering')
+    expect(present(await records.recoveryEntry(CHAIN_ID, ACCOUNT).read()).value).toEqual(ENTRY)
+  })
+
+  it('an abandon whose session write fails leaves the live session and the entry', async () => {
+    const { storage, records } = setup()
+    await writeSession(records, GATHERING)
+    await records.recoveryEntry(CHAIN_ID, ACCOUNT).write(ENTRY)
+    const before = dump(storage)
+    failNext(storage, 'set', SESSION_KEY)
+    await expect(wipeSession(records, 'recoverer-abandoned')).rejects.toThrow(/storage set failed/)
+    expect(dump(storage)).toBe(before)
+  })
+
+  it('an abandon that wipes nothing, or names a stale revision, leaves the entry', async () => {
+    const states: [string, (records: WalletRecords) => Promise<unknown>][] = [
+      ['none', async () => undefined],
+      [
+        'wiped',
+        async (records) => {
+          await writeSession(records, GATHERING)
+          await wipeSession(records, 'deadline-passed')
+        }
+      ],
+      [
+        'landed',
+        async (records) => {
+          await writeSession(records, GATHERING)
+          await landSession(records)
+        }
+      ]
+    ]
+    await Promise.all(
+      states.map(async ([state, prepare]) => {
+        const { storage, records } = setup()
+        await prepare(records)
+        await records.recoveryEntry(CHAIN_ID, ACCOUNT).write(ENTRY)
+        const before = dump(storage)
+        expect([state, await wipeSession(records, 'recoverer-abandoned')]).toEqual([state, false])
+        expect(dump(storage)).toBe(before)
+      })
+    )
+    const { storage, records } = setup()
+    await writeSession(records, gathering(ACCOUNT, [APPROVALS[0]]))
+    const stale = await revisionNow(records, ACCOUNT, CHAIN_ID)
+    await writeSession(records, GATHERING)
+    await records.recoveryEntry(CHAIN_ID, ACCOUNT).write(ENTRY)
+    const before = dump(storage)
+    await expect(
+      records.wipeRecoverySession(CHAIN_ID, ACCOUNT, 'recoverer-abandoned', stale)
+    ).rejects.toBeInstanceOf(SessionRevisionConflict)
+    expect(dump(storage)).toBe(before)
+  })
+})
+
+const NOTE_GATHERING = gathering(ACCOUNT, [])
+
+const setNote = async (
+  records: WalletRecords,
+  place: number,
+  note: 'declined' | 'unanswered' | null
+) =>
+  records
+    .recoverySession(CHAIN_ID, ACCOUNT)
+    .setNote(place, note, await revisionNow(records, ACCOUNT, CHAIN_ID))
+
+const liveOf = async (records: WalletRecords) => {
+  const read = present(await records.recoverySession(CHAIN_ID, ACCOUNT).read())
+  if (read.value.state !== 'live') {
+    throw new Error('expected a live session')
+  }
+  return read.value
+}
+
+const storedSession = (storage: RichJsonStorageDouble) => storage.raw.get(SESSION_KEY) ?? ''
+
+describe('the row notes of a live session', () => {
+  it('a note set on a live session survives a reload and a write of the same gathering with one more reply on another place', async () => {
+    const { storage, records } = setup()
+    await writeSession(records, NOTE_GATHERING)
+    await setNote(records, 1, 'declined')
+    const reopened = createWalletRecords({ storage, now: () => T0 })
+    expect(await liveOf(reopened)).toEqual({
+      state: 'live',
+      gathering: NOTE_GATHERING,
+      notes: { 1: 'declined' }
+    })
+    await writeSession(reopened, gathering(ACCOUNT, [APPROVALS[0]]))
+    expect(await liveOf(records)).toEqual({
+      state: 'live',
+      gathering: gathering(ACCOUNT, [APPROVALS[0]]),
+      notes: { 1: 'declined' }
+    })
+  })
+
+  it('a reply on the noted place drops its note and keeps the note of another place', async () => {
+    const { storage, records } = setup()
+    await writeSession(records, NOTE_GATHERING)
+    await setNote(records, 0, 'declined')
+    await setNote(records, 1, 'unanswered')
+    await writeSession(records, gathering(ACCOUNT, [APPROVALS[1]]))
+    expect((await liveOf(records)).notes).toEqual({ 0: 'declined' })
+    await writeSession(records, GATHERING)
+    expect(await liveOf(records)).toEqual({ state: 'live', gathering: GATHERING })
+    expect(storedSession(storage)).not.toMatch(/declined|unanswered|notes/)
+  })
+
+  it('a note is changed and cleared with one call each, and a cleared session stores no notes', async () => {
+    const { storage, records } = setup()
+    await writeSession(records, NOTE_GATHERING)
+    const first = await setNote(records, 1, 'declined')
+    expect(first.value).toEqual({
+      state: 'live',
+      gathering: NOTE_GATHERING,
+      notes: { 1: 'declined' }
+    })
+    expect(revisionOf(await records.recoverySession(CHAIN_ID, ACCOUNT).read())).toBe(first.revision)
+    await setNote(records, 1, 'unanswered')
+    expect((await liveOf(records)).notes).toEqual({ 1: 'unanswered' })
+    await setNote(records, 1, null)
+    expect(await liveOf(records)).toEqual({ state: 'live', gathering: NOTE_GATHERING })
+    expect(storedSession(storage)).not.toMatch(/declined|unanswered|notes/)
+  })
+
+  it('a change that leaves the notes as they are writes nothing and answers the stored session', async () => {
+    const { storage, records } = setup()
+    await writeSession(records, gathering(ACCOUNT, [APPROVALS[0]]))
+    await setNote(records, 1, 'declined')
+    const read = await records.recoverySession(CHAIN_ID, ACCOUNT).read()
+    const before = dump(storage)
+    storage.calls.set.length = 0
+    expect((await setNote(records, 1, 'declined')).revision).toBe(revisionOf(read))
+    // The place with a reply has no note to clear.
+    expect((await setNote(records, 0, null)).revision).toBe(revisionOf(read))
+    expect(storage.calls.set).toEqual([])
+    expect(dump(storage)).toBe(before)
+  })
+
+  it('a note on a place that holds a reply, or on a place the gathering does not have, is refused and writes nothing', async () => {
+    const { storage, records } = setup()
+    await writeSession(records, gathering(ACCOUNT, [APPROVALS[0]]))
+    const before = dump(storage)
+    await expect(setNote(records, 0, 'declined')).rejects.toThrow(/holds a reply/)
+    await expect(setNote(records, 0, 'unanswered')).rejects.toThrow(/holds a reply/)
+    await expect(setNote(records, 2, 'declined')).rejects.toThrow(/has no place 2/)
+    await expect(setNote(records, -1, 'unanswered')).rejects.toThrow(/has no place -1/)
+    await expect(setNote(records, 2, null)).rejects.toThrow(/has no place 2/)
+    expect(dump(storage)).toBe(before)
+  })
+
+  FIVE_EVENTS.forEach((event) =>
+    it(`the ${event} event drops every note: the stored value holds none`, async () => {
+      const { storage, records } = setup()
+      await writeSession(records, NOTE_GATHERING)
+      await setNote(records, 0, 'declined')
+      await setNote(records, 1, 'unanswered')
+      await wipeFor(records, event)
+      expect(present(await records.recoverySession(CHAIN_ID, ACCOUNT).read()).value).toEqual(
+        wipedLine(event)
+      )
+      expect(storedSession(storage)).not.toMatch(/declined|unanswered|notes/)
+    })
+  )
+
+  it('a gathering opened after a wipe starts with no notes', async () => {
+    const { records } = setup()
+    await writeSession(records, NOTE_GATHERING)
+    await setNote(records, 1, 'unanswered')
+    await wipeSession(records, 'deadline-passed')
+    await writeSession(records, NOTE_GATHERING)
+    expect(await liveOf(records)).toEqual({ state: 'live', gathering: NOTE_GATHERING })
+  })
+
+  it('a write of a gathering without a noted place drops that note and keeps the others', async () => {
+    const { records } = setup()
+    await writeSession(records, NOTE_GATHERING)
+    await setNote(records, 0, 'declined')
+    await setNote(records, 1, 'unanswered')
+    const fewer = { ...NOTE_GATHERING, places: NOTE_GATHERING.places.slice(0, 1) }
+    await writeSession(records, fewer)
+    expect(await liveOf(records)).toEqual({
+      state: 'live',
+      gathering: fewer,
+      notes: { 0: 'declined' }
+    })
+  })
+
+  it('a stored note outside the two reads as no note, and the next write or note drops it', async () => {
+    const stored = {
+      value: { state: 'live', gathering: NOTE_GATHERING, notes: { 0: 'maybe', 1: 'declined' } },
+      savedAt: T0,
+      revision: 'a'.repeat(24)
+    }
+    const write = setup()
+    await write.storage.set(SESSION_KEY, stored)
+    expect(await liveOf(write.records)).toEqual({
+      state: 'live',
+      gathering: NOTE_GATHERING,
+      notes: { 1: 'declined' }
+    })
+    await writeSession(write.records, gathering(ACCOUNT, [APPROVALS[1]]))
+    expect(await liveOf(write.records)).toEqual({
+      state: 'live',
+      gathering: gathering(ACCOUNT, [APPROVALS[1]])
+    })
+    const note = setup()
+    await note.storage.set(SESSION_KEY, stored)
+    expect(await note.records.listRecoverySessions(CHAIN_ID)).toEqual([
+      {
+        account: ACCOUNT,
+        record: {
+          value: { state: 'live', gathering: NOTE_GATHERING, notes: { 1: 'declined' } },
+          savedAt: T0,
+          revision: 'a'.repeat(24)
+        }
+      }
+    ])
+    await setNote(note.records, 1, 'unanswered')
+    expect((await liveOf(note.records)).notes).toEqual({ 1: 'unanswered' })
+    expect(storedSession(note.storage)).not.toContain('maybe')
+  })
+
+  it('a stored session whose notes are null reads with no notes and takes a note', async () => {
+    const { storage, records } = setup()
+    await storage.set(SESSION_KEY, {
+      value: { state: 'live', gathering: NOTE_GATHERING, notes: null },
+      savedAt: T0,
+      revision: 'a'.repeat(24)
+    })
+    expect(await liveOf(records)).toEqual({ state: 'live', gathering: NOTE_GATHERING })
+    await setNote(records, 1, 'declined')
+    expect((await liveOf(records)).notes).toEqual({ 1: 'declined' })
+  })
+
+  it('a stored live session whose gathering has no list of replies reads, and an abandon or a new write replaces it', async () => {
+    const stored = {
+      value: {
+        state: 'live',
+        gathering: { ...NOTE_GATHERING, replies: undefined },
+        notes: { 0: 'declined' }
+      },
+      savedAt: T0,
+      revision: 'a'.repeat(24)
+    }
+    const abandon = setup()
+    await abandon.storage.set(SESSION_KEY, stored)
+    const read = present(await abandon.records.recoverySession(CHAIN_ID, ACCOUNT).read())
+    expect(read.value).toEqual({
+      state: 'live',
+      gathering: { ...NOTE_GATHERING, replies: undefined }
+    })
+    expect(await abandon.records.listRecoverySessions(CHAIN_ID)).toHaveLength(1)
+    expect(await wipeSession(abandon.records, 'recoverer-abandoned')).toBe(true)
+    expect(present(await abandon.records.recoverySession(CHAIN_ID, ACCOUNT).read()).value).toEqual(
+      wipedLine('recoverer-abandoned')
+    )
+    const write = setup()
+    await write.storage.set(SESSION_KEY, stored)
+    await writeSession(write.records, gathering(ACCOUNT, [APPROVALS[0]]))
+    expect(await liveOf(write.records)).toEqual({
+      state: 'live',
+      gathering: gathering(ACCOUNT, [APPROVALS[0]])
+    })
+  })
+
+  it('a note on a stored live session whose gathering has no list of places or replies is refused and writes nothing', async () => {
+    const malformed: [string, unknown][] = [
+      ['replies', { ...NOTE_GATHERING, replies: undefined }],
+      ['places', { ...NOTE_GATHERING, places: undefined }]
+    ]
+    await Promise.all(
+      malformed.map(async ([list, stored]) => {
+        const { storage, records } = setup()
+        await storage.set(SESSION_KEY, {
+          value: { state: 'live', gathering: stored, notes: { 0: 'declined' } },
+          savedAt: T0,
+          revision: 'a'.repeat(24)
+        })
+        const before = dump(storage)
+        storage.calls.set.length = 0
+        const outcomes = await Promise.allSettled([
+          setNote(records, 1, 'declined'),
+          setNote(records, 0, null)
+        ])
+        expect([
+          list,
+          outcomes.map(
+            (o) =>
+              o.status === 'rejected' &&
+              !(o.reason instanceof TypeError) &&
+              /holds no list of places or replies/.test(String(o.reason))
+          )
+        ]).toEqual([list, [true, true]])
+        expect(storage.calls.set).toEqual([])
+        expect(dump(storage)).toBe(before)
+      })
+    )
+  })
+
+  it('a note on a wiped, a landed or an absent session is refused and writes nothing', async () => {
+    const states: [string, (records: WalletRecords) => Promise<unknown>][] = [
+      ['none', async () => undefined],
+      [
+        'wiped',
+        async (records) => {
+          await writeSession(records, NOTE_GATHERING)
+          await wipeSession(records, 'setup-changed')
+        }
+      ],
+      [
+        'landed',
+        async (records) => {
+          await writeSession(records, NOTE_GATHERING)
+          await landSession(records)
+        }
+      ]
+    ]
+    await Promise.all(
+      states.map(async ([state, prepare]) => {
+        const { storage, records } = setup()
+        await prepare(records)
+        const before = dump(storage)
+        storage.calls.set.length = 0
+        const outcomes = await Promise.allSettled([
+          setNote(records, 1, 'declined'),
+          setNote(records, 1, null)
+        ])
+        expect([
+          state,
+          outcomes.map(
+            (o) => o.status === 'rejected' && /No live recovery session/.test(String(o.reason))
+          )
+        ]).toEqual([state, [true, true]])
+        expect(storage.calls.set).toEqual([])
+        expect(dump(storage)).toBe(before)
+      })
+    )
+  })
+
+  it('a note that names a stale revision is refused with the conflict and writes nothing', async () => {
+    const { storage, records } = setup()
+    const session = records.recoverySession(CHAIN_ID, ACCOUNT)
+    const first = await session.write(NOTE_GATHERING, null)
+    await session.setNote(1, 'declined', first.revision)
+    const before = dump(storage)
+    const outcomes = await Promise.allSettled([
+      session.setNote(1, 'unanswered', first.revision),
+      session.setNote(1, null, first.revision),
+      session.setNote(0, 'declined', null),
+      session.setNote(0, 'declined', '')
+    ])
+    expect(
+      outcomes.map((o) => o.status === 'rejected' && isSessionRevisionConflict(o.reason))
+    ).toEqual([true, true, true, true])
+    expect(dump(storage)).toBe(before)
+  })
+  ;[true, false].forEach((noteFirst) =>
+    it(`two tabs: a ${
+      noteFirst ? 'note then a reply' : 'reply then a note'
+    } from one read conflict, and a retry from a fresh read keeps both`, async () => {
+      const { storage, records: tab } = setup()
+      const otherTab = createWalletRecords({ storage, now: () => T0 })
+      await writeSession(tab, NOTE_GATHERING)
+      const read = await otherTab.recoverySession(CHAIN_ID, ACCOUNT).read()
+      const note = () =>
+        tab.recoverySession(CHAIN_ID, ACCOUNT).setNote(1, 'declined', revisionOf(read))
+      const answer = () =>
+        otherTab
+          .recoverySession(CHAIN_ID, ACCOUNT)
+          .write(gathering(ACCOUNT, [APPROVALS[0]]), revisionOf(read))
+      const [first, second] = noteFirst ? [note, answer] : [answer, note]
+      await first()
+      await expect(second()).rejects.toBeInstanceOf(SessionRevisionConflict)
+      if (noteFirst) {
+        await writeSession(otherTab, gathering(ACCOUNT, [APPROVALS[0]]))
+      } else {
+        await setNote(tab, 1, 'declined')
+      }
+      expect(await liveOf(tab)).toEqual({
+        state: 'live',
+        gathering: gathering(ACCOUNT, [APPROVALS[0]]),
+        notes: { 1: 'declined' }
+      })
+    })
+  )
+
+  it('two tabs: a reply that arrives while a note is written waits for it and meets the conflict', async () => {
+    const { storage, records: tab } = setup()
+    const otherTab = createWalletRecords({ storage, now: () => T0 })
+    await writeSession(tab, NOTE_GATHERING)
+    const read = await tab.recoverySession(CHAIN_ID, ACCOUNT).read()
+    const hold = holdNextRead(storage, SESSION_KEY)
+    const note = tab.recoverySession(CHAIN_ID, ACCOUNT).setNote(1, 'declined', revisionOf(read))
+    await hold.held
+    const answer = otherTab
+      .recoverySession(CHAIN_ID, ACCOUNT)
+      .write(gathering(ACCOUNT, [APPROVALS[0]]), revisionOf(read))
+    hold.release()
+    const [noted, replied] = await Promise.allSettled([note, answer])
+    expect(noted).toMatchObject({ status: 'fulfilled' })
+    expect(replied).toMatchObject(CONFLICT)
+    expect(await liveOf(otherTab)).toEqual({
+      state: 'live',
+      gathering: NOTE_GATHERING,
+      notes: { 1: 'declined' }
     })
   })
 })

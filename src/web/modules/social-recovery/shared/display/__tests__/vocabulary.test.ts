@@ -92,9 +92,26 @@ describe('closed chip sets', () => {
     )
   })
 
-  it('the recovery status is exactly set up, not set up and the three chips beside it', () => {
+  it('the recovery status is exactly set up, not set up and the four chips beside it', () => {
     expect(sorted(words('recovery', RECOVERY_STATUS_CHIPS))).toEqual(
-      sorted(['set up', 'not set up', 'path locked', 'not active', 'cannot recover'])
+      sorted([
+        'set up',
+        'not set up',
+        'path locked',
+        'not active',
+        'cannot recover',
+        'cannot execute'
+      ])
+    )
+  })
+
+  it('cannot execute is a chip of its own beside the recovery status, apart from cannot recover', () => {
+    expect(chipKey('recovery', 'cannotExecute')).toBe(
+      'socialRecovery.status.recovery.cannotExecute'
+    )
+    expect(renderChip('recovery', 'cannotExecute')).toBe('Cannot execute')
+    expect(renderChip('recovery', 'cannotExecute')).not.toBe(
+      renderChip('recovery', 'cannotRecover')
     )
   })
 

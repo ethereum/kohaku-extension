@@ -1,4 +1,3 @@
-import type { RpcProviderKind } from '@ambire-common/interfaces/network'
 import type {
   Address,
   BackupForm,
@@ -15,7 +14,6 @@ import type {
 import type {
   AddressBook,
   FitCheckReading,
-  PrivilegeHoldersReading,
   RecoveryKitClient,
   RemovedKeyReading,
   WalletReads
@@ -39,12 +37,6 @@ export interface ReviewWaitChip {
   hours: number
 }
 
-/** How the node the wallet reads through is named on the trust list. */
-export type NodeKind = 'light-client' | 'plain'
-
-/** The provider kind of the network the wallet reads the recovery chain through. */
-export type ProviderKind = RpcProviderKind
-
 /** The things a recovery publishes that are not addresses, as item slugs of the disclosures. */
 export type PublicationItem = 'passkey' | 'passkeys' | 'passportIdentifier' | 'aadhaar'
 
@@ -64,7 +56,7 @@ export interface PathRow {
 // The trust list
 // ---------------------------------------------------------------------------
 
-/** A read the trust list and its stop block make for every method of the path. */
+/** A read the trust list makes for every method of the path. */
 export type TrustReadName = 'trustedParties' | 'moduleInfo' | 'paused'
 
 /** The reads of one method; a member not yet present is a read still running. */
@@ -89,16 +81,6 @@ export interface TrustHeading {
   tested: boolean
 }
 
-/** What a method's own declaration and its `paused` read say about stopping it. */
-export interface StopDeclaration {
-  /** Whether the method reads as stopped now. */
-  paused: boolean
-  /** The party that can stop the method, absent where the declaration names none. */
-  pauseHolder?: Address
-  /** The address one acceptance away from the stop role, where there is one. */
-  pendingPauseHolder?: Address
-}
-
 /** What a method's own declaration says about its admin. */
 export interface AdminDeclaration {
   /** The method's admin, absent where the declaration names no outside party. */
@@ -118,14 +100,13 @@ export type TrustContract =
   | {
       status: 'third-party'
       /** The module's own declaration, where it answers to the method interface. */
-      declaration?: AdminDeclaration & StopDeclaration
+      declaration?: AdminDeclaration
     }
   | ({
       status: 'declared'
       /** The passport method, whose credential a renewed document ends. */
       passportRenewal: boolean
-    } & AdminDeclaration &
-      StopDeclaration)
+    } & AdminDeclaration)
 
 /** One contract row of the trust list: one per method, however many path rows use it. */
 export interface TrustRow {
@@ -147,26 +128,8 @@ export interface TrustRowsInput {
 }
 
 // ---------------------------------------------------------------------------
-// The security stop block
-// ---------------------------------------------------------------------------
-
-/** One row of the security stop block: one per method of the path, in the trust list's order. */
-export interface StopRow {
-  method: Address
-  kind: MethodKind | undefined
-  stop:
-    | { status: 'pending' }
-    | { status: 'unavailable' }
-    | ({
-        status: 'declared'
-        /** The party holding both the admin role and the stop role, where one does. */
-        bothRoles?: Address
-      } & StopDeclaration)
-}
-
-// ---------------------------------------------------------------------------
 // The account's reads: the key a recovery removes, the fit check, the setup
-// read, the setup description and the privilege read the other doors come from
+// read and the setup description
 // ---------------------------------------------------------------------------
 
 /** One read of the account: still running, answered, or thrown. */
@@ -192,27 +155,10 @@ export type AccountReads = { [K in AccountReadName]: AccountRead<AccountReadValu
 /** Each of the account's reads that gate Save, as a call that answers it. */
 export type AccountReaders = { [K in AccountReadName]: () => Promise<AccountReadValues[K]> }
 
-/** The account's reads with the privilege read the other doors come from, which never gates Save. */
-export interface AccountReadsHeld extends AccountReads {
-  privilegeHolders: AccountRead<PrivilegeHoldersReading>
-}
-
-export interface AccountReadsState extends AccountReadsHeld {
+export interface AccountReadsState extends AccountReads {
   /** Runs again the named reads that are not still running. */
   retry: (names: readonly AccountReadName[]) => void
 }
-
-/** The account's code entries; no read names them yet, so they read as unavailable. */
-export type CodeEntriesReading = { status: 'unavailable' } | { status: 'read'; count: number }
-
-/** The account's other doors as the block renders them. */
-export type Doors =
-  | { kind: 'pending' }
-  | { kind: 'unreadable' }
-  | { kind: 'none' }
-  /** The keys alone, while the code entries cannot be read. */
-  | { kind: 'keys'; keys: number }
-  | { kind: 'pair'; codeEntries: number; keys: number }
 
 // ---------------------------------------------------------------------------
 // The save gate
@@ -229,12 +175,19 @@ export type SaveBlock =
   | { kind: 'cannot-recover'; reason: 'key-count'; count?: number }
   | { kind: 'already-set-up' }
 
+/** A credential of the path that was never tested, at its place in the path. */
+export interface UntestedCredential {
+  credential: Credential
+  clause: number
+  member: number
+}
+
 export interface SaveGateInput extends AccountReads {
   recordsLoaded: boolean
   clientReady: boolean
   trustRows: readonly TrustRow[]
-  /** Whether a method of the path has no passed access test. */
-  untested: boolean
+  /** The methods of the path never tested, or false where this step shows no warning. */
+  untested: readonly UntestedCredential[] | false
   /** The path of the draft, whose every slot must hold a method. */
   clauses: readonly Clause[]
   /** The backup form of the draft; an encrypted one needs the recovery password set. */
@@ -246,8 +199,8 @@ export interface SaveGateInput extends AccountReads {
 export interface SaveGate {
   canSave: boolean
   blocked: SaveBlock | null
-  /** The not-tested warning beside Save, which never disables it. */
-  notTested: boolean
+  /** The untested methods the warning beside Save names, or false where none warns; it never disables Save. */
+  notTested: readonly UntestedCredential[] | false
 }
 
 // ---------------------------------------------------------------------------
@@ -258,8 +211,6 @@ export interface SaveGate {
 export type ReviewKitClient = Pick<RecoveryKitClient, 'chain' | 'descriptor' | 'moduleReads'> & {
   setup: Pick<ISetupClient, 'describeSetup' | 'setupState'>
   walletReads: Pick<WalletReads, 'removedKey' | 'fitCheck'>
-  /** The wallet's own read of the keys holding a privilege on the account. */
-  privilegeHolders: () => Promise<PrivilegeHoldersReading>
 }
 
 /** The recovery client as the view takes it. */
@@ -281,8 +232,6 @@ export interface ReviewViewProps {
   chainId: ChainId
   account: Address
   client: ReviewClient
-  /** The provider kind of the recovery chain's network; absent reads as a plain node. */
-  providerKind?: ProviderKind
   /** The label the wallet holds for the account, where it holds one. */
   accountLabel?: string
   navigate: (to: string) => void
@@ -308,19 +257,8 @@ export interface PathBlockProps {
 
 export interface TrustListProps {
   rows: readonly TrustRow[]
-  stopRows: readonly StopRow[]
-  doors: Doors
   client: ReviewKitClient
-  providerKind?: ProviderKind
   onRetry: (method: Address) => void
-}
-
-export interface StopBlockProps {
-  rows: readonly StopRow[]
-}
-
-export interface OtherDoorsProps {
-  doors: Doors
 }
 
 export interface SaveBlockerProps {

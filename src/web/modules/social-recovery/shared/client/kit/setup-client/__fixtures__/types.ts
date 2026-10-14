@@ -6,6 +6,7 @@ import type {
   DeploymentDescriptor,
   Hex,
   IProvider,
+  IRecoveryClient,
   ISetupClient,
   PrivacyLevel,
   RawLog,
@@ -33,10 +34,18 @@ export interface FakeNode {
     block: jest.Mock
   }
   codeRead: { code: jest.Mock<Promise<Hex>, [Address, BlockTag?]> }
+  /** The sender scripted for a transaction hash, null where none is scripted. */
+  transactionRead: jest.Mock<Promise<Address | null>, [Hex]>
   head: BlockHeader
-  answer(to: Address, data: Hex, answer: Hex | Error): void
-  setCode(address: Address, code: Hex): void
+  /** Answers one exact call; a function answers it afresh on each call. */
+  answer(to: Address, data: Hex, answer: Hex | Error | ((data: Hex) => Hex | Error)): void
+  /** Answers every call to `to` whose selector is `selector` and has no exact answer. */
+  answerWith(to: Address, selector: Hex, answer: (data: Hex) => Hex | Error): void
+  /** Gives `address` its code from block `from` on (block 0 by default); a read at no block number sees it. */
+  setCode(address: Address, code: Hex, from?: number): void
   addLog(log: RawLog): void
+  /** Scripts the sender of one transaction, or the error its read rejects with. */
+  setSender(hash: Hex, sender: Address | Error): void
   /** Every call answered or refused, in order. */
   calls: NodeCall[]
 }
@@ -48,6 +57,11 @@ export interface ScriptedState {
   setupCommittedAtBlock: number
   /** The attempt's state, as the enum's index. */
   attemptState?: number
+  nextAttemptId?: bigint
+  attemptId?: bigint
+  /** The setup nonce the attempt was judged under; the current one by default. */
+  attemptSetupNonce?: bigint
+  consumableAfter?: number
 }
 
 /** What one fake method module answers. */
@@ -59,6 +73,10 @@ export interface ScriptedMethod {
   paused?: Hex | Error
   /** An error every view of the module throws, `paused()` aside. */
   views?: Error
+  /** The holder `trustedParties()` names for the module's stop; none by default. */
+  pauseHolder?: Address
+  /** The word `verify(config, digest, proof)` answers for every proof, or the error it throws; unscripted by default. */
+  verify?: Hex | Error
 }
 
 /** What the fake action answers for the world's account. */
@@ -69,6 +87,10 @@ export interface ScriptedAction {
   authorized?: boolean
   /** The keys the action answers `isAuthority` true for; every other key answers false. */
   authorities?: Address[]
+  /** The keys the action answers `holdsAnyPrivilege` true for; every other key answers false. */
+  holders?: Address[]
+  /** The `KEY_VALUE()` answer, or the error the call throws; the harness's word by default. */
+  keyValue?: Hex | Error
   probe?: boolean
 }
 
@@ -96,6 +118,11 @@ export interface KitWorld {
   descriptor: DeploymentDescriptor
   config: ClientConfiguration
   setup: ISetupClient
+  /** The kit's recovery client over the same node, restoring through `setup`. */
+  recovery: IRecoveryClient
   removedKey: jest.Mock
   draft(level: PrivacyLevel, overrides?: Partial<SetupDraft>): SetupDraft
 }
+
+/** The digest a fake manager answers for a request: its own derivation, or a fixed answer. */
+export type ScriptedDigest = Hex | Error | 'derived'

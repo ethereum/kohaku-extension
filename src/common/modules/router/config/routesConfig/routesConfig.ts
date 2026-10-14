@@ -479,6 +479,51 @@ const routesConfig: RouteConfig = {
     route: ROUTES.socialRecoverySetupCard,
     title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
     name: Platform.select({ default: i18n.t('socialRecovery.routes.setupCard') })
+  },
+  [ROUTES.socialRecoveryFastTrackKey]: {
+    route: ROUTES.socialRecoveryFastTrackKey,
+    title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
+    name: Platform.select({ default: i18n.t('socialRecovery.routes.fastTrackKey') })
+  },
+  [ROUTES.socialRecoveryFastTrackGas]: {
+    route: ROUTES.socialRecoveryFastTrackGas,
+    title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
+    name: Platform.select({ default: i18n.t('socialRecovery.routes.fastTrackGas') })
+  },
+  [ROUTES.socialRecoveryRecoveryAccount]: {
+    route: ROUTES.socialRecoveryRecoveryAccount,
+    title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
+    name: Platform.select({ default: i18n.t('socialRecovery.routes.recoveryAccount') })
+  },
+  [ROUTES.socialRecoveryRecoveryReadout]: {
+    route: ROUTES.socialRecoveryRecoveryReadout,
+    title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
+    name: Platform.select({ default: i18n.t('socialRecovery.routes.recoveryReadout') })
+  },
+  [ROUTES.socialRecoveryRecoveryChecklist]: {
+    route: ROUTES.socialRecoveryRecoveryChecklist,
+    title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
+    name: Platform.select({ default: i18n.t('socialRecovery.routes.recoveryChecklist') })
+  },
+  [ROUTES.socialRecoveryRecoveryInProgress]: {
+    route: ROUTES.socialRecoveryRecoveryInProgress,
+    title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
+    name: Platform.select({ default: i18n.t('socialRecovery.routes.recoveryInProgress') })
+  },
+  [ROUTES.socialRecoveryRecoverySubmit]: {
+    route: ROUTES.socialRecoveryRecoverySubmit,
+    title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
+    name: Platform.select({ default: i18n.t('socialRecovery.routes.recoverySubmit') })
+  },
+  [ROUTES.socialRecoveryRecoveryWait]: {
+    route: ROUTES.socialRecoveryRecoveryWait,
+    title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
+    name: Platform.select({ default: i18n.t('socialRecovery.routes.recoveryWait') })
+  },
+  [ROUTES.socialRecoveryRecoveryDone]: {
+    route: ROUTES.socialRecoveryRecoveryDone,
+    title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
+    name: Platform.select({ default: i18n.t('socialRecovery.routes.recoveryDone') })
   }
 }
 

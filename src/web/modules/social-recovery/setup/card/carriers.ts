@@ -25,12 +25,12 @@ export const PRINT_VIEW_CSS =
 
 // The browser takes the blob only after the click's task ends, so the object
 // URL lives a little longer than the click. It is then revoked, so the
-// browser's download history never keeps the card's text in the file's source
+// browser's download history never keeps the card in the file's source
 // address.
 export const REVOKE_DELAY_MS = 40000
 
 const downloadFile = (file: CardFile): void => {
-  const url = URL.createObjectURL(new Blob([file.text], { type: file.type }))
+  const url = URL.createObjectURL(new Blob([file.bytes], { type: file.type }))
   const link = document.createElement('a')
   link.href = url
   link.download = file.name

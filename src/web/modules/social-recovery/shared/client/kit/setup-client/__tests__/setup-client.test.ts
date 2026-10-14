@@ -885,22 +885,12 @@ describe('prepareCommitSetup', () => {
 })
 
 describe('the members the deployed kit does not serve', () => {
-  it('refuses the clear and the events feed, naming each member', async () => {
+  it('refuses the clear, naming the member', async () => {
     const world = kitWorld()
     expect(await thrownBy(world.setup.prepareClearSetup())).toMatchObject({
       name: 'NotServedRefusal',
       member: 'setup.prepareClearSetup'
     })
-    const { events } = world.setup
-    expect(
-      await thrownBy(events.fetch({ addresses: [], topics: [] }, { from: 0, to: 1 }))
-    ).toMatchObject({
-      name: 'NotServedRefusal',
-      member: 'setup.events.fetch'
-    })
-    expect(() => events.accountFilter()).toThrow(
-      expect.objectContaining({ member: 'setup.events.accountFilter' })
-    )
     expect(world.node.calls).toEqual([])
   })
 })

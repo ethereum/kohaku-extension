@@ -1,10 +1,10 @@
 /**
  * @jest-environment jsdom
  *
- * The social recovery routes: the seventeen WEB_ROUTES keys and their paths,
- * one routesConfig entry per path with the feature name as its title, no path
- * shared with a route outside the module, and the settings sidebar's entry
- * that opens the setup.
+ * The social recovery routes: the twenty-six WEB_ROUTES keys and their paths,
+ * one routesConfig entry per path with the feature name as its title, a name
+ * of its own for each step of the recover flow, no path shared with a route
+ * outside the module, and the settings sidebar's entry that opens the setup.
  *
  * The settings sidebar reads `location` while it loads, so the suite runs in
  * jsdom. Its list of links is plain data; the two hooks its component body
@@ -46,8 +46,32 @@ const EXPECTED_ROUTES: Record<string, string> = {
   socialRecoverySetupPrivacy: 'social-recovery/setup/privacy',
   socialRecoverySetupReview: 'social-recovery/setup/review',
   socialRecoverySetupSave: 'social-recovery/setup/save',
-  socialRecoverySetupCard: 'social-recovery/setup/card'
+  socialRecoverySetupCard: 'social-recovery/setup/card',
+  socialRecoveryFastTrackKey: 'social-recovery/fast-track/key',
+  socialRecoveryFastTrackGas: 'social-recovery/fast-track/gas',
+  socialRecoveryRecoveryAccount: 'social-recovery/recovery/account',
+  socialRecoveryRecoveryReadout: 'social-recovery/recovery/readout',
+  socialRecoveryRecoveryChecklist: 'social-recovery/recovery/checklist',
+  socialRecoveryRecoveryInProgress: 'social-recovery/recovery/in-progress',
+  socialRecoveryRecoverySubmit: 'social-recovery/recovery/submit',
+  socialRecoveryRecoveryWait: 'social-recovery/recovery/wait',
+  socialRecoveryRecoveryDone: 'social-recovery/recovery/done'
 }
+
+// The recover flow's steps after its warning, each a screen of its own, so
+// each carries a name no other route shows. The module's earlier entries share
+// the feature name or the door's name on purpose.
+const RECOVER_FLOW_STEPS = [
+  'socialRecoveryFastTrackKey',
+  'socialRecoveryFastTrackGas',
+  'socialRecoveryRecoveryAccount',
+  'socialRecoveryRecoveryReadout',
+  'socialRecoveryRecoveryChecklist',
+  'socialRecoveryRecoveryInProgress',
+  'socialRecoveryRecoverySubmit',
+  'socialRecoveryRecoveryWait',
+  'socialRecoveryRecoveryDone'
+]
 
 const webRoutes = WEB_ROUTES as unknown as Record<string, string>
 const config = routesConfig as unknown as Record<string, RouteEntry>
@@ -55,10 +79,11 @@ const config = routesConfig as unknown as Record<string, RouteEntry>
 const socialRecoveryKeys = Object.keys(webRoutes).filter((key) => key.startsWith('socialRecovery'))
 
 describe('social recovery routes', () => {
-  it('declares the seventeen social recovery keys with their paths', () => {
+  it('declares the twenty-six social recovery keys with their paths', () => {
     Object.entries(EXPECTED_ROUTES).forEach(([key, path]) => {
       expect({ key, path: webRoutes[key] }).toEqual({ key, path })
     })
+    expect([...socialRecoveryKeys].sort()).toEqual(Object.keys(EXPECTED_ROUTES).sort())
   })
 
   socialRecoveryKeys.forEach((key) =>
@@ -95,6 +120,15 @@ describe('social recovery routes', () => {
       expect(webRoutes[key].startsWith('social-recovery')).toBe(true)
     })
   )
+
+  it('names each step of the recover flow apart from every other route of the module', () => {
+    const names = socialRecoveryKeys.map((key) => ({ key, name: config[webRoutes[key]]?.name }))
+    const shared = RECOVER_FLOW_STEPS.filter((key) => {
+      const own = config[webRoutes[key]]?.name
+      return names.some((other) => other.key !== key && other.name === own)
+    })
+    expect(shared).toEqual([])
+  })
 
   it('uses unique paths', () => {
     const paths = socialRecoveryKeys.map((key) => webRoutes[key])

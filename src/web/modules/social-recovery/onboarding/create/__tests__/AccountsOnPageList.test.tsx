@@ -2,10 +2,9 @@
  * @jest-environment jsdom
  *
  * The account picker's page list mounted with a scripted controller state. The
- * chain is scripted too: the account-state read answers per account, and the
- * usage check's client finds every address unused. jsdom has no `TextEncoder`,
- * which viem reads when it loads, so the test sets Node's before it loads the
- * modules.
+ * usage check's client finds used only the addresses the test names. jsdom has
+ * no `TextEncoder`, which viem reads when it loads, so the test sets Node's
+ * before it loads the modules.
  */
 import { createRoot, Root } from 'react-dom/client'
 import { act } from 'react-dom/test-utils'
@@ -14,7 +13,10 @@ import { TextDecoder, TextEncoder } from 'util'
 import type { Address } from 'viem'
 
 import type AccountPickerController from '@ambire-common/controllers/accountPicker/accountPicker'
-import type { Account, AccountOnchainState, AccountOnPage } from '@ambire-common/interfaces/account'
+import type {
+  AccountOnPage,
+  ImportStatus as ImportStatusType
+} from '@ambire-common/interfaces/account'
 import en from '@common/config/localization/translations/en.json'
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
@@ -27,19 +29,8 @@ const mockNetworks = [
   { chainId: 1n, name: 'Ethereum', selectedRpcUrl: 'http://rpc.invalid/1' },
   { chainId: 10n, name: 'Optimism', selectedRpcUrl: 'http://rpc.invalid/10' }
 ]
-// The on-chain state every answering network gives, per account address; the
-// networks whose read throws; and every provider the reads open, in order.
-const mockChain: {
-  states: Record<string, Partial<AccountOnchainState>>
-  failingChainIds: bigint[]
-  providers: {
-    chainId: bigint
-    accountAddrs: string[]
-    readSettled: boolean
-    destroyCalls: number
-    destroyedAfterRead: boolean
-  }[]
-} = { states: {}, failingChainIds: [], providers: [] }
+// The addresses the usage check finds used.
+const mockChain: { usedAddrs: string[] } = { usedAddrs: [] }
 // The name the reverse lookup finds, per account address.
 const mockEnsNames: Record<string, string> = {}
 
@@ -66,49 +57,12 @@ jest.mock('@common/hooks/useToast', () => ({
   __esModule: true,
   default: () => ({ addToast: () => {} })
 }))
-jest.mock('@web/services/provider', () => ({
-  getRpcProviderForUI: (network: { chainId: bigint }) => {
-    const record = {
-      chainId: network.chainId,
-      accountAddrs: [] as string[],
-      readSettled: false,
-      destroyCalls: 0,
-      destroyedAfterRead: false
-    }
-    mockChain.providers.push(record)
-    return {
-      record,
-      destroy: () => {
-        record.destroyCalls += 1
-        record.destroyedAfterRead = record.readSettled
-      }
-    }
-  }
-}))
-jest.mock('@ambire-common/libs/accountState/accountState', () => ({
-  getAccountState: async (
-    provider: { record: { accountAddrs: string[]; readSettled: boolean } },
-    network: { chainId: bigint },
-    accounts: Account[]
-  ) => {
-    await Promise.resolve()
-    const { record } = provider
-    record.accountAddrs.push(...accounts.map((account) => account.addr))
-    record.readSettled = true
-    if (mockChain.failingChainIds.includes(network.chainId)) {
-      throw new Error('read failed')
-    }
-    return accounts.map((account) => ({
-      accountAddr: account.addr,
-      isDeployed: false,
-      associatedKeys: {},
-      ...mockChain.states[account.addr]
-    }))
-  }
-}))
 // Jest's config transforms neither images nor these packages' ES modules; the
 // row's avatar, badge and copy button and the list's scroll wrapper load them.
 jest.mock('@common/components/Avatar', () => ({ __esModule: true, default: () => null }))
+// The list's spinner, drawn while the usage scan runs, plays a Lottie animation
+// jsdom cannot run.
+jest.mock('@common/components/Spinner', () => ({ __esModule: true, default: () => null }))
 jest.mock('nanoid', () => ({ nanoid: () => 'badge' }))
 jest.mock('@common/utils/clipboard', () => ({ setStringAsync: async () => true }))
 // The tooltip opens through a portal on hover, which jsdom does not lay out; the
@@ -131,7 +85,8 @@ jest.mock('react-native-keyboard-aware-scroll-view', () => ({
 jest.mock('viem', () => ({
   ...jest.requireActual('viem'),
   createPublicClient: () => ({
-    getTransactionCount: async () => 0,
+    getTransactionCount: async ({ address }: { address: string }) =>
+      mockChain.usedAddrs.includes(address) ? 1 : 0,
     getBalance: async () => 0n
   })
 }))
@@ -147,14 +102,10 @@ const {
   ImportStatus
 }: typeof import('@ambire-common/interfaces/account') = require('@ambire-common/interfaces/account')
 const {
-  ERC_4337_ENTRYPOINT
-}: typeof import('@ambire-common/consts/deploy') = require('@ambire-common/consts/deploy')
+  SMART_ACCOUNT_SIGNER_KEY_DERIVATION_OFFSET
+}: typeof import('@ambire-common/consts/derivation') = require('@ambire-common/consts/derivation')
 const shortenAddress: typeof import('@ambire-common/utils/shortenAddress').default =
   require('@ambire-common/utils/shortenAddress').default
-const {
-  renderFullAddress,
-  renderShortAddress
-}: typeof import('@web/modules/social-recovery/shared/display') = require('@web/modules/social-recovery/shared/display')
 const AccountsOnPageList: typeof import('@web/modules/account-picker/components/AccountsOnPageList/AccountsOnPageList').default =
   require('@web/modules/account-picker/components/AccountsOnPageList/AccountsOnPageList').default
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
@@ -175,44 +126,58 @@ const THEME_CONTEXT: ThemeContextReturnType = {
 
 const BASIC: Address = '0x1111111111111111111111111111111111111111'
 const SMART: Address = '0x2222222222222222222222222222222222222222'
-// The key the slot derives for the smart account.
-const DERIVED_KEY: Address = '0x3333333333333333333333333333333333333333'
-// Another key, which holds the privilege on the account.
-const HOLDER: Address = '0x4444444444444444444444444444444444444444'
-// A second smart account on the same page.
+// The key the slot derives for the smart account, which controls it.
+const KEY: Address = '0x3333333333333333333333333333333333333333'
+// A second slot's smart account and its key.
 const OTHER_SMART: Address = '0x6666666666666666666666666666666666666666'
-const PRIVILEGE_NONE = `0x${'0'.repeat(64)}`
+const OTHER_KEY: Address = '0x7777777777777777777777777777777777777777'
 const PRIVILEGE_SIGNER = `0x${'0'.repeat(63)}2`
 
-const basicAccount: AccountOnPage['account'] = {
-  addr: BASIC,
-  associatedKeys: [BASIC],
+// The derivation index of the key the slot derives for its smart account.
+const keyIndex = (slot: number) => SMART_ACCOUNT_SIGNER_KEY_DERIVATION_OFFSET + slot - 1
+
+const basic = (addr: Address, label: string): AccountOnPage['account'] => ({
+  addr,
+  associatedKeys: [addr],
   initialPrivileges: [],
   creation: null,
-  preferences: { label: 'Account 1', pfp: BASIC },
+  preferences: { label, pfp: addr },
   usedOnNetworks: []
-}
+})
 
-const smartAccount = (initialPrivileges: [string, string][]): AccountOnPage['account'] => ({
-  addr: SMART,
-  associatedKeys: [DERIVED_KEY],
-  initialPrivileges,
+const smart = (addr: Address, key: Address): AccountOnPage['account'] => ({
+  addr,
+  associatedKeys: [key],
+  initialPrivileges: [[key, PRIVILEGE_SIGNER]],
   creation: {
     factoryAddr: `0x${'5'.repeat(40)}`,
     bytecode: '0x00',
     salt: `0x${'0'.repeat(64)}`
   },
-  preferences: { label: 'Account 2', pfp: SMART },
+  preferences: { label: 'Smart account', pfp: addr },
   usedOnNetworks: []
 })
 
-const onPage = (account: AccountOnPage['account']): AccountOnPage => ({
-  account,
-  isLinked: false,
-  slot: 1,
-  index: 0,
-  importStatus: ImportStatus.NotImported
-})
+const basicAccount = basic(BASIC, 'Account 1')
+const smartAccount = smart(SMART, KEY)
+const keyAccount = basic(KEY, 'Account 2')
+const otherSmartAccount = smart(OTHER_SMART, OTHER_KEY)
+const otherKeyAccount = basic(OTHER_KEY, 'Account 4')
+
+const onPage = (
+  account: AccountOnPage['account'],
+  {
+    slot = 1,
+    index = slot - 1,
+    importStatus = ImportStatus.NotImported
+  }: { slot?: number; index?: number; importStatus?: ImportStatusType } = {}
+): AccountOnPage => ({ account, isLinked: false, slot, index, importStatus })
+
+// The key entry the picker lists after the smart account of the same slot.
+const keyOnPage = (
+  account: AccountOnPage['account'],
+  { slot = 1, importStatus = ImportStatus.NotImported } = {}
+): AccountOnPage => onPage(account, { slot, index: keyIndex(slot), importStatus })
 
 const pickerState = ({
   accountsOnPage,
@@ -239,14 +204,17 @@ const pickerState = ({
     })
   } as unknown as AccountPickerController)
 
-const controlledBy = (address: Address) =>
-  en.socialRecovery.create.controlledBy.replace('{{address}}', renderShortAddress(address))
+const controllingKeyRow = (smartAddr: Address) =>
+  en.socialRecovery.create.controllingKeyRow.replace('{{account}}', shortenAddress(smartAddr, 16))
 
 describe('the account picker page list', () => {
   let container: HTMLDivElement
   let root: Root
 
-  const mount = async (state: AccountPickerController) => {
+  const mount = async (
+    state: AccountPickerController,
+    { isScanComplete = true, onScanComplete = () => {} } = {}
+  ) => {
     await act(async () => {
       root.render(
         <ThemeContext.Provider value={THEME_CONTEXT}>
@@ -255,13 +223,13 @@ describe('the account picker page list', () => {
             setPage={() => {}}
             subType="seed"
             isLoading={false}
-            isScanComplete
-            onScanComplete={() => {}}
+            isScanComplete={isScanComplete}
+            onScanComplete={onScanComplete}
           />
         </ThemeContext.Provider>
       )
     })
-    // The usage check and the privilege read settle over their promises.
+    // The usage check settles over its promises.
     await act(async () => {
       await new Promise((resolve) => {
         setTimeout(resolve, 0)
@@ -269,12 +237,24 @@ describe('the account picker page list', () => {
     })
   }
 
-  const row = (address: Address) =>
-    container.querySelector<HTMLElement>(`[data-testid="add-account-${address}"]`)
-  const badge = (address: Address) =>
-    container.querySelector<HTMLElement>(`[data-testid="controlled-by-${address}"]`)
+  const rows = (address: Address) =>
+    container.querySelectorAll<HTMLElement>(`[data-testid="add-account-${address}"]`)
+  const row = (address: Address) => rows(address)[0] ?? null
+  const caption = (address: Address) =>
+    container.querySelector<HTMLElement>(`[data-testid="account-caption-${address}"]`)
+  // The switch tells its state only by where its thumb sits: at the track's
+  // start when off.
+  const isSwitchOn = (address: Address) => {
+    const thumb = row(address)?.querySelector<HTMLElement>('[role="switch"] > div > div')
+    return !!thumb && !thumb.style.transform.startsWith('translateX(3px)')
+  }
   const tooltip = (id: string) =>
     container.querySelector<HTMLElement>(`[data-tooltip-content-for="${id}"]`)
+  const comesBefore = (first: HTMLElement | null, second: HTMLElement | null) =>
+    !!first &&
+    !!second &&
+    // eslint-disable-next-line no-bitwise
+    !!(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING)
   // jsdom lays nothing out, so the window reads as zero wide; a row on a wide
   // window has room for a full address.
   const widenWindow = () =>
@@ -285,15 +265,22 @@ describe('the account picker page list', () => {
     Array.from(row(address)?.querySelectorAll<HTMLElement>('[dir="auto"]') ?? []).map(
       (node) => node.textContent
     )
+  const dispatchedSelections = () =>
+    mockDispatch.mock.calls
+      .map(([action]) => action)
+      .filter(({ type }) =>
+        [
+          'MAIN_CONTROLLER_ACCOUNT_PICKER_SELECT_ACCOUNT',
+          'MAIN_CONTROLLER_ACCOUNT_PICKER_DESELECT_ACCOUNT'
+        ].includes(type)
+      )
 
   beforeEach(() => {
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
     mockDispatch.mockClear()
-    mockChain.states = {}
-    mockChain.failingChainIds = []
-    mockChain.providers = []
+    mockChain.usedAddrs = []
     Object.keys(mockEnsNames).forEach((address) => {
       delete mockEnsNames[address]
     })
@@ -308,208 +295,267 @@ describe('the account picker page list', () => {
 
   describe('on an import', () => {
     it('lists the basic account and no smart account when the state carries no selection flag', async () => {
-      const smart = smartAccount([[DERIVED_KEY, PRIVILEGE_SIGNER]])
-      await mount(pickerState({ accountsOnPage: [onPage(basicAccount), onPage(smart)] }))
+      await mount(pickerState({ accountsOnPage: [onPage(basicAccount), onPage(smartAccount)] }))
 
       expect(row(BASIC)).not.toBeNull()
       expect(row(SMART)).toBeNull()
-      expect(badge(SMART)).toBeNull()
     })
 
-    it('lists no smart account when the state turns the selection flag off', async () => {
-      const smart = smartAccount([[DERIVED_KEY, PRIVILEGE_SIGNER]])
+    it('lists no smart account and no key row when the state turns the selection flag off', async () => {
       await mount(
         pickerState({
-          accountsOnPage: [onPage(basicAccount), onPage(smart)],
+          accountsOnPage: [onPage(basicAccount), onPage(smartAccount)],
           shouldSelectSmartAccountAutomatically: false
         })
       )
 
       expect(row(BASIC)).not.toBeNull()
       expect(row(SMART)).toBeNull()
+      expect(row(KEY)).toBeNull()
+      expect(caption(KEY)).toBeNull()
+      expect(container.textContent).not.toContain(controllingKeyRow(SMART))
+    })
+
+    it('selects a used basic account the usage scan finds', async () => {
+      mockChain.usedAddrs = [BASIC]
+      await mount(pickerState({ accountsOnPage: [onPage(basicAccount)] }))
+
+      expect(mockDispatch).toHaveBeenCalledWith({
+        type: 'MAIN_CONTROLLER_ACCOUNT_PICKER_SELECT_ACCOUNT',
+        params: { account: basicAccount }
+      })
     })
   })
 
   describe('on a newly created seed', () => {
-    const createFlow = (smart: AccountOnPage['account'], selectedAccounts: AccountOnPage[] = []) =>
+    // The page as the picker lists it: the slot's basic account, its smart
+    // account, then the key that controls the smart account.
+    const createFlow = (
+      selectedAccounts: AccountOnPage[] = [],
+      { keyImportStatus = ImportStatus.NotImported } = {}
+    ) =>
       pickerState({
-        accountsOnPage: [onPage(basicAccount), onPage(smart)],
+        accountsOnPage: [
+          onPage(basicAccount),
+          onPage(smartAccount),
+          keyOnPage(keyAccount, { importStatus: keyImportStatus })
+        ],
         selectedAccounts,
         shouldSelectSmartAccountAutomatically: true
       })
+    // The picker selects the smart account and then its key.
+    const bothSelected = () => [onPage(smartAccount), keyOnPage(keyAccount)]
 
-    it('lists the smart account beside the basic account', async () => {
-      await mount(createFlow(smartAccount([[DERIVED_KEY, PRIVILEGE_SIGNER]])))
+    it('lists the smart account above the basic account', async () => {
+      await mount(createFlow(bothSelected()))
 
       expect(row(BASIC)).not.toBeNull()
       expect(row(SMART)).not.toBeNull()
+      expect(comesBefore(row(SMART), row(BASIC))).toBe(true)
     })
 
-    it('badges a counterfactual smart account with the key its initial privileges name, not the derived key', async () => {
-      await mount(createFlow(smartAccount([[HOLDER, PRIVILEGE_SIGNER]])))
+    it('draws the key the picker lists for the smart account as a row under it, captioned as its controlling key', async () => {
+      await mount(createFlow(bothSelected()))
 
-      expect(controlledBy(HOLDER)).toContain(renderShortAddress(HOLDER))
-      expect(badge(SMART)?.textContent).toBe(controlledBy(HOLDER))
-      expect(container.textContent).not.toContain(renderShortAddress(DERIVED_KEY))
+      const smartAddress = row(SMART)?.querySelector<HTMLElement>(`[data-tooltip-id="${SMART}"]`)
+      expect(smartAddress?.textContent).toBeTruthy()
+      expect(controllingKeyRow(SMART)).toContain(smartAddress?.textContent)
+      expect(caption(KEY)?.textContent).toBe(controllingKeyRow(SMART))
+      expect(comesBefore(row(SMART), row(KEY))).toBe(true)
+      expect(comesBefore(row(KEY), row(BASIC))).toBe(true)
     })
 
-    it('ties the badge to a tooltip carrying the full address of the holder', async () => {
-      await mount(createFlow(smartAccount([[HOLDER, PRIVILEGE_SIGNER]])))
+    it('draws the key once, never again among the basic accounts', async () => {
+      await mount(createFlow(bothSelected()))
 
-      const tooltipId = badge(SMART)?.getAttribute('data-tooltip-id')
-      expect(tooltipId).toBeTruthy()
-      expect(tooltip(tooltipId as string)?.textContent).toBe(renderFullAddress(HOLDER))
+      expect(rows(KEY)).toHaveLength(1)
+      expect(container.querySelectorAll('[data-testid^="account-caption-"]')).toHaveLength(1)
     })
 
-    it('passes over a key whose initial privilege is zero', async () => {
+    it('draws no key row when the picker lists no key for the smart account', async () => {
       await mount(
-        createFlow(
-          smartAccount([
-            [DERIVED_KEY, PRIVILEGE_NONE],
-            [HOLDER, PRIVILEGE_SIGNER]
-          ])
-        )
+        pickerState({
+          accountsOnPage: [onPage(basicAccount), onPage(smartAccount)],
+          selectedAccounts: [onPage(smartAccount)],
+          shouldSelectSmartAccountAutomatically: true
+        })
       )
 
-      expect(badge(SMART)?.textContent).toBe(controlledBy(HOLDER))
-    })
-
-    it('badges a deployed smart account with the key holding the privilege on chain, not the derived key', async () => {
-      // Created with the derived key, which has since lost its privilege to
-      // another key. The chain lists the entry point beside the keys.
-      mockChain.states[SMART] = {
-        isDeployed: true,
-        associatedKeys: {
-          [ERC_4337_ENTRYPOINT]: PRIVILEGE_SIGNER,
-          [DERIVED_KEY]: PRIVILEGE_NONE,
-          [HOLDER]: PRIVILEGE_SIGNER
-        }
-      }
-      await mount(createFlow(smartAccount([[DERIVED_KEY, PRIVILEGE_SIGNER]])))
-
-      expect(badge(SMART)?.textContent).toBe(controlledBy(HOLDER))
-      expect(container.textContent).not.toContain(renderShortAddress(DERIVED_KEY))
-      expect(container.textContent).not.toContain(
-        renderShortAddress(ERC_4337_ENTRYPOINT as Address)
-      )
-    })
-
-    it('shows no badge on a deployed smart account whose derived key has lost its privilege', async () => {
-      // The account's creation still names the derived key; the chain has revoked it.
-      mockChain.states[SMART] = {
-        isDeployed: true,
-        associatedKeys: {
-          [ERC_4337_ENTRYPOINT]: PRIVILEGE_SIGNER,
-          [DERIVED_KEY]: PRIVILEGE_NONE
-        }
-      }
-      await mount(createFlow(smartAccount([[DERIVED_KEY, PRIVILEGE_SIGNER]])))
-
       expect(row(SMART)).not.toBeNull()
-      expect(badge(SMART)).toBeNull()
-      expect(container.textContent).not.toContain(renderShortAddress(DERIVED_KEY))
+      expect(row(KEY)).toBeNull()
+      expect(container.textContent).not.toContain(controllingKeyRow(SMART))
     })
 
-    it('shows no badge when no key holds a privilege on the account', async () => {
-      await mount(createFlow(smartAccount([[DERIVED_KEY, PRIVILEGE_NONE]])))
-
-      expect(row(SMART)).not.toBeNull()
-      expect(badge(SMART)).toBeNull()
-    })
-
-    it('badges a deployed smart account from its creation when no network answers', async () => {
-      // The chain has revoked the derived key, but no read reaches it.
-      mockChain.states[SMART] = {
-        isDeployed: true,
-        associatedKeys: {
-          [ERC_4337_ENTRYPOINT]: PRIVILEGE_SIGNER,
-          [DERIVED_KEY]: PRIVILEGE_NONE
-        }
-      }
-      mockChain.failingChainIds = mockNetworks.map(({ chainId }) => chainId)
-      await mount(createFlow(smartAccount([[DERIVED_KEY, PRIVILEGE_SIGNER]])))
-
-      expect(badge(SMART)?.textContent).toBe(controlledBy(DERIVED_KEY))
-    })
-
-    it('badges a counterfactual smart account from its creation when one network answers and another fails', async () => {
-      mockChain.failingChainIds = [mockNetworks[0].chainId]
-      await mount(createFlow(smartAccount([[HOLDER, PRIVILEGE_SIGNER]])))
-
-      expect(badge(SMART)?.textContent).toBe(controlledBy(HOLDER))
-    })
-
-    it('badges a counterfactual smart account from its creation when no network answers', async () => {
-      mockChain.failingChainIds = mockNetworks.map(({ chainId }) => chainId)
-      await mount(createFlow(smartAccount([[HOLDER, PRIVILEGE_SIGNER]])))
-
-      expect(badge(SMART)?.textContent).toBe(controlledBy(HOLDER))
-    })
-
-    it('releases every provider the privilege read opens, once each and after its read', async () => {
-      const otherSmart = { ...smartAccount([[HOLDER, PRIVILEGE_SIGNER]]), addr: OTHER_SMART }
-      mockChain.failingChainIds = [mockNetworks[1].chainId]
+    it('draws each key under the smart account of its own slot', async () => {
       await mount(
         pickerState({
           accountsOnPage: [
             onPage(basicAccount),
-            onPage(smartAccount([[HOLDER, PRIVILEGE_SIGNER]])),
-            { ...onPage(otherSmart), index: 1 }
+            onPage(smartAccount),
+            onPage(basic('0x8888888888888888888888888888888888888888', 'Account 3'), { slot: 2 }),
+            onPage(otherSmartAccount, { slot: 2 }),
+            keyOnPage(keyAccount),
+            keyOnPage(otherKeyAccount, { slot: 2 })
           ],
           shouldSelectSmartAccountAutomatically: true
         })
       )
 
-      const opened = mockChain.providers.map(({ chainId, accountAddrs }) => ({
-        chainId,
-        accountAddrs
-      }))
-      expect(opened).toHaveLength(mockNetworks.length * 2)
-      expect(opened).toEqual(
-        expect.arrayContaining(
-          [SMART, OTHER_SMART].flatMap((addr) =>
-            mockNetworks.map(({ chainId }) => ({ chainId, accountAddrs: [addr] }))
-          )
-        )
+      expect(caption(KEY)?.textContent).toBe(controllingKeyRow(SMART))
+      expect(caption(OTHER_KEY)?.textContent).toBe(controllingKeyRow(OTHER_SMART))
+      expect(comesBefore(row(SMART), row(KEY))).toBe(true)
+      expect(comesBefore(row(KEY), row(OTHER_SMART))).toBe(true)
+      expect(comesBefore(row(OTHER_SMART), row(OTHER_KEY))).toBe(true)
+      expect(rows(KEY)).toHaveLength(1)
+      expect(rows(OTHER_KEY)).toHaveLength(1)
+    })
+
+    it('shows the key by its full address on a wide window, with the full address in a tooltip', async () => {
+      widenWindow()
+      await mount(createFlow(bothSelected()))
+
+      expect(rowLines(KEY)).toContain(KEY)
+      const address = row(KEY)?.querySelector<HTMLElement>(`[data-tooltip-id="${KEY}"]`)
+      expect(address?.textContent).toBe(KEY)
+      expect(tooltip(KEY)?.textContent).toBe(KEY)
+    })
+
+    it('shows the key with its own import status, not the smart account’s', async () => {
+      await mount(createFlow(bothSelected(), { keyImportStatus: ImportStatus.ImportedWithoutKey }))
+
+      expect(row(KEY)?.textContent).toContain(
+        'Already imported as a view only account. Import now to be able to manage this account.'
       )
-      mockChain.providers.forEach((provider) => {
-        expect(provider.destroyCalls).toBe(1)
-        expect(provider.destroyedAfterRead).toBe(true)
-      })
+      expect(row(SMART)?.textContent).not.toContain('Already imported')
     })
 
-    it('shows the smart account as selected when the picker selects it with the basic account', async () => {
-      const smart = smartAccount([[DERIVED_KEY, PRIVILEGE_SIGNER]])
-      await mount(createFlow(smart, [onPage(basicAccount), onPage(smart)]))
+    it('shows both rows on when the picker selects the smart account and its key', async () => {
+      await mount(createFlow(bothSelected()))
 
-      // A press on a selected row deselects it.
+      expect(isSwitchOn(SMART)).toBe(true)
+      expect(isSwitchOn(KEY)).toBe(true)
+    })
+
+    it('shows the key row off when only the smart account is selected', async () => {
+      await mount(createFlow([onPage(smartAccount)]))
+
+      expect(isSwitchOn(SMART)).toBe(true)
+      expect(isSwitchOn(KEY)).toBe(false)
+    })
+
+    it('shows the smart account row off when only the key is selected', async () => {
+      await mount(createFlow([keyOnPage(keyAccount)]))
+
+      expect(isSwitchOn(SMART)).toBe(false)
+      expect(isSwitchOn(KEY)).toBe(true)
+    })
+
+    it('turns the key row off and leaves the smart account row on when the key alone is deselected', async () => {
+      await mount(createFlow(bothSelected()))
+      await mount(createFlow([onPage(smartAccount)]))
+
+      expect(isSwitchOn(KEY)).toBe(false)
+      expect(isSwitchOn(SMART)).toBe(true)
+    })
+
+    it('deselects the key alone on a press of the key row', async () => {
+      await mount(createFlow(bothSelected()))
+
+      await act(async () => {
+        row(KEY)?.click()
+      })
+
+      expect(dispatchedSelections()).toEqual([
+        {
+          type: 'MAIN_CONTROLLER_ACCOUNT_PICKER_DESELECT_ACCOUNT',
+          params: { account: keyAccount }
+        }
+      ])
+    })
+
+    it('selects the key alone on a press of the key row', async () => {
+      await mount(createFlow([onPage(smartAccount)]))
+
+      await act(async () => {
+        row(KEY)?.click()
+      })
+
+      expect(dispatchedSelections()).toEqual([
+        { type: 'MAIN_CONTROLLER_ACCOUNT_PICKER_SELECT_ACCOUNT', params: { account: keyAccount } }
+      ])
+    })
+
+    it('deselects the smart account alone on a press of its row', async () => {
+      await mount(createFlow(bothSelected()))
+
       await act(async () => {
         row(SMART)?.click()
       })
 
-      expect(mockDispatch).toHaveBeenCalledWith({
-        type: 'MAIN_CONTROLLER_ACCOUNT_PICKER_DESELECT_ACCOUNT',
-        params: { account: smart }
-      })
+      expect(dispatchedSelections()).toEqual([
+        {
+          type: 'MAIN_CONTROLLER_ACCOUNT_PICKER_DESELECT_ACCOUNT',
+          params: { account: smartAccount }
+        }
+      ])
     })
 
-    it('selects the smart account on a press when the state does not select it', async () => {
-      const smart = smartAccount([[DERIVED_KEY, PRIVILEGE_SIGNER]])
-      await mount(createFlow(smart, [onPage(basicAccount)]))
+    it('selects the smart account alone on a press of its row', async () => {
+      await mount(createFlow([keyOnPage(keyAccount)]))
 
       await act(async () => {
         row(SMART)?.click()
       })
 
-      expect(mockDispatch).toHaveBeenCalledWith({
-        type: 'MAIN_CONTROLLER_ACCOUNT_PICKER_SELECT_ACCOUNT',
-        params: { account: smart }
+      expect(dispatchedSelections()).toEqual([
+        {
+          type: 'MAIN_CONTROLLER_ACCOUNT_PICKER_SELECT_ACCOUNT',
+          params: { account: smartAccount }
+        }
+      ])
+    })
+
+    it('shows the basic account off when the picker selects the smart account and its key', async () => {
+      await mount(createFlow(bothSelected()))
+
+      expect(isSwitchOn(BASIC)).toBe(false)
+    })
+
+    it('does not select a used basic account the usage scan finds', async () => {
+      mockChain.usedAddrs = [BASIC]
+      await mount(createFlow(bothSelected()))
+
+      expect(dispatchedSelections()).toEqual([])
+      expect(isSwitchOn(BASIC)).toBe(false)
+    })
+
+    it('finishes the usage scan once without selecting anything', async () => {
+      mockChain.usedAddrs = [BASIC]
+      const onScanComplete = jest.fn()
+      await mount(createFlow(bothSelected()), { isScanComplete: false, onScanComplete })
+
+      expect(onScanComplete).toHaveBeenCalledTimes(1)
+      expect(dispatchedSelections()).toEqual([])
+    })
+
+    it('selects the basic account on a press, which stays selectable', async () => {
+      await mount(createFlow(bothSelected()))
+
+      await act(async () => {
+        row(BASIC)?.click()
       })
+
+      expect(dispatchedSelections()).toEqual([
+        {
+          type: 'MAIN_CONTROLLER_ACCOUNT_PICKER_SELECT_ACCOUNT',
+          params: { account: basicAccount }
+        }
+      ])
     })
 
     it('shows an unnamed smart account by its short address, with the full address in a tooltip', async () => {
       widenWindow()
-      await mount(createFlow(smartAccount([[HOLDER, PRIVILEGE_SIGNER]])))
+      await mount(createFlow(bothSelected()))
 
       const short = shortenAddress(SMART, 16)
       expect(short.length).toBeLessThan(SMART.length)
@@ -522,7 +568,7 @@ describe('the account picker page list', () => {
     it('shows a named smart account by its name beside its short address', async () => {
       mockEnsNames[SMART] = 'savings.eth'
       widenWindow()
-      await mount(createFlow(smartAccount([[HOLDER, PRIVILEGE_SIGNER]])))
+      await mount(createFlow(bothSelected()))
 
       const lines = rowLines(SMART)
       expect(lines).toContain('savings.eth')
@@ -531,20 +577,20 @@ describe('the account picker page list', () => {
       expect(tooltip(SMART)?.textContent).toBe(SMART)
     })
 
-    it('still shows an unnamed basic account by its full address', async () => {
+    it('still shows an unnamed basic account by its full address, with no tooltip and no caption', async () => {
       widenWindow()
-      await mount(createFlow(smartAccount([[HOLDER, PRIVILEGE_SIGNER]])))
+      await mount(createFlow(bothSelected()))
 
       expect(rowLines(BASIC)).toContain(BASIC)
       expect(rowLines(BASIC)).not.toContain(shortenAddress(BASIC, 16))
       expect(tooltip(BASIC)).toBeNull()
+      expect(caption(BASIC)).toBeNull()
     })
 
     it('asks nothing about a seed', async () => {
-      const smart = smartAccount([[HOLDER, PRIVILEGE_SIGNER]])
-      await mount(createFlow(smart, [onPage(basicAccount), onPage(smart)]))
+      await mount(createFlow(bothSelected()))
 
-      expect(badge(SMART)).not.toBeNull()
+      expect(caption(KEY)).not.toBeNull()
       expect(container.textContent).not.toMatch(/seed/i)
       expect(container.textContent).not.toMatch(/recovery phrase/i)
     })

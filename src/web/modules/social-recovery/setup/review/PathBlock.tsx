@@ -7,17 +7,30 @@ import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import type { Credential } from '@web/modules/social-recovery/sdk-interfaces'
-import { MethodRow, SectionLabel, StatusChip } from '@web/modules/social-recovery/shared/chrome'
+import {
+  MethodRow,
+  PathTree,
+  PathTreeHeader,
+  PathTreeNode,
+  SectionCard,
+  SectionLabel,
+  StatusChip
+} from '@web/modules/social-recovery/shared/chrome'
 import { renderMemberList } from '@web/modules/social-recovery/shared/display'
+import { enrollmentOf } from '@web/modules/social-recovery/shared/records/slots'
 
-import { enrollmentOf, isRequiredRow, kindOf, pathRowOf } from './lead'
+import { isRequiredRow, kindOf, pathRowOf } from './lead'
 import type { PathBlockProps, RetryKind } from './types'
 
+// Where the line meets a row's first line.
+const ROW_ANCHOR = 24
+
 /**
- * The path as the editor draws it: the required rows, then each group under
- * its header with its threshold, three members and a count of the rest until
- * the holder shows them all. A passkey or guardian row whose test could not
- * run offers to run it again, on the enrollment step for that row.
+ * The path as the editor draws it, one tree with the line on the left and
+ * "and" between each two of its parts: the required rows, then each group
+ * under its header with its threshold, three members and a count of the rest
+ * until the holder shows them all. A passkey or guardian row whose test could
+ * not run offers to run it again, on the enrollment step for that row.
  */
 const PathBlock = ({ clauses, enrollments, addressBook, onRetryTest }: PathBlockProps) => {
   const { t } = useTranslation()
@@ -86,72 +99,84 @@ const PathBlock = ({ clauses, enrollments, addressBook, onRetryTest }: PathBlock
     )
   }
 
-  const hasRequired = clauses.some(isRequiredRow)
-  let groupNumber = 0
+  const required = clauses.flatMap((clause, index) => (isRequiredRow(clause) ? [index] : []))
+  const groups = clauses.flatMap((clause, index) => (isRequiredRow(clause) ? [] : [index]))
+
+  const renderGroup = (index: number, groupNumber: number) => {
+    const clause = clauses[index]
+    const list = renderMemberList(clause.credentials, { showAll: shownAll.includes(index) }, t)
+    return (
+      <SectionCard spacing="item" testID={`review-group-${index}`}>
+        <PathTreeHeader
+          style={[
+            flexbox.directionRow,
+            flexbox.alignCenter,
+            flexbox.justifySpaceBetween,
+            spacings.mbTy
+          ]}
+        >
+          <Text fontSize={16} weight="medium">
+            {t('socialRecovery.shape.group', { n: groupNumber })}
+          </Text>
+          <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+            <Text fontSize={14} style={spacings.mrTy}>
+              {t('socialRecovery.shape.require')}
+            </Text>
+            <Text fontSize={14} weight="medium" style={spacings.mrTy}>
+              {String(clause.threshold)}
+            </Text>
+            <Text fontSize={14} style={spacings.mrTy}>
+              {t('socialRecovery.shape.of')}
+            </Text>
+            <Text fontSize={14} weight="medium">
+              {String(clause.credentials.length)}
+            </Text>
+          </View>
+        </PathTreeHeader>
+        {list.shown.map((credential, member) => renderRow(credential, index, member))}
+        {!!list.more && (
+          <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+            <Text fontSize={12} appearance="secondaryText" style={spacings.mrTy}>
+              {list.more}
+            </Text>
+            <Pressable
+              testID={`review-group-${index}-show-all`}
+              onPress={() => setShownAll((held) => [...held, index])}
+            >
+              <Text fontSize={12} weight="medium" appearance="primary" underline>
+                {t('socialRecovery.review.showAllMembers')}
+              </Text>
+            </Pressable>
+          </View>
+        )}
+      </SectionCard>
+    )
+  }
 
   return (
-    <View testID="review-path">
-      <SectionLabel>{t('socialRecovery.review.pathHeader')}</SectionLabel>
-      {hasRequired && <SectionLabel>{t('socialRecovery.editor.requiredHeader')}</SectionLabel>}
-      {clauses.map((clause, index) =>
-        isRequiredRow(clause) ? renderRow(clause.credentials[0], index, 0) : null
+    <PathTree label={t('socialRecovery.shape.and')} testID="review-path">
+      <PathTreeNode key="header" variant="through">
+        <SectionLabel>{t('socialRecovery.review.pathHeader')}</SectionLabel>
+        {required.length > 0 && (
+          <SectionLabel>{t('socialRecovery.editor.requiredHeader')}</SectionLabel>
+        )}
+      </PathTreeNode>
+      {required.flatMap((index, position) => [
+        ...(position > 0 ? [<PathTreeNode key={`and-${index}`} variant="junction" />] : []),
+        <PathTreeNode key={`row-${index}`} anchor={ROW_ANCHOR} testID={`review-path-node-${index}`}>
+          {renderRow(clauses[index].credentials[0], index, 0)}
+        </PathTreeNode>
+      ])}
+      {required.length > 0 && groups.length > 0 && (
+        <PathTreeNode key="and-groups" variant="junction" />
       )}
-      {clauses.map((clause, index) => {
-        if (isRequiredRow(clause)) {
-          return null
-        }
-        groupNumber += 1
-        const list = renderMemberList(clause.credentials, { showAll: shownAll.includes(index) }, t)
-        return (
-          // Clauses have no identity of their own; their order is the path's.
-          // eslint-disable-next-line react/no-array-index-key
-          <View key={index} testID={`review-group-${index}`} style={spacings.mtTy}>
-            <View
-              style={[
-                flexbox.directionRow,
-                flexbox.alignCenter,
-                flexbox.justifySpaceBetween,
-                spacings.mbTy
-              ]}
-            >
-              <Text fontSize={16} weight="medium">
-                {t('socialRecovery.shape.group', { n: groupNumber })}
-              </Text>
-              <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-                <Text fontSize={14} style={spacings.mrTy}>
-                  {t('socialRecovery.shape.require')}
-                </Text>
-                <Text fontSize={14} weight="medium" style={spacings.mrTy}>
-                  {String(clause.threshold)}
-                </Text>
-                <Text fontSize={14} style={spacings.mrTy}>
-                  {t('socialRecovery.shape.of')}
-                </Text>
-                <Text fontSize={14} weight="medium">
-                  {String(clause.credentials.length)}
-                </Text>
-              </View>
-            </View>
-            {list.shown.map((credential, member) => renderRow(credential, index, member))}
-            {!!list.more && (
-              <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-                <Text fontSize={12} appearance="secondaryText" style={spacings.mrTy}>
-                  {list.more}
-                </Text>
-                <Pressable
-                  testID={`review-group-${index}-show-all`}
-                  onPress={() => setShownAll((held) => [...held, index])}
-                >
-                  <Text fontSize={12} weight="medium" appearance="primary" underline>
-                    {t('socialRecovery.review.showAllMembers')}
-                  </Text>
-                </Pressable>
-              </View>
-            )}
-          </View>
-        )
-      })}
-    </View>
+      {groups.flatMap((index, position) => [
+        ...(position > 0 ? [<PathTreeNode key={`and-${index}`} variant="junction" />] : []),
+        <PathTreeNode key={`group-${index}`} testID={`review-path-node-${index}`}>
+          {renderGroup(index, position + 1)}
+        </PathTreeNode>
+      ])}
+    </PathTree>
   )
 }
 

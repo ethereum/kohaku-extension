@@ -38,6 +38,7 @@ import type {
 } from '@web/modules/social-recovery/shared/client'
 import type { ArmKitClient } from '@web/modules/social-recovery/setup/arm'
 import type { Chain } from '@web/modules/social-recovery/setup/arm/__tests__/harness'
+import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -185,13 +186,21 @@ const {
 }: typeof import('@web/modules/social-recovery/shared/records') = require('@web/modules/social-recovery/shared/records')
 const {
   createArmStore,
-  DROPPED_AFTER_MS,
-  FOLLOW_REREAD_MS,
-  GONE_GRACE_MS,
   RECEIPT_WAIT_MS,
   saveStepsOf,
   startSave
 }: typeof import('@web/modules/social-recovery/setup/arm') = require('@web/modules/social-recovery/setup/arm')
+const {
+  CLAIM_SEND_LIMIT_MS
+}: typeof import('@web/modules/social-recovery/setup/arm/constants') = require('@web/modules/social-recovery/setup/arm/constants')
+/** Ten minutes: far past any wait of a follow, for a screen that is away. */
+const FAR_MS = 10 * 60_000
+const {
+  DROPPED_AFTER_MS
+}: typeof import('@web/modules/social-recovery/shared/writes') = require('@web/modules/social-recovery/shared/writes')
+const {
+  providerReadFailure
+}: typeof import('@web/modules/social-recovery/shared/client') = require('@web/modules/social-recovery/shared/client')
 const eventBus: typeof import('@web/extension-services/event/eventBus').default =
   require('@web/extension-services/event/eventBus').default
 const ArmScreen: typeof import('@web/modules/social-recovery/setup/arm/ArmScreen').default =
@@ -242,6 +251,10 @@ const activity: { current: SubmittedOperation[] | null } = { current: [] }
  * asks for over the event bus, as the background pushes it.
  */
 const backgroundDispatch = jest.fn((action: SendRequestAction) => {
+  if (action.type === 'INIT_CONTROLLER_STATE') {
+    harness.unawaited(Promise.resolve().then(() => eventBus.emit('signAccountOp', null)))
+    return
+  }
   const items = activity.current
   if (action.type !== 'MAIN_CONTROLLER_ACTIVITY_SET_ACC_OPS_FILTERS' || items === null) {
     return
@@ -386,15 +399,6 @@ const pressText = async (text: string) => {
   await settle()
 }
 
-/** A promise the test settles by hand, for an edge that must hold a run at one step. */
-const held = <T,>() => {
-  let release: (value: T) => void = () => {}
-  const promise = new Promise<T>((resolve) => {
-    release = resolve
-  })
-  return { promise, release }
-}
-
 const writeRecords = async (draft: SetupDraft, passwordSet = true, owner: string = address) => {
   const { createWalletRecords, extensionRecordStorage } = jest.requireActual<
     typeof import('@web/modules/social-recovery/shared/records')
@@ -466,6 +470,8 @@ const wireClient = (facts: 'ready' | 'loading' | 'view-only' | 'state-unread', d
 
 const select = (owner: string, label = 'Account 1') =>
   act(() => {
+    // Each selection here stands for a tab opened on that account, so no latched account carries over.
+    sessionStorage.clear()
     mockSelected.current = { addr: owner, preferences: { label } }
     mockSelected.listeners.forEach((listener) => listener())
   })
@@ -524,6 +530,7 @@ const switchAway = async () => {
 }
 
 beforeEach(async () => {
+  sessionStorage.clear()
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
@@ -649,16 +656,19 @@ describe('the start of the save', () => {
     expect(port.sendAccountBatch.mock.calls[0][0]).toBe(other.addr)
   })
 
-  const POPS: [string, SetupDraft['privacy']['backup'], () => Promise<void>][] = [
-    ['a reload', 'clear', reload],
-    ['a typed address', 'encrypted', openByAddress],
+  // An entry the router did not push is replaced in place with a keyed one; an
+  // entry with a key of its own stays as the history move left it.
+  const POPS: [string, SetupDraft['privacy']['backup'], () => Promise<void>, string][] = [
+    ['a reload', 'clear', reload, 'REPLACE'],
+    ['a typed address', 'encrypted', openByAddress, 'REPLACE'],
     [
       'forward',
       'encrypted',
       async () => {
         await mountAt([REVIEW_PATH, SAVE_PATH], 0)
         await go(1)
-      }
+      },
+      'POP'
     ],
     [
       'back',
@@ -666,18 +676,19 @@ describe('the start of the save', () => {
       async () => {
         await mountAt([SAVE_PATH, CARD_PATH], 1)
         await go(-1)
-      }
+      },
+      'REPLACE'
     ]
   ]
 
-  POPS.forEach(([named, backup, open]) =>
+  POPS.forEach(([named, backup, open, type]) =>
     it(`shows the summary with the Save button after ${named}, sends nothing by itself, and the button starts the save once`, async () => {
       await writeRecords(draftOf(backup))
       wireClient('ready')
       await open()
 
       expect(router.pathname).toBe(SAVE_PATH)
-      expect(router.type).toBe('POP')
+      expect(router.type).toBe(type)
       expect(byTestId('arm-save')?.textContent).toBe(t('socialRecovery.review.save'))
       expect(byTestId('arm-removed-key')).not.toBeNull()
       expect(byTestId('arm-cost-line')).not.toBeNull()
@@ -747,27 +758,27 @@ describe('a save in progress across remounts', () => {
       'while the gas check runs',
       'arm-write-checkingGas',
       () => {
-        const gate = held<bigint>()
+        const gate = deferred<bigint>()
         reads.nativeBalance.mockImplementationOnce(() => gate.promise)
-        return () => gate.release(10n ** 18n)
+        return () => gate.resolve(1_000_000_000_000_000_000n)
       }
     ],
     [
       'while the batch is submitting',
       'arm-write-submitting',
       () => {
-        const gate = held<`0x${string}`>()
+        const gate = deferred<`0x${string}`>()
         port.sendAccountBatch.mockImplementationOnce(() => gate.promise)
-        return () => gate.release(harness.TX_HASH)
+        return () => gate.resolve(harness.TX_HASH)
       }
     ],
     [
       'while the check after the landing runs',
       'arm-confirming',
       () => {
-        const gate = held<SetupConfirmation>()
+        const gate = deferred<SetupConfirmation>()
         confirmSetup.mockImplementationOnce(() => gate.promise)
-        return () => gate.release(confirmation(true, true))
+        return () => gate.resolve(confirmation(true, true))
       }
     ]
   ]
@@ -807,7 +818,7 @@ describe('a save in progress across remounts', () => {
     await writeRecords(draftOf('encrypted'))
     await writeRecords(draftOf('clear'), true, other.addr)
     wireClient('ready')
-    const gate = held<`0x${string}`>()
+    const gate = deferred<`0x${string}`>()
     port.sendAccountBatch.mockImplementationOnce(() => gate.promise)
     await openByPush()
     expect(byTestId('arm-write-submitting')).not.toBeNull()
@@ -824,7 +835,7 @@ describe('a save in progress across remounts', () => {
     await settle()
     expect(byTestId('arm-write-submitting')).not.toBeNull()
     await act(async () => {
-      gate.release(harness.TX_HASH)
+      gate.resolve(harness.TX_HASH)
     })
     await settle()
     expect(byTestId('arm-saved')).not.toBeNull()
@@ -1040,7 +1051,7 @@ describe('a receipt wait that failed after the batch was sent', () => {
     try {
       await writeRecords(draftOf('encrypted'))
       wireClient('ready')
-      const late = held<ReturnType<typeof landedReceipt>>()
+      const late = deferred<ReturnType<typeof landedReceipt>>()
       receipts.wait.mockRejectedValueOnce(nodeError()).mockImplementationOnce(() => late.promise)
       act(() => root.unmount())
       root = createRoot(container)
@@ -1064,7 +1075,7 @@ describe('a receipt wait that failed after the batch was sent', () => {
       expect(mockEntries.size).toBeGreaterThan(0)
 
       await act(async () => {
-        late.release(landedReceipt(harness.TX_HASH))
+        late.resolve(landedReceipt(harness.TX_HASH))
       })
       await tick(100)
 
@@ -1084,7 +1095,7 @@ describe('a first receipt wait that does not settle', () => {
     const tick = (ms: number) => act(() => harness.advanceTimers(ms))
     await writeRecords(draftOf('encrypted'))
     wireClient('ready')
-    const first = held<ReturnType<typeof landedReceipt>>()
+    const first = deferred<ReturnType<typeof landedReceipt>>()
     receipts.wait.mockImplementationOnce(() => first.promise)
     act(() => root.unmount())
     root = createRoot(container)
@@ -1116,7 +1127,7 @@ describe('a first receipt wait that does not settle', () => {
       expect(mockEntries.size).toBeGreaterThan(0)
 
       await act(async () => {
-        first.release(landedReceipt(harness.TX_HASH))
+        first.resolve(landedReceipt(harness.TX_HASH))
       })
       await tick(100)
 
@@ -1155,7 +1166,7 @@ describe('a first receipt wait that does not settle', () => {
       expect(receipts.wait).toHaveBeenCalledTimes(1)
 
       await act(async () => {
-        first.release(landedReceipt(harness.TX_HASH))
+        first.resolve(landedReceipt(harness.TX_HASH))
       })
       await tick(100)
 
@@ -1259,7 +1270,7 @@ describe('a save the wallet did not send', () => {
     chain.estimation = feeReading({ error: true })
     await writeRecords(draftOf('encrypted'))
     wireClient('ready')
-    reads.nativeBalance.mockResolvedValueOnce(10n ** 18n).mockResolvedValueOnce(0n)
+    reads.nativeBalance.mockResolvedValueOnce(1_000_000_000_000_000_000n).mockResolvedValueOnce(0n)
     await openByPush()
 
     expect(byTestId('arm-gas-blocker')).not.toBeNull()
@@ -1547,7 +1558,7 @@ describe("another page's save that lands during this page's gas check", () => {
     wireClient('ready')
     await openByAddress()
     expect(byTestId('arm-save')).not.toBeNull()
-    const gas = held<bigint>()
+    const gas = deferred<bigint>()
     reads.nativeBalance.mockImplementationOnce(() => gas.promise)
     await press('arm-save')
     expect(byTestId('arm-write-checkingGas')).not.toBeNull()
@@ -1577,7 +1588,7 @@ describe("another page's save that lands during this page's gas check", () => {
     const confirms = confirmSetup.mock.calls.length
 
     await act(async () => {
-      gas.release(10n ** 18n)
+      gas.resolve(1_000_000_000_000_000_000n)
     })
     await settle()
 
@@ -1591,17 +1602,20 @@ describe("another page's save that lands during this page's gas check", () => {
     expect(wipes()).toBe(1)
   })
 
-  it('reads a setup read after the claim that throws as never sent, with Try again, and Try again sends once', async () => {
+  it('reads a setup read after the claim that the node refused as a failed read, with Try again, and Try again sends once', async () => {
     const gas = await pressSaveAndHoldGas()
-    setupState.mockRejectedValueOnce(new Error('the node did not answer the setup read'))
+    setupState.mockRejectedValueOnce(
+      providerReadFailure('call', new Error('the node did not answer the setup read'))
+    )
 
     await act(async () => {
-      gas.release(10n ** 18n)
+      gas.resolve(1_000_000_000_000_000_000n)
     })
     await settle()
 
-    expect(byTestId('arm-write-failedNotSent')).not.toBeNull()
-    expect(pageText()).toContain(t('socialRecovery.review.after.notSent'))
+    expect(byTestId('arm-write-gasReadError')).not.toBeNull()
+    expect(pageText()).toContain(t('socialRecovery.writes.gasCheckFailed'))
+    expect(pageText()).not.toContain(t('socialRecovery.review.after.notSent'))
     expect(port.sendAccountBatch).not.toHaveBeenCalled()
     expect(releases()).toBe(1)
     expect(storedSaves()).toHaveLength(0)
@@ -1624,7 +1638,7 @@ describe('a save another page of this device sent', () => {
       wireClient('ready')
       const { firstPort, record } = await anotherPageLeaves(true, settle)
       const prepares = prepareCommitSetup.mock.calls.length
-      const receipt = held<ReturnType<typeof landedReceipt>>()
+      const receipt = deferred<ReturnType<typeof landedReceipt>>()
       receipts.wait.mockImplementationOnce(() => receipt.promise)
 
       await open()
@@ -1635,7 +1649,7 @@ describe('a save another page of this device sent', () => {
       expect(receipts.wait).toHaveBeenCalledWith(harness.TX_HASH, record.startBlock)
 
       await act(async () => {
-        receipt.release(landedReceipt(harness.TX_HASH))
+        receipt.resolve(landedReceipt(harness.TX_HASH))
       })
       await settle()
 
@@ -1708,10 +1722,13 @@ describe('a save another page of this device sent', () => {
       jest.useRealTimers()
     })
 
+    // The other page went away a while ago: past its claim's send limit, it no longer sends.
     const leave = async () => {
       await writeRecords(draftOf('encrypted'))
       wireClient('ready')
-      return anotherPageLeaves(false, () => tick(100))
+      const left = await anotherPageLeaves(false, () => tick(100))
+      jest.setSystemTime(Date.now() + CLAIM_SEND_LIMIT_MS)
+      return left
     }
 
     it('shows the save waiting while the wallet queue holds the request, then follows its hash to saved when the wallet broadcasts it', async () => {
@@ -1793,38 +1810,28 @@ describe('a save another page of this device sent', () => {
       await tick(0)
       expect(activityReads()).toBe(before + 1)
 
-      await tick(10 * GONE_GRACE_MS)
+      await tick(FAR_MS)
       expect(byTestId('arm-save')).toBeNull()
       expect(storedSaves()).toHaveLength(1)
       expect(port.sendAccountBatch).not.toHaveBeenCalled()
     })
 
-    it('keeps reading a gone request with no setup until the grace period, then offers Save again with the stored save released', async () => {
+    it('reads a request the wallet neither queues nor broadcast as never sent at once, and offers Save again with the stored save released', async () => {
       await leave()
 
       await arrive()
-      await tick(GONE_GRACE_MS - 1_000)
 
-      expect(byTestId('arm-write-submitting')).not.toBeNull()
-      expect(byTestId('arm-save')).toBeNull()
-      expect(storedSaves()).toHaveLength(1)
-
-      await tick(1_000)
-
+      expect(byTestId('arm-write-submitting')).toBeNull()
       expect(byTestId('arm-save')).not.toBeNull()
       expect(storedSaves()).toHaveLength(0)
       expect(port.sendAccountBatch).not.toHaveBeenCalled()
     })
 
-    it("shows the save's own sentence in each reading of the followed request, and the submitting one while it is queued", async () => {
+    it("shows the submitting sentence while the followed request is queued, and the save's own sentence once its read does not answer", async () => {
       const { record } = await leave()
-      await arrive()
-      expect(pageText()).toContain(t('socialRecovery.arm.lookingForSave'))
-      expect(pageText()).not.toContain(t('socialRecovery.review.after.submitting'))
-      expect(byTestId('arm-check-again')).toBeNull()
-
       setQueue([record.requestId])
-      await tick(FOLLOW_REREAD_MS)
+      await arrive()
+      expect(byTestId('arm-check-again')).toBeNull()
       expect(pageText()).toContain(t('socialRecovery.review.after.submitting'))
       expect(pageText()).not.toContain(t('socialRecovery.arm.lookingForSave'))
       expect(pageText()).not.toContain(t('socialRecovery.arm.unread'))
@@ -1854,7 +1861,7 @@ describe('a save another page of this device sent', () => {
       setQueue(['claimed meanwhile'])
 
       await arrive()
-      await tick(GONE_GRACE_MS + 1_000)
+      await tick(1_000)
 
       expect(releases()).toBe(1)
       expect(storedSaves()).toHaveLength(1)
@@ -1890,7 +1897,7 @@ describe('a save another page of this device sent', () => {
     ]
 
     AWAY.forEach(([named, away, back]) => {
-      it(`pauses on ${named} the follow of a request queued at the unmount, voids nothing far past the grace, and after it reads the live queue to saved`, async () => {
+      it(`pauses on ${named} the follow of a request queued at the unmount, voids nothing long after, and after it reads the live queue to saved`, async () => {
         const { record } = await leave()
         await writeRecords(draftOf('clear'), true, other.addr)
         setQueue([record.requestId])
@@ -1902,7 +1909,7 @@ describe('a save another page of this device sent', () => {
         // The wallet broadcasts the request while its screen is away.
         activity.current = [harness.operationFor(record.requestId, { hash: harness.TX_HASH })]
         setQueue([])
-        await tick(10 * GONE_GRACE_MS)
+        await tick(FAR_MS)
 
         expect(activityReads()).toBe(readsAway)
         expect(storedSaves()).toHaveLength(1)
@@ -1916,37 +1923,6 @@ describe('a save another page of this device sent', () => {
         expect(confirmSetup).toHaveBeenCalledTimes(1)
         expect(wipes()).toBe(1)
         expect(storedSaves()).toHaveLength(0)
-        expect(port.sendAccountBatch).not.toHaveBeenCalled()
-      })
-
-      it(`pauses on ${named} the follow of a request not yet queued, voids nothing far past the grace, and after it follows the request queued, then broadcast, to saved`, async () => {
-        const { record } = await leave()
-        await writeRecords(draftOf('clear'), true, other.addr)
-        await arrive()
-        expect(pageText()).toContain(t('socialRecovery.arm.lookingForSave'))
-
-        await away()
-        const readsAway = activityReads()
-        await tick(10 * GONE_GRACE_MS)
-
-        expect(activityReads()).toBe(readsAway)
-        expect(storedSaves()).toHaveLength(1)
-        expect(releases()).toBe(0)
-
-        // The wallet takes the request in late.
-        setQueue([record.requestId])
-        await back()
-        expect(byTestId('arm-write-submitting')).not.toBeNull()
-        expect(byTestId('arm-save')).toBeNull()
-        expect(pageText()).toContain(t('socialRecovery.review.after.submitting'))
-
-        activity.current = [harness.operationFor(record.requestId, { hash: harness.TX_HASH })]
-        setQueue([])
-        await tick(100)
-
-        expect(byTestId('arm-saved')).not.toBeNull()
-        expect(confirmSetup).toHaveBeenCalledTimes(1)
-        expect(wipes()).toBe(1)
         expect(port.sendAccountBatch).not.toHaveBeenCalled()
       })
     })
@@ -1985,7 +1961,7 @@ describe('a save another page of this device sent', () => {
         expect(byTestId('arm-save')).toBeNull()
 
         // The client reads ready: the screen's first read of the stored save waits.
-        const read = held<void>()
+        const read = deferred<void>()
         mockReadHold.current = read.promise
         mockClient.current = ready
         await select(address)
@@ -1995,7 +1971,7 @@ describe('a save another page of this device sent', () => {
         setQueue([record.requestId])
         await change()
         await act(async () => {
-          read.release()
+          read.resolve()
         })
         await tick(100)
 
@@ -2020,7 +1996,7 @@ describe('a save another page of this device sent', () => {
         await writeRecords(draftOf('clear'), true, other.addr)
         wireClient('ready')
         await arrive()
-        const gas = held<bigint>()
+        const gas = deferred<bigint>()
         reads.nativeBalance.mockImplementationOnce(() => gas.promise)
         await act(async () => {
           byTestId('arm-save')?.click()
@@ -2032,9 +2008,9 @@ describe('a save another page of this device sent', () => {
         const { firstPort, record } = await anotherPageLeaves(false, () => tick(100))
         const readsAway = activityReads()
         await act(async () => {
-          gas.release(10n ** 18n)
+          gas.resolve(1_000_000_000_000_000_000n)
         })
-        await tick(10 * GONE_GRACE_MS)
+        await tick(FAR_MS)
 
         expect(activityReads()).toBe(readsAway)
         expect(storedSaves()).toHaveLength(1)
@@ -2369,5 +2345,34 @@ describe('a save the network dropped', () => {
     expectDropped()
     expect(receipts.wait).toHaveBeenCalledTimes(1)
     expect(port.sendAccountBatch).not.toHaveBeenCalled()
+  })
+})
+
+describe('the wallet selecting another account while the tab is open', () => {
+  it("keeps the save on the tab's account, says so, and the Save button sends for the tab's account", async () => {
+    await writeRecords(draftOf('encrypted'))
+    wireClient('ready')
+    await openByAddress()
+    expect(byTestId('arm-save')).not.toBeNull()
+    expect(byTestId('setup-other-account')).toBeNull()
+
+    // Unlike a fresh tab, the open tab keeps what it latched.
+    act(() => {
+      mockSelected.current = { addr: other.addr, preferences: { label: 'Account 2' } }
+      mockSelected.listeners.forEach((listener) => listener())
+    })
+    await settle()
+
+    expect(byTestId('setup-other-account')?.textContent).toContain(
+      t('socialRecovery.chrome.otherAccount.title')
+    )
+    expect(byTestId('arm-save')).not.toBeNull()
+    expect(byTestId('arm-removed-key')).not.toBeNull()
+    expect(port.sendAccountBatch).not.toHaveBeenCalled()
+
+    await press('arm-save')
+
+    expect(port.sendAccountBatch).toHaveBeenCalledTimes(1)
+    expect(port.sendAccountBatch.mock.calls[0][0]).toBe(address)
   })
 })

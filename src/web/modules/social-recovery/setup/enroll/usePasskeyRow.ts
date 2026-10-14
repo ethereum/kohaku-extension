@@ -6,6 +6,7 @@ import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
 import { failed } from '@web/modules/social-recovery/shared/ceremony'
 import type { CeremonyOutcome, CeremonyReport } from '@web/modules/social-recovery/shared/ceremony'
 
+import { sameCredential } from '@web/modules/social-recovery/shared/records'
 import { causeOf, testVerdictOf } from './outcome'
 import {
   defaultPasskeyName,
@@ -14,7 +15,6 @@ import {
   recalledMemory,
   testValueOf
 } from './passkey'
-import { sameCredential } from './slot'
 import type {
   PassedTest,
   PasskeyCeremonyRequest,

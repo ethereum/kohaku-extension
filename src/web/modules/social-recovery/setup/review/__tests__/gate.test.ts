@@ -15,6 +15,7 @@ import type {
 import {
   ALICE,
   answered,
+  BOB,
   BOOK,
   declaration,
   descriptionOf,
@@ -48,6 +49,8 @@ const UNAVAILABLE_ROWS = passkeyRows({
   moduleInfo: info(),
   paused: UNANSWERED
 })
+const UNTESTED = [{ credential: ALICE, clause: 0, member: 0 }]
+
 const PENDING_ROWS = passkeyRows({ trustedParties: declaration(), moduleInfo: info() })
 
 const TWO_AUTHORITIES = descriptionOf([
@@ -318,32 +321,43 @@ describe('the save gate', () => {
     })
 
     it('still warns of an untested method', () => {
-      expect(gateOf({ removedKey: { status: 'pending' }, untested: true })).toEqual({
+      expect(gateOf({ removedKey: { status: 'pending' }, untested: UNTESTED })).toEqual({
         canSave: false,
         blocked: null,
-        notTested: true
+        notTested: UNTESTED
       })
     })
   })
 
   it('warns of an untested method beside an enabled Save', () => {
-    expect(gateOf({ untested: true })).toEqual({ canSave: true, blocked: null, notTested: true })
-  })
-
-  it('warns of an untested method beside whichever blocker applies', () => {
-    expect(gateOf({ untested: true, setupState: HAS_SETUP })).toEqual({
-      canSave: false,
-      blocked: { kind: 'already-set-up' },
-      notTested: true
+    expect(gateOf({ untested: UNTESTED })).toEqual({
+      canSave: true,
+      blocked: null,
+      notTested: UNTESTED
     })
   })
 
-  it('never lets the doors block Save, whether their read threw or answered', () => {
+  it('warns of an untested method beside whichever blocker applies', () => {
+    expect(gateOf({ untested: UNTESTED, setupState: HAS_SETUP })).toEqual({
+      canSave: false,
+      blocked: { kind: 'already-set-up' },
+      notTested: UNTESTED
+    })
+  })
+
+  it('lets Save run where the setup description could not be read', () => {
     expect(gateOf({ description: { status: 'failed' } })).toEqual({
       canSave: true,
       blocked: null,
       notTested: false
     })
+  })
+
+  it('lets Save run where a method reads as stopped', () => {
+    const trustRows = passkeyRows(answered(declaration(), info(), { answered: true, value: true }))
+
+    expect(trustRows[0]?.contract.status).toBe('declared')
+    expect(gateOf({ trustRows })).toEqual({ canSave: true, blocked: null, notTested: false })
   })
 
   it('lets a third-party module count as a trust read that answered', () => {
@@ -485,18 +499,24 @@ describe('the blocks the setup records decide', () => {
 
 describe('whether a method of the path is untested', () => {
   it('holds where a credential skipped its test', () => {
-    expect(untestedInPath([required(ALICE)], [enrolled(ALICE, 'not-tested')])).toBe(true)
+    expect(untestedInPath([required(ALICE)], [enrolled(ALICE, 'not-tested')])).toEqual([
+      { credential: ALICE, clause: 0, member: 0 }
+    ])
   })
 
   it('holds where a credential has no enrollment', () => {
-    expect(untestedInPath([required(ALICE)], [])).toBe(true)
-    expect(untestedInPath([group(1, ALICE, PASSKEY)], [enrolled(ALICE)])).toBe(true)
+    expect(untestedInPath([required(ALICE)], [])).toEqual([
+      { credential: ALICE, clause: 0, member: 0 }
+    ])
+    expect(untestedInPath([group(1, ALICE, PASSKEY)], [enrolled(ALICE)])).toEqual([
+      { credential: PASSKEY, clause: 0, member: 1 }
+    ])
   })
 
   const RAN: Enrollment['test'][] = ['failed', 'unavailable', 'not-supported']
   RAN.forEach((test) => {
     it(`does not hold where a credential's test reads ${test}`, () => {
-      expect(untestedInPath([required(PASSKEY)], [enrolled(PASSKEY, test)])).toBe(false)
+      expect(untestedInPath([required(PASSKEY)], [enrolled(PASSKEY, test)])).toEqual([])
     })
   })
 
@@ -506,17 +526,62 @@ describe('whether a method of the path is untested', () => {
         [group(1, ALICE, PASSKEY)],
         [enrolled(ALICE, 'not-tested'), enrolled(PASSKEY, 'failed')]
       )
-    ).toBe(true)
+    ).toEqual([{ credential: ALICE, clause: 0, member: 0 }])
   })
 
   it('does not hold where every credential passed its test', () => {
-    expect(untestedInPath([group(1, ALICE, PASSKEY)], [enrolled(ALICE), enrolled(PASSKEY)])).toBe(
-      false
-    )
+    expect(
+      untestedInPath([group(1, ALICE, PASSKEY)], [enrolled(ALICE), enrolled(PASSKEY)])
+    ).toEqual([])
   })
 
   it('does not count an empty slot as an untested method', () => {
-    expect(untestedInPath([group(1, ALICE, emptySlot('passkey'))], [enrolled(ALICE)])).toBe(false)
+    expect(untestedInPath([group(1, ALICE, emptySlot('passkey'))], [enrolled(ALICE)])).toEqual([])
+  })
+})
+
+describe('the untested credentials of a path, at their places', () => {
+  const EMPTY_PASSKEY = emptySlot('passkey')
+
+  it('names the one untested row of a path holding a tested row, an empty slot and a skipped test', () => {
+    expect(
+      untestedInPath(
+        [required(PASSKEY), group(1, ALICE, EMPTY_PASSKEY, BOB)],
+        [enrolled(PASSKEY), enrolled(ALICE, 'not-tested'), enrolled(BOB)]
+      )
+    ).toEqual([{ credential: ALICE, clause: 1, member: 0 }])
+  })
+
+  it('names two untested rows in path order: a guardian with no enrollment and a skipped test', () => {
+    expect(
+      untestedInPath(
+        [group(1, ALICE, EMPTY_PASSKEY, BOB), required(PASSKEY)],
+        [enrolled(ALICE), enrolled(PASSKEY, 'not-tested')]
+      )
+    ).toEqual([
+      { credential: BOB, clause: 0, member: 2 },
+      { credential: PASSKEY, clause: 1, member: 0 }
+    ])
+  })
+
+  it('names none where every filled row passed its test, beside an empty slot', () => {
+    expect(
+      untestedInPath(
+        [required(PASSKEY), group(1, ALICE, EMPTY_PASSKEY, BOB)],
+        [enrolled(PASSKEY), enrolled(ALICE), enrolled(BOB)]
+      )
+    ).toEqual([])
+  })
+
+  it('carries the named rows into the warning, and no warning for an empty list or unloaded records', () => {
+    const untested = untestedInPath([required(ALICE), required(BOB)], [])
+
+    expect(gateOf({ untested }).notTested).toEqual([
+      { credential: ALICE, clause: 0, member: 0 },
+      { credential: BOB, clause: 1, member: 0 }
+    ])
+    expect(gateOf({ untested: [] }).notTested).toBe(false)
+    expect(gateOf({ untested, recordsLoaded: false }).notTested).toBe(false)
   })
 })
 

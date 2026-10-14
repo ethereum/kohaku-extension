@@ -12,7 +12,7 @@ Provisional id from the cut at `352f91a` (PR #47). The chapter copy under `../de
 | Module (this repository) | `src/web/modules/social-recovery/onboarding/fast-track/` |
 | Size | half-day |
 | Risk | high |
-| Risk reason | I-43 is decided here, the key that will control the account derived by the wallet at the account's index plus the offset, and a key derived any other way leaves the recovered holder with an account this wallet cannot find. |
+| Risk reason | I-43 is decided here, the key that will control the account being the new entry's own basic-account key at the slot's index (decided 2026-10-08: no offset key and no smart account of the slot), and a key derived any other way leaves the recovered holder with an account this wallet cannot find. |
 | Depends on | PT-039, PT-040, PT-052 |
 | Interfaces | none |
 | Invariants | I-43 |
@@ -29,8 +29,8 @@ Checks:
 
 Judgments:
 
-- the fast track opens with three numbered steps, the warning, the extension password and the key with its seed backup kept in the flow, and the key that will control the recovered account is derived from that entry at the account's index plus the extension's offset and shown as the address that will control it
-- the step takes no pasted address, the copy says the account stays at the same address and this new key will control it, and the sending key is the ordinary key of the seed entry and not the derived key the recovery installs
+- the fast track opens with three numbered steps, the warning, the extension password and the key with its seed backup kept in the flow, and the key that will control the recovered account is that entry's own basic-account key at the slot's index, shown as the address that will control it, and the fast track adds that basic account only (decided 2026-10-08)
+- the step takes no pasted address, the copy says the account stays at the same address and this new key will control it, and the sending key is that same key, the ordinary key of the seed entry, which is the key the recovery installs (decided 2026-10-08)
 - the fresh-install route carries one plain header, the extension's name and recover an account, with no settings breadcrumb and no step counter from the account lookup through the done screen, and the gas step follows the readout with no step number and is skipped when the key already holds enough
 
 ## Body

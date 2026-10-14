@@ -3,7 +3,7 @@
  * test: the enrollment joins the list, then the slot takes its credential in
  * one write of the draft and the path. A test updates its enrollment alone.
  */
-import type { Clause, Credential } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Credential } from '@web/modules/social-recovery/sdk-interfaces'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import type {
   Enrollment,
@@ -11,7 +11,13 @@ import type {
   SetupRecords
 } from '@web/modules/social-recovery/shared/records'
 
-import { heldElsewhere, sameCredential, slotStateOf, withSlotFilled } from './slot'
+import {
+  enrollmentOf,
+  pathHolds,
+  sameCredential
+} from '@web/modules/social-recovery/shared/records'
+
+import { slotStateOf, withSlotFilled } from './slot'
 import type { EnrollSearch, PassedTest, PlaceResult, SlotState } from './types'
 
 const enrollmentsOf = async (setup: SetupRecords): Promise<Enrollment[]> => {
@@ -31,9 +37,6 @@ export const readSlot = async (
   }
   return slotStateOf(draft.value.clauses, search.at, search.kind, book, enrollments)
 }
-
-const heldInPath = (clauses: readonly Clause[], credential: Credential): boolean =>
-  clauses.some((clause) => clause.credentials.some((held) => sameCredential(held, credential)))
 
 /**
  * Places a new enrollment in the slot: the slot must still be empty or hold
@@ -62,7 +65,7 @@ export const placeEnrollment = async (
   if (slot.status === 'nothing') {
     return { status: 'slot-taken' }
   }
-  if (heldElsewhere(clauses, enrollment.credential, search.at)) {
+  if (pathHolds(clauses, enrollment.credential, search.at)) {
     return { status: 'duplicate' }
   }
 
@@ -79,7 +82,7 @@ export const placeEnrollment = async (
     await setup.enrollments.write(enrollments).catch(() => undefined)
     throw error
   }
-  if (!replaced || heldInPath(placed.clauses, replaced)) {
+  if (!replaced || pathHolds(placed.clauses, replaced)) {
     return { status: 'placed', enrollment }
   }
   const kept = listed.filter((e) => !sameCredential(e.credential, replaced))
@@ -108,7 +111,7 @@ export const recordTest = async (
   passedWith?: PassedTest
 ): Promise<Enrollment | null> => {
   const enrollments = await enrollmentsOf(setup)
-  const found = enrollments.find((e) => sameCredential(e.credential, credential))
+  const found = enrollmentOf(credential, enrollments)
   if (!found) {
     return null
   }

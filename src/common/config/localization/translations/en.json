@@ -23,7 +23,16 @@
       "setupPrivacy": "Choose the privacy level",
       "setupReview": "Review the recovery path",
       "setupSave": "Save the recovery path",
-      "setupCard": "Get your Recovery Card"
+      "setupCard": "Get your Recovery Card",
+      "fastTrackKey": "Create the key that will control the account",
+      "fastTrackGas": "Fund the sending key",
+      "recoveryAccount": "Find the account to recover",
+      "recoveryReadout": "Read the recovery path",
+      "recoveryChecklist": "Collect the approvals",
+      "recoveryInProgress": "Resume a recovery",
+      "recoverySubmit": "Submit the recovery",
+      "recoveryWait": "Wait for the recovery",
+      "recoveryDone": "Account recovered"
     },
     "status": {
       "method": {
@@ -66,7 +75,8 @@
         "notSetUp": "Not set up",
         "pathLocked": "Path locked",
         "notActive": "Not active",
-        "cannotRecover": "Cannot recover"
+        "cannotRecover": "Cannot recover",
+        "cannotExecute": "Cannot execute"
       },
       "editor": {
         "stillNeeded": "Still needed"
@@ -122,13 +132,15 @@
       "publishers": {
         "ethereumFoundation": "Ethereum Foundation"
       },
-      "accountWithName": "{{account}} · {{name}}"
+      "accountWithName": "{{account}} · {{name}}",
+      "nameWithAccount": "{{name}} · {{account}}"
     },
     "ruleLines": {
       "allMustAnswer": "All {{n}} must answer. Losing any one locks you out.",
       "bothMustAnswer": "Both must answer. Losing either locks you out.",
       "singleMethod": "If you lose your key, this one method is the only way back into the account.",
       "secondMethodOffer": "Add a second passkey from another device, or a hardware key if you have no second device.",
+      "secondMethodOfferAny": "Add a second method, a passkey or another guardian, so one loss does not lock you out.",
       "platformFate": "Two passkeys behind one platform account share its fate.",
       "anyNOfM": "Any {{n}} of these {{m}} recover this account. Losing more than {{spare}} locks you out.",
       "eitherOneAlone": "Either one alone can recover this account. Either one alone can also take it.",
@@ -138,7 +150,6 @@
       "everyMemberMustAnswer": "Every member must answer.",
       "oneFailureDomain": "One failure domain. These members fail together if their kind does.",
       "differentPlaces": "Keep the methods of your path in different places.",
-      "sizingRule": "A group of any one of two is the shape this wallet prefers at two methods.",
       "togetherWithGroups": "Together with enough members of each other group to meet its threshold, any {{n}} of these {{m}} recover this account. Losing more than {{spare}} locks you out.",
       "togetherWithRequiredEveryMember": "Together with your required methods, every member of this group must answer.",
       "togetherWithGroupsEveryMember": "Together with enough members of each other group to meet its threshold, every member of this group must answer.",
@@ -224,7 +235,7 @@
         "setupWrite": "A change to the setup already ended it."
       },
       "revertedExecuteGone": "Could not execute. The transaction reached the chain and reverted. {{cause}} The gas it spent is gone.",
-      "gasCheckFailed": "Could not finish the gas check. The node did not answer.",
+      "gasCheckFailed": "Could not finish the checks before sending. The node did not answer. Nothing was sent.",
       "replaced": "Another transaction from this key took this one's place before it ran. Nothing changed.",
       "mayStillLand": "This went out on a route this wallet cannot follow. It may still reach the chain.",
       "otherRequestPending": "Another request for this account is waiting in the wallet. Sign or reject it, then try again."
@@ -292,6 +303,8 @@
     },
     "actions": {
       "continue": "Continue",
+      "back": "Back",
+      "cancel": "Cancel",
       "add": "Add",
       "remove": "Remove",
       "learnMore": "Learn more",
@@ -300,11 +313,17 @@
       "runTheTest": "Run the test",
       "runTheTestAgain": "Run the test again",
       "skipTheTest": "Skip the test",
-      "saveAnyway": "Save anyway"
+      "saveAnyway": "Save anyway",
+      "fundTheKey": "Fund the key"
     },
     "chrome": {
       "settings": "Settings",
-      "breadcrumb": "Settings › Account recovery"
+      "breadcrumb": "Settings › Account recovery",
+      "otherAccount": {
+        "title": "The wallet now selects another account",
+        "body": "This setup belongs to {{account}}. Your work here stays with that account.",
+        "switchAction": "Set up recovery for the selected account instead"
+      }
     },
     "methodNames": {
       "passkey": "Passkey",
@@ -423,27 +442,6 @@
       "nothingRequired": "Nothing required yet",
       "noGroup": "No group yet. A group is any N of its members.",
       "duplicate": "This method is already in your path. This wallet allows each method once.",
-      "rules": {
-        "header": "This wallet's rules while you edit",
-        "requiredAnswers": "A required method must always answer.",
-        "enoughMembers": "A group needs at least as many members as its threshold.",
-        "thresholdAtLeastOne": "A group's threshold must be at least one.",
-        "thresholdCeiling": "A group's threshold cannot be above 255.",
-        "memberCeiling": "A group cannot hold more than 255 members.",
-        "oneRowPerMethod": "One enrolled method sits in one row.",
-        "atLeastOneMethod": "A path needs at least one method.",
-        "smallEnough": "A path must be small enough to check in one block.",
-        "zeroThresholdOwnRule": "On a path with a required method or a second group, only this wallet refuses a threshold of zero."
-      },
-      "picker": {
-        "title": "Add to your path",
-        "lead": "Pick something you already enrolled, or enroll something new.",
-        "passkeysHeader": "Passkeys",
-        "alreadyInPath": "Already in your path",
-        "newAddress": "New address",
-        "enrollNew": "Enroll something new",
-        "pickToContinue": "Pick one to continue."
-      },
       "saveChanges": "Save changes",
       "continueUnlock": "Continue unlocks when your path has at least one method.",
       "refusals": {
@@ -492,8 +490,6 @@
         "title": "Add your guardians",
         "lead": "A guardian approves your recovery by signing with their own wallet.",
         "pasteHint": "Paste the address, or type a name such as bluejay.eth.",
-        "callBack": "Before this guardian approves, they must call you back on a number they already hold. A guardian who can do that completes the check on the day.",
-        "ownerAnswer": "The only other honest answer is I am the owner, which holds for a key you keep yourself and for nobody else.",
         "checksHeader": "What the wallet checked",
         "checksumOk": "The checksum looks right.",
         "checksumFailed": "This address fails its checksum. Check it character by character.",
@@ -501,8 +497,9 @@
         "nameUnresolved": "This name does not resolve to any address.",
         "noCode": "No contract code at this address today.",
         "smartAccountDetected": "This address is a smart account.",
-        "notSameSeed": "Not derived from this wallet's recovery phrase.",
+        "notSameSeed": "Not derived from your account's recovery phrase.",
         "sameSeed": "This address comes from the same seed as your key, so losing the seed loses both.",
+        "heldHere": "This wallet holds this key too, apart from your account's recovery phrase. Losing this device loses both.",
         "advisory": "These checks are advisory. None of them stops you from saving.",
         "addAnother": "+ Add another guardian",
         "howMany": "How many must approve is set on the path, not here.",
@@ -534,10 +531,12 @@
         },
         "custom": "Custom",
         "customUnit": "hours",
-        "minimumDefault": "This wallet needs a waiting period of 24 hours or more. The default is 48 hours.",
-        "belowMinimum": "This wallet needs 24 hours or more.",
+        "customUnitMinutes": "minutes",
+        "minimumDefault": "This wallet needs a waiting period of {{minimum}} or more. The default is {{defaultLength}}.",
+        "belowMinimum": "This wallet needs {{minimum}} or more.",
         "pastCeiling": "This wallet cannot save a waiting period this long. The longest it accepts is {{hours}} hours.",
         "wholeHours": "This wallet counts the waiting period in whole hours.",
+        "wholeMinutes": "This wallet counts the waiting period in whole minutes.",
         "whatForHeader": "What the wait is for",
         "noticeWindow": "The waiting period is your whole notice window. Open the wallet during the wait to see the banner for a recovery you did not start.",
         "nothingElseWatches": "Until you install Kohaku on another device, nothing else watches this account.",
@@ -564,8 +563,7 @@
         "exposure": {
           "guardians": "Every guardian of your path is hidden from a stranger who cannot guess their address.",
           "unguessable": "{{items}} cannot be guessed at all and lose nothing before a recovery.",
-          "unguessableOne": "{{items}} cannot be guessed at all and loses nothing before a recovery.",
-          "publication": "A recovery publishes the rule with its waiting period and every method in it, so every method of your path is exposed, the ones it used and the ones it did not."
+          "unguessableOne": "{{items}} cannot be guessed at all and loses nothing before a recovery."
         },
         "requiredAtPrivate": "Required at Private and Shape visible.",
         "passwordLabel": "Password",
@@ -583,7 +581,7 @@
       "pathHeader": "Your recovery path",
       "hostileMinority": "With three or more members, choose a threshold a hostile minority cannot reach: a set that satisfies the rule can also cancel a recovery at once.",
       "spareKey": "A spare key on this account is the cheaper way to survive a lost key, and no help against a stolen one.",
-      "minimum": "This wallet's minimum is 24 hours. The chain enforces none.",
+      "minimum": "This wallet's minimum is {{minimum}}. The chain enforces none.",
       "costsHeader": "What a recovery costs and shows",
       "publication": {
         "lead": "A recovery publishes the whole recovery path on chain in the clear, every method in it and not only the ones it used.",
@@ -620,35 +618,8 @@
         "thirdPartyLine": "This method publishes no declaration of who it trusts.",
         "secondModuleRow": "Second recovery module · published by {{publisher}}",
         "perAccountTrust": "The trust a module carries is per account, not per module. Authorizing a second module trusts it with the whole account.",
-        "nodeLightClient": "Your node · a light client with its prover. It sees the request before the chain does.",
-        "nodePlain": "Your node · a plain node. It sees the request before the chain does.",
         "selfAttested": "Every declaration above is the contract's own statement about itself.",
         "deadProvider": "A method whose provider stops working is dead for good."
-      },
-      "stop": {
-        "methodNotStopped": "{{method}} method · not stopped",
-        "methodStopped": "{{method}} method · stopped",
-        "nobody": "Nobody can stop this method.",
-        "party": "{{party}} can stop this method and lift the stop.",
-        "bothRoles": "{{party}} holds both roles on this method: it can change the key this method trusts and it can stop this method. The same party decides both, so this stop is no answer to the risk the admin row names.",
-        "noPause": "The recovery registry and the recovery module carry no pause and no owner. The only stop in the kit is the one an identity method carries.",
-        "ignoresStops": "This release ignores every stop: a stop on a method will not stop your recoveries, and it will not stop a forged one against you either."
-      },
-      "doors": {
-        "none": "Other doors on this account · None this wallet can see. The wallet cannot see every door, and the account is only as safe as its weakest one.",
-        "unreadable": "Other doors on this account · This wallet could not read them. The wallet cannot see every door, and the account is only as safe as its weakest one.",
-        "line": "Other doors on this account · {{doors}}",
-        "pair": "{{codeEntries}} and {{keys}}",
-        "codeEntries": "{{count}} code entry",
-        "codeEntries_plural": "{{count}} code entries",
-        "keysBeside": "{{count}} key beside the one a recovery removes",
-        "keysBeside_plural": "{{count}} keys beside the one a recovery removes",
-        "marker": "The code entry is the entry point's marker, which this account installed itself rather than a door anyone chose.",
-        "validator": "Any code entry that is not the marker is a validator somebody bound to this account.",
-        "untouched": "A recovery leaves them untouched. The account is only as safe as its weakest door."
-      },
-      "otherDoors": {
-        "cannotSeeEveryDoor": "The wallet cannot see every door, and the account is only as safe as its weakest one."
       },
       "account": {
         "header": "The account this setup is for",
@@ -675,6 +646,7 @@
         },
         "notTested": {
           "title": "An untested method is in your path",
+          "title_plural": "{{count}} untested methods are in your path",
           "body": "An untested method may fail on the day it is needed. You can still save."
         },
         "alreadySetUp": {
@@ -727,7 +699,7 @@
     },
     "card": {
       "title": "Your Recovery Card",
-      "lead": "Save it, print it or send it to another device. Keep it somewhere ordinary, a drawer, a folder or a safe, away from the device that holds your wallet.",
+      "lead": "Save it or print it. Keep it somewhere ordinary, a drawer, a folder or a safe, away from the device that holds your wallet.",
       "cardTitle": "Kohaku · Recovery card",
       "reveal": "Reveal",
       "hide": "Hide",
@@ -739,7 +711,6 @@
       },
       "downloadPdf": "Download PDF",
       "print": "Print",
-      "sendToDevice": "Send to another device",
       "whyNotOnCard": "Why isn't my setup on the card?",
       "whyNotOnCardBody": "The card carries no method, no guardian address, no threshold and no waiting period, so a photograph of the card alone names nothing to phish.",
       "warnsHeader": "What warns you",
@@ -747,14 +718,15 @@
       "wrongPassword": "That is not your extension password. Try again.",
       "passwordGone": "Your recovery password is not on this device any more. Set it again on the privacy step to reveal it and carry the card.",
       "passwordGoneAction": "Set the recovery password again",
-      "carrierAsks": "A new download, print or hand-off asks your extension password.",
+      "carrierAsks": "The first download or print runs now. Every later one asks your extension password.",
       "passwordAsk": "Enter your recovery password to show your Recovery Card. This is not your extension password.",
       "passwordAskAction": "Show the card",
       "wrongRecoveryPassword": "That is not your recovery password. Try again.",
-      "passwordUnchecked": "This wallet could not check your recovery password. Try again."
+      "passwordUnchecked": "This wallet could not check your recovery password. Try again.",
+      "downloadUnavailable": "Your recovery password has characters a PDF cannot carry. Print the card instead."
     },
     "create": {
-      "controlledBy": "Controlled by {{address}}",
+      "controllingKeyRow": "Controlling key of {{account}}. The wallet adds it as an account of its own. Recovery does not cover funds held on it.",
       "coversSmartAccount": "Recovery covers the smart account, not the key that controls it.",
       "oneOrdinaryKey": "This wallet recovers one ordinary key in this release."
     },
@@ -763,7 +735,629 @@
       "updateTheWalletBody": "This account has a recovery setup.",
       "unavailableTitle": "This wallet could not reach the recovery kit",
       "unavailableBody": "Nothing changed. Try again.",
-      "updateTheWalletAction": "Update the wallet"
+      "updateTheWalletAction": "Update the wallet",
+      "updateTheWalletHow": "Update Kohaku from your browser's extension store, then open this page again."
+    },
+    "recover": {
+      "doorLine": "You lost the key to an account. Bring it back using the recovery path its owner set up.",
+      "warning": {
+        "header": "Before you recover anything, read this",
+        "lead": "No support agent will ever ask you to do this.",
+        "body": "Recovery is something you start for your own account, on your own. If somebody asked you to open this screen — a support agent, a helpful stranger, someone in a chat, someone on a call — stop now. They are stealing from you.",
+        "nobodyWatches": "Nobody legitimate needs to watch your screen while you do this.",
+        "nobodyNeedsPhrase": "Nobody will ever need your recovery phrase. Not us, not anyone.",
+        "walkAway": "You can close this and walk away at any point.",
+        "importPointer": "If you still have your recovery phrase, import it instead.",
+        "importAction": "Import instead",
+        "acknowledgeRecover": "Nobody claiming to be support asked me to do this. I am recovering my own account.",
+        "acknowledgeReset": "Nobody claiming to be support asked me to do this.",
+        "leave": "Leave this screen",
+        "condensed": "If somebody claiming to be support asked you to start a recovery, stop and close this screen."
+      }
+    },
+    "fastTrack": {
+      "stepCounter": "Set up this device · Step {{step}} of {{total}}",
+      "password": {
+        "title": "Set your extension password",
+        "lead": "This password unlocks the extension on this device. It is not your account key, and on its own it cannot recover or move anything.",
+        "repeatLabel": "Repeat the password",
+        "rulesLine": "Use at least {{count}} characters.",
+        "strong": "Strong enough · {{count}} characters",
+        "mismatch": "The two passwords you typed do not match.",
+        "whatHeader": "What this password does",
+        "thisDeviceOnly": "It unlocks the extension on this device only.",
+        "forgotten": "If you forget it, you can reset the extension and restore your new key from the recovery phrase you write down next.",
+        "staysHere": "It never leaves this device and it is not part of your recovery path.",
+        "twoPasswords": "Recovery may later ask for the recovery password, the one the account's owner set and printed on the Recovery Card. This one only unlocks the extension on this device."
+      },
+      "key": {
+        "title": "Write down the recovery phrase of your new key",
+        "created": "A new key was created on this device",
+        "sameAddress": "Your account stays at the same address. This new key will control it.",
+        "keyLabel": "The key that will control the account",
+        "installs": "This is the key the recovery will install on the account.",
+        "onlyBackup": "These {{count}} words are your new key's recovery phrase, its only backup. Write them on paper, in order. Anyone who reads them controls whatever this key controls, including the account you are about to recover.",
+        "paper": "Paper is safer than a screenshot, a note app, or a password manager you may lose with this device.",
+        "acknowledge": "I wrote the words down and stored them away from this device.",
+        "action": "Continue to recovery",
+        "creating": "Creating your new key…",
+        "createFailed": "This device could not create the key. Nothing was saved. Try again.",
+        "addFailed": "This wallet could not add the new key's accounts. The key may still be added in the background. Wait a moment, then try again.",
+        "addPending": "The wallet is still adding your key. Wait, or go back and continue again."
+      },
+      "gas": {
+        "noSendingKey": "This wallet holds no key of the recovery phrase you created here, so nothing can send the recovery. Start the fast track again.",
+        "entryReadFailed": "This device could not read which account you are recovering. Try again."
+      }
+    },
+    "entry": {
+      "stageCounter": "Recovery · Step {{step}} of {{total}}",
+      "owner": {
+        "title": "Which of your accounts receives control?",
+        "lead": "Pick the account whose key this recovery installs on the account you are recovering.",
+        "keyFor": "Key for this account",
+        "installs": "This is the key this wallet holds for {{account}}.",
+        "twoAccounts": "After recovery this key controls two accounts. They become publicly linked by it and share one fate: losing it means recovering each account separately.",
+        "nothingMerges": "Nothing merges and no assets move.",
+        "keepsAddress": "The recovered account keeps its address and everything in it.",
+        "noEligibleAccount": "No account in this wallet can receive control. Add an account first."
+      },
+      "account": {
+        "title": "Which account do you want to recover?",
+        "lead": "You do not need the key you lost. Looking up an account starts no recovery.",
+        "fieldLabel": "Account address or ENS name",
+        "networkFixed": "Network · {{network}}",
+        "hint": "The address is printed on your Recovery Card. You can also resolve an ENS name or copy the address from any explorer or wallet you sent funds from.",
+        "whereTitle": "Where do I find the address?",
+        "whereBody": "Your Recovery Card carries it. An ENS name also resolves to it, and so does any explorer or wallet you have sent funds from.",
+        "startsNothingTitle": "Looking up an account starts nothing",
+        "startsNothingBody": "The lookup reads the chain. It signs nothing, tells the account's holder nothing and begins no recovery.",
+        "action": "Look up this account",
+        "lookingUp": "Looking up this account on {{network}}…",
+        "lookingUpShort": "Looking up…",
+        "errors": {
+          "malformedTitle": "That is not a complete address.",
+          "malformedHint": "Paste the full address from your Recovery Card.",
+          "nameTitle": "That ENS name does not resolve to an address.",
+          "nameHint": "Check the name or use the address on your Recovery Card.",
+          "readFailedTitle": "We could not read {{network}}.",
+          "readFailedHint": "The read failed. Your Recovery Card has the full address printed on it."
+        }
+      },
+      "labels": {
+        "address": "Address",
+        "network": "Network",
+        "accountLookedUp": "Account looked up"
+      },
+      "confirm": {
+        "title": "Is this the account you are recovering?",
+        "lead": "Check the address before you continue.",
+        "thisIsMine": "This is my account",
+        "notMine": "Not mine",
+        "readsOnly": "This step reads the chain. Nothing is signed.",
+        "readingSetup": "Reading the recovery setup…",
+        "readingAuthorization": "Reading whether the account still authorizes the recovery module…",
+        "readingFit": "Checking whether this release can recover this account…",
+        "readingDestination": "Checking the key that receives control…",
+        "setupReadFailedTitle": "We could not read the recovery setup.",
+        "setupReadFailedBody": "The read failed. This says nothing about whether a setup exists.",
+        "authorizationReadFailedTitle": "We could not read whether the account still authorizes the recovery module.",
+        "readFailed": "The read failed.",
+        "fitReadFailedTitle": "This wallet could not check whether this release can recover this account.",
+        "fitReadFailedBody": "The read failed. This is not a refusal. Try again.",
+        "destinationReadFailedTitle": "This wallet could not read whether this key can receive control.",
+        "wrongAccountTitle": "Wrong account?",
+        "wrongAccountBody": "Go back and check the address on your Recovery Card, character by character.",
+        "startsNothingTitle": "Confirming starts nothing",
+        "startsNothingBody": "This step reads the chain. Nobody is contacted and no approval is gathered.",
+        "writeFailed": "This device could not keep the account you confirmed. Nothing changed. Try again."
+      },
+      "noSetup": {
+        "title": "No recovery setup was found for this account on {{network}} under the recovery module this wallet knows.",
+        "lead": "This account carries no recovery setup on the network named above.",
+        "module": "Recovery module this wallet knows: {{module}}",
+        "checkCard": "Check the address on your Recovery Card.",
+        "otherWallet": "A setup committed by another wallet may sit under a recovery module this build does not read.",
+        "tryAnother": "Try another address",
+        "close": "Close",
+        "cardTitle": "Check your Recovery Card",
+        "cardBody": "It carries the exact account address. Nothing printed on it can move money."
+      },
+      "refusal": {
+        "removedUnknown": "This wallet cannot name the key a recovery would remove on this account.",
+        "removedNotAuthority": "The key a recovery would remove does not hold control of this account.",
+        "malformed": "This wallet could not build a valid recovery request for this account.",
+        "unnamed": "This wallet read a refusal it cannot name."
+      },
+      "destination": {
+        "holdsPrivilege": "This key already holds a privilege on the account you are recovering, so this recovery cannot install it. Choose another account.",
+        "alreadyAKey": "This key is already one of the account's keys. Choose another account.",
+        "chooseAnother": "Choose another account"
+      },
+      "dormant": {
+        "title": "This setup is not active on the account.",
+        "onlyOwnKey": "Only the account's own key can re-activate it.",
+        "neverExecutes": "A recovery started now could never execute.",
+        "runningCannotExecute": "A recovery already running against this account cannot execute while this setup is not active."
+      }
+    },
+    "readout": {
+      "title": "What this account's recovery needs",
+      "leadCommitted": "This is the setup committed for this account on the network named below.",
+      "leadUnlocked": "This setup is readable on this device, after the recovery password unlocked it.",
+      "leadPrivate": "This account has a recovery setup. Its contents are private.",
+      "configuredLine": "This account has a recovery setup.",
+      "locked": {
+        "title": "We cannot show your setup yet.",
+        "enterPassword": "Enter the recovery password from your Recovery Card.",
+        "notExtensionPassword": "This is not your extension password.",
+        "cannotBegin": "Without the recovery password, this device cannot begin this recovery."
+      },
+      "unlock": "Unlock",
+      "shapePreview": "The structure is visible. Enter the recovery password to reveal the method details and collect approvals.",
+      "publicLine": "No recovery password is set. You can continue without one.",
+      "wrongPassword": {
+        "title": "That recovery password does not match.",
+        "cardPointer": "Check the recovery password on your Recovery Card."
+      },
+      "twoPasswords": {
+        "body": "The recovery password was set when the account's recovery was created and is printed on the Recovery Card. The extension password unlocks this device."
+      },
+      "reading": "Reading the setup from {{network}}…",
+      "readFailedTitle": "We could not read the setup from {{network}}.",
+      "entryReadFailed": "This device could not read which account you are recovering. Try again.",
+      "eventFailed": {
+        "title": "The password worked, but we could not read the setup event on {{network}}.",
+        "body": "The recovery registry names the block this event sits in, and that block is on {{network}}, the network you are already reading."
+      },
+      "readingDetails": "Reading the method details…",
+      "detailsFailed": "We could not read the method details.",
+      "noDetails": "This setup carries no method details this device can open.",
+      "detailsMismatch": "The method details this device opened do not match the setup on {{network}}.",
+      "answerWhichever": "Answer whichever you can reach.",
+      "continueLine": "Have every method within reach before you continue. The request lasts {{hours}} hours from the moment the checklist opens."
+    },
+    "checklist": {
+      "title": "Collect what this path needs",
+      "lead": "Nothing is submitted until every required method and every group is complete.",
+      "progress": "{{done}} of {{total}} done",
+      "groupProgress": "{{done}} of {{count}} member",
+      "groupProgress_plural": "{{done}} of {{count}} members",
+      "deadline": {
+        "line": "Request valid until {{date}} · {{remaining}} left.",
+        "diesTogether": "Every approval dies together."
+      },
+      "submittable": "Anyone holding this request can submit it until the deadline passes.",
+      "continueUnlock": "Every required method and every group must be complete.",
+      "continueUnlockRequiredOnly": "Every required method must be complete.",
+      "continueUnlockGroupsOnly": "Every group must be complete.",
+      "satisfied": "This path is satisfied. The submission uses the smallest set that satisfies the rule, so the other rows are not needed.",
+      "verifyNote": "The wallet checks each approval against the chain when you add it, and again before you submit.",
+      "cannotComplete": "I cannot complete this path",
+      "leavingKeeps": "Leaving keeps this session on this device. Nothing is submitted, and you can continue it until the deadline.",
+      "backToChecklist": "Back to the checklist",
+      "conflictTitle": "This recovery changed in another tab.",
+      "conflictBody": "Reload to see the latest state. Nothing you added was lost.",
+      "openFailedTitle": "This wallet could not open the collection.",
+      "openFailedBody": "Nothing was submitted. Try again, or read the setup again.",
+      "writeFailed": "This device could not keep this recovery's progress. Nothing changed. Try again.",
+      "passkey": {
+        "answerHere": "Answer on this device",
+        "answeredHere": "Answered on this device · {{date}}",
+        "answeredPhone": "Answered from your phone · {{date}}",
+        "syncedHint": "Answer with the phone that holds this passkey, or with any device signed into the account that syncs it.",
+        "noPasskeyHeader": "This device has no passkey for the account",
+        "newDevice": "You are recovering from a device you have never used for this account. If your passkey is synced, the phone signed into the same platform account still holds it.",
+        "scanSynced": "Scan with your phone to use your synced passkey",
+        "vendorTunnel": "The QR and the tunnel that carries the answer back are your browser vendor's, not Kohaku's.",
+        "phoneSigns": "Your phone signs. This device receives the answer.",
+        "securityKey": "Use a security key on this device instead",
+        "anyDevice": "A synced passkey, or one a phone serves, answers from any device that runs Kohaku on Chrome.",
+        "otherBrowser": "A passkey enrolled in another browser cannot answer here.",
+        "sameBuild": "A fresh Kohaku install of the same build keeps the origin your passkey needs."
+      },
+      "guardian": {
+        "sendMessage": "Send them the message with the link over a channel you already use.",
+        "askCallBack": "Ask them to call you back on a number they already have. Do not call them first.",
+        "readValues": "When they call, read them the account and the new key.",
+        "howTheyAnswer": "Your guardian pastes the link into a browser that has Kohaku, signs on the page with the wallet that holds the key, or through the page's offline block on an air-gapped machine, and sends back one line. Paste it below.",
+        "offlineBlock": "Open the approval page and use its offline block: carry the payload to your air-gapped machine by QR, sign it there, and bring the approval back. Paste it below.",
+        "ownKey": "If you hold this key yourself, open the approval page and sign there like any guardian.",
+        "hardwareWallet": "A hardware wallet without a descriptor for this request shows two hashes and asks for blind signing. The values on the approval page are what to compare.",
+        "openPage": "Open the approval page",
+        "copyLink": "Copy the link",
+        "copyMessage": "Copy a message with the link",
+        "showQr": "Show the QR code",
+        "hideQr": "Hide the QR code",
+        "qrFailed": "The QR code could not be drawn. Copy the link instead.",
+        "copied": "Copied",
+        "copyFailed": "Could not copy. Select the text by hand.",
+        "messageSays": "The message names the install with its source and the publisher to check, and the call, and says the link reveals the account and the new key, so it is not to be forwarded.",
+        "unlockReason": "The link and the approval page stay locked until the account, the new key, the key being removed and the payment line are shown.",
+        "removedKeyReadFailed": "This wallet could not read the key this recovery removes. The link stays locked until it does.",
+        "removedKeyUnavailable": "This wallet cannot name the key this recovery removes, so this row cannot be carried to a guardian.",
+        "pasteLabel": "Paste the approval",
+        "pasteHint": "One line, as your guardian sent it back.",
+        "addAction": "Add approval",
+        "added": "Approval added · {{date}}",
+        "verified": "Approval verified · counts toward this row",
+        "markDeclined": "Mark as declined",
+        "markUnanswered": "Mark as unanswered",
+        "clear": "Clear",
+        "noteLine": "A note you make for yourself. One tap clears it.",
+        "markedDeclined": "You marked this row declined. One tap clears it.",
+        "markedUnanswered": "You marked this row unanswered. One tap clears it."
+      },
+      "paste": {
+        "notAnApproval": "This text is not an approval.",
+        "notAnApprovalRepair": "Ask the guardian to open the link again and sign the current request.",
+        "noMatch": "This approval matches no method of this path.",
+        "noMatchLead": "An approval names no request, so this wallet cannot tell these causes apart:",
+        "causeSigner": "A key that is not in this path signed it. Ask the guardian to open the link again and sign with the key this path holds.",
+        "causeOtherRequest": "It was signed for another request, one made before the approvals were gathered again, or for another account, new key, setup number or attempt number. Ask the guardian to open the link again and sign the current request.",
+        "causeUndeployed": "The guardian's smart account may not have sent its first transaction yet. That account must send one transaction before any approval from it can match. Signing again before that returns this same result.",
+        "duplicate": "This approval is already in the list.",
+        "duplicateDetail": "It was already counted for this row. The counter does not change.",
+        "expired": "This approval has expired.",
+        "expiredDetail": "The request's deadline passed. Every approval dies together.",
+        "expiredDetailOne": "The request's deadline passed.",
+        "checkFailed": "This wallet could not check this approval against the chain. Your paste is kept. Try again."
+      },
+      "message": {
+        "intro": "I am recovering my account and you are one of its guardians.",
+        "install": "Install the Kohaku extension first: this link opens nothing without it. Install it from {{source}} and check that the publisher reads {{publisher}}.",
+        "openLink": "Then paste this link into the address bar of the browser that has Kohaku, because clicking it does not open it: {{link}}",
+        "doNotForward": "Do not forward this link. It reveals the account and the new key.",
+        "callBack": "Before you approve, call me back on a number you already have. I will read you the account and the new key, and you compare them with the page.",
+        "callReceived": "If somebody calls you about this first, even if they sound like me, hang up and call me back yourself.",
+        "approveOnPage": "Approve on that page with the wallet that holds your key, or through the page's offline block on an air-gapped machine.",
+        "deadline": "This request is valid until {{deadline}}.",
+        "submittable": "Anyone holding this request can submit it until then.",
+        "reply": "When you approve, the page gives you one line. Send that line back to me and I will paste it in.",
+        "sourceName": "the Chrome Web Store",
+        "publisherName": "Kohaku"
+      },
+      "deaths": {
+        "expiredRegather": "The deadline cannot move once the first approval is in, so the whole set is gathered again.",
+        "expiredNoApproval": "No approval was given, so the request starts afresh with a new window.",
+        "gatherAgain": "Gather the approvals again",
+        "startNewRequest": "Start a new request",
+        "voidSlot": "That attempt holds this account's one recovery slot. In this release only that account's own key can clear it.",
+        "voidCannotSubmit": "A fresh set gathered now could not be submitted while that attempt waits, and it would die of its own deadline.",
+        "voidReopen": "Reopen this flow later to see whether the slot cleared.",
+        "readFailed": "Could not read whether that attempt still runs.",
+        "wipeFailed": "This device could not record that this request ended. Nothing changed. Try again.",
+        "slotFreeTitle": "That recovery attempt ended",
+        "slotFreeBody": "That attempt ended, so this account's one recovery slot is free. A fresh set gathered now can be submitted.",
+        "readSetupAgain": "Read the setup again",
+        "readSetupFailed": "This wallet could not clear the setup it holds. Try again."
+      },
+      "dormant": {
+        "title": "The account no longer authorizes the recovery module.",
+        "body": "Your approvals are kept. Only the account's own key can re-activate this setup; this recovery goes on once it does."
+      },
+      "pollFailed": {
+        "title": "Could not read the account's recovery state.",
+        "body": "The rows below may be out of date. This says nothing about whether this request still lives.",
+        "held": "Nothing goes on until the read succeeds."
+      },
+      "unsatisfied": {
+        "didNotAnswerTitle": "A required method did not answer.",
+        "didNotAnswer": "This method did not answer this time. No read this wallet makes tells a provider that stopped for good from one that cannot be reached right now.",
+        "approvalsKept": "Every approval you already hold is kept.",
+        "groupCannotReach": "The rows still open in this group cannot reach its threshold.",
+        "guardianOpen": "A guardian row is still open. This recovery goes on once they answer.",
+        "needsMoreTitle": "This recovery needs more answers.",
+        "needsMore": "Answer the rows still outstanding."
+      },
+      "abandon": {
+        "action": "Abandon this recovery",
+        "confirm": "Abandoning wipes every approval you collected from this device. Nothing was submitted.",
+        "confirmAction": "Abandon",
+        "keep": "Keep this recovery"
+      }
+    },
+    "inProgress": {
+      "title": "A recovery you have not submitted is waiting on this device",
+      "lead": "You started a recovery here and did not submit it. Pick it up where you left it, or abandon it.",
+      "continue": "Continue this recovery",
+      "started": "Started {{date}} on this device. Nothing has been submitted, so no waiting period has started. Abandoning erases every approval you collected.",
+      "onlyThisDeviceTitle": "Only this device knows about it",
+      "onlyThisDeviceBody": "Collected approvals stay here until you submit. Nothing is written on chain yet.",
+      "holdsPath": "This device still holds your unlocked recovery path.",
+      "asksPassword": "Enter the recovery password again to continue."
+    },
+    "submit": {
+      "title": "Start the recovery",
+      "lead": "Check this before you start. When it is submitted, the waiting period begins and the account's own key can cancel it.",
+      "keepsAddressNamed": "{{name}} · keeps this address",
+      "keepsAddress": "Keeps this address",
+      "newKeyFastTrack": "The key this wallet created for the recovery",
+      "newKeyLoggedIn": "The key of {{account}} on this device",
+      "noPayment": "This recovery names no payment.",
+      "accountPays": "The account {{account}} sends this request and pays its gas.",
+      "ownKeyPays": "Your key {{key}} sends this request and pays its gas.",
+      "waitingPeriod": "The waiting period lasts {{duration}} from the moment the submission lands.",
+      "ownerCanCancel": "The account's own key can cancel this recovery during the waiting period.",
+      "path": {
+        "oneRequired": "The one required method answered.",
+        "allRequired": "Every required method answered.",
+        "groupAnswered": "{{answered}} of {{count}} member answered.",
+        "groupAnswered_plural": "{{answered}} of these {{count}} members answered.",
+        "othersNotNeeded": "The rows outside this set were not needed."
+      },
+      "publication": {
+        "whole": "Submitting publishes the whole setup on chain in the clear, the rule with its waiting period and every method in it, used and unused alike.",
+        "used": "The methods this recovery uses publish their configuration too, so {{items}} becomes public and permanent.",
+        "used_plural": "The methods this recovery uses publish their configuration too, so {{items}} become public and permanent.",
+        "unusedGuardians": "A guardian who did not approve is published too, as a hash anyone who can guess their address can find.",
+        "shared": "A method reused across accounts becomes visibly shared.",
+        "items": {
+          "guardianAddress": "this guardian's address",
+          "guardianAddresses": "these guardians' addresses",
+          "ownKey": "your own key's address",
+          "passkey": "your passkey's public key",
+          "passport": "the identifier your passport produces",
+          "aadhaar": "the identifier your Aadhaar produces"
+        }
+      },
+      "checkLine": "This wallet checked every approval against the chain again just now.",
+      "checking": "Checking every approval against the chain…",
+      "checkFailed": "This wallet could not check the approvals against the chain. That says nothing about whether they are valid. Try again.",
+      "checkAgain": "Check again",
+      "action": "Start recovery",
+      "unlockReason": "Start recovery stays locked until the account, the new key, the key being removed and the payment line are shown and every approval has verified.",
+      "removedKeyUnavailable": "This wallet cannot name the key this recovery removes.",
+      "approvalNotVerified": "The approval for {{row}} did not verify. Go back to the checklist and add it again.",
+      "gas": {
+        "lead": "Submitting the recovery is one transaction the sending key pays for. The account cannot pay for itself until it is recovered.",
+        "collectedStays": "Everything you collected stays where it is."
+      },
+      "noSendingKey": "This wallet holds no key that can send this recovery.",
+      "failedTitle": "The recovery could not be started",
+      "notSent": "The transaction was rejected before it reached the chain. Nothing was submitted and no waiting period has started. Everything you collected is still here.",
+      "droppedTitle": "The network no longer knows this transaction.",
+      "droppedBody": "It was not mined within an hour and no node holds it. Nothing changed on the account. Start the recovery again.",
+      "landingReadFailedTitle": "The transaction landed, but this wallet could not confirm the attempt it started.",
+      "landingReadFailedBody": "Nothing is lost. Try the read again; the waiting period starts from the attempt the registry reports.",
+      "alreadyRunning": {
+        "cannotHelp": "Sending it again cannot help.",
+        "whatYouCanDo": "Wait for that attempt to finish or be cancelled. In this release only the account's own key can cancel it.",
+        "view": "View that recovery"
+      }
+    },
+    "wait": {
+      "title": "Recovery started",
+      "lead": "Everything needed was submitted. Now the waiting period runs. The account's own key can cancel it until the end.",
+      "started": "Started {{date}}",
+      "finishes": "Finishes {{date}}",
+      "ended": "Ended {{date}}",
+      "endFromChain": "The end comes from the recovery registry on chain, not from this device's clock.",
+      "startedOnChain": "Recovery started on chain",
+      "explorer": "View on explorer",
+      "path": {
+        "bothRequired": "{{first}} and {{second}}, both required",
+        "anyOf": "Any {{threshold}} of {{count}} of your guardians",
+        "eitherOne": "{{first}} or {{second}}, either one"
+      },
+      "canCloseTitle": "You can close this",
+      "canCloseBody": "The countdown runs without this browser. Open the wallet during the wait and this card shows again; it prompts you at execution due.",
+      "ownerCanCancelTitle": "The owner can still cancel",
+      "ownCancelNote": "In this release only this account's own key can cancel this recovery before it finishes.",
+      "youWillSee": "If that happens, you will see it here.",
+      "whoFinishesTitle": "Who finishes it",
+      "whoFinishesBody": "You do, from the same key that started it, after the same gas check.",
+      "readFailedTitle": "This device could not read the recovery's state.",
+      "readFailedBody": "The read failed. This says nothing about whether the recovery still runs. Try again.",
+      "pollFailed": {
+        "title": "We could not read this recovery.",
+        "body": "The read failed. This says nothing about whether the recovery still runs.",
+        "noLastNumber": "The countdown stays hidden until the read succeeds, since a cancel could hide behind the last number this wallet read."
+      },
+      "executionDue": {
+        "lead": "The waiting period ended. Nobody has executed yet, and no deadline runs.",
+        "action": "Execute now",
+        "secondTransaction": "Executing is a second transaction. The same key that started the recovery sends it and pays its gas, after a gas check.",
+        "executing": "Executing… your key is sending the transaction",
+        "notSent": "Could not execute. The transaction was rejected before it reached the chain. Nothing changed. The recovery is still ready."
+      },
+      "noSendingKey": "This wallet holds no key that can execute this recovery.",
+      "cancelled": {
+        "title": "This recovery was cancelled",
+        "wiped": "Every approval you collected was wiped. Starting again means gathering the whole set again.",
+        "byOwnerTitle": "The account's own key cancelled this recovery",
+        "byOwnerBody": "Somebody signed the cancel with the key that controls the account right now. That may be the lost device. Control did not move.",
+        "byApprovalsTitle": "A full set of approvals cancelled this recovery",
+        "byApprovalsBody": "Enough of the path's members signed a cancel.",
+        "byApprovalsThresholdOne": "The path's threshold is one, so the same method can cancel again. Only the account's own key repairs that, by moving the funds and setting up recovery again.",
+        "bySetupBody": "The account's key, or a contract it authorized, changed or removed the setup. This request cannot continue.",
+        "startAgain": "Start again",
+        "startNew": "Start a new recovery"
+      },
+      "cancelledOn": "Cancelled on {{date}}",
+      "leaveFailed": "This device could not record that this recovery ended. Nothing changed. Try again.",
+      "cannotExecute": {
+        "title": "This recovery can no longer execute",
+        "notAuthorized": "The account no longer authorizes the recovery module.",
+        "notAuthorizedRepair": "Only the account's own key can re-activate this setup.",
+        "upgradedAway": "The account was upgraded away from the recovery module.",
+        "movedPrivilege": "A key on the account moved a privilege during the wait, so this recovery can no longer execute.",
+        "unmatched": "This device cannot confirm that the attempt the registry reports is the one it submitted, so it will not execute it.",
+        "refused": "The execution is refused. This wallet read: {{read}}",
+        "approvalsDie": "The approvals die with this attempt.",
+        "noRetry": "There is no retry, and no new recovery can start.",
+        "slotClosed": "Only the account's own key ends this attempt in this release, and the attempt holds the account's one recovery slot until it does. Recovery on this deployment is closed until somebody holds that key.",
+        "exitsNeedKey": "Moving funds and setting up recovery again are the account's own writes. Without its key, neither exit is yours to take.",
+        "moveFunds": "Move funds"
+      }
+    },
+    "done": {
+      "title": "The account is yours again",
+      "lead": "Control moved to your new key on {{date}}. The address did not change, and everything in the account came with it.",
+      "readFailedTitle": "This device could not read what the recovery did.",
+      "readFailedBody": "The account is unchanged by this. Try again.",
+      "freshKey": "One fresh key on this device, with no second key behind it.",
+      "nowInWallet": "This account is now in this wallet.",
+      "sharedKey": "The key of {{account}}, now shared by two accounts. They share a key until one of them rotates it.",
+      "removedLine": "The key the lost device held.",
+      "keyLimit": "This key transacts at once. It cannot sign ordinary typed data until this wallet wraps that data the way it wraps a plain message.",
+      "whatHeader": "What this recovery did",
+      "published": "On chain in the clear: the whole path, the rule with its waiting period and every method in it.",
+      "used": "It used: {{methods}}.",
+      "guardianAddress": "your guardian's address",
+      "twoMembers": "two members of your path",
+      "listJoiner": ", ",
+      "usedPublished": "The methods it used published their configuration too.",
+      "discoverable": "Every guardian of your path is now discoverable, the ones who approved and the ones who did not.",
+      "unusedStays": "A passkey this recovery did not use cannot be guessed from the chain, so it loses nothing.",
+      "unlinkable": "Reconfiguring with a changed rule and changed members makes the next setup unlinkable. Nothing unpublishes the past.",
+      "laterRelease": "Unlinking without changing the rule comes in a later release.",
+      "passportNever": "That later release never unlinks a passport, whose identifier stays the same.",
+      "otherDoors": "Other ways to control this account may exist outside the recovery module. This wallet cannot see them all.",
+      "survived": "Your setup survived the recovery and the wallet refuses a second one. Edit it, or replace it.",
+      "editOrReplace": "Edit or replace your recovery path",
+      "passwordChange": "If your Recovery Card was on the lost device, change the recovery password in the editor. That is one transaction this account's key signs and pays for.",
+      "synced": {
+        "title": "Clean up your synced passkey",
+        "follows": "This passkey may still follow the account that syncs it. Whoever holds the lost device can start a recovery while it stays signed in.",
+        "order": "Secure the account that syncs this passkey first, by signing the lost device out of it. Then add a fresh method that does not sync to it. Then remove the old row.",
+        "cannotReachTitle": "You cannot reach the account that syncs it",
+        "cannotReachBody": "Remove that row in the editor.",
+        "removeInEditor": "Remove the row in the editor",
+        "editorShows": "The editor shows what changes, then one transaction you sign.",
+        "addFirst": "Add a method first, then remove the old row.",
+        "leavesWholeRule": "Removing that row leaves {{method}} as the whole rule."
+      },
+      "deviceBound": {
+        "dead": "The passkey on the lost device is dead. Edit your path to replace it.",
+        "twoRequired": "Your path is two required rows. Removing one leaves the other as the whole rule.",
+        "groupOfTwo": "Your path is a group of two members. Removing one leaves the other as the whole rule."
+      },
+      "close": "Done",
+      "addFailed": "This wallet could not add the recovered account to its list. The recovery itself is done. Try again.",
+      "addRetry": "Try again",
+      "lastActFailed": "This device could not close its records of this recovery. The account is recovered; try again to close them."
+    },
+    "home": {
+      "recovering": "Recovering {{account}}",
+      "progress": "{{done}} of {{total}} done · started {{date}} on this device",
+      "waitingRunning": "Recovering {{account}} · waiting period running",
+      "executionDue": "Recovering {{account}} · execution due",
+      "open": "Open this recovery"
+    },
+    "guardianPage": {
+      "brand": "Kohaku · Account recovery",
+      "notice": "This page shows what its link says. Your call to the owner is the check.",
+      "lead": {
+        "title": "You have been asked to approve a recovery",
+        "body": "The owner of this account says they lost its key and named you as a guardian.",
+        "effect": "Approving hands this account to the new key after the waiting period and removes the key being removed. It moves no money and gives nobody access to your wallet.",
+        "publication": "Approving puts your address on chain in the clear, permanently public. Where this method serves several accounts, approving links them visibly.",
+        "pathPublic": "A recovery on this account publishes the whole recovery path, so a reader who can guess your address reads it from the chain even where this approval was never used.",
+        "noForward": "This link reveals the account and the new key, so do not forward it.",
+        "compare": "Compare the account and the new key, character by character, with what the owner read to you on the call.",
+        "paymentTo": "{{amount}} to {{payee}}",
+        "paymentToExecutor": "{{amount}} to whoever executes the recovery"
+      },
+      "details": {
+        "title": "Verify the details",
+        "validUntil": "Valid until {{date}} · {{remaining}} left",
+        "ended": "Valid until {{date}} · ended",
+        "setupNumber": "Setup number",
+        "attemptNumber": "Attempt number",
+        "network": "Network",
+        "registry": "Recovery registry"
+      },
+      "acknowledgment": {
+        "label": "I called the owner on a number I already had and they confirmed this, or I am the owner.",
+        "ownNumber": "Call a number you already had. Never a number the link's sender gave you.",
+        "received": "A call you received does not answer this, whatever the caller named themselves. Only a call you placed on a number you already had counts.",
+        "tickFirst": "Tick the box above first"
+      },
+      "actions": {
+        "sign": "Sign",
+        "decline": "Something is off, decline",
+        "close": "Close",
+        "tryAgain": "Try again",
+        "back": "Back"
+      },
+      "dead": {
+        "expiredTitle": "Expired",
+        "expiredBody": "This request expired. The deadline passed and every approval died with it.",
+        "voidTitle": "Void",
+        "voidBody": "Another recovery attempt was opened on this account. This request cannot be used.",
+        "changedTitle": "Setup changed",
+        "changedBody": "The account's recovery setup changed. This request cannot be used.",
+        "tellOwner": "If someone still asks you to approve, tell the owner on a channel you already use.",
+        "usedTitle": "Used",
+        "usedBody": "This request was submitted and that recovery has ended. It cannot be used again."
+      },
+      "waiting": {
+        "title": "Recovery in progress",
+        "headline": "This recovery is now waiting",
+        "body": "The recoverer submitted this request. The waiting period runs until {{date}}, and the account's own key can cancel it until then.",
+        "bodyEnded": "The recoverer submitted this request. The waiting period ended on {{date}}."
+      },
+      "dormant": "The account no longer authorizes the recovery module, so this recovery cannot execute until the account authorizes it again.",
+      "readFailed": "We could not read this request.",
+      "reading": "Reading this request on chain…",
+      "otherDeployment": "This request is aimed at another deployment and this page cannot sign it.",
+      "noRequest": "This link carries no request this page can read. Ask the person who sent it for the link again.",
+      "signing": {
+        "title": "Sign the approval",
+        "lead": "You approve by signing with the key this request names, from this wallet. Nothing is sent to the network and no money moves.",
+        "keyHeading": "The key this request names",
+        "keyHeld": "This wallet holds this key.",
+        "keyMissing": "This wallet does not hold the key this request names. Import the wallet that holds {{address}} into Kohaku, then open this link again.",
+        "unlock": "Unlock this wallet to sign.",
+        "promptNote": "The wallet's prompt shows the account, the attempt number and the payment. The handover shows as bytes. This page is where the new key and the key being removed read as fields.",
+        "hardwareNote": "A hardware wallet without a descriptor for this request shows two hashes and asks for blind signing. Compare the new key on this page with the one the owner read to you. If you are the owner, compare the fields on this page with your own checklist row instead.",
+        "refused": "Your wallet refused to sign. Nothing was created.",
+        "failed": "This wallet could not sign. Nothing was created.",
+        "wrongKey": "The approval was not made by the key this request names. Nothing was kept."
+      },
+      "offline": {
+        "open": "Open the offline block",
+        "openHint": "Copy the payload, sign it on a device that never goes online, then bring it back here.",
+        "title": "Sign offline",
+        "lead": "Carry the payload to a device that never goes online, sign it there, and bring the signature back.",
+        "payloadHeading": "The payload · carry it by QR or file",
+        "saveFile": "Save as a file",
+        "copyPayload": "Copy the payload",
+        "checkDevice": "Before signing, check that the values your signing device decodes match what the owner read to you.",
+        "returnHeading": "Bring the signature back",
+        "returnLine": "The signature comes back by paste, the one way this page takes it.",
+        "pasteLabel": "Paste the signature",
+        "placeholder": "0x…",
+        "add": "Add",
+        "turnsInto": "This page turns your signature into the approval line. Send that one line back to whoever asked.",
+        "notASignature": "This text is not a signature.",
+        "wrongSigner": "This signature was not made by the key this request names."
+      },
+      "signed": {
+        "title": "You approved this recovery",
+        "body": "Nothing has been sent anywhere yet. Send your approval back to whoever asked, on the same call or chat you used to check it was really them.",
+        "heading": "Your approval",
+        "copy": "Copy the approval",
+        "copyMessage": "Copy a message with it",
+        "messageHint": "The message adds one sentence of context around the approval line.",
+        "message": "Here is my approval for the recovery of {{account}}. Paste this line into your checklist: {{line}}",
+        "regret": "Changed your mind? Tell the owner and whoever asked. The owner's key cancels a recovery they did not start, and an owner without a key can only warn the recoverer."
+      },
+      "declined": {
+        "title": "Declined",
+        "headline": "You declined this request",
+        "body": "Nothing was signed and nothing was sent. Nobody is told automatically.",
+        "tellTitle": "Tell the owner anyway",
+        "tellBody": "A request like this leaves no trace on chain until someone submits it. You may be the only one who sees it. Declining is the only way to shorten the exposure: contact the owner the way you always do and tell them what you received.",
+        "cancelLine": "The owner's key cancels a recovery they did not start, and an owner without a key can only warn the recoverer.",
+        "copyMessage": "Copy a message to send them",
+        "message": "Someone asked me to approve a recovery of your account {{account}} to the new key {{newKey}}. I declined. If this was not you, your key can cancel a recovery you did not start.",
+        "close": "Close this page",
+        "sentNothing": "This page sent nothing when you declined.",
+        "stillPublishes": "A recovery that completes without you still publishes your address with the rest of the path."
+      },
+      "notReadable": "Not readable"
     }
   }
 }

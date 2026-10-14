@@ -27,7 +27,8 @@ const portOverTheHeldQueue = () => {
   const port = sendRequestPort(
     dispatch,
     () => [smartAccount(SMART_ACCOUNT, CONTROLLING_KEY)],
-    () => held
+    () => held,
+    () => SMART_ACCOUNT
   )
   return { dispatch, port }
 }

@@ -19,15 +19,14 @@ const PREFIX = 'socialRecovery.ruleLines'
 
 /**
  * Every key this function emits, each one under `socialRecovery.ruleLines` in
- * `en.json`. A surface picks or drops a line by its key. The function emits the
- * sizing rule line for every path of two rows and no group, but only the editor
- * shows it, so the other screens drop it by key.
+ * `en.json`. A surface picks or drops a line by its key.
  */
 export const RULE_LINE_KEYS = {
   allMustAnswer: `${PREFIX}.allMustAnswer`,
   bothMustAnswer: `${PREFIX}.bothMustAnswer`,
   singleMethod: `${PREFIX}.singleMethod`,
   secondMethodOffer: `${PREFIX}.secondMethodOffer`,
+  secondMethodOfferAny: `${PREFIX}.secondMethodOfferAny`,
   platformFate: `${PREFIX}.platformFate`,
   anyNOfM: `${PREFIX}.anyNOfM`,
   eitherOneAlone: `${PREFIX}.eitherOneAlone`,
@@ -40,8 +39,7 @@ export const RULE_LINE_KEYS = {
   togetherWithGroupsEveryMember: `${PREFIX}.togetherWithGroupsEveryMember`,
   togetherWithRequiredAndGroupsEveryMember: `${PREFIX}.togetherWithRequiredAndGroupsEveryMember`,
   oneFailureDomain: `${PREFIX}.oneFailureDomain`,
-  differentPlaces: `${PREFIX}.differentPlaces`,
-  sizingRule: `${PREFIX}.sizingRule`
+  differentPlaces: `${PREFIX}.differentPlaces`
 } as const
 
 const line = (key: RuleLineKey, params: RuleLineParams = {}): RuleLine => ({ key, params })
@@ -162,11 +160,12 @@ const clausesOf = (path: RuleLinesInput): readonly Clause[] =>
   Array.isArray(path) ? path : (path as Pick<SetupDraft, 'clauses'>).clauses
 
 /**
- * The rule lines of a path. A single method earns its warning, the offer of a
- * second method and the platform line, and nothing else. Otherwise, in this
+ * The rule lines of a path. A single method earns its warning and the offer of
+ * a second method, and nothing else: a single passkey is offered a second
+ * passkey and earns the platform line, a single method of any other kind, or
+ * of no known kind, is offered a second method of any kind. Otherwise, in this
  * order: the rows' line when the path has no group, each group's threshold line
- * followed by its failure domain line, the different places line, and the
- * sizing rule line for a path of two rows and no group.
+ * followed by its failure domain line, and the different places line.
  */
 export const getRuleLines = (path: RuleLinesInput, options: RuleLinesOptions = {}): RuleLine[] => {
   // A clause with no member at threshold zero asks nothing and needs nothing,
@@ -197,11 +196,15 @@ export const getRuleLines = (path: RuleLinesInput, options: RuleLinesOptions = {
   }
 
   if (methodCount === 1) {
-    return [
-      line(RULE_LINE_KEYS.singleMethod),
-      line(RULE_LINE_KEYS.secondMethodOffer),
-      line(RULE_LINE_KEYS.platformFate)
-    ]
+    const [single] = clauses.flatMap((clause) => clause.credentials)
+    if (familyOf(single, options.kindOfMethod) === 'passkey') {
+      return [
+        line(RULE_LINE_KEYS.singleMethod),
+        line(RULE_LINE_KEYS.secondMethodOffer),
+        line(RULE_LINE_KEYS.platformFate)
+      ]
+    }
+    return [line(RULE_LINE_KEYS.singleMethod), line(RULE_LINE_KEYS.secondMethodOfferAny)]
   }
 
   const lines: RuleLine[] = []
@@ -222,10 +225,6 @@ export const getRuleLines = (path: RuleLinesInput, options: RuleLinesOptions = {
   })
 
   lines.push(line(RULE_LINE_KEYS.differentPlaces))
-
-  if (groups.length === 0 && rows.length === 2) {
-    lines.push(line(RULE_LINE_KEYS.sizingRule))
-  }
 
   return lines
 }

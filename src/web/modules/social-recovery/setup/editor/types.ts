@@ -1,3 +1,6 @@
+import type { ReactNode } from 'react'
+import type { StyleProp, View, ViewStyle } from 'react-native'
+
 import type {
   Clause,
   Credential,
@@ -9,7 +12,8 @@ import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import type {
   Enrollment,
   SetupRecords,
-  SlotKind
+  SlotKind,
+  SlotPosition
 } from '@web/modules/social-recovery/shared/records'
 import type { RuleLine } from '@web/modules/social-recovery/shared/rule-lines'
 
@@ -34,24 +38,6 @@ export interface Refusal {
   clause?: number
 }
 
-/** One line of the rules panel. */
-export type RulesPanelLine =
-  | 'requiredAnswers'
-  | 'enoughMembers'
-  | 'thresholdAtLeastOne'
-  | 'thresholdCeiling'
-  | 'memberCeiling'
-  | 'oneRowPerMethod'
-  | 'atLeastOneMethod'
-  | 'smallEnough'
-  | 'zeroThresholdOwnRule'
-
-/** Where one credential sits in the path: its clause and its place among the clause's members. */
-export interface SlotPosition {
-  clause: number
-  member: number
-}
-
 /** The outcome of an operation that places a credential in the path. */
 export type EditResult =
   | { status: 'applied'; clauses: Clause[]; at: SlotPosition }
@@ -61,20 +47,15 @@ export type EditResult =
 export type ClauseRole = 'required' | 'group'
 
 /**
- * Where the member picker places what the holder picks; `second` joins the
- * path's one method in a group any one of the two recovers.
+ * Where a kind menu places the empty slot of the kind the holder picks: a new
+ * required row, a new member of a group, an existing slot, or `second`, which
+ * joins the path's one method in a group any one of the two recovers.
  */
-export type PickerTarget =
+export type AddTarget =
   | { place: 'required' }
   | { place: 'second' }
   | { place: 'member'; clause: number }
-  | ({ place: 'slot'; kind?: SlotKind } & SlotPosition)
-
-/** One enrolled credential the picker lists, with whether the path already holds it. */
-export interface PickerEntry {
-  enrollment: Enrollment
-  inPath: boolean
-}
+  | ({ place: 'slot' } & SlotPosition)
 
 /**
  * The records the editor opened with, an absent draft opening the blank
@@ -110,31 +91,60 @@ export interface EditorViewProps {
   navigate: (to: string) => void
 }
 
-export interface MemberPickerProps {
-  entries: Record<SlotKind, PickerEntry[]>
-  /** The kinds the picker offers: every kind, or an empty slot's own. */
-  kinds: readonly SlotKind[]
-  addressBook: AddressBook
-  onPick: (credential: Credential) => void
-  onEnrollNew: (kind: SlotKind) => void
-  onClose: () => void
-  /** Holds every pick while the path check runs. */
-  disabled?: boolean
-  /**
-   * Whether the last edit (a pick, a move to another group or a change to
-   * required) was refused because the path already holds the credential.
-   */
-  refused?: boolean
-}
-
 export interface CredentialRowProps {
   credential: Credential
   addressBook: AddressBook
   enrollments: readonly Enrollment[]
-  /** Opens the picker for an empty slot. */
+  /**
+   * Opens the row's method: an empty slot always, an enrolled credential when
+   * its kind is known and the records hold its enrollment.
+   */
   onPress?: () => void
   disabled?: boolean
   testID?: string
+}
+
+/** The element a kind menu wraps; on the web it is a DOM node, which a press outside it closes the menu by. */
+export type KindMenuAnchorNode = View & Pick<HTMLElement, 'contains'>
+
+export interface KindMenuProps {
+  kinds: readonly SlotKind[]
+  onPick: (kind: SlotKind) => void
+  disabled?: boolean
+  /** The menu's own test id; each kind's entry adds `-<kind>` to it. */
+  testID: string
+}
+
+export interface KindMenuEntryProps {
+  label: string
+  onPress: () => void
+  disabled?: boolean
+  testID: string
+}
+
+export interface KindMenuAnchorProps {
+  /** What opens the menu: a button, or a row. */
+  children: ReactNode
+  open: boolean
+  kinds: readonly SlotKind[]
+  onPick: (kind: SlotKind) => void
+  onClose: () => void
+  disabled?: boolean
+  menuTestID: string
+  style?: StyleProp<ViewStyle>
+}
+
+export interface KindMenuButtonProps {
+  text: string
+  open: boolean
+  kinds: readonly SlotKind[]
+  onToggle: () => void
+  onPick: (kind: SlotKind) => void
+  onClose: () => void
+  disabled?: boolean
+  /** The button's test id; its menu's is the same with `-menu` after it. */
+  testID: string
+  style?: StyleProp<ViewStyle>
 }
 
 /**
@@ -162,37 +172,65 @@ export interface IndexedClause {
 
 export interface EditorHeaderProps {
   mode: EditorLoad['mode']
-  /** Whether the last pick was a credential the path already holds. */
+  /** Whether the last move was refused because the path already holds the credential. */
   refused: boolean
 }
 
-export interface RequiredRowsProps {
-  rows: IndexedClause[]
-  groups: IndexedClause[]
-  /** The index of the required row whose group chooser is open, when more than one group can take it. */
-  rowChoosingGroup: number | null
+/** What the path's rows and groups share: the records, the open menu and the slot actions. */
+interface PathPartProps {
   addressBook: AddressBook
   enrollments: readonly Enrollment[]
   checking: boolean
+  /** The kind menu open on screen, if any. */
+  menu: AddTarget | null
   onOpenSlot: (clause: number, member: number) => void
+  onPickKind: (kind: SlotKind) => void
+  onCloseMenu: () => void
+}
+
+export interface SlotRowProps extends PathPartProps {
+  clause: number
+  member: number
+  credential: Credential
+}
+
+export interface RequiredRowProps extends PathPartProps {
+  row: IndexedClause
+  groups: IndexedClause[]
+  /** Whether this row's group chooser is open, when more than one group can take it. */
+  choosingGroup: boolean
   onMove: (row: number, group: number) => void
   onOpenGroupChoice: (row: number) => void
   onCloseGroupChoice: () => void
   onRemove: (row: number) => void
-  onAdd: () => void
 }
 
-export interface GroupListProps {
-  groups: IndexedClause[]
-  heldThresholds: HeldThresholds
-  addressBook: AddressBook
-  enrollments: readonly Enrollment[]
-  checking: boolean
-  onOpenSlot: (clause: number, member: number) => void
+export interface GroupCardProps extends PathPartProps {
+  group: IndexedClause
+  /** The group's place among the groups, from one. */
+  ordinal: number
+  heldText?: string
   onThresholdText: (group: number, text: string) => void
   onMakeRequired: (group: number, member: number) => void
   onRemoveMember: (group: number, member: number) => void
-  onAddMember: (group: number) => void
+  onToggleMenu: (target: AddTarget) => void
+  onRemoveGroup: (group: number) => void
+}
+
+export interface EditorPathProps extends PathPartProps {
+  rows: IndexedClause[]
+  groups: IndexedClause[]
+  heldThresholds: HeldThresholds
+  /** The index of the required row whose group chooser is open, when more than one group can take it. */
+  rowChoosingGroup: number | null
+  onMove: (row: number, group: number) => void
+  onOpenGroupChoice: (row: number) => void
+  onCloseGroupChoice: () => void
+  onRemove: (row: number) => void
+  onThresholdText: (group: number, text: string) => void
+  onMakeRequired: (group: number, member: number) => void
+  onRemoveMember: (group: number, member: number) => void
+  onToggleMenu: (target: AddTarget) => void
   onRemoveGroup: (group: number) => void
   onAddGroup: () => void
 }
@@ -200,8 +238,14 @@ export interface GroupListProps {
 export interface RuleLinesProps {
   ruleLines: RuleLine[]
   checking: boolean
+  /** Whether the second method's kind menu is open. */
+  secondMenuOpen: boolean
+  /** Whether the path is two required rows and no group, which "Make it a group" turns into one group. */
+  canMakeItAGroup: boolean
   onMakeItAGroup: () => void
-  onAddSecondMethod: () => void
+  onToggleSecondMenu: () => void
+  onPickKind: (kind: SlotKind) => void
+  onCloseMenu: () => void
 }
 
 export interface RefusalListProps {
@@ -227,3 +271,5 @@ export interface EditorActionsProps {
   onContinue: () => void
   onBack: () => void
 }
+
+export type { SlotPosition }

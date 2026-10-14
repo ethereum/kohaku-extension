@@ -89,7 +89,14 @@ export const createMethodReads = (provider: IProvider): MethodReads => {
           functionName: 'verify',
           args: [config, digest, proof]
         }),
-        (answer) => decodeFunctionResult({ abi: METHOD_ABI, functionName: 'verify', data: answer })
+        (answer) => {
+          // The raw answer, as the manager reads it: a bytes4 decoder would
+          // drop the padding and any trailing word the manager refuses.
+          if (size(answer) === 0) {
+            throw new Error('The module answered no data.')
+          }
+          return answer
+        }
       )
     },
 

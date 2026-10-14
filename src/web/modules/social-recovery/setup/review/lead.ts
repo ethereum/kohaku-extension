@@ -14,9 +14,17 @@ import type {
 } from '@web/modules/social-recovery/sdk-interfaces'
 import { privacyLevelOf, sameAddress } from '@web/modules/social-recovery/shared/client'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
-import { renderChip, renderFullAddress } from '@web/modules/social-recovery/shared/display'
+import {
+  renderChip,
+  renderFullAddress,
+  renderWaitLength
+} from '@web/modules/social-recovery/shared/display'
 import type { MethodChip, Translate } from '@web/modules/social-recovery/shared/display'
-import { isEmptySlot, slotKindOf } from '@web/modules/social-recovery/shared/records/slots'
+import {
+  enrollmentOf,
+  isEmptySlot,
+  slotKindOf
+} from '@web/modules/social-recovery/shared/records/slots'
 import type {
   Enrollment,
   EnrollmentTestVerdict
@@ -66,22 +74,6 @@ export const kindOf = (credential: Credential, addressBook: AddressBook): Method
 
 /** The kind's name, the word a row and a contract row name a method by. */
 export const kindNameOf = (kind: MethodKind, t: Translate): string => t(KIND_NAME_KEYS[kind])
-
-/**
- * The enrollment the records hold for a credential: the same method and the
- * same config bytes. An empty slot has none.
- */
-export const enrollmentOf = (
-  credential: Credential,
-  enrollments: readonly Enrollment[]
-): Enrollment | undefined =>
-  isEmptySlot(credential)
-    ? undefined
-    : enrollments.find(
-        (enrollment) =>
-          sameAddress(enrollment.credential.method, credential.method) &&
-          enrollment.credential.config.toLowerCase() === credential.config.toLowerCase()
-      )
 
 /** The address a guardian's config holds, ABI-encoded in one word. */
 export const guardianAddressOf = (credential: Credential): Address | undefined => {
@@ -223,7 +215,8 @@ const SECONDS_PER_HOUR = 3600n
 
 /**
  * The waiting period as the picker named it: a chip's word where it is one of
- * the four lengths, otherwise its count of hours.
+ * the four lengths, otherwise its length in whole hours, or in whole minutes
+ * under one hour.
  */
 export const renderWait = (wait: SetupDraft['wait'], t: Translate): string => {
   const chip =
@@ -233,7 +226,7 @@ export const renderWait = (wait: SetupDraft['wait'], t: Translate): string => {
   if (chip) {
     return t(`socialRecovery.privacy.waitingPeriod.chips.${chip.id}`)
   }
-  return t('socialRecovery.display.remainingHours', { count: Number(wait / SECONDS_PER_HOUR) })
+  return renderWaitLength(wait, t)
 }
 
 /** The kinds of every row of the path, empty slots by the kind they wait for. */

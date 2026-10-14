@@ -15,6 +15,7 @@ import type {
 } from '@web/modules/social-recovery/sdk-interfaces'
 import {
   deadCommitmentOf,
+  readSetupBody,
   setupBodyOf,
   setupCommitmentOf
 } from '@web/modules/social-recovery/shared/client/kit/formats'
@@ -93,7 +94,7 @@ const EXPECTED_CLAUSES = [
   }
 ]
 
-const MAX_UINT48 = 2n ** 48n - 1n
+const MAX_UINT48 = 281_474_976_710_656n - 1n
 
 describe('the setup body', () => {
   it('is the wait, the pause choice and the clauses as three top-level values', () => {
@@ -163,6 +164,26 @@ describe('the setup body', () => {
     ])
     expect(setupBodyOf(ACCOUNT, at(255))).toBe(expected)
     expect(() => setupBodyOf(ACCOUNT, at(256))).toThrow()
+  })
+})
+
+describe('reading a setup body', () => {
+  it('gives back the wait, the pause choice and each clause in place order', () => {
+    expect(readSetupBody(setupBodyOf(ACCOUNT, CONFIGURATION))).toEqual({
+      wait: 259200,
+      ignoresPause: true,
+      clauses: EXPECTED_CLAUSES
+    })
+  })
+
+  it('gives back a rule with no clause as an empty list', () => {
+    const body = setupBodyOf(ACCOUNT, { wait: 60n, ignoresPause: false, clauses: [] })
+    expect(readSetupBody(body)).toEqual({ wait: 60, ignoresPause: false, clauses: [] })
+  })
+
+  it('throws for bytes that do not decode as a setup body', () => {
+    expect(() => readSetupBody('0x1234')).toThrow()
+    expect(() => readSetupBody('0x')).toThrow()
   })
 })
 

@@ -9,6 +9,7 @@ import type {
   PreparedCall
 } from '@web/modules/social-recovery/sdk-interfaces'
 import type {
+  AddGate,
   ChainReads,
   EstimationListener,
   GasEstimateCall,
@@ -305,6 +306,10 @@ export interface SendDrive extends DriveRun {
   key: KeyHandle
   /** The transaction the gas check estimated, from that key (`gasTransactionOf`). */
   transaction: GasEstimateCall
+  /** The id the transaction's request is queued under (`newSendRequestId`); the port makes one by default. */
+  requestId?: string
+  /** Asked right before the add (`SendOptions`). */
+  canAdd?: AddGate
 }
 
 /** What `driveAccountBatch` takes: the drive's run, the send port and the batch the account runs. */
@@ -321,6 +326,8 @@ export interface AccountBatchDrive extends DriveRun {
   recoveryKit?: RecoveryKitMark
   /** The id the batch's request is queued under (`newSendRequestId`); the port makes one by default. */
   requestId?: string
+  /** Asked right before the add (`SendOptions`). */
+  canAdd?: AddGate
 }
 
 // ---------------------------------------------------------------------------
@@ -517,3 +524,32 @@ export interface DepositStepRenderOptions {
   /** The key's latest balance for the waiting line, the step's own by default. */
   balance?: bigint
 }
+
+/**
+ * One reading that the node knows none of a run's transactions: when it was
+ * taken (ms since epoch), the block number read with it, and the hashes it
+ * asked about.
+ */
+export interface UnknownReading {
+  at: number
+  block: number
+  hashes: readonly Hex[]
+}
+
+/** A claim of a write as a page finds it stored: the hash, once the wallet answered one. */
+export interface StoredClaim {
+  transactionHash?: Hex
+}
+
+/** A stored claim as a page that did not write it first reads it: in flight under its hash, or with no hash, for the wallet's queue to decide. */
+export type ClaimReading = { kind: 'inFlight'; transactionHash: Hex } | { kind: 'noHash' }
+
+/**
+ * Where the wallet holds the request a claim was queued under: still held
+ * (queued, or on a route it cannot follow), broadcast under a hash, or no
+ * longer held anywhere.
+ */
+export type RequestHold =
+  | { status: 'held' }
+  | { status: 'broadcast'; transactionHash: Hex }
+  | { status: 'free' }

@@ -9,34 +9,45 @@
  * action does not fit it or it holds more than one key, a setup that already
  * exists). An untested method warns beside Save and never disables it.
  */
-import type { Clause } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Clause, SetupDescription } from '@web/modules/social-recovery/sdk-interfaces'
 import type { Enrollment } from '@web/modules/social-recovery/shared/records'
-import { isEmptySlot } from '@web/modules/social-recovery/shared/records/slots'
+import { enrollmentOf, isEmptySlot } from '@web/modules/social-recovery/shared/records/slots'
 
 import { ACCOUNT_READ_NAMES } from './constants'
-import { authoritiesOf } from './doors'
-import { enrollmentOf } from './lead'
 import { trustReadsComplete } from './trust'
-import type { AccountReadName, AccountReads, SaveBlock, SaveGate, SaveGateInput } from './types'
+import type {
+  AccountReadName,
+  AccountReads,
+  SaveBlock,
+  SaveGate,
+  SaveGateInput,
+  UntestedCredential
+} from './types'
 
 /**
- * Whether a credential of the path was never tested: it has no enrollment, or
- * its test was skipped. A test that failed, could not run or is not supported
- * reads its own outcome on its row instead.
+ * The credentials of the path that were never tested, each at its place in
+ * the path: no enrollment, or a skipped test. A test that failed, could not
+ * run or is not supported reads its own outcome on its row instead.
  */
 export const untestedInPath = (
   clauses: readonly Clause[],
   enrollments: readonly Enrollment[]
-): boolean =>
-  clauses
-    .flatMap(({ credentials }) => credentials)
-    .some((credential) => {
+): UntestedCredential[] =>
+  clauses.flatMap(({ credentials }, clause) =>
+    credentials.flatMap((credential, member): UntestedCredential[] => {
       if (isEmptySlot(credential)) {
-        return false
+        return []
       }
       const enrollment = enrollmentOf(credential, enrollments)
       return enrollment === undefined || enrollment.test === 'not-tested'
+        ? [{ credential, clause, member }]
+        : []
     })
+  )
+
+/** The candidate keys that hold authority over the account. */
+const authoritiesOf = (description: SetupDescription): Address[] =>
+  description.candidateKeys.filter(({ isAuthority }) => isAuthority).map(({ address }) => address)
 
 /** Whether a member of any clause of the path is a slot no method fills. */
 const hasEmptySlot = (clauses: readonly Clause[]): boolean =>
@@ -131,6 +142,9 @@ export const saveGateOf = (input: SaveGateInput): SaveGate => {
   return {
     canSave: recordsLoaded && clientReady && everyRead && blocked === null,
     blocked,
-    notTested: recordsLoaded && input.untested
+    notTested:
+      recordsLoaded && input.untested !== false && input.untested.length > 0
+        ? input.untested
+        : false
   }
 }

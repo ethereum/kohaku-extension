@@ -46,6 +46,10 @@ jest.mock('@common/modules/header/components/Header', () => ({
   __esModule: true,
   default: () => null
 }))
+jest.mock('@common/components/AmbireLogoHorizontal', () => ({
+  __esModule: true,
+  default: () => null
+}))
 // Node's Buffer is not a Uint8Array of jsdom's realm, so ethers' checksum of a
 // phrase fails under jsdom; the stand-in accepts the one phrase the test types.
 jest.mock('ethers', () => {
@@ -79,8 +83,8 @@ const CreateSeedPhraseWriteScreen: typeof import('@web/modules/auth/modules/crea
   require('@web/modules/auth/modules/create-seed-phrase/screens/CreateSeedPhraseWriteScreen/CreateSeedPhraseWriteScreen').default
 const PrivateKeyImportScreen: typeof import('@web/modules/auth/screens/PrivateKeyImportScreen/PrivateKeyImportScreen').default =
   require('@web/modules/auth/screens/PrivateKeyImportScreen/PrivateKeyImportScreen').default
-const SeedPhraseImportScreen: typeof import('@web/modules/auth/screens/SeedPhraseImportScreen/SeedPhraseImportScreen').default =
-  require('@web/modules/auth/screens/SeedPhraseImportScreen/SeedPhraseImportScreen').default
+const SeedPhraseImportForm: typeof import('@web/modules/auth/screens/SeedPhraseImportScreen/SeedPhraseImportScreen').SeedPhraseImportForm =
+  require('@web/modules/auth/screens/SeedPhraseImportScreen/SeedPhraseImportScreen').SeedPhraseImportForm
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
 
 const THEME = Object.fromEntries(
@@ -166,7 +170,7 @@ describe('the screens that open the picker on a key', () => {
   })
 
   it('opens the picker from an imported seed without asking it to select the smart account', async () => {
-    await mount(<SeedPhraseImportScreen />)
+    await mount(<SeedPhraseImportForm />)
     const field = container.querySelector<HTMLTextAreaElement>(
       '[data-testid="enter-seed-phrase-field"]'
     )

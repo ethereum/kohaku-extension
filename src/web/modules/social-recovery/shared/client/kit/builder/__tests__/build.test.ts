@@ -1,15 +1,35 @@
 /**
  * The client of a deployed kit once its checks passed: the methods it serves
  * by slug, the action bound to the account with its real disarming call, the
- * wallet's reads over the chain, and the members it does not serve yet, each
- * refusing by name.
+ * wallet's reads over the chain with the verify of a pasted reply, the
+ * recovery gathering and prepares over the manager, the one events feed both
+ * sides serve, and the members it does not serve yet, each refusing by name.
  */
-import { decodeFunctionData, getAddress, zeroHash } from 'viem'
+import {
+  decodeFunctionData,
+  encodeEventTopics,
+  encodeFunctionData,
+  encodeFunctionResult,
+  getAddress,
+  type Hex,
+  isAddressEqual,
+  pad,
+  parseAbi,
+  zeroAddress,
+  zeroHash
+} from 'viem'
 
 import { PROXY_AMBIRE_ACCOUNT } from '@ambire-common/consts/deploy'
 import { defaultClientConfiguration } from '@web/modules/social-recovery/sdk-doubles'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, ClientConfiguration } from '@web/modules/social-recovery/sdk-interfaces'
 import { buildKitClient } from '@web/modules/social-recovery/shared/client/kit/builder'
+import {
+  ATTEMPT_CANCELLED_TOPIC,
+  ATTEMPT_CONSUMED_TOPIC,
+  ATTEMPT_STARTED_TOPIC,
+  SETUP_CLEARED_TOPIC,
+  SETUP_COMMITTED_TOPIC
+} from '@web/modules/social-recovery/shared/client/kit/events'
 import {
   DEPLOYED_ACTION,
   DEPLOYED_KIT_SLOT,
@@ -23,8 +43,15 @@ import {
 import {
   ACCOUNT,
   ACCOUNT_ABI,
+  ACTION_ABI,
+  approverReplyTo,
+  approverRequestAt,
+  committedLog,
+  CONTRACT_CODE,
+  DEPLOYED_AT,
   DESCRIPTOR,
   fakeNode,
+  guardianAt,
   HEAD,
   KEY_A,
   MANAGER,
@@ -32,11 +59,24 @@ import {
   METHOD_ECDSA,
   METHOD_PASSKEY,
   METHOD_ZKPASSPORT,
-  thrownBy
+  NO_STATE,
+  scriptMethod,
+  stateAnswer,
+  stateOfCall,
+  thrownBy,
+  VERIFY_MAGIC,
+  verifyCallsOf
 } from '@web/modules/social-recovery/shared/client/kit/setup-client/__tests__/harness'
-import type { DeploymentFacts } from '@web/modules/social-recovery/shared/client/types'
+import type {
+  DeploymentFacts,
+  PrivilegeAccount
+} from '@web/modules/social-recovery/shared/client/types'
 
 const ARMED = '0x0000000000000000000000000000000000000000000000000000000000000001'
+
+const PRIVILEGE_EVENT = parseAbi(['event LogPrivilegeChanged(address indexed addr, bytes32 priv)'])
+const PRIVILEGES_VIEW = parseAbi(['function privileges(address) view returns (bytes32)'])
+const CANCEL_BY_OWNER = parseAbi(['function cancelByOwner(address action)'])
 
 const BOOK = {
   manager: MANAGER,
@@ -49,7 +89,25 @@ const BOOK = {
   action: DEPLOYED_ACTION
 }
 
-const clientOver = (facts: DeploymentFacts = FACTS) => {
+const LISTED_ACCOUNT: PrivilegeAccount = {
+  addr: ACCOUNT,
+  associatedKeys: [KEY_A],
+  initialPrivileges: [[KEY_A, ARMED]],
+  creation: { factoryAddr: MANAGER, bytecode: '0x00', salt: zeroHash }
+}
+
+const clientOver = (
+  facts: DeploymentFacts = FACTS,
+  {
+    privilegeAccount = LISTED_ACCOUNT,
+    blockTags,
+    logChunkWidth
+  }: {
+    privilegeAccount?: PrivilegeAccount
+    blockTags?: ClientConfiguration['blockTags']
+    logChunkWidth?: number
+  } = {}
+) => {
   const node = fakeNode()
   scriptDeployment(node)
   const descriptor = { ...DESCRIPTOR, action: DEPLOYED_ACTION, auditedActions: [DEPLOYED_ACTION] }
@@ -59,20 +117,20 @@ const clientOver = (facts: DeploymentFacts = FACTS) => {
     descriptor,
     facts,
     addressBook: BOOK,
-    config: defaultClientConfiguration({ accountImplementation: PROXY_AMBIRE_ACCOUNT }),
+    config: defaultClientConfiguration({
+      accountImplementation: PROXY_AMBIRE_ACCOUNT,
+      ...(blockTags && { blockTags }),
+      ...(logChunkWidth !== undefined && { logChunkWidth })
+    }),
     provider: node.provider,
     codeRead: node.codeRead,
+    transactionRead: node.transactionRead,
     manager: createManagerReads(node.provider, MANAGER),
     action: createActionReads(
       { provider: node.provider, codeRead: node.codeRead },
       DEPLOYED_ACTION
     ),
-    privilegeAccount: {
-      addr: ACCOUNT,
-      associatedKeys: [KEY_A],
-      initialPrivileges: [[KEY_A, ARMED]],
-      creation: { factoryAddr: MANAGER, bytecode: '0x00', salt: zeroHash }
-    }
+    privilegeAccount
   })
   return { node, client }
 }
@@ -137,65 +195,227 @@ describe("the wallet's reads", () => {
       fits: true
     })
   })
+
+  it("names a deployed account's key from its privilege writes where the wallet holds no creation record", async () => {
+    const { node, client } = clientOver(FACTS, {
+      privilegeAccount: {
+        addr: ACCOUNT,
+        associatedKeys: [],
+        initialPrivileges: [],
+        creation: null
+      },
+      blockTags: { read: 'finalized', watch: 'finalized' }
+    })
+    node.setCode(ACCOUNT, CONTRACT_CODE, DEPLOYED_AT)
+    node.addLog({
+      address: ACCOUNT,
+      topics: encodeEventTopics({
+        abi: PRIVILEGE_EVENT,
+        eventName: 'LogPrivilegeChanged',
+        args: { addr: KEY_A }
+      }) as Hex[],
+      data: ARMED,
+      blockNumber: HEAD - 5,
+      blockHash: zeroHash,
+      logIndex: 0,
+      transactionHash: zeroHash
+    })
+    node.answer(
+      ACCOUNT,
+      encodeFunctionData({ abi: PRIVILEGES_VIEW, functionName: 'privileges', args: [KEY_A] }),
+      ARMED
+    )
+    node.answer(
+      DEPLOYED_ACTION,
+      encodeFunctionData({ abi: ACTION_ABI, functionName: 'isAuthority', args: [ACCOUNT, KEY_A] }),
+      encodeFunctionResult({ abi: ACTION_ABI, functionName: 'isAuthority', result: true })
+    )
+    await expect(client.walletReads.removedKey()).resolves.toEqual({
+      kind: 'named',
+      key: getAddress(KEY_A)
+    })
+    expect(node.provider.block).toHaveBeenCalledWith('finalized')
+    expect(node.provider.logs.mock.calls.map(([, range]) => range)).toEqual([
+      { from: DEPLOYED_AT, to: HEAD },
+      { from: DEPLOYED_AT, to: HEAD }
+    ])
+    expect(node.calls.map(({ to, block }) => [to, block])).toEqual([
+      [ACCOUNT, HEAD],
+      [DEPLOYED_ACTION, HEAD]
+    ])
+    node.answer(
+      DEPLOYED_ACTION,
+      encodeFunctionData({ abi: ACTION_ABI, functionName: 'supportsAccount', args: [ACCOUNT] }),
+      encodeFunctionResult({ abi: ACTION_ABI, functionName: 'supportsAccount', result: true })
+    )
+    await expect(client.walletReads.fitCheck()).resolves.toEqual({
+      basis: 'deployed-code',
+      fits: true
+    })
+  })
+
+  it("names the sender of an unlisted account's latest setup commit through the transaction read", async () => {
+    const { node, client } = clientOver(FACTS, {
+      privilegeAccount: { addr: ACCOUNT, associatedKeys: [], initialPrivileges: [], creation: null }
+    })
+    node.setCode(ACCOUNT, CONTRACT_CODE, DEPLOYED_AT)
+    const commit = committedLog(
+      { action: DEPLOYED_ACTION, nonce: 1n, setupCommitment: ARMED },
+      HEAD - 5
+    )
+    node.addLog(commit)
+    node.setSender(commit.transactionHash, getAddress(KEY_A))
+    node.answer(
+      ACCOUNT,
+      encodeFunctionData({ abi: PRIVILEGES_VIEW, functionName: 'privileges', args: [KEY_A] }),
+      ARMED
+    )
+    node.answer(
+      DEPLOYED_ACTION,
+      encodeFunctionData({ abi: ACTION_ABI, functionName: 'isAuthority', args: [ACCOUNT, KEY_A] }),
+      encodeFunctionResult({ abi: ACTION_ABI, functionName: 'isAuthority', result: true })
+    )
+    await expect(client.walletReads.removedKey()).resolves.toEqual({
+      kind: 'named',
+      key: getAddress(KEY_A)
+    })
+    expect(node.transactionRead.mock.calls).toEqual([[commit.transactionHash]])
+  })
+
+  it("reads an unlisted account's privilege writes and manager logs in chunks of the configured width", async () => {
+    const { node, client } = clientOver(FACTS, {
+      privilegeAccount: {
+        addr: ACCOUNT,
+        associatedKeys: [],
+        initialPrivileges: [],
+        creation: null
+      },
+      logChunkWidth: 400_000
+    })
+    node.setCode(ACCOUNT, CONTRACT_CODE)
+    await expect(client.walletReads.removedKey()).resolves.toEqual({
+      kind: 'unavailable',
+      cause: 'no-key-entry'
+    })
+    const rangesAt = (address: Address) =>
+      node.provider.logs.mock.calls
+        .filter(([filter]) => filter.addresses.some((at: Address) => isAddressEqual(at, address)))
+        .map(([, range]) => range)
+    expect(rangesAt(ACCOUNT)).toEqual([
+      { from: 0, to: 399_999 },
+      { from: 400_000, to: 799_999 },
+      { from: 800_000, to: HEAD }
+    ])
+    expect(rangesAt(MANAGER)).toEqual([{ from: DEPLOYED_AT, to: HEAD }])
+  })
+
+  it("verifies a pasted reply through the guardian method's own verify view", async () => {
+    const { node, client } = clientOver()
+    scriptMethod(node, METHOD_ECDSA, { verify: VERIFY_MAGIC })
+    const request = approverRequestAt(guardianAt(0), 0)
+    const reply = approverReplyTo(request)
+
+    expect(await client.walletReads.verifyReply(request, reply)).toBe('satisfied')
+    expect(verifyCallsOf(node)).toEqual([
+      expect.objectContaining({ module: METHOD_ECDSA, proof: reply.proof })
+    ])
+  })
+})
+
+describe('the recovery side', () => {
+  it("opens a gathering over the manager's state of the deployed action", async () => {
+    const { node, client } = clientOver()
+    node.answer(
+      MANAGER,
+      stateOfCall(DEPLOYED_ACTION),
+      stateAnswer({ ...NO_STATE, attemptState: 1 })
+    )
+    const thrown = await thrownBy(
+      client.recovery.initRecoveryGathering(
+        { password: 'unused' },
+        { newAuthority: KEY_A },
+        { token: zeroAddress, amount: 0n, payee: zeroAddress },
+        { window: 3600 }
+      )
+    )
+    expect(thrown).toMatchObject({
+      name: 'ValidationRefusal',
+      findings: { errors: [expect.objectContaining({ code: 'request.attempt-active' })] }
+    })
+    expect(node.calls).toEqual([{ to: MANAGER, data: stateOfCall(DEPLOYED_ACTION), block: HEAD }])
+  })
+
+  it("prepares the owner's cancel the account sends to the manager, at the pinned block", async () => {
+    const { node, client } = clientOver()
+    const call = await client.recovery.prepareCancelByOwner()
+    expect([call.kind, call.target, call.value, call.sender]).toEqual([
+      'call',
+      MANAGER,
+      0n,
+      'account'
+    ])
+    expect(call.block).toEqual({ number: HEAD, hash: node.head.hash })
+    expect(decodeFunctionData({ abi: CANCEL_BY_OWNER, data: call.data })).toEqual({
+      functionName: 'cancelByOwner',
+      args: [getAddress(DEPLOYED_ACTION)]
+    })
+  })
+})
+
+describe('the events feed', () => {
+  it("reads the manager's logs of the account at the deployed action, one feed on both sides", async () => {
+    const { node, client } = clientOver()
+    const { events } = client.setup
+    await expect(
+      events.fetch(events.accountFilter(), { from: HEAD - 10, to: HEAD })
+    ).resolves.toEqual([])
+    expect(node.provider.logs).toHaveBeenCalledWith(
+      {
+        addresses: [MANAGER],
+        topics: [
+          [
+            SETUP_COMMITTED_TOPIC,
+            SETUP_CLEARED_TOPIC,
+            ATTEMPT_STARTED_TOPIC,
+            ATTEMPT_CANCELLED_TOPIC,
+            ATTEMPT_CONSUMED_TOPIC
+          ],
+          pad(ACCOUNT.toLowerCase() as Hex),
+          pad(DEPLOYED_ACTION.toLowerCase() as Hex)
+        ]
+      },
+      { from: HEAD - 10, to: HEAD }
+    )
+    expect(client.recovery.events).toBe(events)
+  })
+
+  it('reads in chunks of the configured width, which a node with a narrow ceiling serves', async () => {
+    const { node, client } = clientOver(FACTS, { logChunkWidth: 2 })
+    const read = node.provider.logs.getMockImplementation()!
+    node.provider.logs.mockImplementation(async (filter, range) => {
+      if (range.to - range.from + 1 > 2) {
+        throw new Error('range too wide')
+      }
+      return read(filter, range)
+    })
+    const { events } = client.setup
+    await expect(events.fetch(events.accountFilter(), { from: 100, to: 104 })).resolves.toEqual([])
+    expect(node.provider.logs.mock.calls.map(([, range]) => range)).toEqual([
+      { from: 100, to: 101 },
+      { from: 102, to: 103 },
+      { from: 104, to: 104 }
+    ])
+  })
 })
 
 describe('the members the deployed kit does not serve yet', () => {
-  const RECOVERY_REJECTS = [
-    'initRecoveryGathering',
-    'initCancelGathering',
-    'prepareStartAttempt',
-    'prepareCancelByProofs',
-    'prepareCancelByOwner',
-    'prepareCancelByVeto',
-    'prepareExecuteHandover',
-    'recoveryState'
-  ] as const
-  const RECOVERY_THROWS = ['getApproverRequests', 'addApproverReply', 'assess', 'complete'] as const
-  const EVENTS_THROW = ['accountFilter', 'methodFilter', 'privilegeFilter', 'decodeLog'] as const
-
-  RECOVERY_REJECTS.forEach((member) =>
-    it(`rejects recovery.${member} by name`, async () => {
-      const { node, client } = clientOver()
-      const run = client.recovery[member] as () => Promise<unknown>
-      expect(await thrownBy(run())).toMatchObject({
-        name: 'NotServedRefusal',
-        member: `recovery.${member}`
-      })
-      expect(node.calls).toEqual([])
-    })
-  )
-
-  RECOVERY_THROWS.forEach((member) =>
-    it(`throws recovery.${member} by name`, () => {
-      const { client } = clientOver()
-      const run = client.recovery[member] as () => unknown
-      expect(run).toThrow(
-        expect.objectContaining({ name: 'NotServedRefusal', member: `recovery.${member}` })
-      )
-    })
-  )
-
-  EVENTS_THROW.forEach((member) =>
-    it(`throws the events feed member ${member} by name, on both sides`, () => {
-      const { client } = clientOver()
-      ;(['setup', 'recovery'] as const).forEach((part) => {
-        const run = client[part].events[member] as () => unknown
-        expect(run).toThrow(expect.objectContaining({ member: `${part}.events.${member}` }))
-      })
-    })
-  )
-
-  it('rejects the events fetch, the clear and the verify of a pasted reply by name', async () => {
+  it("refuses the events feed's method filter and rejects the clear by name", async () => {
     const { client } = clientOver()
-    const fetch = client.recovery.events.fetch as () => Promise<unknown>
-    expect(await thrownBy(fetch())).toMatchObject({ member: 'recovery.events.fetch' })
+    expect(() => client.recovery.events.methodFilter()).toThrow(
+      expect.objectContaining({ name: 'NotServedRefusal', member: 'events.methodFilter' })
+    )
     expect(await thrownBy(client.setup.prepareClearSetup())).toMatchObject({
       member: 'setup.prepareClearSetup'
-    })
-    const verify = client.walletReads.verifyReply as () => Promise<unknown>
-    expect(await thrownBy(verify())).toMatchObject({
-      name: 'NotServedRefusal',
-      member: 'walletReads.verifyReply'
     })
   })
 })

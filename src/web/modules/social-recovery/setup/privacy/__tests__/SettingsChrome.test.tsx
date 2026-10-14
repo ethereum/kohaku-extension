@@ -54,6 +54,7 @@ jest.mock('@common/components/AmbireLogoHorizontal', () => ({
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const React: typeof import('react') = require('react')
+const { MemoryRouter }: typeof import('react-router-dom') = require('react-router-dom')
 const { View }: typeof import('react-native') = require('react-native')
 const en: typeof import('@common/config/localization/translations/en.json') = require('@common/config/localization/translations/en.json')
 const {
@@ -64,6 +65,9 @@ const {
   CHAIN_IDS,
   WALLET_RECOVERY_CHAIN
 }: typeof import('@web/modules/social-recovery/shared/client') = require('@web/modules/social-recovery/shared/client')
+const {
+  WEB_ROUTES
+}: typeof import('@common/modules/router/constants/common') = require('@common/modules/router/constants/common')
 const SettingsChrome: typeof import('@web/modules/social-recovery/setup/privacy/SettingsChrome').default =
   require('@web/modules/social-recovery/setup/privacy/SettingsChrome').default
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
@@ -116,15 +120,19 @@ describe('the settings chrome around a step', () => {
   })
 
   const showAccount = async (addr: string | null) => {
+    // Each selection here stands for a tab opened on that account, so no latched account carries over.
+    sessionStorage.clear()
     mockSelected.state = { account: addr === null ? null : { addr } }
     await act(async () => {
       if (container.childElementCount) {
         mockSelected.listeners.forEach((listener) => listener())
       } else {
         root.render(
-          <ThemeContext.Provider value={THEME_CONTEXT}>
-            <SettingsChrome step={Step} />
-          </ThemeContext.Provider>
+          <MemoryRouter>
+            <ThemeContext.Provider value={THEME_CONTEXT}>
+              <SettingsChrome step={Step} />
+            </ThemeContext.Provider>
+          </MemoryRouter>
         )
       }
     })
@@ -167,5 +175,33 @@ describe('the settings chrome around a step', () => {
     expect(lastProps().account).toBe(OTHER_ACCOUNT)
     await showAccount(null)
     expect(byTestId('step')).toBeNull()
+  })
+
+  // The wallet selects another account while the tab stays open on its own.
+  const selectInWallet = async (addr: string) => {
+    mockSelected.state = { account: { addr } }
+    await act(async () => {
+      mockSelected.listeners.forEach((listener) => listener())
+    })
+  }
+
+  it("keeps the step on the tab's account when the wallet selects another account, and says so", async () => {
+    await showAccount(ACCOUNT)
+    expect(byTestId('setup-other-account')).toBeNull()
+    await selectInWallet(OTHER_ACCOUNT)
+    expect(stepMounts).toBe(1)
+    expect(lastProps().account).toBe(ACCOUNT)
+    expect(byTestId('step')).not.toBeNull()
+    expect(byTestId('setup-other-account')?.textContent).toContain(
+      en.socialRecovery.chrome.otherAccount.title
+    )
+    // Switching gives a new step the selected account and leaves for the setup entry.
+    await act(async () => {
+      byTestId('setup-other-account-switch')?.click()
+    })
+    expect(stepMounts).toBe(2)
+    expect(lastProps().account).toBe(OTHER_ACCOUNT)
+    expect(byTestId('setup-other-account')).toBeNull()
+    expect(mockNavigate).toHaveBeenCalledWith(WEB_ROUTES.socialRecoverySetup, { replace: true })
   })
 })

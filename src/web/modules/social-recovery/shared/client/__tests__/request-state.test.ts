@@ -1,10 +1,11 @@
 /**
  * A page that did not queue a request reads where it stands: from the queue
- * the wallet holds now, then from the account's own activity on the chain,
- * read through an activity session of its own, page by page, over the UI's
- * own port on the event bus.
+ * the wallet holds now, then from the sign screen and from the account's own
+ * activity on the chain, read through an activity session of its own, page by
+ * page, over the UI's own port on the event bus.
  */
 import eventBus from '@web/extension-services/event/eventBus'
+import { SigningStatus } from '@ambire-common/controllers/signAccountOp/signAccountOp'
 import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
 import type { Address, Hex } from '@web/modules/social-recovery/sdk-interfaces'
 import {
@@ -13,8 +14,9 @@ import {
   CONTROLLING_KEY,
   dispatched,
   flush,
+  heldRequestStateOf,
   HeldRequestQueue,
-  ListedAccount,
+  HeldWallet,
   newSendRequestId,
   operationFor,
   operationOf,
@@ -37,6 +39,7 @@ const SELECTED = basicAccount(CONTROLLING_KEY)
 
 const SET = 'MAIN_CONTROLLER_ACTIVITY_SET_ACC_OPS_FILTERS'
 const RESET = 'MAIN_CONTROLLER_ACTIVITY_RESET_ACC_OPS_FILTERS'
+const INIT = 'INIT_CONTROLLER_STATE'
 const CONTROLLERS = ['requests', 'activity', 'main', 'signAccountOp']
 
 const ID = newSendRequestId()
@@ -47,17 +50,25 @@ const listenerCount = () =>
 
 /**
  * The UI's own port over a queue the test sets, the selected account listed
- * first and the smart account after it, as the wallet holds them.
+ * first and the smart account after it, as the wallet holds them. Asked for
+ * the sign screen's state, the wallet pushes the one the test set.
  */
 const wallet = () => {
-  const held: { queue?: HeldRequestQueue; accounts: ListedAccount[] } = {
-    accounts: [SELECTED, smartAccount(SMART_ACCOUNT, CONTROLLING_KEY)]
+  const held: HeldWallet = {
+    accounts: [SELECTED, smartAccount(SMART_ACCOUNT, CONTROLLING_KEY)],
+    signer: null
   }
-  const dispatch = jest.fn()
+  const dispatch = jest.fn((action: SendRequestAction) => {
+    const { signer } = held
+    if (action.type === INIT && signer !== 'silent') {
+      eventBus.emit('signAccountOp', signer)
+    }
+  })
   const port = sendRequestPort(
     dispatch,
     () => held.accounts,
-    () => held.queue
+    () => held.queue,
+    () => undefined
   )
   const actions = () => dispatched<SendRequestAction>(dispatch)
   const asks = () => actions().flatMap((a) => (a.type === SET ? [a.params] : []))
@@ -402,6 +413,78 @@ describe("a queued request's state, read by another page", () => {
     })
   })
 
+  describe('the sign screen, asked where the queue does not hold the request', () => {
+    // A request of its own, so the sign screen pushed here answers no reading another case left open.
+    const MINE = newSendRequestId()
+    const readingMine = (port: ReturnType<typeof wallet>['port']) =>
+      track(sendRequestStateOf(port, MINE, SMART_ACCOUNT, SEPOLIA))
+
+    /** A sign screen that signs a batch of the requests `ids`, which takes no calls update. */
+    const signing = (ids: string[]) => ({
+      accountOp: {
+        accountAddr: SMART_ACCOUNT,
+        calls: ids.map((fromUserRequestId) => ({ fromUserRequestId }))
+      },
+      status: { type: SigningStatus.InProgress }
+    })
+
+    it('reads queued where the sign screen still signs an operation that carries the request the queue dropped', async () => {
+      const { held, port, actions, page } = wallet()
+      held.signer = signing([MINE, OTHER_ID])
+      held.queue = queueHolding([queuedRequest(OTHER_ID, { account: SMART_ACCOUNT })])
+      const state = readingMine(port)
+      expect(actions().filter((a) => a.type === INIT)).toEqual([
+        { type: INIT, params: { controller: 'signAccountOp' } }
+      ])
+      await flush()
+      page([])
+      await flush()
+      expect(state).toEqual({ status: 'resolved', value: { status: 'queued' } })
+      expect(listenerCount()).toBe(before)
+    })
+
+    it('reads gone where the sign screen answers with other requests only and the activity lists none', async () => {
+      const { held, port, page } = wallet()
+      held.signer = signing([OTHER_ID])
+      const state = readingMine(port)
+      page([])
+      await flush()
+      expect(state).toEqual({ status: 'resolved', value: { status: 'gone' } })
+      expect(listenerCount()).toBe(before)
+    })
+
+    it('reads unread where the sign screen never answers, even once the activity lists none', async () => {
+      const { held, port, page } = wallet()
+      held.signer = 'silent'
+      const state = readingMine(port)
+      page([])
+      await flush()
+      expect(state.status).toBe('pending')
+      await advance(REQUEST_STATE_READ_MS)
+      expect(state).toEqual({ status: 'resolved', value: { status: 'unread' } })
+      expect(listenerCount()).toBe(before)
+    })
+
+    it('reads queued with no activity read where the account is not listed and the sign screen holds the request', async () => {
+      const { held, port, asks } = wallet()
+      held.signer = signing([MINE])
+      const state = track(heldRequestStateOf(port, MINE))
+      await flush()
+      expect(state).toEqual({ status: 'resolved', value: { status: 'queued' } })
+      expect(asks()).toEqual([])
+      expect(listenerCount()).toBe(before)
+    })
+
+    it('reads gone with no activity read where the account is not listed and neither the queue nor the sign screen holds the request', async () => {
+      const { port, asks } = wallet()
+      const state = track(heldRequestStateOf(port, MINE))
+      await flush()
+      expect(state).toEqual({ status: 'resolved', value: { status: 'gone' } })
+      expect(asks()).toEqual([])
+      expect(listenerCount()).toBe(before)
+    })
+  })
+
   describe('the session closed in every outcome', () => {
     const OUTCOMES: [string, (w: ReturnType<typeof wallet>) => Promise<void>, string][] = [
       ['broadcast', async ({ page }) => page([operationFor(ID, { hash: HASH })]), 'broadcast'],
@@ -447,7 +530,9 @@ describe("a queued request's state, read by another page", () => {
         const actions = w.actions()
         expect(
           actions.every(
-            (a) => (a.type === SET || a.type === RESET) && a.params.sessionId === sessionId
+            (a) =>
+              a.type === INIT ||
+              ((a.type === SET || a.type === RESET) && a.params.sessionId === sessionId)
           )
         ).toBe(true)
         expect(actions.filter((a) => a.type === RESET)).toEqual([

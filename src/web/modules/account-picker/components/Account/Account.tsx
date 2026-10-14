@@ -44,7 +44,8 @@ const Account = ({
   importStatus,
   displayTypeBadge = true,
   displayTypePill = true,
-  shouldBeDisplayedAsNew = false
+  shouldBeDisplayedAsNew = false,
+  caption
 }: {
   account: AccountInterface & { usedOnNetworks: Network[] }
   type: 'basic' | 'smart' | 'linked'
@@ -60,6 +61,7 @@ const Account = ({
   withQuaternaryBackground?: boolean
   displayTypePill?: boolean
   shouldBeDisplayedAsNew?: boolean
+  caption?: string
 }) => {
   const { isLoading: isDomainResolving, ens } = useReverseLookup({ address: account.addr })
   const domainName = ens
@@ -79,6 +81,7 @@ const Account = ({
   }, [isSelected, onSelect, onDeselect, account])
 
   const isAddressAlwaysShort = type === 'smart'
+  const hasAddressTooltip = isAddressAlwaysShort || !!caption
 
   const formattedAddress = useMemo(() => {
     if (minWidthSize('m') || domainName || isAddressAlwaysShort) {
@@ -182,13 +185,13 @@ const Account = ({
                     appearance={domainName ? 'secondaryText' : 'primaryText'}
                     style={spacings.mrMi}
                     // @ts-ignore
-                    dataSet={isAddressAlwaysShort ? { tooltipId: account.addr } : undefined}
+                    dataSet={hasAddressTooltip ? { tooltipId: account.addr } : undefined}
                   >
                     {domainName ? '(' : ''}
                     {formattedAddress}
                     {domainName ? ')' : ''}
                   </Text>
-                  {isAddressAlwaysShort && <Tooltip content={account.addr} id={account.addr} />}
+                  {hasAddressTooltip && <Tooltip content={account.addr} id={account.addr} />}
                 </>
               )}
 
@@ -255,6 +258,19 @@ const Account = ({
           </View>
         </View>
       </View>
+      {!!caption && (
+        <View
+          style={[
+            spacings.ph,
+            spacings.pbSm,
+            { width: '100%', backgroundColor: theme.surfaceInput }
+          ]}
+        >
+          <Text fontSize={12} appearance="secondaryText" testID={`account-caption-${account.addr}`}>
+            {caption}
+          </Text>
+        </View>
+      )}
       {[
         ImportStatus.ImportedWithSomeOfTheKeys,
         ImportStatus.ImportedWithDifferentKeys,

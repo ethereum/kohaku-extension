@@ -1,8 +1,10 @@
 /**
  * Copy lint over the social recovery strings of en.json. It guards the banned
  * terms, the case-sensitive ban on the label "Protected" (anywhere in en.json),
- * the closed chip vocabulary of the status block, the i18next key separators
- * and the placeholders inside {{...}}.
+ * the closed chip vocabulary of the status block, the i18next key separators,
+ * the placeholders inside {{...}}, the word "signature" outside the offline
+ * signing block, raw links and addresses written into the copy, and the four
+ * errors a pasted approval can raise.
  */
 import fs from 'fs'
 import path from 'path'
@@ -191,6 +193,15 @@ describe('socialRecovery placeholders', () => {
     expect(offenders).toEqual([])
   })
 
+  // A single brace is no i18next placeholder: "{deadline}" would reach the
+  // screen as written.
+  it('leaves no single brace outside a {{...}} placeholder', () => {
+    const offenders = strings
+      .filter(({ value }) => /[{}]/.test(value.replace(PLACEHOLDER, '')))
+      .map(({ keyPath, value }) => `${keyPath}: ${value}`)
+    expect(offenders).toEqual([])
+  })
+
   it('carries {{n}}, {{m}} and {{spare}} in the rule lines', () => {
     const ruleLines = isObject(socialRecovery) ? socialRecovery.ruleLines : undefined
     expect(isObject(ruleLines)).toBe(true)
@@ -225,6 +236,54 @@ describe('socialRecovery required keys', () => {
       expect(placeholdersOf(value).filter((name) => !isAllowedPlaceholder(name))).toEqual([])
     })
   )
+})
+
+// The artefact a guardian returns is an approval everywhere; only an offline
+// signing block, a key path with an offline segment, names the signature the
+// offline signer hands back.
+const OFFLINE_SEGMENT = '/offline/'
+const SIGNATURE = /\bsignatures?\b/i
+
+const isOfflineBlock = (keyPath: string) => keyPath.includes(OFFLINE_SEGMENT)
+
+// A link, a store page or an address is an interpolation the screen fills,
+// never text fixed in the copy.
+const RAW_LINK = /\b[a-z][a-z0-9+.-]*:\/\/|\bwww\.|\b[a-z0-9-]+(?:\.[a-z0-9-]+)+\/[^\s]/i
+const RAW_HEX = /\b0x[0-9a-f]{4,}/i
+
+const PASTE_ERROR_KEYS = [
+  'socialRecovery/checklist/paste/notAnApproval',
+  'socialRecovery/checklist/paste/noMatch',
+  'socialRecovery/checklist/paste/duplicate',
+  'socialRecovery/checklist/paste/expired'
+]
+
+describe('socialRecovery copy rules', () => {
+  it('says "signature" only inside the offline signing block', () => {
+    const offenders = strings
+      .filter(({ keyPath, value }) => SIGNATURE.test(value) && !isOfflineBlock(keyPath))
+      .map(({ keyPath, value }) => `${keyPath}: ${value}`)
+    expect(offenders).toEqual([])
+  })
+
+  it('writes no raw link and no address into a value', () => {
+    const offenders = strings
+      .filter(({ value }) => RAW_LINK.test(value) || RAW_HEX.test(value))
+      .map(({ keyPath, value }) => `${keyPath}: ${value}`)
+    expect(offenders).toEqual([])
+  })
+
+  it('gives the four paste errors four distinct one-sentence values ending with a full stop', () => {
+    const values = PASTE_ERROR_KEYS.map(
+      (keyPath) => strings.find((candidate) => candidate.keyPath === keyPath)?.value
+    )
+    expect(values.every((value) => typeof value === 'string')).toBe(true)
+    const sentences = values as string[]
+    expect(new Set(sentences).size).toBe(PASTE_ERROR_KEYS.length)
+    sentences.forEach((value) => {
+      expect(value).toMatch(/^[A-Z][^.]*\.$/)
+    })
+  })
 })
 
 describe('copy-lint patterns (self-check)', () => {
@@ -264,6 +323,32 @@ describe('copy-lint patterns (self-check)', () => {
       false
     )
     expect(placeholdersOf('{{n}} of {{m}}, {{spare}} left')).toEqual(['n', 'm', 'spare'])
+  })
+
+  it('flags a raw link or address and passes a name or an empty hex hint', () => {
+    ;[
+      'Open https://kohaku.test/approve',
+      'Open chrome-extension://abcdefgh/approve',
+      'See www.example.org',
+      'Install from chromewebstore.google.com/detail/kohaku',
+      'Send to 0x2bA9c0ffee'
+    ].forEach((text) => expect(RAW_LINK.test(text) || RAW_HEX.test(text)).toBe(true))
+    ;['Type a name such as bluejay.eth.', '0x…', 'Install it from {{source}}.'].forEach((text) =>
+      expect(RAW_LINK.test(text) || RAW_HEX.test(text)).toBe(false)
+    )
+  })
+
+  it('reads "signature" as a whole word', () => {
+    expect(SIGNATURE.test('Paste the signature')).toBe(true)
+    expect(SIGNATURE.test('Signatures')).toBe(true)
+    expect(SIGNATURE.test('signaturePlaceholder')).toBe(false)
+    expect(SIGNATURE.test('signed it')).toBe(false)
+  })
+
+  it('allows "signature" under any offline segment and nowhere else', () => {
+    expect(isOfflineBlock('socialRecovery/approve/offline/x')).toBe(true)
+    expect(isOfflineBlock('socialRecovery/enroll/offline/x')).toBe(true)
+    expect(isOfflineBlock('socialRecovery/approve/x')).toBe(false)
   })
 
   it('reads Protected case-sensitively', () => {

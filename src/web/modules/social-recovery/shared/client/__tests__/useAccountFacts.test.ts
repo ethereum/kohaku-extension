@@ -391,7 +391,10 @@ describe('useAccountFacts hands one reading object while nothing a screen reads 
     const first = latest
     await push({
       [ACCOUNT]: onChain(ACCOUNT, true),
-      [OTHER_ACCOUNT]: onChain(OTHER_ACCOUNT, false, { nonce: 3n, balance: 10n ** 18n })
+      [OTHER_ACCOUNT]: onChain(OTHER_ACCOUNT, false, {
+        nonce: 3n,
+        balance: 1_000_000_000_000_000_000n
+      })
     } as never)
     expect(latest).toBe(first)
   })
@@ -400,7 +403,10 @@ describe('useAccountFacts hands one reading object while nothing a screen reads 
     await render()
     const first = latest
     await push({
-      [ACCOUNT]: onChain(ACCOUNT, true, { balance: 10n ** 18n, currentBlock: 7_000_009n }),
+      [ACCOUNT]: onChain(ACCOUNT, true, {
+        balance: 1_000_000_000_000_000_000n,
+        currentBlock: 7_000_009n
+      }),
       [OTHER_ACCOUNT]: onChain(OTHER_ACCOUNT, true)
     } as never)
     expect(latest).toBe(first)

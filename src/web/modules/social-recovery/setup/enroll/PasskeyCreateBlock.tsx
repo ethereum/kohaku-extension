@@ -7,12 +7,11 @@ import React from 'react'
 import { View } from 'react-native'
 
 import Button from '@common/components/Button'
-import Input from '@common/components/Input'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import { browserErrorNameOf, noteKeyOfOutcome } from '@web/modules/social-recovery/shared/ceremony'
-import { ActionsRow, SectionCard } from '@web/modules/social-recovery/shared/chrome'
+import { ActionsRow, FieldInput, SectionCard } from '@web/modules/social-recovery/shared/chrome'
 import { NAME_MAX_LENGTH } from '@web/modules/social-recovery/shared/display'
 
 import { clipName } from './passkey'
@@ -34,7 +33,7 @@ const PasskeyCreateBlock = ({
 
   return (
     <View testID="passkey-create">
-      <Input
+      <FieldInput
         testID="passkey-name"
         label={t('socialRecovery.enroll.passkey.nameLabel')}
         value={name}

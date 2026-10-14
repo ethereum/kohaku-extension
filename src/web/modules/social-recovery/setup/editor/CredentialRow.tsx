@@ -1,23 +1,29 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Pressable, View } from 'react-native'
 
+import RightArrowIcon from '@common/assets/svg/RightArrowIcon'
 import Avatar from '@common/components/Avatar'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
+import useTheme from '@common/hooks/useTheme'
 import spacings from '@common/styles/spacings'
+import common from '@common/styles/utils/common'
 import flexbox from '@common/styles/utils/flexbox'
 import { StatusChip } from '@web/modules/social-recovery/shared/chrome'
 import { renderShortAddress } from '@web/modules/social-recovery/shared/display'
 
+import { enrollmentOf } from '@web/modules/social-recovery/shared/records'
 import { renderFailedTestLine, renderKindName, renderRowChip } from './copy'
-import { enrollmentOf, guardianAddressOf, isEmptySlot, kindOf } from './operations'
+import { guardianAddressOf, isEmptySlot, kindOf } from './operations'
 import type { CredentialRowProps } from './types'
 
 /**
  * One method of the path: a guardian's short address, its kind, the holder's
  * own label where an enrolled credential carries one, and its chip, with a
- * failed test's line under them. An empty slot shows no address and opens the
- * picker when pressed.
+ * failed test's line under them. An empty slot shows no address. A press opens
+ * the row's method: an empty slot's enrollment, or an enrolled credential's
+ * enrolled summary and its test, which needs its kind and its enrollment. A
+ * row that opens lights under the pointer and ends with an arrow.
  */
 const CredentialRow = ({
   credential,
@@ -28,6 +34,8 @@ const CredentialRow = ({
   testID
 }: CredentialRowProps) => {
   const { t } = useTranslation()
+  const { theme } = useTheme()
+  const [hovered, setHovered] = useState(false)
   const kind = kindOf(credential, addressBook)
   const empty = isEmptySlot(credential)
   const chip = renderRowChip(credential, enrollments, t)
@@ -76,10 +84,29 @@ const CredentialRow = ({
     </View>
   )
 
-  if (empty && onPress) {
+  if (onPress && (empty || (!!kind && !!enrollment))) {
     return (
-      <Pressable testID={testID} onPress={onPress} disabled={disabled} style={flexbox.flex1}>
-        {content}
+      <Pressable
+        testID={testID}
+        accessibilityRole="button"
+        onPress={onPress}
+        onHoverIn={() => setHovered(true)}
+        onHoverOut={() => setHovered(false)}
+        disabled={disabled}
+        style={[
+          flexbox.flex1,
+          flexbox.directionRow,
+          flexbox.alignCenter,
+          common.borderRadiusPrimary,
+          hovered && !disabled ? { backgroundColor: theme.secondaryBackground } : undefined
+        ]}
+      >
+        <View style={flexbox.flex1}>{content}</View>
+        <RightArrowIcon
+          color={theme.secondaryText}
+          style={spacings.mlTy}
+          testID={testID ? `${testID}-opens` : undefined}
+        />
       </Pressable>
     )
   }

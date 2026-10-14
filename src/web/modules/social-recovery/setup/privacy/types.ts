@@ -41,12 +41,11 @@ export type MethodKind = keyof AddressBook['methods']
 
 /**
  * The exposure line of a path: the guessability half, which exists only for a
- * path with an address row, and the publication half every path carries.
+ * path with an address row.
  */
 export interface ExposureLines {
   guardians?: string
   unguessable?: string
-  publication: string
 }
 
 export interface StepViewProps {

@@ -161,6 +161,12 @@ describe('the waiting period', () => {
     expect(renderWait(3600n, t)).toBe(t('socialRecovery.display.remainingHours', { count: 1 }))
     expect(renderWait(36n * 3600n, t)).not.toBe(renderWait(3600n, t))
   })
+
+  it('names a length under one hour by its whole minutes, never as zero hours', () => {
+    expect(renderWait(300n, t)).toBe(t('socialRecovery.display.remainingMinutes', { count: 5 }))
+    expect(renderWait(3599n, t)).toBe(t('socialRecovery.display.remainingMinutes', { count: 59 }))
+    expect(renderWait(300n, t)).not.toBe(t('socialRecovery.display.remainingHours', { count: 0 }))
+  })
 })
 
 describe('the hostile-minority guidance', () => {

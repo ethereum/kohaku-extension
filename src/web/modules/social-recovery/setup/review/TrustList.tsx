@@ -6,26 +6,23 @@ import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
-import { MethodRow, StatusChip } from '@web/modules/social-recovery/shared/chrome'
+import { SectionCard, StatusChip } from '@web/modules/social-recovery/shared/chrome'
 import { auditedActionOf, publisherKeyOf } from '@web/modules/social-recovery/shared/client'
 import { renderFullAddress, renderNoun } from '@web/modules/social-recovery/shared/display'
 import { isEmptySlot } from '@web/modules/social-recovery/shared/records/slots'
 
 import { kindNameOf, passkeyLinesOf } from './lead'
-import OtherDoors from './OtherDoors'
-import StopBlock from './StopBlock'
-import { nodeKindOf } from './trust'
 import type { AdminDeclaration, TrustHeading, TrustListProps, TrustRow } from './types'
 
 const TRUST = 'socialRecovery.review.trust'
 
 /**
- * The trust list: one contract row per method under the headings of the path
- * rows that use it, each heading's own lines after the row, the recovery
- * module with its publisher, the security stop block, the account's other
- * doors, and the node the wallet reads through.
+ * The trust list in titled sections: one per method contract, titled with the
+ * method's kind, holding the headings of the path rows that use it, the
+ * contract's row and each heading's own lines; then the recovery module with
+ * its publisher; then the lines that hold for every declaration above.
  */
-const TrustList = ({ rows, stopRows, doors, client, providerKind, onRetry }: TrustListProps) => {
+const TrustList = ({ rows, client, onRetry }: TrustListProps) => {
   const { t } = useTranslation()
 
   const line = (text: string, testID?: string) => (
@@ -35,6 +32,10 @@ const TrustList = ({ rows, stopRows, doors, client, providerKind, onRetry }: Tru
   )
 
   const headingText = (heading: TrustHeading, row: TrustRow): string => {
+    // A slot not enrolled yet has no name of its own: it shows its kind.
+    if (heading.kind && isEmptySlot(heading.credential)) {
+      return kindNameOf(heading.kind, t)
+    }
     if (heading.kind === 'ecdsa') {
       if (!heading.guardian) {
         return renderNoun('guardian', t)
@@ -154,7 +155,12 @@ const TrustList = ({ rows, stopRows, doors, client, providerKind, onRetry }: Tru
       {rows.map((row, index) => {
         const testID = `review-trust-${index}`
         return (
-          <MethodRow key={row.method} testID={testID} quiet>
+          <SectionCard
+            key={row.method}
+            label={row.kind ? kindNameOf(row.kind, t) : renderFullAddress(row.method)}
+            spacing="item"
+            testID={testID}
+          >
             {!!row.guardians &&
               line(
                 row.guardians.tested === row.guardians.count
@@ -188,30 +194,26 @@ const TrustList = ({ rows, stopRows, doors, client, providerKind, onRetry }: Tru
                 </React.Fragment>
               ))
             )}
-          </MethodRow>
+          </SectionCard>
         )
       })}
-      <MethodRow testID="review-trust-module" quiet>
-        <Text fontSize={14} weight="medium" style={spacings.mbTy}>
-          {action.kind === 'audited'
-            ? t(`${TRUST}.moduleRow`, { publisher: t(publisherKeyOf(action)) })
-            : renderNoun('recoveryModule', t)}
-        </Text>
+      <SectionCard
+        label={renderNoun('recoveryModule', t)}
+        spacing="item"
+        testID="review-trust-module"
+      >
+        {action.kind === 'audited' && (
+          <Text fontSize={14} weight="medium" style={spacings.mbTy}>
+            {t(`${TRUST}.moduleRow`, { publisher: t(publisherKeyOf(action)) })}
+          </Text>
+        )}
         {line(t(`${TRUST}.moduleAuthority`))}
         {line(t(`${TRUST}.auditedOnly`))}
-      </MethodRow>
-      <StopBlock rows={stopRows} />
-      <OtherDoors doors={doors} />
-      <MethodRow quiet>
-        {line(
-          nodeKindOf(providerKind) === 'light-client'
-            ? t(`${TRUST}.nodeLightClient`)
-            : t(`${TRUST}.nodePlain`),
-          'review-trust-node'
-        )}
-      </MethodRow>
-      {line(t(`${TRUST}.selfAttested`))}
-      {line(t(`${TRUST}.deadProvider`))}
+      </SectionCard>
+      <View style={spacings.mtTy}>
+        {line(t(`${TRUST}.selfAttested`))}
+        {line(t(`${TRUST}.deadProvider`))}
+      </View>
     </View>
   )
 }

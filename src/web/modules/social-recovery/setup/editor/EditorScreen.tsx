@@ -1,14 +1,13 @@
 /**
- * The editor's route: the settings chrome around the editor over the selected
- * account's setup records, with the recovery client that runs the path check.
+ * The editor's route: the settings chrome around the editor over the setup
+ * records of the tab's account, with the recovery client that runs the path check.
  */
 import React, { useMemo } from 'react'
-import { isAddress } from 'viem'
 
 import Spinner from '@common/components/Spinner'
 import useNavigation from '@common/hooks/useNavigation'
-import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import SetupChrome from '@web/modules/social-recovery/shared/chrome/SetupChrome'
+import useSetupAccount from '@web/modules/social-recovery/shared/chrome/useSetupAccount'
 import {
   addressBookOf,
   CHAIN_IDS,
@@ -24,10 +23,8 @@ import EditorView from './EditorView'
 import type { EditorClient } from './types'
 
 const EditorScreen = () => {
-  const { account: selected } = useSelectedAccountControllerState()
+  const { account } = useSetupAccount()
   const { navigate } = useNavigation()
-  // The controller's account address is a plain string; only a real address reaches the records.
-  const account = selected?.addr && isAddress(selected.addr) ? selected.addr : undefined
   const clientState = useRecoveryClient(account)
   const addressBook = useMemo(() => addressBookOf(WALLET_RECOVERY_CHAIN), [])
 

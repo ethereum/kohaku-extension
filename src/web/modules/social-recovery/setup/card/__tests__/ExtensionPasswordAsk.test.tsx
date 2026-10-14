@@ -150,7 +150,7 @@ describe('the extension password ask', () => {
     expect(container.textContent).not.toContain(S.card.wrongPassword)
   })
 
-  it('leads with the line that a new download, print or hand-off asks the extension password', async () => {
+  it('leads with the line that a later carrier asks the extension password', async () => {
     await render()
     expect(container.textContent?.startsWith(S.card.carrierAsks)).toBe(true)
   })

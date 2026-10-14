@@ -17,6 +17,7 @@ import type {
   PreparedCall,
   SetupDraft
 } from '@web/modules/social-recovery/sdk-interfaces'
+import type { CollectionChip } from '@web/modules/social-recovery/shared/display'
 
 /**
  * The storage the records sit on: the extension's own helper
@@ -161,6 +162,12 @@ export interface Enrollment {
 /** 4. The enrollments. */
 export type EnrollmentsRecord = Enrollment[]
 
+/** Where one credential sits in the path: its clause and its place among the clause's members. */
+export interface SlotPosition {
+  clause: number
+  member: number
+}
+
 /** 5. The waiting period, in seconds, the type the setup draft's `wait` carries. */
 export type WaitingPeriodRecord = SetupDraft['wait']
 
@@ -220,16 +227,58 @@ export type WipeReason = RecoveryWipeEvent
 export type DirectWipeEvent = Exclude<RecoveryWipeEvent, 'submission-landed'>
 
 /**
+ * The notes the recoverer puts on a guardian's row while gathering: the guardian
+ * declined, or never answered. The slugs are the collection chips of the same
+ * name.
+ */
+export type RowNote = Extract<CollectionChip, 'declined' | 'unanswered'>
+
+/** The row notes of a live session by place number; a place with no note has no member. */
+export type RowNotes = Partial<Record<number, RowNote>>
+
+/**
+ * The submission this device sent for the live session's request and has not
+ * settled: the id of the request it queued, the block read before the send,
+ * when it was claimed (ms since epoch) and, once the wallet broadcast it, the
+ * transaction hash. A reloaded page or another tab finds it and sends nothing.
+ */
+export interface SubmissionInFlightRecord {
+  requestId: string
+  startBlock: number
+  claimedAt: number
+  transactionHash?: Hex
+}
+
+/** What a claim of the submission in flight writes: everything but the hash. */
+export type SubmissionInFlightClaim = Omit<SubmissionInFlightRecord, 'transactionHash'>
+
+/**
+ * The answer of a claim: `claimed` where this claim wrote the submission, or
+ * `false` where the session already carried one and the caller follows it; the
+ * submission the session holds after the task, this claim's or the one already
+ * there; and the stored session, whose revision a later update passes.
+ */
+export interface SubmissionClaimResult {
+  claimed: boolean
+  submission: SubmissionInFlightRecord
+  record: StoredSession
+}
+
+/**
  * The live recovery session: the SDK's gathering record, stored so the
  * gathering survives a closed tab. Its request carries everything a resume
  * needs: the account, the predicted attempt id (the attempt id the wallet built
  * the request against), the setup nonce the request was built under and the
  * deadline (`validUntil`). Its replies are the approvals. The gathering's
- * purpose is `approval`.
+ * purpose is `approval`. `notes` holds the recoverer's row notes, which live
+ * and die with the gathering, and `submission` the submission in flight for
+ * its request, which dies with it too.
  */
 export interface LiveRecoverySession {
   state: 'live'
   gathering: Gathering
+  notes?: RowNotes
+  submission?: SubmissionInFlightRecord
 }
 
 /**
@@ -247,13 +296,37 @@ export interface WipedRecoverySession {
 }
 
 /**
+ * The execution this device sent for the landed session's attempt and has not
+ * settled: the id of the request it queued, the block read before the send,
+ * when it was claimed (ms since epoch) and, once the wallet broadcast it, the
+ * transaction hash. A reloaded page or another tab finds it and sends nothing.
+ */
+export interface ExecutionInFlightRecord {
+  requestId: string
+  startBlock: number
+  claimedAt: number
+  transactionHash?: Hex
+}
+
+/** What a claim of the execution in flight writes: everything but the hash. */
+export type ExecutionInFlightClaim = Omit<ExecutionInFlightRecord, 'transactionHash'>
+
+/**
  * The session after the submission lands: it survives as the countdown's
- * record, holding the account address alone. The countdown reads the attempt id
- * from the chain. The gathering, its replies and its attempt id are gone.
+ * record, holding the account and the landed request's attempt id and setup
+ * nonce (decimal strings, as the request carries them) and the keccak256 of
+ * its payload, against which the countdown matches the attempt the chain
+ * reports. A session landed before these were kept reads without them, and no
+ * attempt matches it. `execution` is the execution in flight for the attempt.
+ * The gathering and its replies are gone.
  */
 export interface LandedRecoverySession {
   state: 'landed'
   account: Address
+  attemptId?: string
+  setupNonce?: string
+  payloadHash?: Hex
+  execution?: ExecutionInFlightRecord
 }
 
 export type RecoverySessionRecord =
@@ -278,21 +351,40 @@ export interface StoredSession extends StoredRecord<RecoverySessionRecord> {
   revision: SessionRevision
 }
 
+/** A stored recovery session whose value is the live session. */
+export type LiveStoredSession = StoredSession & { value: LiveRecoverySession }
+
+/** A stored recovery session whose value is the landed session. */
+export type LandedStoredSession = StoredSession & { value: LandedRecoverySession }
+
 /** A read of the recovery session. */
 export type SessionRead = AbsentRecord | ({ status: 'present' } & StoredSession)
 
 /**
  * The countdown's record as `countdown(chainId, account)` reads it from the
- * landed session: the account address alone.
+ * landed session: the account, the landed attempt's fields where the session
+ * holds them, and the execution in flight where there is one.
  */
-export interface CountdownRecord {
-  account: Address
-}
+export type CountdownRecord = Omit<LandedRecoverySession, 'state'>
+
+/** A stored countdown, with the revision of the landed session it reads from. */
+export type StoredCountdown = StoredRecord<CountdownRecord> & { revision: SessionRevision }
 
 /** A read of the countdown, with the revision of the landed session it reads from. */
-export type CountdownRead =
-  | AbsentRecord
-  | ({ status: 'present'; revision: SessionRevision } & StoredRecord<CountdownRecord>)
+export type CountdownRead = AbsentRecord | ({ status: 'present' } & StoredCountdown)
+
+/**
+ * The answer of a claim of the execution in flight: `claimed` where this claim
+ * wrote the execution, or `false` where the landed session already carried one
+ * and the caller follows it; the execution the session holds after the task,
+ * this claim's or the one already there; and the stored countdown, whose
+ * revision a later update passes.
+ */
+export interface ExecutionClaimResult {
+  claimed: boolean
+  execution: ExecutionInFlightRecord
+  record: StoredCountdown
+}
 
 /**
  * The decrypted setup cache: the setup the recovery password unlocked on this
@@ -311,6 +403,43 @@ export interface DecryptedSetupCacheRecord {
 export interface ListedRecord<T> {
   account: Address
   record: StoredRecord<T> & { revision: SessionRevision }
+}
+
+// ---------------------------------------------------------------------------
+// The recovery entry
+// ---------------------------------------------------------------------------
+
+/**
+ * The two routes into a recovery: the fresh install's fast track, or the
+ * logged-in wallet's settings.
+ */
+export type RecoveryRoute = 'fresh-install' | 'logged-in'
+
+/**
+ * The recovery entry: the account being recovered, the route the recoverer
+ * came by, and the wallet's own account whose key receives control. Kept from
+ * the account's confirmation to the done screen; no wipe of the session
+ * touches it except the recoverer's abandon.
+ */
+export interface RecoveryEntryRecord {
+  account: Address
+  route: RecoveryRoute
+  receivingAccount: Address
+}
+
+/** The recovery entry of one account on one chain. */
+export interface RecoveryEntryAccessor {
+  read(): Promise<RecordRead<RecoveryEntryRecord>>
+  /** Refuses an entry that names another account than the accessor's. */
+  write(value: RecoveryEntryRecord): Promise<StoredRecord<RecoveryEntryRecord>>
+  /** Removes the entry; an absent entry stays absent. */
+  clear(): Promise<void>
+}
+
+/** One account's recovery entry in a listing of a chain's entries. */
+export interface ListedRecoveryEntry {
+  account: Address
+  record: StoredRecord<RecoveryEntryRecord>
 }
 
 // ---------------------------------------------------------------------------
@@ -405,6 +534,11 @@ export interface SaveInFlightAccessor {
   ): Promise<RecordRead<SaveInFlightRecord>>
   /** Removes the record where it carries `requestId`; answers whether it removed it. */
   release(requestId: string): Promise<boolean>
+  /**
+   * Removes the record where it carries `requestId` and still no hash;
+   * answers whether it removed it.
+   */
+  releaseUnsent(requestId: string): Promise<boolean>
 }
 
 // ---------------------------------------------------------------------------
@@ -445,15 +579,84 @@ export interface RecoverySessionAccessor {
    * writes nothing. Refuses a cancellation gathering, a gathering whose request
    * names another account or chain, a landed session, and over a live session a
    * gathering whose request differs in any field or that leaves a filled place
-   * without a reply. Over a wiped session it starts the new gathering.
+   * without a reply. Over a wiped session it starts the new gathering, with no
+   * submission in flight; over a live session it keeps the one it carries.
    */
   write(gathering: Gathering, expectedRevision: ExpectedRevision): Promise<StoredSession>
+  /**
+   * Sets the note of one place of the live session, or clears it with `null`,
+   * under the same revision rule as `write`. Refuses a session that is not
+   * live, a place the gathering does not have, and a note on a place that holds
+   * a reply. A change that leaves the notes as they are writes nothing and
+   * answers the stored session.
+   */
+  setNote(
+    place: number,
+    note: RowNote | null,
+    expectedRevision: ExpectedRevision
+  ): Promise<StoredSession>
+  /**
+   * Writes the submission in flight on a live session that carries none, under
+   * the same revision rule as `write`. Where the session already carries one it
+   * writes nothing and answers that one with `claimed: false`. Refuses a
+   * session that is not live.
+   */
+  claimSubmission(
+    claim: SubmissionInFlightClaim,
+    expectedRevision: ExpectedRevision
+  ): Promise<SubmissionClaimResult>
+  /**
+   * Writes the transaction hash on the submission in flight that carries
+   * `requestId`, under the same revision rule as `write`. Refuses a session
+   * that is not live and a submission under another request id or none. The
+   * hash it already holds writes nothing and answers the stored session.
+   */
+  setSubmissionHash(
+    requestId: string,
+    transactionHash: Hex,
+    expectedRevision: ExpectedRevision
+  ): Promise<StoredSession>
+  /**
+   * Removes the submission in flight where it carries `requestId`, under the
+   * same revision rule as `write`, and answers the session the storage holds
+   * after the task. With no submission under that id, in any state of the
+   * session, it writes nothing and checks no revision.
+   */
+  releaseSubmission(requestId: string, expectedRevision: ExpectedRevision): Promise<SessionRead>
   age(at?: number): Promise<number | null>
 }
 
 /** The countdown's record, read from the session in its landed state. */
 export interface CountdownAccessor {
   read(): Promise<CountdownRead>
+  /**
+   * Writes the execution in flight on a landed session that carries none,
+   * under the same revision rule as the session's `write`. Where the session
+   * already carries one it writes nothing and answers that one with
+   * `claimed: false`. Refuses a session that is not landed.
+   */
+  claimExecution(
+    claim: ExecutionInFlightClaim,
+    expectedRevision: ExpectedRevision
+  ): Promise<ExecutionClaimResult>
+  /**
+   * Writes the transaction hash on the execution in flight that carries
+   * `requestId`, under the same revision rule. Refuses a session that is not
+   * landed and an execution under another request id or none. The hash it
+   * already holds writes nothing and answers the stored countdown.
+   */
+  setExecutionHash(
+    requestId: string,
+    transactionHash: Hex,
+    expectedRevision: ExpectedRevision
+  ): Promise<StoredCountdown>
+  /**
+   * Removes the execution in flight where it carries `requestId`, under the
+   * same revision rule, and answers the countdown the storage holds after the
+   * task. With no execution under that id, in any state of the session, it
+   * writes nothing and checks no revision.
+   */
+  releaseExecution(requestId: string, expectedRevision: ExpectedRevision): Promise<CountdownRead>
   age(at?: number): Promise<number | null>
 }
 
@@ -477,6 +680,12 @@ export interface WalletRecords {
   startOverSetup(chainId: ChainId, account: Address): Promise<void>
   recoverySession(chainId: ChainId, account: Address): RecoverySessionAccessor
   listRecoverySessions(chainId: ChainId): Promise<ListedRecord<RecoverySessionRecord>[]>
+  recoveryEntry(chainId: ChainId, account: Address): RecoveryEntryAccessor
+  listRecoveryEntries(chainId: ChainId): Promise<ListedRecoveryEntry[]>
+  /**
+   * Wipes a live session with one of the four direct events. The recoverer's
+   * abandon also removes the account's recovery entry in the same update.
+   */
   wipeRecoverySession(
     chainId: ChainId,
     account: Address,
@@ -487,7 +696,7 @@ export interface WalletRecords {
     chainId: ChainId,
     account: Address,
     expectedRevision: ExpectedRevision
-  ): Promise<StoredRecord<CountdownRecord> & { revision: SessionRevision }>
+  ): Promise<StoredCountdown>
   clearWipedSession(
     chainId: ChainId,
     account: Address,

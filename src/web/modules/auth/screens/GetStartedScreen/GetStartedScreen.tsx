@@ -116,6 +116,15 @@ const GetStartedScreen = () => {
                 text={t('Import existing account')}
                 onPress={() => handleAuthButtonPress('import-existing-account')}
               />
+              <Button
+                testID="recover-account-btn"
+                type="secondary"
+                text={t('socialRecovery.routes.recover')}
+                onPress={() => navigate(WEB_ROUTES.socialRecoveryRecover)}
+              />
+              <Text appearance="muted" fontSize={12} style={[spacings.mb, { textAlign: 'center' }]}>
+                {t('socialRecovery.recover.doorLine')}
+              </Text>
               <View style={spacings.mb}>
                 <Text appearance="muted" fontSize={12} style={{ textAlign: 'center' }}>
                   {t('socialRecovery.create.coversSmartAccount')}

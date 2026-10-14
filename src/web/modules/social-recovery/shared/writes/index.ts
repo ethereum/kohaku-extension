@@ -44,6 +44,10 @@ export {
 } from './classify'
 export { WRITE_EVENT_TYPES, WRITE_ANSWER_TYPES, initialWriteState, writeReducer } from './machine'
 export { driveSend, driveAccountBatch } from './send'
+export { sameHash } from './hashes'
+export { DROPPED_AFTER_MS, DROPPED_RECHECK_MS } from './constants'
+export { apartFrom, coversHashes } from './dropped'
+export { claimReadingOf, requestHoldOf } from './claims'
 export {
   FEE_HEADROOM_PERCENT,
   GAS_DISPLAY_DECIMALS,
@@ -118,5 +122,9 @@ export type {
   GasCheckInput,
   RenderedWriteState,
   RenderedRoute,
-  RenderedDepositStep
+  RenderedDepositStep,
+  UnknownReading,
+  StoredClaim,
+  ClaimReading,
+  RequestHold
 } from './types'

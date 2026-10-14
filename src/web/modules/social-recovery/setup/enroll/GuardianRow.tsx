@@ -65,14 +65,8 @@ const GuardianRow = (props: RowProps) => {
 
         {!!address && (
           <View testID="guardian-lines" style={spacings.mbSm}>
-            <Text testID="guardian-smart-account" fontSize={14} style={spacings.mbTy}>
+            <Text testID="guardian-smart-account" fontSize={14}>
               {t('socialRecovery.disclosures.smartAccount')}
-            </Text>
-            <Text testID="guardian-call-back" fontSize={14} style={spacings.mbTy}>
-              {t('socialRecovery.enroll.guardian.callBack')}
-            </Text>
-            <Text testID="guardian-owner-answer" fontSize={14}>
-              {t('socialRecovery.enroll.guardian.ownerAnswer')}
             </Text>
           </View>
         )}

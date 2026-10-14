@@ -75,14 +75,20 @@ export const ATTEMPT_CHIPS = [
 export const RECOVERY_STATES = ['setUp', 'notSetUp'] as const
 
 /**
- * The three chips that render beside the recovery status: path locked
+ * The four chips that render beside the recovery status: path locked
  * beside set up where this device cannot read the path, not active where the
  * account no longer authorizes the setup, cannot recover where the wallet
- * refuses to recover the account.
+ * refuses to recover the account, cannot execute where a recovery that waited
+ * out its period can no longer run.
  */
-export const RECOVERY_ASIDE_CHIPS = ['pathLocked', 'notActive', 'cannotRecover'] as const
+export const RECOVERY_ASIDE_CHIPS = [
+  'pathLocked',
+  'notActive',
+  'cannotRecover',
+  'cannotExecute'
+] as const
 
-/** The recovery status set whole: the two states and the three chips beside them. */
+/** The recovery status set whole: the two states and the four chips beside them. */
 export const RECOVERY_STATUS_CHIPS = [...RECOVERY_STATES, ...RECOVERY_ASIDE_CHIPS] as const
 
 /** A session before submission. Recovery in progress never renders for it. */

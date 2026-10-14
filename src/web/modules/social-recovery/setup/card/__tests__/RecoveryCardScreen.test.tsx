@@ -16,7 +16,6 @@ import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
 import type { Address, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
 import {
-  deferred,
   digestVersionRefusal,
   restoreRefusalOf
 } from '@web/modules/social-recovery/setup/card/__tests__/harness'
@@ -24,6 +23,7 @@ import type {
   FakeClientState,
   FakeSetupReads
 } from '@web/modules/social-recovery/setup/card/__tests__/harness'
+import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -221,6 +221,8 @@ describe('the recovery card screen', () => {
   const originalPrint = window.print
 
   const select = async (account: Address | null) => {
+    // Each selection here stands for a tab opened on that account, so no latched account carries over.
+    sessionStorage.clear()
     await act(async () => {
       mockSelected.current = { account: account ? { addr: account } : null }
       mockSelected.listeners.forEach((listener) => listener())
@@ -229,6 +231,8 @@ describe('the recovery card screen', () => {
 
   // A fresh tab each time, so the router starts at the search given.
   const mount = async (account: Address, search = '') => {
+    // Each selection here stands for a tab opened on that account, so no latched account carries over.
+    sessionStorage.clear()
     act(() => root.unmount())
     root = createRoot(container)
     mockSelected.current = { account: { addr: account } }
@@ -302,7 +306,7 @@ describe('the recovery card screen', () => {
     })
   }
   const isDisabled = (id: string) => byTestId(id)?.getAttribute('aria-disabled') === 'true'
-  const carriersDisabled = () => ['card-download', 'card-print', 'card-send'].map(isDisabled)
+  const carriersDisabled = () => ['card-download', 'card-print'].map(isDisabled)
   const recoveryField = () =>
     container.querySelector<HTMLInputElement>('[data-testid="card-recovery-password-ask"] input')
   const typeRecovery = async (value: string, { enter = false } = {}) => {
@@ -425,7 +429,6 @@ describe('the recovery card screen', () => {
       expect(byTestId('card-reveal')).toBeNull()
       expect(byTestId('card-download')?.getAttribute('aria-disabled')).toBe('true')
       expect(byTestId('card-print')?.getAttribute('aria-disabled')).toBe('true')
-      expect(byTestId('card-send')?.getAttribute('aria-disabled')).toBe('true')
       expect(container.textContent).not.toContain(PASSWORD)
     })
 
@@ -544,14 +547,14 @@ describe('the recovery card screen', () => {
         expect(byTestId(row)).not.toBeNull()
         expect(byTestId('card-password-value')).toBeNull()
         expect(container.innerHTML).not.toContain(PASSWORD)
-        expect(carriersDisabled()).toEqual([true, true, true])
+        expect(carriersDisabled()).toEqual([true, true])
 
         await select(first)
         await settle()
         expect(byTestId(row)).toBeNull()
         await press('card-reveal')
         expect(byTestId('card-password-value')?.textContent).toBe(PASSWORD)
-        expect(carriersDisabled()).toEqual([false, false, false])
+        expect(carriersDisabled()).toEqual([false, false])
       })
     })
 
@@ -593,7 +596,7 @@ describe('the recovery card screen', () => {
       )
       expect(byTestId('card-recovery-password-ask')).toBeNull()
       expect(byTestId('card-password-gone')).toBeNull()
-      expect(carriersDisabled()).toEqual([true, true, true])
+      expect(carriersDisabled()).toEqual([true, true])
 
       await act(async () => {
         read.resolve({ hasSetup: true })
@@ -618,7 +621,7 @@ describe('the recovery card screen', () => {
       expect(byTestId('card-password-gone')).toBeNull()
       expect(byTestId('card-reveal')).toBeNull()
       expect(byTestId('card-password-value')).toBeNull()
-      expect(carriersDisabled()).toEqual([true, true, true])
+      expect(carriersDisabled()).toEqual([true, true])
     })
 
     it('keeps the gone line and asks nothing when the account has no saved setup', async () => {
@@ -635,7 +638,7 @@ describe('the recovery card screen', () => {
       await mount(newAccount())
       expect(byTestId('card-recovery-password-ask')).not.toBeNull()
       expect(byTestId('card-password-gone')).toBeNull()
-      expect(carriersDisabled()).toEqual([true, true, true])
+      expect(carriersDisabled()).toEqual([true, true])
     })
 
     it('builds no client and shows the card as before at the public level or with the password held', async () => {
@@ -751,7 +754,7 @@ describe('the recovery card screen', () => {
       expect(byTestId('card-recovery-password-unchecked')).toBeNull()
       expect(container.querySelector('input')).toBeNull()
       expect(readRecoveryPassword(CHAIN_ID, account)).toBeUndefined()
-      expect(carriersDisabled()).toEqual([true, true, true])
+      expect(carriersDisabled()).toEqual([true, true])
       await press('card-password-gone-action')
       expect(location.pathname).toBe(`/${WEB_ROUTES.socialRecoverySetupPrivacy}`)
     })
@@ -783,7 +786,7 @@ describe('the recovery card screen', () => {
       expect(byTestId('card-password-chip')?.textContent).toBe(
         t('socialRecovery.display.hiddenChip')
       )
-      expect(carriersDisabled()).toEqual([false, false, false])
+      expect(carriersDisabled()).toEqual([false, false])
 
       await press('card-reveal')
       expect(byTestId('card-password-value')?.textContent).toBe(TYPED)
@@ -817,7 +820,7 @@ describe('the recovery card screen', () => {
       expect(byTestId('card-recovery-password-unchecked')).toBeNull()
       expect(recoveryField()?.value).toBe('')
       expect(readRecoveryPassword(CHAIN_ID, account)).toBeUndefined()
-      expect(carriersDisabled()).toEqual([true, true, true])
+      expect(carriersDisabled()).toEqual([true, true])
       expect(isDisabled('card-recovery-password-check')).toBe(true)
 
       await typeRecovery(TYPED)
@@ -825,7 +828,7 @@ describe('the recovery card screen', () => {
       await settle()
       expect(byTestId('card-recovery-password-wrong')).toBeNull()
       expect(readRecoveryPassword(CHAIN_ID, account)).toBe(TYPED)
-      expect(carriersDisabled()).toEqual([false, false, false])
+      expect(carriersDisabled()).toEqual([false, false])
     })
 
     const failures: [string, () => Error][] = [
@@ -949,7 +952,7 @@ describe('the recovery card screen', () => {
       await settle()
       expect(byTestId('card-recovery-password-ask')).not.toBeNull()
       expect(byTestId('card-password-value')).toBeNull()
-      expect(carriersDisabled()).toEqual([true, true, true])
+      expect(carriersDisabled()).toEqual([true, true])
     })
 
     it('holds nothing when the screen leaves while the check runs', async () => {
@@ -994,7 +997,7 @@ describe('the recovery card screen', () => {
       expect(byTestId('card-password-value')?.textContent).toBe(
         t('socialRecovery.display.hiddenValue')
       )
-      expect(carriersDisabled()).toEqual([false, false, false])
+      expect(carriersDisabled()).toEqual([false, false])
       await press('card-reveal')
       expect(byTestId('card-password-value')?.textContent).toBe(TYPED)
     })
@@ -1048,7 +1051,7 @@ describe('the recovery card screen', () => {
       expect(readRecoveryPassword(CHAIN_ID, first)).toBeUndefined()
       expect(byTestId('card-recovery-password-ask')).not.toBeNull()
       expect(byTestId('card-password-value')).toBeNull()
-      expect(carriersDisabled()).toEqual([true, true, true])
+      expect(carriersDisabled()).toEqual([true, true])
     })
 
     it('keeps the ask and then the card when a check from before the selection left and came back finds no backup late', async () => {
@@ -1082,9 +1085,33 @@ describe('the recovery card screen', () => {
       await settle()
       expect(byTestId('card-password-gone')).toBeNull()
       expect(readRecoveryPassword(CHAIN_ID, first)).toBe(TYPED)
-      expect(carriersDisabled()).toEqual([false, false, false])
+      expect(carriersDisabled()).toEqual([false, false])
       await press('card-reveal')
       expect(byTestId('card-password-value')?.textContent).toBe(TYPED)
+    })
+  })
+
+  describe('the wallet selecting another account while the tab is open', () => {
+    it("keeps the card on the tab's account with its level and password, and says so", async () => {
+      const first = newAccount()
+      const second = newAccount()
+      await writeDraft(first, 'encrypted')
+      await writeDraft(second, 'clear')
+      setRecoveryPassword(CHAIN_ID, first, PASSWORD)
+      await mount(first)
+      expect(byTestId('setup-other-account')).toBeNull()
+
+      // Unlike a fresh tab, the open tab keeps what it latched.
+      await act(async () => {
+        mockSelected.current = { account: { addr: second } }
+        mockSelected.listeners.forEach((listener) => listener())
+      })
+      await settle()
+      expect(byTestId('card-account')?.textContent?.toLowerCase()).toBe(first)
+      expect(level()).toBe('hidden')
+      await press('card-reveal')
+      expect(byTestId('card-password-value')?.textContent).toBe(PASSWORD)
+      expect(byTestId('setup-other-account')?.textContent).toContain(S.chrome.otherAccount.title)
     })
   })
 })

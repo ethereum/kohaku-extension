@@ -5,6 +5,8 @@
  * link the carrier clicks. It applies no print styles either, so the print
  * view's rules are read from the parsed sheet and matched against a page by hand.
  */
+import { TextDecoder, TextEncoder } from 'util'
+
 import type { CardFile } from '@web/modules/social-recovery/setup/card'
 import {
   BROWSER_CARRIERS,
@@ -13,10 +15,22 @@ import {
   REVOKE_DELAY_MS
 } from '@web/modules/social-recovery/setup/card/carriers'
 
+// jsdom has no `TextEncoder`, which viem reads when the card's rows load, so
+// the test sets Node's before it loads the file writer.
+Object.assign(globalThis, { TextEncoder, TextDecoder })
+/* eslint-disable @typescript-eslint/no-var-requires, global-require */
+const {
+  cardFileOf
+}: typeof import('@web/modules/social-recovery/setup/card/file') = require('@web/modules/social-recovery/setup/card/file')
+/* eslint-enable @typescript-eslint/no-var-requires, global-require */
+
+const TEXT = 'tide lantern orchid'
 const FILE: CardFile = {
-  name: 'card.html',
-  type: 'text/html',
-  text: '<p>tide lantern orchid</p>'
+  name: 'card.pdf',
+  type: 'application/pdf',
+  bytes: Uint8Array.from(TEXT, (char) => char.charCodeAt(0)),
+  replacedCharacters: false,
+  pages: 1
 }
 
 const readBlob = (blob: Blob): Promise<string> =>
@@ -25,6 +39,14 @@ const readBlob = (blob: Blob): Promise<string> =>
     reader.onload = () => resolve(String(reader.result))
     reader.onerror = () => reject(reader.error)
     reader.readAsText(blob)
+  })
+
+const readBytes = (blob: Blob): Promise<Uint8Array> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer))
+    reader.onerror = () => reject(reader.error)
+    reader.readAsArrayBuffer(blob)
   })
 
 describe('the file carrier', () => {
@@ -66,12 +88,24 @@ describe('the file carrier', () => {
     jest.restoreAllMocks()
   })
 
-  it('saves the file from an object URL built from its text and type', async () => {
+  it('saves the file from an object URL built from its bytes and type', async () => {
     BROWSER_CARRIERS.download(FILE)
     expect(blobs).toHaveLength(1)
     expect(blobs[0].type).toBe(FILE.type)
-    expect(await readBlob(blobs[0])).toBe(FILE.text)
+    expect(await readBlob(blobs[0])).toBe(TEXT)
     expect(clicks).toEqual([{ href: OBJECT_URL, download: FILE.name, inPage: true, live: true }])
+  })
+
+  it('saves the card as a blob of type application/pdf holding the PDF bytes', async () => {
+    const card = cardFileOf(
+      { account: '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed', level: 'public' },
+      (key: string) => key
+    )
+    BROWSER_CARRIERS.download(card)
+    expect(blobs).toHaveLength(1)
+    expect(blobs[0].type).toBe('application/pdf')
+    expect(Array.from(await readBytes(blobs[0]))).toEqual(Array.from(card.bytes))
+    expect(clicks).toEqual([{ href: OBJECT_URL, download: card.name, inPage: true, live: true }])
   })
 
   it('leaves no link in the page and keeps the object URL until the browser has the file', () => {

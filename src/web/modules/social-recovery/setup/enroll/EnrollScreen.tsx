@@ -1,22 +1,19 @@
 /**
  * The enroll route: the settings chrome around the enroll view for the
- * selected account on the recovery chain, with the page's own helpers the
- * view uses: the ceremony's report channel, the name resolution, the chain
- * reads over the extension's provider, the keystore's keys and the request
- * queue that signs a guardian's test on this device.
+ * setup tab's account on the recovery chain, with the page's own helpers the
+ * view uses: the ceremony's report channel, the name resolution on mainnet,
+ * the chain reads over the extension's provider, the keystore's keys and the
+ * request queue that signs a guardian's test on this device.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { isAddress } from 'viem'
 
-import type { MinNetworkConfig } from '@ambire-common/services/provider'
-import { resolveENSDomain } from '@ambire-common/services/ensDomains'
 import useNavigation from '@common/hooks/useNavigation'
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
-import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import {
   browserReportStore,
   browserReportSubscribe,
@@ -24,11 +21,13 @@ import {
   pagePlatform
 } from '@web/modules/social-recovery/shared/ceremony/screen'
 import SetupChrome from '@web/modules/social-recovery/shared/chrome/SetupChrome'
+import useSetupAccount from '@web/modules/social-recovery/shared/chrome/useSetupAccount'
 import {
   CHAIN_IDS,
   createSignerFacade,
   extensionProviderFor,
   networkOf,
+  sameAddress,
   signRequestPort,
   WALLET_RECOVERY_CHAIN
 } from '@web/modules/social-recovery/shared/client'
@@ -39,11 +38,11 @@ import {
   extensionRecordStorage,
   newCeremonyRequestId
 } from '@web/modules/social-recovery/shared/records'
-import { getRpcProviderForUI } from '@web/services/provider'
 
 import { browserClipboard, saveChallengeFile } from './carriers'
 import { guardianChainOf } from './chain'
 import EnrollView from './EnrollView'
+import { resolveMainnetName } from './names'
 import { parseEnrollSearch } from './search'
 import type { EnrollClient, EnrollDeps, GuardianChain, HeldKey } from './types'
 
@@ -53,14 +52,12 @@ const randomBytes = (length: number): Uint8Array =>
 const EnrollScreen = () => {
   const { navigate } = useNavigation()
   const location = useLocation()
-  const { account: selected } = useSelectedAccountControllerState()
+  const { account } = useSetupAccount()
   const { accounts } = useAccountsControllerState()
   const { keys } = useKeystoreControllerState()
   const { networks } = useNetworksControllerState()
   const { dispatch, windowId } = useBackgroundService()
 
-  // The selected account arrives from the background's state push.
-  const account = selected && isAddress(selected.addr) ? selected.addr : undefined
   const clientState = useRecoveryClient(account)
   const records = useMemo(() => createWalletRecords({ storage: extensionRecordStorage }), [])
   const search = useMemo(() => parseEnrollSearch(location.search), [location.search])
@@ -145,6 +142,20 @@ const EnrollScreen = () => {
     [keys]
   )
 
+  // The seeds of the keys that control the account, so a guardian from one of
+  // them reads as sharing the account's seed and one from another seed does not.
+  const ownSeedIds = useMemo(() => {
+    const listed = account
+      ? accounts?.find((candidate) => sameAddress(candidate.addr, account))
+      : undefined
+    return heldKeys.flatMap((key) =>
+      key.fromSeedId &&
+      listed?.associatedKeys.some((associated) => sameAddress(associated, key.addr))
+        ? [key.fromSeedId]
+        : []
+    )
+  }, [accounts, account, heldKeys])
+
   const deps = useMemo<EnrollDeps>(
     () => ({
       passkeysServed: pagePasskeysServed(),
@@ -154,17 +165,15 @@ const EnrollScreen = () => {
       newRequestId: newCeremonyRequestId,
       now: Date.now,
       randomBytes,
-      resolveName: (name: string) =>
-        resolveENSDomain(name, undefined, (config: MinNetworkConfig) =>
-          getRpcProviderForUI(config, dispatch)
-        ),
+      resolveName: resolveMainnetName,
       chain,
       keys: heldKeys,
+      ownSeedIds,
       signTypedData: (key, typedData, options) => signer.signTypedData(key, typedData, options),
       readClipboard: browserClipboard(),
       saveFile: saveChallengeFile
     }),
-    [dispatch, chain, heldKeys, signer]
+    [chain, heldKeys, ownSeedIds, signer]
   )
 
   return (

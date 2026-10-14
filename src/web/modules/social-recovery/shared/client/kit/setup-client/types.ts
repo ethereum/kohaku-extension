@@ -4,6 +4,7 @@ import type {
   ClientConfiguration,
   DeploymentDescriptor,
   Hex,
+  IEventManager,
   IMethodModuleReads,
   IProvider,
   ReadResult,
@@ -26,6 +27,8 @@ export interface KitSetupContext {
   action: Pick<ActionReads, 'isAuthorized' | 'isAuthority' | 'supportsAccount' | 'actionInfo'>
   moduleReads: IMethodModuleReads
   events: Pick<SetupEvents, 'setupLogsOf' | 'commitOf'>
+  /** The events feed the client serves as its own. */
+  eventManager: IEventManager
   walletReads: Pick<WalletReads, 'removedKey'>
   /** The privileges the account's creation grants, the keys of an account with no code yet. */
   initialPrivileges: Account['initialPrivileges']

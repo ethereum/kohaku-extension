@@ -47,8 +47,22 @@ const drive = async (
   }
 }
 
-export const driveSend = ({ port, key, transaction, ...rest }: SendDrive): Promise<void> =>
-  drive(rest, () => port.send(key, transaction))
+export const driveSend = ({
+  port,
+  key,
+  transaction,
+  requestId,
+  canAdd,
+  ...rest
+}: SendDrive): Promise<void> =>
+  drive(rest, () =>
+    requestId || canAdd
+      ? port.send(key, transaction, {
+          ...(requestId ? { requestId } : {}),
+          ...(canAdd ? { canAdd } : {})
+        })
+      : port.send(key, transaction)
+  )
 
 export const driveAccountBatch = ({
   port,
@@ -57,6 +71,11 @@ export const driveAccountBatch = ({
   onEstimation,
   recoveryKit,
   requestId,
+  canAdd,
   ...rest
 }: AccountBatchDrive): Promise<void> =>
-  drive(rest, () => port.sendAccountBatch(account, calls, onEstimation, recoveryKit, requestId))
+  drive(rest, () =>
+    canAdd
+      ? port.sendAccountBatch(account, calls, onEstimation, recoveryKit, requestId, { canAdd })
+      : port.sendAccountBatch(account, calls, onEstimation, recoveryKit, requestId)
+  )

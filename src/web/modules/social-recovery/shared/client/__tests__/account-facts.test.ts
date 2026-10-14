@@ -354,7 +354,7 @@ describe('two readings of the facts, as a screen reads them', () => {
 
   it("hold the same across a change of the account's balance, its block or a preference other than its label", () => {
     const before = readyWith()
-    expect(sameFactsReading(before, readyWith({ balance: 10n ** 18n }))).toBe(true)
+    expect(sameFactsReading(before, readyWith({ balance: 1_000_000_000_000_000_000n }))).toBe(true)
     expect(sameFactsReading(before, readyWith({ currentBlock: 7_000_001n }))).toBe(true)
     expect(
       sameFactsReading(

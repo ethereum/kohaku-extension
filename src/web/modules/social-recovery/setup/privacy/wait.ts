@@ -2,8 +2,27 @@ import type { SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
 
 import type { CustomWait, WaitChip, WaitChoice } from './types'
 
-/** The shortest waiting period this wallet saves. The chain enforces no minimum. */
-export const WAIT_FLOOR_HOURS = 24
+/**
+ * A test build sets `SOCIAL_RECOVERY_WAIT_FLOOR_MINUTES` in its `.env` to try a
+ * recovery without a day's wait: the floor drops to that many minutes and the
+ * custom entry counts minutes instead of hours. The switch only lowers the
+ * floor: a value that is not a whole number of minutes above zero and below a
+ * day is ignored, and the day's floor stands. A release build leaves it unset,
+ * so the floor is a day and the entry counts hours.
+ */
+const RELEASE_FLOOR_HOURS = 24
+const FLOOR_MINUTES = Number(process.env.SOCIAL_RECOVERY_WAIT_FLOOR_MINUTES)
+const MINUTES_MODE =
+  Number.isInteger(FLOOR_MINUTES) && FLOOR_MINUTES > 0 && FLOOR_MINUTES < RELEASE_FLOOR_HOURS * 60
+
+/** Whether the custom entry counts minutes, as in a test build, rather than hours. */
+export const CUSTOM_UNIT_IS_MINUTES = MINUTES_MODE
+
+/** The seconds one unit of the custom entry counts: an hour, or a minute in a test build. */
+export const CUSTOM_UNIT_SECONDS = MINUTES_MODE ? 60 : 3600
+
+/** The shortest waiting period this wallet saves, in hours. The chain enforces no minimum. */
+export const WAIT_FLOOR_HOURS = MINUTES_MODE ? FLOOR_MINUTES / 60 : RELEASE_FLOOR_HOURS
 
 /**
  * The longest waiting period the picker accepts where the client names no
@@ -23,7 +42,10 @@ export const WAIT_CHIPS: readonly WaitChip[] = [
 const SECONDS_PER_HOUR = 3600n
 
 export const secondsOfHours = (hours: number): SetupDraft['wait'] =>
-  BigInt(hours) * SECONDS_PER_HOUR
+  BigInt(Math.round(hours * Number(SECONDS_PER_HOUR)))
+
+/** The shortest waiting period this wallet saves, in seconds. */
+export const WAIT_FLOOR_SECONDS = secondsOfHours(WAIT_FLOOR_HOURS)
 
 /**
  * Reads the custom entry, which counts whole hours. An entry with anything but
@@ -37,7 +59,7 @@ export const readCustomWait = (text: string, ceilingHours: number): CustomWait =
   if (!/^[0-9]+$/.test(text)) {
     return { status: 'notWholeHours' }
   }
-  const hours = Number(text)
+  const hours = (Number(text) * CUSTOM_UNIT_SECONDS) / Number(SECONDS_PER_HOUR)
   if (hours > ceilingHours) {
     return { status: 'pastCeiling' }
   }
@@ -64,20 +86,27 @@ export const hoursOfChoice = (choice: WaitChoice, ceilingHours: number): number 
   return custom.status === 'accepted' ? custom.hours : undefined
 }
 
+const DEFAULT_CHIP = WAIT_CHIPS[1]
+
 /** The picker's state when no waiting period is stored: 48 hours. */
-export const DEFAULT_CHOICE: WaitChoice = { kind: 'chip', id: 'hours48' }
+export const DEFAULT_CHOICE: WaitChoice = { kind: 'chip', id: DEFAULT_CHIP.id }
+
+/** The length the picker holds when no waiting period is stored, in seconds. */
+export const DEFAULT_WAIT_SECONDS = secondsOfHours(DEFAULT_CHIP.hours)
 
 /**
  * The picker's state for a stored waiting period: its chip, or the custom
- * entry in hours. A length the picker refuses, under the floor, past the
- * ceiling or not a whole number of hours, goes into the custom entry as well,
+ * entry in its unit. A length the picker refuses, under the floor, past the
+ * ceiling or not a whole number of units, goes into the custom entry as well,
  * so its refusal shows and continue stays held.
  */
 export const choiceOfSeconds = (seconds: SetupDraft['wait']): WaitChoice => {
-  if (seconds % SECONDS_PER_HOUR !== 0n) {
-    return { kind: 'custom', text: String(Number(seconds) / Number(SECONDS_PER_HOUR)) }
+  const unit = BigInt(CUSTOM_UNIT_SECONDS)
+  if (seconds % unit !== 0n) {
+    return { kind: 'custom', text: String(Number(seconds) / Number(unit)) }
   }
-  const hours = seconds / SECONDS_PER_HOUR
-  const chip = WAIT_CHIPS.find((candidate) => BigInt(candidate.hours) === hours)
-  return chip ? { kind: 'chip', id: chip.id } : { kind: 'custom', text: String(hours) }
+  const chip = WAIT_CHIPS.find(
+    (candidate) => BigInt(candidate.hours) * SECONDS_PER_HOUR === seconds
+  )
+  return chip ? { kind: 'chip', id: chip.id } : { kind: 'custom', text: String(seconds / unit) }
 }

@@ -19,6 +19,7 @@ import usePrivacyPools from '@web/hooks/usePrivacyPools/usePrivacyPools'
 import useRailgunForm from '@web/modules/railgun/hooks/useRailgunForm'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import useNavigation from '@common/hooks/useNavigation'
+import HomeRecoveryBand from '@web/modules/social-recovery/recovery/checklist/HomeRecoveryBand'
 import DAppFooter from '../components/DAppFooter'
 import DashboardOverview from '../components/DashboardOverview'
 import CongratsFirstCashbackModal from '../components/DashboardOverview/CongratsFirstCashbackModal'
@@ -157,6 +158,7 @@ const DashboardScreen = () => {
             onRetryLoadPrivateAccount={handleRetryLoadPrivateAccount}
           />
           <DepositStatusBanner onWithdrawBack={onWithdrawBack} onDeposit={onDeposit} />
+          <HomeRecoveryBand />
           <DashboardPages onScroll={onScroll} animatedOverviewHeight={animatedOverviewHeight} />
         </View>
         <DAppFooter />

@@ -7,7 +7,9 @@
  * Called with no facts, the client takes the listed account's own
  * (`clientFactsOf`, `creationPrivilegesOf`): a smart account's creation
  * record, associated keys and creation privileges, so the removed-key read can
- * name the key; a basic account gives none.
+ * name the key; a basic account, and an account the wallet does not list,
+ * give none, and the removed-key read then reads a deployed account's keys
+ * from the chain.
  *
  * A refused digest version comes back as the `update-the-wallet` state the
  * account step draws; any other failure as `failed`, with `retry`, never as an
@@ -25,7 +27,7 @@ import { buildRecoveryClient, isDigestVersionRefusal } from './build-client'
 import { createChainReads } from './chain-reads'
 import { CHAIN_IDS, WALLET_RECOVERY_CHAIN } from './chains'
 import { extensionProviderFor, networkOf, providerKeyOf } from './extension-provider'
-import { createCodeRead, createProviderAdapter } from './provider-adapter'
+import { createCodeRead, createProviderAdapter, createTransactionRead } from './provider-adapter'
 import { createReceiptWait } from './receipts'
 import type { AccountFacts, ExtensionProvider, RecoveryClientState } from './types'
 
@@ -107,7 +109,8 @@ export const useRecoveryClient = (
       account,
       addressBook: addressBookOf(WALLET_RECOVERY_CHAIN),
       provider: createProviderAdapter(provider),
-      codeRead: createCodeRead(provider)
+      codeRead: createCodeRead(provider),
+      transactionRead: createTransactionRead(provider)
     })
       .then((client) => {
         if (live) {

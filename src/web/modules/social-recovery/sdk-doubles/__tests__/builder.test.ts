@@ -118,7 +118,7 @@ describe('builder double', () => {
     const world = createWorld({ descriptor: { chainId: 2 ** 53 } })
     expect(await refusalCode(world.builder(), 'buildSetupClient')).toBeUndefined()
     const { domain } = world.chain.manager
-    world.chain.manager.domain = { ...domain, chainId: 2n ** 53n + 1n }
+    world.chain.manager.domain = { ...domain, chainId: 9_007_199_254_740_992n + 1n }
     expect(Number(world.chain.manager.domain.chainId)).toBe(world.descriptor.chainId)
     expect(await refusalCode(world.builder(), 'buildSetupClient')).toBe('construction.domain')
   })

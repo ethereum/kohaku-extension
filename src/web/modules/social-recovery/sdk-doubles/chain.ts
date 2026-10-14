@@ -442,12 +442,14 @@ export class ScriptedChain {
   }
 
   /**
-   * The inference that names the key a handover removes: with a creation
-   * record, the one entry still holding a key value; otherwise the reason it
-   * cannot name one.
+   * The inference that names the key a handover removes: the one entry still
+   * holding a key value, read from the creation record where the wallet has
+   * one and from the deployed account's privilege table where it has none;
+   * otherwise the reason it cannot name one. An account with neither a
+   * creation record nor code gives nothing to read.
    */
   removedKeyReading(hasCreationRecord: boolean): RemovedKeyReading {
-    if (!hasCreationRecord) {
+    if (!hasCreationRecord && !this.hasCode) {
       return { kind: 'unavailable', cause: 'no-creation-record' }
     }
     if (this.authorities.length === 0) {

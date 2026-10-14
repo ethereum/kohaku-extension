@@ -1,17 +1,16 @@
 /**
- * The Recovery Card in the settings chrome, for the selected account on the
+ * The Recovery Card in the settings chrome, for the setup tab's account on the
  * recovery chain. The level comes from the route's search the save passes,
  * else from the stored draft; with neither, the card takes the hidden level,
  * which carries the password row and so never drops the password silently.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { isAddress } from 'viem'
 
 import useNavigation from '@common/hooks/useNavigation'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
-import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import SetupChrome from '@web/modules/social-recovery/shared/chrome/SetupChrome'
+import useSetupAccount from '@web/modules/social-recovery/shared/chrome/useSetupAccount'
 import { CHAIN_IDS, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
 import {
   createWalletRecords,
@@ -33,12 +32,10 @@ const renderPasswordAsk = (answer: PasswordAskAnswer) => <ExtensionPasswordAsk {
 const RecoveryCardScreen = () => {
   const { navigate, goBack } = useNavigation()
   const location = useLocation()
-  const { account } = useSelectedAccountControllerState()
+  const address = useSetupAccount().account ?? null
 
   const records = useMemo(() => createWalletRecords({ storage: extensionRecordStorage }), [])
 
-  // The selected account arrives from the background's state push.
-  const address = account && isAddress(account.addr) ? account.addr : null
   const searchLevel = useMemo(() => levelFromSearch(location.search), [location.search])
   // The draft's level belongs to the account it was read for, so another
   // account never shows it while its own draft loads.

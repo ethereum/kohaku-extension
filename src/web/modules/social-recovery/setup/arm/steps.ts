@@ -108,6 +108,9 @@ export const saveStepsOf = (input: SaveStepsInput): SaveSteps => {
     async release(requestId): Promise<void> {
       await inFlight.release(requestId)
     },
+    async releaseUnsent(requestId): Promise<void> {
+      await inFlight.releaseUnsent(requestId)
+    },
     requestState: (requestId) =>
       sendRequestStateOf(input.requests, requestId, input.account, input.chainId),
     queueMoved: (limitMs) =>
@@ -136,7 +139,7 @@ export const saveStepsOf = (input: SaveStepsInput): SaveSteps => {
       }),
     blockNumber,
     transactionKnown: (transactionHash) => input.receipts.transactionKnown(transactionHash),
-    send: ({ calls }, dispatch, run, requestId, startBlock, onEstimation) =>
+    send: ({ calls }, dispatch, run, requestId, startBlock, onEstimation, canAdd) =>
       driveAccountBatch({
         dispatch,
         run,
@@ -151,7 +154,8 @@ export const saveStepsOf = (input: SaveStepsInput): SaveSteps => {
         calls,
         onEstimation,
         recoveryKit: recoveryKitMarkOf(client.descriptor),
-        requestId
+        requestId,
+        canAdd
       }),
     async waitAgain(transactionHash, startBlock, dispatch, run, onKnown): Promise<void> {
       // The wait's own lookup of the transaction is not exposed: one read

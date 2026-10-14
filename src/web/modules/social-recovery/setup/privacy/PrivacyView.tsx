@@ -179,31 +179,23 @@ const PrivacyView = ({ records, chainId, account, navigate }: PrivacyViewProps) 
             </Text>
           </RadioCard>
         ))}
-        <View testID="exposure" style={spacings.mtTy}>
-          {!!exposure.guardians && (
+        {!!exposure.guardians && (
+          <View testID="exposure" style={spacings.mtTy}>
             <Text
               testID="exposure-guardians"
               fontSize={12}
               appearance="secondaryText"
-              style={spacings.mbTy}
+              style={exposure.unguessable ? spacings.mbTy : undefined}
             >
               {exposure.guardians}
             </Text>
-          )}
-          {!!exposure.unguessable && (
-            <Text
-              testID="exposure-unguessable"
-              fontSize={12}
-              appearance="secondaryText"
-              style={spacings.mbTy}
-            >
-              {exposure.unguessable}
-            </Text>
-          )}
-          <Text testID="exposure-publication" fontSize={12} appearance="secondaryText">
-            {exposure.publication}
-          </Text>
-        </View>
+            {!!exposure.unguessable && (
+              <Text testID="exposure-unguessable" fontSize={12} appearance="secondaryText">
+                {exposure.unguessable}
+              </Text>
+            )}
+          </View>
+        )}
       </SectionCard>
       {hidden ? (
         <View testID="recovery-password">

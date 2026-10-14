@@ -14,6 +14,7 @@ import Text from '@common/components/Text'
 import TextArea from '@common/components/TextArea'
 // import Toggle from '@common/components/Toggle'
 import { useTranslation } from '@common/config/localization'
+import useNavigation from '@common/hooks/useNavigation'
 import useTheme from '@common/hooks/useTheme'
 import useOnboardingNavigation from '@common/modules/auth/hooks/useOnboardingNavigation'
 import Header from '@common/modules/header/components/Header'
@@ -25,12 +26,13 @@ import {
 } from '@web/components/TabLayoutWrapper/TabLayoutWrapper'
 import useAccountPickerControllerState from '@web/hooks/useAccountPickerControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
+import ResetEntryGate from '@web/modules/social-recovery/onboarding/recover/ResetEntryGate'
 
 import getStyles from './styles'
 
 export const CARD_WIDTH = 400
 
-const SeedPhraseImportScreen = () => {
+export const SeedPhraseImportForm = () => {
   const { goToPrevRoute, goToNextRoute } = useOnboardingNavigation()
   const { t } = useTranslation()
 
@@ -272,6 +274,25 @@ const SeedPhraseImportScreen = () => {
         </Panel>
       </TabLayoutWrapperMainContent>
     </TabLayoutContainer>
+  )
+}
+
+const SeedPhraseImportScreen = () => {
+  const { goToPrevRoute } = useOnboardingNavigation()
+  const { canGoBack, goBack } = useNavigation()
+
+  const leave = useCallback(() => {
+    if (canGoBack) {
+      goBack()
+      return
+    }
+    goToPrevRoute()
+  }, [canGoBack, goBack, goToPrevRoute])
+
+  return (
+    <ResetEntryGate onLeave={leave}>
+      <SeedPhraseImportForm />
+    </ResetEntryGate>
   )
 }
 

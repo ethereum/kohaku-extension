@@ -6,16 +6,43 @@
  * estimates each transaction's gas itself, on the same provider the adapter
  * wraps. The gas step reads these; the SDK never sees them.
  */
+import { parseGwei } from 'viem'
+
 import type { Address, BlockTag, PreparedCall } from '@web/modules/social-recovery/sdk-interfaces'
 
-import { attemptRead, callFailureOf, quantityOf } from './provider-adapter'
+import { attemptRead, callFailureOf, quantityOf, retryWhileRateLimited } from './provider-adapter'
 import type { ChainReads, ChainReadsProvider, GasEstimateCall } from './types'
 
 /**
+ * The least priority fee the fee read prices, so a quiet test network, whose
+ * blocks carry almost no tips, still prices like the wallet's send.
+ */
+const PRIORITY_FEE_FLOOR = parseGwei('1')
+
+/**
+ * The base fee of a block as the node answers it, undefined where the block
+ * carries none. An answer that is no block, or a base fee that is no
+ * quantity, throws.
+ */
+const baseFeeOf = (block: unknown): bigint | undefined => {
+  if (typeof block !== 'object' || block === null) {
+    throw new Error(`not a block: ${JSON.stringify(block)}`)
+  }
+  if (
+    !('baseFeePerGas' in block) ||
+    block.baseFeePerGas === undefined ||
+    block.baseFeePerGas === null
+  ) {
+    return undefined
+  }
+  return quantityOf(block.baseFeePerGas)
+}
+
+/**
  * The balance and gas reads over the extension's provider: `getBalance`,
- * `estimateGas` and one `eth_gasPrice` request. A read the provider could not
- * make rejects with a `ProviderReadFailure`; an estimate of a call that would
- * revert rejects with a `RevertedCall`.
+ * `estimateGas` and the fee read. A read the provider could not make rejects
+ * with a `ProviderReadFailure`; an estimate of a call that would revert
+ * rejects with a `RevertedCall`.
  */
 export const createChainReads = (provider: ChainReadsProvider): ChainReads => ({
   nativeBalance(address: Address, block: BlockTag = 'latest'): Promise<bigint> {
@@ -24,20 +51,40 @@ export const createChainReads = (provider: ChainReadsProvider): ChainReads => ({
 
   async estimateGas(call: GasEstimateCall): Promise<bigint> {
     try {
-      return await provider.estimateGas({
-        from: call.from,
-        to: call.to,
-        data: call.data,
-        value: call.value
-      })
+      return await retryWhileRateLimited(() =>
+        provider.estimateGas({
+          from: call.from,
+          to: call.to,
+          data: call.data,
+          value: call.value
+        })
+      )
     } catch (thrown) {
       throw callFailureOf('estimateGas', thrown)
     }
   },
 
+  /**
+   * The most a send pays per gas, by ethers' `maxFeePerGas` rule: the latest
+   * block's base fee twice, plus the node's `eth_maxPriorityFeePerGas`, at
+   * least 1 gwei. The rule takes the latest block's base fee, not a
+   * projection for the next block: that projection comes only from
+   * `eth_feeHistory`, which the Helios light client does not serve, and the
+   * doubled base fee already covers the rise to the next block. `eth_gasPrice`
+   * alone is not enough: nodes answer it near the bare base fee, far below
+   * the fee the wallet's sign window pays, so a check priced with it passes a
+   * key that then cannot pay. A node whose block carries no base fee runs no
+   * fee market, and its `eth_gasPrice` is the price.
+   */
   gasPrice(): Promise<bigint> {
-    // One raw request: ethers' getFeeData makes three.
-    return attemptRead('gasPrice', async () => quantityOf(await provider.send('eth_gasPrice', [])))
+    return attemptRead('gasPrice', async () => {
+      const baseFee = baseFeeOf(await provider.send('eth_getBlockByNumber', ['latest', false]))
+      if (baseFee === undefined) {
+        return quantityOf(await provider.send('eth_gasPrice', []))
+      }
+      const priorityFee = quantityOf(await provider.send('eth_maxPriorityFeePerGas', []))
+      return baseFee * 2n + (priorityFee > PRIORITY_FEE_FLOOR ? priorityFee : PRIORITY_FEE_FLOOR)
+    })
   }
 })
 

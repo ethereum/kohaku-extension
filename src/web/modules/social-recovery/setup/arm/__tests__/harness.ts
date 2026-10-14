@@ -68,6 +68,7 @@ import type {
   SendRequestAction,
   SendRequestPort,
   SendRequestUpdate,
+  SignAccountOpState,
   SubmittedOperation
 } from '@web/modules/social-recovery/shared/client'
 import { createWalletRecords } from '@web/modules/social-recovery/shared/records'
@@ -368,7 +369,7 @@ export const chainReadsFor = (gas: GasCase): MockChainReads => ({
     if (gas === 'read-fails') {
       throw providerReadFailure('nativeBalance', new Error('node down'))
     }
-    return gas === 'deposit' ? 0n : 10n ** 18n
+    return gas === 'deposit' ? 0n : 1_000_000_000_000_000_000n
   }),
   estimateGas: jest.fn(async () => 300_000n),
   gasPrice: jest.fn(async () => 2n * GWEI)
@@ -378,8 +379,8 @@ export const chainReadsFor = (gas: GasCase): MockChainReads => ({
 export const feeOption = (available: boolean): FeeOption => ({
   paidBy: KEY.addr,
   token: { address: zeroAddress, symbol: 'ETH', decimals: 18 },
-  balance: available ? 10n ** 18n : 0n,
-  amount: 10n ** 15n,
+  balance: available ? 1_000_000_000_000_000_000n : 0n,
+  amount: 1_000_000_000_000_000n,
   available,
   selected: true
 })
@@ -497,6 +498,8 @@ export interface RequestsFake extends SendRequestPort {
   dispatch: jest.Mock
   queued: string[]
   activity: SubmittedOperation[] | null
+  /** The sign screen's state the wallet answers an ask for it with; empty where none is open. */
+  signer: SignAccountOpState
   /** Pushes the queue as it stands now, as the background pushes a change of it. */
   pushQueue(): void
 }
@@ -543,7 +546,14 @@ export const requestsFake = (): RequestsFake => {
   const fake: RequestsFake = {
     queued: [],
     activity: [],
+    signer: {},
     dispatch: jest.fn((action: SendRequestAction) => {
+      if (action.type === 'INIT_CONTROLLER_STATE') {
+        unawaited(
+          Promise.resolve().then(() => push({ controller: 'signAccountOp', state: fake.signer }))
+        )
+        return
+      }
       if (action.type !== 'MAIN_CONTROLLER_ACTIVITY_SET_ACC_OPS_FILTERS') {
         return
       }
@@ -575,6 +585,7 @@ export const requestsFake = (): RequestsFake => {
     },
     accounts: () => [],
     queue: () => ({ userRequests: fake.queued.map(queuedRequestOf) }),
+    selectedAccount: () => undefined,
     windowId: () => undefined,
     pushQueue: () =>
       push({ controller: 'requests', state: { userRequests: fake.queued.map(queuedRequestOf) } })
@@ -632,7 +643,7 @@ export const wireSave = (
   })
   const setupState = jest.fn(async () => {
     if (script.setup === 'throws') {
-      throw new Error('the node did not answer the setup read')
+      throw providerReadFailure('call', new Error('the node did not answer the setup read'))
     }
     return setupStateOf(script.setup === 'set-up')
   })

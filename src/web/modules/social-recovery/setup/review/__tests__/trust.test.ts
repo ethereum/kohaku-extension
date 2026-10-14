@@ -6,16 +6,10 @@ import type { Enrollment } from '@web/modules/social-recovery/shared/records'
 
 import {
   aloneSatisfiesRule,
-  nodeKindOf,
   trustReadsComplete,
   trustRowsOf
 } from '@web/modules/social-recovery/setup/review/trust'
-import type {
-  NodeKind,
-  ProviderKind,
-  TrustReads,
-  TrustRow
-} from '@web/modules/social-recovery/setup/review/types'
+import type { TrustReads, TrustRow } from '@web/modules/social-recovery/setup/review/types'
 import {
   ADMIN,
   ALICE,
@@ -105,8 +99,7 @@ describe('the trust rows', () => {
       status: 'declared',
       recoverAlone: false,
       aloneAtThresholdOne: false,
-      passportRenewal: false,
-      paused: false
+      passportRenewal: false
     })
   })
 
@@ -242,8 +235,7 @@ describe('the trust rows', () => {
         admin: ADMIN,
         pendingAdmin: PENDING_ADMIN,
         recoverAlone: true,
-        aloneAtThresholdOne: true,
-        paused: false
+        aloneAtThresholdOne: true
       }
     })
   })
@@ -256,7 +248,7 @@ describe('the trust rows', () => {
 
     expect(rowOf(rows, THIRD_PARTY_MODULE).contract).toEqual({
       status: 'third-party',
-      declaration: { admin: ADMIN, recoverAlone: false, aloneAtThresholdOne: false, paused: false }
+      declaration: { admin: ADMIN, recoverAlone: false, aloneAtThresholdOne: false }
     })
     expect(rowOf(rows, BOOK.methods.passkey).contract.status).toBe('declared')
   })
@@ -422,19 +414,5 @@ describe('whether every trust read answered', () => {
 
   it('does not hold for a path with no method to read', () => {
     expect(trustReadsComplete(rowsOf([], {}))).toBe(false)
-  })
-})
-
-describe('the node by kind', () => {
-  const KINDS: [ProviderKind | undefined, NodeKind][] = [
-    ['helios', 'light-client'],
-    ['colibri', 'light-client'],
-    ['rpc', 'plain'],
-    [undefined, 'plain']
-  ]
-  KINDS.forEach(([provider, kind]) => {
-    it(`reads the provider kind ${provider ?? 'absent'} as a ${kind} node`, () => {
-      expect(nodeKindOf(provider)).toBe(kind)
-    })
   })
 })

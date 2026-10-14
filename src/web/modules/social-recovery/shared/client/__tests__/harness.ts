@@ -77,6 +77,7 @@ import {
   type SendQueueState,
   type SendRefusal,
   type SendRefusalReason,
+  type SendRequestAction,
   type SendRequestPort,
   type SendRequestUpdate,
   type SignerFacade,
@@ -165,7 +166,13 @@ const tagOf = (tag: unknown): BlockTag =>
   typeof tag === 'string' && tag.startsWith('0x') ? Number(tag) : (tag as BlockTag)
 
 /** The balance, estimate and price the mock node answers. */
-export const NODE_ANSWERS = { balance: 10n ** 18n, gas: 21_000n, gasPrice: 7n * 10n ** 9n }
+export const NODE_ANSWERS = {
+  balance: 1_000_000_000_000_000_000n,
+  gas: 21_000n,
+  baseFee: 2_000_000_000n,
+  priorityFee: 3_000_000_000n,
+  gasPrice: 7_000_000_000n
+}
 
 export interface EthersMock {
   getNetwork: jest.Mock
@@ -243,14 +250,19 @@ export const ethersOver = (chain: ScriptedChain): EthersMock => {
         return []
       case 'eth_getBlockByNumber': {
         const b = blockOf(params[0])
-        return { number: toBeHex(b.number), timestamp: toBeHex(b.timestamp), hash: b.hash }
+        return {
+          number: toBeHex(b.number),
+          timestamp: toBeHex(b.timestamp),
+          hash: b.hash,
+          baseFeePerGas: toBeHex(NODE_ANSWERS.baseFee)
+        }
       }
       case 'eth_getBalance':
         return toBeHex(NODE_ANSWERS.balance)
       case 'eth_estimateGas':
         return toBeHex(NODE_ANSWERS.gas)
-      case 'eth_gasPrice':
-        return toBeHex(NODE_ANSWERS.gasPrice)
+      case 'eth_maxPriorityFeePerGas':
+        return toBeHex(NODE_ANSWERS.priorityFee)
       default:
         throw new Error(`The ethers mock does not answer ${method}.`)
     }
@@ -439,6 +451,7 @@ export const createWorld = (overrides: Partial<RecoveryClientConfiguration> = {}
     addressBook,
     provider: adapter,
     codeRead: createCodeRead(ethers),
+    transactionRead: async () => null,
     ...overrides
   }
   return { chain, ethers, adapter, config, descriptor, account }
@@ -587,6 +600,8 @@ export interface SendWorld {
   port: SendRequestPort
   /** Puts a queue state in the getter and pushes it, as the wallet does. */
   show: (state: HeldAndPushedQueue) => void
+  /** The account the wallet has selected; a select the port dispatches moves it and pushes it. */
+  selected: string | undefined
 }
 
 /**
@@ -600,10 +615,17 @@ export const sendQueueOver = (
 ): SendWorld => {
   const listeners = new Set<(update: SendRequestUpdate) => void>()
   const world = { accounts } as SendWorld
-  world.dispatch = jest.fn()
   world.push = (update) => [...listeners].forEach((l) => l(update))
+  world.dispatch = jest.fn((action: SendRequestAction) => {
+    if (action.type === 'MAIN_CONTROLLER_SELECT_ACCOUNT') {
+      world.selected = action.params.accountAddr
+      world.push({ controller: 'selectedAccount', state: { account: { addr: world.selected } } })
+    }
+  })
   world.listeners = () => listeners.size
   world.queue = {}
+  // The wallet selects its first listed account until a select moves it.
+  world.selected = accounts[0]?.addr
   world.port = {
     dispatch: world.dispatch,
     subscribe(listener) {
@@ -612,6 +634,7 @@ export const sendQueueOver = (
     },
     accounts: () => world.accounts,
     queue: () => world.queue,
+    selectedAccount: () => world.selected,
     windowId: () => WINDOW_ID
   }
   world.show = (state) => {
@@ -781,6 +804,17 @@ export interface QueuedFor {
 /** A `requests` state the wallet both holds and pushes. */
 export type HeldAndPushedQueue = HeldRequestQueue & SendQueueState
 
+/**
+ * What a wallet a reading asks holds: its queue, the accounts it lists, and
+ * the sign screen's state it pushes when asked for it (null where no sign
+ * screen is open, `silent` where it never answers).
+ */
+export interface HeldWallet {
+  queue?: HeldRequestQueue
+  accounts: ListedAccount[]
+  signer: SignAccountOpState | null | 'silent'
+}
+
 const QUEUED_ACTIONS: Record<QueuedKind, SignUserRequest['action']> = {
   calls: { kind: 'calls', calls: [] },
   message: { kind: 'message', message: '0x' },
@@ -945,8 +979,8 @@ const transactionJson = (tx: NodeTransaction) => ({
   input: tx.data,
   value: toQuantity(tx.value),
   gas: toQuantity(90_000),
-  maxFeePerGas: toQuantity(3n * 10n ** 9n),
-  maxPriorityFeePerGas: toQuantity(10n ** 9n),
+  maxFeePerGas: toQuantity(3_000_000_000n),
+  maxPriorityFeePerGas: toQuantity(1_000_000_000n),
   chainId: toQuantity(SEPOLIA),
   accessList: [],
   blockHash: tx.blockNumber === undefined ? null : blockHashOf(tx.blockNumber),

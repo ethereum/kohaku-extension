@@ -120,14 +120,24 @@ describe('a method module reads its views', () => {
     })
   })
 
-  it('answers the magic value verify returns', async () => {
-    const { reads } = providerAnswering([
-      [
-        verifyCall,
-        encodeFunctionResult({ abi: METHOD_VIEWS, functionName: 'verify', result: '0x024ad318' })
-      ]
-    ])
-    await expect(reads.verify(METHOD, CONFIG, DIGEST, PROOF)).resolves.toBe('0x024ad318')
+  it('answers the whole word verify returns, padding and all', async () => {
+    const word = encodeFunctionResult({
+      abi: METHOD_VIEWS,
+      functionName: 'verify',
+      result: '0x024ad318'
+    })
+    const trailed = `${word}${'00'.repeat(31)}01` as const
+    const { reads } = providerAnswering([[verifyCall, trailed]])
+    await expect(reads.verify(METHOD, CONFIG, DIGEST, PROOF)).resolves.toBe(trailed)
+  })
+
+  it('refuses an empty verify answer as a failed call read', async () => {
+    const { reads } = providerAnswering([[verifyCall, '0x']])
+    const thrown = await reads
+      .verify(METHOD, CONFIG, DIGEST, PROOF)
+      .catch((error: unknown) => error)
+    expect(isProviderReadFailure(thrown)).toBe(true)
+    expect(thrown).toMatchObject({ read: 'call' })
   })
 
   it('keeps the data of a revert', async () => {

@@ -1,8 +1,7 @@
 /**
  * The trust list as pure functions over the path, the enrollments and the
- * module reads: one contract row per method, the headings of the path rows
- * that use it, the security stop block's rows, and the node the wallet reads
- * through.
+ * module reads: one contract row per method and the headings of the path
+ * rows that use it.
  */
 import { zeroAddress } from 'viem'
 
@@ -14,17 +13,13 @@ import type {
 } from '@web/modules/social-recovery/sdk-interfaces'
 import { sameAddress } from '@web/modules/social-recovery/shared/client'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
-import { isEmptySlot } from '@web/modules/social-recovery/shared/records/slots'
+import { enrollmentOf, isEmptySlot } from '@web/modules/social-recovery/shared/records/slots'
 
-import { enrollmentOf, guardianAddressOf, isRequiredRow, kindOf } from './lead'
-import { LIGHT_CLIENT_PROVIDERS, TRUST_READ_NAMES } from './constants'
+import { guardianAddressOf, isRequiredRow, kindOf } from './lead'
+import { TRUST_READ_NAMES } from './constants'
 import type {
   AdminDeclaration,
   MethodReads,
-  NodeKind,
-  ProviderKind,
-  StopDeclaration,
-  StopRow,
   TrustContract,
   TrustHeading,
   TrustRow,
@@ -109,17 +104,6 @@ const adminDeclarationOf = (
   }
 }
 
-/** What a method's declaration and its `paused` read say about stopping it. */
-const stopDeclarationOf = (trustedParties: TrustedParties, paused: boolean): StopDeclaration => {
-  const pauseHolder = nonZero(trustedParties.pauseHolder)
-  const pendingPauseHolder = nonZero(trustedParties.pendingPauseHolder)
-  return {
-    paused,
-    ...(pauseHolder ? { pauseHolder } : {}),
-    ...(pendingPauseHolder ? { pendingPauseHolder } : {})
-  }
-}
-
 /**
  * What the list says about one method from its three reads. A read still
  * running leaves the row pending; a read that did not answer marks it
@@ -147,16 +131,14 @@ const contractOf = (
     return { status: 'third-party' }
   }
   const admin = adminDeclarationOf(method, trustedParties.value, input)
-  const stop = stopDeclarationOf(trustedParties.value, paused.value)
   const shipped = input.shippedMethods.some((address) => sameAddress(address, method))
   if (!shipped) {
-    return { status: 'third-party', declaration: { ...admin, ...stop } }
+    return { status: 'third-party', declaration: admin }
   }
   return {
     status: 'declared',
     ...admin,
-    passportRenewal: sameAddress(method, input.addressBook.methods.zkpassport),
-    ...stop
+    passportRenewal: sameAddress(method, input.addressBook.methods.zkpassport)
   }
 }
 
@@ -208,44 +190,3 @@ export const trustRowsOf = (input: TrustRowsInput): TrustRow[] => {
 export const trustReadsComplete = (rows: readonly TrustRow[]): boolean =>
   rows.length > 0 &&
   rows.every(({ contract }) => contract.status !== 'pending' && contract.status !== 'unavailable')
-
-/** Whether two addresses name the same party. */
-const sameParty = (one: Address | undefined, other: Address | undefined): one is Address =>
-  !!one && !!other && sameAddress(one, other)
-
-/**
- * The security stop block's rows: one per method of the path in the trust
- * list's order, each from that method's own declaration. A module with no
- * declaration takes no row.
- */
-export const stopRowsOf = (rows: readonly TrustRow[]): StopRow[] =>
-  rows.flatMap(({ method, kind, contract }): StopRow[] => {
-    if (contract.status === 'pending') {
-      return [{ method, kind, stop: { status: 'pending' } }]
-    }
-    if (contract.status === 'unavailable') {
-      return [{ method, kind, stop: { status: 'unavailable' } }]
-    }
-    const declared = contract.status === 'declared' ? contract : contract.declaration
-    if (!declared) {
-      return []
-    }
-    const { admin, paused, pauseHolder, pendingPauseHolder } = declared
-    return [
-      {
-        method,
-        kind,
-        stop: {
-          status: 'declared',
-          paused,
-          ...(pauseHolder ? { pauseHolder } : {}),
-          ...(pendingPauseHolder ? { pendingPauseHolder } : {}),
-          ...(sameParty(pauseHolder, admin) ? { bothRoles: pauseHolder } : {})
-        }
-      }
-    ]
-  })
-
-/** The node by kind: a light client with its prover, or a plain node where the kind is absent. */
-export const nodeKindOf = (providerKind: ProviderKind | undefined): NodeKind =>
-  LIGHT_CLIENT_PROVIDERS.some((kind) => kind === providerKind) ? 'light-client' : 'plain'

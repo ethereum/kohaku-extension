@@ -24,19 +24,8 @@ export const CONFIRM_REREAD_BLOCKS = 3
 export const RECEIPT_WAIT_MS = 120_000
 
 /**
- * How long a followed request that neither the wallet's queue nor its activity
- * holds is read again, while the account shows no setup, before the stored
- * save in flight is void, in ms, counted from the follow's first such reading.
- * A request between leaving the queue and reaching the activity reads so for
- * a moment.
- */
-export const GONE_GRACE_MS = 60_000
-
-/**
  * How long the setup read between a claim and its send may take, in ms,
- * before the claim is released with nothing sent. Well under
- * `GONE_GRACE_MS`, so a page that follows the claim does not read it void
- * while its owner still waits on this read.
+ * before the claim is released with nothing sent.
  */
 export const CLAIMED_SETUP_READ_MS = 20_000
 
@@ -49,21 +38,6 @@ export const CLAIMED_SETUP_READ_MS = 20_000
 export const SEND_BLOCK_READ_MS = 10_000
 
 /**
- * How long after its broadcast a save whose transaction the node does not
- * know, and whose setup the account does not hold, reads as dropped, in ms.
- * A stored save that holds a hash and no time of its broadcast counts from
- * its claim; one that holds no hash never reads as dropped.
- */
-export const DROPPED_AFTER_MS = 60 * 60 * 1000
-
-/**
- * How long after a first reading that the node knows none of a save's
- * transactions a second such reading, at the same block number, reads the save
- * as dropped, in ms. A second reading at another block number needs no wait.
- */
-export const DROPPED_RECHECK_MS = 60_000
-
-/**
  * How long each read of the check for a dropped save may take, the node's
  * read of a transaction, the block read and the setup read, in ms. A read
  * past it counts as one that failed.
@@ -73,8 +47,8 @@ export const DROPPED_READ_MS = 20_000
 /**
  * How old a claim may be, in ms, when the stored save's last read before the
  * send answers, for its page to send. Above the two limited reads before that
- * read (`CLAIMED_SETUP_READ_MS + SEND_BLOCK_READ_MS`) and well under
- * `GONE_GRACE_MS`, so a page that follows the claim cannot have voided it yet.
+ * read (`CLAIMED_SETUP_READ_MS + SEND_BLOCK_READ_MS`): a page whose reads ran
+ * longer sends nothing and offers the save again.
  */
 export const CLAIM_SEND_LIMIT_MS = 40_000
 

@@ -10,6 +10,7 @@ import {
   credentialCommitmentOf,
   defaultSaltOf,
   ecdsaConfigOf,
+  passkeyConfigFieldsOf,
   passkeyConfigOf,
   placedCredentialsOf
 } from '@web/modules/social-recovery/shared/client/kit/formats'
@@ -127,4 +128,36 @@ describe('the config bytes of the two enrolled methods', () => {
     const rpIdHash: Hex = `0x${'03'.repeat(32)}`
     expect(passkeyConfigOf({ x, y, rpIdHash })).toBe(concat([x, y, rpIdHash]))
   })
+})
+
+describe('the passkey config fields', () => {
+  const FIELDS = {
+    x: `0x${'01'.repeat(32)}`,
+    y: `0x${'02'.repeat(32)}`,
+    rpIdHash: `0x${'03'.repeat(32)}`
+  } as const
+
+  it('reads back the point and the relying-party id hash a passkey config encodes', () => {
+    expect(passkeyConfigFieldsOf(passkeyConfigOf(FIELDS))).toEqual(FIELDS)
+  })
+
+  it('reads a config written in capitals as the same fields', () => {
+    const config = passkeyConfigOf(FIELDS)
+    const upper: Hex = `0x${config.slice(2).toUpperCase()}`
+    expect(passkeyConfigFieldsOf(upper)).toEqual(FIELDS)
+  })
+
+  const NOT_A_PASSKEY: [string, Hex][] = [
+    ['no bytes', '0x'],
+    ["a guardian's config, one word", ecdsaConfigOf(APPROVER)],
+    ['two words', concat([FIELDS.x, FIELDS.y])],
+    ['three words and a byte more', concat([passkeyConfigOf(FIELDS), '0x00'])],
+    ['four words', concat([passkeyConfigOf(FIELDS), FIELDS.x])]
+  ]
+
+  NOT_A_PASSKEY.forEach(([name, config]) =>
+    it(`is null for ${name}`, () => {
+      expect(passkeyConfigFieldsOf(config)).toBeNull()
+    })
+  )
 })

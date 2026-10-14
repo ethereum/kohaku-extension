@@ -11,14 +11,13 @@ export {
   renderFailedTestLine,
   renderFinding,
   renderHeldThreshold,
-  renderKindHeader,
   renderKindName,
   renderRefusal,
   renderRefusalPlace,
-  renderRowChip,
-  renderRulesPanel
+  renderRowChip
 } from './copy'
 export type {
+  AddTarget,
   ClauseRole,
   ClientRefusal,
   EditorClient,
@@ -26,10 +25,7 @@ export type {
   EditorViewProps,
   EditResult,
   HeldThresholds,
-  PickerEntry,
-  PickerTarget,
   Refusal,
   RefusalKey,
-  RulesPanelLine,
   SlotPosition
 } from './types'

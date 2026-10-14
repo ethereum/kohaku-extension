@@ -11,8 +11,7 @@ import type { Preset, ShapeRow, SlotKind } from './types'
 /** A card states the shape's threshold line alone; the editor shows the rest. */
 const OFF_CARD: readonly RuleLineKey[] = [
   RULE_LINE_KEYS.oneFailureDomain,
-  RULE_LINE_KEYS.differentPlaces,
-  RULE_LINE_KEYS.sizingRule
+  RULE_LINE_KEYS.differentPlaces
 ]
 
 /** The rule line a preset's card shows, read from its shape. */

@@ -12,6 +12,18 @@ import WaitingPeriodScreen from '@web/modules/social-recovery/setup/privacy/Wait
 import EditorScreen from '@web/modules/social-recovery/setup/editor/EditorScreen'
 import PresetsScreen from '@web/modules/social-recovery/setup/presets/PresetsScreen'
 import CeremonyScreen from '@web/modules/social-recovery/shared/ceremony/screen'
+import RecoverScreen from '@web/modules/social-recovery/onboarding/recover/RecoverScreen'
+import ChecklistScreen from '@web/modules/social-recovery/recovery/checklist/ChecklistScreen'
+import InProgressScreen from '@web/modules/social-recovery/recovery/checklist/InProgressScreen'
+import SubmitScreen from '@web/modules/social-recovery/recovery/submit/SubmitScreen'
+import WaitScreen from '@web/modules/social-recovery/recovery/wait/WaitScreen'
+import DoneScreen from '@web/modules/social-recovery/recovery/done/DoneScreen'
+import FastTrackScreen from '@web/modules/social-recovery/onboarding/fast-track/FastTrackScreen'
+import KeyStepScreen from '@web/modules/social-recovery/onboarding/fast-track/KeyStepScreen'
+import GasStepScreen from '@web/modules/social-recovery/onboarding/fast-track/GasStepScreen'
+import EntryScreen from '@web/modules/social-recovery/recovery/entry/EntryScreen'
+import AccountStepScreen from '@web/modules/social-recovery/recovery/entry/AccountStepScreen'
+import ReadoutScreen from '@web/modules/social-recovery/recovery/entry/ReadoutScreen'
 
 /**
  * The route registry of the account recovery module.
@@ -50,6 +62,15 @@ const SocialRecoveryRoutes = () => (
         <Route path="setup" element={<PresetsScreen />} />
         <Route path="setup/editor" element={<EditorScreen />} />
         <Route path="setup/save" element={<ArmScreen />} />
+        <Route path="recovery/checklist" element={<ChecklistScreen />} />
+        <Route path="recovery/in-progress" element={<InProgressScreen />} />
+        <Route path="recovery/submit" element={<SubmitScreen />} />
+        <Route path="recovery/wait" element={<WaitScreen />} />
+        <Route path="recovery/done" element={<DoneScreen />} />
+        <Route path="fast-track/gas" element={<GasStepScreen />} />
+        <Route path="recovery" element={<EntryScreen />} />
+        <Route path="recovery/account" element={<AccountStepScreen />} />
+        <Route path="recovery/readout" element={<ReadoutScreen />} />
       </Route>
     </Route>
 
@@ -61,6 +82,9 @@ const SocialRecoveryRoutes = () => (
       */}
       {/* The passkey ceremony tab. It needs no guard, because a fresh install with no keystore also opens it. */}
       <Route path="ceremony" element={<CeremonyScreen />} />
+      <Route path="recover" element={<RecoverScreen />} />
+      <Route path="fast-track" element={<FastTrackScreen />} />
+      <Route path="fast-track/key" element={<KeyStepScreen />} />
     </Route>
   </Routes>
 )

@@ -164,7 +164,7 @@ const offersRetry = (script: SaveScript): boolean => {
 const healEdges = (wired: WiredSave, retry: Retry) => {
   wired.setupState.mockResolvedValue(setupStateOf(retry === 'set-up'))
   wired.prepareCommitSetup.mockResolvedValue(wired.prepared)
-  wired.reads.nativeBalance.mockResolvedValue(10n ** 18n)
+  wired.reads.nativeBalance.mockResolvedValue(1_000_000_000_000_000_000n)
   wired.port.sendAccountBatch.mockResolvedValue(TX_HASH)
   wired.receipts.wait.mockImplementation(async (hash) => landedReceipt(hash))
   wired.confirmSetup.mockResolvedValue(confirmation(true, true))

@@ -145,8 +145,9 @@ describe('useRecoveryClient with no facts given', () => {
     await expect(removedKeyOf()).resolves.toEqual({ kind: 'named', key: CONTROLLING_KEY })
   })
 
-  it('answers no-creation-record for a basic account, as before', async () => {
+  it('answers no-creation-record for a basic account with no code, as before', async () => {
     await render(BASIC)
+    world.chain.setHasCode(false)
     expect(lastArg(builder.config)).not.toHaveProperty('creation')
     await expect(removedKeyOf()).resolves.toEqual({
       kind: 'unavailable',
@@ -154,13 +155,10 @@ describe('useRecoveryClient with no facts given', () => {
     })
   })
 
-  it('answers no-creation-record for an account the wallet does not list', async () => {
+  it("names a deployed account's key for an account the wallet does not list", async () => {
     await render(STRANGER)
     expect(latest?.status).toBe('ready')
-    await expect(removedKeyOf()).resolves.toEqual({
-      kind: 'unavailable',
-      cause: 'no-creation-record'
-    })
+    await expect(removedKeyOf()).resolves.toEqual({ kind: 'named', key: CONTROLLING_KEY })
   })
 
   it('stays loading and builds nothing until the wallet pushed its accounts, then builds with them', async () => {
@@ -199,12 +197,10 @@ describe('useRecoveryClient with facts given', () => {
     expect(lastArg(builder.config)).toMatchObject({ creation: OTHER, candidateKeys: [BASIC] })
   })
 
-  it("keeps the caller's empty facts for a listed smart account, so the read answers no-creation-record", async () => {
+  it("keeps the caller's empty facts for a listed smart account, so the read answers from the chain", async () => {
     await render(smart.addr as Address, {})
-    await expect(removedKeyOf()).resolves.toEqual({
-      kind: 'unavailable',
-      cause: 'no-creation-record'
-    })
+    expect(lastArg(builder.config)).not.toHaveProperty('creation')
+    await expect(removedKeyOf()).resolves.toEqual({ kind: 'named', key: CONTROLLING_KEY })
   })
 
   it('builds without waiting for the listed accounts', async () => {

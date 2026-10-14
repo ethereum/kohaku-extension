@@ -28,6 +28,16 @@ jest.mock('@common/components/AmbireLogoHorizontal', () => ({
   __esModule: true,
   default: () => null
 }))
+// The wallet selects the account the tab sets up, so no notice shows.
+jest.mock('@web/modules/social-recovery/shared/chrome/useSetupAccount')
+jest.mock('@web/modules/social-recovery/shared/chrome/OtherAccountNotice', () => ({
+  __esModule: true,
+  default: () => null
+}))
+jest.mock('@common/hooks/useNavigation', () => ({
+  __esModule: true,
+  default: () => ({ navigate: () => {} })
+}))
 
 const THEME = Object.fromEntries(
   Object.entries(themeConfig).map(([name, byType]) => [name, byType[THEME_TYPES.LIGHT]])
@@ -85,6 +95,19 @@ describe('the setup chrome', () => {
     const chrome = byTestId('chrome')
     expect(container.firstElementChild).toBe(chrome)
     expect(chrome?.contains(byTestId('view'))).toBe(true)
+  })
+
+  it('adds a given tail after the breadcrumb, and nothing when none is given', () => {
+    mount(
+      <SetupChrome testID="chrome" breadcrumbTail="Recover an account">
+        {false}
+      </SetupChrome>
+    )
+    expect(byTestId('chrome')?.textContent).toBe(`${BREADCRUMB} › Recover an account`)
+
+    mount(<SetupChrome testID="chrome">{false}</SetupChrome>)
+    expect(byTestId('chrome')?.textContent).not.toContain('Recover an account')
+    expect(byTestId('chrome')?.textContent).toBe(BREADCRUMB)
   })
 
   it('shows the breadcrumb when it holds no view', () => {

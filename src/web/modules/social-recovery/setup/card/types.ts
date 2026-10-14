@@ -26,11 +26,52 @@ export type CardRow =
   | { kind: 'value'; label: string; value: string }
   | { kind: 'line'; text: string }
 
+/** The card's PDF bytes, its number of pages, and whether a character was written as its `U+XXXX` code. */
+export interface CardPdf {
+  bytes: Uint8Array<ArrayBuffer>
+  /** A character the PDF's fonts cannot draw was written as its `U+XXXX` code instead. */
+  replacedCharacters: boolean
+  /** The A4 pages the card needed; a long value continues on further pages. */
+  pages: number
+}
+
 /** A file the download carrier hands to the browser. */
-export interface CardFile {
+export interface CardFile extends CardPdf {
   name: string
   type: string
-  text: string
+}
+
+/** Text in the PDF's single-byte encoding, one entry per character the text held. */
+export interface PdfText {
+  /** Each entry is one byte, or the `U+XXXX` code of a character the encoding lacks. */
+  units: string[]
+  replacedCharacters: boolean
+}
+
+/** The page's three standard fonts: lines, title and labels, and the values. */
+export type PdfFont = 'regular' | 'bold' | 'mono'
+
+/** One run of text the page draws: its font, its size, its grey and its wrapped lines. */
+export interface PdfBlock {
+  font: PdfFont
+  size: number
+  grey: number
+  lines: string[][]
+  /** The space below the block before the next one starts. */
+  gapAfter: number
+  /** A label that moves to the next page with the value it names rather than stay alone at a page's foot. */
+  keepWithNext: boolean
+  /** A value whose wrapped lines, all but the last, end with the continuation mark. */
+  marksContinuation: boolean
+}
+
+/** One page as it is laid out: its drawing operators and the lowest point its text reaches. */
+export interface PdfPage {
+  operators: string[]
+  /** Where the next block starts, from the page's foot. */
+  cursor: number
+  /** The bottom of the lowest line drawn so far. */
+  inkBottom: number
 }
 
 /** How the card leaves the screen: saved as a file, or printed from the print view. */
@@ -40,7 +81,7 @@ export interface CardCarriers {
   print: () => void
 }
 
-export type CarrierAction = 'download' | 'print' | 'sendToDevice'
+export type CarrierAction = 'download' | 'print'
 
 /** The two ends of the extension password ask. */
 export interface PasswordAskAnswer {

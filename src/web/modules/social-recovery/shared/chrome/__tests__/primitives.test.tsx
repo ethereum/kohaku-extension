@@ -9,6 +9,7 @@ import { createRoot, Root } from 'react-dom/client'
 import { act } from 'react-dom/test-utils'
 import { Text } from 'react-native'
 
+import i18n from '@common/config/localization'
 import { ThemeContext } from '@common/contexts/themeContext'
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import themeConfig, { THEME_TYPES } from '@common/styles/themeConfig'
@@ -22,7 +23,8 @@ import {
   RadioCard,
   SectionCard,
   SectionLabel,
-  StatusChip
+  StatusChip,
+  StepCounter
 } from '@web/modules/social-recovery/shared/chrome'
 
 // React only runs effects and state updates inside act() when this flag is set.
@@ -344,5 +346,29 @@ describe('a note box', () => {
   it('shows its text under its test id', () => {
     mount(<NoteBox testID="note">Nothing is sent until you save.</NoteBox>)
     expect(byTestId('note')?.textContent).toBe('Nothing is sent until you save.')
+  })
+})
+
+describe('a step counter', () => {
+  const KEY = 'socialRecovery.fastTrack.stepCounter'
+
+  it('shows the line of the key it is given with the step and the total in it', () => {
+    mount(<StepCounter testID="counter" labelKey={KEY} step={2} total={5} />)
+    expect(byTestId('counter')?.textContent).toBe(i18n.t(KEY, { step: 2, total: 5 }))
+    expect(byTestId('counter')?.textContent).toMatch(/\b2\b.*\b5\b/)
+  })
+
+  it('follows a change of the step', () => {
+    mount(<StepCounter testID="counter" labelKey={KEY} step={1} total={3} />)
+    expect(byTestId('counter')?.textContent).toMatch(/\b1\b.*\b3\b/)
+    mount(<StepCounter testID="counter" labelKey={KEY} step={3} total={3} />)
+    expect(byTestId('counter')?.textContent).toMatch(/\b3\b.*\b3\b/)
+  })
+
+  it('shows the line of another key when it is given one', () => {
+    const other = 'socialRecovery.routes.recover'
+    mount(<StepCounter testID="counter" labelKey={other} step={1} total={3} />)
+    expect(byTestId('counter')?.textContent).toBe(i18n.t(other, { step: 1, total: 3 }))
+    expect(byTestId('counter')?.textContent).not.toBe(i18n.t(KEY, { step: 1, total: 3 }))
   })
 })

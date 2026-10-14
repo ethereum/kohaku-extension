@@ -346,7 +346,7 @@ describe('the waiting period step', () => {
     })
 
     const REFUSED_STORED: [string, bigint, string, string][] = [
-      ['under the floor', 3600n, '1', W.belowMinimum],
+      ['under the floor', 3600n, '1', 'This wallet needs 24 hours or more.'],
       [
         'past the ceiling',
         721n * 3600n,
@@ -448,9 +448,19 @@ describe('the waiting period step', () => {
       )
     })
 
-    it('states the floor and the default as the wallet rule', async () => {
+    it('states the floor and the default as the wallet rule, in the words a release build has always read', async () => {
       await h.mount(recordsOn())
-      expect(h.text()).toContain(W.minimumDefault)
+      expect(h.text()).toContain(
+        'This wallet needs a waiting period of 24 hours or more. The default is 48 hours.'
+      )
+      expect(h.text()).not.toContain('{{')
+    })
+
+    it('names the custom entry in hours in a release build', async () => {
+      await h.mount(recordsOn())
+      await h.press('wait-chip-custom')
+      expect(h.text()).toContain(W.customUnit)
+      expect(h.text()).not.toContain(W.customUnitMinutes)
     })
   })
 

@@ -8,15 +8,33 @@ import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { SectionCard } from '@web/modules/social-recovery/shared/chrome'
 import { renderRuleLines, RULE_LINE_KEYS } from '@web/modules/social-recovery/shared/rule-lines'
+import type { RuleLineKey } from '@web/modules/social-recovery/shared/rule-lines'
 
+import KindMenuButton from './KindMenuButton'
+import { SECOND_METHOD_KINDS } from './operations'
 import type { RuleLinesProps } from './types'
 
+/** The lines that offer a second method, under which the menu that adds one draws. */
+const SECOND_METHOD_OFFERS: readonly RuleLineKey[] = [
+  RULE_LINE_KEYS.secondMethodOffer,
+  RULE_LINE_KEYS.secondMethodOfferAny
+]
+
 /**
- * The rule-lines block: the lines of the path as it stands, with the offer to
- * add a second method under its line and the offer to make the required rows
- * one group under the sizing line.
+ * The rule-lines block: the lines of the path as it stands, with the menu
+ * that adds a second method under its line, and after the lines the offer
+ * to make two required rows one group.
  */
-const RuleLines = ({ ruleLines, checking, onMakeItAGroup, onAddSecondMethod }: RuleLinesProps) => {
+const RuleLines = ({
+  ruleLines,
+  checking,
+  secondMenuOpen,
+  canMakeItAGroup,
+  onMakeItAGroup,
+  onToggleSecondMenu,
+  onPickKind,
+  onCloseMenu
+}: RuleLinesProps) => {
   const { t } = useTranslation()
 
   return (
@@ -34,33 +52,34 @@ const RuleLines = ({ ruleLines, checking, onMakeItAGroup, onAddSecondMethod }: R
             <Text fontSize={14} testID="editor-rule-line">
               {text}
             </Text>
-            {line.key === RULE_LINE_KEYS.sizingRule && (
-              <Button
-                testID="editor-make-it-a-group"
-                type="secondary"
-                size="small"
-                text={t('socialRecovery.editor.makeItAGroup')}
-                onPress={onMakeItAGroup}
-                disabled={checking}
-                hasBottomSpacing={false}
-                style={[flexbox.alignSelfStart, spacings.mtTy]}
-              />
-            )}
-            {line.key === RULE_LINE_KEYS.secondMethodOffer && (
-              <Button
+            {SECOND_METHOD_OFFERS.includes(line.key) && (
+              <KindMenuButton
                 testID="editor-add-second-method"
-                type="secondary"
-                size="small"
                 text={t('socialRecovery.editor.addSecondMethod')}
-                onPress={onAddSecondMethod}
+                open={secondMenuOpen}
+                kinds={SECOND_METHOD_KINDS}
+                onToggle={onToggleSecondMenu}
+                onPick={onPickKind}
+                onClose={onCloseMenu}
                 disabled={checking}
-                hasBottomSpacing={false}
-                style={[flexbox.alignSelfStart, spacings.mtTy]}
+                style={spacings.mtTy}
               />
             )}
           </View>
         )
       })}
+      {canMakeItAGroup && (
+        <Button
+          testID="editor-make-it-a-group"
+          type="secondary"
+          size="small"
+          text={t('socialRecovery.editor.makeItAGroup')}
+          onPress={onMakeItAGroup}
+          disabled={checking}
+          hasBottomSpacing={false}
+          style={[flexbox.alignSelfStart, spacings.mtTy]}
+        />
+      )}
     </SectionCard>
   )
 }

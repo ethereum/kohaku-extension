@@ -1,8 +1,7 @@
 /**
  * Runs the account's reads the review asks before the confirmation: the key a
  * recovery would remove, the fit check, the setup read and the description of
- * the draft, with the privilege read the other doors come from, and runs
- * again the ones asked for once they settled. Each read places its answer as
+ * the draft, and runs again the ones asked for once they settled. Each read places its answer as
  * it arrives, so a slow one holds back no other. A read that throws is failed;
  * it is never read as empty.
  */
@@ -15,7 +14,7 @@ import type {
   AccountRead,
   AccountReaders,
   AccountReadName,
-  AccountReadsHeld,
+  AccountReads,
   AccountReadsState,
   ReviewKitClient
 } from './types'
@@ -23,12 +22,11 @@ import type {
 const PENDING = { status: 'pending' } as const
 const FAILED = { status: 'failed' } as const
 
-const INITIAL: AccountReadsHeld = {
+const INITIAL: AccountReads = {
   removedKey: PENDING,
   fitCheck: PENDING,
   setupState: PENDING,
-  description: PENDING,
-  privilegeHolders: PENDING
+  description: PENDING
 }
 
 const readersOf = (client: ReviewKitClient, draft: SetupDraft): AccountReaders => ({
@@ -44,15 +42,15 @@ export const useAccountReads = (
   client: ReviewKitClient | null,
   draft: SetupDraft | null
 ): AccountReadsState => {
-  const [reads, setReads] = useState<AccountReadsHeld>(INITIAL)
-  const readsRef = useRef<AccountReadsHeld>(INITIAL)
+  const [reads, setReads] = useState<AccountReads>(INITIAL)
+  const readsRef = useRef<AccountReads>(INITIAL)
   readsRef.current = reads
   // Each change of the client or of the draft starts a new round; an answer
   // from an earlier round lands nowhere.
   const round = useRef(0)
 
   const run = useCallback(
-    (names: readonly AccountReadName[], at: number, withDoors: boolean) => {
+    (names: readonly AccountReadName[], at: number) => {
       if (!client || !draft) {
         return
       }
@@ -79,12 +77,6 @@ export const useAccountReads = (
       names.forEach(<K extends AccountReadName>(name: K) =>
         settle(readers[name], (value) => setReads((held) => ({ ...held, [name]: value })))
       )
-      if (withDoors) {
-        settle(
-          () => client.privilegeHolders(),
-          (privilegeHolders) => setReads((held) => ({ ...held, privilegeHolders }))
-        )
-      }
     },
     [client, draft]
   )
@@ -93,22 +85,17 @@ export const useAccountReads = (
     round.current += 1
     const at = round.current
     setReads(INITIAL)
-    run(ACCOUNT_READ_NAMES, at, true)
+    run(ACCOUNT_READ_NAMES, at)
     return () => {
       round.current += 1
     }
   }, [run])
 
-  // A retry also reads the doors again where the wallet could not read them.
   const retry = useCallback(
     (names: readonly AccountReadName[]) => {
       const settled = names.filter((name) => readsRef.current[name].status !== 'pending')
-      const { privilegeHolders } = readsRef.current
-      const doorsUnread =
-        privilegeHolders.status === 'failed' ||
-        (privilegeHolders.status === 'answered' && privilegeHolders.value.kind === 'unreadable')
-      if (settled.length > 0 || doorsUnread) {
-        run(settled, round.current, doorsUnread)
+      if (settled.length > 0) {
+        run(settled, round.current)
       }
     },
     [run]

@@ -19,13 +19,18 @@ import type {
   ValidationResult
 } from '@web/modules/social-recovery/sdk-interfaces'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
-import type { Enrollment, SlotKind } from '@web/modules/social-recovery/shared/records'
-import { isEmptySlot, SLOT_KINDS, slotKindOf } from '@web/modules/social-recovery/shared/records'
+import type { SlotKind } from '@web/modules/social-recovery/shared/records'
+import {
+  isEmptySlot,
+  pathHolds,
+  SLOT_KINDS,
+  slotKindOf
+} from '@web/modules/social-recovery/shared/records'
 
-import type { ClauseRole, EditResult, PickerEntry, PickerTarget, SlotPosition } from './types'
+import type { AddTarget, ClauseRole, EditResult, SlotPosition } from './types'
 
-/** The kinds in the order the picker lists them. */
-export const PICKER_KINDS: readonly SlotKind[] = ['passkey', 'ecdsa', 'zkpassport', 'aadhaar']
+/** The kinds in the order an add menu lists them. */
+export const ADD_KINDS: readonly SlotKind[] = ['passkey', 'ecdsa', 'zkpassport', 'aadhaar']
 
 /**
  * The kinds a second method can be: a passkey from another device, or a key the
@@ -61,29 +66,6 @@ export const guardianAddressOf = (credential: Credential): Address | undefined =
     return undefined
   }
 }
-
-/**
- * Two credentials are one enrolled method when their method addresses and
- * their config bytes match. An empty slot is never the same as anything.
- */
-export const sameCredential = (a: Credential, b: Credential): boolean =>
-  !isEmptySlot(a) &&
-  !isEmptySlot(b) &&
-  isAddressEqual(a.method, b.method) &&
-  a.config.toLowerCase() === b.config.toLowerCase()
-
-/** Whether the path holds this enrolled credential anywhere, leaving out one position. */
-export const pathHolds = (
-  clauses: readonly Clause[],
-  credential: Credential,
-  except?: SlotPosition
-): boolean =>
-  clauses.some((clause, c) =>
-    clause.credentials.some(
-      (held, m) =>
-        !(except && except.clause === c && except.member === m) && sameCredential(held, credential)
-    )
-  )
 
 /**
  * The role a stored clause reads as: a threshold of one over one credential is
@@ -167,7 +149,7 @@ export const setThreshold = (
   threshold: number
 ): Clause[] => replaceAt(clauses, group, { threshold, credentials: clauses[group].credentials })
 
-/** Puts a credential into one position, an empty slot the enroll screen or the picker fills. */
+/** Puts a credential into one position, an empty slot the enroll screen fills or one of another kind. */
 export const fillSlot = (
   clauses: readonly Clause[],
   at: SlotPosition,
@@ -220,10 +202,9 @@ export const makeRequired = (
 }
 
 /**
- * The required rows become one group any one of whose members recovers, the
- * shape this wallet prefers at two methods. The group takes the first row's
- * place. The roles say which clauses are rows; without them a clause reads as
- * its stored shape.
+ * The required rows become one group any one of whose members recovers. The
+ * group takes the first row's place. The roles say which clauses are rows;
+ * without them a clause reads as its stored shape.
  */
 export const makeItAGroup = (
   clauses: readonly Clause[],
@@ -243,6 +224,16 @@ export const makeItAGroup = (
     }
     return roles[i] === 'required' ? [] : [clause]
   })
+}
+
+/**
+ * Whether the path reads as two required rows and no group by its stored
+ * shape, the size at which one group of any one of the two is offered instead.
+ * A clause with no member asks nothing yet, so it is left out.
+ */
+export const offersMakeItAGroup = (clauses: readonly Clause[]): boolean => {
+  const filled = clauses.filter((clause) => clause.credentials.length > 0)
+  return filled.length === 2 && filled.every((clause) => clause.credentials.length === 1)
 }
 
 /** The roles once the required rows became one group in the first row's place. */
@@ -277,10 +268,10 @@ export const addSecondMethod = (clauses: readonly Clause[], credential: Credenti
   }
 }
 
-/** Places a picked credential where the picker was opened for. */
+/** Places a credential where the add menu was opened for. */
 export const placeAt = (
   clauses: readonly Clause[],
-  target: PickerTarget,
+  target: AddTarget,
   credential: Credential
 ): EditResult => {
   if (target.place === 'required') {
@@ -293,6 +284,17 @@ export const placeAt = (
     return addMember(clauses, target.clause, credential)
   }
   return fillSlot(clauses, { clause: target.clause, member: target.member }, credential)
+}
+
+/** Whether two add menus are one: the same place, and the same group or slot where the place names one. */
+export const sameAddTarget = (a: AddTarget, b: AddTarget): boolean => {
+  if (a.place === 'member' && b.place === 'member') {
+    return a.clause === b.clause
+  }
+  if (a.place === 'slot' && b.place === 'slot') {
+    return a.clause === b.clause && a.member === b.member
+  }
+  return a.place === b.place && a.place !== 'member' && a.place !== 'slot'
 }
 
 /**
@@ -308,13 +310,13 @@ export const readThreshold = (text: string): number | undefined => {
 }
 
 /**
- * The roles once a credential was placed at a position: a new clause the
- * picker added is a required row, the second method's clause a group, and a
+ * The roles once a credential was placed at a position: a new clause an
+ * add menu made is a required row, the second method's clause a group, and a
  * clause that took a member keeps its role.
  */
 export const placedRoles = (
   roles: readonly ClauseRole[],
-  target: PickerTarget,
+  target: AddTarget,
   at: SlotPosition
 ): ClauseRole[] => {
   if (at.clause >= roles.length) {
@@ -331,34 +333,6 @@ export const withClauses = (draft: SetupDraft, clauses: Clause[]): SetupDraft =>
   ...draft,
   clauses
 })
-
-/** The enrolled credentials the picker lists, by kind, each marked where the path holds it. */
-export const pickerEntriesOf = (
-  enrollments: readonly Enrollment[],
-  clauses: readonly Clause[],
-  addressBook: AddressBook
-): Record<SlotKind, PickerEntry[]> => {
-  const entries: Record<SlotKind, PickerEntry[]> = {
-    passkey: [],
-    ecdsa: [],
-    zkpassport: [],
-    aadhaar: []
-  }
-  enrollments.forEach((enrollment) => {
-    const kind = kindOf(enrollment.credential, addressBook)
-    if (kind) {
-      entries[kind].push({ enrollment, inPath: pathHolds(clauses, enrollment.credential) })
-    }
-  })
-  return entries
-}
-
-/** The enrollment an enrolled credential came from, when the records hold it. */
-export const enrollmentOf = (
-  credential: Credential,
-  enrollments: readonly Enrollment[]
-): Enrollment | undefined =>
-  enrollments.find((enrollment) => sameCredential(enrollment.credential, credential))
 
 /** The search string the enroll screen reads: the kind and the slot it fills. */
 export const enrollSearchOf = (kind: SlotKind, at: SlotPosition): string =>

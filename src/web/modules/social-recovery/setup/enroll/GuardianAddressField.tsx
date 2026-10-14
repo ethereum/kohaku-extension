@@ -5,10 +5,10 @@
 import React from 'react'
 import { View } from 'react-native'
 
-import Input from '@common/components/Input'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
+import { FieldInput } from '@web/modules/social-recovery/shared/chrome'
 import { renderFullAddress, renderResolvedName } from '@web/modules/social-recovery/shared/display'
 
 import type { GuardianAddressFieldProps } from './types'
@@ -29,7 +29,7 @@ const GuardianAddressField = ({
 
   return (
     <View testID="guardian-field">
-      <Input
+      <FieldInput
         testID="guardian-address"
         value={value}
         onChangeText={setValue}

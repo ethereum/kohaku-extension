@@ -30,7 +30,7 @@ import {
   setupCommitmentOf
 } from './encoding'
 import { kitError } from './scripts'
-import type { RuleEvaluation } from './types'
+import type { CountedClause, RuleEvaluation, RuleEvaluator, SetupBodyReader } from './types'
 
 /**
  * The doubles' stand-in names for the account's own reverts at the execute: the
@@ -43,20 +43,15 @@ export const ACCOUNT_NOT_ARMED = 'AccountNotArmed'
 export const ACCOUNT_UNFIT = 'AccountUnfit'
 
 /**
- * The local rule evaluation over a body and a set of filled places: every
- * clause meets its threshold, false for a body with no clauses and false for a
- * rule whose every clause sits at zero.
+ * The counting of a rule over a set of filled places: every clause meets its
+ * threshold, false for a rule with no clauses and false for a rule whose every
+ * clause sits at zero. Places number the credentials in body order across the
+ * clauses.
  */
-export const evaluateRule = (setupBody: Hex, filled: number[]): RuleEvaluation => {
-  let body
-  try {
-    body = readSetupBody(setupBody)
-  } catch {
-    return { satisfied: false, clauses: [] }
-  }
+const evaluateClauses = (clauses: CountedClause[], filled: number[]): RuleEvaluation => {
   const set = new Set(filled)
   let next = 0
-  const clauses = body.clauses.map((c, clause) => {
+  const counted = clauses.map((c, clause) => {
     const places = c.credentials.map(() => next++)
     return {
       clause,
@@ -65,14 +60,33 @@ export const evaluateRule = (setupBody: Hex, filled: number[]): RuleEvaluation =
       filled: places.filter((p) => set.has(p)).length
     }
   })
-  const failing = clauses.find((c) => c.filled < c.threshold)
-  const allZero = clauses.length > 0 && clauses.every((c) => c.threshold === 0)
+  const failing = counted.find((c) => c.filled < c.threshold)
+  const allZero = counted.length > 0 && counted.every((c) => c.threshold === 0)
   return {
-    satisfied: clauses.length > 0 && !allZero && !failing,
-    clauses,
+    satisfied: counted.length > 0 && !allZero && !failing,
+    clauses: counted,
     failingClause: failing ? failing.clause : allZero ? 0 : undefined
   }
 }
+
+/**
+ * The rule evaluation over a body read by `read`: a body that does not read is
+ * unsatisfied with no clauses.
+ */
+export const evaluatorOf =
+  (read: SetupBodyReader): RuleEvaluator =>
+  (setupBody, filled) => {
+    let clauses
+    try {
+      clauses = read(setupBody).clauses
+    } catch {
+      return { satisfied: false, clauses: [] }
+    }
+    return evaluateClauses(clauses, filled)
+  }
+
+/** The local rule evaluation over a body in the doubles' bytes. */
+export const evaluateRule: RuleEvaluator = evaluatorOf(readSetupBody)
 
 /** The shipped action's codec over the chain's action, for the doubles' own decodes. */
 export const decodeHandover = (chain: ScriptedChain, payload: Hex): Handover | undefined => {

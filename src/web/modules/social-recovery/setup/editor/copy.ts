@@ -1,9 +1,9 @@
 /**
- * The editor's words: each method kind's name and picker header, the chip a
- * row carries with a failed test's line, the line under a threshold that is
- * not a whole number, the sentence of each refusal this wallet applies, the
- * rules panel, and the line a path check finding renders as. Every setup error
- * renders a sentence; any other finding renders its code.
+ * The editor's words: each method kind's name, the chip a row carries with a
+ * failed test's line, the line under a threshold that is not a whole number,
+ * the sentence of each refusal this wallet applies, and the line a path check
+ * finding renders as. Every setup error renders a sentence; any other finding
+ * renders its code.
  */
 import type {
   Credential,
@@ -20,19 +20,13 @@ import type {
   SlotKind
 } from '@web/modules/social-recovery/shared/records'
 
-import { enrollmentOf, isEmptySlot } from './operations'
-import type { ClauseRole, ClientRefusal, Refusal, RefusalKey, RulesPanelLine } from './types'
+import { enrollmentOf } from '@web/modules/social-recovery/shared/records'
+import { isEmptySlot } from './operations'
+import type { ClauseRole, ClientRefusal, Refusal, RefusalKey } from './types'
 
 const KIND_NAME_KEYS: Record<SlotKind, string> = {
   passkey: 'socialRecovery.methodNames.passkey',
   ecdsa: 'socialRecovery.display.nouns.guardian',
-  zkpassport: 'socialRecovery.methodNames.passport',
-  aadhaar: 'socialRecovery.methodNames.aadhaar'
-}
-
-const KIND_HEADER_KEYS: Record<SlotKind, string> = {
-  passkey: 'socialRecovery.editor.picker.passkeysHeader',
-  ecdsa: 'socialRecovery.methodNames.guardians',
   zkpassport: 'socialRecovery.methodNames.passport',
   aadhaar: 'socialRecovery.methodNames.aadhaar'
 }
@@ -79,19 +73,6 @@ const SETUP_ERROR_KEYS: Record<SetupErrorCode, string> = {
 
 const FINDING_KEYS: Partial<Record<FindingCode, string>> = SETUP_ERROR_KEYS
 
-/** The rules panel's lines, the zero threshold's own-rule line last. */
-const RULES_PANEL_LINES: readonly RulesPanelLine[] = [
-  'requiredAnswers',
-  'enoughMembers',
-  'thresholdAtLeastOne',
-  'thresholdCeiling',
-  'memberCeiling',
-  'oneRowPerMethod',
-  'atLeastOneMethod',
-  'smallEnough',
-  'zeroThresholdOwnRule'
-]
-
 const CLIENT_REFUSAL_KEYS: Record<ClientRefusal, { title: string; body: string }> = {
   'update-the-wallet': {
     title: 'socialRecovery.client.updateTheWalletTitle',
@@ -107,11 +88,17 @@ const CLIENT_REFUSAL_KEYS: Record<ClientRefusal, { title: string; body: string }
  * A kind's name; a passkey its enrollment reports as device-bound reads as a
  * passkey on this device.
  */
-export const renderKindName = (
+export function renderKindName(kind: SlotKind, t: Translate, backup?: PasskeyBackupKind): string
+export function renderKindName(
   kind: SlotKind | undefined,
   t: Translate,
   backup?: PasskeyBackupKind
-): string | null => {
+): string | null
+export function renderKindName(
+  kind: SlotKind | undefined,
+  t: Translate,
+  backup?: PasskeyBackupKind
+): string | null {
   if (!kind) {
     return null
   }
@@ -120,8 +107,6 @@ export const renderKindName = (
   }
   return t(KIND_NAME_KEYS[kind])
 }
-
-export const renderKindHeader = (kind: SlotKind, t: Translate): string => t(KIND_HEADER_KEYS[kind])
 
 /**
  * The chip of a row: "Not yet active" for an empty slot, the access test's
@@ -193,8 +178,3 @@ export const renderRefusalPlace = (
   const n = roles.slice(0, clause).filter((role) => role === 'group').length + 1
   return t('socialRecovery.shape.group', { n })
 }
-
-export const renderRulesPanel = (t: Translate): { header: string; lines: string[] } => ({
-  header: t('socialRecovery.editor.rules.header'),
-  lines: RULES_PANEL_LINES.map((line) => t(`socialRecovery.editor.rules.${line}`))
-})

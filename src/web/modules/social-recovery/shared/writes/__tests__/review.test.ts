@@ -238,7 +238,7 @@ describe("an owner write's transaction is tied to the prepared write", () => {
   })
 
   it('a save that deploys the account goes to the account factory and is estimated', async () => {
-    const reads = mockReads({ balance: 10n ** 18n, gas: 180_000n })
+    const reads = mockReads({ balance: 1_000_000_000_000_000_000n, gas: 180_000n })
     const deploy = { ...ownerTransaction('save'), to: ACCOUNT_FACTORY }
     expect((await runGasCheck({ write: 'save', reads, transaction: deploy })).kind).toBe('enough')
     expect(reads.estimateGas.mock.calls[0][0]).toEqual({

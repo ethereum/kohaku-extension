@@ -69,8 +69,10 @@ describe('wallet reads double', () => {
       })
     })
 
-    it('says why it names none without a creation record', async () => {
-      expect(await createWorld().walletReads().removedKey()).toEqual({
+    it('says why it names none without a creation record or code', async () => {
+      const world = createWorld()
+      world.chain.setHasCode(false)
+      expect(await world.walletReads().removedKey()).toEqual({
         kind: 'unavailable',
         cause: 'no-creation-record'
       })

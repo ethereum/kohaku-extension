@@ -98,7 +98,16 @@ const WEB_ROUTES = {
   socialRecoverySetupPrivacy: 'social-recovery/setup/privacy',
   socialRecoverySetupReview: 'social-recovery/setup/review',
   socialRecoverySetupSave: 'social-recovery/setup/save',
-  socialRecoverySetupCard: 'social-recovery/setup/card'
+  socialRecoverySetupCard: 'social-recovery/setup/card',
+  socialRecoveryFastTrackKey: 'social-recovery/fast-track/key',
+  socialRecoveryFastTrackGas: 'social-recovery/fast-track/gas',
+  socialRecoveryRecoveryAccount: 'social-recovery/recovery/account',
+  socialRecoveryRecoveryReadout: 'social-recovery/recovery/readout',
+  socialRecoveryRecoveryChecklist: 'social-recovery/recovery/checklist',
+  socialRecoveryRecoveryInProgress: 'social-recovery/recovery/in-progress',
+  socialRecoveryRecoverySubmit: 'social-recovery/recovery/submit',
+  socialRecoveryRecoveryWait: 'social-recovery/recovery/wait',
+  socialRecoveryRecoveryDone: 'social-recovery/recovery/done'
 }
 
 const ROUTES = { ...MOBILE_ROUTES, ...WEB_ROUTES }

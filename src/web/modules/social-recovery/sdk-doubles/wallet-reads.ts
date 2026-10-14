@@ -8,7 +8,9 @@
  *   credential's module, the static call the manager runs at submission, so a
  *   reply reads as verified before any gas is spent.
  * - `removedKey`: the key a recovery would remove, or the reason it cannot name
- *   one, since the setup save is blocked on that reason.
+ *   one, since the setup save is blocked on that reason. An account with no
+ *   creation record is read from its deployed privilege table, so an account
+ *   the wallet does not list still names its key.
  * - `fitCheck`: the fit check against the code the account will carry, so a
  *   fresh account with no code yet is judged by the implementation it deploys.
  *

@@ -14,6 +14,7 @@ import type {
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
 import { buildRecoveryClient } from '@web/modules/social-recovery/shared/client/build-client'
 import { useRecoveryClient } from '@web/modules/social-recovery/shared/client/useRecoveryClient'
+import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 
 // The client build is stubbed: the SDK doubles need a TextEncoder that jsdom lacks,
 // and these tests look at the provider the hook builds, not at the client.
@@ -62,7 +63,7 @@ const act: typeof React.act =
 
 const SEPOLIA = 11155111
 const ACCOUNT = '0x00000000000000000000000000000000000a11ce' as Address
-const GAS_PRICE = 7n * 10n ** 9n
+const GAS_PRICE = 7_000_000_000n
 const ACCOUNT_CODE = '0x6080604052'
 const KEY = '0x00000000000000000000000000000000000000c1' as Address
 const ARMED = `0x${'00'.repeat(31)}01`
@@ -92,7 +93,10 @@ const providerMock = (index: number): ProviderMock => {
       if (method === 'eth_chainId') {
         return `0x${SEPOLIA.toString(16)}`
       }
-      if (method === 'eth_gasPrice') {
+      if (method === 'eth_getBlockByNumber') {
+        return { number: `0x${blockOf(index).toString(16)}`, baseFeePerGas: '0x0' }
+      }
+      if (method === 'eth_maxPriorityFeePerGas') {
         return `0x${GAS_PRICE.toString(16)}`
       }
       throw new Error(`The provider mock does not answer ${method}.`)
@@ -105,14 +109,6 @@ const providerMock = (index: number): ProviderMock => {
     off: jest.fn(async () => undefined),
     destroy: jest.fn()
   }
-}
-
-const deferred = <T>() => {
-  let resolve!: (value: T) => void
-  const promise = new Promise<T>((settle) => {
-    resolve = settle
-  })
-  return { promise, resolve }
 }
 
 let built: ProviderMock[]
@@ -223,7 +219,8 @@ describe('useRecoveryClient over the network record', () => {
     expect(second.send).toHaveBeenCalledWith('eth_chainId', [])
 
     await expect(readsOf(latest).gasPrice()).resolves.toBe(GAS_PRICE)
-    expect(second.send).toHaveBeenCalledWith('eth_gasPrice', [])
+    expect(second.send).toHaveBeenCalledWith('eth_getBlockByNumber', ['latest', false])
+    expect(second.send).toHaveBeenCalledWith('eth_maxPriorityFeePerGas', [])
     expect(first.send).not.toHaveBeenCalled()
   })
 

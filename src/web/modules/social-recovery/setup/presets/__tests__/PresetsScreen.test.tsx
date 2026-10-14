@@ -83,6 +83,7 @@ jest.mock('@web/modules/social-recovery/shared/records', () => ({
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const React: typeof import('react') = require('react')
+const { MemoryRouter }: typeof import('react-router-dom') = require('react-router-dom')
 const en: typeof import('@common/config/localization/translations/en.json') = require('@common/config/localization/translations/en.json')
 const {
   ThemeContext
@@ -133,15 +134,19 @@ describe('the presets screen', () => {
   })
 
   const showAccount = async (account: Address | null) => {
+    // Each selection here stands for a tab opened on that account, so no latched account carries over.
+    sessionStorage.clear()
     mockSelected.state = { account: account && { addr: account } }
     await act(async () => {
       if (container.childElementCount) {
         mockSelected.listeners.forEach((listener) => listener())
       } else {
         root.render(
-          <ThemeContext.Provider value={THEME_CONTEXT}>
-            <PresetsScreen />
-          </ThemeContext.Provider>
+          <MemoryRouter>
+            <ThemeContext.Provider value={THEME_CONTEXT}>
+              <PresetsScreen />
+            </ThemeContext.Provider>
+          </MemoryRouter>
         )
       }
     })
@@ -191,5 +196,77 @@ describe('the presets screen', () => {
     await showAccount(ACCOUNT)
     expect(byTestId('presets-grid')).not.toBeNull()
     expect(byTestId('presets-resume')).toBeNull()
+  })
+
+  // The wallet selects another account while the tab stays open on its own.
+  const selectInWallet = async (account: Address) => {
+    mockSelected.state = { account: { addr: account } }
+    await act(async () => {
+      mockSelected.listeners.forEach((listener) => listener())
+    })
+  }
+
+  it("keeps the tab's account and its draft when the wallet selects another account, and says so", async () => {
+    await createWalletRecords({ storage: mockStorage })
+      .setup(CHAIN_IDS[WALLET_RECOVERY_CHAIN], ACCOUNT)
+      .setupDraft.write({
+        wait: 172800n,
+        clauses: [],
+        ignoresPause: true,
+        privacy: { backup: 'encrypted', publicMetadata: '0x' }
+      })
+    await showAccount(ACCOUNT)
+    expect(byTestId('presets-resume')).not.toBeNull()
+    expect(byTestId('setup-other-account')).toBeNull()
+    await selectInWallet(OTHER_ACCOUNT)
+    expect(byTestId('presets-resume')).not.toBeNull()
+    expect(byTestId('presets-grid')).toBeNull()
+    expect(byTestId('setup-other-account')?.textContent).toContain(S.chrome.otherAccount.title)
+  })
+
+  // The page comes up again on a history entry with its own key and route state.
+  const openFrom = async (key: string, prevRoute: string) => {
+    act(() => root.unmount())
+    root = createRoot(container)
+    await act(async () => {
+      root.render(
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/social-recovery/setup',
+              key,
+              state: { prevRoute: { pathname: prevRoute } }
+            }
+          ]}
+        >
+          <ThemeContext.Provider value={THEME_CONTEXT}>
+            <PresetsScreen />
+          </ThemeContext.Provider>
+        </MemoryRouter>
+      )
+    })
+  }
+
+  it('opens on the account the wallet selects when the holder comes back from outside the setup', async () => {
+    await createWalletRecords({ storage: mockStorage })
+      .setup(CHAIN_IDS[WALLET_RECOVERY_CHAIN], ACCOUNT)
+      .setupDraft.write({
+        wait: 172800n,
+        clauses: [],
+        ignoresPause: true,
+        privacy: { backup: 'encrypted', publicMetadata: '0x' }
+      })
+    await showAccount(ACCOUNT)
+    expect(byTestId('presets-resume')).not.toBeNull()
+    mockSelected.state = { account: { addr: OTHER_ACCOUNT } }
+    await openFrom('second-visit', '/dashboard')
+    expect(byTestId('presets-grid')).not.toBeNull()
+    expect(byTestId('presets-resume')).toBeNull()
+    expect(byTestId('setup-other-account')).toBeNull()
+    // A reload of that entry stays on the account of the new visit.
+    mockSelected.state = { account: { addr: ACCOUNT } }
+    await openFrom('second-visit', '/dashboard')
+    expect(byTestId('presets-grid')).not.toBeNull()
+    expect(byTestId('setup-other-account')?.textContent).toContain(S.chrome.otherAccount.title)
   })
 })

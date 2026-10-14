@@ -21,18 +21,21 @@ import {
   PillChoice,
   SectionCard
 } from '@web/modules/social-recovery/shared/chrome'
-import { renderNoun } from '@web/modules/social-recovery/shared/display'
+import { renderNoun, renderWaitLength } from '@web/modules/social-recovery/shared/display'
 
 import type { WaitChoice, WaitingPeriodViewProps } from './types'
 import {
   choiceOfSeconds,
+  CUSTOM_UNIT_IS_MINUTES,
   DEFAULT_CHOICE,
+  DEFAULT_WAIT_SECONDS,
   hoursOfChoice,
   isChipPastCeiling,
   PICKER_CEILING_HOURS,
   readCustomWait,
   secondsOfHours,
-  WAIT_CHIPS
+  WAIT_CHIPS,
+  WAIT_FLOOR_SECONDS
 } from './wait'
 import { writeWaitingPeriod } from './writes'
 
@@ -166,17 +169,19 @@ const WaitingPeriodView = ({
               onChangeText={(typed) => setChoice({ kind: 'custom', text: typed })}
               containerStyle={{ ...spacings.mb0, ...spacings.mrSm }}
             />
-            <Text fontSize={14}>{t(`${WAIT}.customUnit`)}</Text>
+            <Text fontSize={14}>
+              {t(CUSTOM_UNIT_IS_MINUTES ? `${WAIT}.customUnitMinutes` : `${WAIT}.customUnit`)}
+            </Text>
           </View>
         )}
         {custom?.status === 'notWholeHours' && (
           <Text testID="wait-refusal" fontSize={14} appearance="errorText" style={spacings.mbTy}>
-            {t(`${WAIT}.wholeHours`)}
+            {t(CUSTOM_UNIT_IS_MINUTES ? `${WAIT}.wholeMinutes` : `${WAIT}.wholeHours`)}
           </Text>
         )}
         {custom?.status === 'belowMinimum' && (
           <Text testID="wait-refusal" fontSize={14} appearance="errorText" style={spacings.mbTy}>
-            {t(`${WAIT}.belowMinimum`)}
+            {t(`${WAIT}.belowMinimum`, { minimum: renderWaitLength(WAIT_FLOOR_SECONDS, t) })}
           </Text>
         )}
         {pastCeiling && (
@@ -185,7 +190,10 @@ const WaitingPeriodView = ({
           </Text>
         )}
         <Text fontSize={12} appearance="secondaryText">
-          {t(`${WAIT}.minimumDefault`)}
+          {t(`${WAIT}.minimumDefault`, {
+            minimum: renderWaitLength(WAIT_FLOOR_SECONDS, t),
+            defaultLength: renderWaitLength(DEFAULT_WAIT_SECONDS, t)
+          })}
         </Text>
       </SectionCard>
       <SectionCard tone="muted" label={t(`${WAIT}.whatForHeader`)}>

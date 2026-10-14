@@ -11,11 +11,7 @@ import { TextDecoder, TextEncoder } from 'util'
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
 import type { Address, Clause } from '@web/modules/social-recovery/sdk-interfaces'
-import type {
-  FitCheckReading,
-  PrivilegeHoldersReading,
-  RemovedKeyReading
-} from '@web/modules/social-recovery/shared/client'
+import type { FitCheckReading, RemovedKeyReading } from '@web/modules/social-recovery/shared/client'
 import type { Enrollment, RecordStorage } from '@web/modules/social-recovery/shared/records'
 
 import type {
@@ -49,7 +45,7 @@ const { parse, stringify } = jest.requireActual<
 const { getRuleLines, renderRuleLines } = jest.requireActual<
   typeof import('@web/modules/social-recovery/shared/rule-lines')
 >('@web/modules/social-recovery/shared/rule-lines')
-const { renderFullAddress, renderShortAddress } = jest.requireActual<
+const { renderFullAddress } = jest.requireActual<
   typeof import('@web/modules/social-recovery/shared/display')
 >('@web/modules/social-recovery/shared/display')
 const { deploymentDescriptor, publisherKeyOf, auditedActionOf, sameAddress, shapeNoteOf } =
@@ -63,6 +59,9 @@ const { zeroAddress } = jest.requireActual<typeof import('viem')>('viem')
 const { emptySlot } = jest.requireActual<
   typeof import('@web/modules/social-recovery/shared/records/slots')
 >('@web/modules/social-recovery/shared/records/slots')
+const { kindNameOf } = jest.requireActual<
+  typeof import('@web/modules/social-recovery/setup/review/lead')
+>('@web/modules/social-recovery/setup/review/lead')
 const ReviewView = jest.requireActual<
   typeof import('@web/modules/social-recovery/setup/review/ReviewView')
 >('@web/modules/social-recovery/setup/review/ReviewView').default
@@ -92,15 +91,10 @@ const {
   THIRD_PARTY,
   UNANSWERED,
   NOT_PAUSED,
-  PAUSED,
-  PAUSE_HOLDER,
-  PENDING_PAUSE_HOLDER,
   REMOVED_KEY,
   OTHER_KEY,
-  THIRD_KEY,
   descriptionOf,
-  setupStateOf,
-  stopDeclaration
+  setupStateOf
 } = fixtures
 
 const THEME = Object.fromEntries(
@@ -175,6 +169,23 @@ const textsStartingWith = (prefix: string) =>
     (node) => node.textContent
   )
 const pageText = () => container.textContent ?? ''
+const byPrefix = (prefix: string) => container.querySelector(`[data-testid^="${prefix}"]`)
+/** Whether the node with the first id sits before the node with the second in the document. */
+const isBefore = (first: string, second: string) => {
+  const ids = Array.from(container.querySelectorAll('[data-testid]'), (node) =>
+    node.getAttribute('data-testid')
+  )
+  const [a, b] = [ids.indexOf(first), ids.indexOf(second)]
+  if (a < 0 || b < 0) {
+    throw new Error(`nothing on screen with the test id ${a < 0 ? first : second}`)
+  }
+  return a < b
+}
+/** Whether the node with the inner id sits inside the node with the outer id. */
+const isInside = (inner: string, outer: string) => {
+  const node = byTestId(inner)
+  return !!node && !!byTestId(outer)?.contains(node)
+}
 const isDisabled = (id: string) => byTestId(id)?.getAttribute('aria-disabled') === 'true'
 
 const press = async (id: string) => {
@@ -201,8 +212,6 @@ const mount = async ({
   fitCheck = async () => ({ basis: 'deployed-code', fits: true }),
   setupState = async () => setupStateOf(false),
   describeSetup = async () => descriptionOf(),
-  privilegeHolders,
-  providerKind,
   accountLabel,
   storageRefuses = false
 }: MountOptions = {}) => {
@@ -232,31 +241,14 @@ const mount = async ({
     removedKey: jest.fn(removedKey),
     fitCheck: jest.fn(fitCheck),
     setupState: jest.fn(setupState),
-    describeSetup: jest.fn(describeSetup),
-    privilegeHolders: jest.fn(
-      privilegeHolders ??
-        (async (): Promise<PrivilegeHoldersReading> => {
-          try {
-            const { candidateKeys } = await describeSetup()
-            return {
-              kind: 'holders',
-              keys: candidateKeys
-                .filter(({ isAuthority }) => isAuthority)
-                .map(({ address }) => address)
-            }
-          } catch (thrown) {
-            return { kind: 'unreadable', cause: String(thrown) }
-          }
-        })
-    )
+    describeSetup: jest.fn(describeSetup)
   }
   const kit: ReviewKitClient = {
     chain: 'sepolia',
     descriptor: deploymentDescriptor('sepolia'),
     moduleReads: reads,
     setup: { setupState: account.setupState, describeSetup: account.describeSetup },
-    walletReads: { removedKey: account.removedKey, fitCheck: account.fitCheck },
-    privilegeHolders: account.privilegeHolders
+    walletReads: { removedKey: account.removedKey, fitCheck: account.fitCheck }
   }
   const retry = jest.fn()
   let reviewClient: ReviewClient = { status: 'ready', client: kit }
@@ -281,7 +273,6 @@ const mount = async ({
             chainId={CHAIN_ID}
             account={ACCOUNT}
             client={reviewClient}
-            providerKind={providerKind}
             accountLabel={label}
             navigate={navigate}
           />
@@ -310,6 +301,126 @@ describe('the verify-the-details expander', () => {
     expect(byTestId('review-trust-list')).not.toBeNull()
     expect(pageText()).toContain(t('socialRecovery.review.trust.selfAttested'))
     expect(pageText()).toContain(t('socialRecovery.review.trust.deadProvider'))
+  })
+})
+
+describe('the verify-the-details toggle', () => {
+  it('reads collapsed on arrival and expanded once pressed', async () => {
+    await mount()
+
+    expect(byTestId('review-verify-details')?.getAttribute('aria-expanded')).toBe('false')
+
+    await press('review-verify-details')
+
+    expect(byTestId('review-verify-details')?.getAttribute('aria-expanded')).toBe('true')
+  })
+})
+
+describe('the sections the review no longer shows', () => {
+  it('shows no security stop, no other doors and no node line on a path of two methods whose every read answered', async () => {
+    await mount({
+      clauses: [required(PASSKEY), group(1, ALICE, BOB)],
+      enrollments: [enrolled(PASSKEY), enrolled(ALICE), enrolled(BOB)]
+    })
+    await press('review-verify-details')
+
+    expect(isDisabled('review-save')).toBe(false)
+    expect(byTestId('review-trust-list')).not.toBeNull()
+    expect(byPrefix('review-stop')).toBeNull()
+    expect(byPrefix('review-doors')).toBeNull()
+    expect(byPrefix('review-trust-node')).toBeNull()
+    const gone = [
+      'Security stop',
+      'method · not stopped',
+      'method · stopped',
+      'Nobody can stop this method.',
+      'can stop this method and lift the stop.',
+      'The only stop in the kit is the one an identity method carries.',
+      'This release ignores every stop',
+      'Other doors on this account',
+      'The wallet cannot see every door',
+      'A recovery leaves them untouched.',
+      'Your node ·',
+      'It sees the request before the chain does.'
+    ]
+    gone.forEach((text) => expect(pageText()).not.toContain(text))
+  })
+})
+
+describe('the titled sections of the details', () => {
+  const mountTwoMethods = async () => {
+    await mount({
+      clauses: [required(PASSKEY), group(1, ALICE, BOB)],
+      enrollments: [
+        enrolled(PASSKEY, 'passed', { backup: 'synced' }),
+        enrolled(ALICE),
+        enrolled(BOB)
+      ]
+    })
+    await press('review-verify-details')
+  }
+
+  it('titles one section per method contract with its kind, then one for the recovery module, in that order', async () => {
+    await mountTwoMethods()
+
+    expect(textOf('review-trust-0')?.startsWith(kindNameOf('passkey', t))).toBe(true)
+    expect(textOf('review-trust-1')?.startsWith(kindNameOf('ecdsa', t))).toBe(true)
+    expect(byTestId('review-trust-2')).toBeNull()
+    expect(
+      textOf('review-trust-module')?.startsWith(t('socialRecovery.display.nouns.recoveryModule'))
+    ).toBe(true)
+    expect(isBefore('review-trust-0', 'review-trust-1')).toBe(true)
+    expect(isBefore('review-trust-1', 'review-trust-module')).toBe(true)
+  })
+
+  it("keeps each method's headings and lines inside its own section", async () => {
+    await mountTwoMethods()
+
+    expect(textOf('review-trust-0-heading-0')).toBe(PASSKEY.label)
+    expect(isInside('review-trust-0-heading-0', 'review-trust-0')).toBe(true)
+    expect(isInside('review-trust-0-method', 'review-trust-0')).toBe(true)
+    expect(textOf('review-trust-0-heading-0-line-0')).toBe(t('socialRecovery.ceremony.syncedLoss'))
+    expect(textOf('review-trust-0-heading-0-line-1')).toBe(
+      t('socialRecovery.ceremony.passkeyOrigin')
+    )
+    expect(isInside('review-trust-0-heading-0-line-1', 'review-trust-0')).toBe(true)
+
+    expect(isInside('review-trust-1-guardians', 'review-trust-1')).toBe(true)
+    expect(isInside('review-trust-1-heading-0', 'review-trust-1')).toBe(true)
+    expect(isInside('review-trust-1-heading-1', 'review-trust-1')).toBe(true)
+    expect(isInside('review-trust-1-method', 'review-trust-1')).toBe(true)
+    expect(textOf('review-trust-1-heading-1-line-0')).toBe(
+      t('socialRecovery.disclosures.smartAccount')
+    )
+    expect(isInside('review-trust-1-heading-1-line-0', 'review-trust-1')).toBe(true)
+    expect(textOf('review-trust-0')).not.toContain(t('socialRecovery.disclosures.smartAccount'))
+  })
+
+  it('keeps the identity line inside the identity method section', async () => {
+    await mount({ clauses: [required(PASSPORT)], enrollments: [enrolled(PASSPORT)] })
+    await press('review-verify-details')
+
+    expect(textOf('review-trust-0')?.startsWith(kindNameOf('zkpassport', t))).toBe(true)
+    expect(textOf('review-trust-0-heading-0-line-0')).toBe(t('socialRecovery.disclosures.identity'))
+    expect(isInside('review-trust-0-heading-0-line-0', 'review-trust-0')).toBe(true)
+  })
+
+  it("holds the module's two lines in the module section and the closing lines after it, outside every section", async () => {
+    await mountTwoMethods()
+
+    const module = textOf('review-trust-module') ?? ''
+    expect(module).toContain(t('socialRecovery.review.trust.moduleAuthority'))
+    expect(module).toContain(t('socialRecovery.review.trust.auditedOnly'))
+    expect(module).not.toContain(t('socialRecovery.review.trust.selfAttested'))
+
+    const list = textOf('review-trust-list') ?? ''
+    const closing = list.indexOf(t('socialRecovery.review.trust.selfAttested'))
+    expect(closing).toBeGreaterThan(list.indexOf(t('socialRecovery.review.trust.auditedOnly')))
+    expect(list.indexOf(t('socialRecovery.review.trust.deadProvider'))).toBeGreaterThan(closing)
+    ;['review-trust-0', 'review-trust-1'].forEach((id) => {
+      expect(textOf(id)).not.toContain(t('socialRecovery.review.trust.selfAttested'))
+      expect(textOf(id)).not.toContain(t('socialRecovery.review.trust.deadProvider'))
+    })
   })
 })
 
@@ -573,6 +684,58 @@ describe('the path rows', () => {
   })
 })
 
+describe('the path tree', () => {
+  it('draws a node per required row and per group, required rows first, each holding its row or group', async () => {
+    await mount({
+      clauses: [group(2, ALICE, BOB, CAROL), required(PASSKEY), required(PASSPORT)],
+      enrollments: [enrolled(ALICE), enrolled(BOB), enrolled(CAROL), enrolled(PASSKEY)]
+    })
+
+    expect(byTestId('review-path')).not.toBeNull()
+    ;['review-path-node-0', 'review-path-node-1', 'review-path-node-2'].forEach((id) =>
+      expect(isInside(id, 'review-path')).toBe(true)
+    )
+    expect(byTestId('review-path-node-3')).toBeNull()
+    expect(isInside('review-row-1-0', 'review-path-node-1')).toBe(true)
+    expect(isInside('review-row-2-0', 'review-path-node-2')).toBe(true)
+    expect(isInside('review-group-0', 'review-path-node-0')).toBe(true)
+    expect(isInside('review-row-0-2', 'review-group-0')).toBe(true)
+    expect(isBefore('review-path-node-1', 'review-path-node-2')).toBe(true)
+    expect(isBefore('review-path-node-2', 'review-path-node-0')).toBe(true)
+  })
+
+  it('heads a group with its number and its Require N of M', async () => {
+    await mount({ clauses: [required(PASSKEY), group(2, ALICE, BOB, CAROL)] })
+
+    const header = textOf('review-group-1') ?? ''
+    expect(header).toContain(t('socialRecovery.shape.group', { n: 1 }))
+    expect(header).toContain(
+      `${t('socialRecovery.shape.require')}2${t('socialRecovery.shape.of')}3`
+    )
+  })
+
+  it('joins its parts with the and word, once between each two', async () => {
+    await mount({ clauses: [required(PASSKEY), group(1, ALICE, BOB), group(1, CAROL, DAVE)] })
+
+    const and = t('socialRecovery.shape.and')
+    const junctions = Array.from(
+      byTestId('review-path')?.children ?? [],
+      (node) => node.textContent
+    ).filter((text) => text === and)
+    expect(junctions).toHaveLength(2)
+  })
+
+  it('keeps the show-all action inside a group drawn as a node', async () => {
+    await mount({ clauses: [required(PASSKEY), group(2, ALICE, BOB, CAROL, DAVE)] })
+
+    expect(isInside('review-group-1-show-all', 'review-path-node-1')).toBe(true)
+
+    await press('review-group-1-show-all')
+
+    expect(isInside('review-row-1-3', 'review-path-node-1')).toBe(true)
+  })
+})
+
 describe('the lead', () => {
   const ruleLinesFor = (clauses: Clause[]) =>
     renderRuleLines(
@@ -623,6 +786,13 @@ describe('the lead', () => {
 
     expect(textOf('review-wait')).toBe(t('socialRecovery.privacy.waitingPeriod.chips.days7'))
     expect(textOf('review-spare-key')).toBe(t('socialRecovery.review.spareKey'))
+  })
+
+  it("names a wait under one hour in minutes, and the floor in a release build's words", async () => {
+    await mount({ wait: 300n })
+
+    expect(textOf('review-wait')).toBe('5 minutes')
+    expect(pageText()).toContain("This wallet's minimum is 24 hours. The chain enforces none.")
   })
 
   it('carries the publication line once with its second sentence and the save cost', async () => {
@@ -1023,8 +1193,8 @@ describe('the trust list', () => {
     })
   })
 
-  it('names the recovery module with its publisher from the wallet table, and a light client node', async () => {
-    await mount({ providerKind: 'helios' })
+  it('names the recovery module with its publisher from the wallet table', async () => {
+    await mount()
     await press('review-verify-details')
 
     const action = auditedActionOf(deploymentDescriptor('sepolia').action, 'sepolia')
@@ -1034,14 +1204,6 @@ describe('the trust list', () => {
     expect(textOf('review-trust-module')).toContain(
       t('socialRecovery.review.trust.moduleRow', { publisher: t(publisherKeyOf(action)) })
     )
-    expect(textOf('review-trust-node')).toBe(t('socialRecovery.review.trust.nodeLightClient'))
-  })
-
-  it('names a plain node where the network has no provider kind', async () => {
-    await mount()
-    await press('review-verify-details')
-
-    expect(textOf('review-trust-node')).toBe(t('socialRecovery.review.trust.nodePlain'))
   })
 })
 
@@ -1097,174 +1259,6 @@ describe('what the review cannot read', () => {
   })
 })
 
-describe('the security stop block', () => {
-  const STOP = 'socialRecovery.review.stop'
-
-  it('names who can stop each method of the path, then closes with its two sentences', async () => {
-    await mount({
-      clauses: [group(2, PASSKEY, PASSPORT)],
-      trustedParties: async (module) =>
-        sameAddress(module, BOOK.methods.zkpassport)
-          ? stopDeclaration({
-              admin: PAUSE_HOLDER,
-              pauseHolder: PAUSE_HOLDER,
-              pendingPauseHolder: PENDING_PAUSE_HOLDER
-            })
-          : stopDeclaration({})
-    })
-    await press('review-verify-details')
-
-    expect(textOf('review-stop-block')).toContain(t('socialRecovery.display.nouns.securityStop'))
-    expect(textOf('review-stop-0-method')).toBe(
-      t(`${STOP}.methodNotStopped`, { method: t('socialRecovery.methodNames.passkey') })
-    )
-    expect(textOf('review-stop-0-nobody')).toBe(t(`${STOP}.nobody`))
-    expect(byTestId('review-stop-0-party')).toBeNull()
-    expect(byTestId('review-stop-0-pending-holder')).toBeNull()
-    expect(byTestId('review-stop-0-both-roles')).toBeNull()
-
-    expect(textOf('review-stop-1-method')).toBe(
-      t(`${STOP}.methodNotStopped`, { method: t('socialRecovery.methodNames.passport') })
-    )
-    expect(textOf('review-stop-1-party')).toBe(
-      t(`${STOP}.party`, { party: renderShortAddress(PAUSE_HOLDER) })
-    )
-    expect(textOf('review-stop-1-pending-holder')).toBe(
-      t('socialRecovery.review.trust.oneAcceptanceAway', {
-        address: renderFullAddress(PENDING_PAUSE_HOLDER)
-      })
-    )
-    expect(textOf('review-stop-1-both-roles')).toBe(
-      t(`${STOP}.bothRoles`, { party: renderShortAddress(PAUSE_HOLDER) })
-    )
-    expect(byTestId('review-stop-1-nobody')).toBeNull()
-
-    const ids = Array.from(
-      byTestId('review-stop-block')?.querySelectorAll<HTMLElement>('[data-testid]') ?? [],
-      (node) => node.getAttribute('data-testid')
-    )
-    expect(ids.slice(-2)).toEqual(['review-stop-no-pause', 'review-stop-ignores-stops'])
-    expect(textOf('review-stop-no-pause')).toBe(t(`${STOP}.noPause`))
-    expect(textOf('review-stop-ignores-stops')).toBe(t(`${STOP}.ignoresStops`))
-    expect(isDisabled('review-save')).toBe(false)
-  })
-
-  it('names no party holding both roles where the admin and the pause holder differ', async () => {
-    await mount({
-      clauses: [required(PASSPORT)],
-      trustedParties: async () => stopDeclaration({ admin: ADMIN, pauseHolder: PAUSE_HOLDER })
-    })
-    await press('review-verify-details')
-
-    expect(textOf('review-stop-0-party')).toBe(
-      t(`${STOP}.party`, { party: renderShortAddress(PAUSE_HOLDER) })
-    )
-    expect(byTestId('review-stop-0-both-roles')).toBeNull()
-  })
-
-  it('shows a stopped method as stopped, and the stop refuses nothing', async () => {
-    await mount({
-      clauses: [required(PASSPORT)],
-      trustedParties: async () => stopDeclaration({ pauseHolder: PAUSE_HOLDER }),
-      paused: async () => PAUSED
-    })
-    await press('review-verify-details')
-
-    expect(textOf('review-stop-0-method')).toBe(
-      t(`${STOP}.methodStopped`, { method: t('socialRecovery.methodNames.passport') })
-    )
-    expect(pageText()).not.toContain(
-      t(`${STOP}.methodNotStopped`, { method: t('socialRecovery.methodNames.passport') })
-    )
-    expect(isDisabled('review-save')).toBe(false)
-  })
-
-  it('shows a stopped method by its name and the stopped line alone, with no chip', async () => {
-    await mount({
-      clauses: [required(PASSPORT)],
-      trustedParties: async () => stopDeclaration({ pauseHolder: PAUSE_HOLDER }),
-      paused: async () => PAUSED
-    })
-    await press('review-verify-details')
-
-    expect(textOf('review-stop-0-method')).toContain(t('socialRecovery.methodNames.passport'))
-    expect(byTestId('review-stop-0-stopped')).toBeNull()
-    expect(textOf('review-stop-0')).not.toContain(t('socialRecovery.status.collection.stopped'))
-  })
-
-  it('names the method of a row whose stop read has not come back', async () => {
-    await mount({
-      clauses: [group(2, PASSKEY, PASSPORT)],
-      paused: (module) =>
-        sameAddress(module, BOOK.methods.zkpassport)
-          ? new Promise(() => {})
-          : Promise.resolve(NOT_PAUSED)
-    })
-    await press('review-verify-details')
-
-    expect(textOf('review-stop-1-method')).toBe(t('socialRecovery.methodNames.passport'))
-    expect(byTestId('review-stop-1-pending')).not.toBeNull()
-    expect(byTestId('review-stop-1-unavailable')).toBeNull()
-    expect(textOf('review-stop-0-method')).toBe(
-      t(`${STOP}.methodNotStopped`, { method: t('socialRecovery.methodNames.passkey') })
-    )
-  })
-
-  it('names the method of a row whose stop read did not answer, beside its chip', async () => {
-    await mount({
-      clauses: [group(2, PASSKEY, PASSPORT)],
-      paused: async (module) =>
-        sameAddress(module, BOOK.methods.zkpassport) ? UNANSWERED : NOT_PAUSED
-    })
-    await press('review-verify-details')
-
-    expect(textOf('review-stop-1-method')).toBe(t('socialRecovery.methodNames.passport'))
-    expect(textOf('review-stop-1-unavailable')).toBe(
-      t('socialRecovery.review.blocked.unavailable.chip')
-    )
-    expect(byTestId('review-stop-1-pending')).toBeNull()
-  })
-
-  it("names a declaring third-party module's row by its address, with the admin row beside its both-roles line", async () => {
-    await mount({
-      clauses: [group(2, PASSKEY, THIRD_PARTY)],
-      trustedParties: async (module) =>
-        sameAddress(module, THIRD_PARTY.method)
-          ? stopDeclaration({ admin: PAUSE_HOLDER, pauseHolder: PAUSE_HOLDER })
-          : stopDeclaration({})
-    })
-    await press('review-verify-details')
-
-    expect(textOf('review-stop-1-method')).toBe(
-      t(`${STOP}.methodNotStopped`, { method: renderFullAddress(THIRD_PARTY.method) })
-    )
-    expect(textOf('review-stop-1-party')).toBe(
-      t(`${STOP}.party`, { party: renderShortAddress(PAUSE_HOLDER) })
-    )
-    expect(textOf('review-stop-1-both-roles')).toBe(
-      t(`${STOP}.bothRoles`, { party: renderShortAddress(PAUSE_HOLDER) })
-    )
-    expect(textOf('review-trust-1-third-party')).toBe(
-      t('socialRecovery.review.trust.thirdPartyDeclaredRow', {
-        party: renderFullAddress(PAUSE_HOLDER)
-      })
-    )
-    expect(textOf('review-trust-1-admin')).toBe(t('socialRecovery.review.trust.adminLine'))
-  })
-
-  it('gives no row to a module with no declaration', async () => {
-    await mount({
-      clauses: [group(2, PASSKEY, THIRD_PARTY)],
-      moduleInfo: async (module) => info(!sameAddress(module, THIRD_PARTY.method))
-    })
-    await press('review-verify-details')
-
-    expect(byTestId('review-stop-0')).not.toBeNull()
-    expect(byTestId('review-stop-1')).toBeNull()
-    expect(textOf('review-stop-ignores-stops')).toBe(t(`${STOP}.ignoresStops`))
-  })
-})
-
 describe('a read that did not answer', () => {
   const BLOCKED = 'socialRecovery.review.blocked'
 
@@ -1295,7 +1289,7 @@ describe('a read that did not answer', () => {
     expect(textOf('review-blocked-body')).toBe(t(`${BLOCKED}.unavailable.body`))
     expect(textOf('review-blocked-retry')).toBe(t('socialRecovery.writes.tryAgain'))
     await press('review-verify-details')
-    expect(textOf('review-stop-1-unavailable')).toBe(t(`${BLOCKED}.unavailable.chip`))
+    expect(textOf('review-trust-1-unavailable')).toBe(t(`${BLOCKED}.unavailable.chip`))
 
     await press('review-blocked-retry')
 
@@ -1308,8 +1302,8 @@ describe('a read that did not answer', () => {
     expect(account.setupState).toHaveBeenCalledTimes(1)
     expect(account.describeSetup).toHaveBeenCalledTimes(1)
     expect(byTestId('review-blocked-unavailable')).toBeNull()
-    expect(textOf('review-stop-1-method')).toBe(
-      t('socialRecovery.review.stop.methodNotStopped', {
+    expect(textOf('review-trust-1-method')).toBe(
+      t('socialRecovery.review.trust.methodRow', {
         method: t('socialRecovery.methodNames.passkey')
       })
     )
@@ -1411,7 +1405,6 @@ describe('an account this release cannot recover', () => {
 
 describe("the wallet's reading of the account's keys", () => {
   const BLOCKED = 'socialRecovery.review.blocked'
-  const DOORS = 'socialRecovery.review.doors'
   const TWO_AUTHORITIES = [
     { address: REMOVED_KEY, isAuthority: true },
     { address: OTHER_KEY, isAuthority: true }
@@ -1445,18 +1438,6 @@ describe("the wallet's reading of the account's keys", () => {
     expect(byTestId('review-removed-key')).toBeNull()
     expect(isDisabled('review-save')).toBe(true)
     expect(account.removedKey).toHaveBeenCalledTimes(1)
-  })
-
-  it('counts every authority in the doors where the wallet reads several keys', async () => {
-    await mount({
-      removedKey: async () => ({ kind: 'unavailable', cause: 'several-key-entries' }),
-      describeSetup: async () => descriptionOf(TWO_AUTHORITIES)
-    })
-    await press('review-verify-details')
-
-    expect(textOf('review-doors')).toBe(
-      t(`${DOORS}.line`, { doors: t(`${DOORS}.keysBeside`, { count: 2 }) })
-    )
   })
 
   it('reads several keys as cannot recover with the several-keys line where the description throws', async () => {
@@ -1763,6 +1744,49 @@ describe('an untested method', () => {
     expect(isDisabled('review-save')).toBe(false)
   })
 
+  it('names the one untested passkey by its label and kind under the singular title', async () => {
+    await mount({
+      clauses: [required(PASSKEY), group(1, ALICE, BOB)],
+      enrollments: [enrolled(PASSKEY, 'not-tested'), enrolled(ALICE), enrolled(BOB)]
+    })
+
+    const warning = textOf('review-not-tested') ?? ''
+    expect(warning).toContain(t('socialRecovery.review.blocked.notTested.title', { count: 1 }))
+    expect(warning).not.toContain(t('socialRecovery.review.blocked.notTested.title', { count: 2 }))
+    expect(textOf('review-not-tested-0-0-name')).toBe(PASSKEY.label)
+    expect(textOf('review-not-tested-0-0-kind')).toBe(kindNameOf('passkey', t))
+    expect(byTestId('review-not-tested-1-0')).toBeNull()
+    expect(byTestId('review-not-tested-1-1')).toBeNull()
+    expect(isDisabled('review-save')).toBe(false)
+  })
+
+  it('names two untested methods with the count in the title, the guardian by its full address', async () => {
+    await mount({
+      clauses: [required(PASSKEY), group(1, ALICE, BOB)],
+      enrollments: [enrolled(PASSKEY, 'not-tested'), enrolled(ALICE)]
+    })
+
+    const title = t('socialRecovery.review.blocked.notTested.title', { count: 2 })
+    expect(title).toContain('2')
+    expect(textOf('review-not-tested')).toContain(title)
+    expect(textOf('review-not-tested-0-0-name')).toBe(PASSKEY.label)
+    expect(textOf('review-not-tested-1-1-name')).toBe(renderFullAddress(guardianAddress('b2')))
+    expect(textOf('review-not-tested-1-1-kind')).toBe(kindNameOf('ecdsa', t))
+    expect(byTestId('review-not-tested-1-0')).toBeNull()
+    expect(isBefore('review-not-tested-0-0', 'review-not-tested-1-1')).toBe(true)
+    expect(isDisabled('review-save')).toBe(false)
+  })
+
+  it('names no empty slot as an untested method', async () => {
+    await mount({
+      clauses: [group(1, ALICE, emptySlot('passkey'))],
+      enrollments: [enrolled(ALICE, 'not-tested')]
+    })
+
+    expect(textOf('review-not-tested-0-0-name')).toBe(renderFullAddress(guardianAddress('a1')))
+    expect(byTestId('review-not-tested-0-1')).toBeNull()
+  })
+
   it('warns where a skipped test stands beside a failed one', async () => {
     await mount({
       clauses: [group(1, ALICE, PASSKEY)],
@@ -1778,291 +1802,22 @@ describe('an untested method', () => {
   })
 })
 
-describe('the other doors', () => {
-  const DOORS = 'socialRecovery.review.doors'
-  const CANNOT_SEE_EVERY_DOOR = 'socialRecovery.review.otherDoors.cannotSeeEveryDoor'
-
-  it('name the keys the SDK names beside the removed one, and Save stays enabled', async () => {
-    await mount({
-      describeSetup: async () =>
-        descriptionOf([
-          { address: REMOVED_KEY, isAuthority: false },
-          { address: OTHER_KEY, isAuthority: true }
-        ])
-    })
-    await press('review-verify-details')
-
-    expect(textOf('review-doors')).toBe(
-      t(`${DOORS}.line`, { doors: t(`${DOORS}.keysBeside`, { count: 1 }) })
-    )
-    expect(textOf('review-doors-cannot-see-every-door')).toBe(t(CANNOT_SEE_EVERY_DOOR))
-    expect(textOf('review-doors-untouched')).toBe(t(`${DOORS}.untouched`))
-    expect(byTestId('review-doors-marker')).toBeNull()
-    expect(isDisabled('review-save')).toBe(false)
-  })
-
-  it('count several keys in the plural', async () => {
-    await mount({
-      describeSetup: async () =>
-        descriptionOf([
-          { address: REMOVED_KEY, isAuthority: true },
-          { address: OTHER_KEY, isAuthority: true },
-          { address: THIRD_KEY, isAuthority: true }
-        ])
-    })
-    await press('review-verify-details')
-
-    expect(textOf('review-doors')).toBe(
-      t(`${DOORS}.line`, { doors: t(`${DOORS}.keysBeside`, { count: 2 }) })
-    )
-    expect(byTestId('review-blocked-cannot-recover')).not.toBeNull()
-  })
-
-  it('read that the wallet could not read them where the description throws, and Save stays enabled', async () => {
-    await mount({
-      describeSetup: async () => {
-        throw new Error('node unreachable')
-      }
-    })
-    await press('review-verify-details')
-
-    expect(textOf('review-doors')).toBe(t(`${DOORS}.unreadable`))
-    expect(byTestId('review-doors-untouched')).toBeNull()
-    expect(byTestId('review-doors-cannot-see-every-door')).toBeNull()
-    expect(byTestId('review-blocked-unavailable')).toBeNull()
-    expect(isDisabled('review-save')).toBe(false)
-  })
-
-  it('read none where no key stands beside the removed one', async () => {
-    await mount()
-    await press('review-verify-details')
-
-    expect(textOf('review-doors')).toBe(t(`${DOORS}.none`))
-    expect(byTestId('review-doors-cannot-see-every-door')).toBeNull()
-    expect(isDisabled('review-save')).toBe(false)
-  })
-
-  describe("from the wallet's privilege read", () => {
-    const holders =
-      (...keys: Address[]) =>
-      async (): Promise<PrivilegeHoldersReading> => ({ kind: 'holders', keys })
-    const UNREADABLE = async (): Promise<PrivilegeHoldersReading> => ({
-      kind: 'unreadable',
-      cause: 'node unreachable'
-    })
-    const keysLine = (count: number) =>
-      t(`${DOORS}.line`, { doors: t(`${DOORS}.keysBeside`, { count }) })
-
-    it('count the two keys that hold a privilege beside the removed one', async () => {
-      await mount({ privilegeHolders: holders(REMOVED_KEY, OTHER_KEY, THIRD_KEY) })
-      await press('review-verify-details')
-
-      expect(textOf('review-doors')).toBe(keysLine(2))
-      expect(textOf('review-doors-untouched')).toBe(t(`${DOORS}.untouched`))
-      expect(isDisabled('review-save')).toBe(false)
-    })
-
-    it('say beside the known keys that the wallet cannot see every door, while the code entries cannot be read', async () => {
-      await mount({ privilegeHolders: holders(REMOVED_KEY, OTHER_KEY) })
-      await press('review-verify-details')
-
-      expect(textsStartingWith('review-doors')).toEqual([
-        keysLine(1),
-        t(CANNOT_SEE_EVERY_DOOR),
-        t(`${DOORS}.untouched`)
-      ])
-      expect(byTestId('review-doors-marker')).toBeNull()
-      expect(byTestId('review-doors-validator')).toBeNull()
-    })
-
-    it('read none where the removed key alone holds a privilege', async () => {
-      await mount({ privilegeHolders: holders(REMOVED_KEY) })
-      await press('review-verify-details')
-
-      expect(textOf('review-doors')).toBe(t(`${DOORS}.none`))
-      expect(byTestId('review-doors-untouched')).toBeNull()
-    })
-
-    it('read that the wallet could not see every door where the read is unreadable, never its cause, and Save stays enabled', async () => {
-      await mount({ privilegeHolders: UNREADABLE })
-      await press('review-verify-details')
-
-      expect(textOf('review-doors')).toBe(t(`${DOORS}.unreadable`))
-      expect(pageText()).not.toContain('node unreachable')
-      expect(byTestId('review-blocked-unavailable')).toBeNull()
-      expect(isDisabled('review-save')).toBe(false)
-    })
-
-    it('read that the wallet could not see every door where the read throws, and Save stays enabled', async () => {
-      await mount({
-        privilegeHolders: async () => {
-          throw new Error('node unreachable')
-        }
-      })
-      await press('review-verify-details')
-
-      expect(textOf('review-doors')).toBe(t(`${DOORS}.unreadable`))
-      expect(pageText()).not.toContain('node unreachable')
-      expect(isDisabled('review-save')).toBe(false)
-    })
-
-    it("count the reading's keys, not the candidate keys the description names", async () => {
-      await mount({
-        describeSetup: async () =>
-          descriptionOf([
-            { address: REMOVED_KEY, isAuthority: true },
-            { address: OTHER_KEY, isAuthority: true },
-            { address: THIRD_KEY, isAuthority: true }
-          ]),
-        privilegeHolders: holders(REMOVED_KEY, OTHER_KEY)
-      })
-      await press('review-verify-details')
-
-      expect(textOf('review-doors')).toBe(keysLine(1))
-    })
-
-    it('read the doors from the description no longer where it names no creation record', async () => {
-      await mount({
-        removedKey: async () => ({ kind: 'unavailable', cause: 'several-key-entries' }),
-        describeSetup: async () =>
-          descriptionOf([{ address: OTHER_KEY, isAuthority: true }], 'no-creation-triple'),
-        privilegeHolders: holders(OTHER_KEY, THIRD_KEY)
-      })
-      await press('review-verify-details')
-
-      expect(textOf('review-doors')).toBe(keysLine(2))
-    })
-
-    it('run the read again on a retry where it was unreadable', async () => {
-      let answers = 0
-      const { account } = await mount({
-        fitCheck: async () => {
-          answers += 1
-          if (answers === 1) {
-            throw new Error('node unreachable')
-          }
-          return { basis: 'deployed-code', fits: true }
-        },
-        privilegeHolders: jest
-          .fn<Promise<PrivilegeHoldersReading>, []>()
-          .mockImplementationOnce(UNREADABLE)
-          .mockImplementation(holders(REMOVED_KEY, OTHER_KEY))
-      })
-      await press('review-verify-details')
-      expect(textOf('review-doors')).toBe(t(`${DOORS}.unreadable`))
-
-      await press('review-blocked-retry')
-
-      expect(account.privilegeHolders).toHaveBeenCalledTimes(2)
-      expect(textOf('review-doors')).toBe(keysLine(1))
-      expect(isDisabled('review-save')).toBe(false)
-    })
-
-    it('run the read again on a retry where it threw', async () => {
-      let answers = 0
-      let reads = 0
-      const { account } = await mount({
-        fitCheck: async () => {
-          answers += 1
-          if (answers === 1) {
-            throw new Error('node unreachable')
-          }
-          return { basis: 'deployed-code', fits: true }
-        },
-        privilegeHolders: async () => {
-          reads += 1
-          if (reads === 1) {
-            throw new Error('node unreachable')
-          }
-          return { kind: 'holders', keys: [REMOVED_KEY, OTHER_KEY] }
-        }
-      })
-
-      await press('review-blocked-retry')
-
-      expect(account.privilegeHolders).toHaveBeenCalledTimes(2)
-      await press('review-verify-details')
-      expect(textOf('review-doors')).toBe(keysLine(1))
-    })
-
-    it('do not run the read again on a retry where it read the holders', async () => {
-      let answers = 0
-      const { account } = await mount({
-        fitCheck: async () => {
-          answers += 1
-          if (answers === 1) {
-            throw new Error('node unreachable')
-          }
-          return { basis: 'deployed-code', fits: true }
-        },
-        privilegeHolders: holders(REMOVED_KEY, OTHER_KEY)
-      })
-
-      await press('review-blocked-retry')
-
-      expect(account.fitCheck).toHaveBeenCalledTimes(2)
-      expect(account.privilegeHolders).toHaveBeenCalledTimes(1)
-    })
-
-    it('leave Save to the other reads while the privilege read has not come back', async () => {
-      await mount({ privilegeHolders: () => new Promise(() => {}) })
-
-      expect(isDisabled('review-save')).toBe(false)
-      expect(byTestId('review-blocked-unavailable')).toBeNull()
-      await press('review-verify-details')
-      expect(byTestId('review-doors-pending')).not.toBeNull()
-    })
-
-    it('do not read again when the view renders again with the same client', async () => {
-      const { account, rerender } = await mount({
-        privilegeHolders: holders(REMOVED_KEY, OTHER_KEY)
-      })
-
-      await rerender('Renamed account')
-
-      expect(account.privilegeHolders).toHaveBeenCalledTimes(1)
-      expect(account.removedKey).toHaveBeenCalledTimes(1)
-      expect(account.fitCheck).toHaveBeenCalledTimes(1)
-      expect(account.setupState).toHaveBeenCalledTimes(1)
-      expect(account.describeSetup).toHaveBeenCalledTimes(1)
-    })
-  })
-})
-
 describe('the account reads', () => {
-  const DOORS = 'socialRecovery.review.doors'
-
-  it('place each answer as it arrives, so a slow privilege read holds back no other', async () => {
-    let answerHolders: (reading: PrivilegeHoldersReading) => void = () => {}
+  it('place each answer as it arrives, so a slow read holds back no other', async () => {
     let answerFit: (reading: FitCheckReading) => void = () => {}
     await mount({
       fitCheck: () =>
         new Promise<FitCheckReading>((resolve) => {
           answerFit = resolve
-        }),
-      privilegeHolders: () =>
-        new Promise<PrivilegeHoldersReading>((resolve) => {
-          answerHolders = resolve
         })
     })
-    await press('review-verify-details')
 
     expect(textOf('review-removed-key-address')).toBe(renderFullAddress(REMOVED_KEY))
-    expect(byTestId('review-doors-pending')).not.toBeNull()
     expect(isDisabled('review-save')).toBe(true)
 
     await act(async () => answerFit({ basis: 'deployed-code', fits: true }))
     await settle()
 
-    expect(byTestId('review-doors-pending')).not.toBeNull()
-    expect(isDisabled('review-save')).toBe(false)
-
-    await act(async () => answerHolders({ kind: 'holders', keys: [REMOVED_KEY, OTHER_KEY] }))
-    await settle()
-
-    expect(textOf('review-doors')).toBe(
-      t(`${DOORS}.line`, { doors: t(`${DOORS}.keysBeside`, { count: 1 }) })
-    )
     expect(isDisabled('review-save')).toBe(false)
   })
 
@@ -2085,7 +1840,6 @@ describe('the account reads', () => {
     expect(account.removedKey).toHaveBeenCalledTimes(1)
     expect(account.fitCheck).toHaveBeenCalledTimes(1)
     expect(account.describeSetup).toHaveBeenCalledTimes(1)
-    expect(account.privilegeHolders).toHaveBeenCalledTimes(1)
     expect(byTestId('review-blocked-unavailable')).toBeNull()
     expect(isDisabled('review-save')).toBe(false)
   })
@@ -2112,7 +1866,6 @@ describe('the account reads', () => {
     expect(account.setupState).toHaveBeenCalledTimes(2)
     expect(account.removedKey).toHaveBeenCalledTimes(1)
     expect(account.describeSetup).toHaveBeenCalledTimes(1)
-    expect(account.privilegeHolders).toHaveBeenCalledTimes(1)
     expect(isDisabled('review-save')).toBe(false)
   })
 })

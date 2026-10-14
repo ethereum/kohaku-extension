@@ -157,7 +157,7 @@ describe('a chain id beyond 2^53, where a number can no longer tell two ids apar
   }
 
   it("refuses a domain chain id one above the descriptor's with the client's own check, before any build", async () => {
-    const config = onLargeChain(2n ** 53n + 1n)
+    const config = onLargeChain(9_007_199_254_740_992n + 1n)
     const builder = spyOnBuilder()
     const caught = await thrownBy(buildRecoveryClient(config))
     expect(isDigestVersionRefusal(caught)).toBe(false)
@@ -167,7 +167,7 @@ describe('a chain id beyond 2^53, where a number can no longer tell two ids apar
   })
 
   it('builds the client when the domain carries the exact chain id', async () => {
-    const config = onLargeChain(2n ** 53n)
+    const config = onLargeChain(9_007_199_254_740_992n)
     const client = await buildRecoveryClient(config)
     expect(client.descriptor.chainId).toBe(LARGE)
   })

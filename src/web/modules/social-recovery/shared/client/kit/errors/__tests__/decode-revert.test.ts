@@ -45,7 +45,9 @@ const valueOf = (input: AbiParameter, index: number): unknown => {
     if (Number(bits[1]) <= 48) {
       return 40 + seed
     }
-    return Number(bits[1]) <= 64 ? 2n ** 60n + BigInt(seed) : 10n ** 30n + BigInt(seed)
+    return Number(bits[1]) <= 64
+      ? 1_152_921_504_606_846_976n + BigInt(seed)
+      : 1_000_000_000_000_000_000_000_000_000_000n + BigInt(seed)
   }
   throw new Error(`no made-up value for ${input.type}`)
 }
@@ -175,7 +177,7 @@ describe('data that is no kit error', () => {
       encodeErrorResult({
         abi: OTHER,
         errorName: 'SafeCastOverflowedUintDowncast',
-        args: [48, 2n ** 60n]
+        args: [48, 1_152_921_504_606_846_976n]
       })
     ],
     [

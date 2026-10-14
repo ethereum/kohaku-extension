@@ -25,7 +25,6 @@ import {
   ACCOUNT,
   advanceTimersAsync,
   BLOCK_EVERY_MS,
-  deferred,
   driveAccountBatch,
   driveSend,
   drivenMachine,
@@ -53,6 +52,7 @@ import {
   WriteKind,
   writeReducer
 } from '@web/modules/social-recovery/shared/writes/__tests__/harness'
+import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 
 const OTHER_HASH: Hex = `0x${'d'.repeat(64)}`
 const REQUEST_ID = 'social-recovery-sender:from-the-caller'

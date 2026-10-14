@@ -3,7 +3,7 @@
  * place uses, each credential's commitment, and the config layouts of the
  * two methods the wallet enrolls.
  */
-import { encodeAbiParameters, keccak256 } from 'viem'
+import { decodeAbiParameters, encodeAbiParameters, keccak256 } from 'viem'
 
 import type { Address, Configuration, Hex } from '@web/modules/social-recovery/sdk-interfaces'
 
@@ -51,9 +51,23 @@ export const placedCredentialsOf = (
 export const ecdsaConfigOf = (approver: Address): Hex =>
   encodeAbiParameters([{ type: 'address' }], [approver])
 
+const PASSKEY_CONFIG = [{ type: 'bytes32' }, { type: 'bytes32' }, { type: 'bytes32' }] as const
+
 /** The passkey method's config: `abi.encode(bytes32 x, bytes32 y, bytes32 rpIdHash)`. */
 export const passkeyConfigOf = ({ x, y, rpIdHash }: PasskeyConfigFields): Hex =>
-  encodeAbiParameters(
-    [{ type: 'bytes32' }, { type: 'bytes32' }, { type: 'bytes32' }],
-    [x, y, rpIdHash]
-  )
+  encodeAbiParameters(PASSKEY_CONFIG, [x, y, rpIdHash])
+
+/**
+ * The fields of a passkey config, or null where the bytes do not decode as
+ * three `bytes32` words or are not exactly their encoding.
+ */
+export const passkeyConfigFieldsOf = (config: Hex): PasskeyConfigFields | null => {
+  let fields: PasskeyConfigFields
+  try {
+    const [x, y, rpIdHash] = decodeAbiParameters(PASSKEY_CONFIG, config)
+    fields = { x, y, rpIdHash }
+  } catch {
+    return null
+  }
+  return passkeyConfigOf(fields) === config.toLowerCase() ? fields : null
+}

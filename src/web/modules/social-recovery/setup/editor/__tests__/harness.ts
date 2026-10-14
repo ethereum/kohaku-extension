@@ -19,9 +19,9 @@ import type {
   RecordStorage,
   SetupRecords
 } from '@web/modules/social-recovery/shared/records'
-import { createWalletRecords } from '@web/modules/social-recovery/shared/records'
+import { createWalletRecords, sameCredential } from '@web/modules/social-recovery/shared/records'
 
-import { kindOf, sameCredential } from '@web/modules/social-recovery/setup/editor/operations'
+import { kindOf } from '@web/modules/social-recovery/setup/editor/operations'
 
 export const BOOK = addressBookOf('sepolia')
 

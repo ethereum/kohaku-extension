@@ -3,8 +3,7 @@
  * SDK's path check, and the words they render as: each refusal fires on its
  * own shape and never on a sound one, an unfilled slot is refused as a place
  * still to fill and counts as a place against the threshold, and every
- * sentence names this wallet as the party that refuses. The rules panel
- * lists every rule the editor applies, in order.
+ * sentence names this wallet as the party that refuses.
  */
 import i18n from '@common/config/localization'
 import en from '@common/config/localization/translations/en.json'
@@ -22,8 +21,7 @@ import {
 import {
   renderFinding,
   renderRefusal,
-  renderRefusalPlace,
-  renderRulesPanel
+  renderRefusalPlace
 } from '@web/modules/social-recovery/setup/editor/copy'
 import { emptySlotOf } from '@web/modules/social-recovery/setup/editor/operations'
 import {
@@ -366,7 +364,8 @@ describe('the waiting period', () => {
       account: ACCOUNT,
       addressBook: BOOK,
       provider: {} as never,
-      codeRead: {} as never
+      codeRead: {} as never,
+      transactionRead: {} as never
     })
     expect(PICKER_CEILING_SECONDS).toBe(BigInt(maximumWait ?? -1))
   })
@@ -536,32 +535,5 @@ describe("the SDK's setup errors", () => {
     expect(renderFinding(finding('credential.duplicate'), t)).toBe(
       en.socialRecovery.editor.duplicate
     )
-  })
-})
-
-describe('the rules panel', () => {
-  it('reads the header and nine lines in order, the ceiling after the floor and the own-rule line last', () => {
-    const { rules } = en.socialRecovery.editor
-    expect(renderRulesPanel(t)).toEqual({
-      header: rules.header,
-      lines: [
-        rules.requiredAnswers,
-        rules.enoughMembers,
-        rules.thresholdAtLeastOne,
-        rules.thresholdCeiling,
-        rules.memberCeiling,
-        rules.oneRowPerMethod,
-        rules.atLeastOneMethod,
-        rules.smallEnough,
-        rules.zeroThresholdOwnRule
-      ]
-    })
-  })
-
-  it("states the threshold ceiling of 255 and the zero-threshold rule as the wallet's own", () => {
-    const { lines } = renderRulesPanel(t)
-    expect(lines.filter((line) => line.includes('255'))).toHaveLength(2)
-    expect(lines[lines.length - 1]).toMatch(/only this wallet refuses a threshold of zero/)
-    lines.forEach((line) => expect(line).not.toMatch(CREDITS_ANOTHER_PARTY))
   })
 })

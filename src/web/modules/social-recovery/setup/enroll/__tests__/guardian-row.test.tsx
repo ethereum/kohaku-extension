@@ -319,8 +319,11 @@ describe('the guardian row', () => {
       expect(checkLines()).not.toContain(t(`${GUARDIAN}.smartAccountDetected`))
     })
 
-    it('warns where the wallet derived the address from its own seed, and still adds it', async () => {
-      deps = depsOf({ keys: [{ addr: LOWERCASE, type: 'internal', fromSeedId: 'seed-1' }] })
+    it("warns where the wallet derived the address from the seed of the account's own key, and still adds it", async () => {
+      deps = depsOf({
+        keys: [{ addr: LOWERCASE, type: 'internal', fromSeedId: 'seed-1' }],
+        ownSeedIds: ['seed-1']
+      })
       await open()
       await enter(HELD)
       expect(checkLines()).toContain(t(`${GUARDIAN}.sameSeed`))
@@ -328,10 +331,25 @@ describe('the guardian row', () => {
     })
 
     each([
-      ['a key the wallet imported alone', [{ addr: HELD, type: 'internal' as const }]],
-      ['no key at the address', []]
-    ] as const)('reads not the same seed for %s', async ([, keys]) => {
-      deps = depsOf({ keys })
+      [
+        'a key from another recovery phrase in this wallet',
+        [{ addr: HELD, type: 'internal' as const, fromSeedId: 'seed-2' }]
+      ],
+      ['a key the wallet imported alone', [{ addr: HELD, type: 'internal' as const }]]
+    ] as const)('reads a key this wallet holds, never the same seed, for %s', async ([, keys]) => {
+      deps = depsOf({ keys, ownSeedIds: ['seed-1'] })
+      await open()
+      await enter(HELD)
+      expect(checkLines()).toContain(t(`${GUARDIAN}.heldHere`))
+      expect(checkLines()).not.toContain(t(`${GUARDIAN}.sameSeed`))
+      expect(checkLines()).not.toContain(t(`${GUARDIAN}.notSameSeed`))
+    })
+
+    it('reads not a key this wallet holds where no key sits at the address', async () => {
+      deps = depsOf({
+        keys: [{ addr: OTHER_KEY.address, type: 'internal', fromSeedId: 'seed-1' }],
+        ownSeedIds: ['seed-1']
+      })
       await open()
       await enter(HELD)
       expect(checkLines()).toContain(t(`${GUARDIAN}.notSameSeed`))
@@ -340,7 +358,8 @@ describe('the guardian row', () => {
     it('holds neither Add nor Save on the worst of every check', async () => {
       deps = depsOf({
         chain: contractChain(false),
-        keys: [{ addr: HELD, type: 'internal', fromSeedId: 'seed-1' }]
+        keys: [{ addr: HELD, type: 'internal', fromSeedId: 'seed-1' }],
+        ownSeedIds: ['seed-1']
       })
       await open()
       await enter(WRONG_CASE)
@@ -398,10 +417,6 @@ describe('the guardian row', () => {
       expect(view!.byTestId('guardian-chip')?.textContent).toBe(chip('notTested'))
       expect(view!.byTestId('guardian-smart-account')?.textContent).toBe(
         t('socialRecovery.disclosures.smartAccount')
-      )
-      expect(view!.byTestId('guardian-call-back')?.textContent).toBe(t(`${GUARDIAN}.callBack`))
-      expect(view!.byTestId('guardian-owner-answer')?.textContent).toBe(
-        t(`${GUARDIAN}.ownerAnswer`)
       )
       expect(view!.text()).toContain(t(`${GUARDIAN}.howMany`))
       expect(view!.byTestId('guardian-test')?.textContent).toBe(t(`${GUARDIAN}.testThisKey`))
@@ -483,10 +498,6 @@ describe('the guardian row', () => {
     const expectLinesStay = () => {
       expect(view!.byTestId('guardian-smart-account')?.textContent).toBe(
         t('socialRecovery.disclosures.smartAccount')
-      )
-      expect(view!.byTestId('guardian-call-back')?.textContent).toBe(t(`${GUARDIAN}.callBack`))
-      expect(view!.byTestId('guardian-owner-answer')?.textContent).toBe(
-        t(`${GUARDIAN}.ownerAnswer`)
       )
     }
 
@@ -1171,7 +1182,7 @@ describe('the guardian row', () => {
   })
 
   describe('the lines of a guardian row', () => {
-    it('renders the three lines as soon as the field holds an address, before Add', async () => {
+    it('renders the smart-account line as soon as the field holds an address, before Add', async () => {
       await open()
       expect(view!.byTestId('guardian-lines')).toBeNull()
       await enter(HELD)
@@ -1179,13 +1190,29 @@ describe('the guardian row', () => {
       expect(view!.byTestId('guardian-smart-account')?.textContent).toBe(
         t('socialRecovery.disclosures.smartAccount')
       )
-      expect(view!.byTestId('guardian-call-back')?.textContent).toBe(t(`${GUARDIAN}.callBack`))
-      expect(view!.byTestId('guardian-owner-answer')?.textContent).toBe(
-        t(`${GUARDIAN}.ownerAnswer`)
-      )
       await view!.press('guardian-add')
       expect(view!.byTestId('guardian-enrolled')).not.toBeNull()
       expect(view!.allText('guardian-smart-account')).toHaveLength(1)
+    })
+
+    it('asks for no call back and no owner answer, before Add, after Add or after a test', async () => {
+      const absent = () => {
+        expect(view!.text()).not.toContain(t(`${GUARDIAN}.callBack`))
+        expect(view!.text()).not.toContain(t(`${GUARDIAN}.ownerAnswer`))
+      }
+      await open()
+      await enter(HELD)
+      expect(view!.byTestId('guardian-lines')?.textContent).toBe(
+        t('socialRecovery.disclosures.smartAccount')
+      )
+      absent()
+      await view!.press('guardian-add')
+      expect(view!.byTestId('guardian-lines')?.textContent).toBe(
+        t('socialRecovery.disclosures.smartAccount')
+      )
+      absent()
+      await view!.press('guardian-test')
+      absent()
     })
 
     it('renders the paste hint once', async () => {

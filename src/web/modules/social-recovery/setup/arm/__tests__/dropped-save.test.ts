@@ -18,9 +18,7 @@ import {
   armScreenOf,
   checkReceiptAgain,
   createArmStore,
-  DROPPED_AFTER_MS,
   DROPPED_READ_MS,
-  DROPPED_RECHECK_MS,
   isLive,
   isSaved,
   lookForSave,
@@ -31,6 +29,8 @@ import {
 } from '@web/modules/social-recovery/setup/arm'
 import type { ArmStore } from '@web/modules/social-recovery/setup/arm'
 import { attachSteps, detachSteps } from '@web/modules/social-recovery/setup/arm/run'
+import { DROPPED_AFTER_MS, DROPPED_RECHECK_MS } from '@web/modules/social-recovery/shared/writes'
+import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 
 import {
   advanceTimers,
@@ -82,17 +82,6 @@ const script = (overrides: Partial<SaveScript> = {}): SaveScript => ({
   deployed: true,
   ...overrides
 })
-
-/** A promise the test settles by hand. */
-const held = <T>() => {
-  let release: (value: T) => void = () => {}
-  let fail: (error: unknown) => void = () => {}
-  const promise = new Promise<T>((resolve, reject) => {
-    release = resolve
-    fail = reject
-  })
-  return { promise, release, fail }
-}
 
 /** A receipt wait that gives up on its hash after `ms`, as a node that does not know it. */
 const failsAfter = (ms: number) => () =>
@@ -158,7 +147,7 @@ const arriveAfter = async (ms: number) => {
 /** A page that follows the hash with its receipt wait held, stalled past the wait's limit. */
 const stalledFollower = async (storage: MemoryStorage, requests: RequestsFake) => {
   const page = pageOf(storage, requests)
-  const receipt = held<ReturnType<typeof landedReceipt>>()
+  const receipt = deferred<ReturnType<typeof landedReceipt>>()
   page.wired.receipts.wait.mockImplementationOnce(() => receipt.promise)
   unawaited(page.arrive())
   await advanceTimers(RECEIPT_WAIT_MS)
@@ -328,12 +317,12 @@ describe('a page that finds a save stored under its hash', () => {
 
   it('takes nothing from a node read that answers unknown after its limit, and drops the kept reading', async () => {
     const { page } = await firstReadingOnArrival()
-    const late = held<'unknown'>()
+    const late = deferred<'unknown'>()
     page.wired.receipts.transactionKnown.mockImplementationOnce(() => late.promise)
 
     await advanceTimers(RECEIPT_WAIT_MS)
     await advanceTimers(DROPPED_READ_MS)
-    late.release('unknown')
+    late.resolve('unknown')
     await advanceTimers(0)
 
     expect(isDropped(page.store)).toBe(false)
@@ -448,7 +437,7 @@ describe('the two readings of a dropped save', () => {
   it('drops the kept reading when the receipt wait reads the transaction known: the next unknown reading at a new block is a first one again', async () => {
     const arrived = await arriveAfter(DROPPED_AFTER_MS)
     const { page } = arrived
-    const waitRead = held<'known'>()
+    const waitRead = deferred<'known'>()
     page.wired.receipts.transactionKnown
       .mockResolvedValueOnce('unknown')
       .mockImplementationOnce(() => waitRead.promise)
@@ -457,7 +446,7 @@ describe('the two readings of a dropped save', () => {
     await advanceTimers(0)
     expect(page.store.state().unknownReading).toBeDefined()
 
-    waitRead.release('known')
+    waitRead.resolve('known')
     await advanceTimers(0)
     expect(page.store.state().unknownReading).toBeUndefined()
 
@@ -588,7 +577,7 @@ describe('a stored save whose hash write failed', () => {
     const wired = wireSave(account, script())
     wired.receipts.transactionKnown.mockResolvedValue('unknown')
     wired.receipts.wait.mockImplementation(failsAfter(SECOND))
-    const signing = held<Hex>()
+    const signing = deferred<Hex>()
     wired.port.sendAccountBatch.mockImplementationOnce(() => signing.promise)
     const markSent = jest
       .spyOn(wired.steps, 'markSent')
@@ -601,7 +590,7 @@ describe('a stored save whose hash write failed', () => {
 
     passTime(2 * DROPPED_AFTER_MS)
     const broadcastAt = Date.now()
-    signing.release(TX_HASH)
+    signing.resolve(TX_HASH)
     await advanceTimers(0)
     expectSubmittingUnder(store, TX_HASH)
     expect(markSent).toHaveBeenCalledTimes(1)
@@ -712,14 +701,14 @@ describe('when the check for a dropped save runs', () => {
     await firstPageSent(storage, requests)
     passTime(DROPPED_AFTER_MS - MINUTE)
     const page = pageOf(storage, requests)
-    const wait = held<never>()
+    const wait = deferred<never>()
     page.wired.receipts.wait.mockImplementationOnce(() => wait.promise)
 
     unawaited(page.arrive())
     await advanceTimers(0)
     expect(page.store.state().unknownReading).toBeUndefined()
     await advanceTimers(MINUTE)
-    wait.fail(nodeError())
+    wait.reject(nodeError())
     await advanceTimers(0)
     expect(isDropped(page.store)).toBe(false)
     expect(page.store.state().unknownReading).toBeDefined()
@@ -812,7 +801,7 @@ describe('when the check for a dropped save runs', () => {
     await firstPageSent(storage, requests)
     const { page } = await stalledFollower(storage, requests)
     passTime(DROPPED_AFTER_MS)
-    const known = held<'known' | 'unknown'>()
+    const known = deferred<'known' | 'unknown'>()
     page.wired.receipts.transactionKnown.mockImplementationOnce(() => known.promise)
 
     unawaited(checkReceiptAgain(page.store, page.wired.steps, OPTIONS))
@@ -821,7 +810,7 @@ describe('when the check for a dropped save runs', () => {
     await advanceTimers(0)
     expect(page.wired.receipts.transactionKnown).toHaveBeenCalledTimes(1)
 
-    known.release('known')
+    known.resolve('known')
     await advanceTimers(0)
     expect(isDropped(page.store)).toBe(false)
     expect(page.wired.receipts.transactionKnown).toHaveBeenCalledTimes(1)
@@ -897,7 +886,7 @@ describe('when the check for a dropped save runs', () => {
     const requests = requestsFake()
     await firstPageSent(storage, requests)
     const page = pageOf(storage, requests)
-    const wait = held<never>()
+    const wait = deferred<never>()
     page.wired.receipts.wait.mockImplementationOnce(() => wait.promise)
     unawaited(page.arrive())
     await advanceTimers(0)
@@ -905,7 +894,7 @@ describe('when the check for a dropped save runs', () => {
     detachSteps(page.wired.steps)
     passTime(DROPPED_AFTER_MS)
     const storageReads = jest.spyOn(storage, 'get')
-    wait.fail(nodeError())
+    wait.reject(nodeError())
     await advanceTimers(RECEIPT_WAIT_MS)
 
     expect(storageReads).not.toHaveBeenCalled()
@@ -928,7 +917,7 @@ describe('when the check for a dropped save runs', () => {
 
   it('reads dropped through the steps of a screen that came back while a check read through the old ones', async () => {
     const { page, storage, requests } = await firstReadingOnArrival()
-    const answer = held<'unknown'>()
+    const answer = deferred<'unknown'>()
     page.wired.receipts.transactionKnown.mockImplementationOnce(() => answer.promise)
 
     await advanceTimers(RECEIPT_WAIT_MS)
@@ -937,7 +926,7 @@ describe('when the check for a dropped save runs', () => {
     unawaited(attachSteps(page.store, next.wired.steps, OPTIONS))
     await advanceTimers(0)
     expect(next.wired.receipts.transactionKnown).not.toHaveBeenCalled()
-    answer.release('unknown')
+    answer.resolve('unknown')
     await advanceTimers(0)
 
     expect(isDropped(page.store)).toBe(true)
@@ -956,7 +945,7 @@ describe('when the check for a dropped save runs', () => {
     await advanceTimers(RECEIPT_WAIT_MS)
     expect(isDropped(page.store)).toBe(true)
 
-    receipt.release(landedReceipt())
+    receipt.resolve(landedReceipt())
     await advanceTimers(SHORT_TIMEOUT_MS)
 
     expect(isDropped(page.store)).toBe(false)
@@ -1061,7 +1050,7 @@ describe('save again', () => {
       ? pages
       : [pages[1], pages[0]]
     expect(isSaved(sender.store.state())).toBe(true)
-    // The other page lost the claim and follows the sender's request with nothing sent.
+    // The other page lost the claim to one under its send limit: it waits on it and sends nothing.
     expect(other.store.state().requestId).toBe(sentRequest)
     expect(other.store.state().write.status).toBe('submitting')
     expect(other.wired.port.sendAccountBatch).not.toHaveBeenCalled()
@@ -1103,7 +1092,7 @@ describe('save again', () => {
     await checkAgain(page)
     await advanceTimers(RECEIPT_WAIT_MS)
     expect(isDropped(page.store)).toBe(true)
-    const removal = held<null>()
+    const removal = deferred<null>()
     const remove = storage.remove.bind(storage)
     jest.spyOn(storage, 'remove').mockImplementationOnce(async (key) => {
       await removal.promise
@@ -1112,10 +1101,10 @@ describe('save again', () => {
 
     const again = saveAgain(page.store, page.wired.steps, OPTIONS)
     await advanceTimers(0)
-    receipt.release(landedReceipt())
+    receipt.resolve(landedReceipt())
     await advanceTimers(0)
     expect(page.store.state().write.status).toBe('landed')
-    removal.release(null)
+    removal.resolve(null)
     await advanceTimers(SHORT_TIMEOUT_MS)
     await again
 

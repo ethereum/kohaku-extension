@@ -2,7 +2,9 @@ import type {
   ActionInfo,
   ActionState,
   Address,
+  AttemptRequest,
   BlockTag,
+  CancelRequest,
   Domain,
   Hex,
   IProvider,
@@ -26,6 +28,10 @@ export interface ActionReadsChain {
 export interface ManagerReads {
   /** The manager's record for an account and an action; every address has one. */
   stateOf(account: Address, action: Address, block?: BlockTag): Promise<ActionState>
+  /** The digest one place of an opening request signs, as the manager derives it. */
+  hashApproval(request: AttemptRequest, place: bigint): Promise<Hex>
+  /** The digest one place of a cancellation request signs, as the manager derives it. */
+  hashCancel(request: CancelRequest, place: bigint): Promise<Hex>
   eip712Domain(): Promise<Domain>
   name(): Promise<string>
   version(): Promise<string>
@@ -54,6 +60,12 @@ export interface ActionReads {
   actionInfo(): Promise<ActionInfo>
 }
 
+/** The Ambire account's views, failing as the manager's do. */
+export interface AccountReads {
+  /** The privilege value the account holds for `key`: zero where it holds none. */
+  privileges(account: Address, key: Address, block?: BlockTag): Promise<Hex>
+}
+
 /** One method module's views, failing as the manager's do, except `paused`. */
 export interface MethodReads {
   name(module: Address): Promise<string>
@@ -62,7 +74,11 @@ export interface MethodReads {
   /** The name, the version and the method interface probe. */
   moduleInfo(module: Address): Promise<ModuleInfo>
   trustedParties(module: Address): Promise<TrustedParties>
-  /** The module's answer over one proof: the magic value where it accepts it. */
+  /**
+   * The module's raw answer over one proof, every byte of it: the magic value
+   * left-aligned in one 32-byte word where it accepts it. An empty answer
+   * rejects as a failed read.
+   */
   verify(module: Address, config: Hex, digest: Hex, proof: Hex): Promise<Hex>
   /**
    * Whether the module is stopped, read as the manager reads it: only a

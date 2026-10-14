@@ -129,7 +129,8 @@ const spoofOriginNode = ({
       }
       return gas
     },
-    send: async () => `0x${(2n * GWEI).toString(16)}`
+    send: async (method: string) =>
+      method === 'eth_getBlockByNumber' ? { number: '0x1' } : `0x${(2n * GWEI).toString(16)}`
   } as unknown as ChainReadsProvider
   return { reads: createChainReads(provider), asked, balanceOf }
 }
@@ -143,7 +144,7 @@ describe("the gas check of an account's batch, over the library's transaction", 
     describe(`for an account ${title}`, () => {
       it('estimates that transaction itself, and answers enough for a key that holds enough', async () => {
         const transaction = transactionFor(deployed)
-        const reads = mockReads({ balance: 10n ** 18n, gas: 250_000n })
+        const reads = mockReads({ balance: 1_000_000_000_000_000_000n, gas: 250_000n })
         const check = await runGasCheck({
           write: 'save',
           prepared: SAVE,
@@ -205,7 +206,7 @@ describe("the gas check of an account's batch, over the library's transaction", 
   })
 
   it("refuses the library's transaction when another key is said to send it", async () => {
-    const reads = mockReads({ balance: 10n ** 18n, gas: 250_000n })
+    const reads = mockReads({ balance: 1_000_000_000_000_000_000n, gas: 250_000n })
     await expect(
       runGasCheck({
         write: 'save',
@@ -220,7 +221,7 @@ describe("the gas check of an account's batch, over the library's transaction", 
   })
 
   it('refuses a deploy-and-execute another key sends before any read, though the estimate would run from the simulation sender', async () => {
-    const reads = mockReads({ balance: 10n ** 18n, gas: 250_000n })
+    const reads = mockReads({ balance: 1_000_000_000_000_000_000n, gas: 250_000n })
     await expect(
       runGasCheck({
         write: 'save',
@@ -239,7 +240,7 @@ describe("the gas check of an account's batch, over the library's transaction", 
 describe('the deploy-and-execute of an account with no code, on a node that takes the stand-in signature from the simulation origins only', () => {
   it("passes: the estimate runs from the simulation sender with the same target and calldata, the balance read is the key's, and a funded key holds enough", async () => {
     const transaction = transactionFor(false)
-    const node = spoofOriginNode({ balance: 10n ** 18n, gas: 310_000n })
+    const node = spoofOriginNode({ balance: 1_000_000_000_000_000_000n, gas: 310_000n })
     const check = await runGasCheck({
       write: 'save',
       prepared: SAVE,
@@ -272,7 +273,7 @@ describe('the deploy-and-execute of an account with no code, on a node that take
 
   it('still estimates the batch of an account with code from the key, to the account', async () => {
     const transaction = transactionFor(true)
-    const node = spoofOriginNode({ balance: 10n ** 18n, gas: 120_000n })
+    const node = spoofOriginNode({ balance: 1_000_000_000_000_000_000n, gas: 120_000n })
     const check = await runGasCheck({
       write: 'save',
       prepared: SAVE,
@@ -287,7 +288,11 @@ describe('the deploy-and-execute of an account with no code, on a node that take
   // A batch whose own calls revert reverts from any sender: the check reads
   // that revert as a call never sent, not as a read that could not run.
   it('reads an estimate that reverts from the simulation sender too as never sent', async () => {
-    const node = spoofOriginNode({ balance: 10n ** 18n, gas: 310_000n, reverts: true })
+    const node = spoofOriginNode({
+      balance: 1_000_000_000_000_000_000n,
+      gas: 310_000n,
+      reverts: true
+    })
     const thrown = await runGasCheck({
       write: 'save',
       prepared: SAVE,
@@ -314,7 +319,11 @@ describe('the factory an account was created by', () => {
   it('takes the batch of an account created by another factory where the account names it, and estimates it there from the simulation sender', async () => {
     const transaction = transactionFor(false, otherFactoryAccount)
     expect(transaction.to).toBe(OTHER_FACTORY)
-    const node = spoofOriginNode({ balance: 10n ** 18n, gas: 310_000n, factory: OTHER_FACTORY })
+    const node = spoofOriginNode({
+      balance: 1_000_000_000_000_000_000n,
+      gas: 310_000n,
+      factory: OTHER_FACTORY
+    })
     const check = await runGasCheck({
       write: 'save',
       prepared: SAVE,
@@ -329,7 +338,7 @@ describe('the factory an account was created by', () => {
   })
 
   it('refuses the same batch before any read where the account names no factory', async () => {
-    const reads = mockReads({ balance: 10n ** 18n, gas: 250_000n })
+    const reads = mockReads({ balance: 1_000_000_000_000_000_000n, gas: 250_000n })
     await expect(
       runGasCheck({
         write: 'save',
@@ -343,7 +352,7 @@ describe('the factory an account was created by', () => {
   })
 
   it("refuses a batch to the library's factory where the account names another", async () => {
-    const reads = mockReads({ balance: 10n ** 18n, gas: 250_000n })
+    const reads = mockReads({ balance: 1_000_000_000_000_000_000n, gas: 250_000n })
     await expect(
       runGasCheck({
         write: 'save',

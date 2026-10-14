@@ -4,8 +4,11 @@
  * the keystore holds, and the account's creation record.
  */
 import isEqual from 'react-fast-compare'
+import { isAddress } from 'viem'
 
 import type { Account } from '@ambire-common/interfaces/account'
+import type { Key } from '@ambire-common/interfaces/keystore'
+import { isSmartAccount } from '@ambire-common/libs/account/account'
 import type { Address, CreationRecord, Hex } from '@web/modules/social-recovery/sdk-interfaces'
 
 import { sameAddress } from './addresses'
@@ -75,7 +78,7 @@ export const creationPrivilegesOf = (
  * keys the keystore has an entry for, with that entry's type. Undefined where
  * it holds none.
  */
-const heldKeyOf = (
+export const heldKeyOf = (
   account: Pick<Account, 'associatedKeys'>,
   keys: NonNullable<AccountFactsSources['keys']>
 ): KeyHandle | undefined => {
@@ -195,4 +198,27 @@ export const sameFactsReading = (a: AccountFactsReading, b: AccountFactsReading)
     return isEqual(factsReadOf(a.facts), factsReadOf(b.facts))
   }
   return isEqual(a, b)
+}
+
+/**
+ * The basic account the wallet lists at `address`, where the keystore holds
+ * its key as an ordinary key of a recovery phrase, not a key held for one
+ * smart account. Null where the wallet holds no such basic account.
+ */
+export const seedBasicAccountOf = (
+  address: Address,
+  accounts: readonly Account[],
+  keys: readonly Key[]
+): Address | null => {
+  const basic = accounts.find(
+    (account) => !isSmartAccount(account) && sameAddress(account.addr, address)
+  )
+  const held = keys.some(
+    (key) =>
+      key.type === 'internal' &&
+      !key.dedicatedToOneSA &&
+      typeof key.meta.fromSeedId === 'string' &&
+      sameAddress(key.addr, address)
+  )
+  return basic && held && isAddress(basic.addr) ? basic.addr : null
 }

@@ -1,11 +1,10 @@
 /**
  * @jest-environment jsdom
  *
- * The editor's own refusals at continue and its rules panel, mounted over the
- * setup records on an in-memory storage with a fake path check. A shape this
- * wallet refuses stays on screen named in the wallet's words and never
- * reaches the path check; an edit clears it; a path with no refusal goes to
- * the path check. The rules panel is always there, the same nine lines.
+ * The editor's own refusals at continue, mounted over the setup records on
+ * an in-memory storage with a fake path check. A shape this wallet refuses
+ * stays on screen named in the wallet's words and never reaches the path
+ * check; an edit clears it; a path with no refusal goes to the path check.
  *
  * jsdom has no `TextEncoder`, which viem needs when its modules load, so the
  * test sets Node's first and loads the modules after it.
@@ -55,7 +54,7 @@ const { AADHAAR, ALICE, BOB, BOOK, makeRecords, PASSKEY, PASSPORT, presetPath, T
     '@web/modules/social-recovery/setup/editor/__tests__/harness'
   )
 
-const { refusals, rules } = en.socialRecovery.editor
+const { refusals } = en.socialRecovery.editor
 const groupLabel = (n: number) => i18n.t('socialRecovery.shape.group', { n })
 const EMPTY_GROUP_SLOT = i18n.t('socialRecovery.editor.refusals.emptyGroupSlot')
 
@@ -155,24 +154,39 @@ const mount = async ({
   return { validateSetup, navigate, storage }
 }
 
-const PANEL = [
-  rules.requiredAnswers,
-  rules.enoughMembers,
-  rules.thresholdAtLeastOne,
-  rules.thresholdCeiling,
-  rules.memberCeiling,
-  rules.oneRowPerMethod,
-  rules.atLeastOneMethod,
-  rules.smallEnough,
-  rules.zeroThresholdOwnRule
-]
+describe("a group's threshold above its members, on the group's card", () => {
+  it('reads the refusal on the card as soon as the threshold passes the members, before Continue', async () => {
+    const { validateSetup } = await mount({ clauses: presetPath() })
+    expect(byTestId('editor-group-1-above-members')).toBeNull()
+    await typeThreshold('editor-group-1-threshold', '4')
+    expect(byTestId('editor-group-1-above-members')?.textContent).toBe(
+      refusals.thresholdAboveMembers
+    )
+    expect(validateSetup).not.toHaveBeenCalled()
+    await typeThreshold('editor-group-1-threshold', '2')
+    expect(byTestId('editor-group-1-above-members')).toBeNull()
+  })
+
+  it('reads nothing on a new group with no member, and the refusal once it holds one at its default of two', async () => {
+    await mount({ clauses: presetPath() })
+    await press('editor-add-group')
+    expect(byTestId('editor-group-2')).not.toBeNull()
+    expect(byTestId('editor-group-2-above-members')).toBeNull()
+    await press('editor-group-2-add')
+    await press('editor-group-2-add-menu-passkey')
+    expect(byTestId('editor-group-2-above-members')?.textContent).toBe(
+      refusals.thresholdAboveMembers
+    )
+  })
+})
 
 describe('continue with a shape this wallet refuses', () => {
-  it('renders the refusal, stays, and never runs the path check', async () => {
+  it("keeps a group's threshold above its members on its card alone, stays, and never runs the path check", async () => {
     const { validateSetup, navigate } = await mount({ clauses: presetPath() })
     await typeThreshold('editor-group-1-threshold', '4')
     await press('editor-continue')
-    expect(allByTestId('editor-wallet-refusal')).toEqual([refusals.thresholdAboveMembers])
+    expect(byTestId('editor-wallet-refusals')).toBeNull()
+    expect(allByTestId('editor-group-1-above-members')).toEqual([refusals.thresholdAboveMembers])
     expect(validateSetup).not.toHaveBeenCalled()
     expect(navigate).not.toHaveBeenCalled()
     expect(byTestId('editor-findings')).toBeNull()
@@ -188,9 +202,9 @@ describe('continue with a shape this wallet refuses', () => {
     await press('editor-continue')
     expect(allByTestId('editor-wallet-refusal')).toEqual([
       refusals.emptyGroup,
-      refusals.thresholdBelowOneOwnRule,
-      refusals.thresholdAboveMembers
+      refusals.thresholdBelowOneOwnRule
     ])
+    expect(allByTestId('editor-group-1-above-members')).toEqual([refusals.thresholdAboveMembers])
     expect(validateSetup).not.toHaveBeenCalled()
   })
 
@@ -397,32 +411,8 @@ describe('continue with a shape this wallet can save', () => {
   })
 })
 
-describe('the rules panel', () => {
-  it('lists the header and the nine rules in order on an empty editor', async () => {
-    await mount()
-    expect(byTestId('editor-rules-header')?.textContent).toBe(rules.header)
-    expect(allByTestId('editor-rules-line')).toEqual(PANEL)
-  })
-
-  it('stays the same beside a refusal and is never one itself', async () => {
-    await mount({
-      clauses: [
-        { threshold: 1, credentials: [PASSKEY] },
-        { threshold: 2, credentials: [] }
-      ]
-    })
-    await press('editor-continue')
-    expect(allByTestId('editor-rules-line')).toEqual(PANEL)
-    const panel = byTestId('editor-rules')
-    expect(panel?.querySelector('[data-testid="editor-wallet-refusal"]')).toBeNull()
-    expect(
-      byTestId('editor-wallet-refusals')?.querySelector('[data-testid="editor-rules-line"]')
-    ).toBeNull()
-  })
-})
-
 describe('the order of the sections on screen', () => {
-  it('reads the rule lines, the rules panel, the write failure, the refusals, then continue', async () => {
+  it('reads the rule lines, the write failure, the refusals, then continue', async () => {
     const { storage } = await mount({ clauses: presetPath() })
     storage.rejectOnce('set', 'setupDraft')
     const addGroup = byTestId('editor-add-group')
@@ -435,7 +425,6 @@ describe('the order of the sections on screen', () => {
 
     const sections = [
       'editor-rule-lines',
-      'editor-rules',
       'editor-write-failed',
       'editor-wallet-refusals',
       'editor-continue'

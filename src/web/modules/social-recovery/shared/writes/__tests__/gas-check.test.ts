@@ -84,7 +84,8 @@ describe('the gas check', () => {
       })
 
       describe('a key that holds enough', () => {
-        const rich = () => mockReads({ balance: 10n ** 18n, gas: 180_000n, price: 3n * GWEI })
+        const rich = () =>
+          mockReads({ balance: 1_000_000_000_000_000_000n, gas: 180_000n, price: 3n * GWEI })
 
         it('yields enough', async () => {
           expect((await runGasCheck({ write, reads: rich() })).kind).toBe('enough')
@@ -152,7 +153,7 @@ describe('the gas check', () => {
     )
 
     it("a key that holds enough, or a step on the fast track, asks one estimate: the write's own", async () => {
-      const rich = mockReads({ balance: 10n ** 18n, gas: 180_000n })
+      const rich = mockReads({ balance: 1_000_000_000_000_000_000n, gas: 180_000n })
       await runGasCheck({ write: 'submission', reads: rich })
       expect(rich.estimateGas).toHaveBeenCalledTimes(1)
 

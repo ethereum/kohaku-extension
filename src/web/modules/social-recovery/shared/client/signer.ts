@@ -146,7 +146,31 @@ const DOMAIN_MEMBERS = [
   { name: 'salt', type: 'bytes32' }
 ] as const
 
-/** The typed message the queue takes, with `EIP712Domain` derived from the domain where absent. */
+/**
+ * The value with every bigint, at any depth, written as its decimal string.
+ * The wallet serializes a queued request as JSON, which has no bigint, and an
+ * EIP-712 encoder reads a decimal string for an integer member as the same
+ * number, so the digest does not change.
+ */
+const withDecimalBigints = (value: unknown): unknown => {
+  if (typeof value === 'bigint') {
+    return value.toString()
+  }
+  if (Array.isArray(value)) {
+    return value.map(withDecimalBigints)
+  }
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([name, member]) => [name, withDecimalBigints(member)])
+    )
+  }
+  return value
+}
+
+/**
+ * The typed message the queue takes, with `EIP712Domain` derived from the
+ * domain where absent and every bigint written as its decimal string.
+ */
 export const typedMessageOf = (typedData: TypedDataToSign): TypedMessage => {
   const { domain } = typedData
   const types = typedData.types.EIP712Domain
@@ -159,9 +183,9 @@ export const typedMessageOf = (typedData: TypedDataToSign): TypedMessage => {
       }
   return {
     kind: 'typedMessage',
-    domain: typedData.domain,
+    domain: withDecimalBigints(domain) as TypedMessage['domain'],
     types,
-    message: typedData.message,
+    message: withDecimalBigints(typedData.message) as Record<string, unknown>,
     primaryType: typedData.primaryType
   }
 }

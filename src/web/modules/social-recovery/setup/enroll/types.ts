@@ -30,16 +30,11 @@ import type {
   EnrollmentTestVerdict,
   SetupRecords,
   SlotKind,
+  SlotPosition,
   WalletRecords
 } from '@web/modules/social-recovery/shared/records'
 
 import type { KEY_TEST_TYPES } from './testRequest'
-
-/** Where the enrollment lands: a clause of the path and a member of that clause. */
-export interface SlotPosition {
-  clause: number
-  member: number
-}
 
 /** The screen's search once read: the slot it fills, and the ceremony whose report is due. */
 export interface EnrollSearch {
@@ -137,13 +132,30 @@ export interface GuardianChecks {
   checksum?: 'ok' | 'failed'
   name?: NameCheck
   code?: 'none' | 'contract'
-  seed?: 'same' | 'not'
+  /**
+   * `same`: a key derived from the seed of one of the account's own keys;
+   * `held`: another key this wallet holds; `not`: a key this wallet does not hold.
+   */
+  seed?: 'same' | 'held' | 'not'
 }
 
-/** One line of the checks block: its key and its values. */
+/** A provider that reads a name's address, destroyed after the read. */
+export interface NameReader {
+  resolveName: (name: string) => Promise<string | null>
+  destroy: () => void
+}
+
+/** Builds a name reader on one RPC endpoint. */
+export type NameReaderFactory = (rpcUrl: string) => NameReader
+
+/** How a check's result reads: as expected, worth a look, or a risk. */
+export type CheckTone = 'good' | 'warning' | 'risk'
+
+/** One line of the checks block: its key, its values and its tone. */
 export interface CheckLine {
   key: string
   values?: Record<string, string>
+  tone: CheckTone
 }
 
 /** A key the keystore holds, as the checks and the test read it. */
@@ -189,6 +201,8 @@ export interface EnrollDeps {
   /** The chain reads, null while the extension holds no provider for the recovery chain. */
   chain: GuardianChain | null
   keys: readonly HeldKey[]
+  /** The seeds the account's own controlling keys were derived from. */
+  ownSeedIds: readonly string[]
   /** Signs typed data through the request queue with a key the wallet holds. */
   signTypedData: (key: KeyHandle, typedData: TypedDataToSign, options?: SignOptions) => Promise<Hex>
   /** Reads the clipboard, null where the page has no clipboard. */
@@ -454,6 +468,10 @@ export interface GuardianChecksBlockProps {
   lines: CheckLine[]
 }
 
+export interface CheckToneIconProps {
+  tone: CheckTone
+}
+
 export type GuardianTestBlockProps = Pick<
   GuardianRowState,
   'testOutcome' | 'busy' | 'waiting' | 'runTest' | 'withdraw'
@@ -461,3 +479,5 @@ export type GuardianTestBlockProps = Pick<
   enrollment: Enrollment
   canTestOffline: boolean
 }
+
+export type { SlotPosition }

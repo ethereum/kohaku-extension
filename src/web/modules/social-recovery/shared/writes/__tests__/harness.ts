@@ -43,7 +43,9 @@ import {
   type ProviderTransactionReceipt,
   type ReceiptProvider,
   type ReceiptWait,
-  type SendPort
+  type SendPort,
+  type SendRequestAction,
+  type SendRequestUpdate
 } from '@web/modules/social-recovery/shared/client'
 import type { Translate } from '@web/modules/social-recovery/shared/display'
 import * as writes from '@web/modules/social-recovery/shared/writes'
@@ -229,7 +231,8 @@ export const runGasCheck = (args: {
 /**
  * The client's own chain reads over a double of the provider: `getBalance` and
  * `estimateGas` answer a bigint or throw the Error given, and `send` answers
- * `eth_gasPrice` as a quantity.
+ * the fee reads so the fee is the price given (a latest block with a zero base
+ * fee, and the price as the priority fee).
  */
 export const rpcReads = (answers: {
   balance: bigint | Error
@@ -246,7 +249,10 @@ export const rpcReads = (answers: {
     getBalance: () => answer(answers.balance),
     estimateGas: () => answer(answers.gas),
     send: async (method: string) => {
-      if (method === 'eth_gasPrice') {
+      if (method === 'eth_getBlockByNumber') {
+        return { number: '0x1', baseFeePerGas: '0x0' }
+      }
+      if (method === 'eth_maxPriorityFeePerGas') {
         return numberToHex(answers.price ?? 2n * GWEI)
       }
       throw new Error(`unexpected request ${method}`)
@@ -467,27 +473,27 @@ export const gasReadErrorFor = (write: WriteKind): WriteMachineState => {
   })
 }
 
-/** A promise a test settles by hand. */
-export interface Deferred<T> {
-  promise: Promise<T>
-  resolve: (value: T) => void
-  reject: (error: unknown) => void
-}
-
-export const deferred = <T>(): Deferred<T> => {
-  const settle = {} as Deferred<T>
-  settle.promise = new Promise<T>((resolve, reject) => {
-    settle.resolve = resolve
-    settle.reject = reject
-  })
-  return settle
-}
-
 /** The real machine behind a dispatch: every event it took, and the state it holds now. */
 export interface DrivenMachine {
   dispatch: (event: WriteEvent) => void
   events: WriteEvent[]
   state: () => WriteMachineState
+}
+
+/** A scripted wallet behind a send port: what it selects, dispatched and pushes. */
+export interface ScriptedWallet {
+  selected: string | undefined
+  dispatch: jest.Mock<void, [SendRequestAction]>
+  push: (update: SendRequestUpdate) => void
+  /** The wallet selects `addr` and pushes its selection. */
+  select: (addr: string) => void
+}
+
+/** A send kind: the account it is queued against, another account, and its drive over a port. */
+export interface SendKind {
+  account: string
+  other: string
+  drive: (sender: SendPort) => { machine: DrivenMachine; done: Promise<void> }
 }
 
 export const drivenMachine = (from: WriteMachineState): DrivenMachine => {

@@ -42,7 +42,8 @@ import type {
   EnrollClient,
   EnrollDeps,
   EnrollSearch,
-  HeldKey
+  HeldKey,
+  NameReaderFactory
 } from '@web/modules/social-recovery/setup/enroll/types'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
@@ -75,6 +76,7 @@ jest.mock('react-native-qrcode-svg', () => {
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const React: typeof import('react') = require('react')
+const { View }: typeof import('react-native') = require('react-native')
 const {
   parse,
   stringify
@@ -112,7 +114,8 @@ export const NOW = 1_800_000_000_000
 
 export const t = (key: string, values?: Record<string, unknown>): string => i18n.t(key, values)
 
-const THEME = Object.fromEntries(
+/** The light theme the view is mounted in. */
+export const THEME = Object.fromEntries(
   Object.entries(themeConfig.default).map(([name, byType]) => [
     name,
     byType[themeConfig.THEME_TYPES.LIGHT]
@@ -342,6 +345,43 @@ export const readyClient = (): FakeClient => {
 }
 
 // ---------------------------------------------------------------------------
+// The mainnet name readers
+// ---------------------------------------------------------------------------
+
+/**
+ * One endpoint's answer: an address, null for no address, a throw, an answer
+ * that arrives after a delay, or `'never'` for an endpoint that never answers.
+ */
+export type FakeNameAnswer =
+  | string
+  | null
+  | Error
+  | 'never'
+  | { afterMs: number; address: string | null }
+
+/** A reader factory with no network, and what each endpoint's reader was asked. */
+export interface FakeNameReaders {
+  readerOf: NameReaderFactory
+  /** Every endpoint a reader was built on, in order. */
+  urls: string[]
+  /** Every name a reader was asked to resolve, in order. */
+  names: string[]
+  /** Every endpoint whose reader was destroyed, in order. */
+  destroyed: string[]
+}
+
+/** A name read in progress: whether it has settled and the address it gave. */
+export interface NameReadOutcome {
+  settled: boolean
+  address?: string
+}
+
+/** Jest's fake clock as its runtime offers it, beyond the typings this repository carries. */
+export interface AsyncFakeTimers {
+  advanceTimersByTimeAsync(ms: number): Promise<void>
+}
+
+// ---------------------------------------------------------------------------
 // The page's helpers
 // ---------------------------------------------------------------------------
 
@@ -377,6 +417,7 @@ export const depsOf = (overrides: Partial<EnrollDeps> = {}): FakeDeps => {
     resolveName: async () => '',
     chain: { readCode: async () => '0x', isValidSignature: async () => false },
     keys: [] as HeldKey[],
+    ownSeedIds: [] as string[],
     signTypedData: async () => {
       throw new Error('no key signs here')
     },
@@ -393,6 +434,14 @@ export const depsOf = (overrides: Partial<EnrollDeps> = {}): FakeDeps => {
 // The mount
 // ---------------------------------------------------------------------------
 
+/** The border colours drawn around a text field, as the page renders them. */
+export interface FieldBorders {
+  /** The field's own border. */
+  inner: string
+  /** The ring around the field's border. */
+  outer: string
+}
+
 export interface Mounted {
   navigate: jest.Mock
   unmount: () => void
@@ -405,6 +454,9 @@ export interface Mounted {
   type: (id: string, value: string) => Promise<void>
   isDisabled: (id: string) => boolean
   settle: (ms?: number) => Promise<void>
+  focus: (id: string) => void
+  blur: (id: string) => void
+  bordersOf: (id: string) => FieldBorders
 }
 
 /**
@@ -508,8 +560,41 @@ export const mountView = async (input: {
       await settle()
     },
     isDisabled: (id) => byTestId(id)?.getAttribute('aria-disabled') === 'true',
-    settle
+    settle,
+    focus: (id) => {
+      const field = inputOf(id)
+      if (!field) {
+        throw new Error(`nothing to focus: ${id}`)
+      }
+      act(() => field.focus())
+    },
+    blur: (id) => {
+      const field = inputOf(id)
+      if (!field) {
+        throw new Error(`nothing to blur: ${id}`)
+      }
+      act(() => field.blur())
+    },
+    bordersOf: (id) => {
+      // The wallet's input wraps the native field in its border, and that border in a ring.
+      const inner = inputOf(id)?.parentElement?.parentElement
+      const outer = inner?.parentElement
+      if (!inner || !outer) {
+        throw new Error(`no field borders: ${id}`)
+      }
+      return { inner: inner.style.borderTopColor, outer: outer.style.borderTopColor }
+    }
   }
+}
+
+/** A colour as the page writes it into an element's style. */
+export const asRendered = (colour: string): string => {
+  const container = document.createElement('div')
+  const root = createRoot(container)
+  act(() => root.render(<View style={{ borderTopColor: colour }} />))
+  const rendered = (container.firstElementChild as HTMLElement | null)?.style.borderTopColor ?? ''
+  act(() => root.unmount())
+  return rendered
 }
 
 /**

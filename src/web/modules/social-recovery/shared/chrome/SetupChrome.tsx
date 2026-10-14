@@ -1,7 +1,10 @@
 /**
  * The settings chrome every setup screen draws: the settings sidebar with
  * account recovery active, the logo header, and the panel that holds the
- * breadcrumb and the screen's view in one column.
+ * breadcrumb and the screen's view in one column. While the wallet selects
+ * another account than the one the tab sets up, a notice above the view names
+ * the tab's account and offers to switch to the selected one. A chrome told to
+ * skip the account latch neither latches the tab's account nor shows the notice.
  */
 import React from 'react'
 import { ScrollView, View } from 'react-native'
@@ -18,11 +21,17 @@ import common from '@common/styles/utils/common'
 import Sidebar from '@web/modules/settings/components/Sidebar'
 import getStyles from '@web/modules/settings/contexts/SettingsRoutesContext/styles'
 
+import SetupAccountNotice from './SetupAccountNotice'
 import type { SetupChromeProps } from './types'
 
 const COLUMN = { maxWidth: 600, width: '100%' } as const
 
-const SetupChrome = ({ children, testID }: SetupChromeProps) => {
+const SetupChrome = ({
+  children,
+  breadcrumbTail,
+  skipAccountLatch = false,
+  testID
+}: SetupChromeProps) => {
   const { t } = useTranslation()
   const { styles } = useTheme(getStyles)
   const { maxWidthSize } = useWindowSize()
@@ -48,8 +57,12 @@ const SetupChrome = ({ children, testID }: SetupChromeProps) => {
             <ScrollView contentContainerStyle={getPanelPaddings(maxWidthSize, 'large')}>
               <Text fontSize={12} appearance="secondaryText" style={spacings.mbSm}>
                 {t('socialRecovery.chrome.breadcrumb')}
+                {breadcrumbTail ? ` › ${breadcrumbTail}` : null}
               </Text>
-              <View style={COLUMN}>{children}</View>
+              <View style={COLUMN}>
+                {!skipAccountLatch && <SetupAccountNotice />}
+                {children}
+              </View>
             </ScrollView>
           </Panel>
         </View>

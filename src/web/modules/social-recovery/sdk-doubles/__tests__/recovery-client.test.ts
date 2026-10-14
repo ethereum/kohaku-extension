@@ -534,7 +534,7 @@ describe('recovery client double', () => {
       expect(byVeto.target.toLowerCase()).toBe(world.descriptor.manager.toLowerCase())
     })
 
-    it('prepares executeHandover on the action with the batch it describes', async () => {
+    const readyToExecute = async () => {
       const world = createWorld()
       world.script.setupCommitted('private')
       world.script.attempt('ready')
@@ -550,11 +550,32 @@ describe('recovery client double', () => {
       )
       expect(opening).toBeDefined()
       const payload = opening!.kind === 'attempt-started' ? opening!.payload : '0x'
-      const call = await recovery.prepareExecuteHandover(state.attempt, payload)
+      return { world, recovery, attempt: state.attempt, payload }
+    }
+
+    it('prepares executeHandover on the action with the batch it describes', async () => {
+      const { world, recovery, attempt, payload } = await readyToExecute()
+      const call = await recovery.prepareExecuteHandover(attempt, payload)
       expect(call.sender).toBe('anyone')
       expect(call.target.toLowerCase()).toBe(world.descriptor.action.toLowerCase())
       expect(Array.isArray(call.describes)).toBe(true)
       expect(call.describes!.length).toBeGreaterThanOrEqual(3)
+    })
+
+    it('describes a native payment as the amount sent to the payee with no data', async () => {
+      const { recovery, attempt, payload } = await readyToExecute()
+      const payee = addressOf('native-payee')
+      const native = { ...attempt, order: { token: ZERO, amount: 5n, payee } }
+      const call = await recovery.prepareExecuteHandover(native, payload)
+      expect(call.describes!.at(-1)).toEqual({ to: payee, value: 5n, data: '0x' })
+    })
+
+    it('describes a native payment to an open payee as sent to whoever executes', async () => {
+      const { recovery, attempt, payload } = await readyToExecute()
+      const executor = addressOf('executor')
+      const native = { ...attempt, order: { token: ZERO, amount: 5n, payee: ZERO } }
+      const call = await recovery.prepareExecuteHandover(native, payload, { from: executor })
+      expect(call.describes!.at(-1)).toEqual({ to: executor, value: 5n, data: '0x' })
     })
 
     eachIt([

@@ -27,3 +27,10 @@ export interface CommitSetupCall {
   publicMetadata: Hex
   privateMetadata: Hex
 }
+
+/** The fields a setup body carries, in place order across its clauses. */
+export interface SetupBodyFields {
+  wait: number
+  ignoresPause: boolean
+  clauses: { threshold: number; credentials: Hex[] }[]
+}

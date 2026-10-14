@@ -15,18 +15,10 @@ import type {
   TrustedParties
 } from '@web/modules/social-recovery/sdk-interfaces'
 import { addressBookOf, deploymentDescriptor } from '@web/modules/social-recovery/shared/client'
-import type {
-  FitCheckReading,
-  PrivilegeHoldersReading,
-  RemovedKeyReading
-} from '@web/modules/social-recovery/shared/client'
+import type { FitCheckReading, RemovedKeyReading } from '@web/modules/social-recovery/shared/client'
 import type { Enrollment } from '@web/modules/social-recovery/shared/records'
 
-import type {
-  MethodReads,
-  ProviderKind,
-  TrustReads
-} from '@web/modules/social-recovery/setup/review/types'
+import type { MethodReads, TrustReads } from '@web/modules/social-recovery/setup/review/types'
 
 export const BOOK = addressBookOf('sepolia')
 export const SHIPPED = deploymentDescriptor('sepolia').shippedMethods
@@ -36,13 +28,8 @@ export const ACCOUNT: Address = getAddress('0x2b0f5e98ee98adc9865745e98802f333f7
 
 export const ADMIN: Address = getAddress('0xc5b1470ad32e96f8b7d04a19ce826f35d7a0b94e')
 export const PENDING_ADMIN: Address = getAddress('0x3fb2c4e8a19d07f6e5c3d1b8a24f9e7c60d1a2a2')
-export const PAUSE_HOLDER: Address = getAddress('0x9d3e5b7a1c2f4e6d8b0a9c7e5f3d1b2a4c6e8f0a')
-export const PENDING_PAUSE_HOLDER: Address = getAddress(
-  '0x4a6c8e0f2b4d6f8a0c2e4a6c8e0f2b4d6f8a0c2e'
-)
 export const REMOVED_KEY: Address = getAddress('0x5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e')
 export const OTHER_KEY: Address = getAddress('0x6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f')
-export const THIRD_KEY: Address = getAddress('0x7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a')
 export const THIRD_PARTY_MODULE: Address = '0x7777777777777777777777777777777777777777'
 
 /** A guardian's address, the one its config holds ABI-encoded in one word. */
@@ -106,20 +93,6 @@ export const declaration = (
   }
 })
 
-/** A declaration that also names the party that can stop the method and the one one acceptance away from that role. */
-export const stopDeclaration = ({
-  admin = zeroAddress,
-  pauseHolder = zeroAddress,
-  pendingPauseHolder = zeroAddress
-}: {
-  admin?: Address
-  pauseHolder?: Address
-  pendingPauseHolder?: Address
-}): ReadResult<TrustedParties> => ({
-  answered: true,
-  value: { admin, pendingAdmin: zeroAddress, trustedKeys: [], pauseHolder, pendingPauseHolder }
-})
-
 export const info = (supportsInterface = true): ReadResult<ModuleInfo> => ({
   answered: true,
   value: { name: 'method', version: '1.0.0', supportsInterface }
@@ -128,7 +101,6 @@ export const info = (supportsInterface = true): ReadResult<ModuleInfo> => ({
 export const UNANSWERED = { answered: false } as const
 
 export const NOT_PAUSED: ReadResult<boolean> = { answered: true, value: false }
-export const PAUSED: ReadResult<boolean> = { answered: true, value: true }
 
 /** Every read of a method answered: the declaration given, a module that answers to the method interface, and not stopped. */
 export const answered = (
@@ -194,8 +166,6 @@ export interface MountOptions {
   fitCheck?: () => Promise<FitCheckReading>
   setupState?: () => Promise<SetupState>
   describeSetup?: () => Promise<SetupDescription>
-  privilegeHolders?: () => Promise<PrivilegeHoldersReading>
-  providerKind?: ProviderKind
   accountLabel?: string
   storageRefuses?: boolean
 }

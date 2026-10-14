@@ -5,8 +5,9 @@
  * before the record changes. Continue first judges the path's shape against
  * this wallet's own rules and, with a refusal, stays and names it without
  * running the SDK's path check; otherwise it runs the check and opens the
- * waiting period only when the check finds no error. The rules panel lists
- * every rule the editor applies, always.
+ * waiting period only when the check finds no error. A row opens its method's
+ * enrollment, and an add menu places an empty slot of the picked kind and
+ * opens its enrollment.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, View } from 'react-native'
@@ -15,12 +16,7 @@ import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
 import { useTranslation } from '@common/config/localization'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
-import type {
-  Clause,
-  Credential,
-  Finding,
-  SetupDraft
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { Clause, Finding, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
 import { ActionsRow } from '@web/modules/social-recovery/shared/chrome'
 import { defaultSetupDraft } from '@web/modules/social-recovery/shared/records'
 import type { SlotKind } from '@web/modules/social-recovery/shared/records'
@@ -28,14 +24,14 @@ import { getRuleLines } from '@web/modules/social-recovery/shared/rule-lines'
 
 import EditorActions from './EditorActions'
 import EditorHeader from './EditorHeader'
-import GroupList from './GroupList'
-import MemberPicker from './MemberPicker'
+import EditorPath from './EditorPath'
 import {
   addGroup,
   blocksContinue,
   editorErrorsOf,
   emptySlotOf,
   enrollSearchOf,
+  isEmptySlot,
   kindOf,
   makeItAGroup,
   makeItAGroupRoles,
@@ -43,31 +39,28 @@ import {
   methodCountOf,
   methodKindOf,
   moveToGroup,
-  PICKER_KINDS,
-  pickerEntriesOf,
+  offersMakeItAGroup,
   placeAt,
   placedRoles,
   readThreshold,
   removeClause,
   removeMember,
   rolesOf,
-  SECOND_METHOD_KINDS,
+  sameAddTarget,
   setThreshold,
   withClauses,
   withoutRole
 } from './operations'
 import { shapeRefusalsOf } from './refusals'
-import RequiredRows from './RequiredRows'
 import RuleLines from './RuleLines'
-import RulesPanel from './RulesPanel'
 import type {
+  AddTarget,
   ClauseRole,
   ClientRefusal,
   EditorLoad,
   EditorViewProps,
   EditResult,
   HeldThresholds,
-  PickerTarget,
   Refusal,
   SlotPosition
 } from './types'
@@ -76,7 +69,7 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
   const { t } = useTranslation()
   const [load, setLoad] = useState<EditorLoad | null>(null)
   const [refused, setRefused] = useState(false)
-  const [picker, setPicker] = useState<PickerTarget | null>(null)
+  const [menu, setMenu] = useState<AddTarget | null>(null)
   const [rowChoosingGroup, setRowChoosingGroup] = useState<number | null>(null)
   const [heldThresholds, setHeldThresholds] = useState<HeldThresholds>({})
   const [findings, setFindings] = useState<Finding[]>([])
@@ -154,7 +147,7 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
 
   // A clause keeps the role the edit that made it gave it, so a group that
   // loses members down to one stays a group while the holder edits. An edit
-  // closes the picker and the group chooser, whose positions it may shift, and
+  // closes the kind menu and the group chooser, whose positions it may shift, and
   // a threshold field's held text goes back to the path's threshold unless the
   // edit keeps it.
   const commit = useCallback(
@@ -172,7 +165,7 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
       setWalletRefusals([])
       setCheckFailed(false)
       setRowChoosingGroup(null)
-      setPicker(null)
+      setMenu(null)
       setHeldThresholds(held)
       persist(draft)
     },
@@ -198,39 +191,14 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
   const current = () => loadRef.current?.draft.clauses ?? []
   const currentRoles = () => loadRef.current?.roles ?? []
 
-  const closePicker = () => {
-    setPicker(null)
-    setRefused(false)
-  }
+  const closeMenu = useCallback(() => setMenu(null), [])
 
-  const onPick = (credential: Credential) => {
-    if (!picker) {
-      return
-    }
-    const target = picker
-    const placed = apply(placeAt(current(), target, credential), (at) =>
-      placedRoles(currentRoles(), target, at)
-    )
-    if (placed) {
-      closePicker()
-    }
-  }
+  // A second press on the control that opened a menu closes it.
+  const toggleMenu = (target: AddTarget) =>
+    setMenu((open) => (open && sameAddTarget(open, target) ? null : target))
 
-  const onEnrollNew = (kind: SlotKind) => {
-    if (!picker || checkingRef.current) {
-      return
-    }
-    const at =
-      picker.place === 'slot'
-        ? { clause: picker.clause, member: picker.member }
-        : apply(placeAt(current(), picker, emptySlotOf(kind)), (placed) =>
-            placedRoles(currentRoles(), picker, placed)
-          )
-    if (!at) {
-      return
-    }
-    closePicker()
-    // The enroll screen reads the slot from the stored draft, so it opens once the write lands.
+  // The enroll screen reads the slot from the stored draft, so it opens once the write lands.
+  const openEnroll = (kind: SlotKind, at: SlotPosition) => {
     writes.current
       .then(() => {
         if (mounted.current && !writeFailedRef.current) {
@@ -238,6 +206,37 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
         }
       })
       .catch(() => undefined)
+  }
+
+  const onPickKind = (kind: SlotKind) => {
+    if (!menu || checkingRef.current) {
+      return
+    }
+    const target = menu
+    const at = apply(placeAt(current(), target, emptySlotOf(kind)), (placed) =>
+      placedRoles(currentRoles(), target, placed)
+    )
+    if (at) {
+      openEnroll(kind, at)
+    }
+  }
+
+  // A row of a kind the wallet reads opens that kind's enrollment for its
+  // slot: the enrolled summary and its test for an enrolled method, the
+  // enrollment itself for an empty slot. An empty slot of no kind it reads
+  // asks for one first.
+  const openSlot = (clause: number, member: number) => {
+    const credential = loadRef.current?.draft.clauses[clause]?.credentials[member]
+    if (!credential || checkingRef.current) {
+      return
+    }
+    const kind = kindOf(credential, addressBook)
+    if (kind) {
+      setMenu(null)
+      openEnroll(kind, { clause, member })
+    } else if (isEmptySlot(credential)) {
+      toggleMenu({ place: 'slot', clause, member })
+    }
   }
 
   // A whole number goes to the path; any other text stays in its field and
@@ -257,7 +256,7 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
   }
 
   const onMove = (row: number, group: number) => {
-    setPicker(null)
+    setMenu(null)
     return apply(moveToGroup(current(), row, group), () => withoutRole(currentRoles(), row))
   }
 
@@ -274,8 +273,18 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
     if (client.status !== 'ready' || !loadRef.current || checkingRef.current || thresholdHeld) {
       return
     }
-    const refusals = shapeRefusalsOf(loadRef.current.draft, loadRef.current.roles)
-    setWalletRefusals(refusals)
+    const { roles } = loadRef.current
+    const refusals = shapeRefusalsOf(loadRef.current.draft, roles)
+    // A group's card draws its own threshold above its members, so the list
+    // below the path leaves that one out; Continue still stops on it.
+    setWalletRefusals(
+      refusals.filter(
+        (refusal) =>
+          refusal.key !== 'thresholdAboveMembers' ||
+          refusal.clause === undefined ||
+          roles[refusal.clause] !== 'group'
+      )
+    )
     if (refusals.length > 0) {
       setFindings([])
       setCheckFailed(false)
@@ -317,10 +326,6 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
         kindOfMethod: (method) => methodKindOf(method, addressBook)
       }),
     [clauses, addressBook]
-  )
-  const entries = useMemo(
-    () => pickerEntriesOf(load?.enrollments ?? [], clauses, addressBook),
-    [load, clauses, addressBook]
   )
 
   if (!load) {
@@ -364,88 +369,59 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
     clientRefusal = 'unavailable'
   }
 
-  const pickerKinds = (target: PickerTarget): readonly SlotKind[] => {
-    if (target.place === 'second') {
-      return SECOND_METHOD_KINDS
-    }
-    return target.place === 'slot' && target.kind ? [target.kind] : PICKER_KINDS
-  }
-
-  const openSlot = (clause: number, member: number) => {
-    const credential = clauses[clause].credentials[member]
-    setPicker({ place: 'slot', clause, member, kind: kindOf(credential, addressBook) })
-  }
-
   return (
     <View testID="editor">
-      <EditorHeader mode={load.mode} refused={refused && !picker} />
+      <EditorHeader mode={load.mode} refused={refused} />
 
-      <RequiredRows
+      <EditorPath
         rows={rows}
         groups={groups}
+        heldThresholds={heldThresholds}
         rowChoosingGroup={rowChoosingGroup}
         addressBook={addressBook}
         enrollments={load.enrollments}
         checking={checking}
+        menu={menu}
         onOpenSlot={openSlot}
+        onPickKind={onPickKind}
+        onCloseMenu={closeMenu}
+        onToggleMenu={toggleMenu}
         onMove={onMove}
         onOpenGroupChoice={setRowChoosingGroup}
         onCloseGroupChoice={() => setRowChoosingGroup(null)}
         onRemove={(index) =>
           commit(removeClause(current(), index), withoutRole(currentRoles(), index))
         }
-        onAdd={() => setPicker({ place: 'required' })}
-      />
-
-      <GroupList
-        groups={groups}
-        heldThresholds={heldThresholds}
-        addressBook={addressBook}
-        enrollments={load.enrollments}
-        checking={checking}
-        onOpenSlot={openSlot}
         onThresholdText={onThresholdText}
         onMakeRequired={(index, member) => {
-          setPicker(null)
+          setMenu(null)
           apply(makeRequired(current(), index, member), () => [...currentRoles(), 'required'])
         }}
         onRemoveMember={(index, member) =>
           commit(removeMember(current(), index, member), currentRoles())
         }
-        onAddMember={(index) => setPicker({ place: 'member', clause: index })}
         onRemoveGroup={(index) =>
           commit(removeClause(current(), index), withoutRole(currentRoles(), index))
         }
         onAddGroup={() => commit(addGroup(current()), [...currentRoles(), 'group'])}
       />
 
-      {!!picker && (
-        <MemberPicker
-          entries={entries}
-          kinds={pickerKinds(picker)}
-          addressBook={addressBook}
-          onPick={onPick}
-          onEnrollNew={onEnrollNew}
-          onClose={closePicker}
-          disabled={checking}
-          refused={refused}
-        />
-      )}
-
       {ruleLines.length > 0 && (
         <RuleLines
           ruleLines={ruleLines}
           checking={checking}
-          // The sizing line counts required rows by their stored shape, so
-          // the press gathers every clause that shape reads as a row.
+          secondMenuOpen={menu?.place === 'second'}
+          canMakeItAGroup={offersMakeItAGroup(clauses)}
+          // The offer counts required rows by their stored shape, so the
+          // press gathers every clause that shape reads as a row.
           onMakeItAGroup={() =>
             commit(makeItAGroup(current()), makeItAGroupRoles(rolesOf(current())))
           }
-          onAddSecondMethod={() => setPicker({ place: 'second' })}
+          onToggleSecondMenu={() => toggleMenu({ place: 'second' })}
+          onPickKind={onPickKind}
+          onCloseMenu={closeMenu}
         />
       )}
-
-      <RulesPanel />
 
       <EditorActions
         client={client}

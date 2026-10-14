@@ -27,16 +27,14 @@ import {
   makeItAGroup,
   makeRequired,
   moveToGroup,
-  pathHolds,
-  pickerEntriesOf,
   placeAt,
   readThreshold,
   removeClause,
   removeMember,
-  sameCredential,
   setThreshold,
   withClauses
 } from '@web/modules/social-recovery/setup/editor/operations'
+import { pathHolds, sameCredential } from '@web/modules/social-recovery/shared/records'
 import {
   AADHAAR,
   ALICE,
@@ -299,8 +297,8 @@ describe('filling and placing', () => {
     )
     const withSlot = applied(addMember(clauses, 1, emptySlotOf('ecdsa'))).clauses
     expect(
-      applied(placeAt(withSlot, { place: 'slot', clause: 1, member: 3, kind: 'ecdsa' }, CAROL))
-        .clauses[1].credentials
+      applied(placeAt(withSlot, { place: 'slot', clause: 1, member: 3 }, CAROL)).clauses[1]
+        .credentials
     ).toEqual([ALICE, BOB, PASSPORT, CAROL])
   })
 
@@ -400,35 +398,7 @@ describe('the duplicate refusal', () => {
   })
 })
 
-describe('the picker', () => {
-  it('lists the enrollments by kind, each marked where the path holds it', () => {
-    const entries = pickerEntriesOf(
-      [PASSKEY, ALICE, CAROL, PASSPORT, AADHAAR].map(enrolled),
-      presetPath(),
-      BOOK
-    )
-    const view = Object.fromEntries(
-      Object.entries(entries).map(([kind, list]) => [
-        kind,
-        list.map(({ enrollment, inPath }) => [enrollment.credential.label ?? kind, inPath])
-      ])
-    )
-    expect(view).toEqual({
-      passkey: [['Laptop', true]],
-      ecdsa: [
-        ['Alice', true],
-        ['Carol', false]
-      ],
-      zkpassport: [['zkpassport', true]],
-      aadhaar: [['aadhaar', false]]
-    })
-  })
-
-  it('leaves out an enrollment whose method the address book does not hold', () => {
-    const entries = pickerEntriesOf([enrolled({ ...ALICE, method: BOOK.manager })], [], BOOK)
-    expect(Object.values(entries).flat()).toEqual([])
-  })
-
+describe('the enroll search', () => {
   it('opens the enroll screen with the kind and the slot to fill in the search', () => {
     const params = new URLSearchParams(enrollSearchOf('ecdsa', { clause: 1, member: 3 }))
     expect(Object.fromEntries(params)).toEqual({ kind: 'ecdsa', clause: '1', member: '3' })

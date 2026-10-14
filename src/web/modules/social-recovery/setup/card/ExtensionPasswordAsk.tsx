@@ -1,5 +1,5 @@
 /**
- * Asks the extension password before a new download, print or hand-off of the card. The keystore
+ * Asks the extension password before a new download or print of the card. The keystore
  * checks it with the same unlock the wallet runs; a wrong password says so and
  * the card stays where it is.
  */
