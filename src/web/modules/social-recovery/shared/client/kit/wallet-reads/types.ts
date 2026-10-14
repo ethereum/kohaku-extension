@@ -21,9 +21,9 @@ export interface KitWalletReadsInput {
   /** The method modules' `verify` view a pasted reply is judged through. */
   moduleReads: ReplyVerifyReads
   codeRead: CodeRead
-  /** The provider the privilege writes and the `privileges` view of an account with no creation record are read through. */
+  /** The provider the privilege writes and the `privileges` view of a deployed account are read through. */
   provider: IProvider
-  /** The block tags the reads of an account with no creation record pin at. */
+  /** The block tags the removed-key reads pin at. */
   blockTags?: ClientConfiguration['blockTags']
   /** The widest block range one privilege log query asks for. */
   logChunkWidth?: ClientConfiguration['logChunkWidth']

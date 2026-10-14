@@ -29,6 +29,9 @@ export const ACKNOWLEDGED_STATE = { [ACKNOWLEDGED_STATE_KEY]: true } as const
 /** The reads after the confirmation, in the order they run. */
 export const CONFIRMED_STAGES: readonly ConfirmedStage[] = ['authorization', 'fit', 'destination']
 
+/** How long one read after the confirmation may take before it counts as failed, in ms. */
+export const CONFIRMED_READ_LIMIT_MS_STAND_IN = 60_000
+
 /** The name a recovery chain goes by where the wallet holds no network record for it. */
 export const CHAIN_NAMES: Record<RecoveryChain, string> = {
   sepolia: sepolia.name,

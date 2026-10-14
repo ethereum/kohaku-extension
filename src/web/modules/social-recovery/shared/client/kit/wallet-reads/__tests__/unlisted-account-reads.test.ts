@@ -9,185 +9,44 @@
  * are judged together, each asked about once with the account's `privileges`
  * view and then with the action's `isAuthority`, and every key that passes
  * both counts, whichever source named it.
- * The logs and the view answers are encoded here from hand-written
- * signatures.
  */
-import {
-  decodeFunctionData,
-  encodeAbiParameters,
-  encodeEventTopics,
-  encodeFunctionResult,
-  getAddress,
-  type Hex,
-  pad,
-  parseAbi,
-  toFunctionSelector,
-  zeroHash
-} from 'viem'
+import { toFunctionSelector, zeroHash } from 'viem'
 
-import { ERC_4337_ENTRYPOINT } from '@ambire-common/consts/deploy'
-import type {
-  Address,
-  BlockRange,
-  FilterSpec,
-  RawLog
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, RawLog } from '@web/modules/social-recovery/sdk-interfaces'
 import { eachIt } from '@web/modules/social-recovery/shared/chrome/__fixtures__/table'
-import { createKitEventManager } from '@web/modules/social-recovery/shared/client/kit/events'
 import { pastRetryPauses } from '@web/modules/social-recovery/shared/client/kit/events/__fixtures__/retries'
-import {
-  createActionReads,
-  createMethodReads
-} from '@web/modules/social-recovery/shared/client/kit/reads'
 import {
   ACCOUNT,
   ACCOUNT_CODE,
   ACTION,
   attemptConsumedLog,
   attemptStartedLog,
-  committedLog,
-  CONTRACT_CODE,
   DEPLOYED_AT,
-  DESCRIPTOR,
-  fakeNode,
   HEAD,
   KEY_A,
   KEY_B,
   MANAGER,
   OTHER_ACTION
 } from '@web/modules/social-recovery/shared/client/kit/setup-client/__tests__/harness'
-import { createKitWalletReads } from '@web/modules/social-recovery/shared/client/kit/wallet-reads'
-import type { UnlistedWorldOptions } from '@web/modules/social-recovery/shared/client/kit/wallet-reads/__fixtures__/types'
+import {
+  ACTION_HOLDER,
+  chunksFrom,
+  commitAt,
+  CONTROLLER,
+  ENTRY_POINT,
+  handoverTo,
+  HOLDS,
+  KEY_C,
+  named,
+  NEW_KEY,
+  PRIVILEGE_TOPIC,
+  privilegeLog,
+  RELAYER,
+  same,
+  STRANGER,
+  worldOf
+} from '@web/modules/social-recovery/shared/client/kit/wallet-reads/__fixtures__/world'
 import { providerReadFailure } from '@web/modules/social-recovery/shared/client/provider-adapter'
-
-const KEY_C: Address = '0xc3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3'
-const CONTROLLER: Address = '0xc4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4'
-const NEW_KEY: Address = '0xc5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5'
-const RELAYER: Address = '0xc6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6'
-const STRANGER: Address = '0xc7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7c7'
-const ACTION_HOLDER: Address = '0x6666666666666666666666666666666666666666'
-const ENTRY_POINT = getAddress(ERC_4337_ENTRYPOINT)
-const COMMITMENT: Hex = `0x${'5a'.repeat(32)}`
-const HOLDS: Hex = pad('0x01')
-
-const PRIVILEGE_EVENT = parseAbi(['event LogPrivilegeChanged(address indexed addr, bytes32 priv)'])
-const PRIVILEGES_VIEW = parseAbi(['function privileges(address) view returns (bytes32)'])
-const IS_AUTHORITY = parseAbi([
-  'function isAuthority(address account, address key) view returns (bool)'
-])
-const [PRIVILEGE_TOPIC] = encodeEventTopics({
-  abi: PRIVILEGE_EVENT,
-  eventName: 'LogPrivilegeChanged'
-})
-
-const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
-const lower = (key: string) => key.toLowerCase()
-/** A named key, whatever the case its source spelled it in. */
-const named = (key: Address) => ({
-  kind: 'named',
-  key: expect.stringMatching(new RegExp(`^${key}$`, 'i'))
-})
-const listed = (keys: readonly Address[], key: Address) => keys.some((held) => same(held, key))
-
-let logIndex = 0
-const privilegeLog = (addr: Address, priv: Hex, blockNumber: number, removed = false) => {
-  logIndex += 1
-  return {
-    address: ACCOUNT,
-    topics: encodeEventTopics({
-      abi: PRIVILEGE_EVENT,
-      eventName: 'LogPrivilegeChanged',
-      args: { addr }
-    }) as Hex[],
-    data: encodeAbiParameters([{ type: 'bytes32' }], [priv]),
-    blockNumber,
-    blockHash: pad(`0x${blockNumber.toString(16)}`),
-    logIndex,
-    transactionHash: pad(`0x${(blockNumber * 10 + logIndex).toString(16)}`),
-    removed
-  }
-}
-
-const commitAt = (blockNumber: number, action: Address = ACTION) =>
-  committedLog({ action, nonce: 1n, setupCommitment: COMMITMENT }, blockNumber)
-
-/** The action's payload of a handover to `newAuthority`. */
-const handoverTo = (newAuthority: Address): Hex =>
-  encodeAbiParameters(
-    [{ type: 'address' }, { type: 'address' }],
-    [newAuthority, '0x0000000000000000000000000000000000000bad']
-  )
-
-const worldOf = ({
-  code = ACCOUNT_CODE,
-  deployedAt = DEPLOYED_AT,
-  createdAt = deployedAt,
-  logs = [],
-  senders = [],
-  holders = [],
-  authorities = [],
-  associatedKeys = [],
-  knownKeys,
-  blockTags
-}: UnlistedWorldOptions = {}) => {
-  const node = fakeNode()
-  node.setCode(ACCOUNT, code, createdAt)
-  node.setCode(ACTION, CONTRACT_CODE)
-  logs.forEach((log) => node.addLog(log))
-  senders.forEach(([hash, sender]) =>
-    node.setSender(hash, sender instanceof Error ? sender : getAddress(sender))
-  )
-  node.answerWith(ACCOUNT, toFunctionSelector('privileges(address)'), (data) => {
-    const {
-      args: [key]
-    } = decodeFunctionData({ abi: PRIVILEGES_VIEW, data })
-    return listed(holders, key) ? HOLDS : zeroHash
-  })
-  node.answerWith(ACTION, toFunctionSelector('isAuthority(address,address)'), (data) => {
-    const {
-      args: [, key]
-    } = decodeFunctionData({ abi: IS_AUTHORITY, data })
-    return encodeFunctionResult({
-      abi: IS_AUTHORITY,
-      functionName: 'isAuthority',
-      result: listed(authorities, key)
-    })
-  })
-  const descriptor = { ...DESCRIPTOR, deployedAt }
-  const reads = createKitWalletReads({
-    account: { addr: ACCOUNT, associatedKeys, initialPrivileges: [], creation: null },
-    knownKeys,
-    action: createActionReads({ provider: node.provider, codeRead: node.codeRead }, ACTION),
-    moduleReads: createMethodReads(node.provider),
-    codeRead: node.codeRead,
-    provider: node.provider,
-    blockTags,
-    descriptor,
-    events: createKitEventManager({ provider: node.provider, descriptor, account: ACCOUNT }),
-    transactionRead: node.transactionRead
-  })
-  const askedPrivileges = () =>
-    node.calls
-      .filter(({ to }) => same(to, ACCOUNT))
-      .map(({ data }) => lower(decodeFunctionData({ abi: PRIVILEGES_VIEW, data }).args[0]))
-  const askedAuthority = () =>
-    node.calls
-      .filter(({ to }) => same(to, ACTION))
-      .map(({ data, block }) => [
-        lower(decodeFunctionData({ abi: IS_AUTHORITY, data }).args[1]),
-        block
-      ])
-  const scans = () =>
-    (node.provider.logs.mock.calls as [FilterSpec, BlockRange][]).map(([filter, range]) => ({
-      filter,
-      range
-    }))
-  const scansOf = (address: Address) =>
-    scans()
-      .filter(({ filter }) => same(filter.addresses[0], address))
-      .map(({ range }) => range)
-  return { node, reads, askedPrivileges, askedAuthority, scans, scansOf }
-}
 
 describe("the sender of the account's latest setup commit", () => {
   it('is the removed key where no privilege write names it and the wallet knows none, once the action counts it', async () => {
@@ -421,15 +280,6 @@ describe('the candidates of every source', () => {
     expect(askedPrivileges()).toEqual([])
   })
 })
-
-/** The ranges a scan from `from` to the pinned head reads, in chunks of ten thousand blocks. */
-const chunksFrom = (from: number) => {
-  const chunks: BlockRange[] = []
-  for (let start = from; start <= HEAD; start += 10_000) {
-    chunks.push({ from: start, to: Math.min(start + 9_999, HEAD) })
-  }
-  return chunks
-}
 
 describe('the scans of an account with no creation record', () => {
   it("read the privilege writes from the account's first block with code, the manager's logs from its deployment block", async () => {

@@ -2,19 +2,17 @@
  * The key a recovery would remove, the fit check and the verify of a pasted
  * reply, read from the chain.
  *
- * The keys the wallet knows for an account are its creation privileges, its
- * associated keys and the keys the wallet holds for it. Where the account has
- * code, each is asked about with the action's `isAuthority`; where it has
- * none, the creation privileges are the account's keys. Exactly one key is
- * the removed key; none or several leave it unnamed.
+ * The removed key is read at one pinned block. An account with no code there
+ * has no key on chain to judge: for an account the wallet lists, the keys its
+ * creation grants a privilege are its keys; for one with no creation record,
+ * such as one the wallet does not list, the key is unnamed for that reason.
  *
- * An account with no creation record, such as one the wallet does not list,
- * is read at one pinned block. With no code there, it leaves the key unnamed
- * for that reason. With code, the removed key is among the keys that hold
- * authority on the account, found through four sources that rank none above
+ * An account with code, listed or not, has its removed key among the keys
+ * that hold authority on it, found through four sources that rank none above
  * another:
  *
- * - the keys the wallet knows for the account;
+ * - the keys the wallet knows for the account: its creation privileges, its
+ *   associated keys and the keys the wallet holds for it;
  * - the sender of the transaction that carried the account's latest setup
  *   commit at the action, since a setup is saved by the key that controls
  *   the account (a save a relayer sent names the relayer, which the checks
@@ -23,12 +21,15 @@
  *   attempt's payload decoded through the action's codec;
  * - the addresses the account's `LogPrivilegeChanged` writes name.
  *
+ * The last three serve a listed account as well: once a recovery from another
+ * wallet hands the account to a new key, the keys this wallet knows hold
+ * nothing, and the account's key is one this wallet never saw.
+ *
  * The candidates of all four are gathered and judged once: a key holds
  * authority where the account's `privileges` view holds a value for it at
  * the pinned block and the action's `isAuthority` agrees, each distinct key
  * read once. Exactly one such key is the removed key; several leave it
- * unnamed, as for an account the wallet lists, and none leave it unnamed for
- * want of a key.
+ * unnamed, and none leave it unnamed for want of a key.
  *
  * The manager's logs of the account are read once, for both the setup commit
  * and the handover, and the account's privilege writes once, each in chunks
@@ -37,9 +38,10 @@
  * privilege writes cover the account's whole life, since a key written at
  * any time may still hold: they start at the first block at which the
  * account has code, found by a binary search over the code read at past
- * blocks, which needs a node that answers reads at old blocks. The
- * privileges the creation code writes emit no log; such a key is found
- * through the setup it saved.
+ * blocks, which needs a node that answers reads at old blocks. The wallet's
+ * creation record of a listed account names no block, so the same search
+ * serves it. The privileges the creation code writes emit no log; such a key
+ * is found through the creation record or through the setup it saved.
  */
 import { getAddress, isAddressEqual, size } from 'viem'
 
@@ -148,11 +150,7 @@ export const createKitWalletReads = ({
     return held.filter((_, index) => holds[index])
   }
 
-  const removedKeyWithNoCreation = async (): Promise<RemovedKeyReading> => {
-    const { number: block } = await pinnedBlockOf(provider, { blockTags })
-    if (!(await hasCode(block))) {
-      return { kind: 'unavailable', cause: 'no-creation-record' }
-    }
+  const signersOfDeployed = async (block: number): Promise<Address[]> => {
     const createdAt = await firstBlockWithCode(0, block)
     const [notifications, writes] = await Promise.all([
       events.fetch(events.accountFilter(), { from: descriptor.deployedAt, to: block }),
@@ -161,36 +159,32 @@ export const createKitWalletReads = ({
     const committer = await committerOf(notifications)
     const handedTo = handedToOf(notifications)
     const candidates = distinctKeys([
+      ...account.initialPrivileges.map(([key]) => key),
       ...account.associatedKeys,
       ...knownKeys,
       ...committer,
       ...handedTo,
       ...writes.map((write) => write.addr)
     ])
-    return readingOf(await signersOf(candidates, block))
+    return signersOf(candidates, block)
   }
 
   return {
     async removedKey(): Promise<RemovedKeyReading> {
+      const { number: block } = await pinnedBlockOf(provider, { blockTags })
+      if (await hasCode(block)) {
+        return readingOf(await signersOfDeployed(block))
+      }
       if (!account.creation) {
-        return removedKeyWithNoCreation()
+        return { kind: 'unavailable', cause: 'no-creation-record' }
       }
-      if (!(await hasCode())) {
-        return readingOf(
-          distinctKeys(
-            account.initialPrivileges
-              .filter(([, privilege]) => holdsPrivilege(privilege))
-              .map(([key]) => key)
-          )
+      return readingOf(
+        distinctKeys(
+          account.initialPrivileges
+            .filter(([, privilege]) => holdsPrivilege(privilege))
+            .map(([key]) => key)
         )
-      }
-      const candidates = distinctKeys([
-        ...account.initialPrivileges.map(([key]) => key),
-        ...account.associatedKeys,
-        ...knownKeys
-      ])
-      const holds = await Promise.all(candidates.map((key) => action.isAuthority(addressOf(), key)))
-      return readingOf(candidates.filter((_, index) => holds[index]))
+      )
     },
 
     async fitCheck(implementation?: Address): Promise<FitCheckReading> {

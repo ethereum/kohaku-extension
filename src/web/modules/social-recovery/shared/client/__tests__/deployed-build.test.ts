@@ -7,7 +7,7 @@
  * read through its one module, mocked here; every address in it is made up
  * but the deployed action's, whose kit slot and binding the checks compare.
  */
-import { zeroHash } from 'viem'
+import { encodeFunctionData, parseAbi, zeroHash } from 'viem'
 
 import {
   addressOf,
@@ -55,6 +55,7 @@ jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
 const variable = sepoliaDeploymentVariable as jest.MockedFunction<typeof sepoliaDeploymentVariable>
 
 const ARMED = '0x0000000000000000000000000000000000000000000000000000000000000001'
+const PRIVILEGES_VIEW = parseAbi(['function privileges(address) view returns (bytes32)'])
 const ELSEWHERE = '0x00000000000000000000000000000000000e15e0'
 
 const deployedNode = (script: ScriptedDeployment = {}) => {
@@ -240,6 +241,18 @@ describe('a chain whose deployment record names a deployed kit', () => {
     const node = deployedNode()
     node.setCode(ACCOUNT, '0x6080604052')
     scriptAction(node, { at: DEPLOYED_ACTION, supportsAccount: true, authorities: [KEY_B] })
+    ;(
+      [
+        [KEY_A, zeroHash],
+        [KEY_B, ARMED]
+      ] as const
+    ).forEach(([key, privilege]) =>
+      node.answer(
+        ACCOUNT,
+        encodeFunctionData({ abi: PRIVILEGES_VIEW, functionName: 'privileges', args: [key] }),
+        privilege
+      )
+    )
     const creation = { factory: MANAGER, bytecode: '0x00' as const, salt: zeroHash, block: 1 }
     const named = await buildRecoveryClient(
       configOver(node, { candidateKeys: [KEY_A, KEY_B], creation })

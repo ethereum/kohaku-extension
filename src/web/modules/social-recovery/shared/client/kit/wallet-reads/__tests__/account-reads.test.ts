@@ -1,15 +1,14 @@
 /**
- * The key a recovery would remove and the fit check, read over a fake code
- * read and a fake action: the keys the wallet knows are asked about with
- * `isAuthority` where the account has code and taken from the creation
- * privileges where it has none; the fit check reads the deployed code, or
- * compares the implementation to be with the action's.
+ * The key a recovery would remove from a listed account with no code, and the
+ * fit check, read over a fake code read and a fake action: the removed key is
+ * taken from the creation privileges at the pinned block, with no chain read
+ * of a key; the fit check reads the deployed code, or compares the
+ * implementation to be with the action's.
  */
 import { getAddress, type Hex, pad, zeroHash } from 'viem'
 
 import { ERC_4337_ENTRYPOINT } from '@ambire-common/consts/deploy'
 import type { Address, BlockTag } from '@web/modules/social-recovery/sdk-interfaces'
-import { providerReadFailure } from '@web/modules/social-recovery/shared/client/provider-adapter'
 import { createKitWalletReads } from '@web/modules/social-recovery/shared/client/kit/wallet-reads'
 
 const ACCOUNT: Address = '0xabCDeF0123456789AbcdEf0123456789aBCDEF01'
@@ -21,6 +20,7 @@ const IMPLEMENTATION: Address = '0x0F2AA7bcda3d9D210dF69a394b6965CB2566c828'
 const OTHER_IMPLEMENTATION: Address = '0x5555555555555555555555555555555555555555'
 const ACCOUNT_CODE: Hex = '0x6080604052'
 const HOLDS: Hex = pad('0x01')
+const PINNED = 100
 const CREATION = { factoryAddr: OTHER_IMPLEMENTATION, bytecode: '0x60', salt: zeroHash }
 
 const worldOf = ({
@@ -28,9 +28,7 @@ const worldOf = ({
   code = '0x',
   initialPrivileges = [],
   associatedKeys = [],
-  knownKeys,
   creation = CREATION,
-  authorities = [],
   accountImplementation,
   supportsAccount = true
 }: {
@@ -38,17 +36,13 @@ const worldOf = ({
   code?: Hex
   initialPrivileges?: [string, string][]
   associatedKeys?: string[]
-  knownKeys?: Address[]
   creation?: typeof CREATION | null
-  authorities?: Address[]
   accountImplementation?: Address
   supportsAccount?: boolean
 }) => {
   const codeRead = { code: jest.fn<Promise<Hex>, [Address, BlockTag?]>(async () => code) }
   const action = {
-    isAuthority: jest.fn<Promise<boolean>, [Address, Address]>(async (...[, key]) =>
-      authorities.some((authority) => authority.toLowerCase() === key.toLowerCase())
-    ),
+    isAuthority: jest.fn<Promise<boolean>, [Address, Address]>(async () => true),
     supportsAccount: jest.fn<Promise<boolean>, [Address]>(async () => supportsAccount),
     ambireImplementation: jest.fn(async () => IMPLEMENTATION)
   }
@@ -56,26 +50,26 @@ const worldOf = ({
     chainId: jest.fn(async () => 11155111),
     call: jest.fn(async (): Promise<Hex> => zeroHash),
     logs: jest.fn(async () => []),
-    block: jest.fn(async () => ({ number: 100, timestamp: 0, hash: zeroHash }))
+    block: jest.fn(async () => ({ number: PINNED, timestamp: 0, hash: zeroHash }))
   }
+  const events = { accountFilter: jest.fn(), fetch: jest.fn(async () => []) }
   const reads = createKitWalletReads({
     account: { addr, associatedKeys, initialPrivileges, creation },
-    knownKeys,
     accountImplementation,
     action,
     moduleReads: { verify: jest.fn() },
     codeRead,
     provider,
     descriptor: { manager: OTHER_IMPLEMENTATION, action: OTHER_IMPLEMENTATION, deployedAt: 0 },
-    events: { accountFilter: jest.fn(), fetch: jest.fn(async () => []) },
+    events,
     transactionRead: jest.fn(async () => null)
   })
-  return { reads, codeRead, action }
+  return { reads, codeRead, action, provider, events }
 }
 
 describe('the removed key of an account with no code', () => {
-  it('is the one key whose creation privilege is not zero, with no authority read', async () => {
-    const { reads, action, codeRead } = worldOf({
+  it('is the one key whose creation privilege is not zero, with no authority read and no scan', async () => {
+    const { reads, action, codeRead, provider, events } = worldOf({
       initialPrivileges: [
         [KEY_A, HOLDS],
         [KEY_B, zeroHash]
@@ -84,7 +78,9 @@ describe('the removed key of an account with no code', () => {
     })
     await expect(reads.removedKey()).resolves.toEqual({ kind: 'named', key: KEY_A })
     expect(action.isAuthority).not.toHaveBeenCalled()
-    expect(codeRead.code).toHaveBeenCalledWith(ACCOUNT, undefined)
+    expect(codeRead.code.mock.calls).toEqual([[ACCOUNT, PINNED]])
+    expect(provider.logs).not.toHaveBeenCalled()
+    expect(events.fetch).not.toHaveBeenCalled()
   })
 
   it('names none where every creation privilege is zero', async () => {
@@ -126,104 +122,6 @@ describe('the removed key of an account with no code', () => {
       ]
     })
     await expect(reads.removedKey()).resolves.toEqual({ kind: 'named', key: KEY_A })
-  })
-})
-
-describe('the removed key of an account with code', () => {
-  it('asks the action about each distinct known key and names the one authority', async () => {
-    const { reads, action } = worldOf({
-      code: ACCOUNT_CODE,
-      initialPrivileges: [[KEY_A, zeroHash]],
-      associatedKeys: [KEY_B, KEY_A.toLowerCase()],
-      knownKeys: [KEY_C, KEY_B],
-      authorities: [KEY_B]
-    })
-    await expect(reads.removedKey()).resolves.toEqual({ kind: 'named', key: KEY_B })
-    expect(action.isAuthority.mock.calls).toEqual([
-      [ACCOUNT, KEY_A],
-      [ACCOUNT, KEY_B],
-      [ACCOUNT, KEY_C]
-    ])
-  })
-
-  it('counts an authority written in two cases once', async () => {
-    const { reads, action } = worldOf({
-      code: ACCOUNT_CODE,
-      initialPrivileges: [[KEY_A, HOLDS]],
-      associatedKeys: [KEY_A.toLowerCase()],
-      authorities: [KEY_A]
-    })
-    await expect(reads.removedKey()).resolves.toEqual({ kind: 'named', key: KEY_A })
-    expect(action.isAuthority).toHaveBeenCalledTimes(1)
-  })
-
-  it('names none where no known key is an authority, whatever the creation privileges', async () => {
-    const { reads } = worldOf({
-      code: ACCOUNT_CODE,
-      initialPrivileges: [[KEY_A, HOLDS]],
-      associatedKeys: [KEY_B]
-    })
-    await expect(reads.removedKey()).resolves.toEqual({
-      kind: 'unavailable',
-      cause: 'no-key-entry'
-    })
-  })
-
-  it('names none where several known keys are authorities', async () => {
-    const { reads } = worldOf({
-      code: ACCOUNT_CODE,
-      associatedKeys: [KEY_A, KEY_B],
-      authorities: [KEY_A, KEY_B]
-    })
-    await expect(reads.removedKey()).resolves.toEqual({
-      kind: 'unavailable',
-      cause: 'several-key-entries'
-    })
-  })
-
-  it('never asks about the entry point', async () => {
-    const { reads, action } = worldOf({
-      code: ACCOUNT_CODE,
-      initialPrivileges: [[ENTRY_POINT, HOLDS]],
-      associatedKeys: [KEY_A],
-      authorities: [KEY_A, ENTRY_POINT]
-    })
-    await expect(reads.removedKey()).resolves.toEqual({ kind: 'named', key: KEY_A })
-    expect(action.isAuthority.mock.calls).toEqual([[ACCOUNT, KEY_A]])
-  })
-
-  it('asks with the account address checksummed', async () => {
-    const { reads, action, codeRead } = worldOf({
-      addr: ACCOUNT.toLowerCase(),
-      code: ACCOUNT_CODE,
-      associatedKeys: [KEY_A],
-      authorities: [KEY_A]
-    })
-    await reads.removedKey()
-    expect(codeRead.code).toHaveBeenCalledWith(ACCOUNT, undefined)
-    expect(action.isAuthority).toHaveBeenCalledWith(ACCOUNT, KEY_A)
-  })
-
-  it('rejects where an authority read fails', async () => {
-    const failure = providerReadFailure('call', new Error('timeout'))
-    const { reads, action } = worldOf({ code: ACCOUNT_CODE, associatedKeys: [KEY_A] })
-    action.isAuthority.mockRejectedValueOnce(failure)
-    await expect(reads.removedKey()).rejects.toBe(failure)
-  })
-})
-
-describe('the removed key of an account with no creation record', () => {
-  it('is unavailable where the account has no code either, with no authority read', async () => {
-    const { reads, action } = worldOf({
-      creation: null,
-      associatedKeys: [KEY_A],
-      authorities: [KEY_A]
-    })
-    await expect(reads.removedKey()).resolves.toEqual({
-      kind: 'unavailable',
-      cause: 'no-creation-record'
-    })
-    expect(action.isAuthority).not.toHaveBeenCalled()
   })
 })
 

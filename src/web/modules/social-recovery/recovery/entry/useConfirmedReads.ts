@@ -9,7 +9,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
 
-import { CONFIRMED_STAGES } from './constants'
+import { readWithin } from '@web/modules/social-recovery/shared/client'
+
+import { CONFIRMED_READ_LIMIT_MS_STAND_IN, CONFIRMED_STAGES } from './constants'
 import { readDestination, readFit } from './reads'
 import { recoverRefusalOf } from './refusal'
 import type {
@@ -20,13 +22,12 @@ import type {
   EntryRead
 } from './types'
 
+// A read that does not answer within its limit is failed, and its retry runs it again.
 const settle = <T>(read: () => Promise<T>): Promise<EntryRead<T>> =>
-  Promise.resolve()
-    .then(read)
-    .then(
-      (value): EntryRead<T> => ({ status: 'answered', value }),
-      (): EntryRead<T> => ({ status: 'failed' })
-    )
+  readWithin(read, CONFIRMED_READ_LIMIT_MS_STAND_IN).then(
+    (value): EntryRead<T> => ({ status: 'answered', value }),
+    (): EntryRead<T> => ({ status: 'failed' })
+  )
 
 /** The reads kept before a stage: a run from that stage starts it and the ones after it over. */
 const keptBefore = (reads: ConfirmedReads, from: ConfirmedStage): ConfirmedReads => {

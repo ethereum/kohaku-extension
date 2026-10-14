@@ -112,6 +112,12 @@ export interface CommittedWorld {
   client: RecoveryKitClient
 }
 
+/** The parts of Jest's modern fake clock the installed typings do not declare. */
+interface LiveFakeTimers {
+  useFakeTimers(config: { advanceTimers: boolean }): void
+  advanceTimersByTimeAsync(ms: number): Promise<void>
+}
+
 // ---------------------------------------------------------------------------
 // The edges
 // ---------------------------------------------------------------------------
@@ -560,6 +566,18 @@ export const kit: KitReads = {
   fitCheck: jest.fn()
 }
 
+/** Holds the next removed-key read open; the returned call answers it whenever the test likes. */
+export const holdRemovedKeyOnce = () => {
+  let answer: (reading: RemovedKeyReading) => void = () => undefined
+  kit.removedKey.mockImplementationOnce(
+    () =>
+      new Promise<RemovedKeyReading>((resolve) => {
+        answer = resolve
+      })
+  )
+  return (reading: RemovedKeyReading) => answer(reading)
+}
+
 const answerAsRecoverable = () => {
   Object.values(kit).forEach((read) => read.mockReset())
   kit.setupState.mockImplementation(async () => setupStateOf())
@@ -677,6 +695,17 @@ export const settle = () =>
     await new Promise((resolve) => {
       setTimeout(resolve, 0)
     })
+  })
+
+/** Fake timers that still move with real time, so the harness's own waits keep running. */
+export const useLiveFakeClock = () => {
+  ;(jest as unknown as LiveFakeTimers).useFakeTimers({ advanceTimers: true })
+}
+
+/** Advances the fake clock by `ms` inside act, running what each timer settles. */
+export const advanceClock = (ms: number) =>
+  act(async () => {
+    await (jest as unknown as LiveFakeTimers).advanceTimersByTimeAsync(ms)
   })
 
 /** Runs a change from outside the screen, such as a held read that answers, and renders it. */
