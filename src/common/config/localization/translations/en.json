@@ -1243,6 +1243,120 @@
       "waitingRunning": "Recovering {{account}} · waiting period running",
       "executionDue": "Recovering {{account}} · execution due",
       "open": "Open this recovery"
+    },
+    "guardianPage": {
+      "brand": "Kohaku · Account recovery",
+      "notice": "This page shows what its link says. Your call to the owner is the check.",
+      "lead": {
+        "title": "You have been asked to approve a recovery",
+        "body": "The owner of this account says they lost its key and named you as a guardian.",
+        "effect": "Approving hands this account to the new key after the waiting period and removes the key being removed. It moves no money and gives nobody access to your wallet.",
+        "publication": "Approving puts your address on chain in the clear, permanently public. Where this method serves several accounts, approving links them visibly.",
+        "pathPublic": "A recovery on this account publishes the whole recovery path, so a reader who can guess your address reads it from the chain even where this approval was never used.",
+        "noForward": "This link reveals the account and the new key, so do not forward it.",
+        "compare": "Compare the account and the new key, character by character, with what the owner read to you on the call.",
+        "paymentTo": "{{amount}} to {{payee}}",
+        "paymentToExecutor": "{{amount}} to whoever executes the recovery"
+      },
+      "details": {
+        "title": "Verify the details",
+        "validUntil": "Valid until {{date}} · {{remaining}} left",
+        "ended": "Valid until {{date}} · ended",
+        "setupNumber": "Setup number",
+        "attemptNumber": "Attempt number",
+        "network": "Network",
+        "registry": "Recovery registry"
+      },
+      "acknowledgment": {
+        "label": "I called the owner on a number I already had and they confirmed this, or I am the owner.",
+        "ownNumber": "Call a number you already had. Never a number the link's sender gave you.",
+        "received": "A call you received does not answer this, whatever the caller named themselves. Only a call you placed on a number you already had counts.",
+        "tickFirst": "Tick the box above first"
+      },
+      "actions": {
+        "sign": "Sign",
+        "decline": "Something is off, decline",
+        "close": "Close",
+        "tryAgain": "Try again",
+        "back": "Back"
+      },
+      "dead": {
+        "expiredTitle": "Expired",
+        "expiredBody": "This request expired. The deadline passed and every approval died with it.",
+        "voidTitle": "Void",
+        "voidBody": "Another recovery attempt was opened on this account. This request cannot be used.",
+        "changedTitle": "Setup changed",
+        "changedBody": "The account's recovery setup changed. This request cannot be used.",
+        "tellOwner": "If someone still asks you to approve, tell the owner on a channel you already use.",
+        "usedTitle": "Used",
+        "usedBody": "This request was submitted and that recovery has ended. It cannot be used again."
+      },
+      "waiting": {
+        "title": "Recovery in progress",
+        "headline": "This recovery is now waiting",
+        "body": "The recoverer submitted this request. The waiting period runs until {{date}}, and the account's own key can cancel it until then.",
+        "bodyEnded": "The recoverer submitted this request. The waiting period ended on {{date}}."
+      },
+      "dormant": "The account no longer authorizes the recovery module, so this recovery cannot execute until the account authorizes it again.",
+      "readFailed": "We could not read this request.",
+      "reading": "Reading this request on chain…",
+      "otherDeployment": "This request is aimed at another deployment and this page cannot sign it.",
+      "noRequest": "This link carries no request this page can read. Ask the person who sent it for the link again.",
+      "signing": {
+        "title": "Sign the approval",
+        "lead": "You approve by signing with the key this request names, from this wallet. Nothing is sent to the network and no money moves.",
+        "keyHeading": "The key this request names",
+        "keyHeld": "This wallet holds this key.",
+        "keyMissing": "This wallet does not hold the key this request names. Import the wallet that holds {{address}} into Kohaku, then open this link again.",
+        "unlock": "Unlock this wallet to sign.",
+        "promptNote": "The wallet's prompt shows the account, the attempt number and the payment. The handover shows as bytes. This page is where the new key and the key being removed read as fields.",
+        "hardwareNote": "A hardware wallet without a descriptor for this request shows two hashes and asks for blind signing. Compare the new key on this page with the one the owner read to you. If you are the owner, compare the fields on this page with your own checklist row instead.",
+        "refused": "Your wallet refused to sign. Nothing was created.",
+        "failed": "This wallet could not sign. Nothing was created.",
+        "wrongKey": "The approval was not made by the key this request names. Nothing was kept."
+      },
+      "offline": {
+        "open": "Open the offline block",
+        "openHint": "Copy the payload, sign it on a device that never goes online, then bring it back here.",
+        "title": "Sign offline",
+        "lead": "Carry the payload to a device that never goes online, sign it there, and bring the signature back.",
+        "payloadHeading": "The payload · carry it by QR or file",
+        "saveFile": "Save as a file",
+        "copyPayload": "Copy the payload",
+        "checkDevice": "Before signing, check that the values your signing device decodes match what the owner read to you.",
+        "returnHeading": "Bring the signature back",
+        "returnLine": "The signature comes back by paste, the one way this page takes it.",
+        "pasteLabel": "Paste the signature",
+        "placeholder": "0x…",
+        "add": "Add",
+        "turnsInto": "This page turns your signature into the approval line. Send that one line back to whoever asked.",
+        "notASignature": "This text is not a signature.",
+        "wrongSigner": "This signature was not made by the key this request names."
+      },
+      "signed": {
+        "title": "You approved this recovery",
+        "body": "Nothing has been sent anywhere yet. Send your approval back to whoever asked, on the same call or chat you used to check it was really them.",
+        "heading": "Your approval",
+        "copy": "Copy the approval",
+        "copyMessage": "Copy a message with it",
+        "messageHint": "The message adds one sentence of context around the approval line.",
+        "message": "Here is my approval for the recovery of {{account}}. Paste this line into your checklist: {{line}}",
+        "regret": "Changed your mind? Tell the owner and whoever asked. The owner's key cancels a recovery they did not start, and an owner without a key can only warn the recoverer."
+      },
+      "declined": {
+        "title": "Declined",
+        "headline": "You declined this request",
+        "body": "Nothing was signed and nothing was sent. Nobody is told automatically.",
+        "tellTitle": "Tell the owner anyway",
+        "tellBody": "A request like this leaves no trace on chain until someone submits it. You may be the only one who sees it. Declining is the only way to shorten the exposure: contact the owner the way you always do and tell them what you received.",
+        "cancelLine": "The owner's key cancels a recovery they did not start, and an owner without a key can only warn the recoverer.",
+        "copyMessage": "Copy a message to send them",
+        "message": "Someone asked me to approve a recovery of your account {{account}} to the new key {{newKey}}. I declined. If this was not you, your key can cancel a recovery you did not start.",
+        "close": "Close this page",
+        "sentNothing": "This page sent nothing when you declined.",
+        "stillPublishes": "A recovery that completes without you still publishes your address with the rest of the path."
+      },
+      "notReadable": "Not readable"
     }
   }
 }

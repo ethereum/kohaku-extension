@@ -17,12 +17,14 @@
  * `KEYSTORE_CONTROLLER_SIGN_WITH_KEY`.
  */
 import { getBytes, Signature, Wallet } from 'ethers'
+import { hashTypedData } from 'viem'
 
 import type { Key } from '@ambire-common/interfaces/keystore'
 import type { TypedMessage } from '@ambire-common/interfaces/userRequest'
 import { KeystoreSigner } from '@ambire-common/libs/keystoreSigner/keystoreSigner'
-import { addressOf } from '@web/modules/social-recovery/sdk-doubles'
-import type { Address, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import { addressOf, digestOf, typedDataOf } from '@web/modules/social-recovery/sdk-doubles'
+import { membersOfRequest } from '@web/modules/social-recovery/sdk-doubles/encoding'
+import type { Address, ApproverRequest, Hex } from '@web/modules/social-recovery/sdk-interfaces'
 
 import {
   ABSENCE_GRACE_MS,
@@ -49,6 +51,8 @@ import {
   smartAccount,
   thrownBy,
   track,
+  TypedDataToSign,
+  typedMessageOf,
   WINDOW_ID
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
 
@@ -492,6 +496,103 @@ describe('the signer facade over the request queue', () => {
           })
         })
       })
+    })
+  })
+
+  describe('typed data with bigint members', () => {
+    /** 2^200, past every safe integer. */
+    const LARGE = BigInt(`0x1${'0'.repeat(50)}`)
+    /** 2^255, the top bit of a uint256. */
+    const TOP = BigInt(`0x8${'0'.repeat(63)}`)
+    const NESTED = {
+      domain: { name: 'PolicyManager', version: '1', chainId: BigInt(SEPOLIA) },
+      types: {
+        Order: [
+          { name: 'token', type: 'address' },
+          { name: 'amount', type: 'uint256' }
+        ],
+        Approval: [
+          { name: 'digest', type: 'bytes32' },
+          { name: 'attemptId', type: 'uint64' },
+          { name: 'validUntil', type: 'uint48' },
+          { name: 'count', type: 'uint8' },
+          { name: 'order', type: 'Order' },
+          { name: 'places', type: 'uint256[]' }
+        ]
+      },
+      primaryType: 'Approval',
+      message: {
+        digest: `0x${'11'.repeat(32)}`,
+        attemptId: 7n,
+        validUntil: 1_790_000_000n,
+        count: 3,
+        order: { token: `0x${'44'.repeat(20)}`, amount: LARGE },
+        places: [0n, 1n, TOP]
+      }
+    }
+
+    const digestOfTyped = (typed: Omit<TypedMessage, 'kind'> | typeof NESTED): Hex =>
+      hashTypedData(typed as unknown as Parameters<typeof hashTypedData>[0])
+
+    it('writes every bigint, nested ones included, as its decimal string, and keeps the digest', () => {
+      const content = typedMessageOf(NESTED)
+      expect(() => JSON.stringify(content)).not.toThrow()
+      expect(content.domain.chainId).toBe(String(SEPOLIA))
+      expect(content.message).toEqual({
+        digest: NESTED.message.digest,
+        attemptId: '7',
+        validUntil: '1790000000',
+        count: 3,
+        order: { token: NESTED.message.order.token, amount: LARGE.toString() },
+        places: ['0', '1', TOP.toString()]
+      })
+      expect(digestOfTyped(content)).toBe(digestOfTyped(NESTED))
+    })
+
+    it('leaves typed data without bigints as it was given', () => {
+      const plain = {
+        ...TYPED,
+        message: { ...TYPED.message, flag: true, note: null, count: 3, label: 'one' }
+      }
+      const content = typedMessageOf(plain)
+      expect(content.domain).toEqual(plain.domain)
+      expect(content.message).toEqual(plain.message)
+    })
+
+    it("queues the approving side's own typed data so that it stringifies and signs to the same digest", async () => {
+      const request: ApproverRequest = {
+        kind: 'recovery-proof-request',
+        version: 1,
+        purpose: 'approval',
+        chainId: String(SEPOLIA),
+        manager: `0x${'aa'.repeat(20)}`,
+        digestVersion: '1',
+        account: `0x${'bb'.repeat(20)}`,
+        action: `0x${'cc'.repeat(20)}`,
+        attemptId: '4',
+        setupNonce: '2',
+        setupBodyHash: `0x${'dd'.repeat(32)}`,
+        payload: '0x1234',
+        order: { token: `0x${'ee'.repeat(20)}`, amount: '1000000000000000000', payee: KEY },
+        validUntil: '1790000000',
+        place: 1,
+        method: `0x${'ff'.repeat(20)}`,
+        config: '0x',
+        salt: `0x${'00'.repeat(32)}`
+      }
+      const members = membersOfRequest(request)
+      const typed = typedDataOf(members) as unknown as TypedDataToSign
+      const q = queueOver([basicAccount(KEY)])
+      const signing = track(q.signer.signTypedData(HANDLE, typed))
+      const { userRequest } = addedRequest(q.dispatch)
+      const action = userRequest.action as TypedMessage
+      expect(() => JSON.stringify(action)).not.toThrow()
+      expect(digestOfTyped(action)).toBe(digestOf(members))
+
+      const signature = (await keystoreSigner().signTypedData(action)) as Hex
+      q.push(signedFor(userRequest.id, signature))
+      await flush()
+      expect(signing).toEqual({ status: 'resolved', value: signature })
     })
   })
 

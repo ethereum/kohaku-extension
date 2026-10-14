@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { /* TouchableOpacity, */ View } from 'react-native'
+import { createPath, Path, useLocation } from 'react-router-dom'
 
 import { isValidPassword } from '@ambire-common/services/validations'
 import LockIcon from '@common/assets/svg/LockIcon'
@@ -33,6 +34,20 @@ import getStyles from './styles'
 // const FOOTER_BUTTON_HIT_SLOP = { top: 10, bottom: 15 }
 const MIN_PANEL_SIZE = 480
 
+// A sending page passes `{ returnTo }` in the location state to come back once the keystore is unlocked
+type ReturnTo = string | Partial<Path>
+
+const getReturnPath = (state: unknown): string | null => {
+  const returnTo = (state as { returnTo?: ReturnTo } | null)?.returnTo
+  if (typeof returnTo === 'string' && returnTo) {
+    return returnTo
+  }
+  if (returnTo && typeof returnTo === 'object' && typeof returnTo.pathname === 'string') {
+    return createPath(returnTo)
+  }
+  return null
+}
+
 const isPopup = getUiType().isPopup
 
 const Container = isPopup ? View : TabLayoutWrapperMainContent
@@ -42,6 +57,7 @@ const KeyStoreUnlockScreen = () => {
   const { t } = useTranslation()
   const { styles, theme } = useTheme(getStyles)
   const { navigate } = useNavigation()
+  const location = useLocation()
   const { dispatch } = useBackgroundService()
   const keystoreState = useKeystoreControllerState()
   const { height } = useElementSize(contentContainerRef)
@@ -67,8 +83,17 @@ const KeyStoreUnlockScreen = () => {
   }, [keystoreState.errorMessage, setError])
 
   useEffect(() => {
-    if (keystoreState.isUnlocked) navigate('/')
-  }, [navigate, keystoreState])
+    if (!keystoreState.isUnlocked) {
+      return
+    }
+
+    const returnPath = getReturnPath(location.state)
+    if (returnPath) {
+      navigate(returnPath, { replace: true })
+    } else {
+      navigate('/')
+    }
+  }, [navigate, keystoreState, location.state])
 
   const disableSubmit = useMemo(
     () => keystoreState.statuses.unlockWithSecret !== 'INITIAL' || !!keystoreState.errorMessage,
