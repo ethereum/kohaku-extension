@@ -34,7 +34,7 @@ const mockScreen = (name: string) => {
 // The chrome's account latch is the chrome's own, tested in its folder.
 jest.mock('@web/modules/social-recovery/shared/chrome/useSetupAccount')
 
-jest.mock('@web/modules/router/components/KeystoreUnlockedRoute', () => mockGuard('unlocked'))
+jest.mock('@web/modules/social-recovery/routes/RecoveryKeystoreGuard', () => mockGuard('unlocked'))
 jest.mock('@web/modules/router/components/AuthenticatedRoute', () => mockGuard('authenticated'))
 jest.mock('@web/modules/social-recovery/setup/arm/ArmScreen', () => mockScreen('arm'))
 jest.mock('@web/modules/social-recovery/setup/enroll/EnrollScreen', () => mockScreen('enroll'))

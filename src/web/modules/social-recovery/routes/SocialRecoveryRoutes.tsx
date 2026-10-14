@@ -2,7 +2,6 @@ import React from 'react'
 import { Route, Routes } from 'react-router-dom'
 
 import AuthenticatedRoute from '@web/modules/router/components/AuthenticatedRoute'
-import KeystoreUnlockedRoute from '@web/modules/router/components/KeystoreUnlockedRoute'
 import ArmScreen from '@web/modules/social-recovery/setup/arm/ArmScreen'
 import EnrollScreen from '@web/modules/social-recovery/setup/enroll/EnrollScreen'
 import ReviewScreen from '@web/modules/social-recovery/setup/review/ReviewScreen'
@@ -25,6 +24,7 @@ import EntryScreen from '@web/modules/social-recovery/recovery/entry/EntryScreen
 import AccountStepScreen from '@web/modules/social-recovery/recovery/entry/AccountStepScreen'
 import ReadoutScreen from '@web/modules/social-recovery/recovery/entry/ReadoutScreen'
 import ApproveScreen from '@web/modules/social-recovery/guardian-page/ApproveScreen'
+import RecoveryKeystoreGuard from '@web/modules/social-recovery/routes/RecoveryKeystoreGuard'
 
 /**
  * The route registry of the account recovery module.
@@ -48,7 +48,7 @@ const SocialRecoveryRoutes = () => (
     <Route index element={null} />
 
     {/* The owner's surfaces: the keystore is unlocked and an account exists. */}
-    <Route element={<KeystoreUnlockedRoute />}>
+    <Route element={<RecoveryKeystoreGuard />}>
       <Route element={<AuthenticatedRoute />}>
         {/*
           The owner's surfaces mount here: socialRecoverySetup,
