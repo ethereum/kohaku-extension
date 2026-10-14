@@ -3,8 +3,14 @@
  *
  * Mounts the approval page with the app's own components and the real
  * en.json. The edges are fakes: the router's search, the window's hash, the
- * wallet's networks, and the recovery client the page builds for the
- * request's account, whose description and chain reads each test scripts.
+ * wallet's networks, keystore, accounts, selected account, dispatch and
+ * navigation, the request queue's signer facade, the clipboard, the file save, the QR code, and the recovery
+ * client the page builds for the request's account, whose description, chain
+ * reads and approving side each test scripts. The approving side's default
+ * script is the wallet method's: it hands over the request's typed data,
+ * packages a signature as the reply's proof and judges it as the deployed
+ * method does: satisfied for a signature by the named key, not judged for
+ * any other well-formed signature, rejected for bytes that are none. The guardian's key is a throwaway key that signs in the test.
  * The logo is a stub. jsdom has no `TextEncoder`, which viem reads when it
  * loads, so the harness sets Node's before it loads the modules.
  */
@@ -12,16 +18,27 @@ import { createRoot, Root } from 'react-dom/client'
 import { act } from 'react-dom/test-utils'
 import { TextDecoder, TextEncoder } from 'util'
 
+import type { NavigateOptions } from 'react-router-dom'
+
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
 import type {
   Address,
+  ApproverReply,
   ApproverRequest,
   Attempt,
   Hex,
   RecoveryState,
-  RequestDescription
+  ReplyFailure,
+  RequestDescription,
+  Verdict
 } from '@web/modules/social-recovery/sdk-interfaces'
+import type {
+  KeyHandle,
+  SignFlowFailureReason,
+  SignOptions,
+  TypedDataToSign
+} from '@web/modules/social-recovery/shared/client'
 import type { RecoveryClientState } from '@web/modules/social-recovery/shared/client/useRecoveryClient'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
@@ -35,11 +52,50 @@ Object.assign(globalThis, { TextEncoder, TextDecoder })
 /** The client state the page's hook hands back, with its retry. */
 export type ClientState = RecoveryClientState & { retry: () => void }
 
-/** The request account's scripted client: its description and its two chain reads. */
+/** The request account's scripted client: its description, its two chain reads and its approving side. */
 export interface KitScript {
   describeRequest: jest.Mock<RequestDescription, [ApproverRequest]>
   recoveryState: jest.Mock<Promise<RecoveryState>, []>
   isAuthorized: jest.Mock<Promise<boolean>, []>
+  signingInput: jest.Mock<unknown, [ApproverRequest]>
+  replyFrom: jest.Mock<Promise<ApproverReply | ReplyFailure>, [ApproverRequest, unknown, unknown]>
+  verify: jest.Mock<Promise<Verdict>, [ApproverRequest, number, Hex]>
+}
+
+/** The keystore as the page reads it. */
+export interface KeystoreScript {
+  keys: { addr: string; type: 'internal' }[]
+  isUnlocked: boolean
+  hasPasswordSecret: boolean
+}
+
+/** A file the page saved. */
+export interface SavedFile {
+  name: string
+  text: string
+  type: string
+}
+
+/** An account the wallet lists, as the page reads it. */
+export interface ListedAccountScript {
+  addr: string
+  associatedKeys: string[]
+  creation: null
+}
+
+/** The wallet's edges the signing half reads. */
+export interface WalletScript {
+  keystore: KeystoreScript
+  accounts: ListedAccountScript[]
+  /** The address the wallet's selected-account state reports. */
+  selected: string | undefined
+  selectedListeners: Set<() => void>
+  dispatch: jest.Mock<void, [{ type: string; params?: unknown }]>
+  navigate: jest.Mock<void, [string, NavigateOptions?]>
+  signTypedData: jest.Mock<Promise<Hex>, [KeyHandle, TypedDataToSign, SignOptions?]>
+  copied: jest.Mock<Promise<boolean>, [string]>
+  saved: jest.Mock<void, [SavedFile]>
+  qr: string[]
 }
 
 export interface Mounted {
@@ -49,6 +105,8 @@ export interface Mounted {
   text: () => string
   press: (id: string) => Promise<void>
   isDisabled: (id: string) => boolean
+  /** Types text into the input under a test id. */
+  type: (id: string, text: string) => Promise<void>
 }
 
 // ---------------------------------------------------------------------------
@@ -56,15 +114,30 @@ export interface Mounted {
 // ---------------------------------------------------------------------------
 
 const mockLocation: {
-  current: { pathname: string; search: string }
+  current: { pathname: string; search: string; hash: string }
   listeners: Set<() => void>
-} = { current: { pathname: '/social-recovery/approve', search: '' }, listeners: new Set() }
+} = {
+  current: { pathname: '/social-recovery/approve', search: '', hash: '' },
+  listeners: new Set()
+}
 const mockClient: {
   state: ClientState | null
   accounts: (string | undefined)[]
   listeners: Set<() => void>
 } = { state: null, accounts: [], listeners: new Set() }
 const mockLoading: ClientState = { status: 'loading', retry: () => {} }
+const mockWallet: WalletScript = {
+  keystore: { keys: [], isUnlocked: true, hasPasswordSecret: true },
+  accounts: [],
+  selected: undefined,
+  selectedListeners: new Set(),
+  dispatch: jest.fn(),
+  navigate: jest.fn(),
+  signTypedData: jest.fn(),
+  copied: jest.fn(),
+  saved: jest.fn(),
+  qr: []
+}
 
 jest.mock('@web/modules/social-recovery/shared/client/useRecoveryClient', () => ({
   useRecoveryClient: (account: string | undefined) => {
@@ -82,6 +155,58 @@ jest.mock('@web/modules/social-recovery/shared/client/useRecoveryClient', () => 
 jest.mock('@web/hooks/useNetworksControllerState', () => ({
   __esModule: true,
   default: () => ({ networks: [] })
+}))
+jest.mock('@web/hooks/useKeystoreControllerState', () => ({
+  __esModule: true,
+  default: () => mockWallet.keystore
+}))
+jest.mock('@web/hooks/useAccountsControllerState', () => ({
+  __esModule: true,
+  default: () => ({ accounts: mockWallet.accounts })
+}))
+jest.mock('@web/hooks/useSelectedAccountControllerState', () => ({
+  __esModule: true,
+  default: () => {
+    // eslint-disable-next-line global-require
+    const addr: string | undefined = require('react').useSyncExternalStore(
+      (listener: () => void) => {
+        mockWallet.selectedListeners.add(listener)
+        return () => mockWallet.selectedListeners.delete(listener)
+      },
+      () => mockWallet.selected
+    )
+    return { account: addr ? { addr } : null }
+  }
+}))
+jest.mock('@web/hooks/useBackgroundService', () => {
+  const dispatch = (action: { type: string; params?: unknown }) => mockWallet.dispatch(action)
+  return { __esModule: true, default: () => ({ dispatch, windowId: undefined }) }
+})
+jest.mock('@common/hooks/useNavigation', () => {
+  const navigate = (...args: [string, NavigateOptions?]) => mockWallet.navigate(...args)
+  return { __esModule: true, default: () => ({ navigate }) }
+})
+jest.mock('@web/modules/social-recovery/shared/client', () => ({
+  ...jest.requireActual('@web/modules/social-recovery/shared/client'),
+  createSignerFacade: () => ({
+    signTypedData: (key: KeyHandle, typedData: TypedDataToSign, options?: SignOptions) =>
+      mockWallet.signTypedData(key, typedData, options),
+    signBytes: () => Promise.reject(new Error('no bytes are signed here'))
+  })
+}))
+jest.mock('@common/utils/clipboard', () => ({
+  setStringAsync: (text: string) => mockWallet.copied(text)
+}))
+jest.mock('@web/modules/social-recovery/setup/enroll/carriers', () => ({
+  saveChallengeFile: (file: SavedFile) => mockWallet.saved(file)
+}))
+// The QR library ships untranspiled modules.
+jest.mock('react-native-qrcode-svg', () => ({
+  __esModule: true,
+  default: ({ value }: { value: string }) => {
+    mockWallet.qr.push(value)
+    return null
+  }
 }))
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
@@ -109,7 +234,21 @@ jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const React: typeof import('react') = require('react')
-const { getAddress, keccak256, zeroAddress }: typeof import('viem') = require('viem')
+const {
+  decodeAbiParameters,
+  encodeAbiParameters,
+  getAddress,
+  hashTypedData,
+  isAddressEqual,
+  keccak256,
+  recoverTypedDataAddress,
+  size,
+  zeroAddress
+}: typeof import('viem') = require('viem')
+const {
+  generatePrivateKey,
+  privateKeyToAccount
+}: typeof import('viem/accounts') = require('viem/accounts')
 const {
   ThemeContext
 }: typeof import('@common/contexts/themeContext') = require('@common/contexts/themeContext')
@@ -117,12 +256,23 @@ const themeConfig: typeof import('@common/styles/themeConfig') = require('@commo
 const i18n: typeof import('@common/config/localization').default =
   require('@common/config/localization').default
 const {
+  WEB_ROUTES
+}: typeof import('@common/modules/router/constants/common') = require('@common/modules/router/constants/common')
+const {
   addressBookOf,
   descriptorOf,
+  signFlowFailure,
+  signerNotWired,
   WALLET_RECOVERY_CHAIN
 }: typeof import('@web/modules/social-recovery/shared/client') = require('@web/modules/social-recovery/shared/client')
 const {
-  approvalLinkOf
+  digestOfRequest,
+  membersOfRequest,
+  typedDataOf
+}: typeof import('@web/modules/social-recovery/sdk-doubles/encoding') = require('@web/modules/social-recovery/sdk-doubles/encoding')
+const {
+  approvalLinkOf,
+  replyLineOf
 }: typeof import('@web/modules/social-recovery/recovery/checklist') = require('@web/modules/social-recovery/recovery/checklist')
 const ApproveScreen: typeof import('@web/modules/social-recovery/guardian-page/ApproveScreen').default =
   require('@web/modules/social-recovery/guardian-page/ApproveScreen').default
@@ -142,6 +292,16 @@ export const NEW_KEY: Address = getAddress('0x7a19c3f0b41d8e5a90cc77b2e4f8135aa6
 export const REMOVED_KEY: Address = getAddress('0x3fb2c4e8a19d07f6e5c3d1b8a24f9e7c60d1a2a2')
 /** A payee the payment order names. */
 export const PAYEE: Address = getAddress('0x9a4d000000000000000000000000000000000011')
+
+/** The guardian's throwaway key, the one the request names. */
+export const GUARDIAN_ACCOUNT = privateKeyToAccount(generatePrivateKey())
+export const GUARDIAN: Address = GUARDIAN_ACCOUNT.address
+/** Another throwaway key, one the request does not name. */
+export const STRANGER_ACCOUNT = privateKeyToAccount(generatePrivateKey())
+
+/** A credential config naming an address, as the wallet method encodes it. */
+export const configOf = (address: Address): Hex =>
+  encodeAbiParameters([{ type: 'address' }], [address])
 
 /** The request's moment of creation and its deadline, 24 hours later, in seconds. */
 export const CREATED_AT = 1_800_000_000
@@ -168,7 +328,7 @@ export const requestOf = (overrides: Partial<ApproverRequest> = {}): ApproverReq
   validUntil: String(VALID_UNTIL),
   place: 1,
   method: DESCRIPTOR.methodEcdsa,
-  config: '0x01',
+  config: configOf(GUARDIAN),
   salt: '0x02',
   ...overrides
 })
@@ -241,11 +401,110 @@ export const recoveryStateOf = (overrides: Partial<RecoveryState> = {}): Recover
   ...overrides
 })
 
+/** The typed data the wallet method hands over for a request. */
+export const typedDataFor = (request: ApproverRequest): TypedDataToSign =>
+  typedDataOf(membersOfRequest(request)) as unknown as TypedDataToSign
+
+type SigningAccount = typeof GUARDIAN_ACCOUNT
+
+/** A signature by a throwaway key over typed data. */
+export const signatureBy = (account: SigningAccount, typedData: TypedDataToSign): Promise<Hex> =>
+  account.signTypedData(typedData as unknown as Parameters<SigningAccount['signTypedData']>[0])
+
+/** The reply the wallet method packages from a signature: the signature is the proof. */
+export const replyOf = (request: ApproverRequest, proof: Hex): ApproverReply => ({
+  kind: 'recovery-proof-reply',
+  version: 1,
+  chainId: request.chainId,
+  manager: request.manager,
+  account: request.account,
+  action: request.action,
+  attemptId: request.attemptId,
+  purpose: request.purpose,
+  place: request.place,
+  method: request.method,
+  config: request.config,
+  salt: request.salt,
+  digest: digestOfRequest(request),
+  proof
+})
+
+/** The line the guardian sends back for a reply. */
+export const lineOf = (reply: ApproverReply): string => replyLineOf(reply)
+
+/** The EIP-712 digest of typed data. */
+export const hashOf = (typedData: TypedDataToSign): Hex =>
+  hashTypedData(typedData as unknown as Parameters<typeof hashTypedData>[0])
+
+/** An approval as the signed page shows it: its first twelve and last eight digits. */
+export const approvalOf = (proof: Hex): string => `${proof.slice(0, 14)}…${proof.slice(-8)}`
+
+/** The signer facade's refusal for a reason. */
+export const signRefusal = (reason: SignFlowFailureReason) =>
+  signFlowFailure('signTypedData', reason)
+
+/** The signer facade's refusal of a key the wallet does not list as a basic account. */
+export const notListedRefusal = (key: KeyHandle) => signerNotWired('signTypedData', key)
+
+/** Where the page sends a locked wallet. */
+export const UNLOCK_ROUTE = WEB_ROUTES.keyStoreUnlock
+
+/** A signature that has the shape of hex bytes. */
+const hexBytes = (value: unknown): value is Hex =>
+  typeof value === 'string' && /^0x([0-9a-fA-F]{2})+$/.test(value)
+
+const SIGNATURE_BYTES = 65
+
+/** Bytes that are 65 long but no signature: a recovery byte of neither parity. */
+export const malformedSignature = (signature: Hex): Hex => `${signature.slice(0, -2)}05` as Hex
+
+/**
+ * The wallet method's verdict: satisfied where a 65-byte signature recovers to
+ * the address the config names, not judged for any other well-formed bytes,
+ * since the address may hold code, and rejected for bytes that are no
+ * signature.
+ */
+const walletVerdict = async (request: ApproverRequest, proof: Hex): Promise<Verdict> => {
+  if (!hexBytes(proof)) {
+    return 'rejected'
+  }
+  if (size(proof) !== SIGNATURE_BYTES) {
+    return 'not-judged'
+  }
+  try {
+    const [named] = decodeAbiParameters([{ type: 'address' }], request.config)
+    const signer = await recoverTypedDataAddress({
+      ...(typedDataFor(request) as unknown as Parameters<typeof recoverTypedDataAddress>[0]),
+      signature: proof
+    })
+    return isAddressEqual(signer, named) ? 'satisfied' : 'not-judged'
+  } catch {
+    return 'rejected'
+  }
+}
+
+/** The wallet method the client's registry hands out under its slug. */
+const walletMethod = {
+  modules: () => [DESCRIPTOR.methodEcdsa],
+  codec: {
+    decodeConfig: (config: Hex) => {
+      const [address] = decodeAbiParameters([{ type: 'address' }], config)
+      return { address }
+    }
+  }
+}
+
 export const kit: KitScript = {
   describeRequest: jest.fn(),
   recoveryState: jest.fn(),
-  isAuthorized: jest.fn()
+  isAuthorized: jest.fn(),
+  signingInput: jest.fn(),
+  replyFrom: jest.fn(),
+  verify: jest.fn()
 }
+
+/** The wallet's edges each test scripts. */
+export const wallet = mockWallet
 
 /** The ready state of the page's hook over the scripted client. */
 export const readyClient = (descriptor = DESCRIPTOR): ClientState =>
@@ -253,7 +512,15 @@ export const readyClient = (descriptor = DESCRIPTOR): ClientState =>
     status: 'ready',
     client: {
       descriptor,
-      approving: { describeRequest: (request: ApproverRequest) => kit.describeRequest(request) },
+      approving: {
+        describeRequest: (request: ApproverRequest) => kit.describeRequest(request),
+        signingInput: (request: ApproverRequest) => kit.signingInput(request),
+        replyFrom: (request: ApproverRequest, input: unknown, material: unknown) =>
+          kit.replyFrom(request, input, material),
+        verify: (request: ApproverRequest, place: number, proof: Hex) =>
+          kit.verify(request, place, proof)
+      },
+      methodFor: (slug: string) => (slug === 'ecdsa' ? walletMethod : undefined),
       recovery: { recoveryState: () => kit.recoveryState() },
       action: { isAuthorized: () => kit.isAuthorized() }
     },
@@ -273,13 +540,32 @@ export const setClient = (state: ClientState | null) => {
 /** The accounts the page asked a client for, in order, undefined where it asked for none. */
 export const clientAccounts = () => mockClient.accounts
 
+/** The wallet's selected-account state reports another address, and the page renders it. */
+export const selectAccount = (addr: string | undefined) => {
+  act(() => {
+    mockWallet.selected = addr
+    mockWallet.selectedListeners.forEach((listener) => listener())
+  })
+}
+
+/** The account selections the page asked the wallet for, in order. */
+export const selections = () =>
+  mockWallet.dispatch.mock.calls
+    .map(([action]) => action)
+    .filter((action) => action.type === 'MAIN_CONTROLLER_SELECT_ACCOUNT')
+
 /** The search string the router hands the page. */
 export const setSearch = (search: string) => {
   mockLocation.current = { ...mockLocation.current, search }
   mockLocation.listeners.forEach((listener) => listener())
 }
 
-/** Puts every edge back: the page's clock at the request's creation and a live request on chain. */
+/**
+ * Puts every edge back: the page's clock at the request's creation, a live
+ * request on chain, the wallet method's approving side, and an unlocked
+ * wallet that holds the guardian's key, lists it as a basic account and has
+ * it selected.
+ */
 export const resetEdges = () => {
   jest.useFakeTimers('modern')
   jest.setSystemTime(CREATED_AT * 1000)
@@ -293,6 +579,34 @@ export const resetEdges = () => {
   kit.recoveryState.mockImplementation(async () => recoveryStateOf())
   kit.isAuthorized.mockReset()
   kit.isAuthorized.mockImplementation(async () => true)
+  kit.signingInput.mockReset()
+  kit.signingInput.mockImplementation((request) => typedDataFor(request))
+  kit.replyFrom.mockReset()
+  kit.replyFrom.mockImplementation(async (request, _input, material) => {
+    const signature = (material as { signature?: unknown } | undefined)?.signature
+    return hexBytes(signature)
+      ? replyOf(request, signature)
+      : { kind: 'reply-failure', cause: 'material-rejected' }
+  })
+  kit.verify.mockReset()
+  kit.verify.mockImplementation((request, _place, proof) => walletVerdict(request, proof))
+  mockWallet.keystore = {
+    keys: [{ addr: GUARDIAN, type: 'internal' }],
+    isUnlocked: true,
+    hasPasswordSecret: true
+  }
+  mockWallet.accounts = [{ addr: GUARDIAN, associatedKeys: [GUARDIAN], creation: null }]
+  mockWallet.selected = GUARDIAN
+  mockWallet.dispatch.mockReset()
+  mockWallet.navigate.mockReset()
+  mockWallet.signTypedData.mockReset()
+  mockWallet.signTypedData.mockImplementation((_key, typedData) =>
+    signatureBy(GUARDIAN_ACCOUNT, typedData)
+  )
+  mockWallet.copied.mockReset()
+  mockWallet.copied.mockImplementation(async () => true)
+  mockWallet.saved.mockReset()
+  mockWallet.qr = []
 }
 
 // ---------------------------------------------------------------------------
@@ -336,6 +650,15 @@ export const navigate = async (search: string) => {
   await settle()
 }
 
+// The pages still mounted, so a test that fails before its own unmount
+// leaves no timer running into the next test.
+const mountedPages = new Set<() => void>()
+
+/** Unmounts every page a test left mounted. */
+export const unmountPages = () => {
+  mountedPages.forEach((unmount) => unmount())
+}
+
 /** Mounts the approval page on the search string the router hands it. */
 export const mountPage = async (search: string): Promise<Mounted> => {
   setSearch(search)
@@ -353,11 +676,17 @@ export const mountPage = async (search: string): Promise<Mounted> => {
   })
   await settle()
 
+  const unmount = () => {
+    if (!mountedPages.delete(unmount)) {
+      return
+    }
+    act(() => root.unmount())
+    container.remove()
+  }
+  mountedPages.add(unmount)
+
   return {
-    unmount: () => {
-      act(() => root.unmount())
-      container.remove()
-    },
+    unmount,
     has: (id) => byTestId(id) !== null,
     textOf: (id) => byTestId(id)?.textContent ?? '',
     text: () => container.textContent ?? '',
@@ -369,7 +698,21 @@ export const mountPage = async (search: string): Promise<Mounted> => {
       act(() => node.click())
       await settle()
     },
-    isDisabled: (id) => byTestId(id)?.getAttribute('aria-disabled') === 'true'
+    isDisabled: (id) => byTestId(id)?.getAttribute('aria-disabled') === 'true',
+    type: async (id, text) => {
+      const node = byTestId(id)
+      const input =
+        node instanceof HTMLInputElement ? node : node?.querySelector<HTMLInputElement>('input')
+      if (!input) {
+        throw new Error(`nothing to type into: ${id}`)
+      }
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+      act(() => {
+        setValue?.call(input, text)
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+      })
+      await settle()
+    }
   }
 }
 
@@ -385,7 +728,10 @@ const describeHarness = runningHarnessItself ? describe : () => undefined
 
 describeHarness('the approval page harness', () => {
   beforeEach(resetEdges)
-  afterEach(() => jest.useRealTimers())
+  afterEach(() => {
+    unmountPages()
+    jest.useRealTimers()
+  })
 
   it('hands the page the scripted client for the request account and reads through it', async () => {
     const page = await mountLive()
@@ -394,5 +740,19 @@ describeHarness('the approval page harness', () => {
     expect(kit.recoveryState).toHaveBeenCalledTimes(1)
     expect(kit.isAuthorized).toHaveBeenCalledTimes(1)
     page.unmount()
+  })
+
+  it('judges the guardian key satisfied, another key or length not judged, and no signature rejected', async () => {
+    const request = requestOf()
+    const typedData = typedDataFor(request)
+    const own = await signatureBy(GUARDIAN_ACCOUNT, typedData)
+    const other = await signatureBy(STRANGER_ACCOUNT, typedData)
+    await expect(kit.verify(request, request.place, own)).resolves.toBe('satisfied')
+    await expect(kit.verify(request, request.place, other)).resolves.toBe('not-judged')
+    await expect(kit.verify(request, request.place, `${own}00`)).resolves.toBe('not-judged')
+    await expect(kit.verify(request, request.place, malformedSignature(own))).resolves.toBe(
+      'rejected'
+    )
+    await expect(kit.verify(request, request.place, '0xabc')).resolves.toBe('rejected')
   })
 })

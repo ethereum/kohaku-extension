@@ -1,10 +1,21 @@
 import type {
+  Address,
   ApproverRequest,
   DeploymentDescriptor,
-  RequestDescription
+  Hex,
+  IMethodsOrchestrator,
+  RequestDescription,
+  Verdict
 } from '@web/modules/social-recovery/sdk-interfaces'
 import type { PollFacts } from '@web/modules/social-recovery/recovery/checklist'
-import type { RecoveryKitClient } from '@web/modules/social-recovery/shared/client'
+import type { Action } from '@web/extension-services/background/actions'
+import type {
+  KeyHandle,
+  ListedAccount,
+  RecoveryKitClient,
+  SignOptions,
+  TypedDataToSign
+} from '@web/modules/social-recovery/shared/client'
 
 /** The parts of the build's deployment a request's domain is compared with. */
 export type DomainOfBuild = Pick<DeploymentDescriptor, 'chainId' | 'manager' | 'digestVersion'>
@@ -92,6 +103,14 @@ export interface ApprovalReadsInput {
   link: string
   /** False once nothing is read any more, as after a decline. */
   enabled: boolean
+  /** True once the last answer is final, as a death: it stays drawn and no round runs after it. */
+  stopped: boolean
+}
+
+/** The reads with the link of the request they belong to. */
+export interface LinkedApprovalReads {
+  link: string
+  reads: ApprovalReads
 }
 
 export interface ApprovalReadsHook {
@@ -107,6 +126,11 @@ export interface ApproveViewProps {
   /** Milliseconds since epoch, the page's clock as it last ticked. */
   now: number
   timeZone: string
+  keyReading: KeyReading
+  signing: GuardianSigning
+  /** The typed data the request asks to sign, or null where the approving side refuses it. */
+  typedData: TypedDataToSign | null
+  onSign: () => void
   onClose: () => void
   onDecline: () => void
   onRetry: () => void
@@ -126,7 +150,53 @@ export interface SignBlockProps {
   acknowledged: boolean
   onAcknowledged: (value: boolean) => void
   enabled: boolean
+  values: ApprovalValues
+  deadline: DeadlineView | null
+  keyReading: KeyReading
+  busy: boolean
+  failure: SigningFailure | null
+  onSign: () => void
+  onOpenOffline: () => void
   onDecline: () => void
+}
+
+export interface AcknowledgmentBoxProps {
+  acknowledged: boolean
+  onAcknowledged: (value: boolean) => void
+}
+
+export interface ValueLinesProps {
+  values: ApprovalValues
+  /** The prefix of each value's test id. */
+  testID: string
+}
+
+/** The four values with the deadline beside them and who can submit the request until then. */
+export interface ValueBlockProps {
+  values: ApprovalValues
+  deadline: DeadlineView | null
+  testID: string
+}
+
+export interface OfflineBlockProps {
+  described: DescribedRequest
+  values: ApprovalValues
+  deadline: DeadlineView | null
+  typedData: TypedDataToSign | null
+  acknowledged: boolean
+  onAcknowledged: (value: boolean) => void
+  /** Whether every gate of the sign action other than the held key holds. */
+  enabled: boolean
+  busy: boolean
+  failure: OfflineFailure | null
+  onAdd: (text: string) => void
+  onBack: () => void
+  onDecline: () => void
+}
+
+export interface SignedBlockProps {
+  approval: SignedApproval
+  account: Address
 }
 
 /**
@@ -148,5 +218,126 @@ export interface OutcomeBlockProps {
 }
 
 export interface DeclinedBlockProps {
+  account: Address
+  /** The new key in full, or null where the request's handover cannot be read. */
+  newKey: string | null
   onClose: () => void
+}
+
+/** Whether a copy reached the clipboard. */
+export interface CopyFeedback {
+  what: string
+  copied: boolean
+}
+
+export interface CopyHook {
+  feedback: CopyFeedback | null
+  copy: (what: string, text: string) => void
+}
+
+export interface CopyFeedbackLineProps {
+  feedback: CopyFeedback | null
+  /** The prefix of the line's test id. */
+  testID: string
+}
+
+/** The file the offline block saves. */
+export interface PayloadFile {
+  name: string
+  text: string
+  type: string
+}
+
+/**
+ * The key the request names, as this wallet holds it:
+ * - held: the keystore holds it and is unlocked, so the sign action can ask for it;
+ * - locked: the keystore is locked, so the sign action goes to the unlock first;
+ * - missing: the keystore does not hold it, or there is no keystore at all;
+ * - unreadable: the request's credential names no key this page reads.
+ */
+export type KeyReading =
+  | { kind: 'held'; key: KeyHandle }
+  | { kind: 'locked'; address: Address }
+  | { kind: 'missing'; address: Address }
+  | { kind: 'unreadable' }
+
+/** The keystore's state the key reading reads. */
+export interface KeystoreFacts {
+  keys: readonly { addr: string; type: KeyHandle['type'] }[] | undefined
+  isUnlocked: boolean
+  hasPasswordSecret: boolean
+}
+
+/** Why the wallet's own signature brought no approval. */
+export type SigningFailure = 'refused' | 'failed' | 'wrongKey'
+
+/** Why a pasted signature brought no approval. */
+export type OfflineFailure = 'notASignature' | 'wrongSigner'
+
+/** The approval the guardian sends back: the one line, and the proof it carries. */
+export interface SignedApproval {
+  line: string
+  proof: Hex
+}
+
+/**
+ * What the approving side made of a signature: the approval with its verdict
+ * for the request's place, or a signature it could not package into a reply.
+ */
+export type ApprovalOutcome = { approval: SignedApproval; verdict: Verdict } | 'unpackaged'
+
+/** The approving side's three calls the page signs through. */
+export type ApprovingCalls = Pick<IMethodsOrchestrator, 'signingInput' | 'replyFrom' | 'verify'>
+
+/** The wallet's own action that selects a listed account. */
+export type SelectAccountAction = Extract<Action, { type: 'MAIN_CONTROLLER_SELECT_ACCOUNT' }>
+
+/** The wallet's edges the account selection reads: its dispatch and the accounts it lists. */
+export interface KeyAccountSelectionInput {
+  dispatch: (action: SelectAccountAction) => void
+  accounts: () => readonly ListedAccount[] | undefined
+}
+
+/**
+ * Selects the key's listed basic account in the wallet, and settles once the
+ * wallet reports it selected. It rejects where the selection does not land in
+ * time or the signal aborts first.
+ */
+export type SelectKeyAccount = (key: KeyHandle, signal?: AbortSignal) => Promise<void>
+
+export interface GuardianSigningInput {
+  approving: ApprovingCalls | null
+  request: ApproverRequest | null
+  signTypedData: (key: KeyHandle, typedData: TypedDataToSign, options?: SignOptions) => Promise<Hex>
+  /**
+   * Whether the request no longer takes an approval as the page reads it at
+   * the call: its deadline passed on the page's clock, or a read found it
+   * dead or submitted.
+   */
+  ended: () => boolean
+}
+
+/** The signing's state, kept for the one request it belongs to. */
+export interface SigningState {
+  request: ApproverRequest | null
+  busy: boolean
+  failure: SigningFailure | null
+  offlineFailure: OfflineFailure | null
+  approval: SignedApproval | null
+}
+
+export interface GuardianSigning {
+  busy: boolean
+  failure: SigningFailure | null
+  offlineFailure: OfflineFailure | null
+  approval: SignedApproval | null
+  /** Signs the typed data with the held key in the wallet's own sign window. */
+  sign: (key: KeyHandle, typedData: TypedDataToSign) => void
+  /** Turns a signature made off this device into the approval. */
+  addSignature: (typedData: TypedDataToSign, text: string) => void
+  /**
+   * Withdraws the signing of the request shown: its sign request leaves the
+   * queue, a later answer is dropped, and the request signs no more.
+   */
+  withdraw: () => void
 }

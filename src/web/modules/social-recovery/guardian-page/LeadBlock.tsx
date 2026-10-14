@@ -10,18 +10,16 @@ import { View } from 'react-native'
 
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
-import useTheme from '@common/hooks/useTheme'
 import spacings from '@common/styles/spacings'
-import common from '@common/styles/utils/common'
-import { SectionCard, SectionLabel } from '@web/modules/social-recovery/shared/chrome'
+import { SectionCard } from '@web/modules/social-recovery/shared/chrome'
 
 import type { LeadBlockProps } from './types'
+import ValueLines from './ValueLines'
 
 const LEAD = 'socialRecovery.guardianPage.lead'
 
 const LeadBlock = ({ values }: LeadBlockProps) => {
   const { t } = useTranslation()
-  const { theme } = useTheme()
 
   const line = (text: string, testID: string) => (
     <Text fontSize={14} style={spacings.mbSm} testID={testID}>
@@ -36,38 +34,7 @@ const LeadBlock = ({ values }: LeadBlockProps) => {
       </Text>
       {line(t(`${LEAD}.body`), 'guardian-lead-body')}
       <SectionCard testID="guardian-values">
-        {values.lines.map(({ name, label, value }) => (
-          <View
-            key={name}
-            style={[
-              common.borderRadiusPrimary,
-              spacings.phSm,
-              spacings.pvSm,
-              spacings.mbTy,
-              { backgroundColor: theme.secondaryBackground }
-            ]}
-          >
-            <SectionLabel>{label}</SectionLabel>
-            {value !== null ? (
-              <Text
-                fontSize={14}
-                weight="number_medium"
-                selectable
-                testID={`guardian-value-${name}`}
-              >
-                {value}
-              </Text>
-            ) : (
-              <Text
-                fontSize={14}
-                appearance="errorText"
-                testID={`guardian-value-${name}-unreadable`}
-              >
-                {t('socialRecovery.guardianPage.notReadable')}
-              </Text>
-            )}
-          </View>
-        ))}
+        <ValueLines values={values} testID="guardian-value" />
       </SectionCard>
       {line(t(`${LEAD}.effect`), 'guardian-lead-effect')}
       {line(t(`${LEAD}.publication`), 'guardian-lead-publication')}

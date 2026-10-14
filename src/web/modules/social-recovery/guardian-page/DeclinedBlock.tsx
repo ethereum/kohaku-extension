@@ -2,7 +2,8 @@
  * The page after a decline: nothing was signed or sent and nobody is told,
  * so the guardian tells the owner anyway, since a request leaves no trace on
  * chain until someone submits it. The page does not invite the guardian back
- * to approve.
+ * to approve. A message to the owner, naming the account and the new key,
+ * is one copy away.
  */
 import React from 'react'
 import { View } from 'react-native'
@@ -13,15 +14,22 @@ import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import { SectionCard } from '@web/modules/social-recovery/shared/chrome'
 
+import BrandLine from './BrandLine'
+import CopyFeedbackLine from './CopyFeedbackLine'
+import { declineMessageOf } from './signing'
 import type { DeclinedBlockProps } from './types'
+import useCopy from './useCopy'
+import { fullAddressOf } from './values'
 
 const DECLINED = 'socialRecovery.guardianPage.declined'
 
-const DeclinedBlock = ({ onClose }: DeclinedBlockProps) => {
+const DeclinedBlock = ({ account, newKey, onClose }: DeclinedBlockProps) => {
   const { t } = useTranslation()
+  const { feedback, copy } = useCopy()
 
   return (
     <View testID="guardian-declined">
+      <BrandLine />
       <Text fontSize={12} appearance="secondaryText" testID="guardian-declined-title">
         {t(`${DECLINED}.title`)}
       </Text>
@@ -35,7 +43,24 @@ const DeclinedBlock = ({ onClose }: DeclinedBlockProps) => {
         <Text fontSize={14} style={spacings.mbTy}>
           {t(`${DECLINED}.tellBody`)}
         </Text>
-        <Text fontSize={14}>{t(`${DECLINED}.cancelLine`)}</Text>
+        <Text fontSize={14} style={spacings.mbSm}>
+          {t(`${DECLINED}.cancelLine`)}
+        </Text>
+        <Button
+          testID="guardian-declined-copy-message"
+          type="primary"
+          size="small"
+          text={t(`${DECLINED}.copyMessage`)}
+          disabled={newKey === null}
+          onPress={() => {
+            if (newKey !== null) {
+              copy('message', declineMessageOf(fullAddressOf(account) ?? account, newKey, t))
+            }
+          }}
+          hasBottomSpacing={false}
+          style={spacings.mbTy}
+        />
+        <CopyFeedbackLine feedback={feedback} testID="guardian-declined-copy" />
       </SectionCard>
       <Button
         testID="guardian-declined-close"

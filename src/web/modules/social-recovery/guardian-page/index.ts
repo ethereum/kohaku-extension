@@ -4,3 +4,16 @@ export { domainAgrees, readingOf, readingOfFacts, signEnabled } from './reading'
 export { approvalValuesOf, deadlineViewOf, fullAddressOf } from './values'
 export { APPROVAL_READ_MS, APPROVAL_READ_LIMIT_MS } from './constants'
 export * from './types'
+export {
+  keyReadingOf,
+  keyAllowsSign,
+  requestKeyOf,
+  typedDataOf,
+  payloadTextOf,
+  payloadFileOf,
+  signingFailureOf,
+  walletVerdictFailure,
+  offlineVerdictFailure,
+  declineMessageOf,
+  approvalMessageOf
+} from './signing'

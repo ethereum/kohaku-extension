@@ -114,6 +114,18 @@ export const readingOf = (
 }
 
 /**
+ * Whether the request no longer takes an approval: its deadline passed on the
+ * page's clock, whatever the reads say, or the reading is a death or the
+ * recoverer's submission.
+ */
+export const approvalEnded = (
+  request: ApproverRequest,
+  reading: ApprovalReading,
+  clock: number
+): boolean =>
+  requestExpired(request, clock) || reading.kind === 'dead' || reading.kind === 'waiting'
+
+/**
  * Whether the sign action is enabled: the four values and the deadline
  * rendered, the request live with the account authorizing the action, and
  * the acknowledgment ticked.

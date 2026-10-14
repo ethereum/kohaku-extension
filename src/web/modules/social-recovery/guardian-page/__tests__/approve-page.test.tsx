@@ -33,6 +33,7 @@ import {
   settle,
   SUBMITTED,
   t,
+  unmountPages,
   VALID_UNTIL,
   WAIT_ENDS_AT
 } from '@web/modules/social-recovery/guardian-page/__tests__/harness'
@@ -52,11 +53,15 @@ const dateOf = (ms: number) =>
   }).format(new Date(ms))
 
 beforeEach(resetEdges)
-afterEach(() => jest.useRealTimers())
+afterEach(() => {
+  unmountPages()
+  jest.useRealTimers()
+})
 
 describe('the lead of a live request', () => {
   it('renders who asks, the four values in full and every line of the lead', async () => {
     const page = await mountLive()
+    expect(page.textOf('guardian-brand')).toBe(t(`${PAGE}.brand`))
     expect(page.textOf('guardian-lead-title')).toBe(t(`${PAGE}.lead.title`))
     expect(page.textOf('guardian-value-accountBeingRecovered')).toBe(ACCOUNT)
     expect(page.textOf('guardian-value-newKey')).toBe(NEW_KEY)
@@ -492,14 +497,21 @@ describe('the decline', () => {
     expect(page.textOf('guardian-declined-headline')).toBe(t(`${PAGE}.declined.headline`))
     expect(page.textOf('guardian-declined-body')).toBe(t(`${PAGE}.declined.body`))
     const text = page.text()
-    const keys = ['tellTitle', 'tellBody', 'cancelLine', 'close', 'sentNothing', 'stillPublishes']
+    const keys = [
+      'tellTitle',
+      'tellBody',
+      'cancelLine',
+      'copyMessage',
+      'close',
+      'sentNothing',
+      'stillPublishes'
+    ]
     keys.forEach((key) => {
       expect({ key, shown: text.includes(t(`${PAGE}.declined.${key}`)) }).toEqual({
         key,
         shown: true
       })
     })
-    expect(text).not.toContain(t(`${PAGE}.declined.copyMessage`))
     await page.press('guardian-declined-close')
     expect(close).toHaveBeenCalledTimes(1)
     close.mockRestore()

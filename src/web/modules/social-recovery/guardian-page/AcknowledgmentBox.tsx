@@ -1,0 +1,44 @@
+/**
+ * The acknowledgment: the box takes only a call the guardian placed on a
+ * number they already had, and the two sentences beside it say so.
+ */
+import React from 'react'
+
+import Checkbox from '@common/components/Checkbox'
+import Text from '@common/components/Text'
+import { useTranslation } from '@common/config/localization'
+import spacings from '@common/styles/spacings'
+import { SectionCard } from '@web/modules/social-recovery/shared/chrome'
+
+import type { AcknowledgmentBoxProps } from './types'
+
+const ACKNOWLEDGMENT = 'socialRecovery.guardianPage.acknowledgment'
+
+const AcknowledgmentBox = ({ acknowledged, onAcknowledged }: AcknowledgmentBoxProps) => {
+  const { t } = useTranslation()
+
+  return (
+    <SectionCard testID="guardian-acknowledgment">
+      <Checkbox
+        testID="guardian-acknowledge"
+        value={acknowledged}
+        onValueChange={onAcknowledged}
+        label={t(`${ACKNOWLEDGMENT}.label`)}
+        labelProps={{ fontSize: 14, weight: 'medium' }}
+      />
+      <Text fontSize={12} style={spacings.mtTy} testID="guardian-acknowledgment-own-number">
+        {t(`${ACKNOWLEDGMENT}.ownNumber`)}
+      </Text>
+      <Text
+        fontSize={12}
+        appearance="secondaryText"
+        style={spacings.mtTy}
+        testID="guardian-acknowledgment-received"
+      >
+        {t(`${ACKNOWLEDGMENT}.received`)}
+      </Text>
+    </SectionCard>
+  )
+}
+
+export default React.memo(AcknowledgmentBox)

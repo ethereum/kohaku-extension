@@ -9,3 +9,12 @@ export const DEADLINE_TICK_MS = 60_000
 
 /** The longest delay a timer keeps; a longer one fires at once. */
 export const MAX_TIMER_MS = 2_147_483_647
+
+/** The slug the wallet method carries in the client's method registry. */
+export const ECDSA_SLUG = 'ecdsa'
+
+/** The name of the file the offline block saves the payload in. */
+export const PAYLOAD_FILE_NAME = 'kohaku-approval-request.json'
+
+/** How long the page waits for the wallet to report the key's account as selected before it signs. */
+export const SELECT_ACCOUNT_LIMIT_MS = 5_000
