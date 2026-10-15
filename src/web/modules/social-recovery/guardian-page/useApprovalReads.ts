@@ -1,5 +1,5 @@
 /**
- * The page's chain reads: the account's recovery state, with the attempt and
+ * The page's chain reads: the manager's attempt state, with the attempt and
  * the setup number, and whether the account authorizes the action. One round
  * runs when the client is ready or another link opens, then one every minute
  * and on a retry. Rounds never overlap. A round that throws or runs past its
@@ -10,9 +10,8 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { readPollFacts } from '@web/modules/social-recovery/recovery/checklist'
-
 import { APPROVAL_READ_LIMIT_MS, APPROVAL_READ_MS } from './constants'
+import { readApprovalFacts } from './facts'
 import type {
   ApprovalReads,
   ApprovalReadsHook,
@@ -52,7 +51,7 @@ const useApprovalReads = ({
       return
     }
     inFlight.current = true
-    const facts = await readPollFacts(current, APPROVAL_READ_LIMIT_MS)
+    const facts = await readApprovalFacts(current, APPROVAL_READ_LIMIT_MS)
     if (id !== generation.current) {
       return
     }

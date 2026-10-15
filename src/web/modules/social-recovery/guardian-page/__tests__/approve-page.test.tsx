@@ -5,7 +5,7 @@
  * full, verify the details, the states drawn in place of the sign action, the
  * gates of the sign action, the re-read every minute and the decline.
  */
-import type { RecoveryState } from '@web/modules/social-recovery/sdk-interfaces'
+import type { RecoveryAttemptState } from '@web/modules/social-recovery/shared/client'
 
 import {
   ACCOUNT,
@@ -24,7 +24,7 @@ import {
   PAYEE,
   PAYLOAD,
   readyClient,
-  recoveryStateOf,
+  attemptStateOf,
   REMOVED_KEY,
   requestOf,
   resetEdges,
@@ -166,7 +166,7 @@ describe('the sign action', () => {
     const page = await mountLive()
     await page.press('guardian-acknowledge')
     expect(page.isDisabled('guardian-sign')).toBe(false)
-    kit.recoveryState.mockImplementation(async () => {
+    kit.attemptState.mockImplementation(async () => {
       throw new Error('rpc down')
     })
     await advance(MINUTE)
@@ -178,14 +178,14 @@ describe('the sign action', () => {
   it('keeps the values and the tick through a failed re-read, and opens again once a read answers', async () => {
     const page = await mountLive()
     await page.press('guardian-acknowledge')
-    kit.recoveryState.mockImplementation(async () => {
+    kit.attemptState.mockImplementation(async () => {
       throw new Error('rpc down')
     })
     await advance(MINUTE)
     expect(page.has('guardian-read-failed')).toBe(true)
     expect(page.textOf('guardian-value-newKey')).toBe(NEW_KEY)
     expect(page.has('guardian-acknowledge')).toBe(false)
-    kit.recoveryState.mockImplementation(async () => recoveryStateOf())
+    kit.attemptState.mockImplementation(async () => attemptStateOf())
     await page.press('guardian-read-retry')
     expect(page.has('guardian-read-failed')).toBe(false)
     expect(page.has('guardian-tick-first')).toBe(false)
@@ -207,9 +207,9 @@ describe('the sign action', () => {
     const page = await mountLive()
     await page.press('guardian-acknowledge')
     expect(page.isDisabled('guardian-sign')).toBe(false)
-    expect(kit.recoveryState).toHaveBeenCalledTimes(1)
+    expect(kit.attemptState).toHaveBeenCalledTimes(1)
     await navigate(searchOf(linkOf(requestOf({ payload: '0x123456', salt: '0x03' }))))
-    expect(kit.recoveryState).toHaveBeenCalledTimes(2)
+    expect(kit.attemptState).toHaveBeenCalledTimes(2)
     expect(kit.isAuthorized).toHaveBeenCalledTimes(2)
     expect(page.textOf('guardian-value-newKey')).toBe(otherKey)
     expect(page.has('guardian-tick-first')).toBe(true)
@@ -224,20 +224,20 @@ describe('the states in place of the sign action', () => {
   const deaths = [
     {
       name: 'void',
-      state: () => recoveryStateOf({ nextAttemptId: 4n }),
+      state: () => attemptStateOf({ nextAttemptId: 4n }),
       title: `${PAGE}.dead.voidTitle`,
       body: `${PAGE}.dead.voidBody`
     },
     {
       name: 'setup-changed',
-      state: () => recoveryStateOf({ setupNonce: 3n }),
+      state: () => attemptStateOf({ setupNonce: 3n }),
       title: `${PAGE}.dead.changedTitle`,
       body: `${PAGE}.dead.changedBody`
     }
   ]
   deaths.forEach(({ name, state, title, body }) =>
     it(`draws ${name} with its lines, the line to tell the owner and close`, async () => {
-      kit.recoveryState.mockImplementation(async () => state())
+      kit.attemptState.mockImplementation(async () => state())
       const page = await mountLive()
       expect(page.has(`guardian-dead-${name}`)).toBe(true)
       expect(page.textOf('guardian-dead-title')).toBe(t(title))
@@ -253,8 +253,8 @@ describe('the states in place of the sign action', () => {
     const ended = ['Cancelled', 'Consumed'] as const
     // eslint-disable-next-line no-restricted-syntax
     for (const state of ended) {
-      kit.recoveryState.mockImplementation(async () =>
-        recoveryStateOf({ attempt: { ...SUBMITTED, state }, nextAttemptId: 4n, setupNonce: 3n })
+      kit.attemptState.mockImplementation(async () =>
+        attemptStateOf({ attempt: { ...SUBMITTED, state }, nextAttemptId: 4n, setupNonce: 3n })
       )
       // eslint-disable-next-line no-await-in-loop
       const page = await mountLive()
@@ -283,8 +283,8 @@ describe('the states in place of the sign action', () => {
   })
 
   it('draws a submitted request as waiting until its end, with the dormant line where it applies', async () => {
-    kit.recoveryState.mockImplementation(async () =>
-      recoveryStateOf({ attempt: SUBMITTED, nextAttemptId: 4n })
+    kit.attemptState.mockImplementation(async () =>
+      attemptStateOf({ attempt: SUBMITTED, nextAttemptId: 4n })
     )
     kit.isAuthorized.mockImplementation(async () => false)
     const page = await mountLive()
@@ -302,8 +302,8 @@ describe('the states in place of the sign action', () => {
 
   it('draws a submitted request whose waiting period is over with the date it ended', async () => {
     const endedAt = CREATED_AT - 60
-    kit.recoveryState.mockImplementation(async () =>
-      recoveryStateOf({ attempt: { ...SUBMITTED, consumableAfter: endedAt }, nextAttemptId: 4n })
+    kit.attemptState.mockImplementation(async () =>
+      attemptStateOf({ attempt: { ...SUBMITTED, consumableAfter: endedAt }, nextAttemptId: 4n })
     )
     const page = await mountLive()
     expect(page.textOf('guardian-waiting-headline')).toBe(t(`${PAGE}.waiting.headline`))
@@ -315,7 +315,7 @@ describe('the states in place of the sign action', () => {
   })
 
   it('draws the reading state in place of the sign action, below the link values, with sign disabled', async () => {
-    kit.recoveryState.mockImplementation(() => new Promise(() => {}))
+    kit.attemptState.mockImplementation(() => new Promise(() => {}))
     const page = await mountLive()
     expect(page.textOf('guardian-reading')).toBe(t(`${PAGE}.reading`))
     expect(page.has('guardian-lead')).toBe(true)
@@ -356,7 +356,7 @@ describe('the states in place of the sign action', () => {
   })
 
   it('draws a read that ran past its limit as failed', async () => {
-    kit.recoveryState.mockImplementation(() => new Promise(() => {}))
+    kit.attemptState.mockImplementation(() => new Promise(() => {}))
     const page = await mountLive()
     expect(page.has('guardian-reading')).toBe(true)
     expect(page.textOf('guardian-reading')).toBe(t(`${PAGE}.reading`))
@@ -393,7 +393,7 @@ describe('the states in place of the sign action', () => {
     expect(page.has('guardian-read-retry')).toBe(false)
     expect(page.isDisabled('guardian-sign')).toBe(true)
     expect(clientAccounts().every((account) => account === undefined)).toBe(true)
-    expect(kit.recoveryState).not.toHaveBeenCalled()
+    expect(kit.attemptState).not.toHaveBeenCalled()
     page.unmount()
   })
 
@@ -409,7 +409,7 @@ describe('the states in place of the sign action', () => {
     const page = await mountPage('?request=broken')
     expect(page.textOf('guardian-no-request')).toBe(t(`${PAGE}.noRequest`))
     expect(page.has('guardian-sign')).toBe(false)
-    expect(kit.recoveryState).not.toHaveBeenCalled()
+    expect(kit.attemptState).not.toHaveBeenCalled()
     page.unmount()
   })
 
@@ -424,24 +424,36 @@ describe('the states in place of the sign action', () => {
 describe('the re-read', () => {
   it('reads the chain when the page opens and once every minute', async () => {
     const page = await mountLive()
-    expect(kit.recoveryState).toHaveBeenCalledTimes(1)
+    expect(kit.attemptState).toHaveBeenCalledTimes(1)
     expect(kit.isAuthorized).toHaveBeenCalledTimes(1)
     await advance(MINUTE - 1)
-    expect(kit.recoveryState).toHaveBeenCalledTimes(1)
+    expect(kit.attemptState).toHaveBeenCalledTimes(1)
     await advance(1)
-    expect(kit.recoveryState).toHaveBeenCalledTimes(2)
+    expect(kit.attemptState).toHaveBeenCalledTimes(2)
     expect(kit.isAuthorized).toHaveBeenCalledTimes(2)
-    kit.recoveryState.mockImplementation(async () => recoveryStateOf({ setupNonce: 3n }))
+    kit.attemptState.mockImplementation(async () => attemptStateOf({ setupNonce: 3n }))
     await advance(MINUTE)
     expect(page.has('guardian-dead-setup-changed')).toBe(true)
     page.unmount()
   })
 
+  it('answers its rounds without the removed key, while that read would fail', async () => {
+    const page = await mountLive()
+    await advance(MINUTE)
+    await advance(MINUTE)
+    expect(kit.attemptState).toHaveBeenCalledTimes(3)
+    expect(kit.recoveryState).not.toHaveBeenCalled()
+    expect(kit.removedKey).not.toHaveBeenCalled()
+    expect(page.has('guardian-sign-block')).toBe(true)
+    expect(page.has('guardian-read-failed')).toBe(false)
+    page.unmount()
+  })
+
   it("drops a round of an earlier client that answers after the newer client's round", async () => {
-    let answerLate: (state: RecoveryState) => void = () => {}
-    kit.recoveryState.mockImplementationOnce(
+    let answerLate: (state: RecoveryAttemptState) => void = () => {}
+    kit.attemptState.mockImplementationOnce(
       () =>
-        new Promise<RecoveryState>((resolve) => {
+        new Promise<RecoveryAttemptState>((resolve) => {
           answerLate = resolve
         })
     )
@@ -449,9 +461,9 @@ describe('the re-read', () => {
     expect(page.has('guardian-reading')).toBe(true)
     setClient(readyClient())
     await settle()
-    expect(kit.recoveryState).toHaveBeenCalledTimes(2)
+    expect(kit.attemptState).toHaveBeenCalledTimes(2)
     expect(page.has('guardian-sign-block')).toBe(true)
-    answerLate(recoveryStateOf({ setupNonce: 3n }))
+    answerLate(attemptStateOf({ setupNonce: 3n }))
     await settle()
     expect(page.has('guardian-dead-setup-changed')).toBe(false)
     expect(page.has('guardian-sign-block')).toBe(true)
@@ -459,19 +471,19 @@ describe('the re-read', () => {
   })
 
   it("drops a round of an earlier link that answers after the new link's round", async () => {
-    let answerLate: (state: RecoveryState) => void = () => {}
-    kit.recoveryState.mockImplementationOnce(
+    let answerLate: (state: RecoveryAttemptState) => void = () => {}
+    kit.attemptState.mockImplementationOnce(
       () =>
-        new Promise<RecoveryState>((resolve) => {
+        new Promise<RecoveryAttemptState>((resolve) => {
           answerLate = resolve
         })
     )
     const page = await mountLive()
     expect(page.has('guardian-reading')).toBe(true)
     await navigate(searchOf(linkOf(requestOf({ salt: '0x03' }))))
-    expect(kit.recoveryState).toHaveBeenCalledTimes(2)
+    expect(kit.attemptState).toHaveBeenCalledTimes(2)
     expect(page.has('guardian-sign-block')).toBe(true)
-    answerLate(recoveryStateOf({ setupNonce: 3n }))
+    answerLate(attemptStateOf({ setupNonce: 3n }))
     await settle()
     expect(page.has('guardian-dead-setup-changed')).toBe(false)
     expect(page.has('guardian-sign-block')).toBe(true)
@@ -482,7 +494,7 @@ describe('the re-read', () => {
     const page = await mountLive()
     await page.press('guardian-decline')
     await advance(3 * MINUTE)
-    expect(kit.recoveryState).toHaveBeenCalledTimes(1)
+    expect(kit.attemptState).toHaveBeenCalledTimes(1)
     page.unmount()
   })
 })
@@ -525,18 +537,18 @@ describe('the decline', () => {
     await navigate(searchOf(linkOf(requestOf({ salt: '0x03' }))))
     expect(page.has('guardian-declined-title')).toBe(false)
     expect(page.textOf('guardian-value-newKey')).toBe(NEW_KEY)
-    expect(kit.recoveryState).toHaveBeenCalledTimes(2)
+    expect(kit.attemptState).toHaveBeenCalledTimes(2)
     expect(kit.isAuthorized).toHaveBeenCalledTimes(2)
     await page.press('guardian-acknowledge')
     expect(page.isDisabled('guardian-sign')).toBe(false)
     await advance(MINUTE)
-    expect(kit.recoveryState).toHaveBeenCalledTimes(3)
+    expect(kit.attemptState).toHaveBeenCalledTimes(3)
     page.unmount()
   })
 
   it('closes the tab from a death', async () => {
     const close = jest.spyOn(window, 'close').mockImplementation(() => {})
-    kit.recoveryState.mockImplementation(async () => recoveryStateOf({ nextAttemptId: 4n }))
+    kit.attemptState.mockImplementation(async () => attemptStateOf({ nextAttemptId: 4n }))
     const page = await mountLive()
     await page.press('guardian-close')
     expect(close).toHaveBeenCalledTimes(1)

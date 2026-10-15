@@ -410,21 +410,16 @@ export const createKitRecoveryClient = (ctx: KitRecoveryContext): IRecoveryClien
 
     recoveryState(): Promise<RecoveryState> {
       return withNamedRevert(async () => {
-        const block = await pin()
         const [state, removed] = await Promise.all([
-          manager.stateOf(account, actionAddress, block.number),
+          ctx.walletReads.attemptState(),
           ctx.walletReads.removedKey()
         ])
         return {
-          attempt: state.attempt,
-          nextAttemptId: state.nextAttemptId,
-          setupCommitment: state.setupCommitment,
-          setupNonce: state.setupNonce,
+          ...state,
           // `RecoveryState.removedKey` has no value for a replay that names no key or
           // several, so both read as 'no-creation-triple'; the wallet reads'
           // `removedKey()` names the cause.
-          removedKey: removed.kind === 'named' ? removed.key : 'no-creation-triple',
-          block
+          removedKey: removed.kind === 'named' ? removed.key : 'no-creation-triple'
         }
       })
     }

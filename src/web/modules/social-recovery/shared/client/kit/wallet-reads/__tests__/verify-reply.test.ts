@@ -14,6 +14,7 @@ import { eachIt } from '@web/modules/social-recovery/shared/chrome/__fixtures__/
 import { createKitEventManager } from '@web/modules/social-recovery/shared/client/kit/events'
 import {
   createActionReads,
+  createManagerReads,
   createMethodReads
 } from '@web/modules/social-recovery/shared/client/kit/reads'
 import type { ScriptedMethod } from '@web/modules/social-recovery/shared/client/kit/setup-client/__fixtures__/types'
@@ -51,6 +52,7 @@ const worldOf = (scripts: { ecdsa?: ScriptedMethod; passkey?: ScriptedMethod } =
   const reads = createKitWalletReads({
     account: { addr: ACCOUNT, associatedKeys: [], initialPrivileges: [], creation: null },
     action: createActionReads({ provider: node.provider, codeRead: node.codeRead }, ACTION),
+    manager: createManagerReads(node.provider, MANAGER),
     moduleReads: createMethodReads(node.provider),
     codeRead: node.codeRead,
     provider: node.provider,

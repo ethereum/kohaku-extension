@@ -39,7 +39,8 @@ import type {
   IRecoveryClient,
   IRecoveryMethod,
   ISetupClient,
-  PreparedCall
+  PreparedCall,
+  RecoveryState
 } from '@web/modules/social-recovery/sdk-interfaces'
 import type { ChainId, SlotKind, WalletRecords } from '@web/modules/social-recovery/shared/records'
 
@@ -306,8 +307,21 @@ export type ExtensionProvider = AdapterProvider &
 // The client
 // ---------------------------------------------------------------------------
 
-/** The wallet's own reads the SDK does not offer, under the name screens use. */
-export type WalletReads = IWalletReadsDouble
+/**
+ * The manager's state for the client's account and action, as the recovery
+ * state reads it at one pinned block, without the removed key: the attempt,
+ * the attempt counter, the setup commitment and nonce, and the block.
+ */
+export type RecoveryAttemptState = Omit<RecoveryState, 'removedKey'>
+
+/**
+ * The wallet's own reads the SDK does not offer, under the name screens use,
+ * and the attempt state alone, for a surface that never shows the removed key
+ * and so does not pay for its scans.
+ */
+export type WalletReads = IWalletReadsDouble & {
+  attemptState(): Promise<RecoveryAttemptState>
+}
 export type { FitCheckReading, RemovedKeyReading, RemovedKeyUnavailableCause }
 
 // ---------------------------------------------------------------------------

@@ -28,7 +28,7 @@ import {
   NEW_KEY,
   notListedRefusal,
   readyClient,
-  recoveryStateOf,
+  attemptStateOf,
   replyOf,
   requestOf,
   resetEdges,
@@ -368,7 +368,7 @@ describe('the signing step', () => {
     const { answers } = heldSignWindow()
     const page = await mountTicked()
     await page.press('guardian-sign')
-    kit.recoveryState.mockImplementation(async () => recoveryStateOf({ setupNonce: 3n }))
+    kit.attemptState.mockImplementation(async () => attemptStateOf({ setupNonce: 3n }))
     await advance(MINUTE)
     expect(page.has('guardian-dead-setup-changed')).toBe(true)
     answers[0](await signatureBy(GUARDIAN_ACCOUNT, typedDataFor(requestOf())))
@@ -382,12 +382,12 @@ describe('the signing step', () => {
     const { answers } = heldSignWindow()
     const page = await mountTicked()
     await page.press('guardian-sign')
-    kit.recoveryState.mockImplementation(async () =>
-      recoveryStateOf({ attempt: SUBMITTED, nextAttemptId: 4n })
+    kit.attemptState.mockImplementation(async () =>
+      attemptStateOf({ attempt: SUBMITTED, nextAttemptId: 4n })
     )
     await advance(MINUTE)
     expect(page.has('guardian-waiting')).toBe(true)
-    kit.recoveryState.mockImplementation(async () => {
+    kit.attemptState.mockImplementation(async () => {
       throw new Error('rpc down')
     })
     await advance(MINUTE)
@@ -403,10 +403,10 @@ describe('the signing step', () => {
     const { answers } = heldSignWindow()
     const page = await mountTicked()
     await page.press('guardian-sign')
-    kit.recoveryState.mockImplementation(async () => recoveryStateOf({ setupNonce: 3n }))
+    kit.attemptState.mockImplementation(async () => attemptStateOf({ setupNonce: 3n }))
     await advance(MINUTE)
     expect(page.has('guardian-dead-setup-changed')).toBe(true)
-    kit.recoveryState.mockImplementation(async () => {
+    kit.attemptState.mockImplementation(async () => {
       throw new Error('rpc down')
     })
     await advance(MINUTE)
@@ -422,27 +422,27 @@ describe('the signing step', () => {
     const page = await mountTicked()
     await page.press('guardian-sign')
     expect(signals[0]?.aborted).toBe(false)
-    kit.recoveryState.mockImplementation(async () => recoveryStateOf({ nextAttemptId: 4n }))
+    kit.attemptState.mockImplementation(async () => attemptStateOf({ nextAttemptId: 4n }))
     await advance(MINUTE)
     expect(signals[0]?.aborted).toBe(true)
     page.unmount()
   })
 
   it('reads the chain no more once a read found the request dead', async () => {
-    kit.recoveryState.mockImplementation(async () => recoveryStateOf({ setupNonce: 3n }))
+    kit.attemptState.mockImplementation(async () => attemptStateOf({ setupNonce: 3n }))
     const page = await mountLive()
     expect(page.has('guardian-dead-setup-changed')).toBe(true)
     await advance(3 * MINUTE)
-    expect(kit.recoveryState).toHaveBeenCalledTimes(1)
+    expect(kit.attemptState).toHaveBeenCalledTimes(1)
     expect(page.has('guardian-dead-setup-changed')).toBe(true)
     page.unmount()
   })
 
   it('keeps a found death through a client built again, directly or through loading, and reads no more', async () => {
-    kit.recoveryState.mockImplementation(async () => recoveryStateOf({ setupNonce: 3n }))
+    kit.attemptState.mockImplementation(async () => attemptStateOf({ setupNonce: 3n }))
     const page = await mountLive()
     expect(page.has('guardian-dead-setup-changed')).toBe(true)
-    kit.recoveryState.mockImplementation(async () => {
+    kit.attemptState.mockImplementation(async () => {
       throw new Error('rpc down')
     })
     setClient(readyClient())
@@ -455,27 +455,27 @@ describe('the signing step', () => {
     expect(page.has('guardian-dead-setup-changed')).toBe(true)
     expect(page.has('guardian-read-failed')).toBe(false)
     await advance(3 * MINUTE)
-    expect(kit.recoveryState).toHaveBeenCalledTimes(1)
+    expect(kit.attemptState).toHaveBeenCalledTimes(1)
     expect(page.has('guardian-dead-setup-changed')).toBe(true)
     page.unmount()
   })
 
   it('reads, signs and keeps reading a later request opened where an earlier one read void', async () => {
     const othersAttempt = { ...SUBMITTED, payloadHash: `0x${'ee'.repeat(32)}` as Hex }
-    kit.recoveryState.mockImplementation(async () =>
-      recoveryStateOf({ attempt: othersAttempt, nextAttemptId: 4n })
+    kit.attemptState.mockImplementation(async () =>
+      attemptStateOf({ attempt: othersAttempt, nextAttemptId: 4n })
     )
     const page = await mountLive()
     expect(page.has('guardian-dead-void')).toBe(true)
 
-    kit.recoveryState.mockImplementation(async () => recoveryStateOf({ nextAttemptId: 4n }))
+    kit.attemptState.mockImplementation(async () => attemptStateOf({ nextAttemptId: 4n }))
     const later = requestOf({ attemptId: '4' })
     await navigate(searchOf(linkOf(later)))
     expect(page.has('guardian-dead-void')).toBe(false)
     expect(page.has('guardian-lead')).toBe(true)
-    expect(kit.recoveryState).toHaveBeenCalledTimes(2)
+    expect(kit.attemptState).toHaveBeenCalledTimes(2)
     await advance(MINUTE)
-    expect(kit.recoveryState).toHaveBeenCalledTimes(3)
+    expect(kit.attemptState).toHaveBeenCalledTimes(3)
     expect(page.has('guardian-lead')).toBe(true)
 
     await page.press('guardian-acknowledge')
@@ -514,12 +514,12 @@ describe('the signing step', () => {
 
   it('stops reading the chain once the approval exists', async () => {
     const page = await mountTicked()
-    expect(kit.recoveryState).toHaveBeenCalledTimes(1)
+    expect(kit.attemptState).toHaveBeenCalledTimes(1)
     await page.press('guardian-sign')
     await finish()
     expect(page.has('guardian-signed')).toBe(true)
     await advance(3 * MINUTE)
-    expect(kit.recoveryState).toHaveBeenCalledTimes(1)
+    expect(kit.attemptState).toHaveBeenCalledTimes(1)
     expect(page.has('guardian-signed')).toBe(true)
     page.unmount()
   })
@@ -535,7 +535,7 @@ describe('the signing step', () => {
     setClient(readyClient())
     await settle()
     await advance(3 * MINUTE)
-    expect(kit.recoveryState).toHaveBeenCalledTimes(1)
+    expect(kit.attemptState).toHaveBeenCalledTimes(1)
     expect(page.has('guardian-signed')).toBe(true)
     page.unmount()
   })
@@ -549,7 +549,7 @@ describe('the signing step', () => {
     setClient(readyClient())
     await settle()
     await advance(3 * MINUTE)
-    expect(kit.recoveryState).toHaveBeenCalledTimes(1)
+    expect(kit.attemptState).toHaveBeenCalledTimes(1)
     page.unmount()
   })
 })
@@ -940,12 +940,12 @@ describe('another link opened in the same tab', () => {
     await page.press('guardian-sign')
     await finish()
     expect(page.has('guardian-signed')).toBe(true)
-    const reads = kit.recoveryState.mock.calls.length
+    const reads = kit.attemptState.mock.calls.length
     await openOther()
     expect(page.has('guardian-signed')).toBe(false)
     expect(page.has('guardian-sign-block')).toBe(true)
     await advance(3 * MINUTE)
-    expect(kit.recoveryState.mock.calls.length).toBeGreaterThan(reads)
+    expect(kit.attemptState.mock.calls.length).toBeGreaterThan(reads)
     page.unmount()
   })
 

@@ -23,7 +23,8 @@ export interface KitRecoveryContext {
   moduleReads: IMethodModuleReads
   /** The restore of the committed configuration the gatherings are built over. */
   setup: Pick<ISetupClient, 'getSetup'>
-  walletReads: Pick<WalletReads, 'removedKey'>
+  /** The removed key, and the attempt state the recovery state is built on. */
+  walletReads: Pick<WalletReads, 'removedKey' | 'attemptState'>
   /** The events feed the client serves as its own. */
   eventManager: IEventManager
 }

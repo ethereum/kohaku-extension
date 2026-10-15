@@ -1,6 +1,9 @@
 /**
- * The key a recovery would remove, the fit check and the verify of a pasted
- * reply, read from the chain.
+ * The key a recovery would remove, the manager's attempt state, the fit check
+ * and the verify of a pasted reply, read from the chain.
+ *
+ * The attempt state is the manager's state for the account and the action at
+ * one pinned block, with no removed-key read: no code read and no log scan.
  *
  * The removed key is read at one pinned block. An account with no code there
  * has no key on chain to judge: for an account the wallet lists, the keys its
@@ -58,12 +61,13 @@ import {
   holdsPrivilege
 } from '@web/modules/social-recovery/shared/client/wallet-reads'
 
-import type { FitCheckReading, RemovedKeyReading } from '../../types'
+import type { FitCheckReading, RecoveryAttemptState, RemovedKeyReading } from '../../types'
 import { createPrivilegeEvents } from '../events'
 import type { SetupCommittedLog } from '../events/types'
 import { createAccountReads } from '../reads'
 import { decodedHandoverOf } from '../recovery-client/handover'
 import { pinnedBlockOf } from '../setup-client'
+import { readAttemptState } from './attempt-state'
 import { historyRefused } from './history-refusal'
 import type {
   KitRemovedKeyReading,
@@ -89,6 +93,7 @@ export const createKitWalletReads = ({
   knownKeys = [],
   accountImplementation,
   action,
+  manager,
   moduleReads,
   codeRead,
   provider,
@@ -211,6 +216,16 @@ export const createKitWalletReads = ({
             .map(([key]) => key)
         )
       )
+    },
+
+    async attemptState(): Promise<RecoveryAttemptState> {
+      return readAttemptState({
+        provider,
+        blockTags,
+        manager,
+        account: addressOf(),
+        action: descriptor.action
+      })
     },
 
     async fitCheck(implementation?: Address): Promise<FitCheckReading> {

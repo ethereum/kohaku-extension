@@ -35,6 +35,8 @@ import type {
 } from '@web/modules/social-recovery/sdk-interfaces'
 import type {
   KeyHandle,
+  RecoveryAttemptState,
+  RemovedKeyReading,
   SignFlowFailureReason,
   SignOptions,
   TypedDataToSign
@@ -55,7 +57,10 @@ export type ClientState = RecoveryClientState & { retry: () => void }
 /** The request account's scripted client: its description, its two chain reads and its approving side. */
 export interface KitScript {
   describeRequest: jest.Mock<RequestDescription, [ApproverRequest]>
+  attemptState: jest.Mock<Promise<RecoveryAttemptState>, []>
+  /** The full recovery state and the removed key: reads the page never makes. */
   recoveryState: jest.Mock<Promise<RecoveryState>, []>
+  removedKey: jest.Mock<Promise<RemovedKeyReading>, []>
   isAuthorized: jest.Mock<Promise<boolean>, []>
   signingInput: jest.Mock<unknown, [ApproverRequest]>
   replyFrom: jest.Mock<Promise<ApproverReply | ReplyFailure>, [ApproverRequest, unknown, unknown]>
@@ -390,13 +395,14 @@ export const SUBMITTED: Attempt = {
   payloadHash: keccak256(PAYLOAD)
 }
 
-/** The account's recovery state while the request is live. */
-export const recoveryStateOf = (overrides: Partial<RecoveryState> = {}): RecoveryState => ({
+/** The manager's attempt state while the request is live. */
+export const attemptStateOf = (
+  overrides: Partial<RecoveryAttemptState> = {}
+): RecoveryAttemptState => ({
   attempt: NO_ATTEMPT,
   nextAttemptId: BigInt(ATTEMPT_ID),
   setupCommitment: `0x${'ab'.repeat(32)}`,
   setupNonce: BigInt(SETUP_NONCE),
-  removedKey: REMOVED_KEY,
   block: { number: 200, timestamp: CREATED_AT, hash: `0x${'cd'.repeat(32)}` },
   ...overrides
 })
@@ -496,7 +502,9 @@ const walletMethod = {
 
 export const kit: KitScript = {
   describeRequest: jest.fn(),
+  attemptState: jest.fn(),
   recoveryState: jest.fn(),
+  removedKey: jest.fn(),
   isAuthorized: jest.fn(),
   signingInput: jest.fn(),
   replyFrom: jest.fn(),
@@ -522,6 +530,10 @@ export const readyClient = (descriptor = DESCRIPTOR): ClientState =>
       },
       methodFor: (slug: string) => (slug === 'ecdsa' ? walletMethod : undefined),
       recovery: { recoveryState: () => kit.recoveryState() },
+      walletReads: {
+        attemptState: () => kit.attemptState(),
+        removedKey: () => kit.removedKey()
+      },
       action: { isAuthorized: () => kit.isAuthorized() }
     },
     reads: {},
@@ -575,8 +587,12 @@ export const resetEdges = () => {
   mockClient.state = readyClient()
   kit.describeRequest.mockReset()
   kit.describeRequest.mockImplementation((request) => descriptionOf(request))
+  kit.attemptState.mockReset()
+  kit.attemptState.mockImplementation(async () => attemptStateOf())
   kit.recoveryState.mockReset()
-  kit.recoveryState.mockImplementation(async () => recoveryStateOf())
+  kit.recoveryState.mockRejectedValue(new Error('the recovery state is not read'))
+  kit.removedKey.mockReset()
+  kit.removedKey.mockRejectedValue(new Error('the removed key is not read'))
   kit.isAuthorized.mockReset()
   kit.isAuthorized.mockImplementation(async () => true)
   kit.signingInput.mockReset()
@@ -737,7 +753,7 @@ describeHarness('the approval page harness', () => {
     const page = await mountLive()
     expect(clientAccounts()).toContain(ACCOUNT)
     expect(kit.describeRequest).toHaveBeenCalled()
-    expect(kit.recoveryState).toHaveBeenCalledTimes(1)
+    expect(kit.attemptState).toHaveBeenCalledTimes(1)
     expect(kit.isAuthorized).toHaveBeenCalledTimes(1)
     page.unmount()
   })

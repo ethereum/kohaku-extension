@@ -21,6 +21,7 @@ import type { Address, BlockRange, FilterSpec } from '@web/modules/social-recove
 import { createKitEventManager } from '@web/modules/social-recovery/shared/client/kit/events'
 import {
   createActionReads,
+  createManagerReads,
   createMethodReads
 } from '@web/modules/social-recovery/shared/client/kit/reads'
 import {
@@ -32,7 +33,8 @@ import {
   DEPLOYED_AT,
   DESCRIPTOR,
   fakeNode,
-  HEAD
+  HEAD,
+  MANAGER
 } from '@web/modules/social-recovery/shared/client/kit/setup-client/__tests__/harness'
 import { createKitWalletReads } from '@web/modules/social-recovery/shared/client/kit/wallet-reads'
 import type { AccountWorldOptions } from '@web/modules/social-recovery/shared/client/kit/wallet-reads/__fixtures__/types'
@@ -147,6 +149,7 @@ export const worldOf = ({
     account: { addr: ACCOUNT, associatedKeys, initialPrivileges, creation },
     knownKeys,
     action: createActionReads({ provider: node.provider, codeRead: node.codeRead }, ACTION),
+    manager: createManagerReads(node.provider, MANAGER),
     moduleReads: createMethodReads(node.provider),
     codeRead: node.codeRead,
     provider: node.provider,

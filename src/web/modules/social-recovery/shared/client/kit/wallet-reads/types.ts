@@ -13,7 +13,7 @@ import type {
   TransactionRead,
   WalletReads
 } from '../../types'
-import type { ActionReads, MethodReads } from '../reads/types'
+import type { ActionReads, ManagerReads, MethodReads } from '../reads/types'
 
 /** What the wallet's two account reads take. */
 export interface KitWalletReadsInput {
@@ -24,6 +24,8 @@ export interface KitWalletReadsInput {
   /** The implementation the account will deploy, where the caller names none. */
   accountImplementation?: Address
   action: Pick<ActionReads, 'isAuthority' | 'supportsAccount' | 'ambireImplementation'>
+  /** The manager's state view the attempt state is read through. */
+  manager: Pick<ManagerReads, 'stateOf'>
   /** The method modules' `verify` view a pasted reply is judged through. */
   moduleReads: ReplyVerifyReads
   codeRead: CodeRead
@@ -39,6 +41,16 @@ export interface KitWalletReadsInput {
   events: Pick<IEventManager, 'accountFilter' | 'fetch'>
   /** The sender of the transaction that carried a setup commit. */
   transactionRead: TransactionRead
+}
+
+/** What the attempt state is read through: the manager's state view for one account and one action. */
+export interface AttemptStateReadInput {
+  provider: IProvider
+  /** The block tags the read pins at. */
+  blockTags?: ClientConfiguration['blockTags']
+  manager: Pick<ManagerReads, 'stateOf'>
+  account: Address
+  action: Address
 }
 
 /** The one module view the verify of a pasted reply reads. */
@@ -62,7 +74,11 @@ export type PrivilegeScanStart =
   | { from: number; bounded: false }
   | { from: number; bounded: true; refusal: unknown }
 
-/** The wallet's own reads the kit serves: the removed key, the fit check and the verify of a pasted reply. */
-export interface KitWalletReads extends Pick<WalletReads, 'fitCheck' | 'verifyReply'> {
+/**
+ * The wallet's own reads the kit serves: the removed key, the attempt state,
+ * the fit check and the verify of a pasted reply.
+ */
+export interface KitWalletReads
+  extends Pick<WalletReads, 'attemptState' | 'fitCheck' | 'verifyReply'> {
   removedKey(): Promise<KitRemovedKeyReading>
 }

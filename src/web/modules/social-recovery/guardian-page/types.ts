@@ -26,8 +26,12 @@ export interface DescribedRequest {
   description: RequestDescription
 }
 
-/** The part of the recovery client the page reads the chain through. */
-export type ApprovalKitClient = Pick<RecoveryKitClient, 'recovery' | 'action'>
+/**
+ * The part of the recovery client the page reads the chain through: the
+ * wallet reads' attempt state, which makes no removed-key read, and the
+ * action's authorization.
+ */
+export type ApprovalKitClient = Pick<RecoveryKitClient, 'walletReads' | 'action'>
 
 /** One of the four values the lead shows: its label, and its text or null where it cannot be read. */
 export interface ApprovalValueLine {
