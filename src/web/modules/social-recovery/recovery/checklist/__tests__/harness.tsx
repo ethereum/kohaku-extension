@@ -644,6 +644,13 @@ export const storedSession = async (
 // The ceremony tab's report channel
 // ---------------------------------------------------------------------------
 
+/** What a mounted screen's mocked modules read from: the storage, the report channel and the kit of the current test. */
+export interface MockWorld {
+  storage: RecordStorage | null
+  channel: ReportChannel | null
+  kit: FakeKit | null
+}
+
 export interface ReportChannel {
   store: ReportStore
   subscribe: ReportSubscribe

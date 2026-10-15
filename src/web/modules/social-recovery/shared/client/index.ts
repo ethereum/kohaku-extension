@@ -128,6 +128,7 @@ export type {
   DeploymentRefusal,
   NotServedRefusal,
   WalletReads,
+  RecoveryAttemptState,
   FitCheckReading,
   RemovedKeyReading,
   RemovedKeyUnavailableCause,

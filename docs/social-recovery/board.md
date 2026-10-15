@@ -1,18 +1,34 @@
 # Social recovery board
 
-The state of the work at the end of milestone M-7 (2026-10-05), written as the hand-off to the next coordinator session. It replaces the M-6 board. Read it with `CLAUDE.md`, the coordinator command (`.claude/commands/social-recovery-coordinator.md`) and `docs/social-recovery/tasks/README.md`. The running log of M-7 (every round, gate and ruling in order) stays in the M-7 coordinator's worktree, `.claude/worktrees/social-recovery-m7-b1d1ce/docs/social-recovery/board.md`, with its briefs under `briefs/m7/`; open it only for a detail this board does not carry.
+The state of the work at the end of milestone M-9 round 1 (the guardian page), 2026-10-14, written as the hand-off to the next coordinator session; M-9 started 2026-10-13 from `dev/wonderland` f6b43bd52c and ended at ff60f6a256. The M-8 running log stays in the M-8 coordinator's worktree under `briefs/m8/LOG.md`; this milestone's log is `briefs/m9/LOG.md` beside its briefs.
 
 ## The board
 
 | Column | What is in it |
 | --- | --- |
-| Ready | M-8's free tasks: PT-052 the recover door and the warning gate, PT-053 the fast track's three steps, PT-061 the wait and its endings, PT-062 the done screen (each once its dependencies merge). M-8's setup PR comes first. |
+| Ready | The follow-ups below as the next tasks; the next milestone (M-10, the watcher, PT-065 and PT-066) on the owner's word. |
 | Running | Nothing. |
-| Awaiting review | Nothing on the fork. Upstream: ethereum/kohaku-extension#251 (M-6) and #253 (M-7), both drafts, the owner marks them ready. |
-| Blocked | PT-058 (the reply's shape and its verify: questions 4 and 6, sdk owner); PT-075 (the recovered key's signing lives in kohaku-commons, and its test vector has no producer: question 17); PT-056 in part (the public shape note's format, sdk owner). |
-| Merged | M-6 (13 commits) and M-7 (48 commits) on `dev/wonderland`, at f84abe36a before this board's own PR. |
+| Awaiting review | Nothing on the fork but this board. Upstream: #251 (M-6), #253 (M-7), #254 (M-8) and the M-9 draft from `dev-wonderland-m9` at ff60f6a256, drafts the owner marks ready. |
+| Blocked | Nothing. |
+| Merged | M-9 round 1 on `dev/wonderland` at ff60f6a256 (2026-10-14, one train): #104 the setup (the strings, the unlock return, the signer facade's bigint fix), #106 the kit's ECDSA method, #107 the page's reading, #108 the page's signing and reply; beside them the owner's #105, #109 and #111. The final tree equals the last gated lane's. |
 
-Waiting on the owner at M-7's end: his manual test with the README's section "Account recovery: manual test against a fork", the persona replay, and marking #251 and #253 ready.
+Follow-ups recorded, not started: a fallback at the manager's deployment block when the archive code read is refused on a pruning RPC (part E); a read of the request's attempt-started event for a link reopened after a later attempt; the payload text and file helpers shared with the enroll lane; the enroll lane's unused bigint replacer; a clock read inside the late-approval check; the reply script's verify compare against the 32-byte answer; the upstream switch-account window that cannot read a `switchAccount` action; the Colibri verifier of the shared build failing on a fresh install (outside the module).
+
+## Rulings of M-9 (2026-10-13)
+
+- The guardian signs with a key imported into Kohaku; no injected wallet and no WalletConnect route in this milestone.
+- The kit's ECDSA local verify follows the SDK's rule: a signature by another signer reads not judged, the chain's own check decides.
+- The page's three chain reads go through the kit client built for the account the link names.
+- The `DEPLOYED_ACTION` constant in the two kit test files stays.
+
+## Open with others
+
+| Question | Owner | What the code does meanwhile |
+| --- | --- | --- |
+| The reply text format and the signing vector | sdk owner (asked 2026-10-13) | The extension's `recovery-proof-reply` record as a base64url line; a test vector from a throwaway key |
+| The removed-key premise (a key the creation code wrote has no privilege log) | sdk owner | The creation-block scan of part E |
+| The action's unnamed error `0x3f6b40e3(address)` | contracts author | Decoded as unknown |
+| Which object the page's three reads go through (question 21) | sdk owner | The kit client for the request's account |
 
 ## What M-7 delivered
 

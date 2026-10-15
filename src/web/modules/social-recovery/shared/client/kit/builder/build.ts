@@ -4,13 +4,14 @@
  * gathering and prepares over the same reads and the setup client's restore,
  * the action and the module reads bound to the account, the wallet's
  * removed-key and fit reads over the same events feed and the transaction
- * read, its verify of a pasted reply through the method module's
- * own `verify` view, and the approving side. The approving
- * side reads no chain: it is the shipped method implementations and the
- * orchestrator over them, keyed by the deployment's method addresses, and it
- * serves only the methods the deployment names. Both clients serve one events
- * feed over the provider's logs of the manager and the account. The clear and
- * the feed's method filter are not served yet and refuse.
+ * read, its attempt-state read over the manager, its verify of a pasted reply
+ * through the method module's own `verify` view, and the approving side. The
+ * approving side reads no chain: it is the kit's ECDSA method and the shipped
+ * doubles for the rest, with the orchestrator over them, keyed by the
+ * deployment's method addresses, and it serves only the methods the
+ * deployment names. Both clients serve one events feed over the provider's
+ * logs of the manager and the account. The clear and the feed's method filter
+ * are not served yet and refuse.
  */
 import {
   ActionCodecDouble,
@@ -27,6 +28,7 @@ import type { SlotKind } from '@web/modules/social-recovery/shared/records'
 import type { RecoveryKitClient, WalletReads } from '../../types'
 import { createKitEventManager, createSetupEvents } from '../events'
 import { disarmingData } from '../formats'
+import { createEcdsaMethod } from '../methods'
 import { createMethodReads } from '../reads'
 import { createKitRecoveryClient } from '../recovery-client'
 import { accountCallOf, createKitSetupClient, moduleReadsOf, pinnedBlockOf } from '../setup-client'
@@ -48,6 +50,7 @@ export const buildKitClient = (input: KitClientInput): RecoveryKitClient => {
     account: input.privilegeAccount,
     accountImplementation: config.accountImplementation,
     action: input.action,
+    manager: input.manager,
     moduleReads: methodReads,
     codeRead,
     provider,
@@ -59,6 +62,7 @@ export const buildKitClient = (input: KitClientInput): RecoveryKitClient => {
   })
   const walletReads: WalletReads = {
     removedKey: () => kitWalletReads.removedKey(),
+    attemptState: () => kitWalletReads.attemptState(),
     fitCheck: (implementation) => kitWalletReads.fitCheck(implementation),
     verifyReply: (request, reply) => kitWalletReads.verifyReply(request, reply)
   }
@@ -114,8 +118,12 @@ export const buildKitClient = (input: KitClientInput): RecoveryKitClient => {
   )
     .filter(([, isServed]) => isServed)
     .map(([slug]) => [slug, addressBook.methods[slug]])
+  const shipped: IRecoveryMethod[] = [
+    createEcdsaMethod(),
+    ...shippedMethodDoubles().filter((method) => method.kind !== 'wallet')
+  ]
   const implementations = new Map<string, IRecoveryMethod>()
-  shippedMethodDoubles().forEach((method) =>
+  shipped.forEach((method) =>
     method
       .modules(descriptor)
       .forEach((module) => implementations.set(module.toLowerCase(), method))

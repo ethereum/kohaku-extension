@@ -58,6 +58,7 @@ import {
   createKitSetupClient,
   moduleReadsOf
 } from '@web/modules/social-recovery/shared/client/kit/setup-client'
+import { readAttemptState } from '@web/modules/social-recovery/shared/client/kit/wallet-reads'
 import { revertedCall } from '@web/modules/social-recovery/shared/client/provider-adapter'
 
 import type {
@@ -897,7 +898,17 @@ export const kitWorld = (options: KitWorldOptions = {}): KitWorld => {
     action,
     moduleReads,
     setup,
-    walletReads: { removedKey },
+    walletReads: {
+      removedKey,
+      attemptState: () =>
+        readAttemptState({
+          provider: node.provider,
+          blockTags: config.blockTags,
+          manager,
+          account: ACCOUNT,
+          action: descriptor.action
+        })
+    },
     eventManager
   })
   return { node, descriptor, config, setup, recovery, removedKey, draft: draftAt }

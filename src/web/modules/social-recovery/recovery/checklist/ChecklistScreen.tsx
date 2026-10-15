@@ -6,7 +6,7 @@
  * ceremony's report channel and this page's relying party. A search with no
  * account, or an account with no entry record, goes back to the account step.
  */
-import React, { useCallback, useMemo } from 'react'
+import React, { useCallback, useMemo, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { isAddressEqual } from 'viem'
 
@@ -114,9 +114,14 @@ const ChecklistScreen = () => {
   const search = useMemo(() => parseChecklistSearch(location.search), [location.search])
   const records = useMemo(() => createWalletRecords({ storage: extensionRecordStorage }), [])
   const account = search?.account
+  // The navigation changes with every location, a search that only drops the
+  // returned ceremony included. Read through a ref, it leaves the entry record
+  // read alone, so the checklist below stays mounted with what it holds.
+  const navigateRef = useRef(navigate)
+  navigateRef.current = navigate
   const toAccountStep = useCallback(
-    () => navigate(accountStepPath(), { replace: true }),
-    [navigate]
+    () => navigateRef.current(accountStepPath(), { replace: true }),
+    []
   )
   const { reading, retry } = useRecoveryEntryRead(records, CHAIN_ID, account, toAccountStep)
 

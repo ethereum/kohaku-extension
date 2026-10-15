@@ -57,6 +57,7 @@ const worldOf = ({
     account: { addr, associatedKeys, initialPrivileges, creation },
     accountImplementation,
     action,
+    manager: { stateOf: jest.fn() },
     moduleReads: { verify: jest.fn() },
     codeRead,
     provider,

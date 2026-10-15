@@ -603,6 +603,16 @@ describe('the recovery-side state', () => {
     })
   })
 
+  it("reads the manager's state once, at the pinned head, beside the removed key", async () => {
+    const world = worldWith({ state: WAITING })
+    await world.recovery.recoveryState()
+    const stateReads = world.node.calls.filter(
+      ({ to, data }) => to === MANAGER && data === stateOfCall()
+    )
+    expect(stateReads).toEqual([{ to: MANAGER, data: stateOfCall(), block: HEAD }])
+    expect(world.removedKey).toHaveBeenCalledTimes(1)
+  })
+
   it('reads a removed key the wallet cannot name as no creation triple', async () => {
     const world = worldWith({
       options: { removedKey: { kind: 'unavailable', cause: 'no-creation-record' } }

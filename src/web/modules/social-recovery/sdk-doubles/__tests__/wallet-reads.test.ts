@@ -1,7 +1,7 @@
 /**
- * The three wallet reads the extension owns beside the SDK: the verify of a
- * pasted reply, the key a recovery would remove, and the fit check against the
- * code the account will carry.
+ * The wallet reads the extension owns beside the SDK: the verify of a
+ * pasted reply, the key a recovery would remove, the fit check against the
+ * code the account will carry, and the manager's attempt state alone.
  */
 import type {
   Address,
@@ -10,6 +10,7 @@ import type {
   Verdict
 } from '@web/modules/social-recovery/sdk-interfaces'
 
+import { WalletReadsDouble } from '@web/modules/social-recovery/sdk-doubles'
 import {
   createWorld,
   eachIt,
@@ -112,6 +113,37 @@ describe('wallet reads double', () => {
         fits: false
       })
       expect(await reads.fitCheck()).toEqual({ basis: 'no-code', fits: false })
+    })
+  })
+
+  describe('attemptState', () => {
+    it('answers the recovery state without the removed key, at the same block', async () => {
+      const { world, recovery } = await openRecovery()
+      world.script.attempt('pending')
+      const reads = new WalletReadsDouble(world.chain)
+      const { removedKey, ...full } = await recovery.recoveryState()
+      const state = await reads.attemptState()
+      expect(state).toEqual(full)
+      expect(state).not.toHaveProperty('removedKey')
+      expect(state.attempt.state).toBe('Waiting')
+    })
+
+    eachIt(['provider.block', 'manager.stateOf'] as const)(
+      'throws a scripted %s read failure',
+      async (read) => {
+        const { world } = await openRecovery()
+        world.script.failRead(read)
+        await expectThrown(() => new WalletReadsDouble(world.chain).attemptState())
+      }
+    )
+
+    it('reads no removed key: a scripted removed-key failure leaves it answering', async () => {
+      const { world } = await openRecovery()
+      world.script.failRead('walletReads.removedKey')
+      world.script.failRead('recovery.recoveryState')
+      await expect(new WalletReadsDouble(world.chain).attemptState()).resolves.toHaveProperty(
+        'nextAttemptId'
+      )
     })
   })
 
