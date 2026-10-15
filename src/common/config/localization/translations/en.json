@@ -879,6 +879,17 @@
         "onlyOwnKey": "Only the account's own key can re-activate it.",
         "neverExecutes": "A recovery started now could never execute.",
         "runningCannotExecute": "A recovery already running against this account cannot execute while this setup is not active."
+      },
+      "runningAttempt": {
+        "title": "A recovery is already in progress for this account",
+        "lead": "The recovery registry allows one attempt at a time. This one finishes {{date}}.",
+        "yoursWallet": "This is your own recovery: the new key is one this wallet holds.",
+        "yoursSeed": "This is your own recovery: the new key is the one this device wrote down on the fast track.",
+        "continueWithKey": "Continue with that key",
+        "notYours": "The new key is not one this wallet holds.",
+        "waitItOut": "Wait it out. Only the account's own key can stop this recovery.",
+        "cancelExit": "Cancel it with this wallet's key",
+        "cancelExitBody": "This wallet holds the account's own key, which can cancel the recovery before it finishes."
       }
     },
     "readout": {
@@ -1358,6 +1369,69 @@
         "stillPublishes": "A recovery that completes without you still publishes your address with the rest of the path."
       },
       "notReadable": "Not readable"
+    },
+    "watcher": {
+      "banner": {
+        "title": "Somebody started recovering this account",
+        "finishes": "Finishes {{date}}",
+        "waiting": "{{countdown}} · waiting",
+        "executionDue": "Execution due",
+        "dueBody": "The waiting period ended on {{date}} and nobody has executed yet.",
+        "dueCancel": "This recovery can execute at any moment. Your account's key still cancels it until it does.",
+        "newKeyPending": "Reading the new key…",
+        "notMe": "It was not me, cancel it",
+        "isMe": "It is me",
+        "hidesOnly": "This hides the warning for this recovery only. A new one warns you again.",
+        "onlyOwnKey": "Only this account's own key can cancel this recovery before it finishes.",
+        "editCancels": "Editing the setup or removing recovery also cancels it. Removing only the module's authorization does not.",
+        "dormant": "The account does not authorize the recovery module right now, so this recovery cannot execute until it does. Cancel it anyway if it was not you.",
+        "account": "{{name}} · {{address}}"
+      },
+      "failed": {
+        "title": "We could not check this account",
+        "body": "This says nothing about whether a recovery is running.",
+        "lastRead": "Last checked {{date}}.",
+        "retry": "Try again"
+      },
+      "executed": {
+        "title": "This account is no longer controlled from this device",
+        "body": "A recovery handed control of this account to another key on {{date}}. The key this device holds no longer signs for it.",
+        "newController": "Controlled by",
+        "dismiss": "Got it"
+      }
+    },
+    "cancel": {
+      "confirm": {
+        "title": "Cancel this recovery?",
+        "lead": "Cancelling ends the attempt now. It removes none of the methods used to start it, so replace those methods right after.",
+        "oneTransaction": "Your key sends one transaction.",
+        "send": "Cancel the recovery",
+        "back": "Go back",
+        "ended": "This recovery already ended. Nothing was sent.",
+        "readFailed": "We could not read this recovery. Nothing was sent."
+      },
+      "inProgress": {
+        "title": "Cancelling…",
+        "body": "The attempt is live until this lands. Keep this window open."
+      },
+      "failed": {
+        "title": "Could not cancel",
+        "body": "The transaction was rejected before it reached the chain. The waiting period keeps running. Retry now, or move your funds.",
+        "moveFunds": "Move funds"
+      },
+      "reverted": {
+        "moveFunds": "Move funds"
+      },
+      "cancelled": {
+        "eyebrow": "Cancelled",
+        "title": "You cancelled this recovery",
+        "body": "The methods it used still work. Whoever holds them can try again. Replace them now, or move your funds.",
+        "replace": "Replace them",
+        "replaceLater": "Replacing a method of a saved setup arrives with the recovery overview in a later release. Until then, move your funds if you cannot trust the methods.",
+        "moveFunds": "Move funds",
+        "done": "Done",
+        "otherRoad": "Another road ended this recovery before your cancel: {{road}} Control did not move."
+      }
     }
   }
 }

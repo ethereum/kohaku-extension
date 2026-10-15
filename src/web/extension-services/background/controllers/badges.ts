@@ -12,12 +12,14 @@ export class BadgesController {
 
   #swapAndBridgeBannersCount: number = 0
 
+  #recoveryAttemptsCount: number = 0
+
   #badgesCount: number = 0
 
   #icon: 'default' | 'locked' | null = null
 
   get badgesCount() {
-    return this.#badgesCount + this.swapAndBridgeBannersCount
+    return this.#badgesCount + this.swapAndBridgeBannersCount + this.recoveryAttemptsCount
   }
 
   set badgesCount(newValue: number) {
@@ -31,6 +33,15 @@ export class BadgesController {
 
   set swapAndBridgeBannersCount(newValue: number) {
     this.#swapAndBridgeBannersCount = newValue
+    this.setBadges(this.badgesCount)
+  }
+
+  get recoveryAttemptsCount() {
+    return this.#recoveryAttemptsCount
+  }
+
+  set recoveryAttemptsCount(newValue: number) {
+    this.#recoveryAttemptsCount = newValue
     this.setBadges(this.badgesCount)
   }
 
@@ -100,7 +111,8 @@ export class BadgesController {
     return {
       ...this,
       badgesCount: this.badgesCount,
-      swapAndBridgeBannersCount: this.swapAndBridgeBannersCount
+      swapAndBridgeBannersCount: this.swapAndBridgeBannersCount,
+      recoveryAttemptsCount: this.recoveryAttemptsCount
     }
   }
 }
