@@ -8,6 +8,9 @@ export const PASSWORD_STEP = 2
 /** The key's place among the fast track's numbered steps. */
 export const KEY_STEP = 3
 
+/** The gas step's recovery stage: it sits between the readout and the checklist. */
+export const GAS_STAGE = 3
+
 /** The router state that carries the warning's acknowledgment to the next step. */
 export const ACKNOWLEDGED_STATE: FastTrackNavigationState = { acknowledged: true }
 

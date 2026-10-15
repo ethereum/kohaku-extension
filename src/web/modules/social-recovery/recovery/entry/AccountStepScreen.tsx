@@ -18,6 +18,11 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import { routeEntryPathOf } from '@web/modules/social-recovery/recovery/checklist/search'
+import { StepCounter } from '@web/modules/social-recovery/shared/chrome'
+import {
+  RECOVERY_STAGE_COUNTER_KEY,
+  RECOVERY_STAGES
+} from '@web/modules/social-recovery/shared/chrome/constants'
 import RecoveryChrome from '@web/modules/social-recovery/shared/chrome/RecoveryChrome'
 import {
   CHAIN_IDS,
@@ -117,14 +122,26 @@ const AccountStepScreen = () => {
     [dispatch]
   )
 
+  // The counter opens the main column, as on the fast-track steps, so the
+  // aside starts level with it.
+  const counter = (
+    <StepCounter
+      labelKey={RECOVERY_STAGE_COUNTER_KEY}
+      step={ACCOUNT_STAGE}
+      total={RECOVERY_STAGES}
+      testID="recovery-stage"
+    />
+  )
+
   return (
     <RecoveryChrome
       route={route}
       titleKey="socialRecovery.routes.recover"
-      stage={{ step: ACCOUNT_STAGE, testID: 'recovery-stage' }}
       testID="recovery-account"
     >
-      {!!search && !!receiving && !acknowledged && <CondensedGate onPass={pass} />}
+      {!!search && !!receiving && !acknowledged && (
+        <CondensedGate onPass={pass} counter={counter} />
+      )}
       {!!stepSearch && !!receiving && acknowledged && (
         <AccountStepView
           records={records}
@@ -137,6 +154,7 @@ const AccountStepScreen = () => {
           client={client}
           resolveName={resolveName}
           navigate={navigate}
+          counter={counter}
         />
       )}
     </RecoveryChrome>

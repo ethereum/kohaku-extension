@@ -1,7 +1,7 @@
 /**
- * The chrome of a surface outside settings: the plain header, and the panel
- * that holds the screen's view in the setup screens' column, with no settings
- * sidebar and no breadcrumb.
+ * The chrome of a surface outside settings: the plain header, the stage
+ * counter where the screen gives one, and the panel that holds the screen's
+ * view at the panel's full width, with no settings sidebar and no breadcrumb.
  */
 import React from 'react'
 import { ScrollView, View } from 'react-native'
@@ -15,11 +15,12 @@ import common from '@common/styles/utils/common'
 import getStyles from '@web/modules/settings/contexts/SettingsRoutesContext/styles'
 
 import PlainHeader from './PlainHeader'
+import StepCounter from './StepCounter'
 import type { PlainChromeProps } from './types'
 
-const COLUMN = { maxWidth: 600, width: '100%' } as const
+const COLUMN = { width: '100%' } as const
 
-const PlainChrome = ({ title, children, testID }: PlainChromeProps) => {
+const PlainChrome = ({ title, counter, children, testID }: PlainChromeProps) => {
   const { styles } = useTheme(getStyles)
   const { maxWidthSize } = useWindowSize()
 
@@ -37,7 +38,10 @@ const PlainChrome = ({ title, children, testID }: PlainChromeProps) => {
           ]}
         >
           <ScrollView contentContainerStyle={getPanelPaddings(maxWidthSize, 'large')}>
-            <View style={COLUMN}>{children}</View>
+            <View style={COLUMN}>
+              {!!counter && <StepCounter {...counter} />}
+              {children}
+            </View>
           </ScrollView>
         </Panel>
       </View>

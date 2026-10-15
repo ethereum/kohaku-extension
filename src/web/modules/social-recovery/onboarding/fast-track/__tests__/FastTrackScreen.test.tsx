@@ -104,6 +104,22 @@ describe('the fast track route', () => {
   })
 
   describe('step 2, the extension password', () => {
+    it('keeps the fields in the main column and the two notes on the password in the aside', async () => {
+      await mount(FAST_TRACK, ACKNOWLEDGED)
+
+      const main = byTestId('fast-track-password-columns-main')
+      const aside = byTestId('fast-track-password-columns-aside')
+      expect(main?.querySelector('[data-testid="fast-track-password-field"]')).not.toBeNull()
+      expect(main?.querySelector('[data-testid="fast-track-password-continue"]')).not.toBeNull()
+      expect(aside?.querySelector('[data-testid="fast-track-password-what"]')).not.toBeNull()
+      expect(aside?.textContent).toContain('If you forget it, you can reset the extension')
+      expect(aside?.textContent).toContain(
+        'Recovery may later ask for the recovery password, the one printed on the Recovery Card.'
+      )
+      expect(text()).not.toContain('It unlocks the extension on this device only.')
+      expect(text()).not.toContain('It never leaves this device')
+    })
+
     it('stores the password through the keystore, unlocked', async () => {
       await mount(FAST_TRACK, ACKNOWLEDGED)
       await typePasswords(PASSWORD, PASSWORD)

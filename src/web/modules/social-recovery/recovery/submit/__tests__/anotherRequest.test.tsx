@@ -73,7 +73,6 @@ describe('a gathering another tab abandoned and opened again', () => {
   it('sends nothing on Start in the first tab, leaves the new session live with no claim, and goes to the checklist', async () => {
     const world = await openWorld()
     view = await mountSubmit(world.account, { useTimers: true })
-    await view.press('submit-verify-details')
     expect(view.isDisabled('submit-action')).toBe(false)
 
     const next = regathered(world.gathering)

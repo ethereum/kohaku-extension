@@ -74,6 +74,7 @@ import { POLL_LIMIT_MS } from '@web/modules/social-recovery/recovery/checklist/c
 import { landedAttemptOf } from '@web/modules/social-recovery/recovery/wait'
 
 import { listsWithKey } from './account'
+import { DONE_STAGE } from './constants'
 import DoneView from './DoneView'
 import { consumeMatchOf, sameLanded } from './read'
 import { summaryOf } from './summary'
@@ -414,6 +415,7 @@ const DoneScreen = () => {
       <RecoveryChrome
         route={reading.entry?.route ?? null}
         titleKey="socialRecovery.routes.recovery"
+        stage={{ step: DONE_STAGE, testID: 'done-stage' }}
         testID="done-screen"
       >
         <DoneBody key={account} records={records} account={account} entry={reading.entry} />
@@ -422,7 +424,12 @@ const DoneScreen = () => {
   }
 
   return (
-    <RecoveryChrome route={null} titleKey="socialRecovery.routes.recovery" testID="done-screen">
+    <RecoveryChrome
+      route={null}
+      titleKey="socialRecovery.routes.recovery"
+      stage={{ step: DONE_STAGE, testID: 'done-stage' }}
+      testID="done-screen"
+    >
       {reading.status === 'failed' ? (
         <Alert
           testID="done-entry-failed"

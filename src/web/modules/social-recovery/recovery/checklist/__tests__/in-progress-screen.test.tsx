@@ -49,8 +49,25 @@ const mockFrame = (name: string) => {
   const R = jest.requireActual('react')
   return {
     __esModule: true,
-    default: ({ children }: { children?: unknown }) =>
-      R.createElement('div', { 'data-testid': name }, children)
+    default: ({
+      children,
+      counter
+    }: {
+      children?: unknown
+      counter?: { testID?: string; step: number; total: number }
+    }) =>
+      R.createElement(
+        'div',
+        { 'data-testid': name },
+        counter
+          ? R.createElement(
+              'div',
+              { 'data-testid': counter.testID },
+              `${counter.step} of ${counter.total}`
+            )
+          : null,
+        children
+      )
   }
 }
 jest.mock('@web/modules/social-recovery/shared/chrome/PlainChrome', () => mockFrame('plain-chrome'))
@@ -111,6 +128,10 @@ describe('the recovery in progress route', () => {
 
       const list = view.byTestId('in-progress')
       expect(list?.closest(`[data-testid="${chrome}"]`)).not.toBeNull()
+      expect(view.byTestId('recovery-stage')?.textContent).toBe('4 of 5')
+      expect(view.byTestId('in-progress-columns-aside')?.textContent).toContain(
+        t('socialRecovery.inProgress.onlyThisDeviceTitle')
+      )
       expect(view.byTestId('in-progress-route-loading')).toBeNull()
       expect(mockViewMounts).toEqual(['mounted'])
     }

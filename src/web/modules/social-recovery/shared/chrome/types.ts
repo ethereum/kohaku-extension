@@ -18,6 +18,8 @@ export interface SetupChromeProps {
    * account and no notice when the selection changes.
    */
   skipAccountLatch?: boolean
+  /** The stage counter above the view; a screen with none passes nothing. */
+  counter?: StepCounterProps
   testID?: string
 }
 
@@ -126,6 +128,9 @@ export interface RadioCardProps {
 
 export interface PillChoiceProps {
   label: string
+  /** A word drawn after the label inside the pill, such as the default mark. */
+  mark?: string
+  markTestID?: string
   selected: boolean
   onPress: () => void
   disabled?: boolean
@@ -152,9 +157,19 @@ export interface PlainHeaderProps {
   testID?: string
 }
 
+export interface TwoColumnProps {
+  /** The column the user reads and acts in. */
+  children: ReactNode
+  /** The cards that only inform, drawn in the narrower column beside the main one. */
+  aside?: ReactNode
+  testID?: string
+}
+
 export interface PlainChromeProps {
   /** The header's words, passed on to the plain header. */
   title?: string
+  /** The stage counter above the view; a screen with none passes nothing. */
+  counter?: StepCounterProps
   children: ReactNode
   testID?: string
 }

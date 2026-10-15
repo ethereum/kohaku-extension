@@ -397,6 +397,9 @@ describe('the ceremony tab with no provider above it', () => {
   it('reaches the nothing-to-run phase for an id no caller recorded, builds nothing and reports nothing', async () => {
     const page = await render(ENROLL)
     expect(page.textContent).toContain(NOTHING_TO_RUN)
+    const main = page.querySelector('[data-testid="ceremony-columns-main"]')
+    expect(main?.textContent).toContain(NOTHING_TO_RUN)
+    expect(page.querySelector('[data-testid="ceremony-columns-aside"]')).toBeNull()
     expect(buildProvider).not.toHaveBeenCalled()
     expect(buildClient).not.toHaveBeenCalled()
     expect(creds.create).not.toHaveBeenCalled()

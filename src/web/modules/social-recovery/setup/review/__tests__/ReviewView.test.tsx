@@ -45,7 +45,7 @@ const { parse, stringify } = jest.requireActual<
 const { getRuleLines, renderRuleLines } = jest.requireActual<
   typeof import('@web/modules/social-recovery/shared/rule-lines')
 >('@web/modules/social-recovery/shared/rule-lines')
-const { renderFullAddress } = jest.requireActual<
+const { renderFullAddress, renderShortAddress } = jest.requireActual<
   typeof import('@web/modules/social-recovery/shared/display')
 >('@web/modules/social-recovery/shared/display')
 const { deploymentDescriptor, publisherKeyOf, auditedActionOf, sameAddress, shapeNoteOf } =
@@ -304,6 +304,32 @@ describe('the verify-the-details expander', () => {
   })
 })
 
+describe('where the verify-the-details expander sits', () => {
+  it('holds the expander and its trust list in the main column, after the account and before Save', async () => {
+    await mount()
+    await press('review-verify-details')
+
+    const main = byTestId('review-columns-main')
+    const aside = byTestId('review-columns-aside')
+    ;['review-verify-details', 'review-trust-list'].forEach((id) => {
+      expect(main?.contains(byTestId(id))).toBe(true)
+      expect(aside?.contains(byTestId(id))).toBe(false)
+    })
+    expect(isBefore('review-account', 'review-verify-details')).toBe(true)
+    expect(isBefore('review-trust-list', 'review-save')).toBe(true)
+  })
+
+  it('keeps only the text cards in the aside', async () => {
+    await mount()
+    await press('review-verify-details')
+
+    const aside = byTestId('review-columns-aside')
+    expect(aside?.querySelector('[role="button"]')).toBeNull()
+    expect(aside?.contains(byTestId('review-what-publishes'))).toBe(true)
+    expect(aside?.contains(byTestId('review-comparison'))).toBe(true)
+  })
+})
+
 describe('the verify-the-details toggle', () => {
   it('reads collapsed on arrival and expanded once pressed', async () => {
     await mount()
@@ -495,20 +521,13 @@ describe('save and the trust list reads', () => {
     expect(navigate).toHaveBeenCalledWith(WEB_ROUTES.socialRecoverySetupPrivacy)
   })
 
-  it('shows the one-confirmation line under the save action', async () => {
+  it('states no cost under the save action, which the save screen carries', async () => {
     await mount()
 
-    const elements = Array.from(container.querySelectorAll<HTMLElement>('*'))
-    const confirmation = elements.findIndex(
-      (element) =>
-        element.children.length === 0 &&
-        element.textContent === t('socialRecovery.review.oneConfirmation')
-    )
-    const save = elements.findIndex((element) => element.dataset.testid === 'review-save')
-    const lastInSave = elements.findLastIndex((element) => elements[save]?.contains(element))
-
-    expect(save).toBeGreaterThanOrEqual(0)
-    expect(confirmation).toBeGreaterThan(lastInSave)
+    expect(byTestId('review-save')).not.toBeNull()
+    expect(pageText()).not.toContain('One confirmation')
+    expect(pageText()).not.toContain(t('socialRecovery.costLines.save'))
+    expect(pageText()).not.toContain(t('socialRecovery.costLines.recovery'))
   })
 })
 
@@ -517,7 +536,7 @@ describe('the path rows', () => {
 
   const VERDICTS: [Enrollment['test'], string | undefined, string, string | null][] = [
     ['passed', undefined, 'tested', null],
-    ['not-tested', undefined, 'notTested', `${CEREMONY}.notTestedLine`],
+    ['not-tested', undefined, 'notTested', null],
     ['failed', 'check-rejected', 'testFailed', `${CEREMONY}.testFailedNoMatch`],
     ['unavailable', undefined, 'testUnavailable', `${CEREMONY}.testUnavailableLine`],
     ['not-supported', undefined, 'notSupported', `${CEREMONY}.notSupportedLine`]
@@ -557,8 +576,16 @@ describe('the path rows', () => {
 
   const UNFAILED_LINES: [Enrollment['test'], string[]][] = [
     ['passed', []],
-    ['not-tested', [t(`${CEREMONY}.notTestedLine`)]]
+    ['not-tested', []]
   ]
+  it('state that an untested method may fail once, in the warning beside Save', async () => {
+    await mount({ clauses: [required(ALICE)], enrollments: [enrolled(ALICE, 'not-tested')] })
+
+    const sentence = t(`${CEREMONY}.notTestedLine`)
+    expect(pageText().split(sentence)).toHaveLength(2)
+    expect(textOf('review-not-tested')).toContain(sentence)
+  })
+
   UNFAILED_LINES.forEach(([test, lines]) => {
     it(`show no failed line on a ${test} test`, async () => {
       await mount({ clauses: [required(ALICE)], enrollments: [enrolled(ALICE, test)] })
@@ -633,7 +660,6 @@ describe('the path rows', () => {
     await mount({ clauses: [required(PASSPORT)], enrollments: [enrolled(PASSPORT, 'not-tested')] })
 
     expect(textsStartingWith('review-row-0-0-line-')).toEqual([
-      t(`${CEREMONY}.notTestedLine`),
       t('socialRecovery.disclosures.identity'),
       t('socialRecovery.disclosures.passportPublication')
     ])
@@ -751,22 +777,27 @@ describe('the lead', () => {
       t
     )
 
-  it('renders the rule lines of a two-of-three group', async () => {
+  it('carries the rule lines of the path once, inside the path card under its rows', async () => {
     const clauses = [group(2, ALICE, BOB, PASSKEY)]
     await mount({ clauses })
 
-    const lines = textsStartingWith('review-rule-line-')
-    expect(lines).toEqual(ruleLinesFor(clauses))
+    const lines = ruleLinesFor(clauses)
     expect(lines.length).toBeGreaterThan(0)
+    expect(textsStartingWith('review-rule-line-')).toEqual(lines)
+    lines.forEach((ruleLine) => expect(pageText().split(ruleLine).length - 1).toBe(1))
+    expect(byTestId('review-rule-lines')?.parentElement?.contains(byTestId('review-path'))).toBe(
+      true
+    )
+    expect(isBefore('review-path', 'review-rule-lines')).toBe(true)
+    expect(byTestId('review-columns-aside')?.contains(byTestId('review-rule-lines'))).toBe(false)
   })
 
-  it('renders the rule lines of a single row', async () => {
+  it('states the single-method risk for a path of one method', async () => {
     const clauses = [required(PASSKEY)]
-    await mount({ clauses })
+    await mount({ clauses, enrollments: [enrolled(PASSKEY)] })
 
-    const lines = textsStartingWith('review-rule-line-')
-    expect(lines).toEqual(ruleLinesFor(clauses))
-    expect(lines.length).toBeGreaterThan(0)
+    expect(textsStartingWith('review-rule-line-')).toEqual(ruleLinesFor(clauses))
+    expect(textOf('review-rule-line-0')).toBe(t('socialRecovery.ruleLines.singleMethod'))
   })
 
   it('carries the hostile-minority guidance once for a group of three, and not for a group of two', async () => {
@@ -786,24 +817,30 @@ describe('the lead', () => {
 
     expect(textOf('review-wait')).toBe(t('socialRecovery.privacy.waitingPeriod.chips.days7'))
     expect(textOf('review-spare-key')).toBe(t('socialRecovery.review.spareKey'))
+    const aside = byTestId('review-columns-aside')
+    expect(aside?.contains(byTestId('review-comparison'))).toBe(true)
+    expect(textOf('review-comparison')).toContain('One comparison')
+    expect(byTestId('review-columns-main')?.contains(byTestId('review-wait'))).toBe(true)
   })
 
   it("names a wait under one hour in minutes, and the floor in a release build's words", async () => {
     await mount({ wait: 300n })
 
     expect(textOf('review-wait')).toBe('5 minutes')
-    expect(pageText()).toContain("This wallet's minimum is 24 hours. The chain enforces none.")
+    expect(textOf('review-wait-minimum')).toBe("This wallet's minimum is 24 hours.")
+    expect(pageText()).not.toContain('The chain enforces none')
   })
 
-  it('carries the publication line once with its second sentence and the save cost', async () => {
+  it('carries the publication line once with its second sentence, beside the path, with no cost', async () => {
     await mount({ clauses: [required(ALICE)] })
 
     expect(textsStartingWith('review-publication')).toEqual([
       t('socialRecovery.review.publication.lead'),
       t('socialRecovery.review.publication.guardian')
     ])
-    expect(textOf('review-save-cost')).toBe(t('socialRecovery.costLines.save'))
-    expect(pageText()).toContain(t('socialRecovery.costLines.recovery'))
+    expect(byTestId('review-columns-aside')?.contains(byTestId('review-what-publishes'))).toBe(true)
+    expect(byTestId('review-save-cost')).toBeNull()
+    expect(byTestId('review-costs')).toBeNull()
   })
 
   it('reads Private with the recovery password set', async () => {
@@ -1208,19 +1245,20 @@ describe('the trust list', () => {
 })
 
 describe('the account block', () => {
-  it('names the account in full with its check line', async () => {
+  it('names the account on one line by its full address, with no check line and no key box', async () => {
     await mount()
 
-    expect(textOf('review-account-address')).toBe(renderFullAddress(ACCOUNT))
-    expect(textOf('review-account-check')).toBe(t('socialRecovery.review.account.check'))
-    expect(byTestId('review-account-caveat')).toBeNull()
+    expect(textOf('review-account-line')).toBe(renderFullAddress(ACCOUNT))
+    expect(pageText()).not.toContain(renderShortAddress(ACCOUNT))
+    expect(pageText()).not.toContain(t('socialRecovery.review.account.check'))
+    expect(pageText()).not.toContain(t('socialRecovery.arm.keyRecoveryWouldRemove'))
   })
 
-  it('carries the name caveat beside the label the wallet holds', async () => {
+  it('puts the label the wallet holds before the full address, with no caveat', async () => {
     await mount({ accountLabel: 'Account 1' })
 
-    expect(textOf('review-account-label')).toBe('Account 1')
-    expect(textOf('review-account-caveat')).toBe(t('socialRecovery.display.nameCaveat'))
+    expect(textOf('review-account-line')).toBe(`Account 1 · ${renderFullAddress(ACCOUNT)}`)
+    expect(pageText()).not.toContain(t('socialRecovery.display.nameCaveat'))
   })
 })
 
@@ -1230,6 +1268,8 @@ describe('what the review cannot read', () => {
 
     expect(textOf('review-load-failed')).toBe(t('socialRecovery.records.loadFailed'))
     expect(byTestId('review-save')).toBeNull()
+    expect(byTestId('review-columns-main')?.contains(byTestId('review-load-failed'))).toBe(true)
+    expect(byTestId('review-columns-aside')).toBeNull()
   })
 
   it("shows the client's unavailable pair with a retry and keeps Save disabled", async () => {
@@ -1325,14 +1365,12 @@ describe('a read that did not answer', () => {
 describe('the key a recovery would remove', () => {
   const BLOCKED = 'socialRecovery.review.blocked'
 
-  it('is named in full under the account with its line', async () => {
+  it('is read before Save runs but left to the save screen to show', async () => {
     await mount()
 
-    expect(textOf('review-removed-key')).toContain(
-      t('socialRecovery.display.values.keyBeingRemoved')
-    )
-    expect(textOf('review-removed-key-address')).toBe(renderFullAddress(REMOVED_KEY))
-    expect(textOf('review-removed-key-line')).toBe(t('socialRecovery.review.keyRemovedLine'))
+    expect(pageText()).not.toContain(t('socialRecovery.arm.keyRecoveryWouldRemove'))
+    expect(pageText()).not.toContain(renderFullAddress(REMOVED_KEY))
+    expect(pageText()).not.toContain(t('socialRecovery.review.keyRemovedLine'))
     expect(isDisabled('review-save')).toBe(false)
   })
 
@@ -1347,7 +1385,6 @@ describe('the key a recovery would remove', () => {
       }
     })
 
-    expect(byTestId('review-removed-key')).toBeNull()
     expect(textOf('review-blocked-title')).toBe(t(`${BLOCKED}.removedKeyUnreadable.title`))
     expect(textOf('review-blocked-body')).toBe(t(`${BLOCKED}.removedKeyUnreadable.body`))
     expect(isDisabled('review-save')).toBe(true)
@@ -1357,7 +1394,6 @@ describe('the key a recovery would remove', () => {
     expect(account.removedKey).toHaveBeenCalledTimes(2)
     expect(account.fitCheck).toHaveBeenCalledTimes(1)
     expect(byTestId('review-blocked-removed-key-unreadable')).toBeNull()
-    expect(textOf('review-removed-key-address')).toBe(renderFullAddress(REMOVED_KEY))
     expect(isDisabled('review-save')).toBe(false)
   })
 
@@ -1418,7 +1454,6 @@ describe("the wallet's reading of the account's keys", () => {
     })
 
     expect(blockers()).toHaveLength(0)
-    expect(textOf('review-removed-key-address')).toBe(renderFullAddress(REMOVED_KEY))
     expect(isDisabled('review-save')).toBe(false)
   })
 
@@ -1435,7 +1470,6 @@ describe("the wallet's reading of the account's keys", () => {
     )
     expect(byTestId('review-blocked-removed-key-unreadable')).toBeNull()
     expect(byTestId('review-blocked-retry')).toBeNull()
-    expect(byTestId('review-removed-key')).toBeNull()
     expect(isDisabled('review-save')).toBe(true)
     expect(account.removedKey).toHaveBeenCalledTimes(1)
   })
@@ -1490,7 +1524,6 @@ describe("the wallet's reading of the account's keys", () => {
       setupState: async () => setupStateOf(true)
     })
 
-    expect(byTestId('review-removed-key-pending')).not.toBeNull()
     expect(blockers()).toHaveLength(0)
     expect(isDisabled('review-save')).toBe(true)
 
@@ -1812,7 +1845,6 @@ describe('the account reads', () => {
         })
     })
 
-    expect(textOf('review-removed-key-address')).toBe(renderFullAddress(REMOVED_KEY))
     expect(isDisabled('review-save')).toBe(true)
 
     await act(async () => answerFit({ basis: 'deployed-code', fits: true }))

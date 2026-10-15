@@ -12,7 +12,7 @@ import React from 'react'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
-import { SectionCard, SectionLabel } from '@web/modules/social-recovery/shared/chrome'
+import { SectionCard } from '@web/modules/social-recovery/shared/chrome'
 
 import { usedMethodsOf } from './copy'
 import type { RecoveryDidBlockProps } from './types'
@@ -24,14 +24,13 @@ const RecoveryDidBlock = ({ summary }: RecoveryDidBlockProps) => {
   const used = usedMethodsOf(summary, t)
 
   const line = (text: string, testID: string) => (
-    <Text fontSize={14} style={spacings.mbTy} testID={testID}>
+    <Text fontSize={12} appearance="secondaryText" style={spacings.mbTy} testID={testID}>
       {text}
     </Text>
   )
 
   return (
-    <SectionCard testID="done-what">
-      <SectionLabel>{t(`${DONE}.whatHeader`)}</SectionLabel>
+    <SectionCard tone="muted" spacing="item" label={t(`${DONE}.whatHeader`)} testID="done-what">
       {line(t(`${DONE}.published`), 'done-published')}
       {used.length > 0 &&
         line(t(`${DONE}.used`, { methods: used.join(t(`${DONE}.listJoiner`)) }), 'done-used')}

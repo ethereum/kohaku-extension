@@ -3,7 +3,8 @@
  * step that reads the balance again by itself, the shared submitting and
  * failed states in the submission's own words, the refusal for an attempt
  * already running with no retry, the read after a landed receipt, and a
- * start the network dropped, offered again.
+ * start the network dropped, offered again. The submitting state leaves its
+ * sentence to the page's lead.
  */
 import React from 'react'
 import { ActivityIndicator, View } from 'react-native'
@@ -130,7 +131,9 @@ const RunBlock = ({ run, onStart, onCheckAgain, onReread, onBack }: RunBlockProp
     <WriteStateView
       state={write}
       title={failed ? t(`${SUBMIT}.failedTitle`) : undefined}
-      body={plainNotSent ? [t(`${SUBMIT}.notSent`)] : undefined}
+      body={
+        plainNotSent ? [t(`${SUBMIT}.notSent`)] : write.status === 'submitting' ? [] : undefined
+      }
       onRetry={onStart}
       testID={`submit-write-${write.status}`}
     >

@@ -390,9 +390,10 @@ export const copyOfStep = (step: DepositStep, t?: Translate): string[] => {
     r.copyLabel,
     r.copyFailed,
     ...r.routes.flatMap((route) => [route.line, route.note]),
+    r.network,
     ...r.notes,
-    ...r.waiting,
-    r.actionHint
+    ...r.aside.flatMap((note) => [note.title, note.line]),
+    ...r.waiting
   ].filter((s): s is string => typeof s === 'string')
 }
 

@@ -59,7 +59,7 @@ afterEach(() => {
 })
 
 describe('the lead of a live request', () => {
-  it('renders who asks, the four values in full and every line of the lead', async () => {
+  it('renders who asks, the four values in full and the compare line under them', async () => {
     const page = await mountLive()
     expect(page.textOf('guardian-brand')).toBe(t(`${PAGE}.brand`))
     expect(page.textOf('guardian-lead-title')).toBe(t(`${PAGE}.lead.title`))
@@ -67,17 +67,54 @@ describe('the lead of a live request', () => {
     expect(page.textOf('guardian-value-newKey')).toBe(NEW_KEY)
     expect(page.textOf('guardian-value-keyBeingRemoved')).toBe(REMOVED_KEY)
     expect(page.textOf('guardian-value-payment')).toBe(t('socialRecovery.display.values.noPayment'))
-    const lines = [
+    expect(page.textOf('guardian-lead-compare')).toBe(t(`${PAGE}.lead.compare`))
+    expect(page.has('guardian-lead-submittable')).toBe(false)
+    // Anyone holding the request can submit it: said once, under the deadline it depends on.
+    expect(page.text().split(t('socialRecovery.checklist.submittable'))).toHaveLength(2)
+    expect(page.textOf('guardian-signing-values-submittable')).toBe(
+      t('socialRecovery.checklist.submittable')
+    )
+    page.unmount()
+  })
+
+  it('draws what approving does and what the wallet shows beside the request, not in its column', async () => {
+    const page = await mountLive()
+    const aside = page.textOf('guardian-page-columns-aside')
+    const main = page.textOf('guardian-page-columns-main')
+    expect(page.textOf('guardian-aside-approving')).toContain(t(`${PAGE}.aside.approving`))
+    const approving = [
       ['guardian-lead-effect', `${PAGE}.lead.effect`],
       ['guardian-lead-publication', `${PAGE}.lead.publication`],
       ['guardian-lead-path-public', `${PAGE}.lead.pathPublic`],
-      ['guardian-lead-submittable', 'socialRecovery.checklist.submittable'],
-      ['guardian-lead-no-forward', `${PAGE}.lead.noForward`],
-      ['guardian-lead-compare', `${PAGE}.lead.compare`]
+      ['guardian-lead-no-forward', `${PAGE}.lead.noForward`]
     ]
-    lines.forEach(([id, key]) => {
-      expect({ id, text: page.textOf(id) }).toEqual({ id, text: t(key) })
+    expect(page.textOf('guardian-aside-wallet')).toContain(t(`${PAGE}.aside.wallet`))
+    const wallet = [
+      ['guardian-prompt-note', `${PAGE}.signing.promptNote`],
+      ['guardian-hardware-note', `${PAGE}.signing.hardwareNote`]
+    ]
+    ;[...approving, ...wallet].forEach(([id, key]) => {
+      expect({ id, text: page.textOf(id), aside: aside.includes(t(key)) }).toEqual({
+        id,
+        text: t(key),
+        aside: true
+      })
+      expect(main).not.toContain(t(key))
     })
+    page.unmount()
+  })
+
+  it('keeps what approving does beside a dead request, without what the wallet shows', async () => {
+    kit.attemptState.mockImplementation(async () => attemptStateOf({ nextAttemptId: 4n }))
+    const page = await mountLive()
+    expect(page.textOf('guardian-page-columns-aside')).toContain(t(`${PAGE}.lead.effect`))
+    expect(page.has('guardian-aside-wallet')).toBe(false)
+    page.unmount()
+  })
+
+  it('draws no line that the page shows what its link says', async () => {
+    const page = await mountLive()
+    expect(page.has('guardian-notice')).toBe(false)
     page.unmount()
   })
 
@@ -90,16 +127,12 @@ describe('the lead of a live request', () => {
     page.unmount()
   })
 
-  it('opens verify the details on the deadline, the numbers, the network and the registry', async () => {
+  it('opens verify the details on the numbers, the network and the registry, with no deadline', async () => {
     const page = await mountLive()
     expect(page.has('guardian-details-rows')).toBe(false)
     await page.press('guardian-verify-details')
-    expect(page.textOf('guardian-details-deadline')).toBe(
-      t(`${PAGE}.details.validUntil`, {
-        date: dateOf(VALID_UNTIL * 1000),
-        remaining: t('socialRecovery.display.remainingHours', { count: 24 })
-      })
-    )
+    expect(page.has('guardian-details-deadline')).toBe(false)
+    expect(page.textOf('guardian-details-rows')).not.toContain(dateOf(VALID_UNTIL * 1000))
     expect(page.textOf('guardian-details-setup-number')).toBe('2')
     expect(page.textOf('guardian-details-attempt-number')).toBe('3')
     expect(page.textOf('guardian-details-network')).toBe('Sepolia')
@@ -140,11 +173,8 @@ describe('the sign action', () => {
     expect(page.isDisabled('guardian-sign')).toBe(true)
     expect(page.textOf('guardian-tick-first')).toBe(t(`${PAGE}.acknowledgment.tickFirst`))
     expect(page.textOf('guardian-acknowledgment')).toContain(t(`${PAGE}.acknowledgment.label`))
-    expect(page.textOf('guardian-acknowledgment-own-number')).toBe(
-      t(`${PAGE}.acknowledgment.ownNumber`)
-    )
-    expect(page.textOf('guardian-acknowledgment-received')).toBe(
-      t(`${PAGE}.acknowledgment.received`)
+    expect(page.textOf('guardian-acknowledgment-call-rule')).toBe(
+      t(`${PAGE}.acknowledgment.callRule`)
     )
     await page.press('guardian-acknowledge')
     expect(page.isDisabled('guardian-sign')).toBe(false)
@@ -216,6 +246,57 @@ describe('the sign action', () => {
     expect(page.isDisabled('guardian-sign')).toBe(true)
     await page.press('guardian-acknowledge')
     expect(page.isDisabled('guardian-sign')).toBe(false)
+    page.unmount()
+  })
+})
+
+describe('the step counter', () => {
+  const stepOf = (step: number) => t(`${PAGE}.stageCounter`, { step, total: 3 })
+
+  it('reads the first step while the box is not ticked and the second once it is', async () => {
+    const page = await mountLive()
+    expect(page.textOf('guardian-stage-counter')).toBe(stepOf(1))
+    expect(page.textOf('guardian-signing-title')).toBe(t(`${PAGE}.signing.title`))
+    await page.press('guardian-acknowledge')
+    expect(page.textOf('guardian-stage-counter')).toBe(stepOf(2))
+    expect(page.textOf('guardian-signing-title')).toBe(t(`${PAGE}.signing.titleReady`))
+    await page.press('guardian-acknowledge')
+    expect(page.textOf('guardian-stage-counter')).toBe(stepOf(1))
+    expect(page.textOf('guardian-signing-title')).toBe(t(`${PAGE}.signing.title`))
+    page.unmount()
+  })
+
+  it('reads the second step in the offline block, ticked or not', async () => {
+    const page = await mountLive()
+    await page.press('guardian-offline-open')
+    expect(page.textOf('guardian-stage-counter')).toBe(stepOf(2))
+    page.unmount()
+  })
+
+  it('draws none while the request is read, after a failed read, or once it died', async () => {
+    kit.attemptState.mockImplementation(() => new Promise(() => {}))
+    const reading = await mountLive()
+    expect(reading.has('guardian-reading')).toBe(true)
+    expect(reading.has('guardian-stage-counter')).toBe(false)
+    reading.unmount()
+    kit.attemptState.mockImplementation(async () => {
+      throw new Error('rpc down')
+    })
+    const failed = await mountLive()
+    expect(failed.has('guardian-read-failed')).toBe(true)
+    expect(failed.has('guardian-stage-counter')).toBe(false)
+    failed.unmount()
+    kit.attemptState.mockImplementation(async () => attemptStateOf({ nextAttemptId: 4n }))
+    const dead = await mountLive()
+    expect(dead.has('guardian-dead-void')).toBe(true)
+    expect(dead.has('guardian-stage-counter')).toBe(false)
+    dead.unmount()
+  })
+
+  it('draws none on a link that carries no request', async () => {
+    const page = await mountPage('?request=broken')
+    expect(page.has('guardian-no-request-columns')).toBe(true)
+    expect(page.has('guardian-stage-counter')).toBe(false)
     page.unmount()
   })
 })
@@ -515,7 +596,7 @@ describe('the decline', () => {
       'cancelLine',
       'copyMessage',
       'close',
-      'sentNothing',
+      'publishesTitle',
       'stillPublishes'
     ]
     keys.forEach((key) => {
@@ -524,6 +605,11 @@ describe('the decline', () => {
         shown: true
       })
     })
+    const aside = page.textOf('guardian-declined-columns-aside')
+    expect(aside).toContain(t(`${PAGE}.declined.stillPublishes`))
+    expect(aside).not.toContain(t(`${PAGE}.declined.tellTitle`))
+    expect(page.textOf('guardian-declined-columns-main')).toContain(t(`${PAGE}.declined.tellTitle`))
+    expect(page.has('guardian-stage-counter')).toBe(false)
     await page.press('guardian-declined-close')
     expect(close).toHaveBeenCalledTimes(1)
     close.mockRestore()

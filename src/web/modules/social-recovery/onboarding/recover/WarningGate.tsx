@@ -12,7 +12,7 @@ import Checkbox from '@common/components/Checkbox'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
-import { SectionCard, StepCounter } from '@web/modules/social-recovery/shared/chrome'
+import { SectionCard, StepCounter, TwoColumn } from '@web/modules/social-recovery/shared/chrome'
 
 import { FAST_TRACK_STEP_COUNTER_KEY, FAST_TRACK_STEPS, WARNING_STEP } from './constants'
 import { warningCopyOf } from './copy'
@@ -47,7 +47,7 @@ const WarningGate = ({ form, testID = 'recovery-warning', ...handlers }: Warning
     onContinue()
   }, [acknowledged, onContinue])
 
-  return (
+  const gate = (
     <View testID={testID}>
       {copy.counter && (
         <StepCounter
@@ -76,14 +76,6 @@ const WarningGate = ({ form, testID = 'recovery-warning', ...handlers }: Warning
         ))}
       </SectionCard>
 
-      {!!copy.pointer && !!onImportInstead && (
-        <WarningImportPointer
-          pointer={copy.pointer}
-          onImportInstead={onImportInstead}
-          testID={testID}
-        />
-      )}
-
       <Checkbox
         testID={`${testID}-acknowledge`}
         value={acknowledged}
@@ -92,6 +84,14 @@ const WarningGate = ({ form, testID = 'recovery-warning', ...handlers }: Warning
         labelProps={{ fontSize: 14, weight: 'medium' }}
         style={spacings.mtSm}
       />
+
+      {!!copy.pointer && !!onImportInstead && (
+        <WarningImportPointer
+          pointer={copy.pointer}
+          onImportInstead={onImportInstead}
+          testID={testID}
+        />
+      )}
 
       {copy.actions && !!onContinue && (
         <WarningActions
@@ -103,6 +103,12 @@ const WarningGate = ({ form, testID = 'recovery-warning', ...handlers }: Warning
       )}
     </View>
   )
+
+  // The condensed form sits inside another screen's column; the full forms are a view of their own.
+  if (form === 'condensed') {
+    return gate
+  }
+  return <TwoColumn testID={`${testID}-columns`}>{gate}</TwoColumn>
 }
 
 export default React.memo(WarningGate)

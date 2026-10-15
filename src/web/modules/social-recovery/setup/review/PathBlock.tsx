@@ -67,7 +67,12 @@ const PathBlock = ({ clauses, enrollments, addressBook, onRetryTest }: PathBlock
             )}
           </View>
           {!!row.chip && (
-            <StatusChip text={row.chip} testID={`${testID}-chip`} style={spacings.mlTy} />
+            <StatusChip
+              text={row.chip}
+              tone={row.tested ? 'success' : 'default'}
+              testID={`${testID}-chip`}
+              style={spacings.mlTy}
+            />
           )}
         </View>
         {row.lines.map((line, index) => (

@@ -139,6 +139,9 @@ export interface SubmissionGas {
 
 export interface GasStepViewProps {
   state: GasStepState
+  /** The account being recovered and its network, drawn as one line under the title. */
+  account: Address | undefined
+  networkName: string
   onRetry: () => void
   /** Goes back to the readout. */
   onBack: () => void

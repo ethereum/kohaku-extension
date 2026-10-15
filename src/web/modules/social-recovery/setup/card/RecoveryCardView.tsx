@@ -1,7 +1,8 @@
 /**
  * The Recovery Card screen: the card with the password hidden behind a reveal,
- * its two carriers, the PDF file and the print, and what warns the holder of a
- * recovery they did not start. The first carrier runs at once; every later one asks the extension
+ * its two carriers, the PDF file and the print, and beside them why the setup
+ * is not on the card and what warns the holder of a recovery they did not
+ * start. The first carrier runs at once; every later one asks the extension
  * password first. At the hidden level with no password in memory, after a
  * reload or in a new tab, the password row asks the recovery password again
  * when a saved setup can check it, and otherwise says so and leads back to the
@@ -13,7 +14,7 @@
  * which carries every character, stays on.
  */
 import React, { ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
-import { Pressable, View } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
@@ -25,7 +26,8 @@ import {
   ActionsRow,
   PageTitle,
   SectionCard,
-  StatusChip
+  StatusChip,
+  TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
 import { renderHiddenValue, renderPasswordName } from '@web/modules/social-recovery/shared/display'
 
@@ -55,7 +57,6 @@ const RecoveryCardView = ({
   const [carriedHere, setCarriedHere] = useState(false)
   const [asking, setAsking] = useState<CarrierAction | null>(null)
   const [printing, setPrinting] = useState(false)
-  const [whyOpen, setWhyOpen] = useState(false)
 
   const card: RecoveryCard = useMemo(
     () => ({ account, level, password: level === 'hidden' ? password : undefined }),
@@ -192,95 +193,103 @@ const RecoveryCardView = ({
 
   const passwordRow = passwordMissing ? missingPasswordRow : heldPasswordRow
 
+  const aside = (
+    <>
+      <SectionCard
+        testID="card-why"
+        tone="muted"
+        spacing="item"
+        label={t('socialRecovery.card.whyNotOnCard')}
+      >
+        <Text testID="card-why-body" fontSize={12} appearance="secondaryText">
+          {t('socialRecovery.card.whyNotOnCardBody')}
+        </Text>
+      </SectionCard>
+      <SectionCard
+        testID="card-warns"
+        tone="muted"
+        spacing="item"
+        label={t('socialRecovery.card.warnsHeader')}
+      >
+        <Text fontSize={12} appearance="secondaryText">
+          {t('socialRecovery.card.banner')}
+        </Text>
+      </SectionCard>
+    </>
+  )
+
   return (
-    <View testID="card-screen">
-      <PageTitle title={t('socialRecovery.card.title')} lead={t('socialRecovery.card.lead')} />
-      <View style={spacings.mbLg}>
-        <CardFace account={account} passwordRow={passwordRow} onScreen testID="recovery-card" />
-      </View>
-      <SectionCard>
-        {asking ? (
-          <View testID="card-password-ask">{renderPasswordAsk(answer)}</View>
-        ) : (
-          <>
-            <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap]}>
+    <TwoColumn testID="card-columns" aside={aside}>
+      <View testID="card-screen">
+        <PageTitle title={t('socialRecovery.card.title')} lead={t('socialRecovery.card.lead')} />
+        <View style={spacings.mbLg}>
+          <CardFace account={account} passwordRow={passwordRow} onScreen testID="recovery-card" />
+        </View>
+        <SectionCard>
+          {asking ? (
+            <View testID="card-password-ask">{renderPasswordAsk(answer)}</View>
+          ) : (
+            <>
+              <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap]}>
+                <Button
+                  testID="card-download"
+                  type="primary"
+                  hasBottomSpacing={false}
+                  text={t('socialRecovery.card.downloadPdf')}
+                  disabled={passwordMissing || downloadUnavailable}
+                  onPress={() => press('download')}
+                  style={spacings.mrSm}
+                />
+                <Button
+                  testID="card-print"
+                  type="secondary"
+                  hasBottomSpacing={false}
+                  text={t('socialRecovery.card.print')}
+                  disabled={passwordMissing}
+                  onPress={() => press('print')}
+                />
+              </View>
+              <Text fontSize={12} appearance="secondaryText" style={spacings.mtSm}>
+                {t('socialRecovery.card.carrierAsks')}
+              </Text>
+              {downloadUnavailable && (
+                <Text
+                  testID="card-download-unavailable"
+                  fontSize={12}
+                  appearance="warningText"
+                  style={spacings.mtSm}
+                >
+                  {t('socialRecovery.card.downloadUnavailable')}
+                </Text>
+              )}
+            </>
+          )}
+        </SectionCard>
+        {!asking && (
+          <ActionsRow
+            primary={
               <Button
-                testID="card-download"
+                testID="card-continue"
                 type="primary"
                 hasBottomSpacing={false}
-                text={t('socialRecovery.card.downloadPdf')}
-                disabled={passwordMissing || downloadUnavailable}
-                onPress={() => press('download')}
-                style={spacings.mrSm}
+                text={t('socialRecovery.actions.continue')}
+                onPress={onContinue}
               />
+            }
+            secondary={
               <Button
-                testID="card-print"
-                type="secondary"
+                testID="card-back"
+                type="outline"
                 hasBottomSpacing={false}
-                text={t('socialRecovery.card.print')}
-                disabled={passwordMissing}
-                onPress={() => press('print')}
+                text={t('socialRecovery.ceremony.backAction')}
+                onPress={onBack}
               />
-            </View>
-            <Text fontSize={12} appearance="secondaryText" style={spacings.mtSm}>
-              {t('socialRecovery.card.carrierAsks')}
-            </Text>
-            {downloadUnavailable && (
-              <Text
-                testID="card-download-unavailable"
-                fontSize={12}
-                appearance="warningText"
-                style={spacings.mtSm}
-              >
-                {t('socialRecovery.card.downloadUnavailable')}
-              </Text>
-            )}
-          </>
+            }
+          />
         )}
-        <Pressable
-          testID="card-why"
-          accessibilityRole="button"
-          accessibilityState={{ expanded: whyOpen }}
-          onPress={() => setWhyOpen((open) => !open)}
-          style={[flexbox.alignSelfStart, spacings.mtSm]}
-        >
-          <Text fontSize={14} weight="medium" appearance="primary" underline>
-            {t('socialRecovery.card.whyNotOnCard')}
-          </Text>
-        </Pressable>
-        {whyOpen && (
-          <Text testID="card-why-body" fontSize={14} style={spacings.mtTy}>
-            {t('socialRecovery.card.whyNotOnCardBody')}
-          </Text>
-        )}
-      </SectionCard>
-      <SectionCard testID="card-warns" label={t('socialRecovery.card.warnsHeader')}>
-        <Text fontSize={14}>{t('socialRecovery.card.banner')}</Text>
-      </SectionCard>
-      {!asking && (
-        <ActionsRow
-          primary={
-            <Button
-              testID="card-continue"
-              type="primary"
-              hasBottomSpacing={false}
-              text={t('socialRecovery.actions.continue')}
-              onPress={onContinue}
-            />
-          }
-          secondary={
-            <Button
-              testID="card-back"
-              type="outline"
-              hasBottomSpacing={false}
-              text={t('socialRecovery.ceremony.backAction')}
-              onPress={onBack}
-            />
-          }
-        />
-      )}
-      {printing && <PrintCardView card={card} />}
-    </View>
+        {printing && <PrintCardView card={card} />}
+      </View>
+    </TwoColumn>
   )
 }
 

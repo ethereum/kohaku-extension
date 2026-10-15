@@ -38,6 +38,7 @@ import {
   writeEntry
 } from '@web/modules/social-recovery/onboarding/fast-track/__fixtures__/harness'
 import { BALANCE_READ_LIMIT_MS } from '@web/modules/social-recovery/onboarding/fast-track'
+import { renderFullAddress, renderShortAddress } from '@web/modules/social-recovery/shared/display'
 
 const GAS_STEP = `/social-recovery/fast-track/gas?account=${LOST_ACCOUNT}`
 const CHECKLIST = `/social-recovery/recovery/checklist?account=${LOST_ACCOUNT}`
@@ -115,12 +116,40 @@ describe('the gas step', () => {
     expect(text()).toContain('The account cannot pay for itself until it is recovered.')
   })
 
-  it('shows no step counter and no breadcrumb, and keeps continue disabled', async () => {
+  it('shows the stage counter at 3 of 5 and no breadcrumb, and keeps continue disabled', async () => {
     await mount(GAS_STEP)
 
-    expect(text()).not.toMatch(/Step \d of \d/)
+    expect(byTestId('recovery-stage')?.textContent).toBe('Recovery · Step 3 of 5')
     expect(text()).not.toContain('Settings ›')
     expect(isDisabled('fast-track-gas-continue')).toBe(true)
+  })
+
+  it('names the account on one line in its short form, with the network', async () => {
+    await mount(GAS_STEP)
+
+    expect(byTestId('fast-track-gas-account')?.textContent).toBe(
+      `Account ${renderShortAddress(LOST_ACCOUNT)} · Sepolia`
+    )
+    expect(text()).not.toContain(renderFullAddress(LOST_ACCOUNT))
+  })
+
+  it('keeps one line on continuing by itself, and puts the second funding beside the step', async () => {
+    await mount(GAS_STEP)
+
+    const main = byTestId('fast-track-gas-columns-main')?.textContent ?? ''
+    expect(main).toContain('This screen continues on its own once the funds arrive.')
+    expect(main).toContain('Send on Sepolia, the network of the account you are recovering.')
+    expect(main).not.toContain('Already funded?')
+    expect(main).not.toContain('Continue unlocks')
+    expect(main).not.toContain('Executing after the waiting period')
+    expect(byTestId('fast-track-gas-second-funding')?.textContent).toContain(
+      'Executing after the waiting period is a second transaction.'
+    )
+    expect(
+      byTestId('fast-track-gas-columns-aside')?.querySelector(
+        '[data-testid="fast-track-gas-second-funding"]'
+      )
+    ).not.toBeNull()
   })
 
   it('continues on its own once the funds arrive', async () => {

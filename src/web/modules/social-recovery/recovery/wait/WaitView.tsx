@@ -2,9 +2,10 @@
  * The wait over given props. Until a poll answers, and whenever one fails,
  * it renders the loading or the failed read with retry and no number; a
  * failed poll also offers Back to the route's entry. An answered poll renders
- * its phase: the countdown with the notes that the page can close, that the
- * account's own key can still cancel and who finishes it; execution due with
- * execute now; the recovery that can no longer execute with its cause alone,
+ * its phase: the countdown, with the transaction that started it, where its
+ * end comes from and the notes that the page can close, that the account's
+ * own key can still cancel and who finishes it beside it; execution due under
+ * its own title, with execute now; the recovery that can no longer execute with its cause alone,
  * no countdown beside it; the cancelled terminal by its canceller. A consumed
  * attempt renders nothing of its own: the screen goes on to the done screen.
  */
@@ -17,7 +18,8 @@ import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
-import { PageTitle, SectionCard } from '@web/modules/social-recovery/shared/chrome'
+import { PageTitle, SectionCard, TwoColumn } from '@web/modules/social-recovery/shared/chrome'
+import { renderHash } from '@web/modules/social-recovery/shared/display'
 
 import CancelledBlock from './CancelledBlock'
 import CannotExecuteBlock from './CannotExecuteBlock'
@@ -31,6 +33,7 @@ const WAIT = 'socialRecovery.wait'
 
 const WaitView = ({
   account,
+  networkName,
   client,
   keys,
   poll,
@@ -54,36 +57,40 @@ const WaitView = ({
   const { t } = useTranslation()
 
   const failedRead = (testID: string, onRetry: () => void) => (
-    <View testID={testID}>
-      <Alert
-        type="error"
-        size="sm"
-        title={t('socialRecovery.wait.readFailedTitle')}
-        text={t('socialRecovery.wait.readFailedBody')}
-      >
-        <Button
-          testID={`${testID}-retry`}
-          type="secondary"
-          size="small"
-          text={t('socialRecovery.writes.tryAgain')}
-          onPress={onRetry}
-          hasBottomSpacing={false}
-          style={[flexbox.alignSelfStart, spacings.mtSm]}
-        />
-      </Alert>
-    </View>
+    <TwoColumn testID="wait-columns">
+      <View testID={testID}>
+        <Alert
+          type="error"
+          size="sm"
+          title={t('socialRecovery.wait.readFailedTitle')}
+          text={t('socialRecovery.wait.readFailedBody')}
+        >
+          <Button
+            testID={`${testID}-retry`}
+            type="secondary"
+            size="small"
+            text={t('socialRecovery.writes.tryAgain')}
+            onPress={onRetry}
+            hasBottomSpacing={false}
+            style={[flexbox.alignSelfStart, spacings.mtSm]}
+          />
+        </Alert>
+      </View>
+    </TwoColumn>
   )
 
   if (client.status === 'update-the-wallet') {
     return (
-      <View testID="wait-update-the-wallet">
-        <Alert
-          type="error"
-          size="sm"
-          title={t('socialRecovery.client.updateTheWalletTitle')}
-          text={t('socialRecovery.client.updateTheWalletBody')}
-        />
-      </View>
+      <TwoColumn testID="wait-columns">
+        <View testID="wait-update-the-wallet">
+          <Alert
+            type="error"
+            size="sm"
+            title={t('socialRecovery.client.updateTheWalletTitle')}
+            text={t('socialRecovery.client.updateTheWalletBody')}
+          />
+        </View>
+      </TwoColumn>
     )
   }
   if (client.status === 'failed') {
@@ -94,82 +101,91 @@ const WaitView = ({
   }
   if (poll.status === 'failed') {
     return (
-      <View testID="wait">
-        <PageTitle title={t(`${WAIT}.title`)} titleTestID="wait-title" />
-        <PollFailedBlock onRetry={onRetryPoll} />
-        <Button
-          testID="wait-poll-back"
-          type="outline"
-          text={t('socialRecovery.actions.back')}
-          onPress={onBack}
-          hasBottomSpacing={false}
-          style={flexbox.alignSelfStart}
-        />
-      </View>
+      <TwoColumn testID="wait-columns">
+        <View testID="wait">
+          <PageTitle title={t(`${WAIT}.title`)} titleTestID="wait-title" />
+          <PollFailedBlock onRetry={onRetryPoll} />
+          <Button
+            testID="wait-poll-back"
+            type="outline"
+            text={t('socialRecovery.actions.back')}
+            onPress={onBack}
+            hasBottomSpacing={false}
+            style={flexbox.alignSelfStart}
+          />
+        </View>
+      </TwoColumn>
     )
   }
   if (client.status === 'loading' || keys.status === 'loading' || poll.status === 'pending') {
-    return <ActivityIndicator testID="wait-loading" />
+    return (
+      <TwoColumn testID="wait-columns">
+        <ActivityIndicator testID="wait-loading" />
+      </TwoColumn>
+    )
   }
 
   const { phase } = poll
   if (phase.kind === 'consumed') {
-    return <ActivityIndicator testID="wait-consumed" />
+    return (
+      <TwoColumn testID="wait-columns">
+        <ActivityIndicator testID="wait-consumed" />
+      </TwoColumn>
+    )
   }
   if (phase.kind === 'cancelled') {
     return (
-      <CancelledBlock
-        account={account}
-        by={phase.by}
-        thresholdOne={!!configuration && thresholdOneOf(configuration)}
-        leave={leave}
-        onLeave={onLeave}
-      />
+      <TwoColumn testID="wait-columns">
+        <CancelledBlock
+          account={account}
+          by={phase.by}
+          thresholdOne={!!configuration && thresholdOneOf(configuration)}
+          leave={leave}
+          onLeave={onLeave}
+        />
+      </TwoColumn>
     )
   }
 
   const note = (title: string, body: string[], testID: string) => (
-    <SectionCard testID={testID}>
-      <Text fontSize={14} weight="medium" style={spacings.mbTy}>
-        {title}
-      </Text>
+    <SectionCard tone="muted" spacing="item" label={title} testID={testID}>
       {body.map((line) => (
-        <Text key={line} fontSize={14} appearance="secondaryText" style={spacings.mbTy}>
+        <Text key={line} fontSize={12} appearance="secondaryText" style={spacings.mbTy}>
           {line}
         </Text>
       ))}
     </SectionCard>
   )
   const executing = execute.write.status !== 'idle'
+  const due = phase.kind === 'executionDue'
+  const counting = phase.kind === 'waiting' || due
+  const transactionHash = poll.story.started?.at.transactionHash
 
-  return (
-    <View testID="wait">
-      <PageTitle title={t(`${WAIT}.title`)} lead={t(`${WAIT}.lead`)} titleTestID="wait-title" />
-      <CountdownBlock
-        round={poll}
-        account={account}
-        newKey={keys.keys.newKey}
-        remainingMs={remainingMs}
-        startedAt={startedAt}
-        timeZone={timeZone}
-        configuration={configuration}
-        onOpenExplorer={onOpenExplorer}
-      />
-      {phase.kind === 'cannotExecute' && (
-        <CannotExecuteBlock
-          cause={phase.cause}
-          holdsAccountKey={holdsAccountKey}
-          onMoveFunds={onMoveFunds}
-        />
+  const aside = (
+    <>
+      {counting && !!transactionHash && (
+        <SectionCard
+          tone="muted"
+          spacing="item"
+          label={t(`${WAIT}.startedOnChain`)}
+          testID="wait-started-on-chain"
+        >
+          <Text fontSize={12} weight="number_medium" selectable testID="wait-start-hash">
+            {renderHash(transactionHash)}
+          </Text>
+          <Button
+            testID="wait-explorer"
+            type="ghost"
+            size="small"
+            text={t(`${WAIT}.explorer`)}
+            onPress={() => onOpenExplorer(transactionHash)}
+            hasBottomSpacing={false}
+            style={[flexbox.alignSelfStart, spacings.mtTy]}
+          />
+        </SectionCard>
       )}
-      {(phase.kind === 'executionDue' || executing) && (
-        <ExecuteBlock
-          execute={execute}
-          sending={sending}
-          ready={phase.kind === 'executionDue' && !!poll.story.started}
-          onExecute={onExecute}
-        />
-      )}
+      {counting &&
+        note(t(`${WAIT}.endFromChainTitle`), [t(`${WAIT}.endFromChain`)], 'wait-end-from-chain')}
       {phase.kind === 'waiting' &&
         note(t(`${WAIT}.canCloseTitle`), [t(`${WAIT}.canCloseBody`)], 'wait-can-close')}
       {phase.kind !== 'cannotExecute' &&
@@ -180,7 +196,44 @@ const WaitView = ({
         )}
       {phase.kind === 'waiting' &&
         note(t(`${WAIT}.whoFinishesTitle`), [t(`${WAIT}.whoFinishesBody`)], 'wait-who-finishes')}
-    </View>
+    </>
+  )
+
+  return (
+    <TwoColumn testID="wait-columns" aside={aside}>
+      <View testID="wait">
+        <PageTitle
+          title={t(due ? `${WAIT}.dueTitle` : `${WAIT}.title`)}
+          lead={t(due ? `${WAIT}.dueLead` : `${WAIT}.lead`)}
+          titleTestID="wait-title"
+        />
+        <CountdownBlock
+          round={poll}
+          account={account}
+          networkName={networkName}
+          newKey={keys.keys.newKey}
+          remainingMs={remainingMs}
+          startedAt={startedAt}
+          timeZone={timeZone}
+          configuration={configuration}
+        />
+        {phase.kind === 'cannotExecute' && (
+          <CannotExecuteBlock
+            cause={phase.cause}
+            holdsAccountKey={holdsAccountKey}
+            onMoveFunds={onMoveFunds}
+          />
+        )}
+        {(due || executing) && (
+          <ExecuteBlock
+            execute={execute}
+            sending={sending}
+            ready={due && !!poll.story.started}
+            onExecute={onExecute}
+          />
+        )}
+      </View>
+    </TwoColumn>
   )
 }
 

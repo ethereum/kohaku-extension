@@ -178,6 +178,11 @@ describe('the enroll screen while the wallet selects another account', () => {
   const byTestId = (id: string) => container.querySelector<HTMLElement>(`[data-testid="${id}"]`)
   const lastProps = () => mockViewRenders[mockViewRenders.length - 1]
 
+  it('counts the enrollment with the editor, as the second of the setup stages', async () => {
+    await open(ACCOUNT)
+    expect(byTestId('enroll-stage')?.textContent).toBe('Set up · Step 2 of 7')
+  })
+
   it("keeps the step on the tab's account, with the same view and search, and says so", async () => {
     await open(ACCOUNT)
     expect(lastProps().account).toBe(ACCOUNT)

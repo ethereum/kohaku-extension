@@ -188,16 +188,23 @@ describe('the guardian row', () => {
     )
 
   describe('before the enrollment', () => {
-    it('renders the publication line before the field', async () => {
+    it('asks to tell the guardian first above the field, with the publication beside the row', async () => {
       await open()
       const publication = view!.byTestId('guardian-publication')
+      const askFirst = view!.byTestId('guardian-ask-first')
       const field = view!.inputOf('guardian-address')
       expect(publication?.textContent).toBe(t('socialRecovery.disclosures.guardianPublication'))
-      if (!publication || !field) {
+      expect(view!.byTestId('enroll-columns-aside')?.contains(publication)).toBe(true)
+      expect(askFirst?.textContent).toBe(
+        'Ask your guardian first: a recovery publishes their address on chain in the clear.'
+      )
+      expect(view!.byTestId('enroll-columns-main')?.contains(askFirst)).toBe(true)
+      expect(view!.text()).not.toContain('Ask them first.')
+      if (!askFirst || !field) {
         throw new Error('the row drew no field')
       }
       // eslint-disable-next-line no-bitwise
-      expect(publication.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      expect(askFirst.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
         Node.DOCUMENT_POSITION_FOLLOWING
       )
       expect(view!.text()).toContain(t(`${GUARDIAN}.title`))

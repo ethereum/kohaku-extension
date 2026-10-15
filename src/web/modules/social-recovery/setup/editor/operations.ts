@@ -27,7 +27,7 @@ import {
   slotKindOf
 } from '@web/modules/social-recovery/shared/records'
 
-import type { AddTarget, ClauseRole, EditResult, SlotPosition } from './types'
+import type { AddTarget, ClauseRole, EditorFill, EditResult, SlotPosition } from './types'
 
 /** The kinds in the order an add menu lists them. */
 export const ADD_KINDS: readonly SlotKind[] = ['passkey', 'ecdsa', 'zkpassport', 'aadhaar']
@@ -86,6 +86,16 @@ export const withoutRole = (roles: readonly ClauseRole[], index: number): Clause
 /** How many methods the path holds, empty slots counted. */
 export const methodCountOf = (clauses: readonly Clause[]): number =>
   clauses.reduce((sum, clause) => sum + clause.credentials.length, 0)
+
+/** How far the path's slots are filled: no method, a slot still empty, or every slot enrolled. */
+export const fillOf = (clauses: readonly Clause[]): EditorFill => {
+  if (methodCountOf(clauses) === 0) {
+    return 'empty'
+  }
+  return clauses.some((clause) => clause.credentials.some((credential) => isEmptySlot(credential)))
+    ? 'open'
+    : 'filled'
+}
 
 const replaceAt = (clauses: readonly Clause[], index: number, clause: Clause): Clause[] =>
   clauses.map((held, i) => (i === index ? clause : held))

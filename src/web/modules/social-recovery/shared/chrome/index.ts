@@ -8,6 +8,7 @@ export { default as SectionCard } from './SectionCard'
 export { default as SectionLabel } from './SectionLabel'
 export { default as StatusChip } from './StatusChip'
 export { default as StepCounter } from './StepCounter'
+export { default as TwoColumn } from './TwoColumn'
 export type {
   ActionsRowProps,
   EntryReadFallbackProps,
@@ -32,7 +33,8 @@ export type {
   SetupChromeProps,
   StatusChipProps,
   StatusChipTone,
-  StepCounterProps
+  StepCounterProps,
+  TwoColumnProps
 } from './types'
 export { default as PathTree } from './PathTree'
 export { default as PathTreeNode } from './PathTreeNode'

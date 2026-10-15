@@ -107,11 +107,13 @@ describe('the recovery entry record', () => {
     expect(page.text()).toContain(t('socialRecovery.chrome.breadcrumb'))
   })
 
-  it('shows the plain header and no counter on the fresh-install route', async () => {
+  it('shows the plain header with the stage counter on the fresh-install route', async () => {
     await storeEntry('fresh-install', SMART)
     await commitLostSetup('public')
     const page = await open()
-    expect(page.has('recovery-stage')).toBe(false)
+    expect(page.textOf('recovery-stage')).toBe(
+      t('socialRecovery.entry.stageCounter', { step: 3, total: 5 })
+    )
     expect(page.text()).not.toContain(t('socialRecovery.chrome.breadcrumb'))
     expect(page.text()).toContain(t('socialRecovery.routes.recover'))
     expect(page.has('readout-readable-public')).toBe(true)

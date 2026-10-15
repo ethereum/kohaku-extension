@@ -52,6 +52,7 @@ import {
   parseChecklistSearch,
   routeEntryPathOf
 } from '@web/modules/social-recovery/recovery/checklist'
+import { CHAIN_NAMES } from '@web/modules/social-recovery/recovery/entry'
 import { loggedInPlanOf } from '@web/modules/social-recovery/recovery/submit'
 import type { SendingReading } from '@web/modules/social-recovery/recovery/submit'
 import { explorerTransactionUrlOf } from '@web/modules/social-recovery/setup/arm'
@@ -398,6 +399,7 @@ const WaitBody = ({
   return (
     <WaitView
       account={account}
+      networkName={CHAIN_NAMES[WALLET_RECOVERY_CHAIN]}
       client={client}
       keys={keys}
       poll={poll}

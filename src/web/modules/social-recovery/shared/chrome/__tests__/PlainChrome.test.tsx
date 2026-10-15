@@ -83,6 +83,27 @@ describe('the plain chrome', () => {
     expect(byTestId('chrome')?.textContent).toBe('The view')
   })
 
+  it('shows the stage counter between the title and the view when given one', () => {
+    const counter = i18n.t('socialRecovery.entry.stageCounter', { step: 2, total: 5 })
+    mount(
+      <PlainChrome
+        testID="chrome"
+        title={TITLE}
+        counter={{
+          labelKey: 'socialRecovery.entry.stageCounter',
+          step: 2,
+          total: 5,
+          testID: 'stage'
+        }}
+      >
+        <Text>The view</Text>
+      </PlainChrome>
+    )
+    expect(counter).toContain('2')
+    expect(byTestId('stage')).not.toBeNull()
+    expect(byTestId('chrome')?.textContent).toBe(`${TITLE}${counter}The view`)
+  })
+
   it('puts its test id on its outermost element, with the view inside it', () => {
     mount(
       <PlainChrome testID="chrome" title={TITLE}>

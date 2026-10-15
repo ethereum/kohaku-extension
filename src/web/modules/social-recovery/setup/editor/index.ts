@@ -14,7 +14,8 @@ export {
   renderKindName,
   renderRefusal,
   renderRefusalPlace,
-  renderRowChip
+  renderRowChip,
+  rowChipTone
 } from './copy'
 export type {
   AddTarget,

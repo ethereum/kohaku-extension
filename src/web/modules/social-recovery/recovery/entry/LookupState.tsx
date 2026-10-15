@@ -3,9 +3,11 @@
  * with its retry, a client this wallet version cannot read with, and the one
  * dead end that says no setup was found, which renders only where the setup
  * read answered that the account has no setup commitment, under the address
- * looked up.
+ * looked up. Beside the dead end sit the Recovery Card note and the module
+ * this wallet reads.
  */
 import React from 'react'
+import type { ReactNode } from 'react'
 import { ActivityIndicator, View } from 'react-native'
 
 import Alert from '@common/components/Alert'
@@ -13,7 +15,12 @@ import Button from '@common/components/Button'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
-import { ActionsRow, SectionCard, SectionLabel } from '@web/modules/social-recovery/shared/chrome'
+import {
+  ActionsRow,
+  SectionCard,
+  SectionLabel,
+  TwoColumn
+} from '@web/modules/social-recovery/shared/chrome'
 import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
 import { renderFullAddress } from '@web/modules/social-recovery/shared/display'
 
@@ -30,9 +37,17 @@ const LookupState = ({
   setupState,
   onRetrySetup,
   onAnotherAddress,
-  onClose
+  onClose,
+  counter
 }: LookupStateProps) => {
   const { t } = useTranslation()
+
+  const columns = (body: ReactNode, aside?: ReactNode) => (
+    <TwoColumn testID="entry-lookup-columns" aside={aside}>
+      {counter}
+      {body}
+    </TwoColumn>
+  )
 
   const another = (
     <Button
@@ -45,8 +60,8 @@ const LookupState = ({
   )
 
   if (client.status === 'update-the-wallet') {
-    return (
-      // No setup read ran, so the state says nothing about whether a setup exists.
+    // No setup read ran, so the state says nothing about whether a setup exists.
+    return columns(
       <View testID="entry-lookup-update-the-wallet">
         <Alert
           testID="entry-lookup-refused"
@@ -62,7 +77,7 @@ const LookupState = ({
     )
   }
   if (client.status === 'failed') {
-    return (
+    return columns(
       <View testID="entry-lookup-failed">
         <ReadFailedBlock
           testID="entry-lookup-read-failed"
@@ -75,7 +90,7 @@ const LookupState = ({
     )
   }
   if (client.status === 'loading' || setupState.status === 'pending') {
-    return (
+    return columns(
       <View testID="entry-lookup-loading">
         <ActivityIndicator style={spacings.mbSm} />
         <Text fontSize={14} appearance="secondaryText">
@@ -85,7 +100,7 @@ const LookupState = ({
     )
   }
   if (setupState.status === 'failed') {
-    return (
+    return columns(
       <View testID="entry-lookup-failed">
         <ReadFailedBlock
           testID="entry-lookup-read-failed"
@@ -101,7 +116,46 @@ const LookupState = ({
     return null
   }
 
-  return (
+  const aside = (
+    <>
+      <SectionCard
+        tone="muted"
+        spacing="item"
+        label={t(`${NO_SETUP}.cardTitle`)}
+        testID="entry-no-setup-card"
+      >
+        <Text fontSize={12} appearance="secondaryText">
+          {t(`${NO_SETUP}.cardBody`)}
+        </Text>
+      </SectionCard>
+      <SectionCard
+        tone="muted"
+        spacing="item"
+        label={t(`${NO_SETUP}.otherWalletTitle`)}
+        testID="entry-no-setup-elsewhere"
+      >
+        <Text
+          fontSize={12}
+          appearance="secondaryText"
+          style={spacings.mbTy}
+          testID="entry-no-setup-other-wallet"
+        >
+          {t(`${NO_SETUP}.otherWallet`)}
+        </Text>
+        <Text
+          fontSize={12}
+          appearance="secondaryText"
+          weight="number_medium"
+          selectable
+          testID="entry-no-setup-module"
+        >
+          {t(`${NO_SETUP}.module`, { module: renderFullAddress(client.client.descriptor.action) })}
+        </Text>
+      </SectionCard>
+    </>
+  )
+
+  return columns(
     <View testID="entry-no-setup">
       <Text fontSize={20} weight="medium" style={spacings.mbSm} testID="entry-no-setup-title">
         {t(`${NO_SETUP}.title`, { network: networkName })}
@@ -121,25 +175,8 @@ const LookupState = ({
           {renderFullAddress(target.address)}
         </Text>
         <SectionLabel>{t(`${LABELS}.network`)}</SectionLabel>
-        <Text fontSize={14} style={spacings.mbSm} testID="entry-no-setup-network">
+        <Text fontSize={14} testID="entry-no-setup-network">
           {networkName}
-        </Text>
-        <Text fontSize={14} weight="number_medium" selectable testID="entry-no-setup-module">
-          {t(`${NO_SETUP}.module`, { module: renderFullAddress(client.client.descriptor.action) })}
-        </Text>
-      </SectionCard>
-      <Text fontSize={14} style={spacings.mbTy} testID="entry-no-setup-lead">
-        {t(`${NO_SETUP}.lead`)}
-      </Text>
-      <Text fontSize={14} style={spacings.mbSm} testID="entry-no-setup-other-wallet">
-        {t(`${NO_SETUP}.otherWallet`)}
-      </Text>
-      <SectionCard tone="muted" spacing="item" testID="entry-no-setup-card">
-        <Text fontSize={14} weight="medium" style={spacings.mbTy}>
-          {t(`${NO_SETUP}.cardTitle`)}
-        </Text>
-        <Text fontSize={12} appearance="secondaryText">
-          {t(`${NO_SETUP}.cardBody`)}
         </Text>
       </SectionCard>
       <ActionsRow
@@ -164,7 +201,8 @@ const LookupState = ({
           ) : undefined
         }
       />
-    </View>
+    </View>,
+    aside
   )
 }
 

@@ -82,11 +82,10 @@ export const GAS_KEYS = {
   sendingKeyPays: `${GAS}.sendingKeyPays`,
   submissionAmount: `${GAS}.submissionAmount`,
   secondFunding: `${GAS}.secondFunding`,
+  secondFundingTitle: `${GAS}.secondFundingTitle`,
   network: `${GAS}.network`,
   balanceWaiting: `${GAS}.balanceWaiting`,
   continuesOnItsOwn: `${GAS}.continuesOnItsOwn`,
-  alreadyFunded: `${GAS}.alreadyFunded`,
-  continueUnlocks: `${GAS}.continueUnlocks`,
   notEnoughGas: `${GAS}.notEnoughGas`,
   notEnoughGasAccountKey: `${GAS}.notEnoughGasAccountKey`,
   notEnoughGasSendingKey: `${GAS}.notEnoughGasSendingKey`,
@@ -274,13 +273,14 @@ export const OWNER_SHORTFALL_KEYS: { readonly [W in OwnerWrite]: string } = {
  * - A recovery call on the fast track reads: the key that sends the recovery
  *   pays its gas and the account cannot pay for itself until it is recovered;
  *   the key's address; the amount to send from outside; the network; and the
- *   lines of a step that waits for the funds.
+ *   balance with the one line that the step continues on its own.
  * - A recovery call on the logged-in route reads: the key of the chosen
  *   account, both routes and the transfer sentence, then the network and the
  *   waiting lines.
  *
- * The step before the submission alone adds that the execution is a second
- * funding asked for again at execution due, at that day's fee; the
+ * The step before the submission alone adds, beside the step, that the
+ * execution is a second funding asked for again at execution due, at that
+ * day's fee; the
  * step at execution due is that second funding. Each route shows its own
  * amount: the transfer's carries the transfer's own fee, the deposit from
  * outside the shortfall alone.
@@ -336,6 +336,7 @@ export const renderDepositStep = (
       copyFailed,
       routes,
       notes: [...transferSentence, t(GAS_KEYS.networkOwner, { network })],
+      aside: [],
       waiting: [],
       blocker: { title, line: shortfall }
     }
@@ -353,17 +354,13 @@ export const renderDepositStep = (
     copyLabel,
     copyFailed,
     routes,
-    notes: [
-      ...transferSentence,
-      ...(step.write === 'submission' ? [t(GAS_KEYS.secondFunding)] : []),
-      t(GAS_KEYS.network, { network })
-    ],
-    waiting: [
-      t(GAS_KEYS.balanceWaiting, { balance }),
-      t(GAS_KEYS.continuesOnItsOwn),
-      t(GAS_KEYS.alreadyFunded)
-    ],
-    actionHint: t(GAS_KEYS.continueUnlocks),
+    network: t(GAS_KEYS.network, { network }),
+    notes: transferSentence,
+    aside:
+      step.write === 'submission'
+        ? [{ title: t(GAS_KEYS.secondFundingTitle), line: t(GAS_KEYS.secondFunding) }]
+        : [],
+    waiting: [t(GAS_KEYS.balanceWaiting, { balance }), t(GAS_KEYS.continuesOnItsOwn)],
     blocker: {
       title: t(GAS_KEYS.notEnoughGasSendingKey),
       line: t(step.write === 'execution' ? GAS_KEYS.shortfallExecute : GAS_KEYS.shortfallSubmit)

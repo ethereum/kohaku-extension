@@ -143,8 +143,9 @@ describe('DepositStepView: what renderDepositStep answers', () => {
         t(GAS_KEYS.transferIsAnOperation),
         t(GAS_KEYS.networkOwner, { network: NETWORK.name })
       ])
+      expect(r.network).toBeUndefined()
+      expect(r.aside).toEqual([])
       expect(r.waiting).toEqual([])
-      expect(r.actionHint).toBeUndefined()
       expect(r.blocker.title).toBe(r.title)
       expect(r.blocker.line).toBe(r.lead[0])
     })
@@ -152,7 +153,7 @@ describe('DepositStepView: what renderDepositStep answers', () => {
 
   STEP_CASES.filter((c) => c.write === 'submission' || c.write === 'execution').forEach(
     ({ name, write, fastTrack }) =>
-      it(`${name}: the title, the key, the routes, the notes in order and the waiting lines`, async () => {
+      it(`${name}: the title, the key, the routes, the network, the notes, the aside and the waiting lines`, async () => {
         const step = await depositStepFor(write, fastTrack)
         const r = renderDepositStep(step)
         expect(r.title).toBe(t(GAS_KEYS.fundTitle))
@@ -166,19 +167,19 @@ describe('DepositStepView: what renderDepositStep answers', () => {
         expect(r.routes.map((route) => route.kind)).toEqual(
           fastTrack ? ['outside'] : ['transfer', 'outside']
         )
-        expect(r.notes).toEqual([
-          ...(fastTrack ? [] : [t(GAS_KEYS.transferIsAnOperation)]),
-          ...(write === 'submission' ? [t(GAS_KEYS.secondFunding)] : []),
-          t(GAS_KEYS.network, { network: NETWORK.name })
-        ])
+        expect(r.network).toBe(t(GAS_KEYS.network, { network: NETWORK.name }))
+        expect(r.notes).toEqual(fastTrack ? [] : [t(GAS_KEYS.transferIsAnOperation)])
+        expect(r.aside).toEqual(
+          write === 'submission'
+            ? [{ title: t(GAS_KEYS.secondFundingTitle), line: t(GAS_KEYS.secondFunding) }]
+            : []
+        )
         expect(r.waiting).toEqual([
           t(GAS_KEYS.balanceWaiting, {
             balance: renderGasBalance(step.balance, NETWORK.nativeAssetSymbol)
           }),
-          t(GAS_KEYS.continuesOnItsOwn),
-          t(GAS_KEYS.alreadyFunded)
+          t(GAS_KEYS.continuesOnItsOwn)
         ])
-        expect(r.actionHint).toBe(t(GAS_KEYS.continueUnlocks))
         expect(r.blocker).toEqual({
           title: t(GAS_KEYS.notEnoughGasSendingKey),
           line: t(write === 'execution' ? GAS_KEYS.shortfallExecute : GAS_KEYS.shortfallSubmit)
@@ -223,9 +224,10 @@ describe('DepositStepView: what renderDepositStep answers', () => {
         r.copyLabel,
         r.copyFailed,
         ...r.routes.flatMap((route) => [route.line, route.note]),
+        r.network,
         ...r.notes,
+        ...r.aside.flatMap((note) => [note.title, note.line]),
         ...r.waiting,
-        r.actionHint,
         r.blocker.title,
         r.blocker.line
       ].forEach((s) => expect(s ?? '').not.toMatch(LINK))

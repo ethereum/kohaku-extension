@@ -244,6 +244,8 @@ export interface RowProps {
   /** The enrollment in the slot, or null while the slot is empty. */
   enrollment: Enrollment | null
   onEnrollment: (enrollment: Enrollment) => void
+  /** The client's state, Save and continue and Back, drawn at the foot of the main column. */
+  actions: ReactNode
 }
 
 /**

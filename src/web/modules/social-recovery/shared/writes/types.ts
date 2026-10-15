@@ -493,6 +493,12 @@ export interface RenderedRoute {
   note?: string
 }
 
+/** One note beside the step, under its header. */
+export interface RenderedAsideNote {
+  title: string
+  line: string
+}
+
 /** The deposit step as the screen reads it, in order. */
 export interface RenderedDepositStep {
   /** The small line over the title, where the variant has one. */
@@ -507,11 +513,13 @@ export interface RenderedDepositStep {
   /** The line the view shows where copying the key's address failed. */
   copyFailed: string
   routes: RenderedRoute[]
+  /** The network a recovery call's key is funded on, read at body weight under the routes. */
+  network?: string
   notes: string[]
+  /** The notes that only inform, which the write's screen draws beside the step. */
+  aside: RenderedAsideNote[]
   /** The lines of a step that waits for the funds to arrive. */
   waiting: string[]
-  /** The line under the write's own continue action, where the step waits for the funds. */
-  actionHint?: string
   /**
    * The short panel a write's own screen shows when the check at sending comes
    * up short: its title and its sentence. It leads to the step.

@@ -92,8 +92,6 @@ export const guardianAddressOf = (credential: Credential): Address | undefined =
  */
 const verdictLinesOf = (enrollment: Enrollment, t: Translate): string[] => {
   switch (enrollment.test) {
-    case 'not-tested':
-      return [t(`${CEREMONY}.notTestedLine`)]
     case 'failed':
       return [
         enrollment.cause?.startsWith('check-rejected')
@@ -104,6 +102,8 @@ const verdictLinesOf = (enrollment: Enrollment, t: Translate): string[] => {
       return [t(`${CEREMONY}.testUnavailableLine`)]
     case 'not-supported':
       return [t(`${CEREMONY}.notSupportedLine`)]
+    // An untested method is named once, in the warning beside Save.
+    case 'not-tested':
     case 'passed':
     default:
       return []
@@ -156,6 +156,7 @@ export const pathRowOf = (
       name: kind ? kindNameOf(kind, t) : renderFullAddress(credential.method),
       aside: null,
       chip: renderChip('method', 'notYetActive', t),
+      tested: false,
       lines: []
     }
   }
@@ -181,6 +182,7 @@ export const pathRowOf = (
     name,
     aside,
     chip: enrollment ? renderChip('method', VERDICT_CHIPS[enrollment.test], t) : null,
+    tested: enrollment?.test === 'passed',
     lines: [...(enrollment ? verdictLinesOf(enrollment, t) : []), ...kindLinesOf(kind, t)]
   }
 }

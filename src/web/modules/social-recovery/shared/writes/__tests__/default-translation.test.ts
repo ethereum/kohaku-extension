@@ -57,6 +57,6 @@ describe('the renderers read en.json when the caller passes no t', () => {
     expect(rendered.routes.map((route) => route.line)).toEqual([
       WRITES.gas.submissionAmount.replace('{{amount}}', '0.0015 ETH')
     ])
-    expect(rendered.notes).toContain(WRITES.gas.network.replace('{{network}}', NETWORK.name))
+    expect(rendered.network).toBe(WRITES.gas.network.replace('{{network}}', NETWORK.name))
   })
 })

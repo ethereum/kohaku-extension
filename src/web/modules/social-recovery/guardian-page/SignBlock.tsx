@@ -1,12 +1,12 @@
 /**
  * The signing step: the value block with the deadline beside it, the
  * acknowledgment, the key the request names and whether this wallet holds
- * it, and the sign action. Sign stays disabled until every gate holds; under
- * it, while the box is not ticked, the line that asks for the tick. While a
- * signature is asked for, the action is busy. A signing that brought no
- * approval reads why, with a retry. The step also says what a wallet's
- * prompt and a hardware wallet show, offers the offline block, and keeps
- * decline open.
+ * it, and the sign action. The heading asks to sign the approval until the
+ * box is ticked and reads ready once it is. Sign stays disabled until every
+ * gate holds; under it, while the box is not ticked, the line that asks for
+ * the tick. While a signature is asked for, the action is busy. A signing
+ * that brought no approval reads why, with a retry. The step also offers the
+ * offline block and keeps decline open.
  */
 import React from 'react'
 import { ActivityIndicator, View } from 'react-native'
@@ -78,7 +78,7 @@ const SignBlock = ({
   return (
     <View testID="guardian-sign-block">
       <Text fontSize={16} weight="medium" style={spacings.mbTy} testID="guardian-signing-title">
-        {t(`${SIGNING}.title`)}
+        {t(acknowledged ? `${SIGNING}.titleReady` : `${SIGNING}.title`)}
       </Text>
       <Text fontSize={14} style={spacings.mbSm} testID="guardian-signing-lead">
         {t(`${SIGNING}.lead`)}
@@ -131,12 +131,6 @@ const SignBlock = ({
           {t(`${PAGE}.acknowledgment.tickFirst`)}
         </Text>
       )}
-      <Text fontSize={12} style={spacings.mbTy} testID="guardian-prompt-note">
-        {t(`${SIGNING}.promptNote`)}
-      </Text>
-      <Text fontSize={12} style={spacings.mbSm} testID="guardian-hardware-note">
-        {t(`${SIGNING}.hardwareNote`)}
-      </Text>
       <SectionCard testID="guardian-offline-entry">
         <Button
           testID="guardian-offline-open"

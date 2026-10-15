@@ -201,7 +201,7 @@ describe('the key the request names', () => {
 })
 
 describe('the signing step', () => {
-  it('renders the four values, the deadline, the submittable sentence and both notes', async () => {
+  it('renders the four values, the deadline and the submittable sentence', async () => {
     const page = await mountLive()
     expect(page.textOf('guardian-signing-title')).toBe(t(`${SIGNING}.title`))
     expect(page.textOf('guardian-signing-values-value-accountBeingRecovered')).toBe(ACCOUNT)
@@ -210,8 +210,8 @@ describe('the signing step', () => {
     expect(page.textOf('guardian-signing-values-submittable')).toBe(
       t('socialRecovery.checklist.submittable')
     )
-    expect(page.textOf('guardian-prompt-note')).toBe(t(`${SIGNING}.promptNote`))
-    expect(page.textOf('guardian-hardware-note')).toBe(t(`${SIGNING}.hardwareNote`))
+    expect(page.textOf('guardian-sign-block')).not.toContain(t(`${SIGNING}.promptNote`))
+    expect(page.textOf('guardian-sign-block')).not.toContain(t(`${SIGNING}.hardwareNote`))
     page.unmount()
   })
 
@@ -233,7 +233,14 @@ describe('the signing step', () => {
     expect(page.textOf('guardian-brand')).toBe(t(`${PAGE}.brand`))
     expect(page.textOf('guardian-signed-title')).toBe(t(`${PAGE}.signed.title`))
     expect(page.textOf('guardian-signed-line')).toBe(approvalOf(signature))
+    expect(page.textOf('guardian-stage-counter')).toBe(
+      t(`${PAGE}.stageCounter`, { step: 3, total: 3 })
+    )
+    const aside = page.textOf('guardian-signed-columns-aside')
+    expect(aside).toContain(t(`${PAGE}.signed.regretTitle`))
     expect(page.textOf('guardian-signed-regret')).toBe(t(`${PAGE}.signed.regret`))
+    expect(aside).toContain(t(`${PAGE}.signed.regret`))
+    expect(page.textOf('guardian-signed-columns-main')).not.toContain(t(`${PAGE}.signed.regret`))
     expect(page.has('guardian-lead')).toBe(false)
 
     const line = lineOf(replyOf(request, signature))
@@ -687,6 +694,8 @@ describe('the offline block', () => {
     expect(page.textOf('guardian-offline-setup-number')).toBe(request.setupNonce)
     expect(page.textOf('guardian-offline-attempt-number')).toBe(request.attemptId)
     expect(page.textOf('guardian-offline-check-device')).toBe(t(`${OFFLINE}.checkDevice`))
+    expect(page.textOf('guardian-offline-return')).toContain(t(`${OFFLINE}.pasteLabel`))
+    expect(page.has('guardian-page-columns-aside')).toBe(false)
 
     const payload = wallet.qr[wallet.qr.length - 1]
     expect(hashOf(typedDataFromPayload(payload))).toBe(hashOf(typedDataFor(request)))

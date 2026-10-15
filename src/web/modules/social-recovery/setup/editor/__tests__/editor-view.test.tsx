@@ -225,18 +225,30 @@ const expectPathMatchesDraft = async (
 }
 
 describe('the editor on arrival', () => {
-  it('reads "Adjust your path" over a stored preset', async () => {
+  it('reads "Set up your path" with the filled lead over a path whose every slot holds a method', async () => {
     await mount({ clauses: presetPath() })
-    expect(byTestId('editor-title')?.textContent).toBe(en.socialRecovery.editor.adjust.title)
+    expect(byTestId('editor-title')?.textContent).toBe('Set up your path')
+    expect(byTestId('editor')?.textContent).toContain(
+      'Every method is set. Continue when the path is right.'
+    )
+    expect(byTestId('editor')?.textContent).not.toContain('Adjust your path')
   })
 
-  it('reads "Build your path" over no draft, and over a draft with no clause', async () => {
+  it('asks to fill each method while a slot of the path is still empty', async () => {
+    await mount({ clauses: [{ threshold: 2, credentials: [emptySlotOf('ecdsa'), ALICE] }] })
+    expect(byTestId('editor-title')?.textContent).toBe('Set up your path')
+    expect(byTestId('editor')?.textContent).toContain(en.socialRecovery.editor.lead.open)
+    expect(byTestId('editor')?.textContent).not.toContain(en.socialRecovery.editor.lead.filled)
+  })
+
+  it('reads the empty lead over no draft, and over a draft with no clause', async () => {
     await mount()
-    expect(byTestId('editor-title')?.textContent).toBe(en.socialRecovery.editor.build.title)
+    expect(byTestId('editor-title')?.textContent).toBe(en.socialRecovery.editor.title)
+    expect(byTestId('editor')?.textContent).toContain(en.socialRecovery.editor.lead.empty)
     act(() => root.unmount())
     root = createRoot(container)
     await mount({ clauses: [] })
-    expect(byTestId('editor-title')?.textContent).toBe(en.socialRecovery.editor.build.title)
+    expect(byTestId('editor')?.textContent).toContain(en.socialRecovery.editor.lead.empty)
   })
 
   it('draws an empty slot as a row of its kind with the "Not yet active" chip and no address', async () => {
@@ -841,7 +853,7 @@ describe('a failed read or write of the draft', () => {
     expect(byTestId('editor-title')).toBeNull()
     await press('editor-load-retry')
     expect(byTestId('editor-load-failed')).toBeNull()
-    expect(byTestId('editor-title')?.textContent).toBe(en.socialRecovery.editor.adjust.title)
+    expect(byTestId('editor-title')?.textContent).toBe(en.socialRecovery.editor.title)
     expect(byTestId('editor-row-0')).not.toBeNull()
   })
 })
@@ -901,15 +913,12 @@ describe('the words on screen', () => {
           text === en.socialRecovery.editor.groupsHeader
       )
 
-  it('heads the groups section "Groups" when the path has no group', async () => {
+  it('draws no groups section when the path has no group, only the button that adds one', async () => {
     await mount({ clauses: [{ threshold: 1, credentials: [PASSKEY] }] })
-    expect(byTestId('editor-groups-header')?.textContent).toBe(
-      en.socialRecovery.editor.groupsHeader
-    )
-    expect(byTestId('editor-groups')?.textContent).toMatch(
-      new RegExp(`^${en.socialRecovery.editor.groupsHeader}${en.socialRecovery.editor.noGroup}`)
-    )
-    expect(groupHeaders()).toEqual([en.socialRecovery.editor.groupsHeader])
+    expect(byTestId('editor-groups')).toBeNull()
+    expect(byTestId('editor-groups-header')).toBeNull()
+    expect(byTestId('editor-add-group')?.textContent).toBe(en.socialRecovery.editor.addGroup)
+    expect(byTestId('editor')?.textContent).not.toContain('No group yet')
   })
 
   it('heads the groups section "Group" once over one group, with no header over its card', async () => {

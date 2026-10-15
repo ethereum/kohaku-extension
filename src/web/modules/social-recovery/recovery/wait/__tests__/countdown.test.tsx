@@ -30,6 +30,7 @@ import {
 } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
 import type { Mounted } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
 import type { Configuration } from '@web/modules/social-recovery/sdk-interfaces'
+import { renderShortAddress } from '@web/modules/social-recovery/shared/display'
 import { explorerTransactionUrlOf } from '@web/modules/social-recovery/setup/arm'
 import { ruleLinesOf } from '@web/modules/social-recovery/setup/review'
 
@@ -66,6 +67,8 @@ describe('the countdown', () => {
 
     const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
     expect(view.textOf('wait-chip')).toBe(t('socialRecovery.status.attempt.executionDue'))
+    expect(view.textOf('wait-title')).toBe(t('socialRecovery.wait.dueTitle'))
+    expect(view.text()).toContain(t('socialRecovery.wait.dueLead'))
     expect(view.byTestId('wait-time-left')).toBeNull()
     expect(view.textOf('wait-finishes')).toBe(
       t('socialRecovery.wait.ended', { date: dateOf((CHAIN_TIME + HOUR) * 1000, zone) })
@@ -96,9 +99,17 @@ describe('the countdown', () => {
     view = await mountWait(world.account)
 
     expect(view.textOf('wait-chip')).toBe(t('socialRecovery.status.attempt.recoveryInProgress'))
-    expect(view.textOf('wait-account')).toContain(world.account.slice(0, 6))
+    expect(view.textOf('wait-title')).toBe(t('socialRecovery.wait.title'))
+    expect(view.textOf('wait-account')).toBe(
+      `Account ${renderShortAddress(world.account)} · Sepolia`
+    )
     expect(view.textOf('wait-new-key')).toContain(world.newKey.slice(0, 6))
-    expect(view.byTestId('wait-start-hash')).not.toBeNull()
+    const aside = view.byTestId('wait-columns-aside')
+    expect(aside?.querySelector('[data-testid="wait-start-hash"]')).not.toBeNull()
+    expect(aside?.querySelector('[data-testid="wait-explorer"]')).not.toBeNull()
+    expect(aside?.querySelector('[data-testid="wait-end-from-chain"]')?.textContent).toBe(
+      t('socialRecovery.wait.endFromChainTitle') + t('socialRecovery.wait.endFromChain')
+    )
     expect(view.byTestId('wait-can-close')).not.toBeNull()
     expect(view.byTestId('wait-owner-can-cancel')).not.toBeNull()
     expect(view.byTestId('wait-who-finishes')).not.toBeNull()
@@ -186,12 +197,14 @@ describe('the countdown', () => {
     expect(view.textOf('wait-stage')).toContain('5')
   })
 
-  it('counts no stage on the fresh install, under the plain header', async () => {
+  it('counts the fifth of five stages on the fresh install too, under the plain header', async () => {
     const world = await openWorld({ route: 'fresh-install' })
     view = await mountWait(world.account)
 
     expect(view.byTestId('plain-chrome')).not.toBeNull()
-    expect(view.byTestId('wait-stage')).toBeNull()
+    expect(view.textOf('wait-stage')).toBe(
+      t('socialRecovery.entry.stageCounter', { step: 5, total: 5 })
+    )
     expect(view.byTestId('wait-time-left')).not.toBeNull()
   })
 })
@@ -461,15 +474,15 @@ describe('the path line by shape', () => {
     ]
   ]
 
-  it('reads one guardian alone with the offer of any second method, never the passkey lines', async () => {
+  it('reads one guardian alone with no advice on the setup and no passkey lines', async () => {
     const world = await openWorld({ cache: true, configuration: ONE_GUARDIAN })
     view = await mountWait(world.account)
 
-    const path = view.textOf('wait-path')
-    expect(path).toContain(t('socialRecovery.ruleLines.singleMethod'))
-    expect(path).toContain(t('socialRecovery.ruleLines.secondMethodOfferAny'))
-    expect(path).not.toContain(t('socialRecovery.ruleLines.secondMethodOffer'))
-    expect(path).not.toContain(t('socialRecovery.ruleLines.platformFate'))
+    const text = view.text()
+    expect(text).not.toContain(t('socialRecovery.ruleLines.singleMethod'))
+    expect(text).not.toContain(t('socialRecovery.ruleLines.secondMethodOfferAny'))
+    expect(text).not.toContain(t('socialRecovery.ruleLines.secondMethodOffer'))
+    expect(text).not.toContain(t('socialRecovery.ruleLines.platformFate'))
   })
 
   RULE_LINES.forEach(([name, configuration]) => {
@@ -477,8 +490,16 @@ describe('the path line by shape', () => {
       const world = await openWorld({ cache: true, configuration })
       view = await mountWait(world.account)
 
-      const lines = ruleLinesOf(configuration, BOOK, t)
-      expect(lines.length).toBeGreaterThan(0)
+      const advice = [
+        t('socialRecovery.ruleLines.singleMethod'),
+        t('socialRecovery.ruleLines.secondMethodOffer'),
+        t('socialRecovery.ruleLines.secondMethodOfferAny')
+      ]
+      const lines = ruleLinesOf(configuration, BOOK, t).filter((line) => !advice.includes(line))
+      if (lines.length === 0) {
+        expect(view.byTestId('wait-path')).toBeNull()
+        return
+      }
       expect(view.textOf('wait-path')).toBe(
         `${t('socialRecovery.display.nouns.recoveryPath')}${lines.join('')}`
       )

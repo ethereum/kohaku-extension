@@ -216,6 +216,18 @@ describe('what each form of the warning shows', () => {
     expect(onImportInstead).toHaveBeenCalledTimes(1)
   })
 
+  it('draws the import pointer under the acknowledgment and above continue', () => {
+    mount(gateOf('recover'))
+
+    const order = Array.from(container.querySelectorAll('[data-testid]')).map((node) =>
+      node.getAttribute('data-testid')
+    )
+    const at = (id: string) => order.indexOf(id)
+    expect(at('recovery-warning-acknowledge')).toBeGreaterThan(-1)
+    expect(at('recovery-warning-pointer')).toBeGreaterThan(at('recovery-warning-acknowledge'))
+    expect(at('recovery-warning-continue')).toBeGreaterThan(at('recovery-warning-pointer'))
+  })
+
   const others = ['reset', 'condensed'] as const
   others.forEach((form) => {
     it(`shows no step counter and no pointer line in the ${form} form`, () => {
@@ -278,14 +290,11 @@ describe('what each form of the warning shows', () => {
       mount(gateOf(form))
       const text = container.textContent ?? ''
       expect(byTestId('recovery-warning-header')?.textContent).toBe(WARNING.header)
-      const lines = [
-        WARNING.lead,
-        WARNING.body,
-        WARNING.nobodyWatches,
-        WARNING.nobodyNeedsPhrase,
-        WARNING.walkAway
-      ]
+      const lines = [WARNING.lead, WARNING.body, WARNING.nobodyWatches, WARNING.nobodyNeedsPhrase]
       lines.forEach((line) => expect(text).toContain(line))
+      expect(text).not.toContain('walk away')
+      expect(byTestId('recovery-warning-columns')).not.toBeNull()
+      expect(byTestId('recovery-warning-columns-aside')).toBeNull()
     })
   })
 

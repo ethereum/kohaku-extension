@@ -380,16 +380,16 @@ export interface SubmitBodyProps {
 export interface LeadBlockProps {
   route: RecoveryRoute
   lead: LeadInput
+  /** The payment value, or null where the request names a payment this wallet cannot render. */
+  payment: string | null
+  /** How the submission is sent and who pays its gas, once the sending key is read. */
+  sendingPlan?: SendingPlan
   onRetryRemoved: () => void
 }
 
 export interface DetailsBlockProps {
   route: RecoveryRoute
   ready: SubmitReady
-  /** How the submission is sent and who pays its gas, once the sending key is read. */
-  sendingPlan?: SendingPlan
-  /** Called each time the expander opens, so the lock knows the payment line rendered. */
-  onOpened: () => void
 }
 
 export interface RunBlockProps {

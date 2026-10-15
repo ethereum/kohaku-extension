@@ -310,7 +310,9 @@ describe('the checklist deadline and poll', () => {
 
       const read = await holdReadAcrossDeadline()
 
-      expect(mounted.byTestId('checklist-satisfied')).not.toBeNull()
+      expect(mounted.byTestId('checklist-title')?.textContent).toBe(
+        t('socialRecovery.checklist.satisfiedTitle')
+      )
       expect(mounted.isDisabled('checklist-continue')).toBe(true)
       await mounted.press('checklist-continue')
       expect(mounted.navigate).not.toHaveBeenCalled()
@@ -512,7 +514,9 @@ describe('the checklist deadline and poll', () => {
       kit.recoveryState.mockRejectedValueOnce(new Error('node unavailable'))
       await settle(CHECKLIST_POLL_MS)
       expect(mounted.byTestId('checklist-poll-failed')).not.toBeNull()
-      expect(mounted.byTestId('checklist-satisfied')).not.toBeNull()
+      expect(mounted.byTestId('checklist-title')?.textContent).toBe(
+        t('socialRecovery.checklist.satisfiedTitle')
+      )
       expect(mounted.isDisabled('checklist-continue')).toBe(true)
 
       await settle(CHECKLIST_POLL_MS)
@@ -676,7 +680,9 @@ describe('the checklist deadline and poll', () => {
       expect(view.byTestId('checklist-dormant')?.textContent).toContain(
         t('socialRecovery.checklist.dormant.body')
       )
-      expect(view.byTestId('checklist-satisfied')).not.toBeNull()
+      expect(view.byTestId('checklist-title')?.textContent).toBe(
+        t('socialRecovery.checklist.satisfiedTitle')
+      )
       expect(view.isDisabled('checklist-continue')).toBe(true)
       expect(view.byTestId('checklist-wiped')).toBeNull()
       expect(wipe).not.toHaveBeenCalled()

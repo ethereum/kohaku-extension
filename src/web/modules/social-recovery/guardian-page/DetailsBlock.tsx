@@ -1,6 +1,5 @@
 /**
- * Verify the details, the page's expander: the deadline with its time left,
- * the setup number, the attempt number, the network as a fixed label and the
+ * Verify the details, the page's expander: the setup number, the attempt number, the network as a fixed label and the
  * manager the request is aimed at, in full.
  */
 import React, { useState } from 'react'
@@ -15,14 +14,13 @@ import spacings from '@common/styles/spacings'
 import common from '@common/styles/utils/common'
 import flexbox from '@common/styles/utils/flexbox'
 import { SectionCard, SectionLabel } from '@web/modules/social-recovery/shared/chrome'
-import { renderValueLabel } from '@web/modules/social-recovery/shared/display'
 
 import type { DetailsBlockProps } from './types'
 import { fullAddressOf } from './values'
 
 const DETAILS = 'socialRecovery.guardianPage.details'
 
-const DetailsBlock = ({ described, deadline, networkName }: DetailsBlockProps) => {
+const DetailsBlock = ({ described, networkName }: DetailsBlockProps) => {
   const { t } = useTranslation()
   const { theme } = useTheme()
   const [expanded, setExpanded] = useState(false)
@@ -66,8 +64,6 @@ const DetailsBlock = ({ described, deadline, networkName }: DetailsBlockProps) =
       </Pressable>
       {expanded && (
         <SectionCard testID="guardian-details-rows">
-          {deadline &&
-            row(renderValueLabel('deadline', t), deadline.line, 'guardian-details-deadline')}
           {row(
             t(`${DETAILS}.setupNumber`),
             description.setupNonce.toString(),

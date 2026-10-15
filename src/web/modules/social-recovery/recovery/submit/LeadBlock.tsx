@@ -1,8 +1,9 @@
 /**
- * The confirmation's lead: the three values a phisher would forge, each in
- * full. The account being recovered with the line that it keeps its address
- * and, beside a resolved name, the name's caveat; the new key with its line
- * by route; the key being removed as this wallet read it.
+ * The confirmation's lead: the values a phisher would forge, each in full.
+ * The account being recovered with the line that it keeps its address and,
+ * beside a resolved name, the name's caveat; the new key with its line by
+ * route; the key being removed as this wallet read it; the payment, with the
+ * key or account that sends the request and pays its gas once it is read.
  */
 import React from 'react'
 import { ActivityIndicator, View } from 'react-native'
@@ -16,12 +17,19 @@ import spacings from '@common/styles/spacings'
 import common from '@common/styles/utils/common'
 import flexbox from '@common/styles/utils/flexbox'
 import { SectionCard, SectionLabel } from '@web/modules/social-recovery/shared/chrome'
-import { renderFullAddress, renderValueLabel } from '@web/modules/social-recovery/shared/display'
+import {
+  renderFullAddress,
+  renderShortAddress,
+  renderValueLabel
+} from '@web/modules/social-recovery/shared/display'
 
 import { accountNameOf, newKeyLineOf } from './lead'
+import { sendingAddressOf } from './sendingKey'
 import type { LeadBlockProps } from './types'
 
-const LeadBlock = ({ route, lead, onRetryRemoved }: LeadBlockProps) => {
+const SUBMIT = 'socialRecovery.submit'
+
+const LeadBlock = ({ route, lead, payment, sendingPlan, onRetryRemoved }: LeadBlockProps) => {
   const { t } = useTranslation()
   const { theme } = useTheme()
   const name = accountNameOf(lead.name, t)
@@ -70,7 +78,7 @@ const LeadBlock = ({ route, lead, onRetryRemoved }: LeadBlockProps) => {
             testID="submit-removed-key-unavailable"
             type="error"
             size="sm"
-            text={t('socialRecovery.submit.removedKeyUnavailable')}
+            text={t(`${SUBMIT}.removedKeyUnavailable`)}
           />
         )
       case 'failed':
@@ -118,7 +126,28 @@ const LeadBlock = ({ route, lead, onRetryRemoved }: LeadBlockProps) => {
         )}
         {!!lead.newKey && !!newKeyLine && muted(newKeyLine, 'submit-new-key-line')}
       </View>
-      <View testID="submit-removed-key-block">{removedBlock()}</View>
+      <View style={payment !== null ? spacings.mbSm : undefined} testID="submit-removed-key-block">
+        {removedBlock()}
+      </View>
+      {payment !== null && (
+        <View testID="submit-payment">
+          {value(renderValueLabel('payment', t), payment, 'submit-no-payment')}
+          {!!sendingPlan &&
+            (sendingPlan.kind === 'key'
+              ? muted(
+                  t(`${SUBMIT}.ownKeyPays`, {
+                    key: renderShortAddress(sendingAddressOf(sendingPlan))
+                  }),
+                  'submit-own-key-pays'
+                )
+              : muted(
+                  t(`${SUBMIT}.accountPays`, {
+                    account: renderShortAddress(sendingAddressOf(sendingPlan))
+                  }),
+                  'submit-account-pays'
+                ))}
+        </View>
+      )}
     </SectionCard>
   )
 }

@@ -173,14 +173,14 @@ describe('the privacy step', () => {
         fill(L.shapeVisible.line, { shape: PASSKEY_PASSPORT_AND_GUARDIAN_SHAPE })
       )
       expect(h.byTestId('level-line-public')?.textContent).toBe(L.public.line)
-      expect(h.byTestId('level-private')?.textContent).toContain(L.private.badge)
-      expect(h.byTestId('level-shape-visible')?.textContent).not.toContain(L.private.badge)
+      expect(h.byTestId('level-private')?.textContent).toContain(S.privacy.defaultChip)
+      expect(h.byTestId('level-shape-visible')?.textContent).not.toContain(S.privacy.defaultChip)
     })
 
     it('the Shape visible line names the path by its kinds of method and how many must answer', async () => {
       await h.mount(await withDraft({ clauses: PASSKEY_PASSPORT_AND_GUARDIAN }))
       expect(h.byTestId('level-line-shape-visible')?.textContent).toBe(
-        'The shape of your setup is readable: a passkey, a passport and a guardian, any 2 of 3. Which ones stays hidden.'
+        'The shape of your setup is readable: a passkey, a passport and a guardian, any 2 of 3. Which ones stay hidden.'
       )
     })
 
@@ -311,6 +311,10 @@ describe('the privacy step', () => {
       await h.mount(await withDraft({ clauses: GUARDIAN_SLOTS_BESIDE_PASSKEY_AND_PASSPORT }))
       expect(h.byTestId('exposure-guardians')?.textContent).toBe(GUARDIANS)
       expect(h.byTestId('exposure-unguessable')?.textContent).toBe(UNGUESSABLE)
+      const aside = h.byTestId('privacy-columns-aside')
+      expect(aside?.textContent).toContain('What stays hidden')
+      expect(aside?.contains(h.byTestId('exposure-guardians'))).toBe(true)
+      expect(h.byTestId('privacy-screen')?.contains(h.byTestId('exposure'))).toBe(false)
     })
 
     it('a path with an enrolled guardian carries the guardian half', async () => {

@@ -25,8 +25,15 @@ export interface DepositStepViewProps {
   variant?: 'step' | 'blocker'
   /** Copies the key's address; the clipboard by default. */
   onCopy?: (address: string) => void
+  /** The write's own line under the step's title. */
+  header?: ReactNode
   /** The write's own actions. */
   children?: ReactNode
+  testID?: string
+}
+
+export interface DepositStepAsideProps {
+  step: DepositStep
   testID?: string
 }
 

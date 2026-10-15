@@ -1,9 +1,11 @@
 /**
- * The approval page over the request its link carries: the notice that the
- * page shows what its link says, the lead, verify the details, then in the
- * sign action's place the signing step while the request lives, the reads
- * not answered yet or failed, or the waiting recovery or the death that ended
- * the request. A live request the account no longer authorizes reads as
+ * The approval page over the request its link carries: the lead, verify the
+ * details, then in the sign action's place the signing step while the
+ * request lives, the reads not answered yet or failed, or the waiting
+ * recovery or the death that ended the request. Beside them, the cards on
+ * what approving does and, while the request lives, what the wallet shows.
+ * While the request lives the step counter reads the call until the box is
+ * ticked, then the signature; the offline block stands at the signature. A live request the account no longer authorizes reads as
  * dormant beside its values, and its sign action stays disabled. The lead's
  * values are the link's, never a chain read, so they stay while a read runs
  * or fails, and so does the tick. The offline block takes the place of the
@@ -14,10 +16,11 @@ import React, { useCallback, useMemo, useState } from 'react'
 import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
-import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
+import { TwoColumn } from '@web/modules/social-recovery/shared/chrome'
 
+import ApprovingAside from './ApprovingAside'
 import BrandLine from './BrandLine'
 import DetailsBlock from './DetailsBlock'
 import LeadBlock from './LeadBlock'
@@ -26,6 +29,7 @@ import OutcomeBlock from './OutcomeBlock'
 import { signEnabled } from './reading'
 import SignBlock from './SignBlock'
 import { keyAllowsSign } from './signing'
+import StageLine from './StageLine'
 import StatusBlock from './StatusBlock'
 import type { ApproveViewProps } from './types'
 import { approvalValuesOf, deadlineViewOf } from './values'
@@ -74,34 +78,30 @@ const ApproveView = ({
   const openOffline = useCallback(() => setOffline(true), [])
   const back = useCallback(() => setOffline(false), [])
 
-  const header = (
-    <>
-      <BrandLine />
-      <Text fontSize={12} appearance="secondaryText" style={spacings.mbLg} testID="guardian-notice">
-        {t(`${PAGE}.notice`)}
-      </Text>
-    </>
-  )
+  const live = reading.kind === 'live'
 
-  if (reading.kind === 'live' && offline) {
+  if (live && offline) {
     return (
-      <View testID="guardian-page">
-        {header}
-        <OfflineBlock
-          described={described}
-          values={values}
-          deadline={deadline}
-          typedData={typedData}
-          acknowledged={acknowledged}
-          onAcknowledged={setAcknowledged}
-          enabled={gatesHold}
-          busy={signing.busy}
-          failure={signing.offlineFailure}
-          onAdd={add}
-          onBack={back}
-          onDecline={onDecline}
-        />
-      </View>
+      <TwoColumn testID="guardian-page-columns">
+        <View testID="guardian-page">
+          <BrandLine />
+          <StageLine step={2} />
+          <OfflineBlock
+            described={described}
+            values={values}
+            deadline={deadline}
+            typedData={typedData}
+            acknowledged={acknowledged}
+            onAcknowledged={setAcknowledged}
+            enabled={gatesHold}
+            busy={signing.busy}
+            failure={signing.offlineFailure}
+            onAdd={add}
+            onBack={back}
+            onDecline={onDecline}
+          />
+        </View>
+      </TwoColumn>
     )
   }
 
@@ -141,12 +141,15 @@ const ApproveView = ({
   }
 
   return (
-    <View testID="guardian-page">
-      {header}
-      <LeadBlock values={values} />
-      <DetailsBlock described={described} deadline={deadline} networkName={networkName} />
-      {inSignPlace()}
-    </View>
+    <TwoColumn testID="guardian-page-columns" aside={<ApprovingAside walletNotes={live} />}>
+      <View testID="guardian-page">
+        <BrandLine />
+        {live && <StageLine step={acknowledged ? 2 : 1} />}
+        <LeadBlock values={values} />
+        <DetailsBlock described={described} networkName={networkName} />
+        {inSignPlace()}
+      </View>
+    </TwoColumn>
   )
 }
 

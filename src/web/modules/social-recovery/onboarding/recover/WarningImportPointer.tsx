@@ -14,7 +14,7 @@ const WarningImportPointer = ({ pointer, onImportInstead, testID }: WarningImpor
   const { t } = useTranslation()
 
   return (
-    <SectionCard tone="muted" spacing="item" testID={`${testID}-pointer`}>
+    <SectionCard tone="muted" spacing="item" style={spacings.mtSm} testID={`${testID}-pointer`}>
       <Text fontSize={14} style={spacings.mbTy}>
         {t(pointer.line)}
       </Text>

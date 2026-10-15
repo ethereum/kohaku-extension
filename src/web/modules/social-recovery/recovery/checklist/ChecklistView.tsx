@@ -18,7 +18,12 @@ import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import type { ApproverRequest } from '@web/modules/social-recovery/sdk-interfaces'
 import { failed } from '@web/modules/social-recovery/shared/ceremony'
-import { ActionsRow, PageTitle } from '@web/modules/social-recovery/shared/chrome'
+import {
+  ActionsRow,
+  PageTitle,
+  SectionCard,
+  TwoColumn
+} from '@web/modules/social-recovery/shared/chrome'
 import { addressBookOf, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
 
 import AbandonBlock from './AbandonBlock'
@@ -260,13 +265,14 @@ const ChecklistView = ({
     }
   }, [isWiped, died, pending, ceremonyId, outcomes, forgetAll])
 
-  const title = (
+  const titleOf = (satisfied: boolean) => (
     <PageTitle
-      title={t(`${CHECKLIST}.title`)}
-      lead={t(`${CHECKLIST}.lead`)}
+      title={t(satisfied ? `${CHECKLIST}.satisfiedTitle` : `${CHECKLIST}.title`)}
+      lead={t(satisfied ? `${CHECKLIST}.satisfiedLead` : `${CHECKLIST}.lead`)}
       titleTestID="checklist-title"
     />
   )
+  const title = titleOf(false)
 
   const retryButton = (onPress: () => void, testID: string) => (
     <View style={spacings.mtTy}>
@@ -298,47 +304,53 @@ const ChecklistView = ({
   if (client.status === 'update-the-wallet' || client.status === 'failed') {
     const refused = client.status === 'update-the-wallet'
     return (
-      <View testID="checklist">
-        {title}
-        {errorAlert(
-          refused
-            ? {
-                title: 'socialRecovery.client.updateTheWalletTitle',
-                body: 'socialRecovery.client.updateTheWalletBody'
-              }
-            : {
-                title: 'socialRecovery.client.unavailableTitle',
-                body: 'socialRecovery.client.unavailableBody'
-              },
-          `checklist-client-${client.status}`,
-          checklist.retry
-        )}
-      </View>
+      <TwoColumn testID="checklist-columns">
+        <View testID="checklist">
+          {title}
+          {errorAlert(
+            refused
+              ? {
+                  title: 'socialRecovery.client.updateTheWalletTitle',
+                  body: 'socialRecovery.client.updateTheWalletBody'
+                }
+              : {
+                  title: 'socialRecovery.client.unavailableTitle',
+                  body: 'socialRecovery.client.unavailableBody'
+                },
+            `checklist-client-${client.status}`,
+            checklist.retry
+          )}
+        </View>
+      </TwoColumn>
     )
   }
 
   if (load.phase === 'failed') {
     return (
-      <View testID="checklist">
-        {title}
-        {errorAlert(FAILURE_KEYS[load.cause], `checklist-failed-${load.cause}`, checklist.retry)}
-      </View>
+      <TwoColumn testID="checklist-columns">
+        <View testID="checklist">
+          {title}
+          {errorAlert(FAILURE_KEYS[load.cause], `checklist-failed-${load.cause}`, checklist.retry)}
+        </View>
+      </TwoColumn>
     )
   }
 
   if (load.phase === 'conflict') {
     return (
-      <View testID="checklist">
-        {title}
-        {errorAlert(
-          {
-            title: `${CHECKLIST}.conflictTitle`,
-            body: `${CHECKLIST}.conflictBody`
-          },
-          'checklist-conflict',
-          checklist.retry
-        )}
-      </View>
+      <TwoColumn testID="checklist-columns">
+        <View testID="checklist">
+          {title}
+          {errorAlert(
+            {
+              title: `${CHECKLIST}.conflictTitle`,
+              body: `${CHECKLIST}.conflictBody`
+            },
+            'checklist-conflict',
+            checklist.retry
+          )}
+        </View>
+      </TwoColumn>
     )
   }
 
@@ -350,40 +362,46 @@ const ChecklistView = ({
       slot = attemptLive(poll.facts.attempt) ? 'held' : 'free'
     }
     return (
-      <WipedBlock
-        session={load.session}
-        timeZone={deps.timeZone}
-        busy={checklist.busy || destination.status !== 'ready'}
-        failed={checklist.gatherFailed}
-        onGatherAgain={() => {
-          checklist.gatherAgain().catch(() => undefined)
-        }}
-        hadReplies={load.hadReplies}
-        slot={slot}
-        onRetryPoll={checklist.retryPoll}
-        onReadSetupAgain={() => {
-          checklist.readSetupAgain().catch(() => undefined)
-        }}
-      />
+      <TwoColumn testID="checklist-columns">
+        <WipedBlock
+          session={load.session}
+          timeZone={deps.timeZone}
+          busy={checklist.busy || destination.status !== 'ready'}
+          failed={checklist.gatherFailed}
+          onGatherAgain={() => {
+            checklist.gatherAgain().catch(() => undefined)
+          }}
+          hadReplies={load.hadReplies}
+          slot={slot}
+          onRetryPoll={checklist.retryPoll}
+          onReadSetupAgain={() => {
+            checklist.readSetupAgain().catch(() => undefined)
+          }}
+        />
+      </TwoColumn>
     )
   }
 
   // The rows never render before the account's recovery state answered once.
   if (!live || poll.status === 'pending') {
     return (
-      <View testID="checklist">
-        {title}
-        <ActivityIndicator testID="checklist-loading" />
-      </View>
+      <TwoColumn testID="checklist-columns">
+        <View testID="checklist">
+          {title}
+          <ActivityIndicator testID="checklist-loading" />
+        </View>
+      </TwoColumn>
     )
   }
 
   if (!layout || !assessment || !states) {
     return (
-      <View testID="checklist">
-        {title}
-        {errorAlert(FAILURE_KEYS.setup, 'checklist-failed-setup', checklist.retry)}
-      </View>
+      <TwoColumn testID="checklist-columns">
+        <View testID="checklist">
+          {title}
+          {errorAlert(FAILURE_KEYS.setup, 'checklist-failed-setup', checklist.retry)}
+        </View>
+      </TwoColumn>
     )
   }
 
@@ -391,6 +409,7 @@ const ChecklistView = ({
   const dormant = poll.status === 'answered' && !poll.facts.authorized
   const busy = checklist.busy || claim.busy || held
   const satisfied = assessment.ruleSatisfied
+  const everyRowComplete = [...states.values()].every((state) => state.chip === 'complete')
   const unsatisfied = unsatisfiedOf(layout, assessment, states)
 
   const renderRow = (row: ChecklistRow) => {
@@ -436,113 +455,124 @@ const ChecklistView = ({
     return <IdentityRow row={row} state={state} />
   }
 
-  return (
-    <View testID="checklist">
-      {title}
-      <Text fontSize={16} weight="semiBold" style={spacings.mbTy} testID="checklist-progress">
-        {t(`${CHECKLIST}.progress`, { done: headline.done, total: headline.total })}
-      </Text>
-      <DeadlineBlock
-        gathering={live.session.gathering}
-        layout={layout}
-        now={deps.now}
-        timeZone={deps.timeZone}
-        onPassed={onDeadlinePassed}
-      />
-      {poll.status === 'failed' && <PollAlert withRows onRetry={checklist.retryPoll} />}
-      {checklist.deathFailed && (
-        <Alert
-          testID="checklist-death-failed"
-          type="error"
-          size="sm"
-          style={spacings.mbSm}
-          text={t(`${CHECKLIST}.deaths.wipeFailed`)}
-        >
-          {retryButton(checklist.retryPoll, 'checklist-death-failed-retry')}
-        </Alert>
-      )}
-      {dormant && (
-        <Alert
-          testID="checklist-dormant"
-          type="warning"
-          size="sm"
-          style={spacings.mbSm}
-          title={t(`${CHECKLIST}.dormant.title`)}
-          text={t(`${CHECKLIST}.dormant.body`)}
-        />
-      )}
-      {!!unsatisfied && <UnsatisfiedBlock reading={unsatisfied} />}
-      {claim.undelivered && (
-        <Alert
-          testID="checklist-undelivered"
-          type="error"
-          size="sm"
-          style={spacings.mbSm}
-          text={t('socialRecovery.ceremony.undeliveredNote')}
-        >
-          {retryButton(() => {
-            claim.retryUndelivered().catch(() => undefined)
-          }, 'checklist-undelivered-retry')}
-        </Alert>
-      )}
-      {(claim.launchFailed || checklist.noteFailed || pendingFailed) && (
-        <Alert
-          testID="checklist-write-failed"
-          type="error"
-          size="sm"
-          style={spacings.mbSm}
-          text={t(`${CHECKLIST}.writeFailed`)}
-        >
-          {pendingFailed &&
-            retryButton(() => setPendingFailed(false), 'checklist-write-failed-retry')}
-        </Alert>
-      )}
-      <ChecklistRows layout={layout} assessment={assessment} renderRow={renderRow} />
-      {satisfied && (
-        <Text fontSize={14} style={spacings.mtSm} testID="checklist-satisfied">
-          {t(`${CHECKLIST}.satisfied`)}
-        </Text>
-      )}
-      <ActionsRow
-        primary={
-          <Button
-            testID="checklist-continue"
-            type="primary"
-            text={t('socialRecovery.actions.continue')}
-            disabled={!satisfied || busy || dormant}
-            onPress={() => navigate(submitPathOf(account))}
-            hasBottomSpacing={false}
-          />
-        }
-        note={satisfied ? undefined : t(unlockLineKeyOf(layout))}
-        noteTestID="checklist-unlock"
-      />
-      <Text
-        fontSize={12}
-        appearance="secondaryText"
-        style={spacings.mtSm}
+  const aside = (
+    <>
+      <SectionCard
+        tone="muted"
+        spacing="item"
+        label={t(`${CHECKLIST}.verifyNoteTitle`)}
         testID="checklist-verify"
       >
-        {t(`${CHECKLIST}.verifyNote`)}
-      </Text>
-      <Text
-        fontSize={12}
-        appearance="secondaryText"
-        style={spacings.mtTy}
+        <Text fontSize={12} appearance="secondaryText">
+          {t(`${CHECKLIST}.verifyNote`)}
+        </Text>
+      </SectionCard>
+      <SectionCard
+        tone="muted"
+        spacing="item"
+        label={t(`${CHECKLIST}.leavingKeepsTitle`)}
         testID="checklist-leaving-keeps"
       >
-        {t(`${CHECKLIST}.leavingKeeps`)}
-      </Text>
-      {unsatisfied?.kind !== 'didNotAnswer' && (
-        <AbandonBlock
-          busy={checklist.busy || claim.busy || checklist.dying}
-          failed={checklist.abandonFailed}
-          onAbandon={() => {
-            checklist.abandon(claim.forgetAll).catch(() => undefined)
-          }}
+        <Text fontSize={12} appearance="secondaryText">
+          {t(`${CHECKLIST}.leavingKeeps`)}
+        </Text>
+      </SectionCard>
+    </>
+  )
+
+  return (
+    <TwoColumn testID="checklist-columns" aside={aside}>
+      <View testID="checklist">
+        {titleOf(satisfied)}
+        <Text fontSize={16} weight="semiBold" style={spacings.mbTy} testID="checklist-progress">
+          {t(`${CHECKLIST}.progress`, { done: headline.done, total: headline.total })}
+        </Text>
+        <DeadlineBlock
+          gathering={live.session.gathering}
+          layout={layout}
+          now={deps.now}
+          timeZone={deps.timeZone}
+          onPassed={onDeadlinePassed}
         />
-      )}
-    </View>
+        {poll.status === 'failed' && <PollAlert withRows onRetry={checklist.retryPoll} />}
+        {checklist.deathFailed && (
+          <Alert
+            testID="checklist-death-failed"
+            type="error"
+            size="sm"
+            style={spacings.mbSm}
+            text={t(`${CHECKLIST}.deaths.wipeFailed`)}
+          >
+            {retryButton(checklist.retryPoll, 'checklist-death-failed-retry')}
+          </Alert>
+        )}
+        {dormant && (
+          <Alert
+            testID="checklist-dormant"
+            type="warning"
+            size="sm"
+            style={spacings.mbSm}
+            title={t(`${CHECKLIST}.dormant.title`)}
+            text={t(`${CHECKLIST}.dormant.body`)}
+          />
+        )}
+        {!!unsatisfied && <UnsatisfiedBlock reading={unsatisfied} />}
+        {claim.undelivered && (
+          <Alert
+            testID="checklist-undelivered"
+            type="error"
+            size="sm"
+            style={spacings.mbSm}
+            text={t('socialRecovery.ceremony.undeliveredNote')}
+          >
+            {retryButton(() => {
+              claim.retryUndelivered().catch(() => undefined)
+            }, 'checklist-undelivered-retry')}
+          </Alert>
+        )}
+        {(claim.launchFailed || checklist.noteFailed || pendingFailed) && (
+          <Alert
+            testID="checklist-write-failed"
+            type="error"
+            size="sm"
+            style={spacings.mbSm}
+            text={t(`${CHECKLIST}.writeFailed`)}
+          >
+            {pendingFailed &&
+              retryButton(() => setPendingFailed(false), 'checklist-write-failed-retry')}
+          </Alert>
+        )}
+        <ChecklistRows layout={layout} assessment={assessment} renderRow={renderRow} />
+        {satisfied && !everyRowComplete && (
+          <Text fontSize={14} style={spacings.mtSm} testID="checklist-satisfied">
+            {t(`${CHECKLIST}.satisfied`)}
+          </Text>
+        )}
+        <ActionsRow
+          primary={
+            <Button
+              testID="checklist-continue"
+              type="primary"
+              text={t('socialRecovery.actions.continue')}
+              disabled={!satisfied || busy || dormant}
+              onPress={() => navigate(submitPathOf(account))}
+              hasBottomSpacing={false}
+            />
+          }
+          note={satisfied ? undefined : t(unlockLineKeyOf(layout))}
+          noteTestID="checklist-unlock"
+        />
+        {unsatisfied?.kind !== 'didNotAnswer' && (
+          <AbandonBlock
+            busy={checklist.busy || claim.busy || checklist.dying}
+            failed={checklist.abandonFailed}
+            onAbandon={() => {
+              checklist.abandon(claim.forgetAll).catch(() => undefined)
+            }}
+          />
+        )}
+      </View>
+    </TwoColumn>
   )
 }
 

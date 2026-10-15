@@ -1,7 +1,7 @@
 /**
  * A poll of the account's recovery state that failed or ran past its limit:
- * over the rows, they may be out of date, the read says nothing about whether
- * the request lives and nothing goes on until a read succeeds; over a request
+ * over the rows, they may be out of date and nothing goes on until a read
+ * succeeds; over a request
  * another attempt voided, the read could not tell whether that attempt still
  * runs. Either way, the retry.
  */

@@ -28,7 +28,6 @@ describe('the submission while the wallet has another account selected', () => {
     // The wallet selected the account being recovered, not the one that sends.
     mockWallet.selected = world.account
     view = await mountSubmit(world.account)
-    await view.press('submit-verify-details')
     await view.press('submit-action')
   }
 

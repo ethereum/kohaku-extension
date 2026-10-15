@@ -223,18 +223,38 @@ describe('the presets view', () => {
     )
 
   describe('before any enrollment', () => {
-    it('states the three costs in their exact words', async () => {
+    it('states no cost line, which the save screen carries', async () => {
       await mount()
-      expect(
-        Array.from(byTestId('cost-lines')?.children ?? [], (line) => line.textContent)
-      ).toEqual([S.costLines.save, S.costLines.recovery, S.costLines.cancel])
+      expect(byTestId('cost-lines')).toBeNull()
+      ;[S.costLines.save, S.costLines.recovery, S.costLines.cancel].forEach((line) =>
+        expect(text()).not.toContain(line)
+      )
     })
 
-    it('carries the honesty note in its exact words', async () => {
+    it('carries the honesty note in its exact words, beside the presets', async () => {
       await mount()
       expect(byTestId('honesty-note')?.textContent).toBe(
         'Recovery helps if you lose your key. It cannot stop someone who already has it.'
       )
+      const aside = byTestId('presets-screen-columns-aside')
+      expect(aside?.contains(byTestId('honesty-note') ?? null)).toBe(true)
+      expect(byTestId('honesty-note-card')?.textContent).toContain(S.presets.whatRecoveryCanDo)
+      expect(aside?.contains(byTestId('recovery-status') ?? null)).toBe(true)
+      expect(byTestId('presets-screen')?.contains(byTestId('preset-eitherOne') ?? null)).toBe(true)
+    })
+
+    it('leads with the path alone, without a line about changing it later', async () => {
+      await mount()
+      expect(text()).toContain(S.presets.lead)
+      expect(text()).not.toContain('later in Settings')
+    })
+
+    it('draws customize after the presets', async () => {
+      await mount()
+      const ids = Array.from(container.querySelectorAll('[data-testid]'), (node) =>
+        node.getAttribute('data-testid')
+      )
+      expect(ids.indexOf('customize')).toBeGreaterThan(ids.indexOf('preset-fromScratch'))
     })
 
     it('tells a holder with one device that start from scratch builds a single-method path', async () => {

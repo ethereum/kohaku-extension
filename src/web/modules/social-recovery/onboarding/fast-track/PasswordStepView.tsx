@@ -19,7 +19,8 @@ import {
   ActionsRow,
   PageTitle,
   SectionCard,
-  StepCounter
+  StepCounter,
+  TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
 import {
   FAST_TRACK_STEP_COUNTER_KEY,
@@ -47,110 +48,115 @@ const PasswordStepView = ({ setup, onBack }: PasswordStepViewProps) => {
   const strong = isValidPassword(password)
   const mismatch = !!formState.errors.confirmPassword
 
-  return (
-    <View testID="fast-track-password">
-      <StepCounter
-        labelKey={FAST_TRACK_STEP_COUNTER_KEY}
-        step={PASSWORD_STEP}
-        total={FAST_TRACK_STEPS}
-        testID="fast-track-password-step"
-      />
-      <PageTitle
-        title={t(`${PASSWORD}.title`)}
-        lead={t(`${PASSWORD}.lead`)}
-        titleTestID="fast-track-password-title"
-      />
+  const aside = (
+    <SectionCard
+      tone="muted"
+      spacing="item"
+      label={t(`${PASSWORD}.whatHeader`)}
+      testID="fast-track-password-what"
+    >
+      {['forgotten', 'twoPasswords'].map((line) => (
+        <Text key={line} fontSize={12} appearance="secondaryText" style={spacings.mbTy}>
+          {t(`${PASSWORD}.${line}`)}
+        </Text>
+      ))}
+    </SectionCard>
+  )
 
-      <Controller
-        control={control}
-        name="password"
-        rules={{ validate: isValidPassword }}
-        render={({ field: { onChange, onBlur, value } }) => (
-          <InputPassword
-            label={t('socialRecovery.display.passwords.extensionPassword')}
-            testID="fast-track-password-field"
-            onBlur={onBlur}
-            onChangeText={onChange}
-            isValid={isValidPassword(value)}
-            autoFocus={isWeb}
-            value={value}
-            containerStyle={spacings.mbTy}
-          />
-        )}
-      />
-      <Text
-        fontSize={12}
-        appearance={strong ? 'successText' : 'secondaryText'}
-        style={spacings.mbSm}
-        testID="fast-track-password-rule"
-      >
-        {strong
-          ? t(`${PASSWORD}.strong`, { count: password.length })
-          : t(`${PASSWORD}.rulesLine`, { count: PASSWORD_MIN_LENGTH })}
-      </Text>
-      <Controller
-        control={control}
-        name="confirmPassword"
-        rules={{ validate: (value) => password === value }}
-        render={({ field: { onChange, onBlur, value } }) => (
-          <InputPassword
-            label={t(`${PASSWORD}.repeatLabel`)}
-            testID="fast-track-password-repeat"
-            onBlur={onBlur}
-            onChangeText={onChange}
-            value={value}
-            isValid={!!value && strong && password === value}
-            onSubmitEditing={submit}
-            containerStyle={mismatch ? spacings.mbTy : spacings.mbSm}
-          />
-        )}
-      />
-      {mismatch && (
+  return (
+    <TwoColumn testID="fast-track-password-columns" aside={aside}>
+      <View testID="fast-track-password">
+        <StepCounter
+          labelKey={FAST_TRACK_STEP_COUNTER_KEY}
+          step={PASSWORD_STEP}
+          total={FAST_TRACK_STEPS}
+          testID="fast-track-password-step"
+        />
+        <PageTitle
+          title={t(`${PASSWORD}.title`)}
+          lead={t(`${PASSWORD}.lead`)}
+          titleTestID="fast-track-password-title"
+        />
+
+        <Controller
+          control={control}
+          name="password"
+          rules={{ validate: isValidPassword }}
+          render={({ field: { onChange, onBlur, value } }) => (
+            <InputPassword
+              label={t('socialRecovery.display.passwords.extensionPassword')}
+              testID="fast-track-password-field"
+              onBlur={onBlur}
+              onChangeText={onChange}
+              isValid={isValidPassword(value)}
+              autoFocus={isWeb}
+              value={value}
+              containerStyle={spacings.mbTy}
+            />
+          )}
+        />
         <Text
           fontSize={12}
-          appearance="errorText"
+          appearance={strong ? 'successText' : 'secondaryText'}
           style={spacings.mbSm}
-          testID="fast-track-password-mismatch"
+          testID="fast-track-password-rule"
         >
-          {t(`${PASSWORD}.mismatch`)}
+          {strong
+            ? t(`${PASSWORD}.strong`, { count: password.length })
+            : t(`${PASSWORD}.rulesLine`, { count: PASSWORD_MIN_LENGTH })}
         </Text>
-      )}
-
-      <SectionCard
-        tone="muted"
-        label={t(`${PASSWORD}.whatHeader`)}
-        testID="fast-track-password-what"
-      >
-        {['thisDeviceOnly', 'forgotten', 'staysHere', 'twoPasswords'].map((line) => (
-          <Text key={line} fontSize={14} style={spacings.mbTy}>
-            {t(`${PASSWORD}.${line}`)}
+        <Controller
+          control={control}
+          name="confirmPassword"
+          rules={{ validate: (value) => password === value }}
+          render={({ field: { onChange, onBlur, value } }) => (
+            <InputPassword
+              label={t(`${PASSWORD}.repeatLabel`)}
+              testID="fast-track-password-repeat"
+              onBlur={onBlur}
+              onChangeText={onChange}
+              value={value}
+              isValid={!!value && strong && password === value}
+              onSubmitEditing={submit}
+              containerStyle={mismatch ? spacings.mbTy : spacings.mbSm}
+            />
+          )}
+        />
+        {mismatch && (
+          <Text
+            fontSize={12}
+            appearance="errorText"
+            style={spacings.mbSm}
+            testID="fast-track-password-mismatch"
+          >
+            {t(`${PASSWORD}.mismatch`)}
           </Text>
-        ))}
-      </SectionCard>
+        )}
 
-      <ActionsRow
-        testID="fast-track-password-actions"
-        primary={
-          <Button
-            testID="fast-track-password-continue"
-            type="primary"
-            text={t('socialRecovery.actions.continue')}
-            disabled={disabled}
-            onPress={submit}
-            hasBottomSpacing={false}
-          />
-        }
-        secondary={
-          <Button
-            testID="fast-track-password-back"
-            type="outline"
-            text={t('socialRecovery.ceremony.backAction')}
-            onPress={onBack}
-            hasBottomSpacing={false}
-          />
-        }
-      />
-    </View>
+        <ActionsRow
+          testID="fast-track-password-actions"
+          primary={
+            <Button
+              testID="fast-track-password-continue"
+              type="primary"
+              text={t('socialRecovery.actions.continue')}
+              disabled={disabled}
+              onPress={submit}
+              hasBottomSpacing={false}
+            />
+          }
+          secondary={
+            <Button
+              testID="fast-track-password-back"
+              type="outline"
+              text={t('socialRecovery.ceremony.backAction')}
+              onPress={onBack}
+              hasBottomSpacing={false}
+            />
+          }
+        />
+      </View>
+    </TwoColumn>
   )
 }
 

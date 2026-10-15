@@ -9,10 +9,10 @@
  * account with the set-up chip; the key that now controls it as the consume's
  * transaction reports it, with the line by route (one fresh key on this
  * device, and the account is now in this wallet; or the receiving account's
- * key now shared by two accounts) and its one limit; the key the recovery
- * removed; what the recovery did; one cleanup block for each passkey of the
- * path; that other doors may exist; that the setup survived, with edit or
- * replace and the recovery password change; and the last act.
+ * key now shared by two accounts); the key the recovery removed; one cleanup
+ * block for each passkey of the path; that other doors may exist; that the
+ * setup survived, with edit or replace and the recovery password change; and
+ * the last act. Beside them: what the recovery did and the new key's one limit.
  */
 import React from 'react'
 import { ActivityIndicator, View } from 'react-native'
@@ -30,7 +30,8 @@ import {
   PageTitle,
   SectionCard,
   SectionLabel,
-  StatusChip
+  StatusChip,
+  TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
 import {
   renderApprovalValueName,
@@ -65,58 +66,68 @@ const DoneView = ({
   const { theme } = useTheme()
 
   const failedRead = (testID: string, onRetry: () => void) => (
-    <View testID={testID}>
-      <Alert
-        type="error"
-        size="sm"
-        title={t(`${DONE}.readFailedTitle`)}
-        text={t(`${DONE}.readFailedBody`)}
-      >
-        <Button
-          testID={`${testID}-retry`}
-          type="secondary"
-          size="small"
-          text={t('socialRecovery.writes.tryAgain')}
-          onPress={onRetry}
-          hasBottomSpacing={false}
-          style={[flexbox.alignSelfStart, spacings.mtSm]}
-        />
-      </Alert>
-    </View>
+    <TwoColumn testID="done-columns">
+      <View testID={testID}>
+        <Alert
+          type="error"
+          size="sm"
+          title={t(`${DONE}.readFailedTitle`)}
+          text={t(`${DONE}.readFailedBody`)}
+        >
+          <Button
+            testID={`${testID}-retry`}
+            type="secondary"
+            size="small"
+            text={t('socialRecovery.writes.tryAgain')}
+            onPress={onRetry}
+            hasBottomSpacing={false}
+            style={[flexbox.alignSelfStart, spacings.mtSm]}
+          />
+        </Alert>
+      </View>
+    </TwoColumn>
   )
 
   if (read.status === 'failed') {
     return failedRead('done-read-failed', onRetryRead)
   }
   if (read.status === 'pending' || read.reading.kind === 'none' || !summary) {
-    return <ActivityIndicator testID="done-loading" />
+    return (
+      <TwoColumn testID="done-columns">
+        <ActivityIndicator testID="done-loading" />
+      </TwoColumn>
+    )
   }
   const { event } = read.reading
 
   if (add.status === 'adding') {
     return (
-      <View testID="done-adding">
-        <PageTitle title={t(`${DONE}.title`)} titleTestID="done-title" />
-        <ActivityIndicator testID="done-add-loading" />
-      </View>
+      <TwoColumn testID="done-columns">
+        <View testID="done-adding">
+          <PageTitle title={t(`${DONE}.title`)} titleTestID="done-title" />
+          <ActivityIndicator testID="done-add-loading" />
+        </View>
+      </TwoColumn>
     )
   }
   if (add.status === 'failed') {
     return (
-      <View testID="done-add-failed">
-        <PageTitle title={t(`${DONE}.title`)} titleTestID="done-title" />
-        <Alert type="error" size="sm" text={t(`${DONE}.addFailed`)}>
-          <Button
-            testID="done-add-retry"
-            type="secondary"
-            size="small"
-            text={t(`${DONE}.addRetry`)}
-            onPress={onRetryAdd}
-            hasBottomSpacing={false}
-            style={[flexbox.alignSelfStart, spacings.mtSm]}
-          />
-        </Alert>
-      </View>
+      <TwoColumn testID="done-columns">
+        <View testID="done-add-failed">
+          <PageTitle title={t(`${DONE}.title`)} titleTestID="done-title" />
+          <Alert type="error" size="sm" text={t(`${DONE}.addFailed`)}>
+            <Button
+              testID="done-add-retry"
+              type="secondary"
+              size="small"
+              text={t(`${DONE}.addRetry`)}
+              onPress={onRetryAdd}
+              hasBottomSpacing={false}
+              style={[flexbox.alignSelfStart, spacings.mtSm]}
+            />
+          </Alert>
+        </View>
+      </TwoColumn>
     )
   }
 
@@ -160,7 +171,6 @@ const DoneView = ({
   } else if (route === 'logged-in' && receivingName) {
     controlledLines.push(t(`${DONE}.sharedKey`, { account: receivingName }))
   }
-  controlledLines.push(t(`${DONE}.keyLimit`))
   const accountLine = accountName
     ? t('socialRecovery.display.nameWithAccount', {
         account: renderFullAddress(account),
@@ -169,102 +179,113 @@ const DoneView = ({
     : renderFullAddress(account)
   const busy = finish === 'finishing'
 
-  return (
-    <View testID="done">
-      <View style={spacings.mbLg}>
-        <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap, spacings.mbTy]}>
-          <Text fontSize={20} weight="medium" testID="done-title">
-            {t(`${DONE}.title`)}
-          </Text>
-          <StatusChip
-            text={renderChip('recovery', 'setUp', t)}
-            tone="success"
-            style={spacings.mlSm}
-            testID="done-chip"
-          />
-        </View>
-        <Text fontSize={14} appearance="secondaryText" testID="done-lead">
-          {t(`${DONE}.lead`, { date: dateOf(event.time * 1000, timeZone) })}
-        </Text>
-        {route === 'fresh-install' && (
-          <Text fontSize={14} style={spacings.mtTy} testID="done-now-in-wallet">
-            {t(`${DONE}.nowInWallet`)}
-          </Text>
-        )}
-      </View>
-
-      <SectionCard testID="done-keys">
-        {value(renderValueLabel('account', t), accountLine, 'done-account', [])}
-        {value(
-          renderApprovalValueName('newKey', { doneScreen: true }, t),
-          renderFullAddress(event.granted),
-          'done-controlled-by',
-          controlledLines
-        )}
-        {value(
-          renderApprovalValueName('keyBeingRemoved', { doneScreen: true }, t),
-          renderFullAddress(event.removed),
-          'done-removed',
-          [t(`${DONE}.removedLine`)]
-        )}
-      </SectionCard>
-
+  const aside = (
+    <>
       <RecoveryDidBlock summary={summary} />
-
-      {summary.cleanup.map((block) => (
-        <CleanupBlock
-          key={block.place}
-          block={block}
-          row={summary.rows.find((row) => row.place === block.place)}
-          disabled={busy}
-          onEdit={onEdit}
-        />
-      ))}
-
-      <SectionCard testID="done-next">
-        <Text fontSize={14} style={spacings.mbTy} testID="done-other-doors">
-          {t(`${DONE}.otherDoors`)}
+      <SectionCard tone="muted" spacing="item" testID="done-key-limit">
+        <Text fontSize={12} appearance="secondaryText">
+          {t(`${DONE}.keyLimit`)}
         </Text>
-        <Text fontSize={14} style={spacings.mbTy} testID="done-survived">
-          {t(`${DONE}.survived`)}
-        </Text>
-        <Text fontSize={14} style={spacings.mbSm} testID="done-password-change">
-          {t(`${DONE}.passwordChange`)}
-        </Text>
-        <Button
-          testID="done-edit"
-          type="secondary"
-          size="small"
-          text={t(`${DONE}.editOrReplace`)}
-          disabled={busy}
-          onPress={onEdit}
-          hasBottomSpacing={false}
-          style={flexbox.alignSelfStart}
-        />
       </SectionCard>
+    </>
+  )
 
-      {finish === 'failed' && (
-        <Alert
-          testID="done-finish-failed"
-          type="error"
-          size="sm"
-          style={spacings.mbSm}
-          text={t(`${DONE}.lastActFailed`)}
-        />
-      )}
-      <ActionsRow
-        primary={
-          <Button
-            testID="done-close"
-            type="primary"
-            text={t(`${DONE}.close`)}
+  return (
+    <TwoColumn testID="done-columns" aside={aside}>
+      <View testID="done">
+        <View style={spacings.mbLg}>
+          <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap, spacings.mbTy]}>
+            <Text fontSize={20} weight="medium" testID="done-title">
+              {t(`${DONE}.title`)}
+            </Text>
+            <StatusChip
+              text={renderChip('recovery', 'setUp', t)}
+              tone="success"
+              style={spacings.mlSm}
+              testID="done-chip"
+            />
+          </View>
+          <Text fontSize={14} appearance="secondaryText" testID="done-lead">
+            {t(`${DONE}.lead`, { date: dateOf(event.time * 1000, timeZone) })}
+          </Text>
+          {route === 'fresh-install' && (
+            <Text fontSize={14} style={spacings.mtTy} testID="done-now-in-wallet">
+              {t(`${DONE}.nowInWallet`)}
+            </Text>
+          )}
+        </View>
+
+        <SectionCard testID="done-keys">
+          {value(renderValueLabel('account', t), accountLine, 'done-account', [])}
+          {value(
+            renderApprovalValueName('newKey', { doneScreen: true }, t),
+            renderFullAddress(event.granted),
+            'done-controlled-by',
+            controlledLines
+          )}
+          {value(
+            renderApprovalValueName('keyBeingRemoved', { doneScreen: true }, t),
+            renderFullAddress(event.removed),
+            'done-removed',
+            [t(`${DONE}.removedLine`)]
+          )}
+        </SectionCard>
+
+        {summary.cleanup.map((block) => (
+          <CleanupBlock
+            key={block.place}
+            block={block}
+            row={summary.rows.find((row) => row.place === block.place)}
             disabled={busy}
-            onPress={onClose}
-            hasBottomSpacing={false}
+            onEdit={onEdit}
           />
-        }
-      />
-    </View>
+        ))}
+
+        <SectionCard testID="done-next">
+          <Text fontSize={14} style={spacings.mbTy} testID="done-other-doors">
+            {t(`${DONE}.otherDoors`)}
+          </Text>
+          <Text fontSize={14} style={spacings.mbTy} testID="done-survived">
+            {t(`${DONE}.survived`)}
+          </Text>
+          <Text fontSize={14} style={spacings.mbSm} testID="done-password-change">
+            {t(`${DONE}.passwordChange`)}
+          </Text>
+          <Button
+            testID="done-edit"
+            type="secondary"
+            size="small"
+            text={t(`${DONE}.editOrReplace`)}
+            disabled={busy}
+            onPress={onEdit}
+            hasBottomSpacing={false}
+            style={flexbox.alignSelfStart}
+          />
+        </SectionCard>
+
+        {finish === 'failed' && (
+          <Alert
+            testID="done-finish-failed"
+            type="error"
+            size="sm"
+            style={spacings.mbSm}
+            text={t(`${DONE}.lastActFailed`)}
+          />
+        )}
+        <ActionsRow
+          primary={
+            <Button
+              testID="done-close"
+              type="primary"
+              text={t(`${DONE}.close`)}
+              disabled={busy}
+              onPress={onClose}
+              hasBottomSpacing={false}
+            />
+          }
+        />
+      </View>
+    </TwoColumn>
   )
 }
 

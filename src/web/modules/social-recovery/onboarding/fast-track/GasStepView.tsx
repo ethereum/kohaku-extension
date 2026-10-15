@@ -1,7 +1,8 @@
 /**
- * The gas step of the fast track, with no step number: the deposit step for
- * the key that sends the recovery while it holds too little, a failed read
- * with retry, or the wait while the check reads. Continue stays disabled: the
+ * The gas step of the fast track: the deposit step for the key that sends the
+ * recovery while it holds too little, under the account being recovered, with
+ * the second-funding note beside it; a failed read with retry; or the wait
+ * while the check reads. Continue stays disabled: the
  * step moves on by itself once the funds arrive. Back returns to the readout;
  * where no key in this wallet can send the recovery, nothing can be retried
  * here and Back returns to the account step.
@@ -14,12 +15,23 @@ import Button from '@common/components/Button'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
-import { ActionsRow } from '@web/modules/social-recovery/shared/chrome'
-import DepositStepView from '@web/modules/social-recovery/shared/writes/components/DepositStepView'
+import AccountLine from '@web/modules/social-recovery/recovery/entry/AccountLine'
+import { ActionsRow, TwoColumn } from '@web/modules/social-recovery/shared/chrome'
+import {
+  DepositStepAside,
+  DepositStepView
+} from '@web/modules/social-recovery/shared/writes/components'
 
 import type { GasStepViewProps } from './types'
 
-const GasStepView = ({ state, onRetry, onBack, onBackToAccount }: GasStepViewProps) => {
+const GasStepView = ({
+  state,
+  account,
+  networkName,
+  onRetry,
+  onBack,
+  onBackToAccount
+}: GasStepViewProps) => {
   const { t } = useTranslation()
 
   const backButton = (onPress: () => void) => (
@@ -32,8 +44,14 @@ const GasStepView = ({ state, onRetry, onBack, onBackToAccount }: GasStepViewPro
     />
   )
 
+  const columns = (main: React.ReactNode, aside?: React.ReactNode) => (
+    <TwoColumn testID="fast-track-gas-columns" aside={aside}>
+      {main}
+    </TwoColumn>
+  )
+
   if (state.kind === 'noSendingKey') {
-    return (
+    return columns(
       <View testID="fast-track-gas-no-key">
         <Alert type="error" size="sm" text={t('socialRecovery.writes.gasCheckFailed')} />
         <ActionsRow testID="fast-track-gas-actions" primary={backButton(onBackToAccount)} />
@@ -42,7 +60,7 @@ const GasStepView = ({ state, onRetry, onBack, onBackToAccount }: GasStepViewPro
   }
 
   if (state.kind === 'failed') {
-    return (
+    return columns(
       <View testID="fast-track-gas-failed">
         <Alert type="error" size="sm" text={t('socialRecovery.writes.gasCheckFailed')}>
           <Button
@@ -61,11 +79,23 @@ const GasStepView = ({ state, onRetry, onBack, onBackToAccount }: GasStepViewPro
   }
 
   if (state.kind !== 'deposit') {
-    return <ActivityIndicator testID="fast-track-gas-spinner" />
+    return columns(<ActivityIndicator testID="fast-track-gas-spinner" />)
   }
 
-  return (
-    <DepositStepView step={state.step} testID="fast-track-gas">
+  return columns(
+    <DepositStepView
+      step={state.step}
+      header={
+        account ? (
+          <AccountLine
+            account={account}
+            networkName={networkName}
+            testID="fast-track-gas-account"
+          />
+        ) : undefined
+      }
+      testID="fast-track-gas"
+    >
       <ActionsRow
         testID="fast-track-gas-actions"
         primary={
@@ -79,7 +109,8 @@ const GasStepView = ({ state, onRetry, onBack, onBackToAccount }: GasStepViewPro
         }
         secondary={backButton(onBack)}
       />
-    </DepositStepView>
+    </DepositStepView>,
+    <DepositStepAside step={state.step} testID="fast-track-gas-second-funding" />
   )
 }
 

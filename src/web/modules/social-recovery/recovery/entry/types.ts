@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 import type { Account } from '@ambire-common/interfaces/account'
 import type { Key } from '@ambire-common/interfaces/keystore'
 import type {
@@ -187,6 +189,8 @@ export interface AccountStepViewProps {
   /** Resolves a name to an address; an empty answer is a name that does not resolve. */
   resolveName: (name: string) => Promise<string>
   navigate: (to: string) => void
+  /** The stage counter, drawn at the top of the main column so the aside starts level with it. */
+  counter: ReactNode
 }
 
 export interface LookupFieldProps {
@@ -197,6 +201,8 @@ export interface LookupFieldProps {
   onBack?: () => void
   /** Leaves the recovery. */
   onCancel: () => void
+  /** The stage counter, drawn at the top of the main column so the aside starts level with it. */
+  counter: ReactNode
 }
 
 export interface LookupStateProps {
@@ -208,6 +214,8 @@ export interface LookupStateProps {
   onAnotherAddress: () => void
   /** Leaves the recovery; absent where the route has nowhere to leave to. */
   onClose?: () => void
+  /** The stage counter, drawn at the top of the main column so the aside starts level with it. */
+  counter: ReactNode
 }
 
 export interface ConfirmAccountProps {
@@ -218,6 +226,8 @@ export interface ConfirmAccountProps {
   writeFailed: boolean
   onConfirm: () => void
   onNotMine: () => void
+  /** The stage counter, drawn at the top of the main column so the aside starts level with it. */
+  counter: ReactNode
 }
 
 export interface ConfirmedReadsViewProps {
@@ -237,6 +247,8 @@ export interface ConfirmedReadsViewProps {
 export interface CondensedGateProps {
   /** Runs once the holder ticked the acknowledgment and pressed continue. */
   onPass: () => void
+  /** The stage counter, drawn at the top of the main column so the aside starts level with it. */
+  counter: ReactNode
 }
 
 // ---------------------------------------------------------------------------
@@ -420,4 +432,10 @@ export interface ReadoutPasswordAskProps {
 
 export interface ReadoutPathBlockProps {
   path: ReadoutPath
+}
+
+export interface AccountLineProps {
+  account: Address
+  networkName: string
+  testID: string
 }

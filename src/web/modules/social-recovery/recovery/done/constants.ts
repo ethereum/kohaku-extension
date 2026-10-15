@@ -11,6 +11,9 @@ import { dedicatedToOneSAPriv } from '@ambire-common/interfaces/keystore'
  */
 export const CREATION_STAND_IN = dedicatedToOneSAPriv
 
+/** The done screen closes the recovery's last stage, the submission's. */
+export const DONE_STAGE = 5
+
 /** How long the add of the recovered account may take before it reads as failed, in ms. */
 export const ADD_LIMIT_MS = 20_000
 

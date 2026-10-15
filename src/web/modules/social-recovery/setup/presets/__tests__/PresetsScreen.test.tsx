@@ -170,6 +170,11 @@ describe('the presets screen', () => {
     expect(container.textContent).toContain(S.chrome.breadcrumb)
   })
 
+  it('counts the presets as the first of the setup stages', async () => {
+    await showAccount(ACCOUNT)
+    expect(byTestId('presets-stage')?.textContent).toBe('Set up · Step 1 of 7')
+  })
+
   it('starts the other account with no card picked', async () => {
     await showAccount(ACCOUNT)
     await press('preset-eitherOne')

@@ -155,8 +155,27 @@ const mockFrame = (name: string) => {
   const R = jest.requireActual('react')
   return {
     __esModule: true,
-    default: ({ children }: { children?: unknown }) =>
-      R.createElement('div', { 'data-testid': name }, children)
+    default: ({
+      children,
+      counter
+    }: {
+      children?: unknown
+      counter?: { labelKey: string; step: number; total: number; testID?: string }
+    }) => {
+      const { t: translate } = jest.requireActual('@common/config/localization').default
+      return R.createElement(
+        'div',
+        { 'data-testid': name },
+        counter
+          ? R.createElement(
+              'div',
+              { 'data-testid': counter.testID },
+              translate(counter.labelKey, { step: counter.step, total: counter.total })
+            )
+          : null,
+        children
+      )
+    }
   }
 }
 jest.mock('@web/modules/social-recovery/shared/chrome/PlainChrome', () => mockFrame('plain-chrome'))

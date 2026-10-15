@@ -65,4 +65,6 @@ export type PrivacyViewProps = StepViewProps
 export interface SettingsChromeProps {
   /** The step the chrome holds, given the selected account's records. */
   step: ComponentType<StepViewProps>
+  /** The step's place among the setup's stages, shown on the chrome's counter. */
+  stage: number
 }

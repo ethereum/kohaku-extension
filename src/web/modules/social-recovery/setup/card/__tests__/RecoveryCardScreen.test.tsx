@@ -383,6 +383,13 @@ describe('the recovery card screen', () => {
       expect(level()).toBe('hidden')
     })
 
+    it('counts the card as the last of the setup stages', async () => {
+      const account = newAccount()
+      await writeDraft(account, 'clear')
+      await mount(account)
+      expect(byTestId('card-stage')?.textContent).toBe('Set up · Step 7 of 7')
+    })
+
     it('reads an encrypted draft as hidden and a clear one as public', async () => {
       const hidden = newAccount()
       await writeDraft(hidden, 'encrypted')
@@ -503,8 +510,7 @@ describe('the recovery card screen', () => {
       setRecoveryPassword(CHAIN_ID, first, PASSWORD)
       await mount(first)
       await press('card-reveal')
-      await press('card-why')
-      expect(byTestId('card-why-body')).not.toBeNull()
+      expect(byTestId('card-password-value')?.textContent).toBe(PASSWORD)
 
       await select(second)
       await act(async () => {
@@ -514,7 +520,6 @@ describe('the recovery card screen', () => {
       })
       expect(byTestId('card-account')?.textContent?.toLowerCase()).toBe(second)
       expect(level()).toBe('public')
-      expect(byTestId('card-why-body')).toBeNull()
       expect(container.textContent).not.toContain(PASSWORD)
 
       await select(first)

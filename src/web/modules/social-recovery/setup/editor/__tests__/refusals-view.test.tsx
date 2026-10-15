@@ -412,7 +412,7 @@ describe('continue with a shape this wallet can save', () => {
 })
 
 describe('the order of the sections on screen', () => {
-  it('reads the rule lines, the write failure, the refusals, then continue', async () => {
+  it('reads the write failure, the refusals, then continue, with the rule lines beside them', async () => {
     const { storage } = await mount({ clauses: presetPath() })
     storage.rejectOnce('set', 'setupDraft')
     const addGroup = byTestId('editor-add-group')
@@ -423,23 +423,22 @@ describe('the order of the sections on screen', () => {
     })
     await settle()
 
-    const sections = [
-      'editor-rule-lines',
-      'editor-write-failed',
-      'editor-wallet-refusals',
-      'editor-continue'
-    ].map((id) => {
-      const node = byTestId(id)
-      if (!node) {
-        throw new Error(`nothing on screen with the test id ${id}`)
+    const sections = ['editor-write-failed', 'editor-wallet-refusals', 'editor-continue'].map(
+      (id) => {
+        const node = byTestId(id)
+        if (!node) {
+          throw new Error(`nothing on screen with the test id ${id}`)
+        }
+        return node
       }
-      return node
-    })
+    )
     sections.slice(1).forEach((node, index) => {
       // eslint-disable-next-line no-bitwise
       expect(sections[index].compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
         Node.DOCUMENT_POSITION_FOLLOWING
       )
     })
+    expect(byTestId('editor-columns-main')?.contains(byTestId('editor-continue'))).toBe(true)
+    expect(byTestId('editor-columns-aside')?.contains(byTestId('editor-rule-lines'))).toBe(true)
   })
 })

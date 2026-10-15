@@ -6,6 +6,10 @@ import React, { useCallback, useMemo } from 'react'
 
 import useNavigation from '@common/hooks/useNavigation'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
+import {
+  SETUP_STAGE_COUNTER_KEY,
+  SETUP_STAGES
+} from '@web/modules/social-recovery/shared/chrome/constants'
 import SetupChrome from '@web/modules/social-recovery/shared/chrome/SetupChrome'
 import useSetupAccount from '@web/modules/social-recovery/shared/chrome/useSetupAccount'
 import { CHAIN_IDS, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
@@ -26,7 +30,14 @@ const PresetsScreen = () => {
   const recover = useCallback(() => navigate(WEB_ROUTES.socialRecoveryRecovery), [navigate])
 
   return (
-    <SetupChrome>
+    <SetupChrome
+      counter={{
+        labelKey: SETUP_STAGE_COUNTER_KEY,
+        step: 1,
+        total: SETUP_STAGES,
+        testID: 'presets-stage'
+      }}
+    >
       {/* Another account or chain mounts a new view, so no state carries across. */}
       {!!address && (
         <PresetsView

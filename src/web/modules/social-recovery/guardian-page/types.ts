@@ -146,8 +146,17 @@ export interface LeadBlockProps {
 
 export interface DetailsBlockProps {
   described: DescribedRequest
-  deadline: DeadlineView | null
   networkName: string
+}
+
+export interface StageLineProps {
+  /** The approval's step the page stands at: the call, the signature, the approval sent back. */
+  step: number
+}
+
+export interface ApprovingAsideProps {
+  /** Whether the card on what the wallet's prompt shows is drawn, beside a request that can be signed. */
+  walletNotes: boolean
 }
 
 export interface SignBlockProps {

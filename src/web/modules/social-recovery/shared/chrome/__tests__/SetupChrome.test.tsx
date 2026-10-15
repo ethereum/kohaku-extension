@@ -15,6 +15,10 @@ import { ThemeContext } from '@common/contexts/themeContext'
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import themeConfig, { THEME_TYPES } from '@common/styles/themeConfig'
 import type { ThemeProps } from '@common/styles/themeConfig'
+import {
+  SETUP_STAGE_COUNTER_KEY,
+  SETUP_STAGES
+} from '@web/modules/social-recovery/shared/chrome/constants'
 import SetupChrome from '@web/modules/social-recovery/shared/chrome/SetupChrome'
 
 // React only runs effects and state updates inside act() when this flag is set.
@@ -108,6 +112,26 @@ describe('the setup chrome', () => {
     mount(<SetupChrome testID="chrome">{false}</SetupChrome>)
     expect(byTestId('chrome')?.textContent).not.toContain('Recover an account')
     expect(byTestId('chrome')?.textContent).toBe(BREADCRUMB)
+  })
+
+  it('shows the stage counter between the breadcrumb and the view when given one', () => {
+    const counter = i18n.t(SETUP_STAGE_COUNTER_KEY, { step: 3, total: SETUP_STAGES })
+    mount(
+      <SetupChrome
+        testID="chrome"
+        counter={{
+          labelKey: SETUP_STAGE_COUNTER_KEY,
+          step: 3,
+          total: SETUP_STAGES,
+          testID: 'stage'
+        }}
+      >
+        <Text>The view</Text>
+      </SetupChrome>
+    )
+    expect(counter).toContain('3')
+    expect(byTestId('stage')).not.toBeNull()
+    expect(byTestId('chrome')?.textContent).toBe(`${BREADCRUMB}${counter}The view`)
   })
 
   it('shows the breadcrumb when it holds no view', () => {

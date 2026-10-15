@@ -101,11 +101,6 @@ const PasskeyCreateBlock = ({
           </>
         )}
       </SectionCard>
-      {served && (
-        <Text fontSize={12} appearance="secondaryText">
-          {t('socialRecovery.enroll.passkey.testOffered')}
-        </Text>
-      )}
     </View>
   )
 }

@@ -9,6 +9,10 @@ import { useLocation } from 'react-router-dom'
 
 import useNavigation from '@common/hooks/useNavigation'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
+import {
+  SETUP_STAGE_COUNTER_KEY,
+  SETUP_STAGES
+} from '@web/modules/social-recovery/shared/chrome/constants'
 import SetupChrome from '@web/modules/social-recovery/shared/chrome/SetupChrome'
 import useSetupAccount from '@web/modules/social-recovery/shared/chrome/useSetupAccount'
 import { CHAIN_IDS, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
@@ -85,7 +89,14 @@ const RecoveryCardScreen = () => {
   const toPrivacy = useCallback(() => navigate(WEB_ROUTES.socialRecoverySetupPrivacy), [navigate])
 
   return (
-    <SetupChrome>
+    <SetupChrome
+      counter={{
+        labelKey: SETUP_STAGE_COUNTER_KEY,
+        step: 7,
+        total: SETUP_STAGES,
+        testID: 'card-stage'
+      }}
+    >
       {!!address && !!level && (
         <RecoveryCardView
           key={address}

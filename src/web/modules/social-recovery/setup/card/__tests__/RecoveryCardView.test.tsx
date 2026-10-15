@@ -449,6 +449,8 @@ describe('the recovery card view', () => {
         node.getAttribute('data-testid')
       )
       expect(actions.filter((id) => id !== 'card-line')).toEqual([
+        'card-columns',
+        'card-columns-main',
         'card-screen',
         'recovery-card',
         'card-account',
@@ -457,10 +459,12 @@ describe('the recovery card view', () => {
         'card-password-gone-action',
         'card-download',
         'card-print',
-        'card-why',
-        'card-warns',
         'card-continue',
-        'card-back'
+        'card-back',
+        'card-columns-aside',
+        'card-why',
+        'card-why-body',
+        'card-warns'
       ])
     })
 
@@ -552,14 +556,23 @@ describe('the recovery card view', () => {
   })
 
   describe('around the card', () => {
-    it('keeps why the setup is not on the card closed until asked', async () => {
+    it('answers why the setup is not on the card beside it, with no control to open', async () => {
       await mount()
-      expect(byTestId('card-why')?.textContent).toBe(S.card.whyNotOnCard)
-      expect(byTestId('card-why-body')).toBeNull()
-      await press('card-why')
+      expect(byTestId('card-why')?.textContent).toBe(S.card.whyNotOnCard + S.card.whyNotOnCardBody)
       expect(byTestId('card-why-body')?.textContent).toBe(S.card.whyNotOnCardBody)
-      await press('card-why')
-      expect(byTestId('card-why-body')).toBeNull()
+      expect(byTestId('card-why')?.getAttribute('role')).toBeNull()
+      const aside = byTestId('card-columns-aside')
+      expect(aside?.contains(byTestId('card-why'))).toBe(true)
+      expect(aside?.contains(byTestId('card-warns'))).toBe(true)
+    })
+
+    it('says to keep the card away from the wallet once, on the card face', async () => {
+      await mount()
+      expect(container.textContent?.split(S.card.lines.keepAway)).toHaveLength(2)
+      expect(byTestId('recovery-card')?.textContent).toContain(S.card.lines.keepAway)
+      expect(container.textContent).toContain(
+        'Save it or print it. Keep it somewhere ordinary, a drawer, a folder or a safe.'
+      )
     })
 
     it('says what warns the holder in one banner line, with no alert settings', async () => {
