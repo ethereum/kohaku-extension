@@ -1408,11 +1408,19 @@
         "send": "Cancel the recovery",
         "back": "Go back",
         "ended": "This recovery already ended. Nothing was sent.",
-        "readFailed": "We could not read this recovery. Nothing was sent."
+        "readFailed": "We could not read this recovery. Nothing was sent.",
+        "viewOnly": "This wallet holds no key for this account, so it cannot send the cancel. Open the wallet that holds the account's key.",
+        "clientFailed": "The wallet could not read this account's recovery setup. Nothing was sent."
       },
       "inProgress": {
         "title": "Cancelling…",
         "body": "The attempt is live until this lands. Keep this window open."
+      },
+      "landed": {
+        "title": "The cancel landed",
+        "body": "The transaction landed. The wallet reads the recovery registry to confirm the recovery ended.",
+        "unread": "The registry has not confirmed the end yet. Check again in a moment.",
+        "checkAgain": "Check again"
       },
       "failed": {
         "title": "Could not cancel",
