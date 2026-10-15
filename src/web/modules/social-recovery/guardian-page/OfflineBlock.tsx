@@ -18,11 +18,15 @@ import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { saveChallengeFile } from '@web/modules/social-recovery/setup/enroll/carriers'
+import {
+  typedDataFileOf,
+  typedDataTextOf
+} from '@web/modules/social-recovery/setup/enroll/guardian'
 import { SectionCard, SectionLabel } from '@web/modules/social-recovery/shared/chrome'
 
 import AcknowledgmentBox from './AcknowledgmentBox'
+import { PAYLOAD_FILE_NAME } from './constants'
 import CopyFeedbackLine from './CopyFeedbackLine'
-import { payloadFileOf, payloadTextOf } from './signing'
 import type { OfflineBlockProps } from './types'
 import useCopy from './useCopy'
 import ValueBlock from './ValueBlock'
@@ -48,7 +52,7 @@ const OfflineBlock = ({
   const [pasted, setPasted] = useState('')
   const [qrFailed, setQrFailed] = useState(false)
   const { feedback, copy } = useCopy()
-  const payload = useMemo(() => (typedData ? payloadTextOf(typedData) : null), [typedData])
+  const payload = useMemo(() => (typedData ? typedDataTextOf(typedData) : null), [typedData])
   const { description } = described
 
   const row = (label: string, value: string, testID: string) => (
@@ -113,7 +117,7 @@ const OfflineBlock = ({
               type="secondary"
               size="small"
               text={t(`${OFFLINE}.saveFile`)}
-              onPress={() => saveChallengeFile(payloadFileOf(typedData))}
+              onPress={() => saveChallengeFile(typedDataFileOf(typedData, PAYLOAD_FILE_NAME))}
               hasBottomSpacing={false}
               style={spacings.mbTy}
             />

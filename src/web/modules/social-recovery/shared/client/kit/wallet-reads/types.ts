@@ -6,7 +6,13 @@ import type {
   IProvider
 } from '@web/modules/social-recovery/sdk-interfaces'
 
-import type { CodeRead, PrivilegeAccount, TransactionRead, WalletReads } from '../../types'
+import type {
+  CodeRead,
+  PrivilegeAccount,
+  RemovedKeyReading,
+  TransactionRead,
+  WalletReads
+} from '../../types'
 import type { ActionReads, MethodReads } from '../reads/types'
 
 /** What the wallet's two account reads take. */
@@ -38,5 +44,25 @@ export interface KitWalletReadsInput {
 /** The one module view the verify of a pasted reply reads. */
 export type ReplyVerifyReads = Pick<MethodReads, 'verify'>
 
+/**
+ * The removed key as the kit reads it. Where the node refused the code reads
+ * at blocks older than the pinned one, the privilege writes were scanned from
+ * the manager's deployment block, which `privilegeScanBoundedAt` names; a
+ * key written before it and never written again is then unseen, so such a
+ * scan that finds no key fails with the node's refusal instead of answering.
+ */
+export type KitRemovedKeyReading = RemovedKeyReading & { privilegeScanBoundedAt?: number }
+
+/**
+ * The block the privilege writes are read from. A node that refused older
+ * reads bounds it at the manager's deployment block, and the refusal is kept
+ * so that a bounded scan that finds no key fails with it.
+ */
+export type PrivilegeScanStart =
+  | { from: number; bounded: false }
+  | { from: number; bounded: true; refusal: unknown }
+
 /** The wallet's own reads the kit serves: the removed key, the fit check and the verify of a pasted reply. */
-export type KitWalletReads = Pick<WalletReads, 'removedKey' | 'fitCheck' | 'verifyReply'>
+export interface KitWalletReads extends Pick<WalletReads, 'fitCheck' | 'verifyReply'> {
+  removedKey(): Promise<KitRemovedKeyReading>
+}

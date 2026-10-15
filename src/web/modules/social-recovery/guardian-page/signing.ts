@@ -1,29 +1,19 @@
 /**
  * The signing half of the approval page, as pure functions: the key the
  * request names and how this wallet holds it, the typed data the approving
- * side hands over, the payload the offline block carries out, and how an
- * answer of the signer or of the approving side reads.
+ * side hands over, and how an answer of the signer or of the approving side
+ * reads.
  */
 import { isAddress } from 'viem'
 
 import type { Address, ApproverRequest, Verdict } from '@web/modules/social-recovery/sdk-interfaces'
 import { isObject } from '@web/modules/social-recovery/recovery/checklist/codec'
-import {
-  isSignFlowFailure,
-  sameAddress,
-  typedMessageOf
-} from '@web/modules/social-recovery/shared/client'
+import { isSignFlowFailure, sameAddress } from '@web/modules/social-recovery/shared/client'
 import type { RecoveryKitClient, TypedDataToSign } from '@web/modules/social-recovery/shared/client'
 import type { Translate } from '@web/modules/social-recovery/shared/display'
 
-import { ECDSA_SLUG, PAYLOAD_FILE_NAME } from './constants'
-import type {
-  KeyReading,
-  KeystoreFacts,
-  OfflineFailure,
-  PayloadFile,
-  SigningFailure
-} from './types'
+import { ECDSA_SLUG } from './constants'
+import type { KeyReading, KeystoreFacts, OfflineFailure, SigningFailure } from './types'
 
 /**
  * The address the request's credential names: the wallet method's own codec
@@ -99,25 +89,6 @@ export const typedDataOf = (
   }
   return input as unknown as TypedDataToSign
 }
-
-/**
- * The payload the offline block carries out: the typed data as JSON, as
- * `eth_signTypedData_v4` takes it, with the domain type spelled out and
- * each bigint written as a decimal string.
- */
-export const payloadTextOf = (typedData: TypedDataToSign): string => {
-  const { domain, types, primaryType, message } = typedMessageOf(typedData)
-  return JSON.stringify({ domain, types, primaryType, message }, (_key, value: unknown) =>
-    typeof value === 'bigint' ? value.toString() : value
-  )
-}
-
-/** The payload as the file the offline block saves. */
-export const payloadFileOf = (typedData: TypedDataToSign): PayloadFile => ({
-  name: PAYLOAD_FILE_NAME,
-  text: payloadTextOf(typedData),
-  type: 'application/json'
-})
 
 /**
  * Why the wallet's sign request brought no signature: the guardian refused

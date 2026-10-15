@@ -38,10 +38,12 @@
  * privilege writes cover the account's whole life, since a key written at
  * any time may still hold: they start at the first block at which the
  * account has code, found by a binary search over the code read at past
- * blocks, which needs a node that answers reads at old blocks. The wallet's
- * creation record of a listed account names no block, so the same search
- * serves it. The privileges the creation code writes emit no log; such a key
- * is found through the creation record or through the setup it saved.
+ * blocks, which needs a node that answers reads at old blocks. A node that
+ * prunes its history refuses those reads; the privilege writes are then read
+ * from the manager's deployment block, and the reading names that block. The
+ * wallet's creation record of a listed account names no block, so the same
+ * search serves it. The privileges the creation code writes emit no log; such
+ * a key is found through the creation record or through the setup it saved.
  */
 import { getAddress, isAddressEqual, size } from 'viem'
 
@@ -62,7 +64,13 @@ import type { SetupCommittedLog } from '../events/types'
 import { createAccountReads } from '../reads'
 import { decodedHandoverOf } from '../recovery-client/handover'
 import { pinnedBlockOf } from '../setup-client'
-import type { KitWalletReads, KitWalletReadsInput } from './types'
+import { historyRefused } from './history-refusal'
+import type {
+  KitRemovedKeyReading,
+  KitWalletReads,
+  KitWalletReadsInput,
+  PrivilegeScanStart
+} from './types'
 import { createReplyVerify } from './verify-reply'
 
 const readingOf = (keys: readonly Address[]): RemovedKeyReading => {
@@ -150,11 +158,22 @@ export const createKitWalletReads = ({
     return held.filter((_, index) => holds[index])
   }
 
-  const signersOfDeployed = async (block: number): Promise<Address[]> => {
-    const createdAt = await firstBlockWithCode(0, block)
+  const privilegeScanStart = async (block: number): Promise<PrivilegeScanStart> => {
+    try {
+      return { from: await firstBlockWithCode(0, block), bounded: false }
+    } catch (thrown) {
+      if (!historyRefused(thrown)) {
+        throw thrown
+      }
+      return { from: descriptor.deployedAt, bounded: true, refusal: thrown }
+    }
+  }
+
+  const removedKeyOfDeployed = async (block: number): Promise<KitRemovedKeyReading> => {
+    const scan = await privilegeScanStart(block)
     const [notifications, writes] = await Promise.all([
       events.fetch(events.accountFilter(), { from: descriptor.deployedAt, to: block }),
-      privilegeEvents.privilegeLogsOf(addressOf(), { from: createdAt, to: block })
+      privilegeEvents.privilegeLogsOf(addressOf(), { from: scan.from, to: block })
     ])
     const committer = await committerOf(notifications)
     const handedTo = handedToOf(notifications)
@@ -166,14 +185,21 @@ export const createKitWalletReads = ({
       ...handedTo,
       ...writes.map((write) => write.addr)
     ])
-    return signersOf(candidates, block)
+    const reading = readingOf(await signersOf(candidates, block))
+    if (!scan.bounded) {
+      return reading
+    }
+    if (reading.kind === 'unavailable' && reading.cause === 'no-key-entry') {
+      throw scan.refusal
+    }
+    return { ...reading, privilegeScanBoundedAt: scan.from }
   }
 
   return {
-    async removedKey(): Promise<RemovedKeyReading> {
+    async removedKey(): Promise<KitRemovedKeyReading> {
       const { number: block } = await pinnedBlockOf(provider, { blockTags })
       if (await hasCode(block)) {
-        return readingOf(await signersOfDeployed(block))
+        return removedKeyOfDeployed(block)
       }
       if (!account.creation) {
         return { kind: 'unavailable', cause: 'no-creation-record' }

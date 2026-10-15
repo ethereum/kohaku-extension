@@ -9,8 +9,6 @@ export {
   keyAllowsSign,
   requestKeyOf,
   typedDataOf,
-  payloadTextOf,
-  payloadFileOf,
   signingFailureOf,
   walletVerdictFailure,
   offlineVerdictFailure,

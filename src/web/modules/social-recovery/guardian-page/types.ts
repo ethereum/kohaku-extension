@@ -241,13 +241,6 @@ export interface CopyFeedbackLineProps {
   testID: string
 }
 
-/** The file the offline block saves. */
-export interface PayloadFile {
-  name: string
-  text: string
-  type: string
-}
-
 /**
  * The key the request names, as this wallet holds it:
  * - held: the keystore holds it and is unlocked, so the sign action can ask for it;

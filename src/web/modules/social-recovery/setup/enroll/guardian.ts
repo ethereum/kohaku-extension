@@ -22,6 +22,7 @@ import {
   sameAddress,
   typedMessageOf
 } from '@web/modules/social-recovery/shared/client'
+import type { TypedDataToSign } from '@web/modules/social-recovery/shared/client'
 
 import { keyTestToSignOf } from './testRequest'
 import type {
@@ -136,23 +137,29 @@ export const guardianAddressOf = (config: Hex): Address | undefined => {
 }
 
 /**
- * The key test as JSON, as `eth_signTypedData_v4` takes it: the domain type
+ * Typed data as JSON, as `eth_signTypedData_v4` takes it: the domain type
  * spelled out, the same types the local check hashes, so a signer that adds
  * its own domain type signs the same digest. Each bigint is a decimal string.
  */
-export const challengeTextOf = (keyTest: KeyTestTypedData): string => {
-  const { domain, types, primaryType, message } = typedMessageOf(keyTestToSignOf(keyTest))
-  return JSON.stringify({ domain, types, primaryType, message }, (_key, value: unknown) =>
-    typeof value === 'bigint' ? value.toString() : value
-  )
+export const typedDataTextOf = (typedData: TypedDataToSign): string => {
+  const { domain, types, primaryType, message } = typedMessageOf(typedData)
+  return JSON.stringify({ domain, types, primaryType, message })
 }
 
-/** The key test as the file the offline block saves. */
-export const challengeFileOf = (keyTest: KeyTestTypedData): ChallengeFile => ({
-  name: 'kohaku-test-challenge.json',
-  text: challengeTextOf(keyTest),
+/** Typed data as a JSON file under the given name, as an offline block saves it. */
+export const typedDataFileOf = (typedData: TypedDataToSign, name: string): ChallengeFile => ({
+  name,
+  text: typedDataTextOf(typedData),
   type: 'application/json'
 })
+
+/** The key test as JSON, as `eth_signTypedData_v4` takes it. */
+export const challengeTextOf = (keyTest: KeyTestTypedData): string =>
+  typedDataTextOf(keyTestToSignOf(keyTest))
+
+/** The key test as the file the offline block saves. */
+export const challengeFileOf = (keyTest: KeyTestTypedData): ChallengeFile =>
+  typedDataFileOf(keyTestToSignOf(keyTest), 'kohaku-test-challenge.json')
 
 /** A pasted signature: hex bytes, or null for anything else. */
 export const signatureOf = (text: string): Hex | null => {
