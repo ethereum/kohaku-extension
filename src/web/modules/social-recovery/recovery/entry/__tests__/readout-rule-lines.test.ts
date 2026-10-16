@@ -1,7 +1,8 @@
 /**
- * The readout's rule lines for a path of one method: the single-method warning
- * always, the platform line only for a passkey, and never the offer to add a
- * method, which only the editor can act on.
+ * The readout's rule lines for a path of one method: the platform line only
+ * for a passkey, never the warning about losing the key, which the recoverer
+ * already lost, and never the offer to add a method, which only the editor
+ * can act on.
  */
 import i18n from '@common/config/localization'
 import { previewPathOf } from '@web/modules/social-recovery/recovery/entry/readout'
@@ -17,11 +18,11 @@ const linesOfOne = (method: Address): string[] =>
   previewPathOf({ clauses: [{ threshold: 1, methods: [method] }] }, CONTEXT, t).ruleLines
 
 describe('the readout of a path of one method', () => {
-  it('one guardian reads the single-method warning alone, no passkey line and no offer', () => {
-    expect(linesOfOne(BOOK.methods.ecdsa)).toEqual([line('singleMethod')])
+  it('one guardian reads no rule line: no lost-key warning, no passkey line and no offer', () => {
+    expect(linesOfOne(BOOK.methods.ecdsa)).toEqual([])
   })
 
-  it('one passkey reads the single-method warning and the platform line, no offer', () => {
-    expect(linesOfOne(BOOK.methods.passkey)).toEqual([line('singleMethod'), line('platformFate')])
+  it('one passkey reads the platform line alone, no lost-key warning and no offer', () => {
+    expect(linesOfOne(BOOK.methods.passkey)).toEqual([line('platformFate')])
   })
 })

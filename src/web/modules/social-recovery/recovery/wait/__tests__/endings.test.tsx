@@ -12,7 +12,9 @@ import {
   gatheringOf,
   HOUR,
   MIXED_PATH,
+  landCountdown,
   mountWait,
+  mountWaitWithNoAccount,
   NO_ATTEMPT,
   ONE_GUARDIAN,
   openWorld,
@@ -27,7 +29,11 @@ import {
   useWaitClock,
   waiting
 } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
-import type { Mounted, World } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
+import type {
+  Mounted,
+  RoutedWait,
+  World
+} from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
 import type { CancelledBy } from '@web/modules/social-recovery/sdk-interfaces'
 import { recordKeys } from '@web/modules/social-recovery/shared/records'
 import type { StoredSession } from '@web/modules/social-recovery/shared/records'
@@ -99,6 +105,70 @@ describe('where the wait sends the holder on open', () => {
     view = await mountWait(world.account)
 
     expect(view.paths()).toEqual([`/${WEB_ROUTES.socialRecoveryRecoveryAccount}`])
+  })
+})
+
+describe('where the wait sends the holder with no account in its search', () => {
+  useWaitClock()
+  let view: Mounted | undefined
+
+  afterEach(() => {
+    view?.unmount()
+    view = undefined
+  })
+
+  const ACCOUNT_STEP = `/${WEB_ROUTES.socialRecoveryRecoveryAccount}`
+  const waitPath = (world: World) =>
+    `/${WEB_ROUTES.socialRecoveryRecoveryWait}?account=${world.account}`
+
+  it('opens the wait of the one landed session this device holds', async () => {
+    const world = await openWorld()
+    view = await mountWaitWithNoAccount()
+
+    expect(view.paths()).toEqual([waitPath(world)])
+  })
+
+  it('goes to the account step where no session has landed', async () => {
+    const world = await openWorld({ countdown: false })
+    await world.records
+      .recoverySession(CHAIN_ID, world.account)
+      .write(gatheringOf(MIXED_PATH, 1, world.account), null)
+    view = await mountWaitWithNoAccount()
+
+    expect(view.paths()).toEqual([ACCOUNT_STEP])
+  })
+
+  it('sends nowhere from a listing that answers after the search moved to another account', async () => {
+    const landedWorld = await openWorld()
+    const other = await openWorld({ countdown: false })
+    await landCountdown(other.records, landedWorld.account, ONE_GUARDIAN)
+    const { storage } = other
+    const getAll = storage.getAll.bind(storage)
+    let release = () => {}
+    const listed = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    storage.getAll = async () => {
+      await listed
+      return getAll()
+    }
+    view = await mountWaitWithNoAccount()
+    expect(view.paths()).toEqual([])
+
+    await (view as RoutedWait).goTo(waitPath(other))
+    release()
+    await tick(0)
+
+    expect(view.paths()).not.toContain(waitPath(landedWorld))
+  })
+
+  it('goes to the account step where two sessions have landed', async () => {
+    const world = await openWorld()
+    const other = `0x${'7'.repeat(40)}` as const
+    await landCountdown(world.records, other, ONE_GUARDIAN)
+    view = await mountWaitWithNoAccount()
+
+    expect(view.paths()).toEqual([ACCOUNT_STEP])
   })
 })
 

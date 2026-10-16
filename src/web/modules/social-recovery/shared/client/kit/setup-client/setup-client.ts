@@ -19,6 +19,7 @@ import {
   DEFAULT_WAIT,
   finding,
   PASSKEY_CONFIG,
+  removedKeyOfReading,
   restoreRefusal,
   validationRefusal
 } from '@web/modules/social-recovery/sdk-doubles'
@@ -32,6 +33,7 @@ import type {
   ISetupClient,
   PreparedBatch,
   PreparedCall,
+  RemovedKey,
   SetupConfirmation,
   SetupDescription,
   SetupDraft,
@@ -276,7 +278,7 @@ export const createKitSetupClient = (ctx: KitSetupContext): ISetupClient => {
       return withNamedRevert(async () => {
         const block = await pin()
         const hasCode = size(await ctx.codeRead.code(account, block.number)) > 0
-        const [reads, candidateKeys, actionInfo, fits, state, removed] = await Promise.all([
+        const [reads, candidateKeys, actionInfo, fits, state, removedKey] = await Promise.all([
           methodReadsOf(draft),
           Promise.all(
             config.candidateKeys.map(async (address) => ({
@@ -289,7 +291,7 @@ export const createKitSetupClient = (ctx: KitSetupContext): ISetupClient => {
           action.actionInfo(),
           action.supportsAccount(account, block.number),
           manager.stateOf(account, actionAddress, block.number),
-          ctx.walletReads.removedKey()
+          ctx.walletReads.removedKey().then(removedKeyOfReading, (): RemovedKey => 'unread')
         ])
         const placed = placedCredentialsOf(account, draft)
         const passkeyDomains = placed
@@ -337,7 +339,7 @@ export const createKitSetupClient = (ctx: KitSetupContext): ISetupClient => {
           })),
           passkeyDomains,
           candidateKeys,
-          removedKey: removed.kind === 'named' ? removed.key : 'no-creation-triple',
+          removedKey,
           privacy: {
             level: privacyLevelOf(draft.privacy),
             publicMetadata: draft.privacy.publicMetadata

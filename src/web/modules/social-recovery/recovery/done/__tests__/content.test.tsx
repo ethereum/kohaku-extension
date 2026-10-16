@@ -90,6 +90,19 @@ const mountOver = async (
   return { world, screen: await mountDone(world.account) }
 }
 
+/** The new key's one limit and what the recovery did sit beside the keys, the limit said once. */
+const expectLimitBeside = (screen: {
+  byTestId: (id: string) => HTMLElement | null
+  text: () => string
+}) => {
+  const aside = screen.byTestId('done-columns-aside')
+  expect(aside?.querySelector('[data-testid="done-key-limit"]')?.textContent).toBe(
+    t(`${DONE}.keyLimit`)
+  )
+  expect(aside?.querySelector('[data-testid="done-what"]')).not.toBeNull()
+  expect(screen.text().split(t(`${DONE}.keyLimit`))).toHaveLength(2)
+}
+
 describe('the lines under the keys by route', () => {
   it('on the fast track: one fresh key on this device, the account now in this wallet, and the one limit', async () => {
     const world = await openWorld({ route: 'fresh-install' })
@@ -97,8 +110,12 @@ describe('the lines under the keys by route', () => {
     await walletAddsIt()
     expect(screen.has('plain-chrome')).toBe(true)
     expect(screen.has('setup-chrome')).toBe(false)
+    expect(screen.textOf('done-stage')).toBe(
+      t('socialRecovery.entry.stageCounter', { step: 5, total: 5 })
+    )
     expect(screen.textOf('done-controlled-by-line-0')).toBe(t(`${DONE}.freshKey`))
-    expect(screen.textOf('done-controlled-by-line-1')).toBe(t(`${DONE}.keyLimit`))
+    expect(screen.has('done-controlled-by-line-1')).toBe(false)
+    expectLimitBeside(screen)
     expect(screen.textOf('done-now-in-wallet')).toBe(t(`${DONE}.nowInWallet`))
     expect(screen.text()).not.toContain(t(`${DONE}.sharedKey`, { account: 'Account 1' }))
     expect(screen.textOf('done-removed-line-0')).toBe(t(`${DONE}.removedLine`))
@@ -112,7 +129,8 @@ describe('the lines under the keys by route', () => {
     expect(screen.textOf('done-controlled-by-line-0')).toBe(
       t(`${DONE}.sharedKey`, { account: 'Daily account' })
     )
-    expect(screen.textOf('done-controlled-by-line-1')).toBe(t(`${DONE}.keyLimit`))
+    expect(screen.has('done-controlled-by-line-1')).toBe(false)
+    expectLimitBeside(screen)
     expect(screen.text()).not.toContain(t(`${DONE}.freshKey`))
     expect(screen.has('done-now-in-wallet')).toBe(false)
     screen.unmount()

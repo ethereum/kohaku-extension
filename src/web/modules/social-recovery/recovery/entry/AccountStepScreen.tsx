@@ -7,9 +7,11 @@
  * route's entry. A holder who did not acknowledge the warning on the screen
  * before, as on a direct URL, meets the condensed warning first.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 
+import type { Account } from '@ambire-common/interfaces/account'
+import type { Key } from '@ambire-common/interfaces/keystore'
 import { resolveENSDomain } from '@ambire-common/services/ensDomains'
 import type { MinNetworkConfig } from '@ambire-common/services/provider'
 import useNavigation from '@common/hooks/useNavigation'
@@ -18,11 +20,19 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import { routeEntryPathOf } from '@web/modules/social-recovery/recovery/checklist/search'
+import { StepCounter } from '@web/modules/social-recovery/shared/chrome'
+import {
+  RECOVERY_STAGE_COUNTER_KEY,
+  RECOVERY_STAGES
+} from '@web/modules/social-recovery/shared/chrome/constants'
 import RecoveryChrome from '@web/modules/social-recovery/shared/chrome/RecoveryChrome'
 import {
   CHAIN_IDS,
   networkOf,
-  WALLET_RECOVERY_CHAIN
+  providerKeyOf,
+  WALLET_RECOVERY_CHAIN,
+  watchedDeploymentOf,
+  watcherConnectionFor
 } from '@web/modules/social-recovery/shared/client'
 import { useRecoveryClient } from '@web/modules/social-recovery/shared/client/useRecoveryClient'
 import {
@@ -36,7 +46,10 @@ import CondensedGate from './CondensedGate'
 import { ACCOUNT_STAGE, CHAIN_NAMES } from './constants'
 import { choiceFor, receivingChoicesOf } from './receiving'
 import { acknowledgedInState, parseAccountStepSearch, routeOfSearch } from './search'
-import type { EntryClient, LookupTarget } from './types'
+import type { AttemptReadsOpener, EntryClient, LookupTarget } from './types'
+
+const NO_ACCOUNTS: Account[] = []
+const NO_KEYS: Key[] = []
 
 const AccountStepScreen = () => {
   const { navigate } = useNavigation()
@@ -106,8 +119,28 @@ const AccountStepScreen = () => {
     return { status: 'failed', retry }
   }, [kit, status, retry])
 
-  const networkName =
-    networkOf(networks, WALLET_RECOVERY_CHAIN)?.name ?? CHAIN_NAMES[WALLET_RECOVERY_CHAIN]
+  const network = networkOf(networks, WALLET_RECOVERY_CHAIN)
+  const networkName = network?.name ?? CHAIN_NAMES[WALLET_RECOVERY_CHAIN]
+
+  // The running attempt's reads, over a provider of the page's own that the
+  // band releases when it goes; opened again only when the network record's
+  // provider fields change.
+  const networkRef = useRef(network)
+  networkRef.current = network
+  const networkKey = network ? providerKeyOf(network) : null
+  const networksLoaded = !!networks
+  const openAttemptReads = useCallback<AttemptReadsOpener>(() => {
+    const current = networkRef.current
+    const descriptor = watchedDeploymentOf(WALLET_RECOVERY_CHAIN)
+    if (!networksLoaded) {
+      return { status: 'loading' }
+    }
+    if (!networkKey || !current || !descriptor) {
+      return { status: 'unreadable' }
+    }
+    const connection = watcherConnectionFor(current, descriptor)
+    return { status: 'ready', reads: connection.reads, close: connection.destroy }
+  }, [networksLoaded, networkKey])
 
   const resolveName = useCallback(
     (name: string) =>
@@ -117,14 +150,26 @@ const AccountStepScreen = () => {
     [dispatch]
   )
 
+  // The counter opens the main column, as on the fast-track steps, so the
+  // aside starts level with it.
+  const counter = (
+    <StepCounter
+      labelKey={RECOVERY_STAGE_COUNTER_KEY}
+      step={ACCOUNT_STAGE}
+      total={RECOVERY_STAGES}
+      testID="recovery-stage"
+    />
+  )
+
   return (
     <RecoveryChrome
       route={route}
       titleKey="socialRecovery.routes.recover"
-      stage={{ step: ACCOUNT_STAGE, testID: 'recovery-stage' }}
       testID="recovery-account"
     >
-      {!!search && !!receiving && !acknowledged && <CondensedGate onPass={pass} />}
+      {!!search && !!receiving && !acknowledged && (
+        <CondensedGate onPass={pass} counter={counter} />
+      )}
       {!!stepSearch && !!receiving && acknowledged && (
         <AccountStepView
           records={records}
@@ -136,7 +181,11 @@ const AccountStepScreen = () => {
           onTarget={setTarget}
           client={client}
           resolveName={resolveName}
+          accounts={accounts ?? NO_ACCOUNTS}
+          keys={keys ?? NO_KEYS}
+          openAttemptReads={openAttemptReads}
           navigate={navigate}
+          counter={counter}
         />
       )}
     </RecoveryChrome>

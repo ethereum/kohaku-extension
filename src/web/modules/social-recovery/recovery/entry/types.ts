@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 import type { Account } from '@ambire-common/interfaces/account'
 import type { Key } from '@ambire-common/interfaces/keystore'
 import type {
@@ -17,10 +19,12 @@ import type {
   KeyHandle,
   RecoveryKitClient,
   RemovedKeyReading,
-  WalletReads
+  WalletReads,
+  WatcherReads
 } from '@web/modules/social-recovery/shared/client'
 import type {
   ChainId,
+  ListedRecoveryEntry,
   RecoveryEntryRecord,
   RecoveryRoute,
   WalletRecords
@@ -173,7 +177,7 @@ export interface ReceivingRowProps {
 }
 
 export interface AccountStepViewProps {
-  records: Pick<WalletRecords, 'recoveryEntry' | 'recoverySession'>
+  records: AccountStepRecords
   chainId: ChainId
   search: AccountStepSearch
   /** The key a recovery installs: the receiving account's own key. */
@@ -186,7 +190,14 @@ export interface AccountStepViewProps {
   client: EntryClient
   /** Resolves a name to an address; an empty answer is a name that does not resolve. */
   resolveName: (name: string) => Promise<string>
+  /** The wallet's accounts and the keys its keystore holds. */
+  accounts: readonly ReceivingAccountSource[]
+  keys: readonly HeldKeySource[]
+  /** Opens the reads of the attempt running against an account. */
+  openAttemptReads: AttemptReadsOpener
   navigate: (to: string) => void
+  /** The stage counter, drawn at the top of the main column so the aside starts level with it. */
+  counter: ReactNode
 }
 
 export interface LookupFieldProps {
@@ -197,6 +208,8 @@ export interface LookupFieldProps {
   onBack?: () => void
   /** Leaves the recovery. */
   onCancel: () => void
+  /** The stage counter, drawn at the top of the main column so the aside starts level with it. */
+  counter: ReactNode
 }
 
 export interface LookupStateProps {
@@ -208,6 +221,8 @@ export interface LookupStateProps {
   onAnotherAddress: () => void
   /** Leaves the recovery; absent where the route has nowhere to leave to. */
   onClose?: () => void
+  /** The stage counter, drawn at the top of the main column so the aside starts level with it. */
+  counter: ReactNode
 }
 
 export interface ConfirmAccountProps {
@@ -218,6 +233,8 @@ export interface ConfirmAccountProps {
   writeFailed: boolean
   onConfirm: () => void
   onNotMine: () => void
+  /** The stage counter, drawn at the top of the main column so the aside starts level with it. */
+  counter: ReactNode
 }
 
 export interface ConfirmedReadsViewProps {
@@ -226,6 +243,8 @@ export interface ConfirmedReadsViewProps {
   networkName: string
   /** Whether the setup read reported an attempt running against the account. */
   attemptActive: boolean
+  /** Whether the running attempt's band stands in place of continue. */
+  runningBand: boolean
   onRetry: () => void
   /** Leaves a blocked state for the account field. */
   onBack: () => void
@@ -234,9 +253,171 @@ export interface ConfirmedReadsViewProps {
   onContinue: () => void
 }
 
+// ---------------------------------------------------------------------------
+// The running attempt
+// ---------------------------------------------------------------------------
+
+/** The records the account step reads and writes. */
+export type AccountStepRecords = Pick<
+  WalletRecords,
+  'recoveryEntry' | 'recoverySession' | 'listRecoveryEntries' | 'restoreCountdown'
+>
+
+/** The reads of the registry the running attempt's band makes. */
+export type AttemptReads = Pick<
+  WatcherReads,
+  'latestBlock' | 'stateOf' | 'attemptEventsOf' | 'blockTime' | 'handoverOf'
+>
+
+/**
+ * The reads of the running attempt as the page opened them: the wallet has not
+ * pushed its networks yet, the reads with what releases them, or no reads at
+ * all where the wallet holds no network for the chain or the build reads no
+ * deployed registry.
+ */
+export type OpenedAttemptReads =
+  | { status: 'loading' }
+  | { status: 'ready'; reads: AttemptReads; close: () => void }
+  | { status: 'unreadable' }
+
+export type AttemptReadsOpener = () => OpenedAttemptReads
+
+/** The attempt the registry holds as waiting, at the block the read pinned. */
+export interface RunningAttempt {
+  attemptId: bigint
+  setupNonce: bigint
+  payloadHash: Hex
+  /** When the attempt can execute, in seconds since epoch. */
+  consumableAfter: number
+  /** The block the setup was committed at, where the opening's scan starts. */
+  setupBlock: number
+  /** The block the read pinned. */
+  block: number
+}
+
+/** One read of the registry: the block it pinned, and the attempt waiting there or null where none waits. */
+export interface RunningAttemptReading {
+  block: number
+  attempt: RunningAttempt | null
+}
+
+/** The registry's read of the attempt: running, answered, failed, or no attempt waiting any more. */
+export type RunningAttemptRead = EntryRead<RunningAttempt> | { status: 'ended' }
+
+/** What the attempt's opening tells: the key it hands the account to, and when it opened, in seconds. */
+export interface RunningOpening {
+  newKey: Address
+  openedAt: number
+}
+
+/**
+ * A key the fast track made on this device: the key of the account a fast
+ * track's recovery entry names as receiving control.
+ */
+export interface SeedReceiver {
+  key: Address
+  receivingAccount: Address
+}
+
+export type ListedEntries = readonly ListedRecoveryEntry[]
+
+/** Whose recovery the attempt is: the fast track's key, a key the wallet holds, or neither. */
+export type RunningOwnership = 'seed' | 'wallet' | 'not-yours'
+
+/** The entry a recovery that continues with the attempt's key is kept under. */
+export interface ContinueTarget {
+  route: RecoveryRoute
+  receivingAccount: Address
+}
+
+/**
+ * A read of the registry again while the band stands: the same attempt as it
+ * read, another attempt now drawn in its place, no attempt waiting any more,
+ * or a read that failed, which leaves the band as it was.
+ */
+export type AttemptRecheck =
+  | { status: 'same'; attempt: RunningAttempt }
+  | { status: 'changed' }
+  | { status: 'ended' }
+  | { status: 'failed' }
+
+export interface RunningAttemptState {
+  attempt: RunningAttemptRead
+  opening: EntryRead<RunningOpening>
+  /** Whether a key the keystore holds is an authority of the account. */
+  authority: EntryRead<boolean>
+  /** The recovery entries this device keeps on the chain, from which the fast track's keys come. */
+  entries: EntryRead<ListedEntries>
+  /**
+   * Whether the last read of the registry after the first answer failed, did
+   * not answer in time, or pinned a block older than one already read; the
+   * attempt shown is then the last good read's, drawn as failed with retry.
+   */
+  refreshFailed: boolean
+  /** Reads again every read that failed. */
+  retry: () => void
+  /** Reads the registry once more, after any read already running. */
+  recheck: () => Promise<AttemptRecheck>
+}
+
+export interface RunningAttemptInput {
+  account: Address
+  chainId: ChainId
+  records: Pick<WalletRecords, 'listRecoveryEntries'>
+  client: Pick<EntryKitClient, 'action'> | null
+  /** The account's own keys the keystore holds. */
+  ownKeys: readonly Address[]
+  openReads: AttemptReadsOpener
+  /** The block the setup read pinned, below which no read of the registry is accepted; null where none answered. */
+  setupBlock: number | null
+  /** False until the band stands; nothing is read before. */
+  active: boolean
+}
+
+export type ContinueState = 'idle' | 'writing' | 'failed'
+
+/** Whose recovery the attempt is, and where a recovery that continues with its key is kept. */
+export interface RunningClaim {
+  /** Null while the key or the listing of the recovery entries is not known. */
+  ownership: RunningOwnership | null
+  /** Null where the wallet lists no account to continue under. */
+  target: ContinueTarget | null
+}
+
+export interface RunningAttemptBandProps {
+  state: RunningAttemptState
+  claim: RunningClaim
+  account: Address
+  chainId: ChainId
+  records: AccountStepRecords
+  navigate: (to: string) => void
+}
+
+export interface RunningAttemptBandViewProps {
+  attempt: RunningAttemptRead
+  /** Whether the last read of the registry failed after an earlier one answered. */
+  refreshFailed: boolean
+  opening: EntryRead<RunningOpening>
+  /** The listing of the recovery entries, from which the fast track's keys come. */
+  entries: EntryRead<ListedEntries>
+  /** Whose recovery it is, or null while the key or the listing is not known. */
+  ownership: RunningOwnership | null
+  /** Whether a key the keystore holds is an authority of the account. */
+  authority: EntryRead<boolean>
+  /** Whether the wallet can continue with the attempt's key. */
+  canContinue: boolean
+  continueState: ContinueState
+  timeZone: string
+  onRetry: () => void
+  onContinue: () => void
+  onCancel: () => void
+}
+
 export interface CondensedGateProps {
   /** Runs once the holder ticked the acknowledgment and pressed continue. */
   onPass: () => void
+  /** The stage counter, drawn at the top of the main column so the aside starts level with it. */
+  counter: ReactNode
 }
 
 // ---------------------------------------------------------------------------
@@ -420,4 +601,10 @@ export interface ReadoutPasswordAskProps {
 
 export interface ReadoutPathBlockProps {
   path: ReadoutPath
+}
+
+export interface AccountLineProps {
+  account: Address
+  networkName: string
+  testID: string
 }

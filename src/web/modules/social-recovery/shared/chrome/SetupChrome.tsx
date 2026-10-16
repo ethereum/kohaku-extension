@@ -1,10 +1,11 @@
 /**
  * The settings chrome every setup screen draws: the settings sidebar with
  * account recovery active, the logo header, and the panel that holds the
- * breadcrumb and the screen's view in one column. While the wallet selects
- * another account than the one the tab sets up, a notice above the view names
- * the tab's account and offers to switch to the selected one. A chrome told to
- * skip the account latch neither latches the tab's account nor shows the notice.
+ * breadcrumb, the stage counter where the screen gives one, and the screen's
+ * view at the panel's full width. While the wallet selects another account
+ * than the one the tab sets up, a notice above the view names the tab's
+ * account and offers to switch to the selected one. A chrome told to skip the
+ * account latch neither latches the tab's account nor shows the notice.
  */
 import React from 'react'
 import { ScrollView, View } from 'react-native'
@@ -22,14 +23,16 @@ import Sidebar from '@web/modules/settings/components/Sidebar'
 import getStyles from '@web/modules/settings/contexts/SettingsRoutesContext/styles'
 
 import SetupAccountNotice from './SetupAccountNotice'
+import StepCounter from './StepCounter'
 import type { SetupChromeProps } from './types'
 
-const COLUMN = { maxWidth: 600, width: '100%' } as const
+const COLUMN = { width: '100%' } as const
 
 const SetupChrome = ({
   children,
   breadcrumbTail,
   skipAccountLatch = false,
+  counter,
   testID
 }: SetupChromeProps) => {
   const { t } = useTranslation()
@@ -60,6 +63,7 @@ const SetupChrome = ({
                 {breadcrumbTail ? ` › ${breadcrumbTail}` : null}
               </Text>
               <View style={COLUMN}>
+                {!!counter && <StepCounter {...counter} />}
                 {!skipAccountLatch && <SetupAccountNotice />}
                 {children}
               </View>

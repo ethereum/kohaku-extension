@@ -13,7 +13,7 @@ import Button from '@common/components/Button'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
-import { PageTitle, SectionCard } from '@web/modules/social-recovery/shared/chrome'
+import { PageTitle, SectionCard, TwoColumn } from '@web/modules/social-recovery/shared/chrome'
 import type { RecoveryRoute } from '@web/modules/social-recovery/shared/records'
 
 import { inProgressItemsOf, routeOfItems } from './inProgress'
@@ -114,74 +114,85 @@ const InProgressView = ({
 
   if (load.status === 'failed') {
     return (
-      <View testID="in-progress">
-        {title}
-        <Alert
-          testID="in-progress-failed"
-          type="error"
-          size="sm"
-          title={t('socialRecovery.wait.readFailedTitle')}
-          text={t('socialRecovery.client.unavailableBody')}
-        >
-          <View style={spacings.mtTy}>
-            <Button
-              testID="in-progress-retry"
-              type="secondary"
-              size="small"
-              text={t('socialRecovery.writes.tryAgain')}
-              onPress={() => setAttempt((n) => n + 1)}
-              hasBottomSpacing={false}
-            />
-          </View>
-        </Alert>
-      </View>
+      <TwoColumn testID="in-progress-columns">
+        <View testID="in-progress">
+          {title}
+          <Alert
+            testID="in-progress-failed"
+            type="error"
+            size="sm"
+            title={t('socialRecovery.wait.readFailedTitle')}
+            text={t('socialRecovery.client.unavailableBody')}
+          >
+            <View style={spacings.mtTy}>
+              <Button
+                testID="in-progress-retry"
+                type="secondary"
+                size="small"
+                text={t('socialRecovery.writes.tryAgain')}
+                onPress={() => setAttempt((n) => n + 1)}
+                hasBottomSpacing={false}
+              />
+            </View>
+          </Alert>
+        </View>
+      </TwoColumn>
     )
   }
 
   if (load.status === 'loading') {
     return (
-      <View testID="in-progress">
-        {title}
-        <ActivityIndicator testID="in-progress-loading" />
-      </View>
+      <TwoColumn testID="in-progress-columns">
+        <View testID="in-progress">
+          {title}
+          <ActivityIndicator testID="in-progress-loading" />
+        </View>
+      </TwoColumn>
     )
   }
 
+  const aside = (
+    <SectionCard
+      tone="muted"
+      spacing="item"
+      label={t(`${IN_PROGRESS}.onlyThisDeviceTitle`)}
+      testID="in-progress-only-this-device"
+    >
+      <Text fontSize={12} appearance="secondaryText">
+        {t(`${IN_PROGRESS}.onlyThisDeviceBody`)}
+      </Text>
+    </SectionCard>
+  )
+
   return (
-    <View testID="in-progress">
-      {title}
-      {abandonFailed && (
-        <Alert
-          testID="in-progress-abandon-failed"
-          type="error"
-          size="sm"
-          style={spacings.mbSm}
-          text={t('socialRecovery.checklist.writeFailed')}
-        />
-      )}
-      {load.items.map((item) => (
-        <InProgressRow
-          key={item.account}
-          item={item}
-          holds={holds[item.account.toLowerCase()]}
-          useHeadline={useHeadline}
-          timeZone={timeZone}
-          busy={busy}
-          onContinue={onContinue}
-          onAbandon={(abandoned) => {
-            onAbandon(abandoned).catch(() => undefined)
-          }}
-        />
-      ))}
-      <SectionCard tone="muted" spacing="item" style={spacings.mtSm}>
-        <Text fontSize={14} weight="medium">
-          {t(`${IN_PROGRESS}.onlyThisDeviceTitle`)}
-        </Text>
-        <Text fontSize={14} style={spacings.mtTy}>
-          {t(`${IN_PROGRESS}.onlyThisDeviceBody`)}
-        </Text>
-      </SectionCard>
-    </View>
+    <TwoColumn testID="in-progress-columns" aside={aside}>
+      <View testID="in-progress">
+        {title}
+        {abandonFailed && (
+          <Alert
+            testID="in-progress-abandon-failed"
+            type="error"
+            size="sm"
+            style={spacings.mbSm}
+            text={t('socialRecovery.checklist.writeFailed')}
+          />
+        )}
+        {load.items.map((item) => (
+          <InProgressRow
+            key={item.account}
+            item={item}
+            holds={holds[item.account.toLowerCase()]}
+            useHeadline={useHeadline}
+            timeZone={timeZone}
+            busy={busy}
+            onContinue={onContinue}
+            onAbandon={(abandoned) => {
+              onAbandon(abandoned).catch(() => undefined)
+            }}
+          />
+        ))}
+      </View>
+    </TwoColumn>
   )
 }
 

@@ -4,4 +4,5 @@
  */
 export { default as WriteStateView } from './WriteStateView'
 export { default as DepositStepView } from './DepositStepView'
-export type { WriteStateViewProps, DepositStepViewProps } from './types'
+export { default as DepositStepAside } from './DepositStepAside'
+export type { WriteStateViewProps, DepositStepViewProps, DepositStepAsideProps } from './types'

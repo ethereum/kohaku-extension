@@ -11,7 +11,11 @@ import en from '@common/config/localization/translations/en.json'
 import { SETUP_ERROR_CODES } from '@web/modules/social-recovery/sdk-interfaces'
 import type { Clause, Finding, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
 
-import { renderFailedTestLine, renderFinding } from '@web/modules/social-recovery/setup/editor/copy'
+import {
+  renderFailedTestLine,
+  renderFinding,
+  rowChipTone
+} from '@web/modules/social-recovery/setup/editor/copy'
 import {
   addGroup,
   addMember,
@@ -20,6 +24,7 @@ import {
   editorErrorsOf,
   emptySlotOf,
   enrollSearchOf,
+  fillOf,
   fillSlot,
   guardianAddressOf,
   isEmptySlot,
@@ -491,5 +496,24 @@ describe('the line of a failed access test', () => {
   it('gives nothing for a test that passed or was not run', () => {
     expect(renderFailedTestLine(enrolled(PASSKEY), t)).toBeNull()
     expect(renderFailedTestLine({ credential: PASSKEY, test: 'not-tested' }, t)).toBeNull()
+  })
+})
+
+describe('how far the path is filled', () => {
+  it('reads an empty path, a path with an empty slot, and a path whose every slot holds a method', () => {
+    expect(fillOf([])).toBe('empty')
+    expect(fillOf([{ threshold: 1, credentials: [] }])).toBe('empty')
+    expect(fillOf([{ threshold: 2, credentials: [ALICE, emptySlotOf('ecdsa')] }])).toBe('open')
+    expect(fillOf(presetPath())).toBe('filled')
+  })
+})
+
+describe("a row chip's tone", () => {
+  it('reads as a success only for a method that passed its access test', () => {
+    expect(rowChipTone(PASSKEY, [enrolled(PASSKEY)])).toBe('success')
+    expect(rowChipTone(PASSKEY, [{ credential: PASSKEY, test: 'not-tested' }])).toBe('default')
+    expect(rowChipTone(PASSKEY, [{ credential: PASSKEY, test: 'failed' }])).toBe('default')
+    expect(rowChipTone(emptySlotOf('passkey'), [])).toBe('default')
+    expect(rowChipTone(PASSKEY, [])).toBe('default')
   })
 })

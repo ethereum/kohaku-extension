@@ -1,6 +1,6 @@
 /**
  * Step 3 of 3: the new key and its recovery phrase. The words show in order
- * with the paper line and the only-backup warning; the key that will control
+ * over the only-backup warning, with the paper line beside them; the key that will control
  * the account shows as an address, never as a field. Continue stays disabled
  * until the holder confirms the words are written down, and while the wallet
  * adds the account; Back is disabled while the add runs, until its limit
@@ -26,7 +26,8 @@ import {
   ActionsRow,
   PageTitle,
   SectionCard,
-  StepCounter
+  StepCounter,
+  TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
 import { renderFullAddress } from '@web/modules/social-recovery/shared/display'
 
@@ -94,126 +95,149 @@ const KeyStepView = ({
 
   if (phase === 'creating' || phase === 'createFailed' || !words.length || !controllingKey) {
     return (
-      <View testID="fast-track-key">
-        {counter}
-        {title}
-        {phase === 'createFailed' && failure('fast-track-key-create-failed')}
-        {phase === 'addFailed' && failure('fast-track-key-add-failed')}
-        {phase !== 'createFailed' && phase !== 'addFailed' && (
-          <View style={[flexbox.alignCenter, spacings.mbLg]}>
-            <ActivityIndicator testID="fast-track-key-spinner" />
-            {phase === 'creating' && (
-              <Text
-                fontSize={14}
-                appearance="secondaryText"
-                style={spacings.mtSm}
-                testID="fast-track-key-creating"
-              >
-                {t(`${KEY}.creating`)}
-              </Text>
-            )}
-          </View>
-        )}
-        {pendingLine}
-        <ActionsRow
-          testID="fast-track-key-actions"
-          primary={backButton(phase === 'adding' && !pending)}
-        />
-      </View>
+      <TwoColumn testID="fast-track-key-columns">
+        <View testID="fast-track-key">
+          {counter}
+          {title}
+          {phase === 'createFailed' && failure('fast-track-key-create-failed')}
+          {phase === 'addFailed' && failure('fast-track-key-add-failed')}
+          {phase !== 'createFailed' && phase !== 'addFailed' && (
+            <View style={[flexbox.alignCenter, spacings.mbLg]}>
+              <ActivityIndicator testID="fast-track-key-spinner" />
+              {phase === 'creating' && (
+                <Text
+                  fontSize={14}
+                  appearance="secondaryText"
+                  style={spacings.mtSm}
+                  testID="fast-track-key-creating"
+                >
+                  {t(`${KEY}.creating`)}
+                </Text>
+              )}
+            </View>
+          )}
+          {pendingLine}
+          <ActionsRow
+            testID="fast-track-key-actions"
+            primary={backButton(phase === 'adding' && !pending)}
+          />
+        </View>
+      </TwoColumn>
     )
   }
 
   const adding = phase === 'adding' || phase === 'listed'
 
-  return (
-    <View testID="fast-track-key">
-      {counter}
-      {title}
-
-      <SectionCard tone="muted" spacing="item" testID="fast-track-key-created">
-        <Text fontSize={14} weight="medium" style={spacings.mbTy}>
-          {t(`${KEY}.created`)}
-        </Text>
-        <Text fontSize={14}>{t(`${KEY}.sameAddress`)}</Text>
-      </SectionCard>
-
-      <SectionCard label={t(`${KEY}.keyLabel`)} spacing="item" testID="fast-track-key-controlling">
-        <Text
-          fontSize={14}
-          weight="number_medium"
-          selectable
-          style={spacings.mbTy}
-          testID="fast-track-key-address"
-        >
-          {renderFullAddress(controllingKey)}
-        </Text>
-        <Text fontSize={12} appearance="secondaryText">
-          {t(`${KEY}.installs`)}
-        </Text>
-      </SectionCard>
-
-      <Text fontSize={14} style={spacings.mbSm} testID="fast-track-key-only-backup">
-        {t(`${KEY}.onlyBackup`, { count: words.length })}
-      </Text>
-      <View
-        testID="fast-track-key-words"
-        style={[
-          flexbox.directionRow,
-          flexbox.wrap,
-          common.borderRadiusPrimary,
-          spacings.mbSm,
-          { borderWidth: 1, borderColor: theme.secondaryBorder }
-        ]}
+  const aside = (
+    <>
+      <SectionCard
+        tone="muted"
+        spacing="item"
+        label={t(`${KEY}.created`)}
+        testID="fast-track-key-created"
       >
-        {words.map((word, index) => (
-          <View
-            // A phrase's words are fixed in number and order.
-            // eslint-disable-next-line react/no-array-index-key
-            key={index}
-            style={[WORD_CELL, spacings.phSm, spacings.pvTy, flexbox.directionRow]}
+        <Text fontSize={12} appearance="secondaryText">
+          {t(`${KEY}.sameAddress`)}
+        </Text>
+      </SectionCard>
+      <SectionCard
+        tone="muted"
+        spacing="item"
+        label={t(`${KEY}.whereToKeep`)}
+        testID="fast-track-key-paper"
+      >
+        <Text fontSize={12} appearance="secondaryText">
+          {t(`${KEY}.paper`)}
+        </Text>
+      </SectionCard>
+    </>
+  )
+
+  return (
+    <TwoColumn testID="fast-track-key-columns" aside={aside}>
+      <View testID="fast-track-key">
+        {counter}
+        {title}
+
+        <SectionCard
+          label={t(`${KEY}.keyLabel`)}
+          spacing="item"
+          testID="fast-track-key-controlling"
+        >
+          <Text
+            fontSize={14}
+            weight="number_medium"
+            selectable
+            style={spacings.mbTy}
+            testID="fast-track-key-address"
           >
-            <Text fontSize={12} appearance="tertiaryText" style={spacings.mrTy}>
-              {`${index + 1}.`}
-            </Text>
-            <Text fontSize={14} weight="medium" testID={`fast-track-key-word-${index}`}>
-              {word}
-            </Text>
-          </View>
-        ))}
+            {renderFullAddress(controllingKey)}
+          </Text>
+          <Text fontSize={12} appearance="secondaryText">
+            {t(`${KEY}.installs`)}
+          </Text>
+        </SectionCard>
+
+        <View
+          testID="fast-track-key-words"
+          style={[
+            flexbox.directionRow,
+            flexbox.wrap,
+            common.borderRadiusPrimary,
+            spacings.mbSm,
+            { borderWidth: 1, borderColor: theme.secondaryBorder }
+          ]}
+        >
+          {words.map((word, index) => (
+            <View
+              // A phrase's words are fixed in number and order.
+              // eslint-disable-next-line react/no-array-index-key
+              key={index}
+              style={[WORD_CELL, spacings.phSm, spacings.pvTy, flexbox.directionRow]}
+            >
+              <Text fontSize={12} appearance="tertiaryText" style={spacings.mrTy}>
+                {`${index + 1}.`}
+              </Text>
+              <Text fontSize={14} weight="medium" testID={`fast-track-key-word-${index}`}>
+                {word}
+              </Text>
+            </View>
+          ))}
+        </View>
+        <Text fontSize={14} style={spacings.mbSm} testID="fast-track-key-only-backup">
+          {t(`${KEY}.onlyBackup`, { count: words.length })}
+        </Text>
+
+        <Checkbox
+          testID="fast-track-key-acknowledge"
+          value={acknowledged}
+          onValueChange={onAcknowledge}
+          label={t(`${KEY}.acknowledge`)}
+          labelProps={{ fontSize: 14, weight: 'medium' }}
+          style={spacings.mtSm}
+        />
+
+        {phase === 'addFailed' && failure('fast-track-key-add-failed')}
+        {pendingLine}
+
+        <ActionsRow
+          testID="fast-track-key-actions"
+          primary={
+            <Button
+              testID="fast-track-key-continue"
+              type="primary"
+              text={t(`${KEY}.action`)}
+              disabled={!acknowledged || adding}
+              onPress={onContinue}
+              hasBottomSpacing={false}
+            >
+              {adding && <ActivityIndicator style={spacings.mlTy} />}
+            </Button>
+          }
+          secondary={backButton(adding && !pending)}
+        />
       </View>
-      <Text fontSize={12} appearance="secondaryText" style={spacings.mbSm}>
-        {t(`${KEY}.paper`)}
-      </Text>
-
-      <Checkbox
-        testID="fast-track-key-acknowledge"
-        value={acknowledged}
-        onValueChange={onAcknowledge}
-        label={t(`${KEY}.acknowledge`)}
-        labelProps={{ fontSize: 14, weight: 'medium' }}
-        style={spacings.mtSm}
-      />
-
-      {phase === 'addFailed' && failure('fast-track-key-add-failed')}
-      {pendingLine}
-
-      <ActionsRow
-        testID="fast-track-key-actions"
-        primary={
-          <Button
-            testID="fast-track-key-continue"
-            type="primary"
-            text={t(`${KEY}.action`)}
-            disabled={!acknowledged || adding}
-            onPress={onContinue}
-            hasBottomSpacing={false}
-          >
-            {adding && <ActivityIndicator style={spacings.mlTy} />}
-          </Button>
-        }
-        secondary={backButton(adding && !pending)}
-      />
-    </View>
+    </TwoColumn>
   )
 }
 

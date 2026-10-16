@@ -5,7 +5,11 @@
  * Strings come from `t`.
  */
 import type { Gathering } from '@web/modules/social-recovery/sdk-interfaces'
-import { renderFullAddress, renderResolvedName } from '@web/modules/social-recovery/shared/display'
+import {
+  renderFullAddress,
+  renderPaymentOrder,
+  renderResolvedName
+} from '@web/modules/social-recovery/shared/display'
 import type { RenderedName, Translate } from '@web/modules/social-recovery/shared/display'
 import type { RecoveryRoute } from '@web/modules/social-recovery/shared/records'
 import type { ChecklistLayout, ChecklistRow } from '@web/modules/social-recovery/recovery/checklist'
@@ -61,6 +65,14 @@ export const namesNoPayment = (gathering: Gathering): boolean => {
   const { order } = gathering.request
   return !order || BigInt(order.amount) === 0n
 }
+
+/**
+ * The payment value of the request: the words no payment where it names none.
+ * An order with an amount has no token this screen can name, so it renders
+ * nothing and the start stays locked.
+ */
+export const paymentValueOf = (gathering: Gathering, t: Translate): string | null =>
+  namesNoPayment(gathering) ? renderPaymentOrder(null, null, t) : null
 
 /**
  * The path block's rows, each by its kind's name and its label (a guardian's

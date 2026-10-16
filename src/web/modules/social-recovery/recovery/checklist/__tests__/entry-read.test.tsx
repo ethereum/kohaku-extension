@@ -40,8 +40,13 @@ function mockFrame(name: string) {
   const R = jest.requireActual('react')
   return {
     __esModule: true,
-    default: ({ children }: { children?: unknown }) =>
-      R.createElement('div', { 'data-testid': name }, children)
+    default: ({ children, counter }: { children?: unknown; counter?: { testID?: string } }) =>
+      R.createElement(
+        'div',
+        { 'data-testid': name },
+        counter ? R.createElement('div', { 'data-testid': counter.testID }) : null,
+        children
+      )
   }
 }
 jest.mock('@web/modules/social-recovery/shared/chrome/PlainChrome', () => mockFrame('plain-chrome'))

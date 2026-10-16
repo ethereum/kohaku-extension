@@ -649,6 +649,7 @@ describe('the start of the save', () => {
     expect(byTestId('arm-save')?.textContent).toBe(t('socialRecovery.review.save'))
     expect(byTestId('arm-removed-key')).not.toBeNull()
     expect(byTestId('arm-cost-line')).not.toBeNull()
+    expect(byTestId('setup-stage')?.textContent).toBe('Set up · Step 6 of 7')
 
     await press('arm-save')
 
@@ -1351,7 +1352,7 @@ describe('the blocks on arrival', () => {
       'a removed key the wallet cannot read',
       'removed-key-unreadable',
       () => {
-        chain.removedKey = { kind: 'unavailable', cause: 'no-creation-record' }
+        chain.removedKey = { kind: 'unavailable', cause: 'no-source' }
       }
     ],
     [

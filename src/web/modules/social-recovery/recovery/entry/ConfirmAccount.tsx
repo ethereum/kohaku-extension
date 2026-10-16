@@ -17,7 +17,8 @@ import {
   ActionsRow,
   PageTitle,
   SectionCard,
-  SectionLabel
+  SectionLabel,
+  TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
 import {
   renderFullAddress,
@@ -36,106 +37,116 @@ const ConfirmAccount = ({
   writing,
   writeFailed,
   onConfirm,
-  onNotMine
+  onNotMine,
+  counter
 }: ConfirmAccountProps) => {
   const { t } = useTranslation()
   const resolved = target.name ? renderResolvedName(target.name, 'besideAddressToCheck', t) : null
 
-  return (
-    <View testID="entry-confirm">
-      <PageTitle
-        title={t(`${CONFIRM}.title`)}
-        lead={t(`${CONFIRM}.lead`)}
-        titleTestID="entry-confirm-title"
-      />
-      <SectionCard>
-        <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mbSm]}>
-          <Avatar pfp={target.address} isSmart={false} size={32} displayTypeBadge={false} />
-          <View style={flexbox.flex1}>
-            {!!resolved && (
-              <Text fontSize={16} weight="medium" testID="entry-confirm-name">
-                {resolved.name}
-              </Text>
-            )}
-            <Text fontSize={12} appearance="secondaryText">
-              {renderValueLabel('accountBeingRecovered', t)}
-            </Text>
-          </View>
-        </View>
-        <SectionLabel>{t(`${LABELS}.address`)}</SectionLabel>
-        <Text
-          fontSize={14}
-          weight="number_medium"
-          selectable
-          style={spacings.mbSm}
-          testID="entry-confirm-address"
-        >
-          {renderFullAddress(target.address)}
-        </Text>
-        <SectionLabel>{t(`${LABELS}.network`)}</SectionLabel>
-        <Text fontSize={14} style={spacings.mbSm} testID="entry-confirm-network">
-          {networkName}
-        </Text>
-        {!!resolved?.caveat && (
-          <Text fontSize={12} appearance="warningText" testID="entry-confirm-name-caveat">
-            {resolved.caveat}
-          </Text>
-        )}
-      </SectionCard>
-
-      {writeFailed && (
-        <Text
-          fontSize={14}
-          appearance="errorText"
-          style={spacings.mbSm}
-          testID="entry-confirm-write-failed"
-        >
-          {t('socialRecovery.records.writeFailed')}
-        </Text>
-      )}
-
-      <ActionsRow
-        primary={
-          <Button
-            testID="entry-confirm-mine"
-            type="primary"
-            text={t(`${CONFIRM}.thisIsMine`)}
-            disabled={writing}
-            onPress={onConfirm}
-            hasBottomSpacing={false}
-          />
-        }
-        secondary={
-          <Button
-            testID="entry-confirm-not-mine"
-            type="outline"
-            text={t(`${CONFIRM}.notMine`)}
-            disabled={writing}
-            onPress={onNotMine}
-            hasBottomSpacing={false}
-          />
-        }
-        note={t(`${CONFIRM}.readsOnly`)}
-        noteTestID="entry-confirm-reads-only"
-      />
-
-      <SectionCard tone="muted" spacing="item" style={spacings.mtLg}>
-        <Text fontSize={14} weight="medium" style={spacings.mbTy}>
-          {t(`${CONFIRM}.wrongAccountTitle`)}
-        </Text>
+  const aside = (
+    <>
+      <SectionCard
+        tone="muted"
+        spacing="item"
+        label={t(`${CONFIRM}.wrongAccountTitle`)}
+        testID="entry-confirm-wrong-account"
+      >
         <Text fontSize={12} appearance="secondaryText">
           {t(`${CONFIRM}.wrongAccountBody`)}
         </Text>
       </SectionCard>
-      <SectionCard tone="muted" spacing="item">
-        <Text fontSize={14} weight="medium" style={spacings.mbTy}>
-          {t(`${CONFIRM}.startsNothingTitle`)}
-        </Text>
+      <SectionCard
+        tone="muted"
+        spacing="item"
+        label={t(`${CONFIRM}.startsNothingTitle`)}
+        testID="entry-confirm-starts-nothing"
+      >
         <Text fontSize={12} appearance="secondaryText">
           {t(`${CONFIRM}.startsNothingBody`)}
         </Text>
       </SectionCard>
-    </View>
+    </>
+  )
+
+  return (
+    <TwoColumn testID="entry-confirm-columns" aside={aside}>
+      <View testID="entry-confirm">
+        {counter}
+        <PageTitle
+          title={t(`${CONFIRM}.title`)}
+          lead={t(`${CONFIRM}.lead`)}
+          titleTestID="entry-confirm-title"
+        />
+        <SectionCard>
+          <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mbSm]}>
+            <Avatar pfp={target.address} isSmart={false} size={32} displayTypeBadge={false} />
+            <View style={flexbox.flex1}>
+              {!!resolved && (
+                <Text fontSize={16} weight="medium" testID="entry-confirm-name">
+                  {resolved.name}
+                </Text>
+              )}
+              <Text fontSize={12} appearance="secondaryText">
+                {renderValueLabel('accountBeingRecovered', t)}
+              </Text>
+            </View>
+          </View>
+          <SectionLabel>{t(`${LABELS}.address`)}</SectionLabel>
+          <Text
+            fontSize={14}
+            weight="number_medium"
+            selectable
+            style={spacings.mbSm}
+            testID="entry-confirm-address"
+          >
+            {renderFullAddress(target.address)}
+          </Text>
+          <SectionLabel>{t(`${LABELS}.network`)}</SectionLabel>
+          <Text fontSize={14} style={spacings.mbSm} testID="entry-confirm-network">
+            {networkName}
+          </Text>
+          {!!resolved?.caveat && (
+            <Text fontSize={12} appearance="warningText" testID="entry-confirm-name-caveat">
+              {resolved.caveat}
+            </Text>
+          )}
+        </SectionCard>
+
+        {writeFailed && (
+          <Text
+            fontSize={14}
+            appearance="errorText"
+            style={spacings.mbSm}
+            testID="entry-confirm-write-failed"
+          >
+            {t('socialRecovery.records.writeFailed')}
+          </Text>
+        )}
+
+        <ActionsRow
+          primary={
+            <Button
+              testID="entry-confirm-mine"
+              type="primary"
+              text={t(`${CONFIRM}.thisIsMine`)}
+              disabled={writing}
+              onPress={onConfirm}
+              hasBottomSpacing={false}
+            />
+          }
+          secondary={
+            <Button
+              testID="entry-confirm-not-mine"
+              type="outline"
+              text={t(`${CONFIRM}.notMine`)}
+              disabled={writing}
+              onPress={onNotMine}
+              hasBottomSpacing={false}
+            />
+          }
+        />
+      </View>
+    </TwoColumn>
   )
 }
 

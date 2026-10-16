@@ -3,7 +3,7 @@
  * failed with its retry, a dormant setup, an account this release cannot
  * recover with the reason the wallet writes from the code, a key a recovery
  * cannot install with the remedy of another account, and continue to the
- * readout once every read answered and nothing refused.
+ * readout once every read answered, nothing refused and no attempt runs.
  */
 import React from 'react'
 import { ActivityIndicator, View } from 'react-native'
@@ -61,6 +61,7 @@ const ConfirmedReadsView = ({
   route,
   networkName,
   attemptActive,
+  runningBand,
   onRetry,
   onBack,
   onChooseAnother,
@@ -166,6 +167,11 @@ const ConfirmedReadsView = ({
           : back(onBack, 'entry-destination-back')}
       </SectionCard>
     )
+  }
+
+  // One attempt runs at a time: a recovery started beside it could never land.
+  if (runningBand) {
+    return null
   }
 
   return (

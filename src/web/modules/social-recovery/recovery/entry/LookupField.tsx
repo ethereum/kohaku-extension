@@ -14,7 +14,12 @@ import Input from '@common/components/Input'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
-import { ActionsRow, PageTitle, SectionCard } from '@web/modules/social-recovery/shared/chrome'
+import {
+  ActionsRow,
+  PageTitle,
+  SectionCard,
+  TwoColumn
+} from '@web/modules/social-recovery/shared/chrome'
 import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
 
 import { lookupInputOf, nameLookupFailureOf } from './lookup'
@@ -27,7 +32,8 @@ const LookupField = ({
   onTarget,
   resolveName,
   onBack,
-  onCancel
+  onCancel,
+  counter
 }: LookupFieldProps) => {
   const { t } = useTranslation()
   const [value, setValue] = useState('')
@@ -85,114 +91,130 @@ const LookupField = ({
       )
   }, [value, onTarget, resolveName])
 
-  return (
-    <View testID="entry-account-field">
-      <PageTitle
-        title={t(`${ACCOUNT}.title`)}
-        lead={t(`${ACCOUNT}.lead`)}
-        titleTestID="entry-account-title"
-      />
-      <Text fontSize={14} weight="medium" style={spacings.mbTy}>
-        {t(`${ACCOUNT}.fieldLabel`)}
-      </Text>
-      <Input
-        testID="entry-account-input"
-        value={value}
-        onChangeText={edit}
-        onSubmitEditing={lookUp}
-        disabled={resolving}
-        autoCapitalize="none"
-        autoCorrect={false}
-        containerStyle={spacings.mbTy}
-      />
-      <Text fontSize={12} appearance="secondaryText" style={spacings.mbTy} testID="entry-network">
-        {t(`${ACCOUNT}.networkFixed`, { network: networkName })}
-      </Text>
-      <Text fontSize={12} appearance="secondaryText" style={spacings.mbSm}>
-        {t(`${ACCOUNT}.hint`)}
-      </Text>
-
-      {error === 'malformed' && (
-        <View testID="entry-account-malformed" style={spacings.mbSm}>
-          <Text fontSize={14} appearance="errorText" weight="medium">
-            {t(`${ACCOUNT}.errors.malformedTitle`)}
-          </Text>
-          <Text fontSize={12} appearance="errorText">
-            {t(`${ACCOUNT}.errors.malformedHint`)}
-          </Text>
-        </View>
-      )}
-      {error === 'name' && (
-        <ReadFailedBlock
-          testID="entry-account-name-error"
-          title={t(`${ACCOUNT}.errors.nameTitle`)}
-          body={t(`${ACCOUNT}.errors.nameHint`)}
-          onRetry={lookUp}
-        />
-      )}
-      {error === 'read-failed' && (
-        <ReadFailedBlock
-          testID="entry-account-name-read-failed"
-          title={t(`${ACCOUNT}.errors.readFailedTitle`, { network: networkName })}
-          body={t(`${ACCOUNT}.errors.readFailedHint`)}
-          onRetry={lookUp}
-        />
-      )}
-
-      <ActionsRow
-        primary={
-          <Button
-            testID="entry-account-look-up"
-            type="primary"
-            text={resolving ? t(`${ACCOUNT}.lookingUpShort`) : t(`${ACCOUNT}.action`)}
-            disabled={resolving || lookupInputOf(value).kind === 'empty'}
-            onPress={lookUp}
-            hasBottomSpacing={false}
-          />
-        }
-        secondary={
-          <>
-            {!!onBack && (
-              <Button
-                testID="entry-account-back"
-                type="outline"
-                text={t('socialRecovery.actions.back')}
-                onPress={onBack}
-                hasBottomSpacing={false}
-                style={spacings.mrSm}
-              />
-            )}
-            <Button
-              testID="entry-account-cancel"
-              type="ghost"
-              text={t('socialRecovery.actions.cancel')}
-              onPress={onCancel}
-              hasBottomSpacing={false}
-            />
-            {resolving && (
-              <ActivityIndicator testID="entry-account-resolving" style={spacings.mlSm} />
-            )}
-          </>
-        }
-      />
-
-      <SectionCard tone="muted" spacing="item" style={spacings.mtLg} testID="entry-account-where">
-        <Text fontSize={14} weight="medium" style={spacings.mbTy}>
-          {t(`${ACCOUNT}.whereTitle`)}
-        </Text>
+  const aside = (
+    <>
+      <SectionCard
+        tone="muted"
+        spacing="item"
+        label={t(`${ACCOUNT}.whereTitle`)}
+        testID="entry-account-where"
+      >
         <Text fontSize={12} appearance="secondaryText">
           {t(`${ACCOUNT}.whereBody`)}
         </Text>
       </SectionCard>
-      <SectionCard tone="muted" spacing="item" testID="entry-account-starts-nothing">
-        <Text fontSize={14} weight="medium" style={spacings.mbTy}>
-          {t(`${ACCOUNT}.startsNothingTitle`)}
-        </Text>
+      <SectionCard
+        tone="muted"
+        spacing="item"
+        label={t(`${ACCOUNT}.startsNothingTitle`)}
+        testID="entry-account-starts-nothing"
+      >
         <Text fontSize={12} appearance="secondaryText">
           {t(`${ACCOUNT}.startsNothingBody`)}
         </Text>
       </SectionCard>
-    </View>
+    </>
+  )
+
+  return (
+    <TwoColumn testID="entry-account-field-columns" aside={aside}>
+      <View testID="entry-account-field">
+        {counter}
+        <PageTitle
+          title={t(`${ACCOUNT}.title`)}
+          lead={t(`${ACCOUNT}.lead`)}
+          titleTestID="entry-account-title"
+        />
+        <Text fontSize={14} weight="medium" style={spacings.mbTy}>
+          {t(`${ACCOUNT}.fieldLabel`)}
+        </Text>
+        <Input
+          testID="entry-account-input"
+          value={value}
+          onChangeText={edit}
+          onSubmitEditing={lookUp}
+          disabled={resolving}
+          autoCapitalize="none"
+          autoCorrect={false}
+          containerStyle={spacings.mbTy}
+        />
+        <Text fontSize={12} appearance="secondaryText" style={spacings.mbTy} testID="entry-network">
+          {t(`${ACCOUNT}.networkFixed`, { network: networkName })}
+        </Text>
+        <Text
+          fontSize={12}
+          appearance="secondaryText"
+          style={spacings.mbSm}
+          testID="entry-account-hint"
+        >
+          {t(`${ACCOUNT}.hint`)}
+        </Text>
+
+        {error === 'malformed' && (
+          <View testID="entry-account-malformed" style={spacings.mbSm}>
+            <Text fontSize={14} appearance="errorText" weight="medium">
+              {t(`${ACCOUNT}.errors.malformedTitle`)}
+            </Text>
+            <Text fontSize={12} appearance="errorText">
+              {t(`${ACCOUNT}.errors.malformedHint`)}
+            </Text>
+          </View>
+        )}
+        {error === 'name' && (
+          <ReadFailedBlock
+            testID="entry-account-name-error"
+            title={t(`${ACCOUNT}.errors.nameTitle`)}
+            body={t(`${ACCOUNT}.errors.nameHint`)}
+            onRetry={lookUp}
+          />
+        )}
+        {error === 'read-failed' && (
+          <ReadFailedBlock
+            testID="entry-account-name-read-failed"
+            title={t(`${ACCOUNT}.errors.readFailedTitle`, { network: networkName })}
+            body={t(`${ACCOUNT}.errors.readFailedHint`)}
+            onRetry={lookUp}
+          />
+        )}
+
+        <ActionsRow
+          primary={
+            <Button
+              testID="entry-account-look-up"
+              type="primary"
+              text={resolving ? t(`${ACCOUNT}.lookingUpShort`) : t(`${ACCOUNT}.action`)}
+              disabled={resolving || lookupInputOf(value).kind === 'empty'}
+              onPress={lookUp}
+              hasBottomSpacing={false}
+            />
+          }
+          secondary={
+            <>
+              {!!onBack && (
+                <Button
+                  testID="entry-account-back"
+                  type="outline"
+                  text={t('socialRecovery.actions.back')}
+                  onPress={onBack}
+                  hasBottomSpacing={false}
+                  style={spacings.mrSm}
+                />
+              )}
+              <Button
+                testID="entry-account-cancel"
+                type="ghost"
+                text={t('socialRecovery.actions.cancel')}
+                onPress={onCancel}
+                hasBottomSpacing={false}
+              />
+              {resolving && (
+                <ActivityIndicator testID="entry-account-resolving" style={spacings.mlSm} />
+              )}
+            </>
+          }
+        />
+      </View>
+    </TwoColumn>
   )
 }
 

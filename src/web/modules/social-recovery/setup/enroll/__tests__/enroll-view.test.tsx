@@ -90,6 +90,10 @@ describe('the enroll view', () => {
     expect(mounted.byTestId('enroll-passkey')).toBeNull()
     expect(mounted.byTestId('enroll-guardian')).toBeNull()
     expect(mounted.byTestId('enroll-save')).toBeNull()
+    expect(
+      mounted.byTestId('enroll-columns-main')?.contains(mounted.byTestId('enroll-nothing'))
+    ).toBe(true)
+    expect(mounted.byTestId('enroll-columns-aside')).toBeNull()
   }
 
   it('renders the nothing-to-run line and Back where the search names no slot', async () => {
@@ -190,6 +194,10 @@ describe('the enroll view', () => {
       t('socialRecovery.records.loadFailed')
     )
     expect(view.byTestId('enroll-passkey')).toBeNull()
+    expect(
+      view.byTestId('enroll-columns-main')?.contains(view.byTestId('enroll-load-failed'))
+    ).toBe(true)
+    expect(view.byTestId('enroll-columns-aside')).toBeNull()
 
     faults.get = false
     await view.press('enroll-load-retry')

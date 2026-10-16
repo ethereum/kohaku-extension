@@ -154,6 +154,29 @@ describe('the key step', () => {
       expect(text()).not.toContain(OFFSET_KEY)
     })
 
+    it('keeps the key, the words and the backup warning in the main column, the notes beside them', async () => {
+      await atWords()
+
+      const main = byTestId('fast-track-key-columns-main')
+      const aside = byTestId('fast-track-key-columns-aside')
+      const order = Array.from(main?.querySelectorAll('[data-testid]') ?? []).map((node) =>
+        node.getAttribute('data-testid')
+      )
+      const at = (id: string) => order.indexOf(id)
+      expect(at('fast-track-key-title')).toBeGreaterThan(-1)
+      expect(at('fast-track-key-controlling')).toBeGreaterThan(at('fast-track-key-title'))
+      expect(at('fast-track-key-words')).toBeGreaterThan(at('fast-track-key-controlling'))
+      expect(at('fast-track-key-only-backup')).toBeGreaterThan(at('fast-track-key-words'))
+      expect(at('fast-track-key-acknowledge')).toBeGreaterThan(at('fast-track-key-only-backup'))
+      expect(aside?.querySelector('[data-testid="fast-track-key-created"]')).not.toBeNull()
+      expect(aside?.querySelector('[data-testid="fast-track-key-paper"]')?.textContent).toContain(
+        'Paper is safer than a screenshot'
+      )
+      expect(aside?.querySelector('[data-testid="fast-track-key-paper"]')?.textContent).toContain(
+        'Where to keep it'
+      )
+    })
+
     it('ignores a phrase the keystore holds that this step did not make', async () => {
       await mount(KEY_STEP, ACKNOWLEDGED)
       await keystoreSends(OTHER_PHRASE)

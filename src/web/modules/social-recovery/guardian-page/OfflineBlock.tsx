@@ -128,9 +128,6 @@ const OfflineBlock = ({
       <AcknowledgmentBox acknowledged={acknowledged} onAcknowledged={onAcknowledged} />
       <SectionCard testID="guardian-offline-return">
         <SectionLabel>{t(`${OFFLINE}.returnHeading`)}</SectionLabel>
-        <Text fontSize={14} style={spacings.mbSm}>
-          {t(`${OFFLINE}.returnLine`)}
-        </Text>
         <Input
           testID="guardian-offline-signature"
           label={t(`${OFFLINE}.pasteLabel`)}

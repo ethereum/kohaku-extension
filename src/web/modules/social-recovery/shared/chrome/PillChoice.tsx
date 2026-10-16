@@ -7,7 +7,16 @@ import spacings from '@common/styles/spacings'
 
 import type { PillChoiceProps } from './types'
 
-const PillChoice = ({ label, selected, onPress, disabled, style, testID }: PillChoiceProps) => {
+const PillChoice = ({
+  label,
+  mark,
+  markTestID,
+  selected,
+  onPress,
+  disabled,
+  style,
+  testID
+}: PillChoiceProps) => {
   const { theme } = useTheme()
 
   return (
@@ -34,6 +43,12 @@ const PillChoice = ({ label, selected, onPress, disabled, style, testID }: PillC
     >
       <Text fontSize={14} weight="medium">
         {label}
+        {!!mark && ' · '}
+        {!!mark && (
+          <Text testID={markTestID} fontSize={14} appearance="secondaryText">
+            {mark}
+          </Text>
+        )}
       </Text>
     </Pressable>
   )

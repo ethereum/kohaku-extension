@@ -335,6 +335,17 @@ describe('"Add a second method"', () => {
     expect(menuEntries('editor-add-second-method-menu')).toEqual(['passkey', 'ecdsa'])
   })
 
+  it('draws the button under the path, beside "Add a group", while its line stays in the aside', async () => {
+    await mount(ONE_METHOD)
+    const button = byTestId('editor-add-second-method')
+    expect(byTestId('editor-path')?.contains(button)).toBe(true)
+    expect(byTestId('editor-columns-aside')?.contains(button)).toBe(false)
+    expect(button?.parentElement?.parentElement).toBe(byTestId('editor-add-group')?.parentElement)
+    expect(byTestId('editor-columns-aside')?.textContent).toContain(
+      en.socialRecovery.ruleLines.secondMethodOffer
+    )
+  })
+
   eachIt(['passkey', 'ecdsa'] as const)(
     'turns the lone method and a %s slot into one group of any one of two',
     async (kind) => {
@@ -490,6 +501,14 @@ describe('"Make it a group" without the sizing sentence', () => {
       en.socialRecovery.editor.makeItAGroup
     )
     expect(byTestId('editor-rule-lines')?.textContent).not.toContain(SIZING_SENTENCE)
+  })
+
+  it('draws "Make it a group" under the path beside "Add a group", outside the aside', async () => {
+    await mount(TWO_ROWS)
+    const button = byTestId('editor-make-it-a-group')
+    expect(byTestId('editor-path')?.contains(button)).toBe(true)
+    expect(byTestId('editor-columns-aside')?.contains(button)).toBe(false)
+    expect(button?.parentElement).toBe(byTestId('editor-add-group')?.parentElement)
   })
 
   it('makes the two rows one group of any one of two', async () => {

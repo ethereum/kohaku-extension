@@ -28,6 +28,7 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import { CHAIN_NAMES } from '@web/modules/social-recovery/recovery/entry'
+import { TwoColumn } from '@web/modules/social-recovery/shared/chrome'
 import PlainChrome from '@web/modules/social-recovery/shared/chrome/PlainChrome'
 import {
   addressBookOf,
@@ -214,9 +215,11 @@ const ApproveScreen = () => {
   const body = () => {
     if (!request || !reading || (kit && !described)) {
       return (
-        <Text fontSize={14} testID="guardian-no-request">
-          {t('socialRecovery.guardianPage.noRequest')}
-        </Text>
+        <TwoColumn testID="guardian-no-request-columns">
+          <Text fontSize={14} testID="guardian-no-request">
+            {t('socialRecovery.guardianPage.noRequest')}
+          </Text>
+        </TwoColumn>
       )
     }
     if (signing.approval) {
@@ -230,7 +233,11 @@ const ApproveScreen = () => {
       return <DeclinedBlock account={request.account} newKey={newKey} onClose={closePage} />
     }
     if (!described || reading.kind === 'other-deployment') {
-      return <StatusBlock reading={reading} onRetry={onRetry} />
+      return (
+        <TwoColumn testID="guardian-status-columns">
+          <StatusBlock reading={reading} onRetry={onRetry} />
+        </TwoColumn>
+      )
     }
     // The tick belongs to one request: another link opened in the same tab starts unticked.
     return (

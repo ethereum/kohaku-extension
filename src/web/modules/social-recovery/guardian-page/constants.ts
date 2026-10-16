@@ -18,3 +18,9 @@ export const PAYLOAD_FILE_NAME = 'kohaku-approval-request.json'
 
 /** How long the page waits for the wallet to report the key's account as selected before it signs. */
 export const SELECT_ACCOUNT_LIMIT_MS = 5_000
+
+/** The approval's steps: read it and call the owner, sign, send the approval back. */
+export const GUARDIAN_STAGES = 3
+
+/** The string key of the approval's step counter line. */
+export const GUARDIAN_STAGE_COUNTER_KEY = 'socialRecovery.guardianPage.stageCounter'

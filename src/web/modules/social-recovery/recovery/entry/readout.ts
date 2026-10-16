@@ -68,10 +68,15 @@ const NO_PASSWORD = ''
 /** The refusal reasons of a backup whose bytes this build cannot read. */
 const UNREADABLE_REASONS: readonly unknown[] = ['unknown-version', 'malformed']
 
-/** The rule lines the editor alone shows: the offers to add a method. */
-const EDITOR_ONLY_LINES: readonly string[] = [
+/**
+ * The rule lines the readout leaves out: the offers to add a method, which
+ * only the editor can act on, and the warning about losing the key, which the
+ * recoverer already lost.
+ */
+const LINES_LEFT_OUT: readonly string[] = [
   RULE_LINE_KEYS.secondMethodOffer,
-  RULE_LINE_KEYS.secondMethodOfferAny
+  RULE_LINE_KEYS.secondMethodOfferAny,
+  RULE_LINE_KEYS.singleMethod
 ]
 
 const METHOD_NOUN = 'socialRecovery.display.nouns.method'
@@ -350,7 +355,7 @@ const hasChoice = (clauses: readonly ReadoutClause[]): boolean =>
 const ruleLinesOf = (clauses: readonly Clause[], context: ReadoutRowContext, t: Translate) =>
   renderRuleLines(
     getRuleLines(clauses, { kindOfMethod: kindOfMethodIn(context.addressBook) }).filter(
-      (line) => !EDITOR_ONLY_LINES.includes(line.key)
+      (line) => !LINES_LEFT_OUT.includes(line.key)
     ),
     (key, params) => t(key, { ...params })
   )

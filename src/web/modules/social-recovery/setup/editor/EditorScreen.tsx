@@ -6,6 +6,10 @@ import React, { useMemo } from 'react'
 
 import Spinner from '@common/components/Spinner'
 import useNavigation from '@common/hooks/useNavigation'
+import {
+  SETUP_STAGE_COUNTER_KEY,
+  SETUP_STAGES
+} from '@web/modules/social-recovery/shared/chrome/constants'
 import SetupChrome from '@web/modules/social-recovery/shared/chrome/SetupChrome'
 import useSetupAccount from '@web/modules/social-recovery/shared/chrome/useSetupAccount'
 import {
@@ -55,7 +59,14 @@ const EditorScreen = () => {
   }, [setup, status, retry])
 
   return (
-    <SetupChrome>
+    <SetupChrome
+      counter={{
+        labelKey: SETUP_STAGE_COUNTER_KEY,
+        step: 2,
+        total: SETUP_STAGES,
+        testID: 'editor-stage'
+      }}
+    >
       {records ? (
         <EditorView
           key={account}

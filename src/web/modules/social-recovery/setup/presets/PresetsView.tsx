@@ -1,8 +1,9 @@
 /**
- * The screen setup lands on: the three costs and the honesty note, then either
- * the grid of presets with the empty start, or, for a holder with an
- * unfinished draft, the draft's age with resume and start over. A pick writes
- * its draft and opens the editor; nothing is enrolled, refused or saved here.
+ * The screen setup lands on: either the grid of presets with the empty start,
+ * or, for a holder with an unfinished draft, the draft's age with resume and
+ * start over, with the honesty note and the recovery status beside it. A pick
+ * writes its draft and opens the editor; nothing is enrolled, refused or saved
+ * here.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, View } from 'react-native'
@@ -19,12 +20,12 @@ import flexbox from '@common/styles/utils/flexbox'
 import {
   ActionsRow,
   MethodRow,
-  NoteBox,
   PageTitle,
   RadioCard,
   SectionCard,
   SectionLabel,
-  StatusChip
+  StatusChip,
+  TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
 import { addressBookOf, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
 import { renderChip } from '@web/modules/social-recovery/shared/display'
@@ -43,12 +44,6 @@ import type {
   ResumeRow,
   WriteLine
 } from './types'
-
-const COST_KEYS = [
-  'socialRecovery.costLines.save',
-  'socialRecovery.costLines.recovery',
-  'socialRecovery.costLines.cancel'
-] as const
 
 const PresetsView = ({ records, chainId, account, onOpenEditor, onRecover }: PresetsViewProps) => {
   const { t } = useTranslation()
@@ -228,16 +223,6 @@ const PresetsView = ({ records, chainId, account, onOpenEditor, onRecover }: Pre
 
   const renderGrid = () => (
     <View testID="presets-grid">
-      <Button
-        testID="customize"
-        type="secondary"
-        size="small"
-        text={t('socialRecovery.presets.customize')}
-        disabled={busy}
-        onPress={() => open('fromScratch')}
-        hasBottomSpacing={false}
-        style={{ alignSelf: 'flex-start', ...spacings.mbLg }}
-      />
       <SectionLabel>{t('socialRecovery.presets.pickOne')}</SectionLabel>
       {PRESETS.map(renderPreset)}
       <RadioCard
@@ -266,6 +251,16 @@ const PresetsView = ({ records, chainId, account, onOpenEditor, onRecover }: Pre
           />
         }
         note={picked ? undefined : t('socialRecovery.presets.continueUnlock')}
+      />
+      <Button
+        testID="customize"
+        type="secondary"
+        size="small"
+        text={t('socialRecovery.presets.customize')}
+        disabled={busy}
+        onPress={() => open('fromScratch')}
+        hasBottomSpacing={false}
+        style={{ alignSelf: 'flex-start', ...spacings.mtSm }}
       />
     </View>
   )
@@ -376,80 +371,91 @@ const PresetsView = ({ records, chainId, account, onOpenEditor, onRecover }: Pre
     </View>
   )
 
-  return (
-    <View testID="presets-screen">
-      <PageTitle title={t('socialRecovery.routes.setup')} lead={t('socialRecovery.presets.lead')} />
+  const aside = (
+    <>
       <SectionCard
         tone="muted"
+        spacing="item"
         style={[flexbox.directionRow, flexbox.alignCenter, flexbox.justifySpaceBetween]}
       >
-        <Text fontSize={16} weight="medium" style={spacings.mrSm}>
+        <Text fontSize={14} weight="medium" style={spacings.mrSm}>
           {t('socialRecovery.routes.root')}
         </Text>
         <StatusChip testID="recovery-status" text={renderChip('recovery', 'notSetUp', t)} />
       </SectionCard>
-      <View testID="cost-lines" style={spacings.mbSm}>
-        {COST_KEYS.map((key) => (
-          <Text key={key} fontSize={14} style={spacings.mbTy}>
-            {t(key)}
-          </Text>
-        ))}
-      </View>
-      <View style={spacings.mbLg}>
-        <NoteBox testID="honesty-note">{t('socialRecovery.honestyNote')}</NoteBox>
-      </View>
-      {writeLine === 'writeFailed' && (
-        <Alert
-          type="error"
-          size="sm"
-          style={spacings.mbSm}
-          text={
-            <Alert.Text size="sm" type="error" testID="write-failed">
-              {t('socialRecovery.records.writeFailed')}
-            </Alert.Text>
-          }
-        />
-      )}
-      {writeLine === 'startOverWhileSaving' && (
-        <Alert
-          type="error"
-          size="sm"
-          style={spacings.mbSm}
-          text={
-            <Alert.Text size="sm" type="error" testID="start-over-while-saving">
-              {t('socialRecovery.records.startOverWhileSaving')}
-            </Alert.Text>
-          }
-        />
-      )}
-      {loadFailed && renderLoadFailed()}
-      {!loadFailed && savedAt === null && renderGrid()}
-      {!loadFailed && typeof savedAt === 'number' && renderResume(savedAt)}
-      <Pressable
-        testID="recover"
-        accessibilityRole="button"
-        onPress={onRecover}
-        style={[
-          flexbox.directionRow,
-          flexbox.alignCenter,
-          common.borderRadiusSecondary,
-          spacings.ph,
-          spacings.pv,
-          spacings.mtLg,
-          { borderWidth: 1, borderColor: theme.secondaryBorder }
-        ]}
+      <SectionCard
+        tone="muted"
+        spacing="item"
+        label={t('socialRecovery.presets.whatRecoveryCanDo')}
+        testID="honesty-note-card"
       >
-        <View style={[flexbox.flex1, spacings.mrSm]}>
-          <Text fontSize={16} weight="medium">
-            {t('socialRecovery.routes.recover')}
-          </Text>
-          <Text fontSize={12} appearance="secondaryText">
-            {t('socialRecovery.presets.recoverLine')}
-          </Text>
-        </View>
-        <RightArrowIcon />
-      </Pressable>
-    </View>
+        <Text testID="honesty-note" fontSize={12} appearance="secondaryText">
+          {t('socialRecovery.honestyNote')}
+        </Text>
+      </SectionCard>
+    </>
+  )
+
+  return (
+    <TwoColumn testID="presets-screen-columns" aside={aside}>
+      <View testID="presets-screen">
+        <PageTitle
+          title={t('socialRecovery.routes.setup')}
+          lead={t('socialRecovery.presets.lead')}
+        />
+        {writeLine === 'writeFailed' && (
+          <Alert
+            type="error"
+            size="sm"
+            style={spacings.mbSm}
+            text={
+              <Alert.Text size="sm" type="error" testID="write-failed">
+                {t('socialRecovery.records.writeFailed')}
+              </Alert.Text>
+            }
+          />
+        )}
+        {writeLine === 'startOverWhileSaving' && (
+          <Alert
+            type="error"
+            size="sm"
+            style={spacings.mbSm}
+            text={
+              <Alert.Text size="sm" type="error" testID="start-over-while-saving">
+                {t('socialRecovery.records.startOverWhileSaving')}
+              </Alert.Text>
+            }
+          />
+        )}
+        {loadFailed && renderLoadFailed()}
+        {!loadFailed && savedAt === null && renderGrid()}
+        {!loadFailed && typeof savedAt === 'number' && renderResume(savedAt)}
+        <Pressable
+          testID="recover"
+          accessibilityRole="button"
+          onPress={onRecover}
+          style={[
+            flexbox.directionRow,
+            flexbox.alignCenter,
+            common.borderRadiusSecondary,
+            spacings.ph,
+            spacings.pv,
+            spacings.mtLg,
+            { borderWidth: 1, borderColor: theme.secondaryBorder }
+          ]}
+        >
+          <View style={[flexbox.flex1, spacings.mrSm]}>
+            <Text fontSize={16} weight="medium">
+              {t('socialRecovery.routes.recover')}
+            </Text>
+            <Text fontSize={12} appearance="secondaryText">
+              {t('socialRecovery.presets.recoverLine')}
+            </Text>
+          </View>
+          <RightArrowIcon />
+        </Pressable>
+      </View>
+    </TwoColumn>
   )
 }
 

@@ -7,9 +7,12 @@
  * writes nothing. Leaving a state that refuses the account clears the entry,
  * so a refused account never reads as a recovery in progress. Every read has
  * its loading state and its failed state with retry; none renders as the next
- * state before it answered.
+ * state before it answered. Where the setup read finds an attempt already
+ * running and the account still authorizes the module, the band naming it
+ * stands in place of continue until the registry says no attempt waits; then
+ * the band says the attempt ended and continue comes back.
  */
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { View } from 'react-native'
 
 import Text from '@common/components/Text'
@@ -21,16 +24,21 @@ import {
   readoutPathOf,
   routeEntryPathOf
 } from '@web/modules/social-recovery/recovery/checklist/search'
-import { SectionCard, SectionLabel } from '@web/modules/social-recovery/shared/chrome'
+import { SectionCard, SectionLabel, TwoColumn } from '@web/modules/social-recovery/shared/chrome'
+import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
 import { renderFullAddress } from '@web/modules/social-recovery/shared/display'
 
 import ConfirmAccount from './ConfirmAccount'
 import ConfirmedReadsView from './ConfirmedReadsView'
 import LookupField from './LookupField'
 import LookupState from './LookupState'
+import { receivingChoicesOf } from './receiving'
 import { confirmedStepOf } from './refusal'
+import { ownKeysOf, runningClaimOf } from './running'
+import RunningAttemptBand from './RunningAttemptBand'
 import type { AccountStepViewProps } from './types'
 import { useConfirmedReads } from './useConfirmedReads'
+import { useRunningAttempt } from './useRunningAttempt'
 import { useSetupRead } from './useSetupRead'
 
 const LABELS = 'socialRecovery.entry.labels'
@@ -45,7 +53,11 @@ const AccountStepView = ({
   onTarget,
   client,
   resolveName,
-  navigate
+  accounts,
+  keys,
+  openAttemptReads,
+  navigate,
+  counter
 }: AccountStepViewProps) => {
   const { t } = useTranslation()
   const [confirmed, setConfirmed] = useState(false)
@@ -55,6 +67,41 @@ const AccountStepView = ({
   const ready = client.status === 'ready' ? client.client : null
   const { setupState, retry: retrySetup } = useSetupRead(target ? ready : null)
   const reads = useConfirmedReads(ready, destination, confirmed)
+
+  // The band of an attempt already running stands once the account still
+  // authorizes the module; where it does not, the dormant reading wins.
+  const attemptActive =
+    setupState.status === 'answered' && setupState.value.hasSetup && setupState.value.attemptActive
+  const authorized = reads.authorization?.status === 'answered' && reads.authorization.value
+  const bandActive = !!target && confirmed && attemptActive && authorized
+  const choices = useMemo(() => receivingChoicesOf(accounts, keys), [accounts, keys])
+  // Kept by content, so a wallet update that names the same keys reads nothing again.
+  const heldOwnKeys = target ? ownKeysOf(accounts, keys, target.address) : []
+  const ownKeysRef = useRef<Address[]>(heldOwnKeys)
+  if (heldOwnKeys.join(',') !== ownKeysRef.current.join(',')) {
+    ownKeysRef.current = heldOwnKeys
+  }
+  const ownKeys = ownKeysRef.current
+  const running = useRunningAttempt({
+    account: target?.address ?? destination,
+    chainId,
+    records,
+    client: ready,
+    ownKeys,
+    openReads: openAttemptReads,
+    setupBlock: setupState.status === 'answered' ? setupState.value.block.number : null,
+    active: bandActive
+  })
+  const claim = useMemo(
+    () => runningClaimOf(running.opening, running.entries, choices, keys, search.route),
+    [running.opening, running.entries, choices, keys, search.route]
+  )
+  // An attempt that ended while the band stood leaves the band saying so, and
+  // continue to the readout comes back; so does it for a recovery to a key
+  // this wallet holds under no account it lists, which cannot continue here.
+  const ownedWithoutAccount =
+    (claim.ownership === 'seed' || claim.ownership === 'wallet') && !claim.target
+  const bandStands = bandActive && running.attempt.status !== 'ended' && !ownedWithoutAccount
 
   const backToField = useCallback(() => {
     setConfirmed(false)
@@ -128,6 +175,7 @@ const AccountStepView = ({
           search.route === 'logged-in' ? () => navigate(routeEntryPathOf(search.route)) : undefined
         }
         onCancel={() => navigate(WEB_ROUTES.socialRecoverySetup)}
+        counter={counter}
       />
     )
   }
@@ -151,6 +199,7 @@ const AccountStepView = ({
             ? () => leave(() => navigate(WEB_ROUTES.socialRecoverySetup))
             : undefined
         }
+        counter={counter}
       />
     )
   }
@@ -164,38 +213,53 @@ const AccountStepView = ({
         writeFailed={writeFailed}
         onConfirm={confirm}
         onNotMine={backToField}
+        counter={counter}
       />
     )
   }
 
   return (
-    <View testID="entry-confirmed">
-      <SectionCard>
-        <SectionLabel>{t(`${LABELS}.accountLookedUp`)}</SectionLabel>
-        <Text
-          fontSize={14}
-          weight="number_medium"
-          selectable
-          style={spacings.mbTy}
-          testID="entry-confirmed-address"
-        >
-          {renderFullAddress(target.address)}
-        </Text>
-        <Text fontSize={12} appearance="secondaryText">
-          {networkName}
-        </Text>
-      </SectionCard>
-      <ConfirmedReadsView
-        step={confirmedStepOf(reads, destination)}
-        route={search.route}
-        networkName={networkName}
-        attemptActive={found.attemptActive}
-        onRetry={reads.retry}
-        onBack={() => leave(backToField)}
-        onChooseAnother={() => leave(() => navigate(routeEntryPathOf(search.route)))}
-        onContinue={() => navigate(readoutPathOf(target.address))}
-      />
-    </View>
+    <TwoColumn testID="entry-confirmed-columns">
+      <View testID="entry-confirmed">
+        {counter}
+        <SectionCard>
+          <SectionLabel>{t(`${LABELS}.accountLookedUp`)}</SectionLabel>
+          <Text
+            fontSize={14}
+            weight="number_medium"
+            selectable
+            style={spacings.mbTy}
+            testID="entry-confirmed-address"
+          >
+            {renderFullAddress(target.address)}
+          </Text>
+          <Text fontSize={12} appearance="secondaryText">
+            {networkName}
+          </Text>
+        </SectionCard>
+        {bandActive && (
+          <RunningAttemptBand
+            state={running}
+            claim={claim}
+            account={target.address}
+            chainId={chainId}
+            records={records}
+            navigate={navigate}
+          />
+        )}
+        <ConfirmedReadsView
+          step={confirmedStepOf(reads, destination)}
+          route={search.route}
+          networkName={networkName}
+          attemptActive={found.attemptActive}
+          runningBand={bandStands}
+          onRetry={reads.retry}
+          onBack={() => leave(backToField)}
+          onChooseAnother={() => leave(() => navigate(routeEntryPathOf(search.route)))}
+          onContinue={() => navigate(readoutPathOf(target.address))}
+        />
+      </View>
+    </TwoColumn>
   )
 }
 

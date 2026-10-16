@@ -97,6 +97,7 @@ export {
   seedBasicAccountOf
 } from './account-facts'
 export { passkeyConfigFieldsOf } from './kit/formats'
+export { watchedDeploymentOf, createWatcherReads, watcherConnectionFor } from './watcher-reads'
 export type {
   RecoveryChain,
   AddressBook,
@@ -191,7 +192,12 @@ export type {
   AccountStateRefresh,
   StateRefreshProgress,
   AccountBatchSource,
-  RecoveryKitMark
+  RecoveryKitMark,
+  WatcherReadsInput,
+  AttemptScan,
+  AttemptEvents,
+  WatcherReads,
+  WatcherConnection
 } from './types'
 // `sdkStandIn` stays out of this module: tests and development code import
 // `shared/client/stand-in` by path, so no screen reaches the scripted chain.

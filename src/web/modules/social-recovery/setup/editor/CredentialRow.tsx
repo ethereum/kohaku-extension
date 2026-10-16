@@ -13,7 +13,7 @@ import { StatusChip } from '@web/modules/social-recovery/shared/chrome'
 import { renderShortAddress } from '@web/modules/social-recovery/shared/display'
 
 import { enrollmentOf } from '@web/modules/social-recovery/shared/records'
-import { renderFailedTestLine, renderKindName, renderRowChip } from './copy'
+import { renderFailedTestLine, renderKindName, renderRowChip, rowChipTone } from './copy'
 import { guardianAddressOf, isEmptySlot, kindOf } from './operations'
 import type { CredentialRowProps } from './types'
 
@@ -69,7 +69,13 @@ const CredentialRow = ({
             {label}
           </Text>
         )}
-        {!!chip && <StatusChip text={chip} style={{ marginLeft: 'auto' }} />}
+        {!!chip && (
+          <StatusChip
+            text={chip}
+            tone={rowChipTone(credential, enrollments)}
+            style={{ marginLeft: 'auto' }}
+          />
+        )}
       </View>
       {!!failedLine && (
         <Text

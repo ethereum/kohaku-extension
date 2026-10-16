@@ -1,7 +1,7 @@
 /**
  * The save over given props: the account the save writes to with the key a
  * recovery would remove, the module that will hold the account's authority,
- * the cost line, and below them the save as it stands: the arrival's block or
+ * the costs beside them, and below them the save as it stands: the arrival's block or
  * the Save button, the gas blocker naming the shortfall and the controlling
  * key, the shared submitting and failed states in the save's own words, a
  * save the network dropped with the one way to save again, a setup the run
@@ -20,13 +20,17 @@ import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
 import common from '@common/styles/utils/common'
 import flexbox from '@common/styles/utils/flexbox'
-import { PageTitle, SectionCard, SectionLabel } from '@web/modules/social-recovery/shared/chrome'
+import {
+  PageTitle,
+  SectionCard,
+  SectionLabel,
+  TwoColumn
+} from '@web/modules/social-recovery/shared/chrome'
 import { publisherKeyOf } from '@web/modules/social-recovery/shared/client'
 import {
   renderFullAddress,
   renderNoun,
-  renderResolvedName,
-  renderValueLabel
+  renderResolvedName
 } from '@web/modules/social-recovery/shared/display'
 import {
   mayStillLand,
@@ -40,7 +44,7 @@ import SaveBlocker from '@web/modules/social-recovery/setup/review/SaveBlocker'
 
 import { armScreenOf } from './arrival'
 import { saveWriteKeysOf } from './copy'
-import { costLineKeyOf } from './cost'
+import { costLineKeyOf, OTHER_COST_LINE_KEYS } from './cost'
 import DisagreedView from './DisagreedView'
 import SavedView from './SavedView'
 import type { ArmViewProps } from './types'
@@ -316,89 +320,97 @@ const ArmView = ({
     write.status === 'gasReadError' ||
     write.status === 'needsDeposit'
 
-  return (
-    <View testID="arm">
-      <PageTitle title={t('socialRecovery.routes.setupSave')} titleTestID="arm-title" />
+  const aside =
+    account.deployed !== undefined ? (
+      <SectionCard
+        tone="muted"
+        spacing="item"
+        label={t('socialRecovery.arm.costHeader')}
+        testID="arm-costs"
+      >
+        {muted(t(costLineKeyOf(account.deployed)), 'arm-cost-line')}
+        {OTHER_COST_LINE_KEYS.map((key) => (
+          <React.Fragment key={key}>{muted(t(key))}</React.Fragment>
+        ))}
+      </SectionCard>
+    ) : undefined
 
-      <SectionCard label={t(`${REVIEW}.account.header`)} testID="arm-account">
-        {!!name && (
-          <Text fontSize={16} weight="medium" style={spacings.mbTy} testID="arm-account-label">
-            {name.name}
+  return (
+    <TwoColumn testID="arm-columns" aside={aside}>
+      <View testID="arm">
+        <PageTitle title={t('socialRecovery.routes.setupSave')} titleTestID="arm-title" />
+
+        <SectionCard label={t(`${REVIEW}.account.header`)} testID="arm-account">
+          {!!name && (
+            <Text fontSize={16} weight="medium" style={spacings.mbTy} testID="arm-account-label">
+              {name.name}
+            </Text>
+          )}
+          <Text
+            fontSize={14}
+            weight="number_medium"
+            selectable
+            style={spacings.mbTy}
+            testID="arm-account-address"
+          >
+            {renderFullAddress(account.address)}
           </Text>
-        )}
-        <Text
-          fontSize={14}
-          weight="number_medium"
-          selectable
-          style={spacings.mbTy}
-          testID="arm-account-address"
-        >
-          {renderFullAddress(account.address)}
-        </Text>
-        {muted(t(`${REVIEW}.account.check`))}
-        {!!name?.caveat && muted(name.caveat, 'arm-account-caveat')}
-        {!!account.removedKey && (
-          <View style={spacings.mtTy} testID="arm-removed-key">
-            <View
-              style={[
-                common.borderRadiusPrimary,
-                spacings.phSm,
-                spacings.pvSm,
-                spacings.mbTy,
-                { backgroundColor: theme.secondaryBackground }
-              ]}
-            >
-              <SectionLabel>{renderValueLabel('keyBeingRemoved', t)}</SectionLabel>
-              <Text
-                fontSize={14}
-                weight="number_medium"
-                selectable
-                testID="arm-removed-key-address"
+          {muted(t(`${REVIEW}.account.check`))}
+          {!!name?.caveat && muted(name.caveat, 'arm-account-caveat')}
+          {!!account.removedKey && (
+            <View style={spacings.mtTy} testID="arm-removed-key">
+              <View
+                style={[
+                  common.borderRadiusPrimary,
+                  spacings.phSm,
+                  spacings.pvSm,
+                  spacings.mbTy,
+                  { backgroundColor: theme.secondaryBackground }
+                ]}
               >
-                {renderFullAddress(account.removedKey)}
+                <SectionLabel>{t('socialRecovery.arm.keyRecoveryWouldRemove')}</SectionLabel>
+                <Text
+                  fontSize={14}
+                  weight="number_medium"
+                  selectable
+                  testID="arm-removed-key-address"
+                >
+                  {renderFullAddress(account.removedKey)}
+                </Text>
+              </View>
+              <Text fontSize={12} appearance="secondaryText">
+                {t(`${REVIEW}.keyRemovedLine`)}
               </Text>
             </View>
-            <Text fontSize={12} appearance="secondaryText">
-              {t(`${REVIEW}.keyRemovedLine`)}
+          )}
+        </SectionCard>
+
+        {!!action && (
+          <SectionCard testID="arm-module">
+            <Text fontSize={16} weight="medium" style={spacings.mbTy}>
+              {action.kind === 'audited'
+                ? t(`${REVIEW}.trust.moduleRow`, { publisher: t(publisherKeyOf(action)) })
+                : renderNoun('recoveryModule', t)}
             </Text>
-          </View>
+            {line(t(`${REVIEW}.trust.moduleAuthority`))}
+            {line(t(`${REVIEW}.trust.auditedOnly`))}
+          </SectionCard>
         )}
-      </SectionCard>
 
-      {!!action && (
-        <SectionCard testID="arm-module">
-          <Text fontSize={16} weight="medium" style={spacings.mbTy}>
-            {action.kind === 'audited'
-              ? t(`${REVIEW}.trust.moduleRow`, { publisher: t(publisherKeyOf(action)) })
-              : renderNoun('recoveryModule', t)}
-          </Text>
-          {line(t(`${REVIEW}.trust.moduleAuthority`))}
-          {line(t(`${REVIEW}.trust.auditedOnly`))}
-        </SectionCard>
-      )}
+        <View>
+          {screen === 'arrival' && arrivalBlock()}
+          {screen === 'run' && runBlock()}
+          {screen === 'already-set-up' && blocker({ kind: 'already-set-up' })}
+          {screen === 'confirming' && <ActivityIndicator testID="arm-confirming" />}
+        </View>
 
-      {account.deployed !== undefined && (
-        <SectionCard>
-          {line(t(costLineKeyOf(account.deployed)), 'arm-cost-line')}
-          <Text fontSize={12} appearance="secondaryText">
-            {t(`${REVIEW}.oneConfirmation`)}
-          </Text>
-        </SectionCard>
-      )}
-
-      <View>
-        {screen === 'arrival' && arrivalBlock()}
-        {screen === 'run' && runBlock()}
-        {screen === 'already-set-up' && blocker({ kind: 'already-set-up' })}
-        {screen === 'confirming' && <ActivityIndicator testID="arm-confirming" />}
+        {(screen === 'arrival' && arrival.kind !== 'ready' && arrival.kind !== 'loading') ||
+        (screen === 'run' && stopped) ||
+        screen === 'already-set-up' ? (
+          <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mtSm]}>{back}</View>
+        ) : null}
       </View>
-
-      {(screen === 'arrival' && arrival.kind !== 'ready' && arrival.kind !== 'loading') ||
-      (screen === 'run' && stopped) ||
-      screen === 'already-set-up' ? (
-        <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mtSm]}>{back}</View>
-      ) : null}
-    </View>
+    </TwoColumn>
   )
 }
 

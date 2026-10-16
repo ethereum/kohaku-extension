@@ -190,11 +190,7 @@ const GuardianCarriers = ({
           {t(`${GUARDIAN}.qrFailed`)}
         </Text>
       )}
-      <View style={spacings.mtTy}>
-        {line(`${GUARDIAN}.messageSays`)}
-        {line(`${GUARDIAN}.ownKey`)}
-        {line(`${GUARDIAN}.hardwareWallet`)}
-      </View>
+      <View style={spacings.mtTy}>{line(`${GUARDIAN}.ownKey`)}</View>
       <PasteField place={place} busy={busy} paste={paste} addReply={addReply} />
     </View>
   )

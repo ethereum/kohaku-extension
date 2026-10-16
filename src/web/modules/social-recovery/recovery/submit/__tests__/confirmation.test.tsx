@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  *
  * The confirmation as the recoverer reads it before anything is sent: the
- * three values of the lead in full, verify the details, the verify again of
+ * four values of the lead, verify the details, the verify again of
  * every approval the submission carries, and Start recovery locked until all
  * of them rendered.
  */
@@ -68,6 +68,35 @@ describe('the submission confirmation', () => {
       )
     })
 
+    it('shows the payment as the fourth value, without opening verify the details', async () => {
+      const world = await openWorld()
+      const mounted = await open(world)
+      const lead = mounted.byTestId('submit-lead')
+      expect(lead?.querySelector('[data-testid="submit-payment"]')).not.toBeNull()
+      expect(mounted.textOf('submit-no-payment')).toBe(t('socialRecovery.display.values.noPayment'))
+      const order = Array.from(lead?.querySelectorAll('[data-testid]') ?? []).map((node) =>
+        node.getAttribute('data-testid')
+      )
+      expect(order.indexOf('submit-payment')).toBeGreaterThan(
+        order.indexOf('submit-removed-key-block')
+      )
+    })
+
+    it('puts Start recovery directly under the three values, before the run state', async () => {
+      const world = await openWorld()
+      const mounted = await open(world)
+      const order = Array.from(
+        mounted.byTestId('submit')?.querySelectorAll('[data-testid]') ?? []
+      ).map((node) => node.getAttribute('data-testid'))
+      const at = (id: string) => order.indexOf(id)
+      expect(at('submit-lead')).toBeGreaterThan(at('submit-title'))
+      expect(at('submit-action')).toBeGreaterThan(at('submit-lead'))
+      expect(at('submit-verify')).toBe(-1)
+      expect(mounted.byTestId('submit-columns-aside')?.textContent).toContain(
+        t(`${SUBMIT}.checkLine`)
+      )
+    })
+
     it('puts the name caveat beside a name the public name service resolves', async () => {
       const world = await openWorld()
       mockWallet.ens = 'alice.eth'
@@ -108,34 +137,56 @@ describe('the submission confirmation', () => {
       )
     })
 
-    it('counts no stage on the fresh install, under the plain header', async () => {
+    it('counts the fifth of five stages on the fresh install too, under the plain header', async () => {
       const world = await openWorld({ route: 'fresh-install' })
       const mounted = await open(world)
       expect(mounted.byTestId('plain-chrome')).not.toBeNull()
-      expect(mounted.byTestId('submit-stage')).toBeNull()
+      expect(mounted.textOf('submit-stage')).toBe(
+        t('socialRecovery.entry.stageCounter', { step: 5, total: 5 })
+      )
     })
   })
 
   describe('verify the details', () => {
+    it('sits in the main column under Start recovery, its parts as muted cards, the payment not among them', async () => {
+      const world = await openWorld()
+      const mounted = await open(world)
+      await openDetails(mounted)
+      const details = mounted.byTestId('submit-details')
+      expect(mounted.byTestId('submit-columns-main')?.contains(details)).toBe(true)
+      expect(mounted.byTestId('submit-columns-aside')?.contains(details)).toBe(false)
+      const action = mounted.byTestId('submit-action')
+      expect(
+        // eslint-disable-next-line no-bitwise
+        action!.compareDocumentPosition(details!) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy()
+      expect(details?.querySelector('[data-testid="submit-payment"]')).toBeNull()
+      expect(details?.querySelector('[data-testid="submit-path"]')).not.toBeNull()
+      expect(details?.querySelector('[data-testid="submit-wait"]')).not.toBeNull()
+      expect(details?.querySelector('[data-testid="submit-publication"]')?.textContent).toContain(
+        t('socialRecovery.review.publicationHeader')
+      )
+    })
+
     it('stays closed until the recoverer opens it', async () => {
       const world = await openWorld()
       const mounted = await open(world)
-      expect(mounted.byTestId('submit-payment')).toBeNull()
+      expect(mounted.byTestId('submit-path')).toBeNull()
       await openDetails(mounted)
-      expect(mounted.byTestId('submit-payment')).not.toBeNull()
+      expect(mounted.byTestId('submit-path')).not.toBeNull()
     })
 
     it('says the recovery names no payment and names the smart account that sends its own batch', async () => {
       const world = await openWorld({ route: 'logged-in', receiving: 'smart' })
       const mounted = await open(world)
-      await openDetails(mounted)
       const sender = getAddress(world.receiving.addr)
-      expect(mounted.textOf('submit-no-payment')).toBe(t(`${SUBMIT}.noPayment`))
+      expect(mounted.textOf('submit-no-payment')).toBe(t('socialRecovery.display.values.noPayment'))
       expect(mounted.textOf('submit-account-pays')).toBe(
         t(`${SUBMIT}.accountPays`, { account: renderShortAddress(sender) })
       )
       expect(mounted.byTestId('submit-own-key-pays')).toBeNull()
-      expect(mounted.textOf('submit-sending-key')).toBe(sender)
+      expect(mounted.byTestId('submit-sending-key')).toBeNull()
+      expect(mounted.textOf('submit-payment')).not.toContain(sender)
       expect(mounted.textOf('submit-payment')).not.toContain(getAddress(world.sendingKey))
     })
 
@@ -143,13 +194,13 @@ describe('the submission confirmation', () => {
     const namesTheSendingKey = async (route: 'fresh-install' | 'logged-in') => {
       const world = await openWorld({ route, receiving: 'basic' })
       const mounted = await open(world)
-      await openDetails(mounted)
       const sender = getAddress(world.sendingKey)
       expect(mounted.textOf('submit-own-key-pays')).toBe(
         t(`${SUBMIT}.ownKeyPays`, { key: renderShortAddress(sender) })
       )
       expect(mounted.byTestId('submit-account-pays')).toBeNull()
-      expect(mounted.textOf('submit-sending-key')).toBe(sender)
+      expect(mounted.byTestId('submit-sending-key')).toBeNull()
+      expect(mounted.textOf('submit-payment')).not.toContain(sender)
     }
 
     it('names the key that sends its own transaction on the fresh install', async () => {
@@ -164,7 +215,6 @@ describe('the submission confirmation', () => {
       const world = await openWorld()
       mockWallet.facts = { status: 'unavailable', cause: 'not-listed', retry: jest.fn() }
       const mounted = await open(world)
-      await openDetails(mounted)
       expect(mounted.byTestId('submit-no-payment')).not.toBeNull()
       expect(mounted.byTestId('submit-own-key-pays')).toBeNull()
       expect(mounted.byTestId('submit-account-pays')).toBeNull()
@@ -317,23 +367,18 @@ describe('the submission confirmation', () => {
     it('unlocks once the values rendered and every approval of the set verified', async () => {
       const world = await openWorld()
       const mounted = await open(world)
-      await openDetails(mounted)
       expect(mounted.textOf('submit-check-line')).toBe(t(`${SUBMIT}.checkLine`))
       expect(mounted.isDisabled('submit-action')).toBe(false)
       expect(mounted.byTestId('submit-unlock-reason')).toBeNull()
     })
 
-    it('stays locked with its reason until verify the details opened once, though every approval verified', async () => {
+    it('heads the verified line beside the lead as checked against the chain', async () => {
       const world = await openWorld()
       const mounted = await open(world)
-      expect(mounted.textOf('submit-check-line')).toBe(t(`${SUBMIT}.checkLine`))
-      expect(mounted.isDisabled('submit-action')).toBe(true)
-      expect(mounted.textOf('submit-unlock-reason')).toBe(t(`${SUBMIT}.unlockReason`))
-      await openDetails(mounted)
-      expect(mounted.isDisabled('submit-action')).toBe(false)
-      await openDetails(mounted)
-      expect(mounted.byTestId('submit-payment')).toBeNull()
-      expect(mounted.isDisabled('submit-action')).toBe(false)
+      const aside = mounted.byTestId('submit-columns-aside')
+      expect(aside?.querySelector('[data-testid="submit-verify"]')?.textContent).toContain(
+        t(`${SUBMIT}.checkLineTitle`)
+      )
     })
 
     it('verifies the replies of the set the submission carries, each against its own request', async () => {

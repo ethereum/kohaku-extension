@@ -60,8 +60,8 @@ const {
 const PASTE = 'socialRecovery.checklist.paste'
 const GUARDIAN = 'socialRecovery.checklist.guardian'
 
-/** A reply as the one line a guardian sends back: its JSON, base64url with no padding. */
-const lineOf = (value: unknown): string => Buffer.from(JSON.stringify(value)).toString('base64url')
+/** A reply as the one line a guardian sends back: its plain JSON. */
+const lineOf = (value: unknown): string => JSON.stringify(value)
 
 const NO_MATCH = [
   t(`${PASTE}.noMatch`),
@@ -188,6 +188,16 @@ describe('the guardian paste', () => {
     expectSettled(1, '', 'added')
   })
 
+  it('takes a reply pasted as indented JSON over several lines', async () => {
+    await open()
+    const reply = replyOf(gathering, 1)
+
+    await paste(1, JSON.stringify(reply, null, 2))
+
+    expect(await repliesHeld()).toEqual([reply])
+    expectSettled(1, '', 'added')
+  })
+
   it('reads the same line pasted again as already in the list, and writes nothing', async () => {
     await open()
     const line = lineOf(replyOf(gathering, 2))
@@ -206,7 +216,11 @@ describe('the guardian paste', () => {
 
   const notReplies: [string, string][] = [
     ['plain words', 'yes I approve'],
-    ['a line that is not base64url', 'eyJ*bad'],
+    ['a line that is not JSON', '{"kind":*bad'],
+    [
+      'a reply in the earlier base64url form',
+      Buffer.from(JSON.stringify(replyOf(gatheringOf(MIXED_PATH), 1))).toString('base64url')
+    ],
     ['a line of JSON that is not a reply', lineOf({ hello: 'world' })],
     ['the link itself', `chrome-extension://kohaku/tab.html#/x?request=${lineOf({ a: 1 })}`],
     ['a request in place of a reply', lineOf(servedRequestOf(gatheringOf(MIXED_PATH), 1))]

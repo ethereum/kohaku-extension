@@ -220,6 +220,11 @@ describe('the editor screen', () => {
     expect(byTestId('editor-title')).not.toBeNull()
   })
 
+  it('counts the editor as the second of the setup stages', async () => {
+    await showAccount(ACCOUNT)
+    expect(byTestId('editor-stage')?.textContent).toBe('Set up · Step 2 of 7')
+  })
+
   it("shows the editor under the breadcrumb once the account's records are read", async () => {
     await showAccount(ACCOUNT)
     const editor = byTestId('editor')

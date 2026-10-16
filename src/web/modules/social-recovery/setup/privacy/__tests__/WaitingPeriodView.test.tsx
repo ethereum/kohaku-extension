@@ -75,7 +75,13 @@ describe('the waiting period step', () => {
         ['hours24', 'hours48', 'hours72', 'days7', 'custom'].map(
           (id) => h.byTestId(`wait-chip-${id}`)?.textContent
         )
-      ).toEqual([W.chips.hours24, W.chips.hours48, W.chips.hours72, W.chips.days7, W.custom])
+      ).toEqual([
+        W.chips.hours24,
+        `${W.chips.hours48} · ${S.privacy.defaultChip}`,
+        W.chips.hours72,
+        W.chips.days7,
+        W.custom
+      ])
     })
 
     const LENGTHS: [string, bigint][] = [
@@ -435,7 +441,7 @@ describe('the waiting period step', () => {
   })
 
   describe('what the wait is for', () => {
-    it('states the notice window, that nothing else watches and what the cancel costs', async () => {
+    it('states the notice window and that nothing else watches, beside the picker, with no cost', async () => {
       await h.mount(recordsOn())
       expect(h.byTestId('notice-window')?.textContent).toBe(
         'The waiting period is your whole notice window. Open the wallet during the wait to see the banner for a recovery you did not start.'
@@ -443,17 +449,31 @@ describe('the waiting period step', () => {
       expect(h.text()).toContain(
         'Until you install Kohaku on another device, nothing else watches this account.'
       )
-      expect(h.byTestId('cancel-cost')?.textContent).toBe(
-        "Cancelling a recovery is one transaction your account's key sends and pays for. That key needs gas it holds outside the account."
+      expect(h.byTestId('waiting-period-columns-aside')?.textContent).toContain(
+        'nothing else watches this account'
       )
+      expect(h.byTestId('cancel-cost')).toBeNull()
+      expect(h.text()).not.toContain(S.costLines.cancel)
     })
 
-    it('states the floor and the default as the wallet rule, in the words a release build has always read', async () => {
+    it('marks the 48 hours chip as the default and states no standing floor line', async () => {
       await h.mount(recordsOn())
-      expect(h.text()).toContain(
-        'This wallet needs a waiting period of 24 hours or more. The default is 48 hours.'
-      )
+      expect(h.byTestId('wait-default-chip')?.textContent).toBe('Default')
+      expect(h.byTestId('wait-chip-hours48')?.textContent).toBe('48 hours · Default')
+      expect(h.text().split('Default')).toHaveLength(2)
+      expect(h.text()).not.toContain('The default is')
+      expect(h.text()).not.toContain('or more')
+    })
+
+    it('states the minimum beside the custom entry only while Custom is picked', async () => {
+      await h.mount(recordsOn())
+      expect(h.byTestId('wait-custom-minimum')).toBeNull()
+      await h.press('wait-chip-custom')
+      expect(h.byTestId('wait-custom-minimum')?.textContent).toBe('At least 24 hours.')
       expect(h.text()).not.toContain('{{')
+      await h.type('wait-custom-hours', '23')
+      expect(h.byTestId('wait-custom-minimum')).toBeNull()
+      expect(h.byTestId('wait-refusal')?.textContent).toBe('This wallet needs 24 hours or more.')
     })
 
     it('names the custom entry in hours in a release build', async () => {

@@ -148,7 +148,11 @@ const ReadoutPathBlock = ({ path }: ReadoutPathBlockProps) => {
           {line}
         </Text>
       ))}
-      <View style={spacings.mtMd} testID="readout-wait">
+      <View
+        // Without a rule line the waiting period follows the last row as closely as one row follows another.
+        style={path.ruleLines.length > 0 ? spacings.mtMd : spacings.mtTy}
+        testID="readout-wait"
+      >
         <SectionLabel>{t('socialRecovery.display.nouns.waitingPeriod')}</SectionLabel>
         <View style={[flexbox.directionRow, flexbox.alignCenter]}>
           <Text fontSize={14} weight="medium" style={spacings.mrTy} testID="readout-wait-value">

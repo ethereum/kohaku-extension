@@ -64,7 +64,6 @@ export type AddTarget =
 export interface EditorLoad {
   draft: SetupDraft
   enrollments: Enrollment[]
-  mode: 'adjust' | 'build'
   roles: ClauseRole[]
 }
 
@@ -170,8 +169,14 @@ export interface IndexedClause {
   index: number
 }
 
+/**
+ * How far the draft's slots are filled: no method yet, a slot still waiting
+ * for its method, or every slot holding one.
+ */
+export type EditorFill = 'empty' | 'open' | 'filled'
+
 export interface EditorHeaderProps {
-  mode: EditorLoad['mode']
+  fill: EditorFill
   /** Whether the last move was refused because the path already holds the credential. */
   refused: boolean
 }
@@ -233,19 +238,15 @@ export interface EditorPathProps extends PathPartProps {
   onToggleMenu: (target: AddTarget) => void
   onRemoveGroup: (group: number) => void
   onAddGroup: () => void
+  /** Whether the path is one method, which "Add a second method" extends. */
+  offersSecondMethod: boolean
+  /** Whether the path is two required rows and no group, which "Make it a group" turns into one group. */
+  canMakeItAGroup: boolean
+  onMakeItAGroup: () => void
 }
 
 export interface RuleLinesProps {
   ruleLines: RuleLine[]
-  checking: boolean
-  /** Whether the second method's kind menu is open. */
-  secondMenuOpen: boolean
-  /** Whether the path is two required rows and no group, which "Make it a group" turns into one group. */
-  canMakeItAGroup: boolean
-  onMakeItAGroup: () => void
-  onToggleSecondMenu: () => void
-  onPickKind: (kind: SlotKind) => void
-  onCloseMenu: () => void
 }
 
 export interface RefusalListProps {

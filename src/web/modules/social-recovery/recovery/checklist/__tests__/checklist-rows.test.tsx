@@ -145,6 +145,8 @@ describe('the checklist rows', () => {
     expect(mounted.byTestId('checklist-progress')?.textContent).toBe(
       t(`${CHECKLIST}.progress`, { done: 3, total: 3 })
     )
+    expect(mounted.byTestId('checklist-title')?.textContent).toBe(t(`${CHECKLIST}.satisfiedTitle`))
+    expect(mounted.text()).toContain(t(`${CHECKLIST}.satisfiedLead`))
     expect(mounted.byTestId('checklist-satisfied')?.textContent).toBe(t(`${CHECKLIST}.satisfied`))
     expect(mounted.byTestId('checklist-row-4-chip')?.textContent).toBe(chip('notNeeded'))
     expect(mounted.byTestId('checklist-row-4-mark-declined')).toBeNull()
@@ -189,6 +191,47 @@ describe('the checklist rows', () => {
       expect(mounted.navigate).not.toHaveBeenCalled()
     }
   )
+
+  it('adds no sentence under the rows where the satisfied path has no row beyond the set', async () => {
+    const configuration = configurationOf([
+      { threshold: 1, credentials: [passkeyCredential('Laptop passkey')] },
+      { threshold: 1, credentials: [guardianCredential(GUARDIANS[0])] }
+    ])
+    const { view: mounted } = await open(
+      configuration,
+      withReplies(gatheringOf(configuration), [0, 1])
+    )
+
+    expect(mounted.byTestId('checklist-title')?.textContent).toBe(t(`${CHECKLIST}.satisfiedTitle`))
+    expect(mounted.byTestId('checklist-satisfied')).toBeNull()
+    expect(mounted.text()).not.toContain(t(`${CHECKLIST}.satisfied`))
+  })
+
+  it('keeps the title and lead of a path still collecting, with the two notes beside the rows', async () => {
+    const { view: mounted } = await open(MIXED_PATH, gatheringOf(MIXED_PATH))
+
+    expect(mounted.byTestId('checklist-title')?.textContent).toBe(t(`${CHECKLIST}.title`))
+    expect(mounted.text()).toContain(t(`${CHECKLIST}.lead`))
+    const aside = mounted.byTestId('checklist-columns-aside')
+    expect(aside?.querySelector('[data-testid="checklist-verify"]')?.textContent).toBe(
+      t(`${CHECKLIST}.verifyNoteTitle`) + t(`${CHECKLIST}.verifyNote`)
+    )
+    expect(aside?.querySelector('[data-testid="checklist-leaving-keeps"]')?.textContent).toBe(
+      t(`${CHECKLIST}.leavingKeepsTitle`) + t(`${CHECKLIST}.leavingKeeps`)
+    )
+    expect(mounted.byTestId('checklist')?.textContent).not.toContain(t(`${CHECKLIST}.verifyNote`))
+  })
+
+  it('says the deadline submission line once, in the deadline block, and no meta lines in a guardian row', async () => {
+    const { view: mounted } = await open(MIXED_PATH, gatheringOf(MIXED_PATH))
+
+    const submittable = t(`${CHECKLIST}.submittable`)
+    expect(mounted.text().split(submittable)).toHaveLength(2)
+    expect(mounted.byTestId('checklist-submittable')?.textContent).toBe(submittable)
+    const row = mounted.byTestId('checklist-row-1')?.textContent ?? ''
+    expect(row).not.toContain('blind signing')
+    expect(row).not.toContain('publisher to check')
+  })
 
   it('renders an identity row with its kind name, the not asked chip and no action', async () => {
     const configuration = configurationOf([

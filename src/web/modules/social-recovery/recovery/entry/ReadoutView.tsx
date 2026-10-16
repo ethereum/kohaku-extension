@@ -1,6 +1,7 @@
 /**
- * The readout: the account being recovered and the network, then the setup
- * under its privacy level. Private shows nothing of the setup until the
+ * The readout: the account being recovered and the network on one line, then
+ * the setup under its privacy level. While the setup is locked the title asks
+ * for the recovery password and the note on the two passwords sits beside it. Private shows nothing of the setup until the
  * recovery password opens it; Shape visible shows the path with every value
  * masked and asks the password before continue; Public shows the path with
  * its values and continues at once. A read that runs or failed, a setup this
@@ -19,11 +20,11 @@ import {
   ActionsRow,
   PageTitle,
   SectionCard,
-  SectionLabel
+  TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
 import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
-import { renderFullAddress, renderValueLabel } from '@web/modules/social-recovery/shared/display'
 
+import AccountLine from './AccountLine'
 import { previewPathOf, readablePathOf, REQUEST_HOURS } from './readout'
 import ReadoutPasswordAsk from './ReadoutPasswordAsk'
 import ReadoutPathBlock from './ReadoutPathBlock'
@@ -221,6 +222,11 @@ const ReadoutView = ({ state, account, networkName, context, onBack }: ReadoutVi
               </Text>
             )}
             {state.writeFailed && writeFailure}
+            {!path?.blocked && (
+              <Text fontSize={14} style={spacings.mtSm} testID="readout-continue-line">
+                {t(`${READOUT}.continueLine`, { hours: REQUEST_HOURS })}
+              </Text>
+            )}
             <ActionsRow
               primary={
                 <Button
@@ -233,43 +239,40 @@ const ReadoutView = ({ state, account, networkName, context, onBack }: ReadoutVi
                 />
               }
               secondary={back}
-              note={
-                path?.blocked
-                  ? t(BLOCK_REASONS[path.blocked])
-                  : t(`${READOUT}.continueLine`, { hours: REQUEST_HOURS })
-              }
-              noteTestID={path?.blocked ? 'readout-continue-reason' : 'readout-continue-line'}
+              note={path?.blocked ? t(BLOCK_REASONS[path.blocked]) : undefined}
+              noteTestID="readout-continue-reason"
             />
           </View>
         )
     }
   }
 
-  return (
-    <View testID="readout">
-      <PageTitle
-        title={t(`${READOUT}.title`)}
-        lead={leadKey ? t(leadKey) : undefined}
-        titleTestID="readout-title"
-      />
-      <SectionCard testID="readout-account">
-        <SectionLabel>{renderValueLabel('accountBeingRecovered', t)}</SectionLabel>
-        <Text
-          fontSize={14}
-          weight="number_medium"
-          selectable
-          style={spacings.mbSm}
-          testID="readout-account-address"
-        >
-          {renderFullAddress(account)}
-        </Text>
-        <SectionLabel>{t('socialRecovery.entry.labels.network')}</SectionLabel>
-        <Text fontSize={14} testID="readout-network">
-          {networkName}
+  const aside =
+    step.kind === 'locked' ? (
+      <SectionCard
+        tone="muted"
+        spacing="item"
+        label={t(`${READOUT}.twoPasswords.title`)}
+        testID="readout-two-passwords"
+      >
+        <Text fontSize={12} appearance="secondaryText">
+          {t(`${READOUT}.twoPasswords.body`)}
         </Text>
       </SectionCard>
-      {renderBody()}
-    </View>
+    ) : undefined
+
+  return (
+    <TwoColumn testID="readout-columns" aside={aside}>
+      <View testID="readout">
+        <PageTitle
+          title={t(step.kind === 'locked' ? `${READOUT}.lockedTitle` : `${READOUT}.title`)}
+          lead={leadKey ? t(leadKey) : undefined}
+          titleTestID="readout-title"
+        />
+        <AccountLine account={account} networkName={networkName} testID="readout-account" />
+        {renderBody()}
+      </View>
+    </TwoColumn>
   )
 }
 

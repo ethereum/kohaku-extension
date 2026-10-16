@@ -3,10 +3,9 @@
  * check running, the wrong password's blocker with the pointer to the card,
  * and the failed read of the setup event. The restore reads that event before
  * it can judge the password, so the failure never says the password worked.
- * Each state keeps the line that the account has a recovery setup, and a
- * disabled continue with the reason under it: nothing goes on until the
- * password opens the setup. The field's value lives in this component alone
- * and is emptied once a check starts.
+ * Each state keeps the line that the account has a recovery setup; no
+ * continue shows until the password opens the setup. The field's value lives
+ * in this component alone and is emptied once a check starts.
  */
 import React, { useCallback, useState } from 'react'
 import { ActivityIndicator, View } from 'react-native'
@@ -16,7 +15,7 @@ import InputPassword from '@common/components/InputPassword'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
-import { ActionsRow, NoteBox, SectionCard } from '@web/modules/social-recovery/shared/chrome'
+import { ActionsRow, SectionCard } from '@web/modules/social-recovery/shared/chrome'
 import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
 import { renderPasswordName } from '@web/modules/social-recovery/shared/display'
 
@@ -55,17 +54,6 @@ const ReadoutPasswordAsk = ({
     />
   )
 
-  const lockedContinue = (
-    <Button
-      testID="readout-continue-locked"
-      type="primary"
-      text={t('socialRecovery.actions.continue')}
-      disabled
-      hasBottomSpacing={false}
-    />
-  )
-  const reason = t(`${READOUT}.locked.cannotBegin`)
-
   const configured = (
     <Text fontSize={14} appearance="secondaryText" testID="readout-configured">
       {t(CONFIGURED)}
@@ -82,7 +70,6 @@ const ReadoutPasswordAsk = ({
             : t(`${READOUT}.readingDetails`)}
         </Text>
         {configured}
-        <ActionsRow primary={lockedContinue} note={reason} noteTestID="readout-continue-reason" />
       </View>
     )
   }
@@ -98,12 +85,7 @@ const ReadoutPasswordAsk = ({
           onRetry={onAskAgain}
         />
         {configured}
-        <ActionsRow
-          primary={lockedContinue}
-          secondary={back}
-          note={reason}
-          noteTestID="readout-continue-reason"
-        />
+        <ActionsRow primary={back} />
       </View>
     )
   }
@@ -123,12 +105,7 @@ const ReadoutPasswordAsk = ({
           onRetry={onRetry}
         />
         {configured}
-        <ActionsRow
-          primary={lockedContinue}
-          secondary={back}
-          note={reason}
-          noteTestID="readout-continue-reason"
-        />
+        <ActionsRow primary={back} />
       </View>
     )
   }
@@ -136,16 +113,6 @@ const ReadoutPasswordAsk = ({
   return (
     <View testID="readout-locked">
       <SectionCard>
-        {level === 'private' && (
-          <>
-            <Text fontSize={16} weight="medium" style={spacings.mbTy} testID="readout-locked-title">
-              {t(`${READOUT}.locked.title`)}
-            </Text>
-            <Text fontSize={14} style={spacings.mbSm}>
-              {t(`${READOUT}.locked.enterPassword`)}
-            </Text>
-          </>
-        )}
         <InputPassword
           testID="readout-password-field"
           label={renderPasswordName('recoveryPassword', t)}
@@ -159,7 +126,6 @@ const ReadoutPasswordAsk = ({
           {t(`${READOUT}.locked.notExtensionPassword`)}
         </Text>
       </SectionCard>
-      <NoteBox testID="readout-two-passwords">{t(`${READOUT}.twoPasswords.body`)}</NoteBox>
       <ActionsRow
         primary={
           <Button
@@ -171,14 +137,7 @@ const ReadoutPasswordAsk = ({
             hasBottomSpacing={false}
           />
         }
-        secondary={
-          <>
-            {lockedContinue}
-            <View style={spacings.mlSm}>{back}</View>
-          </>
-        }
-        note={reason}
-        noteTestID="readout-continue-reason"
+        secondary={back}
       />
     </View>
   )

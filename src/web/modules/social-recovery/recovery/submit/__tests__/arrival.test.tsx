@@ -132,7 +132,6 @@ describe('the confirmation’s arrival', () => {
     expect(view.textOf('submit-dropped')).toBe(
       t('socialRecovery.submit.droppedTitle') + t('socialRecovery.submit.droppedBody')
     )
-    await view.press('submit-verify-details')
     expect(view.isDisabled('submit-action')).toBe(false)
     expect(world.port.sendAccountBatch).not.toHaveBeenCalled()
   })

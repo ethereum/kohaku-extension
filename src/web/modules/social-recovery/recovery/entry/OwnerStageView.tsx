@@ -17,7 +17,8 @@ import {
   ActionsRow,
   PageTitle,
   SectionCard,
-  SectionLabel
+  SectionLabel,
+  TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
 import {
   renderFullAddress,
@@ -135,15 +136,17 @@ const OwnerStageView = ({ choices, loaded, onContinue, onCancel }: OwnerStageVie
   }
 
   return (
-    <View testID="entry-owner">
-      <PageTitle
-        title={t(`${OWNER}.title`)}
-        lead={t(`${OWNER}.lead`)}
-        titleTestID="entry-owner-title"
-      />
-      <WarningGate form="condensed" onAcknowledgedChange={setAcknowledged} />
-      <View style={spacings.mtLg}>{body}</View>
-    </View>
+    <TwoColumn testID="entry-owner-columns">
+      <View testID="entry-owner">
+        <PageTitle
+          title={t(`${OWNER}.title`)}
+          lead={t(`${OWNER}.lead`)}
+          titleTestID="entry-owner-title"
+        />
+        <WarningGate form="condensed" onAcknowledgedChange={setAcknowledged} />
+        <View style={spacings.mtLg}>{body}</View>
+      </View>
+    </TwoColumn>
   )
 }
 

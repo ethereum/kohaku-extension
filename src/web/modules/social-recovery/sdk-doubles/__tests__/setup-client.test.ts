@@ -274,6 +274,13 @@ describe('setup validation over a module read that goes unanswered', () => {
     }
   )
 
+  it('describes the setup with the removed key unread where its read failed', async () => {
+    const world = createWorld()
+    world.script.failRead('walletReads.removedKey')
+    const described = await (await world.setupClient()).describeSetup(withPassport(world))
+    expect(described.removedKey).toBe('unread')
+  })
+
   it('names the stop read where both reads of one method go unanswered', async () => {
     const world = createWorld()
     const module = world.descriptor.methodZkpassport

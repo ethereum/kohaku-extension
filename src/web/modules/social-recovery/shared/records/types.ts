@@ -374,6 +374,30 @@ export type StoredCountdown = StoredRecord<CountdownRecord> & { revision: Sessio
 export type CountdownRead = AbsentRecord | ({ status: 'present' } & StoredCountdown)
 
 /**
+ * The countdown of an attempt found running on chain: its id, its setup nonce,
+ * the keccak256 of its payload, and when it opened, in ms since epoch, which
+ * the countdown keeps as its start.
+ */
+export interface ChainCountdown {
+  attemptId: bigint
+  setupNonce: bigint
+  payloadHash: Hex
+  openedAtMs: number
+}
+
+/** Whether a restore wrote the countdown, or kept the session it found. */
+export type CountdownRestoreOutcome = 'written' | 'kept'
+
+/**
+ * What a restore did, and the countdown stored after it: absent where it kept
+ * a live session, the kept landed session's otherwise.
+ */
+export interface CountdownRestore {
+  outcome: CountdownRestoreOutcome
+  countdown: CountdownRead
+}
+
+/**
  * The answer of a claim of the execution in flight: `claimed` where this claim
  * wrote the execution, or `false` where the landed session already carried one
  * and the caller follows it; the execution the session holds after the task,
@@ -708,6 +732,21 @@ export interface WalletRecords {
     expectedRevision: ExpectedRevision
   ): Promise<boolean>
   countdown(chainId: ChainId, account: Address): CountdownAccessor
+  /**
+   * Keeps the countdown of an attempt found running on chain, holding the
+   * session's key and then the recovery entry's. A live session, a landed one
+   * with an execution in flight and a landed one of the same or a newer
+   * attempt are kept; no session, a wiped one or the countdown of an older
+   * attempt is replaced.
+   * The entry is written only with the countdown, or beside a kept countdown
+   * of the same attempt.
+   */
+  restoreCountdown(
+    chainId: ChainId,
+    account: Address,
+    countdown: ChainCountdown,
+    entry?: Omit<RecoveryEntryRecord, 'account'>
+  ): Promise<CountdownRestore>
   listCountdowns(chainId: ChainId): Promise<ListedRecord<CountdownRecord>[]>
   decryptedSetupCache(chainId: ChainId, account: Address): RecordAccessor<DecryptedSetupCacheRecord>
   saveInFlight(chainId: ChainId, account: Address): SaveInFlightAccessor

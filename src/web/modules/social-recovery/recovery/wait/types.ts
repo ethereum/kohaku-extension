@@ -354,6 +354,8 @@ export type LeaveState = 'idle' | 'leaving' | 'failed'
 
 export interface WaitViewProps {
   account: Address
+  /** The name of the network the account lives on, beside the account's one line. */
+  networkName: string
   client: WaitClient
   keys: HandoverKeysReading
   poll: WaitPoll
@@ -398,12 +400,12 @@ export type WaitGateProps = Omit<WaitBodyProps, 'savedAt' | 'landed' | 'onCountd
 export interface CountdownBlockProps {
   round: WaitRound
   account: Address
+  networkName: string
   newKey?: Address
   remainingMs: number | null
   startedAt: number
   timeZone: string
   configuration: Configuration | null
-  onOpenExplorer: (transactionHash: Hex) => void
 }
 
 export interface ExecuteBlockProps {

@@ -2,8 +2,9 @@
  * The deposit step, rendered from the gas check's data. The copy comes from
  * `renderDepositStep` and the rules from the gas check, so this component only
  * lays them out: the key's address in full with a copy action, the routes that
- * fill it, the notes and, for a recovery call, the lines of a step that waits
- * for the funds.
+ * fill it, the notes and, for a recovery call, the network and the lines of a
+ * step that waits for the funds. The notes that only inform are drawn by
+ * `DepositStepAside` in the write screen's aside.
  *
  * `variant="blocker"` renders the short panel a write's own screen shows when
  * the check at sending comes up short, which leads to the step. The write's
@@ -43,6 +44,7 @@ const DepositStepView = ({
   balance,
   variant = 'step',
   onCopy,
+  header,
   children,
   testID
 }: DepositStepViewProps) => {
@@ -124,6 +126,7 @@ const DepositStepView = ({
           {rendered.title}
         </Text>
       </View>
+      {header}
       <Lines lines={rendered.lead} />
       {keyBlock}
       {rendered.routes.map((route) => (
@@ -138,14 +141,10 @@ const DepositStepView = ({
           )}
         </View>
       ))}
+      {!!rendered.network && <Lines lines={[rendered.network]} />}
       <Lines lines={rendered.notes} secondary />
       <Lines lines={rendered.waiting} secondary />
       {children}
-      {!!rendered.actionHint && (
-        <Text fontSize={12} appearance="secondaryText" style={spacings.mtTy}>
-          {rendered.actionHint}
-        </Text>
-      )}
     </View>
   )
 }

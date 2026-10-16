@@ -331,10 +331,10 @@
 
 - id: I-29
   heuristic: a recovery running against you reaches your screen, with a way to stop it where you hold the account's key
-  statement: While an attempt is open on an account the wallet holds, every dashboard the holder opens shows the countdown to execution beside the owner's cancel action, while the wallet is unlocked and its poll answers. That poll runs on an alarm of one minute, D-344, so an attempt opened elsewhere reaches the banner within a minute of the browser being open. A locked wallet and a failed poll each show the badge and the banner on unlock, and neither renders as the absence of an attempt, I-28. An address the wallet only watches shows the banner and the countdown with no cancel action, since no key of the wallet can stop that recovery. A dismissal covers that one attempt, and the next attempt shows the banner again.
+  statement: While an attempt is open on an account the wallet holds, every dashboard the holder opens shows the countdown to execution beside the owner's cancel action, while the wallet is unlocked and its poll answers. That poll runs on an alarm of 30 minutes, D-344, so an attempt opened elsewhere reaches the banner within 30 minutes of the browser being open, a short time against a wait of at least a day. A locked wallet and a failed poll each show the badge and the banner on unlock, and neither renders as the absence of an attempt, I-28. An address the wallet only watches shows the banner and the countdown with no cancel action, since no key of the wallet can stop that recovery. A dismissal covers that one attempt, and the next attempt shows the banner again.
   bug_class: unnoticed takeover inside the waiting period
   modules: [ux/watcher, ux/cancel, ux/management, ux/recovery]
-  check: human-only            # the one-minute alarm awaits a mechanical check, an extension test asserting the alarm period, since a persona replay runs against the screens and no screen shows a poll period; the rest awaits persona-replay against design/personas/P-5-bob.md
+  check: human-only            # the 30-minute alarm awaits a mechanical check, an extension test asserting the alarm period, since a persona replay runs against the screens and no screen shows a poll period; the rest awaits persona-replay against design/personas/P-5-bob.md
   check_ref: pending
   status: grounded
   source: D-307

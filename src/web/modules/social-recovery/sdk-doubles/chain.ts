@@ -450,10 +450,10 @@ export class ScriptedChain {
    */
   removedKeyReading(hasCreationRecord: boolean): RemovedKeyReading {
     if (!hasCreationRecord && !this.hasCode) {
-      return { kind: 'unavailable', cause: 'no-creation-record' }
+      return { kind: 'unavailable', cause: 'no-source' }
     }
     if (this.authorities.length === 0) {
-      return { kind: 'unavailable', cause: 'no-key-entry' }
+      return { kind: 'unavailable', cause: 'not-a-key' }
     }
     if (this.authorities.length > 1) {
       return { kind: 'unavailable', cause: 'several-key-entries' }

@@ -61,7 +61,6 @@ const WAIT_VALUE = t('socialRecovery.display.remainingHours', { count: 120 })
 const ORIGIN_MISMATCH = t('socialRecovery.ceremony.relyingPartyMismatch')
 const WRONG_PASSWORD = 'ember-harbor-quiet-17'
 const PASSWORD_WORKED = t('socialRecovery.readout.eventFailed.title', { network: NETWORK })
-const CANNOT_BEGIN = t('socialRecovery.readout.locked.cannotBegin')
 const CANNOT_RECOVER = t('socialRecovery.review.blocked.cannotRecover.title')
 const CONTINUE_LINE = t('socialRecovery.readout.continueLine', { hours: 24 })
 
@@ -125,8 +124,8 @@ describe('the readout at Private', () => {
     await commitLostSetup('private')
     const page = await open()
     expect(page.has('readout-locked-private')).toBe(true)
-    expect(page.text()).toContain(t('socialRecovery.readout.locked.title'))
-    expect(page.text()).toContain(t('socialRecovery.readout.locked.enterPassword'))
+    expect(page.textOf('readout-title')).toBe(t('socialRecovery.readout.lockedTitle'))
+    expect(page.text()).toContain(t('socialRecovery.readout.leadPrivate'))
     expect(page.has('readout-password-field')).toBe(true)
     expect(page.has('readout-continue')).toBe(false)
     expectNothingOfTheSetup(page)
@@ -510,40 +509,28 @@ describe('the reads that fail and the setups this build cannot read', () => {
   })
 })
 
-/** The actions a locked state can show, in the order a reader meets them. */
-const LOCKED_ACTIONS = ['readout-unlock', 'readout-continue-locked', 'readout-back']
-
-/**
- * A locked state offers continue switched off, never the live one, with the
- * reason under every action it shows, said once; pressing it goes nowhere.
- */
-const expectLockedContinue = async (page: Mounted) => {
+/** A locked state offers no continue at all, and no line about why it cannot begin. */
+const expectNoContinue = (page: Mounted) => {
   expect(page.has('readout-continue')).toBe(false)
-  expect(page.has('readout-continue-locked')).toBe(true)
-  expect(page.isDisabled('readout-continue-locked')).toBe(true)
-  expect(page.textOf('readout-continue-reason')).toBe(CANNOT_BEGIN)
-  LOCKED_ACTIONS.filter((action) => page.has(action)).forEach((action) =>
-    expect(page.comesAfter('readout-continue-reason', action)).toBe(true)
-  )
-  expect(page.text().split(CANNOT_BEGIN)).toHaveLength(2)
-  await page.press('readout-continue-locked')
-  expect(page.has('readout-continue-locked')).toBe(true)
-  expect(navigate).not.toHaveBeenCalled()
+  expect(page.has('readout-continue-locked')).toBe(false)
+  expect(page.has('readout-continue-reason')).toBe(false)
+  expect(page.text()).not.toContain('cannot begin this recovery')
 }
 
-describe('continue while the setup is locked', () => {
+describe('the readout while the setup is locked', () => {
   const levels: HiddenLevel[] = ['private', 'shape-visible']
   levels.forEach((level) => {
-    it(`is switched off with its reason under the actions before the password at ${level}`, async () => {
+    it(`asks for the recovery password in its title, with unlock and back and no continue, at ${level}`, async () => {
       await commitLostSetup(level)
       const page = await open()
       expect(page.has(`readout-locked-${level}`)).toBe(true)
+      expect(page.textOf('readout-title')).toBe(t('socialRecovery.readout.lockedTitle'))
       expect(page.has('readout-unlock')).toBe(true)
       expect(page.has('readout-back')).toBe(true)
-      await expectLockedContinue(page)
+      expectNoContinue(page)
     })
 
-    it(`is switched off with its reason while the password is being checked at ${level}`, async () => {
+    it(`shows no continue while the password is being checked at ${level}`, async () => {
       const world = await commitLostSetup(level)
       const page = await open()
       const held = deferred<void>()
@@ -554,38 +541,51 @@ describe('continue while the setup is locked', () => {
       })
       await unlockWith(page, CARD_PASSWORD)
       expect(page.has('readout-unlock-checking')).toBe(true)
-      await expectLockedContinue(page)
+      expectNoContinue(page)
       await outside(() => held.resolve())
       expect(page.has(`readout-readable-${level}`)).toBe(true)
-      expect(page.has('readout-continue-locked')).toBe(false)
+      expect(page.textOf('readout-title')).toBe(t('socialRecovery.readout.title'))
       expect(page.isDisabled('readout-continue')).toBe(false)
     })
 
-    it(`is switched off with its reason after a wrong password at ${level}`, async () => {
+    it(`shows back and no continue after a wrong password at ${level}`, async () => {
       await commitLostSetup(level)
       const page = await open()
       await unlockWith(page, WRONG_PASSWORD)
       expect(page.has('readout-wrong-password')).toBe(true)
       expect(page.has('readout-back')).toBe(true)
-      await expectLockedContinue(page)
+      expectNoContinue(page)
     })
 
-    it(`is switched off with its reason after the setup event read failed at ${level}`, async () => {
+    it(`shows back and no continue after the setup event read failed at ${level}`, async () => {
       const world = await commitLostSetup(level)
       const page = await open()
       world.chain.failRead('events.fetch')
       await unlockWith(page, CARD_PASSWORD)
       expect(page.has('readout-event-failed')).toBe(true)
       expect(page.has('readout-back')).toBe(true)
-      await expectLockedContinue(page)
+      expectNoContinue(page)
     })
   })
 
-  it('says the reason under the actions, not in the card with the field', async () => {
+  it('puts the note on the two passwords beside the field, and says the field is not the extension password once', async () => {
     await commitLostSetup('private')
     const page = await open()
-    expect(page.comesAfter('readout-continue-reason', 'readout-password-field')).toBe(true)
-    expect(page.comesAfter('readout-continue-reason', 'readout-two-passwords')).toBe(true)
+    const aside = page.byTestId('readout-columns-aside')
+    expect(aside?.querySelector('[data-testid="readout-two-passwords"]')?.textContent).toBe(
+      t('socialRecovery.readout.twoPasswords.title') + t('socialRecovery.readout.twoPasswords.body')
+    )
+    expect(page.textOf('readout')).not.toContain(t('socialRecovery.readout.twoPasswords.body'))
+    expect(page.text().split(t('socialRecovery.readout.locked.notExtensionPassword'))).toHaveLength(
+      2
+    )
+  })
+
+  it('names the account on one line in its short form, with the network', async () => {
+    await commitLostSetup('private')
+    const page = await open()
+    expect(page.textOf('readout-account')).toBe(`Account ${shortAddress(LOST)} · ${NETWORK}`)
+    expect(page.text()).not.toContain(renderFullAddress(LOST))
   })
 })
 

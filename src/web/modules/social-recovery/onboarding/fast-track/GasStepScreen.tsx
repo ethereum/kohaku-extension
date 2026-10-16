@@ -1,5 +1,5 @@
 /**
- * The fast track's gas step, after the readout and with no step number. It
+ * The fast track's gas step, after the readout, at the readout's stage. It
  * reads the recovery entry of the account in the URL for the account that
  * receives control, finds the key that sends the recovery (that account
  * itself, the slot's basic account, whose key the recovery installs), and
@@ -15,13 +15,13 @@
  */
 import React, { useEffect, useMemo, useState } from 'react'
 
-import { useTranslation } from '@common/config/localization'
 import useNavigation from '@common/hooks/useNavigation'
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
-import PlainChrome from '@web/modules/social-recovery/shared/chrome/PlainChrome'
+import { CHAIN_NAMES } from '@web/modules/social-recovery/recovery/entry'
+import RecoveryChrome from '@web/modules/social-recovery/shared/chrome/RecoveryChrome'
 import {
   CHAIN_IDS,
   seedBasicAccountOf,
@@ -33,7 +33,7 @@ import {
   extensionRecordStorage
 } from '@web/modules/social-recovery/shared/records'
 
-import { ACKNOWLEDGED_STATE, FRESH_INSTALL_ROUTE } from './constants'
+import { ACKNOWLEDGED_STATE, FRESH_INSTALL_ROUTE, GAS_STAGE } from './constants'
 import GasStepView from './GasStepView'
 import {
   accountParamOf,
@@ -46,7 +46,6 @@ import type { EntryReading, GasStepState } from './types'
 import useSubmissionGas from './useSubmissionGas'
 
 const GasStepScreen = () => {
-  const { t } = useTranslation()
   const { navigate, searchParams } = useNavigation()
   const account = accountParamOf(searchParams)
   const records = useMemo(() => createWalletRecords({ storage: extensionRecordStorage }), [])
@@ -126,9 +125,21 @@ const GasStepScreen = () => {
     })
 
   return (
-    <PlainChrome title={t('socialRecovery.routes.recover')} testID="fast-track-gas-screen">
-      <GasStepView state={state} onRetry={retry} onBack={back} onBackToAccount={backToAccount} />
-    </PlainChrome>
+    <RecoveryChrome
+      route={FRESH_INSTALL_ROUTE}
+      titleKey="socialRecovery.routes.recover"
+      stage={{ step: GAS_STAGE, testID: 'recovery-stage' }}
+      testID="fast-track-gas-screen"
+    >
+      <GasStepView
+        state={state}
+        account={account}
+        networkName={network?.name ?? CHAIN_NAMES[WALLET_RECOVERY_CHAIN]}
+        onRetry={retry}
+        onBack={back}
+        onBackToAccount={backToAccount}
+      />
+    </RecoveryChrome>
   )
 }
 

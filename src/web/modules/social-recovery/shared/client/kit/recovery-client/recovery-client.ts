@@ -26,6 +26,7 @@ import {
   digestOfSubmission,
   RECORD_VERSION,
   refuseWith,
+  removedKeyOfReading,
   restoreRefusal,
   unansweredRead,
   validationRefusal
@@ -53,7 +54,8 @@ import type {
   PaymentOrder,
   PrepareOptions,
   PreparedCall,
-  RecoveryState
+  RecoveryState,
+  RemovedKey
 } from '@web/modules/social-recovery/sdk-interfaces'
 import { keccak256, zeroAddress, zeroHash } from 'viem'
 
@@ -410,17 +412,11 @@ export const createKitRecoveryClient = (ctx: KitRecoveryContext): IRecoveryClien
 
     recoveryState(): Promise<RecoveryState> {
       return withNamedRevert(async () => {
-        const [state, removed] = await Promise.all([
+        const [state, removedKey] = await Promise.all([
           ctx.walletReads.attemptState(),
-          ctx.walletReads.removedKey()
+          ctx.walletReads.removedKey().then(removedKeyOfReading, (): RemovedKey => 'unread')
         ])
-        return {
-          ...state,
-          // `RecoveryState.removedKey` has no value for a replay that names no key or
-          // several, so both read as 'no-creation-triple'; the wallet reads'
-          // `removedKey()` names the cause.
-          removedKey: removed.kind === 'named' ? removed.key : 'no-creation-triple'
-        }
+        return { ...state, removedKey }
       })
     }
   }

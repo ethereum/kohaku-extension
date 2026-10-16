@@ -1,9 +1,11 @@
 /**
- * The review over the setup records: the lead that decides the holder's risk,
- * the trust list under its expander, the account the save writes to with the
- * key a recovery would remove, and Save behind its gate with the reason it
- * cannot run on screen. An untested method is named in the warning beside
- * Save.
+ * The review over the setup records: the path with its rule lines, the
+ * waiting period and the privacy level, the account the save writes to on one
+ * line with its address in full, and Save behind its gate with the reason it
+ * cannot run on screen. The save screen adds the key a recovery would remove. The trust list under
+ * its expander follows the account in the main column, since its retry can
+ * unlock Save. An untested method is named once, beside Save. What a recovery
+ * publishes and the spare-key comparison sit beside them.
  */
 import React, { useEffect, useMemo, useState } from 'react'
 import { ActivityIndicator, Pressable, View } from 'react-native'
@@ -23,8 +25,8 @@ import {
   ActionsRow,
   PageTitle,
   SectionCard,
-  SectionLabel,
-  StatusChip
+  StatusChip,
+  TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
 import {
   addressBookOf,
@@ -32,11 +34,10 @@ import {
   WALLET_RECOVERY_CHAIN
 } from '@web/modules/social-recovery/shared/client'
 import {
-  renderFullAddress,
   renderChip,
+  renderFullAddress,
   renderNoun,
   renderResolvedName,
-  renderValueLabel,
   renderWaitLength
 } from '@web/modules/social-recovery/shared/display'
 import { defaultSetupDraft } from '@web/modules/social-recovery/shared/records/types'
@@ -165,43 +166,45 @@ const ReviewView = ({
 
   if (!load) {
     return (
-      <View testID="review">
-        {title}
-        {loadFailed ? (
-          <>
-            <Alert
-              type="error"
-              size="sm"
-              text={
-                <Alert.Text size="sm" type="error" testID="review-load-failed">
-                  {t('socialRecovery.records.loadFailed')}
-                </Alert.Text>
-              }
-            />
-            <ActionsRow
-              primary={
-                <Button
-                  testID="review-load-retry"
-                  type="primary"
-                  text={t('socialRecovery.writes.tryAgain')}
-                  onPress={retryLoad}
-                  hasBottomSpacing={false}
-                />
-              }
-              secondary={back}
-            />
-          </>
-        ) : (
-          <ActivityIndicator testID="review-spinner" />
-        )}
-      </View>
+      <TwoColumn testID="review-columns">
+        <View testID="review">
+          {title}
+          {loadFailed ? (
+            <>
+              <Alert
+                type="error"
+                size="sm"
+                text={
+                  <Alert.Text size="sm" type="error" testID="review-load-failed">
+                    {t('socialRecovery.records.loadFailed')}
+                  </Alert.Text>
+                }
+              />
+              <ActionsRow
+                primary={
+                  <Button
+                    testID="review-load-retry"
+                    type="primary"
+                    text={t('socialRecovery.writes.tryAgain')}
+                    onPress={retryLoad}
+                    hasBottomSpacing={false}
+                  />
+                }
+                secondary={back}
+              />
+            </>
+          ) : (
+            <ActivityIndicator testID="review-spinner" />
+          )}
+        </View>
+      </TwoColumn>
     )
   }
 
   const { draft } = load
-  const ruleLines = ruleLinesOf(draft, addressBook, t)
   const publication = publicationSentenceOf(clauses, addressBook, t)
-  const name = accountLabel ? renderResolvedName(accountLabel, 'besideAddressToCheck', t) : null
+  const ruleLines = ruleLinesOf(draft, addressBook, t)
+  const name = accountLabel ? renderResolvedName(accountLabel, 'informationOnly', t) : null
   const gate = saveGateOf({
     recordsLoaded: true,
     clientReady: !!ready,
@@ -215,7 +218,6 @@ const ReviewView = ({
     backup: draft.privacy.backup,
     passwordSet: load.passwordSet
   })
-  const { removedKey } = accountReads
 
   // Runs again every read that did not answer: the trust list's reads of each
   // method and the account's reads that threw.
@@ -251,233 +253,216 @@ const ReviewView = ({
     />
   )
 
-  return (
-    <View testID="review">
-      {title}
-
-      <SectionCard>
-        <PathBlock
-          clauses={clauses}
-          enrollments={load.enrollments}
-          addressBook={addressBook}
-          onRetryTest={(target) => navigate(enrollPathOf(target))}
-        />
-        {needsHostileMinorityLine(clauses) &&
-          line(t(`${REVIEW}.hostileMinority`), 'review-hostile-minority')}
-      </SectionCard>
-
-      <SectionCard label={t('socialRecovery.shape.header')} testID="review-rule-lines">
-        {ruleLines.map((ruleLine, index) => (
-          <Text
-            // The rule lines of one path are fixed in number and order.
-            // eslint-disable-next-line react/no-array-index-key
-            key={index}
-            fontSize={14}
-            style={spacings.mbTy}
-            testID={`review-rule-line-${index}`}
-          >
-            {ruleLine}
-          </Text>
-        ))}
-        {line(t(`${REVIEW}.spareKey`), 'review-spare-key')}
-      </SectionCard>
-
-      <SectionCard label={renderNoun('waitingPeriod', t)}>
-        <Text fontSize={16} weight="medium" style={spacings.mbTy} testID="review-wait">
-          {renderWait(draft.wait, t)}
-        </Text>
-        <Text fontSize={12} appearance="secondaryText">
-          {t(`${REVIEW}.minimum`, { minimum: renderWaitLength(WAIT_FLOOR_SECONDS, t) })}
-        </Text>
-      </SectionCard>
-
-      <SectionCard label={t(`${REVIEW}.costsHeader`)} testID="review-costs">
-        {line(t('socialRecovery.costLines.recovery'))}
-        {line(t(`${REVIEW}.publication.lead`), 'review-publication-lead')}
-        {!!publication && line(publication, 'review-publication')}
-        {line(t('socialRecovery.costLines.save'), 'review-save-cost')}
-      </SectionCard>
-
-      <SectionCard label={t(`${REVIEW}.privacyHeader`)} testID="review-privacy">
-        {privacyLinesOf(draft, addressBook, load.passwordSet, t).map((privacyLine, index) => (
-          <Text
-            // The privacy lines of one level are fixed in number and order.
-            // eslint-disable-next-line react/no-array-index-key
-            key={index}
-            fontSize={14}
-            weight={index === 0 ? 'medium' : 'regular'}
-            style={spacings.mbTy}
-            testID={`review-privacy-${index}`}
-          >
-            {privacyLine}
-          </Text>
-        ))}
-      </SectionCard>
-
-      <Pressable
-        testID="review-verify-details"
-        accessibilityRole="button"
-        // react-native-web renders this as aria-expanded; the React Native
-        // types do not declare it, so it travels in a spread
-        {...{ accessibilityExpanded: expanded }}
-        onPress={() => setExpanded((open) => !open)}
-        style={[
-          flexbox.directionRow,
-          flexbox.alignCenter,
-          flexbox.justifySpaceBetween,
-          common.borderRadiusPrimary,
-          spacings.ph,
-          spacings.pvSm,
-          expanded ? spacings.mbTy : spacings.mbLg,
-          {
-            borderWidth: 1,
-            borderColor: theme.secondaryBorder,
-            backgroundColor: theme.secondaryBackground
-          }
-        ]}
+  const aside = (
+    <>
+      <SectionCard
+        tone="muted"
+        spacing="item"
+        label={t(`${REVIEW}.publicationHeader`)}
+        testID="review-what-publishes"
       >
-        <Text fontSize={14} weight="medium">
-          {t(`${REVIEW}.verifyDetails`)}
-        </Text>
-        {expanded ? <UpArrowIcon /> : <DownArrowIcon />}
-      </Pressable>
-      {expanded && !!ready && (
-        <View style={spacings.mbLg}>
-          <TrustList rows={rows} client={ready} onRetry={retry} />
-        </View>
-      )}
-      {expanded && client.status === 'loading' && (
-        <SectionCard>
-          <ActivityIndicator testID="review-trust-spinner" />
-        </SectionCard>
-      )}
+        {note(t(`${REVIEW}.publication.lead`), 'review-publication-lead')}
+        {!!publication && note(publication, 'review-publication')}
+      </SectionCard>
+      <SectionCard
+        tone="muted"
+        spacing="item"
+        label={t(`${REVIEW}.spareKeyHeader`)}
+        testID="review-comparison"
+      >
+        {note(t(`${REVIEW}.spareKey`), 'review-spare-key')}
+      </SectionCard>
+    </>
+  )
 
-      <SectionCard label={t(`${REVIEW}.account.header`)} testID="review-account">
-        {!!name && (
-          <Text fontSize={16} weight="medium" style={spacings.mbTy} testID="review-account-label">
-            {name.name}
+  return (
+    <TwoColumn testID="review-columns" aside={aside}>
+      <View testID="review">
+        {title}
+
+        <SectionCard>
+          <PathBlock
+            clauses={clauses}
+            enrollments={load.enrollments}
+            addressBook={addressBook}
+            onRetryTest={(target) => navigate(enrollPathOf(target))}
+          />
+          {ruleLines.length > 0 && (
+            <View style={spacings.mtSm} testID="review-rule-lines">
+              {ruleLines.map((ruleLine, index) => (
+                <Text
+                  // The lines are rebuilt from the path on every render, so a
+                  // line's place is its identity.
+                  // eslint-disable-next-line react/no-array-index-key
+                  key={index}
+                  fontSize={14}
+                  style={spacings.mbTy}
+                  testID={`review-rule-line-${index}`}
+                >
+                  {ruleLine}
+                </Text>
+              ))}
+            </View>
+          )}
+          {needsHostileMinorityLine(clauses) &&
+            line(t(`${REVIEW}.hostileMinority`), 'review-hostile-minority')}
+        </SectionCard>
+
+        <SectionCard label={renderNoun('waitingPeriod', t)}>
+          <Text fontSize={16} weight="medium" style={spacings.mbTy} testID="review-wait">
+            {renderWait(draft.wait, t)}
           </Text>
-        )}
-        <Text
-          fontSize={14}
-          weight="number_medium"
-          selectable
-          style={spacings.mbTy}
-          testID="review-account-address"
-        >
-          {renderFullAddress(account)}
-        </Text>
-        {note(t(`${REVIEW}.account.check`), 'review-account-check')}
-        {!!name?.caveat && note(name.caveat, 'review-account-caveat')}
-        {removedKey.status === 'answered' && removedKey.value.kind === 'named' && (
-          <View style={spacings.mtTy} testID="review-removed-key">
-            <View
-              style={[
-                common.borderRadiusPrimary,
-                spacings.phSm,
-                spacings.pvSm,
-                spacings.mbTy,
-                { backgroundColor: theme.secondaryBackground }
-              ]}
+          <Text fontSize={12} appearance="secondaryText" testID="review-wait-minimum">
+            {t(`${REVIEW}.minimum`, { minimum: renderWaitLength(WAIT_FLOOR_SECONDS, t) })}
+          </Text>
+        </SectionCard>
+
+        <SectionCard label={t(`${REVIEW}.privacyHeader`)} testID="review-privacy">
+          {privacyLinesOf(draft, addressBook, load.passwordSet, t).map((privacyLine, index) => (
+            <Text
+              // The privacy lines of one level are fixed in number and order.
+              // eslint-disable-next-line react/no-array-index-key
+              key={index}
+              fontSize={14}
+              weight={index === 0 ? 'medium' : 'regular'}
+              style={spacings.mbTy}
+              testID={`review-privacy-${index}`}
             >
-              <SectionLabel>{renderValueLabel('keyBeingRemoved', t)}</SectionLabel>
-              <Text
-                fontSize={14}
-                weight="number_medium"
-                selectable
-                testID="review-removed-key-address"
-              >
-                {renderFullAddress(removedKey.value.key)}
+              {privacyLine}
+            </Text>
+          ))}
+        </SectionCard>
+
+        <SectionCard label={t(`${REVIEW}.account.header`)} testID="review-account">
+          <Text fontSize={14} weight="medium" selectable testID="review-account-line">
+            {name
+              ? t('socialRecovery.display.nameWithAccount', {
+                  name: name.name,
+                  account: renderFullAddress(account)
+                })
+              : renderFullAddress(account)}
+          </Text>
+        </SectionCard>
+
+        <View testID="review-details">
+          <Pressable
+            testID="review-verify-details"
+            accessibilityRole="button"
+            // react-native-web renders this as aria-expanded; the React Native
+            // types do not declare it, so it travels in a spread
+            {...{ accessibilityExpanded: expanded }}
+            onPress={() => setExpanded((open) => !open)}
+            style={[
+              flexbox.directionRow,
+              flexbox.alignCenter,
+              flexbox.justifySpaceBetween,
+              common.borderRadiusPrimary,
+              spacings.ph,
+              spacings.pvSm,
+              spacings.mbSm,
+              {
+                borderWidth: 1,
+                borderColor: theme.secondaryBorder,
+                backgroundColor: theme.secondaryBackground
+              }
+            ]}
+          >
+            <Text fontSize={14} weight="medium">
+              {t(`${REVIEW}.verifyDetails`)}
+            </Text>
+            {expanded ? <UpArrowIcon /> : <DownArrowIcon />}
+          </Pressable>
+          {expanded && !!ready && (
+            <View style={spacings.mbSm}>
+              <TrustList rows={rows} client={ready} onRetry={retry} />
+            </View>
+          )}
+          {expanded && client.status === 'loading' && (
+            <SectionCard>
+              <ActivityIndicator testID="review-trust-spinner" />
+            </SectionCard>
+          )}
+        </View>
+
+        {!!clientRefusal && (
+          <View style={spacings.mbLg} testID="review-client-refusal">
+            <Alert type="error" size="sm" title={clientRefusal.title} text={clientRefusal.body} />
+          </View>
+        )}
+
+        {!!gate.blocked && (
+          <SaveBlocker
+            blocked={gate.blocked}
+            onRetry={retryUnanswered}
+            onOpen={() => navigate(WEB_ROUTES.socialRecoveryManage)}
+            onEditor={() => navigate(WEB_ROUTES.socialRecoverySetupEditor)}
+            onPrivacy={() => navigate(WEB_ROUTES.socialRecoverySetupPrivacy)}
+          />
+        )}
+
+        {gate.notTested && (
+          <SectionCard testID="review-not-tested">
+            <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap, spacings.mbTy]}>
+              <StatusChip text={renderChip('method', 'notTested', t)} style={spacings.mrSm} />
+              <Text fontSize={16} weight="medium">
+                {t(`${REVIEW}.blocked.notTested.title`, { count: gate.notTested.length })}
               </Text>
             </View>
-            <Text fontSize={12} appearance="secondaryText" testID="review-removed-key-line">
-              {t(`${REVIEW}.keyRemovedLine`)}
-            </Text>
-          </View>
-        )}
-        {!!ready && removedKey.status === 'pending' && (
-          <ActivityIndicator testID="review-removed-key-pending" />
-        )}
-      </SectionCard>
-
-      {!!clientRefusal && (
-        <View style={spacings.mbLg} testID="review-client-refusal">
-          <Alert type="error" size="sm" title={clientRefusal.title} text={clientRefusal.body} />
-        </View>
-      )}
-
-      {!!gate.blocked && (
-        <SaveBlocker
-          blocked={gate.blocked}
-          onRetry={retryUnanswered}
-          onOpen={() => navigate(WEB_ROUTES.socialRecoveryManage)}
-          onEditor={() => navigate(WEB_ROUTES.socialRecoverySetupEditor)}
-          onPrivacy={() => navigate(WEB_ROUTES.socialRecoverySetupPrivacy)}
-        />
-      )}
-
-      {gate.notTested && (
-        <SectionCard testID="review-not-tested">
-          <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap, spacings.mbTy]}>
-            <StatusChip
-              text={renderChip('method', 'notTested', t)}
-              tone="warning"
-              style={spacings.mrSm}
-            />
-            <Text fontSize={16} weight="medium">
-              {t(`${REVIEW}.blocked.notTested.title`, { count: gate.notTested.length })}
-            </Text>
-          </View>
-          {gate.notTested.map(({ credential, clause, member }) => {
-            const testID = `review-not-tested-${clause}-${member}`
-            const rowName = pathRowOf(credential, load.enrollments, addressBook, t).name
-            const kind = kindOf(credential, addressBook)
-            // A row named by its kind alone, a passkey with no label or an
-            // identity method, does not repeat the kind beside the name.
-            const kindName = kind && kindNameOf(kind, t) !== rowName ? kindNameOf(kind, t) : null
-            return (
-              <View
-                key={testID}
-                testID={testID}
-                style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap, spacings.mbTy]}
-              >
-                <Text fontSize={14} weight="medium" style={spacings.mrTy} testID={`${testID}-name`}>
-                  {rowName}
-                </Text>
-                {!!kindName && (
-                  <Text fontSize={14} appearance="secondaryText" testID={`${testID}-kind`}>
-                    {kindName}
+            {gate.notTested.map(({ credential, clause, member }) => {
+              const testID = `review-not-tested-${clause}-${member}`
+              const rowName = pathRowOf(credential, load.enrollments, addressBook, t).name
+              const kind = kindOf(credential, addressBook)
+              // A row named by its kind alone, a passkey with no label or an
+              // identity method, does not repeat the kind beside the name.
+              const kindName = kind && kindNameOf(kind, t) !== rowName ? kindNameOf(kind, t) : null
+              return (
+                <View
+                  key={testID}
+                  testID={testID}
+                  style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap, spacings.mbTy]}
+                >
+                  <Text
+                    fontSize={14}
+                    weight="medium"
+                    style={spacings.mrTy}
+                    testID={`${testID}-name`}
+                  >
+                    {rowName}
                   </Text>
-                )}
-              </View>
-            )
-          })}
-          <Text fontSize={14} appearance="secondaryText">
-            {t(`${REVIEW}.blocked.notTested.body`)}
-          </Text>
-        </SectionCard>
-      )}
+                  {!!kindName && (
+                    <Text fontSize={14} appearance="secondaryText" testID={`${testID}-kind`}>
+                      {kindName}
+                    </Text>
+                  )}
+                </View>
+              )
+            })}
+            <Text fontSize={14} appearance="secondaryText">
+              {t(`${REVIEW}.blocked.notTested.body`)}
+            </Text>
+          </SectionCard>
+        )}
 
-      <ActionsRow
-        primary={
-          <Button
-            testID="review-save"
-            type="primary"
-            text={t(`${REVIEW}.save`)}
-            disabled={!gate.canSave}
-            onPress={() => navigate(WEB_ROUTES.socialRecoverySetupSave)}
-            hasBottomSpacing={false}
-          />
-        }
-        secondary={
-          <>
-            {clientRetry}
-            {back}
-          </>
-        }
-        note={t(`${REVIEW}.oneConfirmation`)}
-      />
-    </View>
+        <ActionsRow
+          primary={
+            <Button
+              testID="review-save"
+              type="primary"
+              text={t(`${REVIEW}.save`)}
+              disabled={!gate.canSave}
+              onPress={() => navigate(WEB_ROUTES.socialRecoverySetupSave)}
+              hasBottomSpacing={false}
+            />
+          }
+          secondary={
+            <>
+              {clientRetry}
+              {back}
+            </>
+          }
+        />
+      </View>
+    </TwoColumn>
   )
 }
 

@@ -1,6 +1,6 @@
 /**
  * The acknowledgment: the box takes only a call the guardian placed on a
- * number they already had, and the two sentences beside it say so.
+ * number they already had, and the sentence under it says so.
  */
 import React from 'react'
 
@@ -26,16 +26,8 @@ const AcknowledgmentBox = ({ acknowledged, onAcknowledged }: AcknowledgmentBoxPr
         label={t(`${ACKNOWLEDGMENT}.label`)}
         labelProps={{ fontSize: 14, weight: 'medium' }}
       />
-      <Text fontSize={12} style={spacings.mtTy} testID="guardian-acknowledgment-own-number">
-        {t(`${ACKNOWLEDGMENT}.ownNumber`)}
-      </Text>
-      <Text
-        fontSize={12}
-        appearance="secondaryText"
-        style={spacings.mtTy}
-        testID="guardian-acknowledgment-received"
-      >
-        {t(`${ACKNOWLEDGMENT}.received`)}
+      <Text fontSize={12} style={spacings.mtTy} testID="guardian-acknowledgment-call-rule">
+        {t(`${ACKNOWLEDGMENT}.callRule`)}
       </Text>
     </SectionCard>
   )

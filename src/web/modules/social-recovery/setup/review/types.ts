@@ -48,6 +48,8 @@ export interface PathRow {
   aside: string | null
   /** The status chip, or null where the records hold no verdict for an enrolled credential. */
   chip: string | null
+  /** Whether the method passed its access test, so its chip reads as a success. */
+  tested: boolean
   /** The lines under the row, in order. */
   lines: string[]
 }

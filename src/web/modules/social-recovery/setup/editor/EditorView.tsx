@@ -17,10 +17,11 @@ import Button from '@common/components/Button'
 import { useTranslation } from '@common/config/localization'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import type { Clause, Finding, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
-import { ActionsRow } from '@web/modules/social-recovery/shared/chrome'
+import { ActionsRow, TwoColumn } from '@web/modules/social-recovery/shared/chrome'
 import { defaultSetupDraft } from '@web/modules/social-recovery/shared/records'
 import type { SlotKind } from '@web/modules/social-recovery/shared/records'
-import { getRuleLines } from '@web/modules/social-recovery/shared/rule-lines'
+import { getRuleLines, RULE_LINE_KEYS } from '@web/modules/social-recovery/shared/rule-lines'
+import type { RuleLineKey } from '@web/modules/social-recovery/shared/rule-lines'
 
 import EditorActions from './EditorActions'
 import EditorHeader from './EditorHeader'
@@ -31,6 +32,7 @@ import {
   editorErrorsOf,
   emptySlotOf,
   enrollSearchOf,
+  fillOf,
   isEmptySlot,
   kindOf,
   makeItAGroup,
@@ -65,6 +67,12 @@ import type {
   SlotPosition
 } from './types'
 
+/** The lines that offer a second method; while one shows, the path offers the button that adds it. */
+const SECOND_METHOD_OFFERS: readonly RuleLineKey[] = [
+  RULE_LINE_KEYS.secondMethodOffer,
+  RULE_LINE_KEYS.secondMethodOfferAny
+]
+
 const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps) => {
   const { t } = useTranslation()
   const [load, setLoad] = useState<EditorLoad | null>(null)
@@ -93,7 +101,6 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
         const next: EditorLoad = {
           draft: stored,
           enrollments: enrollments.status === 'present' ? enrollments.value : [],
-          mode: stored.clauses.length > 0 ? 'adjust' : 'build',
           roles: rolesOf(stored.clauses)
         }
         loadRef.current = next
@@ -369,76 +376,70 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
     clientRefusal = 'unavailable'
   }
 
+  const aside = ruleLines.length > 0 ? <RuleLines ruleLines={ruleLines} /> : undefined
+
   return (
-    <View testID="editor">
-      <EditorHeader mode={load.mode} refused={refused} />
+    <TwoColumn testID="editor-columns" aside={aside}>
+      <View testID="editor">
+        <EditorHeader fill={fillOf(clauses)} refused={refused} />
 
-      <EditorPath
-        rows={rows}
-        groups={groups}
-        heldThresholds={heldThresholds}
-        rowChoosingGroup={rowChoosingGroup}
-        addressBook={addressBook}
-        enrollments={load.enrollments}
-        checking={checking}
-        menu={menu}
-        onOpenSlot={openSlot}
-        onPickKind={onPickKind}
-        onCloseMenu={closeMenu}
-        onToggleMenu={toggleMenu}
-        onMove={onMove}
-        onOpenGroupChoice={setRowChoosingGroup}
-        onCloseGroupChoice={() => setRowChoosingGroup(null)}
-        onRemove={(index) =>
-          commit(removeClause(current(), index), withoutRole(currentRoles(), index))
-        }
-        onThresholdText={onThresholdText}
-        onMakeRequired={(index, member) => {
-          setMenu(null)
-          apply(makeRequired(current(), index, member), () => [...currentRoles(), 'required'])
-        }}
-        onRemoveMember={(index, member) =>
-          commit(removeMember(current(), index, member), currentRoles())
-        }
-        onRemoveGroup={(index) =>
-          commit(removeClause(current(), index), withoutRole(currentRoles(), index))
-        }
-        onAddGroup={() => commit(addGroup(current()), [...currentRoles(), 'group'])}
-      />
-
-      {ruleLines.length > 0 && (
-        <RuleLines
-          ruleLines={ruleLines}
+        <EditorPath
+          rows={rows}
+          groups={groups}
+          heldThresholds={heldThresholds}
+          rowChoosingGroup={rowChoosingGroup}
+          addressBook={addressBook}
+          enrollments={load.enrollments}
           checking={checking}
-          secondMenuOpen={menu?.place === 'second'}
+          menu={menu}
+          onOpenSlot={openSlot}
+          onPickKind={onPickKind}
+          onCloseMenu={closeMenu}
+          onToggleMenu={toggleMenu}
+          onMove={onMove}
+          onOpenGroupChoice={setRowChoosingGroup}
+          onCloseGroupChoice={() => setRowChoosingGroup(null)}
+          onRemove={(index) =>
+            commit(removeClause(current(), index), withoutRole(currentRoles(), index))
+          }
+          onThresholdText={onThresholdText}
+          onMakeRequired={(index, member) => {
+            setMenu(null)
+            apply(makeRequired(current(), index, member), () => [...currentRoles(), 'required'])
+          }}
+          onRemoveMember={(index, member) =>
+            commit(removeMember(current(), index, member), currentRoles())
+          }
+          onRemoveGroup={(index) =>
+            commit(removeClause(current(), index), withoutRole(currentRoles(), index))
+          }
+          onAddGroup={() => commit(addGroup(current()), [...currentRoles(), 'group'])}
+          offersSecondMethod={ruleLines.some(({ key }) => SECOND_METHOD_OFFERS.includes(key))}
           canMakeItAGroup={offersMakeItAGroup(clauses)}
           // The offer counts required rows by their stored shape, so the
           // press gathers every clause that shape reads as a row.
           onMakeItAGroup={() =>
             commit(makeItAGroup(current()), makeItAGroupRoles(rolesOf(current())))
           }
-          onToggleSecondMenu={() => toggleMenu({ place: 'second' })}
-          onPickKind={onPickKind}
-          onCloseMenu={closeMenu}
         />
-      )}
 
-      <EditorActions
-        client={client}
-        clientRefusal={clientRefusal}
-        walletRefusals={walletRefusals}
-        roles={load.roles}
-        findings={findings}
-        methodCount={methodCount}
-        checking={checking}
-        checkFailed={checkFailed}
-        writeFailed={writeFailed}
-        thresholdHeld={thresholdHeld}
-        onRetryWrite={retryWrite}
-        onContinue={onContinue}
-        onBack={() => navigate(WEB_ROUTES.socialRecoverySetup)}
-      />
-    </View>
+        <EditorActions
+          client={client}
+          clientRefusal={clientRefusal}
+          walletRefusals={walletRefusals}
+          roles={load.roles}
+          findings={findings}
+          methodCount={methodCount}
+          checking={checking}
+          checkFailed={checkFailed}
+          writeFailed={writeFailed}
+          thresholdHeld={thresholdHeld}
+          onRetryWrite={retryWrite}
+          onContinue={onContinue}
+          onBack={() => navigate(WEB_ROUTES.socialRecoverySetup)}
+        />
+      </View>
+    </TwoColumn>
   )
 }
 

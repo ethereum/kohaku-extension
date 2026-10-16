@@ -25,12 +25,7 @@ export const warningCopyOf = (form: WarningForm): WarningCopy => {
     counter: recover,
     header: `${WARNING}.header`,
     lead: `${WARNING}.lead`,
-    lines: [
-      `${WARNING}.body`,
-      `${WARNING}.nobodyWatches`,
-      `${WARNING}.nobodyNeedsPhrase`,
-      `${WARNING}.walkAway`
-    ],
+    lines: [`${WARNING}.body`, `${WARNING}.nobodyWatches`, `${WARNING}.nobodyNeedsPhrase`],
     pointer: recover
       ? { line: `${WARNING}.importPointer`, action: `${WARNING}.importAction` }
       : null,

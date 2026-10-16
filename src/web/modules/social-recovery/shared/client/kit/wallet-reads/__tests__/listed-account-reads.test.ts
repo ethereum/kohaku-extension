@@ -101,7 +101,7 @@ describe('a listed account another wallet recovered', () => {
     const { reads } = listedWorldOf({ holders: [KEY_C], authorities: [KEY_C] })
     await expect(reads.removedKey()).resolves.toEqual({
       kind: 'unavailable',
-      cause: 'no-key-entry'
+      cause: 'not-a-key'
     })
   })
 })

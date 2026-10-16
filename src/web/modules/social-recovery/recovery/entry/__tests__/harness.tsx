@@ -18,13 +18,19 @@ import type { Account } from '@ambire-common/interfaces/account'
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
 import type {
+  ActionState,
   Address,
+  BlockHeader,
   Configuration,
   Gathering,
+  Handover,
+  Hex,
   PrivacyLevel,
   SetupState
 } from '@web/modules/social-recovery/sdk-interfaces'
 import type {
+  AttemptEvents,
+  AttemptScan,
   FitCheckReading,
   RecoveryKitClient,
   RemovedKeyReading
@@ -88,6 +94,15 @@ export interface KitReads {
   holdsAnyPrivilege: jest.Mock<Promise<boolean>, [Address]>
   removedKey: jest.Mock<Promise<RemovedKeyReading>, []>
   fitCheck: jest.Mock<Promise<FitCheckReading>, []>
+}
+
+/** The registry's reads the page opens for the running attempt, one mock each, so a test scripts each call. */
+export interface FakeAttemptReads {
+  latestBlock: jest.Mock<Promise<BlockHeader>, []>
+  stateOf: jest.Mock<Promise<ActionState>, [Address, number]>
+  attemptEventsOf: jest.Mock<Promise<AttemptEvents>, [Address, bigint, AttemptScan]>
+  blockTime: jest.Mock<Promise<number>, [number]>
+  handoverOf: jest.Mock<Handover | undefined, [Hex]>
 }
 
 export interface Mounted {

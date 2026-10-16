@@ -74,6 +74,7 @@ jest.mock('@web/modules/social-recovery/recovery/submit/SubmitScreen', () => moc
 jest.mock('@web/modules/social-recovery/recovery/wait/WaitScreen', () => mockScreen('wait'))
 jest.mock('@web/modules/social-recovery/recovery/done/DoneScreen', () => mockScreen('done-screen'))
 jest.mock('@web/modules/social-recovery/guardian-page/ApproveScreen', () => mockScreen('approve'))
+jest.mock('@web/modules/social-recovery/cancel/CancelScreen', () => mockScreen('cancel'))
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const React: typeof import('react') = require('react')

@@ -1,6 +1,7 @@
 /**
  * The privacy step: Private, the default, Shape visible and Public, each with
- * the line of what a stranger can read, and the exposure line of the path. At
+ * the line of what a stranger can read, and beside them what of the path stays
+ * hidden. At
  * Private and Shape visible the recovery password is typed twice beside both
  * halves of the trade; at Public no password field renders. Continue stores
  * the level and opens the review.
@@ -22,7 +23,8 @@ import {
   PageTitle,
   RadioCard,
   SectionCard,
-  StatusChip
+  StatusChip,
+  TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
 import {
   addressBookOf,
@@ -151,129 +153,139 @@ const PrivacyView = ({ records, chainId, account, navigate }: PrivacyViewProps) 
     }
   }, [ready, setup, chainId, account, level, password, navigate])
 
-  return (
-    <View testID="privacy-screen">
-      <PageTitle title={t(`${LEVEL}.title`)} lead={t(`${LEVEL}.lead`)} />
-      {loadFailed && (
-        <Text testID="load-failed" fontSize={14} appearance="errorText" style={spacings.mbSm}>
-          {t('socialRecovery.records.loadFailed')}
+  const aside = exposure.guardians ? (
+    <SectionCard
+      tone="muted"
+      spacing="item"
+      label={t(`${LEVEL}.exposure.header`)}
+      testID="exposure"
+    >
+      <Text
+        testID="exposure-guardians"
+        fontSize={12}
+        appearance="secondaryText"
+        style={exposure.unguessable ? spacings.mbTy : undefined}
+      >
+        {exposure.guardians}
+      </Text>
+      {!!exposure.unguessable && (
+        <Text testID="exposure-unguessable" fontSize={12} appearance="secondaryText">
+          {exposure.unguessable}
         </Text>
       )}
-      <SectionCard label={t(`${LEVEL}.header`)}>
-        {OFFERED_LEVELS.map((offered) => (
-          <RadioCard
-            key={offered}
-            testID={`level-${offered}`}
-            selected={level === offered}
-            disabled={!loaded}
-            onPress={() => setLevel(offered)}
-          >
-            <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mbTy]}>
-              <Text fontSize={16} weight="medium" style={spacings.mrSm}>
-                {t(`${LEVEL}.${LEVEL_SLUGS[offered]}.label`)}
-              </Text>
-              {offered === 'private' && <StatusChip text={t(`${LEVEL}.private.badge`)} />}
-            </View>
-            <Text testID={`level-line-${offered}`} fontSize={14}>
-              {lineOf(offered)}
-            </Text>
-          </RadioCard>
-        ))}
-        {!!exposure.guardians && (
-          <View testID="exposure" style={spacings.mtTy}>
-            <Text
-              testID="exposure-guardians"
-              fontSize={12}
-              appearance="secondaryText"
-              style={exposure.unguessable ? spacings.mbTy : undefined}
-            >
-              {exposure.guardians}
-            </Text>
-            {!!exposure.unguessable && (
-              <Text testID="exposure-unguessable" fontSize={12} appearance="secondaryText">
-                {exposure.unguessable}
-              </Text>
-            )}
-          </View>
+    </SectionCard>
+  ) : undefined
+
+  return (
+    <TwoColumn testID="privacy-columns" aside={aside}>
+      <View testID="privacy-screen">
+        <PageTitle title={t(`${LEVEL}.title`)} lead={t(`${LEVEL}.lead`)} />
+        {loadFailed && (
+          <Text testID="load-failed" fontSize={14} appearance="errorText" style={spacings.mbSm}>
+            {t('socialRecovery.records.loadFailed')}
+          </Text>
         )}
-      </SectionCard>
-      {hidden ? (
-        <View testID="recovery-password">
-          <SectionCard label={renderPasswordName('recoveryPassword', t)} spacing="item">
-            <Text fontSize={14} style={spacings.mbSm}>
-              {t(`${LEVEL}.requiredAtPrivate`)}
-            </Text>
-            <InputPassword
-              testID="password"
-              label={t(`${LEVEL}.passwordLabel`)}
-              value={password}
+        <SectionCard label={t(`${LEVEL}.header`)}>
+          {OFFERED_LEVELS.map((offered) => (
+            <RadioCard
+              key={offered}
+              testID={`level-${offered}`}
+              selected={level === offered}
               disabled={!loaded}
-              onChangeText={setPassword}
-            />
-            <InputPassword
-              testID="password-confirmation"
-              label={t(`${LEVEL}.confirmLabel`)}
-              value={confirmation}
-              disabled={!loaded}
-              onChangeText={setConfirmation}
-            />
-            {mismatch && (
-              <Text testID="mismatch" fontSize={14} appearance="errorText" style={spacings.mbSm}>
-                {t(`${LEVEL}.mismatch`)}
+              onPress={() => setLevel(offered)}
+            >
+              <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mbTy]}>
+                <Text fontSize={16} weight="medium" style={spacings.mrSm}>
+                  {t(`${LEVEL}.${LEVEL_SLUGS[offered]}.label`)}
+                </Text>
+                {offered === 'private' && (
+                  <StatusChip text={t('socialRecovery.privacy.defaultChip')} />
+                )}
+              </View>
+              <Text testID={`level-line-${offered}`} fontSize={14}>
+                {lineOf(offered)}
               </Text>
-            )}
-            <Text testID="trade-card" fontSize={14} style={spacings.mbTy}>
-              {t(`${LEVEL}.tradeCard`)}
+            </RadioCard>
+          ))}
+        </SectionCard>
+        {hidden ? (
+          <View testID="recovery-password">
+            <SectionCard label={renderPasswordName('recoveryPassword', t)} spacing="item">
+              <Text fontSize={14} style={spacings.mbSm}>
+                {t(`${LEVEL}.requiredAtPrivate`)}
+              </Text>
+              <InputPassword
+                testID="password"
+                label={t(`${LEVEL}.passwordLabel`)}
+                value={password}
+                disabled={!loaded}
+                onChangeText={setPassword}
+              />
+              <InputPassword
+                testID="password-confirmation"
+                label={t(`${LEVEL}.confirmLabel`)}
+                value={confirmation}
+                disabled={!loaded}
+                onChangeText={setConfirmation}
+              />
+              {mismatch && (
+                <Text testID="mismatch" fontSize={14} appearance="errorText" style={spacings.mbSm}>
+                  {t(`${LEVEL}.mismatch`)}
+                </Text>
+              )}
+              <Text testID="trade-card" fontSize={14} style={spacings.mbTy}>
+                {t(`${LEVEL}.tradeCard`)}
+              </Text>
+              <Text testID="trade-loss" fontSize={14}>
+                {t(`${LEVEL}.tradeLoss`)}
+              </Text>
+            </SectionCard>
+            <Text fontSize={12} appearance="secondaryText" style={spacings.mbLg}>
+              {t(`${LEVEL}.unlockLine`)}
             </Text>
-            <Text testID="trade-loss" fontSize={14}>
-              {t(`${LEVEL}.tradeLoss`)}
+          </View>
+        ) : (
+          <SectionCard tone="muted">
+            <Text testID="public-line" fontSize={14}>
+              {t(`${LEVEL}.publicLine`)}
             </Text>
           </SectionCard>
-          <Text fontSize={12} appearance="secondaryText" style={spacings.mbLg}>
-            {t(`${LEVEL}.unlockLine`)}
-          </Text>
-        </View>
-      ) : (
-        <SectionCard tone="muted">
-          <Text testID="public-line" fontSize={14}>
-            {t(`${LEVEL}.publicLine`)}
-          </Text>
-        </SectionCard>
-      )}
-      {writeFailed && (
-        <Alert
-          type="error"
-          size="sm"
-          style={spacings.mbSm}
-          text={
-            <Alert.Text size="sm" type="error" testID="write-failed">
-              {t('socialRecovery.records.writeFailed')}
-            </Alert.Text>
+        )}
+        {writeFailed && (
+          <Alert
+            type="error"
+            size="sm"
+            style={spacings.mbSm}
+            text={
+              <Alert.Text size="sm" type="error" testID="write-failed">
+                {t('socialRecovery.records.writeFailed')}
+              </Alert.Text>
+            }
+          />
+        )}
+        <ActionsRow
+          primary={
+            <Button
+              testID="continue"
+              text={t('socialRecovery.actions.continue')}
+              disabled={!ready || busy}
+              onPress={onContinue}
+              hasBottomSpacing={false}
+            />
+          }
+          secondary={
+            <Button
+              testID="back"
+              type="outline"
+              text={t('socialRecovery.ceremony.backAction')}
+              disabled={busy}
+              onPress={() => navigate(WEB_ROUTES.socialRecoverySetupWaitingPeriod)}
+              hasBottomSpacing={false}
+            />
           }
         />
-      )}
-      <ActionsRow
-        primary={
-          <Button
-            testID="continue"
-            text={t('socialRecovery.actions.continue')}
-            disabled={!ready || busy}
-            onPress={onContinue}
-            hasBottomSpacing={false}
-          />
-        }
-        secondary={
-          <Button
-            testID="back"
-            type="outline"
-            text={t('socialRecovery.ceremony.backAction')}
-            disabled={busy}
-            onPress={() => navigate(WEB_ROUTES.socialRecoverySetupWaitingPeriod)}
-            hasBottomSpacing={false}
-          />
-        }
-      />
-    </View>
+      </View>
+    </TwoColumn>
   )
 }
 

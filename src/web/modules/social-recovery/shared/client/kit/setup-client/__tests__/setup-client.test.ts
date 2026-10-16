@@ -209,8 +209,14 @@ describe('describeSetup', () => {
     expect((await named.setup.describeSetup(named.draft('private'))).removedKey).toBe(KEY_B)
     const unnamed = kitWorld({ removedKey: { kind: 'unavailable', cause: 'several-key-entries' } })
     expect((await unnamed.setup.describeSetup(unnamed.draft('private'))).removedKey).toBe(
-      'no-creation-triple'
+      'no-source'
     )
+  })
+
+  it('describes the setup with the removed key unread where its read failed', async () => {
+    const world = kitWorld()
+    world.removedKey.mockRejectedValueOnce(new Error('node down'))
+    expect((await world.setup.describeSetup(world.draft('private'))).removedKey).toBe('unread')
   })
 
   it("describes the draft's methods, the action and the privacy as the review reads them", async () => {

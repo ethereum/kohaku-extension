@@ -12,6 +12,7 @@ import type {
   SetupErrorCode
 } from '@web/modules/social-recovery/sdk-interfaces'
 import { renderChip } from '@web/modules/social-recovery/shared/display'
+import type { StatusChipTone } from '@web/modules/social-recovery/shared/chrome'
 import type { MethodChip, Translate } from '@web/modules/social-recovery/shared/display'
 import type {
   Enrollment,
@@ -123,6 +124,15 @@ export const renderRowChip = (
   const enrollment = enrollmentOf(credential, enrollments)
   return enrollment ? renderChip('method', VERDICT_CHIPS[enrollment.test], t) : null
 }
+
+/** A row's chip reads as a success once its method passed the access test. */
+export const rowChipTone = (
+  credential: Credential,
+  enrollments: readonly Enrollment[]
+): StatusChipTone =>
+  !isEmptySlot(credential) && enrollmentOf(credential, enrollments)?.test === 'passed'
+    ? 'success'
+    : 'default'
 
 /**
  * The line a failed access test carries beside its chip: that the check did

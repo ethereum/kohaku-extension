@@ -262,6 +262,6 @@ const ArmStep = ({ records, chainId, account, navigate }: StepViewProps) => {
   )
 }
 
-const ArmScreen = () => <SettingsChrome step={ArmStep} />
+const ArmScreen = () => <SettingsChrome step={ArmStep} stage={6} />
 
 export default React.memo(ArmScreen)

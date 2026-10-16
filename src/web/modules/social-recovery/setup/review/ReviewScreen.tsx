@@ -7,6 +7,10 @@ import { isAddress, isAddressEqual } from 'viem'
 
 import useNavigation from '@common/hooks/useNavigation'
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
+import {
+  SETUP_STAGE_COUNTER_KEY,
+  SETUP_STAGES
+} from '@web/modules/social-recovery/shared/chrome/constants'
 import SetupChrome from '@web/modules/social-recovery/shared/chrome/SetupChrome'
 import useSetupAccount from '@web/modules/social-recovery/shared/chrome/useSetupAccount'
 import { CHAIN_IDS, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
@@ -51,7 +55,14 @@ const ReviewScreen = () => {
   }, [kit, status, retry])
 
   return (
-    <SetupChrome>
+    <SetupChrome
+      counter={{
+        labelKey: SETUP_STAGE_COUNTER_KEY,
+        step: 5,
+        total: SETUP_STAGES,
+        testID: 'review-stage'
+      }}
+    >
       {!!account && (
         <ReviewView
           key={account}

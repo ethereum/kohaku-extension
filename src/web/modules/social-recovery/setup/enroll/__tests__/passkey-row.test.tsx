@@ -168,7 +168,7 @@ describe('the passkey row', () => {
       expect(view!.byTestId('passkey-create-on-phone')).toBeNull()
     })
 
-    it('offers the kind, the authenticators, the name, both routes and the test to come', async () => {
+    it('offers the kind, the authenticators once, the name and both routes', async () => {
       await open()
       expect(view!.byTestId('passkey-chrome-only')).toBeNull()
       expect(view!.byTestId('passkey-kind-name')?.textContent).toBe(
@@ -178,7 +178,9 @@ describe('the passkey row', () => {
       expect(text).toContain(t(`${PASSKEY}.authenticators`))
       expect(text).toContain(t(`${PASSKEY}.noneYet`))
       expect(text).toContain(t(`${PASSKEY}.createLine`))
-      expect(text).toContain(t(`${PASSKEY}.testOffered`))
+      expect(text.split(t(`${PASSKEY}.authenticators`))).toHaveLength(2)
+      expect(text).not.toContain('The access test is offered right after')
+      expect(text).not.toContain(t('socialRecovery.enroll.saveWithoutTest'))
       expect(view!.byTestId('passkey-create-here')?.textContent).toBe(t(`${PASSKEY}.create`))
       expect(view!.byTestId('passkey-create-on-phone')?.textContent).toBe(
         t(`${PASSKEY}.createOnPhoneInstead`)
@@ -189,8 +191,12 @@ describe('the passkey row', () => {
     it('opens and closes the explainer under Learn more', async () => {
       await open()
       expect(view!.byTestId('passkey-explainer')).toBeNull()
+      expect(view!.byTestId('enroll-columns-aside')).toBeNull()
       await view!.press('passkey-learn-more')
       expect(view!.byTestId('passkey-explainer')?.textContent).toBe(t(`${PASSKEY}.explainer`))
+      expect(
+        view!.byTestId('enroll-columns-aside')?.contains(view!.byTestId('passkey-explainer'))
+      ).toBe(true)
       await view!.press('passkey-learn-more')
       expect(view!.byTestId('passkey-explainer')).toBeNull()
     })
@@ -900,6 +906,15 @@ describe('the passkey row', () => {
         t(`${CEREMONY}.deviceBoundLoss`)
       )
       expect(view!.byTestId('passkey-signed-note')).toBeNull()
+    })
+
+    it('drops the line that saving works without the test once the test passed', async () => {
+      await reopenWith({ credential: CREDENTIAL, test: 'passed', backup: 'synced' })
+      expect(view!.byTestId('passkey-chip')?.textContent).toBe(chip('tested'))
+      expect(view!.byTestId('enroll-save-without-test')).toBeNull()
+      expect(view!.byTestId('enroll-create-first')).toBeNull()
+      expect(view!.isDisabled('enroll-save')).toBe(false)
+      expect(view!.text()).not.toContain(t('socialRecovery.enroll.saveWithoutTest'))
     })
 
     it('renders a record with no facts, credential id or last test as before', async () => {

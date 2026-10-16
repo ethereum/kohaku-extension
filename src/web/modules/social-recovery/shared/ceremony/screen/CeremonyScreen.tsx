@@ -27,6 +27,7 @@ import {
   TabLayoutWrapperMainContent
 } from '@web/components/TabLayoutWrapper/TabLayoutWrapper'
 import type { DeviceBinding } from '@web/modules/social-recovery/sdk-interfaces'
+import { TwoColumn } from '@web/modules/social-recovery/shared/chrome'
 import { renderChip, renderHash } from '@web/modules/social-recovery/shared/display'
 import { getUiType } from '@web/utils/uiType'
 
@@ -423,7 +424,9 @@ const CeremonyScreen = () => {
       header={<Header mode="custom-inner-content" withAmbireLogo />}
     >
       <TabLayoutWrapperMainContent withScroll={false}>
-        <Panel spacingsSize="small">{renderBody()}</Panel>
+        <Panel spacingsSize="small">
+          <TwoColumn testID="ceremony-columns">{renderBody()}</TwoColumn>
+        </Panel>
       </TabLayoutWrapperMainContent>
     </TabLayoutContainer>
   )

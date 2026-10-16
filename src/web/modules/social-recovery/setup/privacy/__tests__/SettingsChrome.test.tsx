@@ -130,7 +130,7 @@ describe('the settings chrome around a step', () => {
         root.render(
           <MemoryRouter>
             <ThemeContext.Provider value={THEME_CONTEXT}>
-              <SettingsChrome step={Step} />
+              <SettingsChrome step={Step} stage={4} />
             </ThemeContext.Provider>
           </MemoryRouter>
         )
@@ -153,16 +153,21 @@ describe('the settings chrome around a step', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/somewhere')
   })
 
+  it("counts the step's stage among the setup's stages", async () => {
+    await showAccount(ACCOUNT)
+    expect(byTestId('setup-stage')?.textContent).toBe('Set up · Step 4 of 7')
+  })
+
   it('shows the breadcrumb and no step while no account is selected', async () => {
     await showAccount(null)
-    expect(container.textContent).toBe(BREADCRUMB)
+    expect(container.textContent).toBe(`${BREADCRUMB}Set up · Step 4 of 7`)
     expect(byTestId('step')).toBeNull()
     expect(stepRenders).toHaveLength(0)
   })
 
   it('shows no step for a selected account that is not an address', async () => {
     await showAccount('not-an-address')
-    expect(container.textContent).toBe(BREADCRUMB)
+    expect(container.textContent).toBe(`${BREADCRUMB}Set up · Step 4 of 7`)
     expect(byTestId('step')).toBeNull()
     expect(stepRenders).toHaveLength(0)
   })

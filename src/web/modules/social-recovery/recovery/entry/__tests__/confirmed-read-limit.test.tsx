@@ -104,7 +104,7 @@ describe('the reads after the confirmation have a time limit', () => {
     await screen.press('entry-reads-fit-failed-retry')
     expect(screen.has('entry-continue')).toBe(true)
 
-    await outside(() => answerLate({ kind: 'unavailable', cause: 'no-creation-record' }))
+    await outside(() => answerLate({ kind: 'unavailable', cause: 'no-source' }))
 
     expect(screen.has('entry-continue')).toBe(true)
     expect(screen.has('entry-cannot-recover')).toBe(false)

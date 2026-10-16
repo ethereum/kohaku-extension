@@ -15,15 +15,17 @@ import {
 
 import GroupCard from './GroupCard'
 import KindMenuButton from './KindMenuButton'
-import { ADD_KINDS } from './operations'
+import { ADD_KINDS, SECOND_METHOD_KINDS } from './operations'
 import RequiredRow from './RequiredRow'
 import type { EditorPathProps } from './types'
 
 /**
  * The path as one tree: the required rows, then the groups, with the line on
  * the left joining them and "and" between each two, since recovery needs every
- * required row and every group's threshold together. The ways to add a
- * required row and a group sit beside the line where they add.
+ * required row and every group's threshold together. The groups' header
+ * draws once the path holds a group. The ways to add a required row and a
+ * group sit beside the line where they add; the offers to add a second method
+ * and to make two required rows one group sit beside the way to add a group.
  */
 const EditorPath = ({
   rows,
@@ -46,7 +48,10 @@ const EditorPath = ({
   onRemoveMember,
   onToggleMenu,
   onRemoveGroup,
-  onAddGroup
+  onAddGroup,
+  offersSecondMethod,
+  canMakeItAGroup,
+  onMakeItAGroup
 }: EditorPathProps) => {
   const { t } = useTranslation()
   const shared = { addressBook, enrollments, checking, menu, onOpenSlot, onPickKind, onCloseMenu }
@@ -79,7 +84,7 @@ const EditorPath = ({
         </PathTreeNode>
       ])}
       <PathTreeNode key="add-required" variant="through">
-        <View style={spacings.mbLg}>
+        <View style={groups.length > 0 ? spacings.mbLg : spacings.mbSm}>
           <KindMenuButton
             testID="editor-add-required"
             text={t('socialRecovery.editor.addRequired')}
@@ -93,22 +98,17 @@ const EditorPath = ({
         </View>
       </PathTreeNode>
       {rows.length > 0 && groups.length > 0 && <PathTreeNode key="and-groups" variant="junction" />}
-      <PathTreeNode key="groups" variant="through" testID="editor-groups">
-        <SectionLabel testID="editor-groups-header">
-          {t(
-            groups.length === 1
-              ? 'socialRecovery.editor.groupHeader'
-              : 'socialRecovery.editor.groupsHeader'
-          )}
-        </SectionLabel>
-        {groups.length === 0 && (
-          <SectionCard tone="muted" spacing="item">
-            <Text fontSize={14} appearance="secondaryText">
-              {t('socialRecovery.editor.noGroup')}
-            </Text>
-          </SectionCard>
-        )}
-      </PathTreeNode>
+      {groups.length > 0 && (
+        <PathTreeNode key="groups" variant="through" testID="editor-groups">
+          <SectionLabel testID="editor-groups-header">
+            {t(
+              groups.length === 1
+                ? 'socialRecovery.editor.groupHeader'
+                : 'socialRecovery.editor.groupsHeader'
+            )}
+          </SectionLabel>
+        </PathTreeNode>
+      )}
       {groups.flatMap((group, position) => [
         ...(position > 0 ? [<PathTreeNode key={`and-${group.index}`} variant="junction" />] : []),
         <PathTreeNode key={`group-${group.index}`} testID={`editor-path-node-${group.index}`}>
@@ -126,7 +126,7 @@ const EditorPath = ({
         </PathTreeNode>
       ])}
       <PathTreeNode key="add-group" variant="through">
-        <View style={spacings.mbLg}>
+        <View style={[flexbox.directionRow, flexbox.wrap, spacings.mbLg]}>
           <Button
             testID="editor-add-group"
             type="secondary"
@@ -135,8 +135,32 @@ const EditorPath = ({
             onPress={onAddGroup}
             disabled={checking}
             hasBottomSpacing={false}
-            style={flexbox.alignSelfStart}
+            style={[flexbox.alignSelfStart, spacings.mrTy]}
           />
+          {canMakeItAGroup && (
+            <Button
+              testID="editor-make-it-a-group"
+              type="secondary"
+              size="small"
+              text={t('socialRecovery.editor.makeItAGroup')}
+              onPress={onMakeItAGroup}
+              disabled={checking}
+              hasBottomSpacing={false}
+              style={[flexbox.alignSelfStart, spacings.mrTy]}
+            />
+          )}
+          {offersSecondMethod && (
+            <KindMenuButton
+              testID="editor-add-second-method"
+              text={t('socialRecovery.editor.addSecondMethod')}
+              open={menu?.place === 'second'}
+              kinds={SECOND_METHOD_KINDS}
+              onToggle={() => onToggleMenu({ place: 'second' })}
+              onPick={onPickKind}
+              onClose={onCloseMenu}
+              disabled={checking}
+            />
+          )}
         </View>
       </PathTreeNode>
     </PathTree>

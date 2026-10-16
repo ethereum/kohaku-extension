@@ -25,10 +25,12 @@ import { wipeRecoveryPassword } from './recoveryPassword'
 import { ABSENT, SETUP_RECORD_NAMES } from './types'
 import type {
   CeremonyRequestRecord,
+  ChainCountdown,
   ChainId,
   CountdownAccessor,
   CountdownRead,
   CountdownRecord,
+  CountdownRestore,
   DecryptedSetupCacheRecord,
   DirectWipeEvent,
   ExecutionInFlightClaim,
@@ -126,7 +128,8 @@ const recoveryEntryPrefix = (chainId: ChainId): string =>
  *   its landed state the countdown's record;
  * - `recoveryEntry`: the route and the receiving account of a recovery;
  * - `decryptedSetupCache`: the setup the recovery password unlocked;
- * - `saveInFlight`: the setup save sent to the wallet and not yet settled.
+ * - `saveInFlight`: the setup save sent to the wallet and not yet settled;
+ * - `watcher`: the watcher's last reading of the account's attempt.
  *
  * A ceremony request is keyed by its request id alone,
  * `socialRecovery:ceremonyRequest:<id>`, since the ceremony tab reads it from
@@ -143,6 +146,8 @@ export const recordKeys = {
     `${RECORDS_KEY_PREFIX}:decryptedSetupCache:${chainPart(chainId)}:${accountPart(account)}`,
   saveInFlight: (chainId: ChainId, account: Address): string =>
     `${RECORDS_KEY_PREFIX}:saveInFlight:${chainPart(chainId)}:${accountPart(account)}`,
+  watcher: (chainId: ChainId, account: Address): string =>
+    `${RECORDS_KEY_PREFIX}:watcher:${chainPart(chainId)}:${accountPart(account)}`,
   ceremonyRequest: (id: string): string =>
     `${RECORDS_KEY_PREFIX}:ceremonyRequest:${requestIdPart(id)}`
 }
@@ -424,7 +429,7 @@ const inMemoryQueue = <R>(key: string, task: () => Promise<R>): Promise<R> => {
  * holder cannot take a Web Locks lock twice, and the in-memory queue would
  * wait for itself.
  */
-const inQueue = <R>(key: string, task: () => Promise<R>): Promise<R> => {
+export const inQueue = <R>(key: string, task: () => Promise<R>): Promise<R> => {
   const locks = typeof navigator === 'undefined' ? undefined : navigator.locks
   if (locks) {
     return locks.request(key, () => task()) as Promise<R>
@@ -437,8 +442,9 @@ const inQueue = <R>(key: string, task: () => Promise<R>): Promise<R> => {
  * taken one after another in the order given, so no single-key update of any
  * of them interleaves with it. Every caller passes its setup keys in the order
  * of `SETUP_RECORD_NAMES` and the save in flight's key after them, the
- * recoverer's abandon passes the session's key and the recovery entry's key
- * after it, and a single-key update holds one key alone. An update can wait
+ * recoverer's abandon and the countdown's restore pass the session's key and
+ * the recovery entry's key after it, and a single-key update holds one key
+ * alone. An update can wait
  * for another that holds a key it needs, but never for one that waits for a
  * key it holds, so the waits never form a cycle.
  */
@@ -1154,6 +1160,73 @@ export const createWalletRecords = ({
     }
   }
 
+  /**
+   * Keeps the countdown of an attempt found running on chain where the wait
+   * reads it, so a recoverer whose own session is gone follows the attempt
+   * the chain holds. It holds the session's key and then the recovery entry's,
+   * the order the recoverer's abandon takes them. A live session is kept and
+   * so is the entry beside it; a landed session with an execution in flight,
+   * of the same attempt (its id, its setup nonce and its payload's hash), or
+   * of a newer attempt (a greater id), is kept, and only the same attempt's
+   * gets the entry. No session, a wiped one or the countdown of an older
+   * attempt is replaced by the chain's, saved
+   * at the attempt's opening, and the entry is written after it.
+   */
+  const restoreCountdown = (
+    chainId: ChainId,
+    account: Address,
+    restored: ChainCountdown,
+    entry?: Omit<RecoveryEntryRecord, 'account'>
+  ): Promise<CountdownRestore> => {
+    const key = recordKeys.recoverySession(chainId, account)
+    const entryKey = recordKeys.recoveryEntry(chainId, account)
+    const writeEntry = async () => {
+      if (entry) {
+        await writeKey<RecoveryEntryRecord>(entryKey, {
+          account,
+          route: entry.route,
+          receivingAccount: entry.receivingAccount
+        })
+      }
+    }
+    return inQueues([key, entryKey], async (): Promise<CountdownRestore> => {
+      const current = await readSessionAt(key)
+      if (current.status === 'present' && current.value.state === 'live') {
+        return { outcome: 'kept', countdown: ABSENT }
+      }
+      if (current.status === 'present' && current.value.state === 'landed') {
+        const session = current.value
+        const same =
+          session.attemptId === restored.attemptId.toString() &&
+          session.setupNonce === restored.setupNonce.toString() &&
+          session.payloadHash !== undefined &&
+          session.payloadHash.toLowerCase() === restored.payloadHash.toLowerCase()
+        // The registry's attempt counter only grows, so a stored attempt with
+        // a greater id is the newer one.
+        const newer =
+          session.attemptId !== undefined && BigInt(session.attemptId) > restored.attemptId
+        if (same || newer || session.execution) {
+          if (same) {
+            await writeEntry()
+          }
+          return { outcome: 'kept', countdown: asCountdown(current) }
+        }
+      }
+      const written = await writeLandedAt(
+        key,
+        landedSession({
+          account,
+          attemptId: restored.attemptId.toString(),
+          setupNonce: restored.setupNonce.toString(),
+          payloadHash: restored.payloadHash
+        }),
+        restored.openedAtMs
+      )
+      await writeEntry()
+      return { outcome: 'written', countdown: { status: 'present', ...written } }
+    })
+  }
+
   /** Every countdown on a chain, the landed sessions, for the home surface. */
   const listCountdowns = async (chainId: ChainId): Promise<ListedRecord<CountdownRecord>[]> =>
     (await scanSessions(chainId)).flatMap(({ record }) =>
@@ -1295,6 +1368,7 @@ export const createWalletRecords = ({
     clearWipedSession,
     endCountdown,
     countdown,
+    restoreCountdown,
     listCountdowns,
     decryptedSetupCache,
     saveInFlight,

@@ -1,7 +1,9 @@
 /**
- * The one-line form a record travels in between the recoverer and a
- * guardian: the record as JSON, encoded base64url with no padding. The field
- * checks read a decoded record whose sender this wallet does not control.
+ * The one-line forms a record travels in between the recoverer and a
+ * guardian. The approval link carries its request as JSON encoded base64url
+ * with no padding, since it rides in a URL; the approval a guardian sends back
+ * is plain JSON on one line. The field checks read a decoded record whose
+ * sender this wallet does not control.
  */
 import { bytesToString, stringToBytes } from 'viem'
 
@@ -27,6 +29,21 @@ export const recordOfLine = (line: string): unknown => {
   }
   try {
     return JSON.parse(bytesToString(fromBase64Url(text)))
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The JSON value a pasted text carries, any JSON whitespace accepted, or null
+ * where the text is longer than a record travels in or is not JSON.
+ */
+export const recordOfJsonLine = (text: string): unknown => {
+  if (text.length > MAX_LINE_LENGTH) {
+    return null
+  }
+  try {
+    return JSON.parse(text)
   } catch {
     return null
   }

@@ -67,7 +67,7 @@ const READS: AccountReads = {
 
 const REMOVED_KEY_UNNAMED: AccountReads['removedKey'] = {
   status: 'answered',
-  value: { kind: 'unavailable', cause: 'no-key-entry' }
+  value: { kind: 'unavailable', cause: 'not-a-key' }
 }
 const SEVERAL_KEYS: AccountReads['removedKey'] = {
   status: 'answered',
@@ -75,7 +75,7 @@ const SEVERAL_KEYS: AccountReads['removedKey'] = {
 }
 const NO_CREATION_RECORD: AccountReads['removedKey'] = {
   status: 'answered',
-  value: { kind: 'unavailable', cause: 'no-creation-record' }
+  value: { kind: 'unavailable', cause: 'no-source' }
 }
 const DOES_NOT_FIT: AccountReads['fitCheck'] = {
   status: 'answered',

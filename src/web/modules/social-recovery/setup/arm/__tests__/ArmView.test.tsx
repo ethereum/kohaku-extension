@@ -213,8 +213,11 @@ describe('before the save is sent', () => {
     mount()
     expect(textOf('arm-account-address')).toBe(renderFullAddress(ACCOUNT))
     expect(textOf('arm-removed-key-address')).toBe(renderFullAddress(REMOVED_KEY))
-    expect(textOf('arm-removed-key')).toContain(renderValueLabel('keyBeingRemoved', t))
-    expect(textOf('arm-removed-key')).toContain(t('socialRecovery.review.keyRemovedLine'))
+    expect(textOf('arm-removed-key')).toContain('Key a recovery would remove')
+    expect(textOf('arm-removed-key')).not.toContain(renderValueLabel('keyBeingRemoved', t))
+    expect(textOf('arm-removed-key')).toContain(
+      'A recovery would remove this key. Saving this setup does not remove it.'
+    )
   })
 
   it('shows no removed key where the reads named none', () => {
@@ -249,6 +252,19 @@ describe('before the save is sent', () => {
   it('shows no cost line until the account facts are read', () => {
     mount({ account: { address: ACCOUNT } })
     expect(byTestId('arm-cost-line')).toBeNull()
+    expect(byTestId('arm-columns-aside')).toBeNull()
+  })
+
+  it('says once, beside the save, what saving, a recovery and its cancel cost', () => {
+    mount({ account: { address: ACCOUNT, deployed: true } })
+    const aside = byTestId('arm-columns-aside')
+    expect(aside?.contains(byTestId('arm-costs'))).toBe(true)
+    expect(textOf('arm-costs')).toContain(t('socialRecovery.costLines.recovery'))
+    expect(textOf('arm-costs')).toContain(t('socialRecovery.costLines.cancel'))
+    const page = byTestId('arm-columns')?.textContent ?? ''
+    expect(page.split("Saving is one transaction your account's key pays.")).toHaveLength(2)
+    expect(page).not.toContain('One confirmation')
+    expect(byTestId('arm-columns-main')?.contains(byTestId('arm-account'))).toBe(true)
   })
 })
 

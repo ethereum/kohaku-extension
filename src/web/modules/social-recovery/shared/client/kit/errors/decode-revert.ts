@@ -2,8 +2,8 @@
  * The revert data of the manager and the action as the kit's named errors.
  * Each contract prefixes its errors (`PolicyManager_`, `RecoveryAction_`);
  * the name without the prefix is the kit's name, except the action's two
- * refusals of a reserved authority, `AlreadyPrivileged` and `NotAKey`, which
- * the kit names `ReservedAuthority`.
+ * refusals of a key, `RecoveryAction_NotAKey` and
+ * `RecoveryAction_AlreadyPrivileged`, which keep it.
  */
 import { decodeErrorResult, type Hex, slice } from 'viem'
 
@@ -22,14 +22,14 @@ const SOURCE_PREFIXES: readonly (readonly [string, KitErrorSource])[] = [
   ['RecoveryAction_', 'action']
 ]
 
-const RENAMED: Readonly<Record<string, KitErrorName>> = {
-  AlreadyPrivileged: 'ReservedAuthority',
-  NotAKey: 'ReservedAuthority'
-}
+const KEEPS_PREFIX: readonly string[] = [
+  'RecoveryAction_NotAKey',
+  'RecoveryAction_AlreadyPrivileged'
+]
 
 // Every prefixed error of the two ABIs has a kit name.
-const kitErrorNameOf = (stripped: string): KitErrorName =>
-  RENAMED[stripped] ?? (stripped as KitErrorName)
+const kitErrorNameOf = (errorName: string, prefix: string): KitErrorName =>
+  (KEEPS_PREFIX.includes(errorName) ? errorName : errorName.slice(prefix.length)) as KitErrorName
 
 /**
  * The kit error a revert carries: its source, its kit name, its selector and
@@ -45,7 +45,7 @@ export const decodeRevert = (data: Hex): KitError | undefined => {
       return undefined
     }
     const [prefix, source] = prefixed
-    const name = kitErrorNameOf(errorName.slice(prefix.length))
+    const name = kitErrorNameOf(errorName, prefix)
     const values = args ?? []
     return {
       kind: 'known',
