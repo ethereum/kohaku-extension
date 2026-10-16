@@ -1441,6 +1441,12 @@
         "unread": "The registry has not confirmed the end yet. Check again in a moment.",
         "checkAgain": "Check again"
       },
+      "landed": {
+        "title": "The cancel landed",
+        "body": "The transaction landed. The wallet reads the recovery registry to confirm the recovery ended.",
+        "unread": "The registry has not confirmed the end yet. Check again in a moment.",
+        "checkAgain": "Check again"
+      },
       "failed": {
         "title": "Could not cancel",
         "body": "The transaction was rejected before it reached the chain. The waiting period keeps running. Retry now, or move your funds.",
