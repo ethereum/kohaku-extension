@@ -1,5 +1,62 @@
 # Social recovery board
 
+The state of the work at the end of milestone M-10 round 1 (the watcher, the banner and the owner's cancel, the running-attempt band), 2026-10-16; M-10 started from `dev/wonderland` cf4f8facfe (M-9 round 1, the board, FU-AT, FU-AU, FU-AV). This milestone's log is `briefs/m10/LOG.md` beside its briefs in the coordinator's worktree; the M-9 log stays in the M-9 coordinator's worktree under `briefs/m9/LOG.md`.
+
+## The board (M-10 round 1)
+
+| Column | What is in it |
+| --- | --- |
+| Ready | The next milestone on the owner's word; the follow-ups below and the SDK-types adoption task once scheduled. |
+| Running | Nothing. |
+| Awaiting review | #124 this board with the design-text edits of the SDK reply and the rulings (`docs/social-recovery-m10`). #125 the M-10 follow-ups in one PR by the owner's word (`fix/social-recovery-m10-followups` at 5a7462e435: the deployed error names with four cause strings, the plain-JSON reply line, the ECDSA known-answer test, the removed-key values, the watcher's log lines, the wait route; two rounds, verified; gate green; one open question for the sdk owner on the parameter order of `PolicyManager_ActionDoesNotServeAccount`). Upstream: #251 (M-6), #253 (M-7), #254 (M-8), #255 (M-9 from `dev-wonderland-m9` at 56699ceb4b), drafts the owner marks ready; the M-10 freeze `dev-wonderland-m10` and its upstream draft on the owner's word. |
+| Blocked | Nothing. |
+| Walked | The Sepolia walk of 2026-10-15/16 on a build of #123's head with #119's head merged (`briefs/m10/walk/`, four reports): attempt 4 opened by a fresh recoverer wallet and cancelled by the owner's key, two transactions signed by the owner; the watcher's record, badge and banner, the three bands and the cancel's terminal all as designed, with 23 findings recorded (the three under investigation named in the log). |
+| Merged | M-10 round 1 on `dev/wonderland` at 0704c9293d (2026-10-16, one train after the owner's #121 9b102a0d9c, the hierarchy pass): #122 the strings round 3 (508272a8c1), #119 PT-065 the watcher (e3ab5c9ccf), #120 PT-066 the banner and the owner's cancel (281b19ffd4), #123 PT-055 the running-attempt band (0704c9293d). Before them: #117 the M-10 setup (4c8a7c291c), the owner's #116 (28b27b83fb), #118 the strings round 2 (f26405e42f). The final tree equals the last gated lane's. |
+
+## Rulings of M-10 (2026-10-15)
+
+- The banner is the module's own component in the dashboard banner's look, mounted by one line in `DashboardBanners.tsx`; the library's action list does not change.
+- Each lane adds its one mount line in a shared file (`background.ts` for the watcher's start, `DashboardBanners.tsx` for the banner), as the Route line.
+- The poll reads the registry's state and the authorization per smart account at the latest block, every 30 minutes by the later ruling below, and fetches the opening and ending events only for the attempt in question.
+- The cancelled terminal names the editor in a line until the management overview (M-11) ships; "Move funds" is its action.
+- The unlock screen's sentence of the frame is not built this milestone.
+- The watcher's alarm fires every 30 minutes, not every minute (the owner on #119, 2026-10-15): a design change to D-307, I-29 and the frame D2-01's note, to carry into the design repository before the next copy.
+- The cancel's run holds the wallet's session state and stays in the extension (D-370, D-373, D-307); two new questions for the sdk owner: a read naming the attempt a given transaction ended, and the state read without the removed-key scan.
+- The cheap attempt-state read without the removed key is the extension's own in `shared/client`, the placeholder for the SDK question.
+- An attempt whose waiting period has elapsed does not end; the strings say it "can execute from {{date}}", never that it finishes then (the coordinator, on CodeRabbit's thread of 2026-10-15).
+- The owner's ruling (2026-10-16): the chapter names the deployed action's two errors, `RecoveryAction_NotAKey` and `RecoveryAction_AlreadyPrivileged`, in place of the one `ReservedAuthority` the texts had; the kit's decoder and the SDK interfaces still fold both into one name (a code follow-up, with the follow-ups lane).
+- Open for the owner from the design-text round (2026-10-16): the read-range row of the privilege replay in the SDK chapter is dead now that the SDK names the removed key from the attempt and setup events (a row for those reads, or none); the `request.window-wide` warning has no ceiling to compare against since 2026-10-01 (a question for the sdk owner); the wireframes' D2-01 note and the generated frame-strings copy still say the poll runs every minute.
+- The owner's rule (2026-10-16): every fix found from now on in this milestone rides one PR, #120 (the PT-066 lane); the stacked #123 takes it through the train.
+- The owner's ruling (2026-10-15, on #123's folder thread): `restoreCountdown`, its types and its test stay in `shared/records` inside PT-055's lane, an exception to the folder rule of the same shape as the watcher's exported queue helper in #119; the restore belongs under the records' own write queues, and no setup PR carries it.
+
+## The walk's follow-ups (2026-10-16)
+
+From `briefs/m10/walk/investigation-m10-walk.md`; the owner's rulings of 2026-10-16 in each line:
+
+- The recovery banner on the wallet's main dashboard (`#/main-dashboard`, the PPv1 dashboard the wallet opens after unlock and on the popup): one more mount line of the same prop-less component in the PPv1 `DashboardBanners`, beside the common mount that `#/dashboard` and the public view render. XS, lane #120 (a second mount line in a shared file, by the owner's word: built in round 7 before the train).
+- The countdowns derived from the registry's date: `useCountdownClock` counts ticks from mount off the poll block's time, so the banner ran about 2.5 minutes late and the wait screen about 21 s; the M-8 rule "the device clock never moves it" is deliberate. The owner chooses: the clock on every tick with due at zero (recommended; the wait screen's chain re-poll at zero stays the check before execute), or the block time plus the time since the poll. Ruled: it stays as it is (the chain's time, never the device clock); no follow-up.
+- The watcher's two info lines (the no-deployment return, a poll with no account to watch) and a walk step that checks the alarm right after a start. Ruled: the missing alarm was a cached worker of an earlier build under the same extension id (a walk artefact); no debug round; the walk recipe gains a check of the alarm after each start; the two info lines stay a note.
+- The wait screen's loading state with a title and a line during the removed-key scan (today a bare spinner for 12 to 40 s); optionally drop that scan as #116 did for the guardian page. Ruled: dismissed for now; the owner fixes every loading state later.
+- Recorded, no change: the "yours" band's seed sentence wins when the fresh-install entry stands (the walk's recoverer had moved to the logged-in route); the band's finish line reads "can execute from {{date}}" since the strings round 5; the settings' recovery screen reads "Not set up" for an on-chain setup (viewing a saved setup is out of this release); the cancel screen names no attempt number, start date, sending key or fee line (the frame's call); the banner rendered once per dashboard tab (three hidden); the wait route without an account in the search goes to Step 1.
+
+## The SDK team's reply to batch 2 (2026-10-15)
+
+The text is filed at `briefs/m10/SDK-REPLY-2026-10-15.md` (the coordinator's worktree). What it decides and what it leaves:
+
+- Decided, nothing to build now: the domain, the raw-digest ECDSA signature and the verify word agree with the walk's facts; a guardian holding code is judged by its own ERC-1271 check and the SDK passes its bytes through. `KEY_VALUE` is `bytes32(1)`, a compile-time constant. The SDK prices nothing and sends nothing (six provider reads, no fee read). The cheap state read is `stateOf` on the manager part (what the watcher built as its own read); no attempt-by-id read exists, a past attempt's fate lives in the logs. A failed removed-key read yields `'unread'` and does not fail the poll; only a hanging read can hold a screen.
+- Ruled by the sdk owner (cut-q-39): the SDK names one removed key and refuses nothing when a second candidate exists; the extension's four-source rule and the blocked save stay on the extension's side.
+- The removed-key values are now `Address | 'no-source' | 'not-a-key' | 'unread'`; they replace the four values of 2026-09-30 and the extension's `'no-creation-triple'` placeholder. Follow-up FU-U: align the doubles and the screens' readings of the unnamed values.
+- The action's error `0x3f6b40e3` is `RecoveryAction_AccountNotServed(address)` and the manager's `0xa1844eb2` is `PolicyManager_ActionDoesNotServeAccount(address,address)`; the SDK's pin moves to a5f86fa and names both (not yet scheduled on their side). Follow-up: the kit's error tables name both selectors, with the reading "this account is not one the action serves".
+- The reply line: the SDK ships no serializer; the ruling is `JSON.stringify` of the Reply record with its keys in record order, one line, and a parser that `JSON.parse`s and shape-checks. Follow-up: the checklist's paste codec and the guardian page's reply line move from base64url to plain JSON (one task, both sides, before the guardian milestone's next round).
+- The ECDSA signing vector is blessed (`tests/kat/vectors/method-ecdsa-proof.json`, row `deterministic-test-key`). Follow-up: a known-answer test in the kit's ECDSA method against that row.
+- `ClientConfiguration.logChunkSize` has no default and no ceiling; the sample page uses 2,000 for free nodes. The watcher's own chunk width stays the extension's choice.
+- The big ruling: the extension adopts the SDK's exported types (`@kohaku-eth/social-recovery` at wonderland/dev 40bc4ad) and drops its doubles before the guardian milestone. The record shapes to adopt: `credentialHoldsCode` on the approver request and every gathering place; the purpose unions; `AddResult` as `filed | refused` with five causes; `RequestWindowBounds { default, floor }`; `chainId` as a decimal string on the request, reply and gathering records. This is its own task; the owner schedules it.
+- Still with the sdk owner (the reply's owner-only block): a timeout or an inference-free `recoveryState` (recommended no), an attempt-N status convenience (recommended no), the `KEY_VALUE` naming (cosmetic); the parameter names and order of `PolicyManager_ActionDoesNotServeAccount(address,address)` and which manager functions raise it (the kit's ABI carries stand-ins); the shape of `ISignerRecovery.recoverSigner`, the integrator interface the removed-key walk names, absent from the chapter's list of the interfaces a stranger implements (a fourth entry changes that list, so it waits for the shape). The chapter drifts the reply lists are edited in #124.
+
+---
+
+# The board at the end of M-9 round 1 (kept)
+
 The state of the work at the end of milestone M-9 round 1 (the guardian page), 2026-10-14, written as the hand-off to the next coordinator session; M-9 started 2026-10-13 from `dev/wonderland` f6b43bd52c and ended at ff60f6a256. The M-8 running log stays in the M-8 coordinator's worktree under `briefs/m8/LOG.md`; this milestone's log is `briefs/m9/LOG.md` beside its briefs.
 
 ## The board
