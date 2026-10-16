@@ -85,6 +85,57 @@ describe('the signature a guardian returns', () => {
   })
 })
 
+describe('the blessed signing vector', () => {
+  // The well-known test key whose 32 bytes are the value 1; public test data.
+  const TEST_KEY: Hex = `0x${'00'.repeat(31)}01`
+  const SIGNER = '0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf'
+  const DIGEST: Hex = '0x45da43ac350a49f946b432051597379c9c780adb797231750744a4bcc6df4f87'
+  const PROOF: Hex =
+    '0x9cc23b364d1bc8c5cc2100a486709fbeb2e4328cf3635788903fb1b4b92a8e590ae8eda1f77fa8c62365613c80e78b243fe4b5269607974473eed59e631fb6db1b'
+
+  const vectorSetting = () => {
+    const { method, ctx } = setting()
+    const vectorCtx: MethodContext = {
+      ...ctx,
+      digest: DIGEST,
+      request: { ...ctx.request, config: ecdsaConfigOf(SIGNER) }
+    }
+    return { method, ctx: vectorCtx }
+  }
+
+  it('is the raw signature of the test key over the digest, 65 bytes with v = 27', async () => {
+    const key = privateKeyToAccount(TEST_KEY)
+    expect(key.address).toBe(SIGNER)
+    const signature = await key.sign({ hash: DIGEST })
+    expect(signature).toBe(PROOF)
+    expect(size(PROOF)).toBe(65)
+    expect(parseInt(PROOF.slice(-2), 16)).toBe(27)
+  })
+
+  it("is the method's proof for that digest, byte for byte", async () => {
+    const { method, ctx } = vectorSetting()
+    const signature = await privateKeyToAccount(TEST_KEY).sign({ hash: DIGEST })
+    expect(await method.replyFrom(ctx, undefined, { signature })).toBe(PROOF)
+  })
+
+  it('verifies locally against the signer of the vector', async () => {
+    const { method, ctx } = vectorSetting()
+    expect(await method.verify(ctx, PROOF)).toBe('satisfied')
+  })
+
+  it('reads the empty proof of the vector as not verified', async () => {
+    const { method, ctx } = vectorSetting()
+    expect(await method.verify(ctx, '0x')).toBe('not-judged')
+  })
+
+  it('does not verify the personal-message signature of the same key over the digest', async () => {
+    const { method, ctx } = vectorSetting()
+    const personal = await privateKeyToAccount(TEST_KEY).signMessage({ message: { raw: DIGEST } })
+    expect(personal).not.toBe(PROOF)
+    expect(await method.verify(ctx, personal)).not.toBe('satisfied')
+  })
+})
+
 describe('the form the module accepts', () => {
   it('turns a high s into the low form, and the result still recovers to the guardian', async () => {
     const { method, ctx, signTyped } = setting()

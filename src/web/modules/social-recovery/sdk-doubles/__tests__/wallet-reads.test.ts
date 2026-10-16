@@ -75,7 +75,7 @@ describe('wallet reads double', () => {
       world.chain.setHasCode(false)
       expect(await world.walletReads().removedKey()).toEqual({
         kind: 'unavailable',
-        cause: 'no-creation-record'
+        cause: 'no-source'
       })
     })
 

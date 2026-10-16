@@ -133,6 +133,11 @@ export const RECOVERY_ACTION_ABI = [
   },
   {
     type: 'error',
+    name: 'RecoveryAction_AccountNotServed',
+    inputs: [{ name: '_account', type: 'address', internalType: 'address' }]
+  },
+  {
+    type: 'error',
     name: 'RecoveryAction_AlreadyPrivileged',
     inputs: [{ name: '_authority', type: 'address', internalType: 'address' }]
   },

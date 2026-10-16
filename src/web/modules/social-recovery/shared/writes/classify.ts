@@ -291,7 +291,10 @@ const SUBMISSION_ACCEPTANCE_ERRORS: readonly KitErrorName[] = [
   'MethodStopped',
   'RuleUnsatisfied',
   'MalformedHandover',
-  'ReservedAuthority'
+  'RecoveryAction_NotAKey',
+  'RecoveryAction_AlreadyPrivileged',
+  'AccountNotServed',
+  'ActionDoesNotServeAccount'
 ]
 
 /**

@@ -77,10 +77,11 @@ import type {
 } from './types'
 import { createReplyVerify } from './verify-reply'
 
-const readingOf = (keys: readonly Address[]): RemovedKeyReading => {
+// No candidate at all is no source; candidates that hold nothing are no key.
+const readingOf = (candidates: readonly Address[], keys: readonly Address[]): RemovedKeyReading => {
   const [key] = keys
   if (key === undefined) {
-    return { kind: 'unavailable', cause: 'no-key-entry' }
+    return { kind: 'unavailable', cause: candidates.length === 0 ? 'no-source' : 'not-a-key' }
   }
   if (keys.length > 1) {
     return { kind: 'unavailable', cause: 'several-key-entries' }
@@ -190,11 +191,12 @@ export const createKitWalletReads = ({
       ...handedTo,
       ...writes.map((write) => write.addr)
     ])
-    const reading = readingOf(await signersOf(candidates, block))
+    const reading = readingOf(candidates, await signersOf(candidates, block))
     if (!scan.bounded) {
       return reading
     }
-    if (reading.kind === 'unavailable' && reading.cause === 'no-key-entry') {
+    // The history the node refused may hold the key no candidate here holds.
+    if (reading.kind === 'unavailable' && reading.cause !== 'several-key-entries') {
       throw scan.refusal
     }
     return { ...reading, privilegeScanBoundedAt: scan.from }
@@ -207,9 +209,10 @@ export const createKitWalletReads = ({
         return removedKeyOfDeployed(block)
       }
       if (!account.creation) {
-        return { kind: 'unavailable', cause: 'no-creation-record' }
+        return { kind: 'unavailable', cause: 'no-source' }
       }
       return readingOf(
+        distinctKeys(account.initialPrivileges.map(([key]) => key)),
         distinctKeys(
           account.initialPrivileges
             .filter(([, privilege]) => holdsPrivilege(privilege))

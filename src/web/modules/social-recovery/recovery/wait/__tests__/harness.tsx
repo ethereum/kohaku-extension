@@ -27,6 +27,7 @@ import { TextDecoder, TextEncoder } from 'util'
 import type { Account } from '@ambire-common/interfaces/account'
 import type { Key } from '@ambire-common/interfaces/keystore'
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
+import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import type { ThemeProps } from '@common/styles/themeConfig'
 import type {
   Address,
@@ -189,7 +190,7 @@ jest.mock('@common/components/Avatar', () => ({ __esModule: true, default: () =>
 const React: typeof import('react') = require('react')
 const eventBus: typeof import('@web/extension-services/event/eventBus').default =
   require('@web/extension-services/event/eventBus').default
-const { MemoryRouter }: typeof import('react-router-dom') = require('react-router-dom')
+const { MemoryRouter, useNavigate }: typeof import('react-router-dom') = require('react-router-dom')
 const {
   ThemeContext
 }: typeof import('@common/contexts/themeContext') = require('@common/contexts/themeContext')
@@ -883,6 +884,45 @@ export const mountWait = (account: Address): Promise<Mounted> =>
       <WaitScreen />
     </MemoryRouter>
   )
+
+/** A wait mounted at its route with no account, and the router's own move to another path. */
+export interface RoutedWait extends Mounted {
+  goTo: (path: string) => Promise<void>
+}
+
+/**
+ * Mounts the wait at its route with no account in the search. `goTo` moves the
+ * router itself, as a link in the page would, so the same screen stays mounted
+ * across the move.
+ */
+export const mountWaitWithNoAccount = async (): Promise<RoutedWait> => {
+  let routerNavigate: (path: string) => void = () => {
+    throw new Error('the router has not rendered')
+  }
+  const RouterHandle = () => {
+    const navigate = useNavigate()
+    routerNavigate = (path) => navigate(path)
+    return null
+  }
+  const mounted = await mountElement(
+    <MemoryRouter
+      initialEntries={[`/${WEB_ROUTES.socialRecoveryRecoveryWait}`]}
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
+      <RouterHandle />
+      <WaitScreen />
+    </MemoryRouter>
+  )
+  return {
+    ...mounted,
+    goTo: async (path) => {
+      await act(async () => {
+        routerNavigate(path)
+      })
+      await tick(0)
+    }
+  }
+}
 
 /**
  * The libraries both pages share, as one browser holds them: everything else

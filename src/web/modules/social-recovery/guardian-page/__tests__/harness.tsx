@@ -277,7 +277,7 @@ const {
 }: typeof import('@web/modules/social-recovery/sdk-doubles/encoding') = require('@web/modules/social-recovery/sdk-doubles/encoding')
 const {
   approvalLinkOf,
-  replyLineOf
+  replyOfLine
 }: typeof import('@web/modules/social-recovery/recovery/checklist') = require('@web/modules/social-recovery/recovery/checklist')
 const ApproveScreen: typeof import('@web/modules/social-recovery/guardian-page/ApproveScreen').default =
   require('@web/modules/social-recovery/guardian-page/ApproveScreen').default
@@ -435,8 +435,30 @@ export const replyOf = (request: ApproverRequest, proof: Hex): ApproverReply => 
   proof
 })
 
-/** The line the guardian sends back for a reply. */
-export const lineOf = (reply: ApproverReply): string => replyLineOf(reply)
+/**
+ * The line the guardian sends back for a reply, written out here: the reply's
+ * record as plain JSON on one line, its keys in the record's order.
+ */
+export const lineOf = (reply: ApproverReply): string =>
+  JSON.stringify({
+    kind: reply.kind,
+    version: reply.version,
+    chainId: reply.chainId,
+    manager: reply.manager,
+    account: reply.account,
+    action: reply.action,
+    attemptId: reply.attemptId,
+    purpose: reply.purpose,
+    place: reply.place,
+    method: reply.method,
+    config: reply.config,
+    salt: reply.salt,
+    digest: reply.digest,
+    proof: reply.proof
+  })
+
+/** The approval the recoverer's paste reads from a line. */
+export const pastedReplyOf = (line: string): ApproverReply | null => replyOfLine(line)
 
 /** The EIP-712 digest of typed data. */
 export const hashOf = (typedData: TypedDataToSign): Hex =>

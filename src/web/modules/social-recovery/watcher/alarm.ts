@@ -101,6 +101,8 @@ export const startRecoveryWatcher = ({
     // An alarm an earlier build registered outlives the worker; this build has nothing to watch.
     startedTicks.delete(alarms)
     alarms.clear(WATCHER_ALARM)
+    // eslint-disable-next-line no-console
+    console.info('The recovery watcher does not start: this build holds no recovery contracts')
     return undefined
   }
   const chainId = CHAIN_IDS[WALLET_RECOVERY_CHAIN]
@@ -175,6 +177,8 @@ export const startRecoveryWatcher = ({
     }
     lastKnown = watched
     if (watched.length === 0) {
+      // eslint-disable-next-line no-console
+      console.info('The recovery watcher found no account to watch')
       return 0
     }
     let reads: WatcherConnection['reads']

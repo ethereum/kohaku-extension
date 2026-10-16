@@ -13,7 +13,7 @@ import type { Translate } from '@web/modules/social-recovery/shared/display'
 
 import { isDecimalString, isStoredAddress } from '@web/modules/social-recovery/shared/records'
 
-import { isIndex, isObject, isPurpose, lineOfRecord, recordOfLine } from './codec'
+import { isIndex, isObject, isPurpose, recordOfJsonLine } from './codec'
 import type {
   AddReplyResult,
   ChecklistLayout,
@@ -26,12 +26,45 @@ import type {
   VerifyStep
 } from './types'
 
-/** An approval as the one line the guardian sends back. */
-export const replyLineOf = (reply: ApproverReply): string => lineOfRecord(reply)
+/** The approval's declared fields in a fresh object, in the record's order. */
+const replyRecordOf = ({
+  kind,
+  version,
+  chainId,
+  manager,
+  account,
+  action,
+  attemptId,
+  purpose,
+  place,
+  method,
+  config,
+  salt,
+  digest,
+  proof
+}: ApproverReply): ApproverReply => ({
+  kind,
+  version,
+  chainId,
+  manager,
+  account,
+  action,
+  attemptId,
+  purpose,
+  place,
+  method,
+  config,
+  salt,
+  digest,
+  proof
+})
 
-/** The approval a pasted line carries, or null where it is not one; whitespace around it is ignored. */
+/** An approval as the one line the guardian sends back: its record as plain JSON. */
+export const replyLineOf = (reply: ApproverReply): string => JSON.stringify(replyRecordOf(reply))
+
+/** The approval a pasted text carries, or null where it is not one; any JSON whitespace is accepted. */
 export const replyOfLine = (text: string): ApproverReply | null => {
-  const r = recordOfLine(text)
+  const r = recordOfJsonLine(text)
   if (
     !isObject(r) ||
     r.kind !== 'recovery-proof-reply' ||

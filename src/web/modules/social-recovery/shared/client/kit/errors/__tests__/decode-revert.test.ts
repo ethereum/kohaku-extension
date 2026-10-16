@@ -55,10 +55,12 @@ const valueOf = (input: AbiParameter, index: number): unknown => {
 const selectorOf = (item: Extract<Abi[number], { type: 'error' }>): Hex =>
   toFunctionSelector(`${item.name}(${item.inputs.map((input) => input.type).join(',')})`)
 
-const kitNameOf = (errorName: string): string => {
-  const stripped = errorName.replace(/^(PolicyManager|RecoveryAction)_/, '')
-  return stripped === 'AlreadyPrivileged' || stripped === 'NotAKey' ? 'ReservedAuthority' : stripped
-}
+const KEEPS_PREFIX = ['RecoveryAction_NotAKey', 'RecoveryAction_AlreadyPrivileged']
+
+const kitNameOf = (errorName: string): string =>
+  KEEPS_PREFIX.includes(errorName)
+    ? errorName
+    : errorName.replace(/^(PolicyManager|RecoveryAction)_/, '')
 
 const CASES = [
   ...MANAGER_ERRORS.map((item) => ['manager', item] as const),
@@ -66,9 +68,9 @@ const CASES = [
 ]
 
 describe('the revert names', () => {
-  it('cover the manager’s 21 errors and the action’s 5', () => {
-    expect(MANAGER_ERRORS).toHaveLength(21)
-    expect(ACTION_ERRORS).toHaveLength(5)
+  it('cover the manager’s 22 errors and the action’s 6', () => {
+    expect(MANAGER_ERRORS).toHaveLength(22)
+    expect(ACTION_ERRORS).toHaveLength(6)
   })
 
   CASES.forEach(([source, item]) =>
@@ -101,7 +103,7 @@ describe('the revert names', () => {
     expect([...named].sort()).toEqual([...KIT_ERROR_NAMES].sort())
   })
 
-  it('names both refusals of a reserved authority ReservedAuthority, with their own selectors', () => {
+  it('names the action’s two refusals of a key apart, as deployed, with their own selectors', () => {
     const REFUSALS = parseAbi([
       'error RecoveryAction_AlreadyPrivileged(address _authority)',
       'error RecoveryAction_NotAKey(address _authority)'
@@ -119,15 +121,56 @@ describe('the revert names', () => {
     )
     expect(privileged).toMatchObject({
       source: 'action',
-      name: 'ReservedAuthority',
+      name: 'RecoveryAction_AlreadyPrivileged',
       selector: toFunctionSelector('RecoveryAction_AlreadyPrivileged(address)'),
       args: { authority }
     })
     expect(notAKey).toMatchObject({
       source: 'action',
-      name: 'ReservedAuthority',
+      name: 'RecoveryAction_NotAKey',
       selector: toFunctionSelector('RecoveryAction_NotAKey(address)'),
       args: { authority }
+    })
+  })
+
+  it('no revert decodes to the old combined name of the two refusals', () => {
+    const names = CASES.map(([, item]) => {
+      const error = decodeRevert(
+        encodeErrorResult({ abi: [item], errorName: item.name, args: item.inputs.map(valueOf) })
+      )
+      return error?.kind === 'known' ? error.name : undefined
+    })
+    expect(names).not.toContain('ReservedAuthority')
+    expect(KIT_ERROR_NAMES as readonly string[]).not.toContain('ReservedAuthority')
+  })
+
+  it('names the action’s refusal of an account it does not serve from 0x3f6b40e3', () => {
+    const account = '0x2222222222222222222222222222222222222222'
+    const data = `0x3f6b40e3${encodeAbiParameters([{ type: 'address' }], [account]).slice(
+      2
+    )}` as Hex
+    expect(decodeRevert(data)).toEqual({
+      kind: 'known',
+      source: 'action',
+      name: 'AccountNotServed',
+      selector: '0x3f6b40e3',
+      args: { account }
+    })
+  })
+
+  it('names the manager’s refusal of an action that does not serve the account from 0xa1844eb2', () => {
+    const action = '0x3333333333333333333333333333333333333333'
+    const account = '0x4444444444444444444444444444444444444444'
+    const data = `0xa1844eb2${encodeAbiParameters(
+      [{ type: 'address' }, { type: 'address' }],
+      [action, account]
+    ).slice(2)}` as Hex
+    expect(decodeRevert(data)).toEqual({
+      kind: 'known',
+      source: 'manager',
+      name: 'ActionDoesNotServeAccount',
+      selector: '0xa1844eb2',
+      args: { action, account }
     })
   })
 

@@ -884,7 +884,7 @@ const gateInputOf = (gate: GateCase) => {
     case 'removed-key-unreadable':
       reads.removedKey = {
         status: 'answered',
-        value: { kind: 'unavailable', cause: 'no-creation-record' }
+        value: { kind: 'unavailable', cause: 'no-source' }
       }
       break
     case 'does-not-fit':

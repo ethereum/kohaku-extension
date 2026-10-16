@@ -656,7 +656,7 @@ describe('the fit reads', () => {
     ],
     [
       'a removed key the wallet cannot name',
-      () => kit.removedKey.mockResolvedValueOnce({ kind: 'unavailable', cause: 'no-key-entry' }),
+      () => kit.removedKey.mockResolvedValueOnce({ kind: 'unavailable', cause: 'not-a-key' }),
       t('socialRecovery.entry.refusal.removedUnknown')
     ],
     [
@@ -678,7 +678,7 @@ describe('the fit reads', () => {
   })
 
   it('renders a removed key with no creation record as the refusal, with no retry', async () => {
-    kit.removedKey.mockResolvedValueOnce({ kind: 'unavailable', cause: 'no-creation-record' })
+    kit.removedKey.mockResolvedValueOnce({ kind: 'unavailable', cause: 'no-source' })
     const page = await open(LOGGED_IN)
     await confirmLost(page)
     expect(page.textOf('entry-cannot-recover-title')).toBe(CANNOT_RECOVER)
@@ -692,7 +692,7 @@ describe('the fit reads', () => {
 
   it('refuses an account with no code and no creation record under its full address, with no retry', async () => {
     kit.fitCheck.mockResolvedValueOnce({ basis: 'no-code', fits: false })
-    kit.removedKey.mockResolvedValueOnce({ kind: 'unavailable', cause: 'no-creation-record' })
+    kit.removedKey.mockResolvedValueOnce({ kind: 'unavailable', cause: 'no-source' })
     const page = await open(LOGGED_IN)
     await confirmLost(page)
     expect(page.textOf('entry-confirmed-address')).toBe(LOST)

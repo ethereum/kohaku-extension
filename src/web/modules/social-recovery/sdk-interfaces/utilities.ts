@@ -8,7 +8,7 @@
 import type { Address, Hex } from './common'
 import type { Notification } from './events'
 import type { Handover, PaymentOrder } from './formats'
-import type { AttemptState } from './interactor'
+import type { AttemptState, RemovedKey } from './interactor'
 
 /** Setup errors: the reverts the chain would produce later and the delegated guards. */
 export const SETUP_ERROR_CODES = [
@@ -138,7 +138,11 @@ export interface RestoreRefusal extends Error {
 export const KIT_ERROR_SOURCES = ['manager', 'action', 'account', 'language'] as const
 export type KitErrorSource = typeof KIT_ERROR_SOURCES[number]
 
-/** The closed set of twenty-five kit errors, twenty-one on the manager and four on the action. */
+/**
+ * The closed set of twenty-eight kit errors, twenty-two on the manager and six
+ * on the action. Every name drops its contract's prefix except the action's two
+ * refusals of a key, named as deployed.
+ */
 export const KIT_ERROR_NAMES = [
   'InvalidCommitment',
   'WrongSetupNonce',
@@ -161,9 +165,12 @@ export const KIT_ERROR_NAMES = [
   'RuleUnsatisfied',
   'WaitNotOver',
   'WrongPayload',
+  'ActionDoesNotServeAccount',
   'BatchNotApproved',
   'MalformedHandover',
-  'ReservedAuthority',
+  'RecoveryAction_NotAKey',
+  'RecoveryAction_AlreadyPrivileged',
+  'AccountNotServed',
   'NotConsumable'
 ] as const
 export type KitErrorName = typeof KIT_ERROR_NAMES[number]
@@ -197,8 +204,7 @@ export interface SetupDescription {
   methodStanding: unknown
   passkeyDomains: unknown
   candidateKeys: { address: Address; isAuthority: boolean }[]
-  // The SDK names this value but no literal; `'no-creation-triple'` is the extension's own.
-  removedKey: Address | 'no-creation-triple'
+  removedKey: RemovedKey
   privacy: unknown
   backup: unknown
   reveals: unknown

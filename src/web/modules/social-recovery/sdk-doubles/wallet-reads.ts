@@ -24,6 +24,7 @@ import type {
   ApproverReply,
   ApproverRequest,
   RecoveryState,
+  RemovedKey,
   Verdict
 } from '@web/modules/social-recovery/sdk-interfaces'
 
@@ -38,12 +39,28 @@ import type {
   WalletReadsConfiguration
 } from './types'
 
-/** Why the removed key cannot be named. */
+/**
+ * Why the removed key cannot be named: no source names a key, the keys the
+ * sources name hold none, or more than one key holds authority. The last is
+ * the wallet's own rule, stricter than the SDK, which names one of them.
+ */
 export const REMOVED_KEY_UNAVAILABLE_CAUSES = [
-  'no-creation-record',
-  'no-key-entry',
+  'no-source',
+  'not-a-key',
   'several-key-entries'
 ] as const
+
+/**
+ * The reading as the SDK's removed-key value. Several keys holding authority
+ * leave no one key named, which the SDK's values read as no source.
+ */
+export const removedKeyOfReading = (reading: RemovedKeyReading): RemovedKey => {
+  if (reading.kind === 'named') {
+    return reading.key
+  }
+  return reading.cause === 'several-key-entries' ? 'no-source' : reading.cause
+}
+
 export class WalletReadsDouble implements IWalletReadsDouble {
   constructor(
     private readonly chain: ScriptedChain,

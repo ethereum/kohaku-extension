@@ -1380,7 +1380,7 @@ describe('the key a recovery would remove', () => {
       removedKey: async () => {
         answers += 1
         return answers === 1
-          ? { kind: 'unavailable', cause: 'no-key-entry' }
+          ? { kind: 'unavailable', cause: 'not-a-key' }
           : { kind: 'named', key: REMOVED_KEY }
       }
     })
@@ -1502,7 +1502,7 @@ describe("the wallet's reading of the account's keys", () => {
 
   it('reads an account with no creation record as a removed key it could not read, with its retry', async () => {
     const { account } = await mount({
-      removedKey: async () => ({ kind: 'unavailable', cause: 'no-creation-record' })
+      removedKey: async () => ({ kind: 'unavailable', cause: 'no-source' })
     })
 
     expect(textOf('review-blocked-title')).toBe(t(`${BLOCKED}.removedKeyUnreadable.title`))

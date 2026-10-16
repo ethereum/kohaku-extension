@@ -27,6 +27,7 @@ import {
   navigate,
   NEW_KEY,
   notListedRefusal,
+  pastedReplyOf,
   readyClient,
   attemptStateOf,
   replyOf,
@@ -246,6 +247,9 @@ describe('the signing step', () => {
     const line = lineOf(replyOf(request, signature))
     await page.press('guardian-signed-copy')
     expect(wallet.copied).toHaveBeenLastCalledWith(line)
+    expect(line.startsWith('{"kind":"recovery-proof-reply","version":1,"chainId":"')).toBe(true)
+    expect(line).not.toContain('\n')
+    expect(pastedReplyOf(line)).toEqual(replyOf(request, signature))
     expect(page.textOf('guardian-signed-copy-approval-copied')).toBe(
       t('socialRecovery.checklist.guardian.copied')
     )

@@ -223,7 +223,10 @@
         "WrongPayload": "The handover sent is not the one this recovery approved.",
         "BatchNotApproved": "The transaction is not the one this recovery approved.",
         "MalformedHandover": "The recovery module could not read the handover: it does not decode, names a zero key, or names one key on both sides.",
-        "ReservedAuthority": "The key being removed no longer holds control, or the new key already holds a privilege on this account.",
+        "RecoveryAction_NotAKey": "The key being removed no longer holds control of this account.",
+        "RecoveryAction_AlreadyPrivileged": "The new key already holds a privilege on this account.",
+        "AccountNotServed": "This account is not one the recovery module serves.",
+        "ActionDoesNotServeAccount": "The recovery module does not serve this account.",
         "NotConsumable": "This recovery cannot execute in its current state.",
         "unnamed": "The chain gave no cause the wallet can name."
       },

@@ -613,12 +613,27 @@ describe('the recovery-side state', () => {
     expect(world.removedKey).toHaveBeenCalledTimes(1)
   })
 
-  it('reads a removed key the wallet cannot name as no creation triple', async () => {
-    const world = worldWith({
-      options: { removedKey: { kind: 'unavailable', cause: 'no-creation-record' } }
+  const unnamedCases = [
+    ['no source naming a key', 'no-source', 'no-source'],
+    ['keys that hold none', 'not-a-key', 'not-a-key'],
+    ['several keys holding authority', 'several-key-entries', 'no-source']
+  ] as const
+  unnamedCases.forEach(([label, cause, value]) =>
+    it(`reads a removed key unnamed for ${label} as ${value}`, async () => {
+      const world = worldWith({
+        options: { removedKey: { kind: 'unavailable', cause } }
+      })
+      await expect(world.recovery.recoveryState()).resolves.toMatchObject({
+        removedKey: value
+      })
     })
-    await expect(world.recovery.recoveryState()).resolves.toMatchObject({
-      removedKey: 'no-creation-triple'
-    })
+  )
+
+  it('reads a removed-key read that failed as unread, and still answers the state', async () => {
+    const world = worldWith({ state: WAITING })
+    world.removedKey.mockRejectedValueOnce(new Error('node down'))
+    const state = await world.recovery.recoveryState()
+    expect(state.removedKey).toBe('unread')
+    expect(state.attempt).toMatchObject({ state: 'Waiting', attemptId: 6n })
   })
 })

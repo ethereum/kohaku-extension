@@ -4,9 +4,10 @@
  * by route, and the wait with the page's own helpers: the recovery client of
  * the account being recovered, the handover's two keys, the setup this device
  * holds, the sending key by route and the send port over the request queue.
- * A search with no account, or an account with no entry record, goes to the
- * account step with no search, which sends the holder on to the recovery
- * entry's first step. No countdown: a live or wiped session goes to the
+ * A search with no account opens the wait of the one landed session this
+ * device holds; with none or several it goes to the account step with no
+ * search, as does an account with no entry record, which sends the holder on
+ * to the recovery entry's first step. No countdown: a live or wiped session goes to the
  * checklist, none to the route's entry. A consumed attempt goes on to the
  * done screen. A run that finds the countdown names another attempt is let go,
  * and the countdown's record is read again.
@@ -50,7 +51,8 @@ import {
   checklistPathOf,
   configurationOf,
   parseChecklistSearch,
-  routeEntryPathOf
+  routeEntryPathOf,
+  waitPathOf
 } from '@web/modules/social-recovery/recovery/checklist'
 import { CHAIN_NAMES } from '@web/modules/social-recovery/recovery/entry'
 import { loggedInPlanOf } from '@web/modules/social-recovery/recovery/submit'
@@ -509,11 +511,35 @@ const WaitScreen = () => {
   const search = useMemo(() => parseChecklistSearch(location.search), [location.search])
   const records = useMemo(() => createWalletRecords({ storage: extensionRecordStorage }), [])
   const account = search?.account
-  const toAccountStep = useCallback(
-    () => navigate(accountStepPath(), { replace: true }),
-    [navigate]
-  )
-  const { reading, retry } = useRecoveryEntryRead(records, CHAIN_ID, account, toAccountStep)
+  // Moves on with each account in the search and on unmount, so a listing that
+  // answers after either sends the holder nowhere.
+  const generation = useRef(0)
+  useEffect(() => {
+    generation.current += 1
+    return () => {
+      generation.current += 1
+    }
+  }, [account])
+  const onAbsent = useCallback(() => {
+    const started = generation.current
+    const toAccountStep = () => {
+      if (generation.current === started) {
+        navigate(accountStepPath(), { replace: true })
+      }
+    }
+    if (account) {
+      toAccountStep()
+      return
+    }
+    records.listCountdowns(CHAIN_ID).then((landed) => {
+      if (landed.length !== 1) {
+        toAccountStep()
+      } else if (generation.current === started) {
+        navigate(waitPathOf(landed[0].account), { replace: true })
+      }
+    }, toAccountStep)
+  }, [account, records, navigate])
+  const { reading, retry } = useRecoveryEntryRead(records, CHAIN_ID, account, onAbsent)
 
   if (reading.status === 'present' && account) {
     return (

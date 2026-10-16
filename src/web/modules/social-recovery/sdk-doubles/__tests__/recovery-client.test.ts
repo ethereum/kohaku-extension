@@ -124,9 +124,21 @@ describe('recovery client double', () => {
     expect(typeof state.nextAttemptId).toBe('bigint')
     expect(isHex(state.setupCommitment)).toBe(true)
     expect(typeof state.setupNonce).toBe('bigint')
-    expect(state.removedKey === 'no-creation-triple' || isAddress(state.removedKey)).toBe(true)
+    expect(
+      ['no-source', 'not-a-key', 'unread'].includes(state.removedKey) || isAddress(state.removedKey)
+    ).toBe(true)
     expect(typeof state.block.timestamp).toBe('number')
     expect(isHex(state.block.hash)).toBe(true)
+  })
+
+  it('reads the removed key as unread where its read failed, and still answers the state', async () => {
+    const world = createWorld()
+    world.script.setupCommitted('private')
+    world.script.attempt('none')
+    world.script.failRead('walletReads.removedKey')
+    const state = await (await world.recoveryClient()).recoveryState()
+    expect(state.removedKey).toBe('unread')
+    expect(state.attempt.state).toBe('None')
   })
 
   describe('the opening gathering', () => {

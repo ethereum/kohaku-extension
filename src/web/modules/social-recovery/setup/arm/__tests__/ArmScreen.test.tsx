@@ -1352,7 +1352,7 @@ describe('the blocks on arrival', () => {
       'a removed key the wallet cannot read',
       'removed-key-unreadable',
       () => {
-        chain.removedKey = { kind: 'unavailable', cause: 'no-creation-record' }
+        chain.removedKey = { kind: 'unavailable', cause: 'no-source' }
       }
     ],
     [

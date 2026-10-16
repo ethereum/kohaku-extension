@@ -135,7 +135,7 @@ describe('useRecoveryClient with no facts given', () => {
     })
   })
 
-  it('names the controlling key from the removed-key read, no longer answering no-creation-record', async () => {
+  it('names the controlling key from the removed-key read, no longer answering no-source', async () => {
     await render(smart.addr as Address)
     await expect(removedKeyOf()).resolves.toEqual({ kind: 'named', key: CONTROLLING_KEY })
   })
@@ -145,13 +145,13 @@ describe('useRecoveryClient with no facts given', () => {
     await expect(removedKeyOf()).resolves.toEqual({ kind: 'named', key: CONTROLLING_KEY })
   })
 
-  it('answers no-creation-record for a basic account with no code, as before', async () => {
+  it('answers no-source for a basic account with no code, as before', async () => {
     await render(BASIC)
     world.chain.setHasCode(false)
     expect(lastArg(builder.config)).not.toHaveProperty('creation')
     await expect(removedKeyOf()).resolves.toEqual({
       kind: 'unavailable',
-      cause: 'no-creation-record'
+      cause: 'no-source'
     })
   })
 

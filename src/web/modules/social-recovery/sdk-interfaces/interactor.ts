@@ -122,16 +122,28 @@ export interface SetupState {
 }
 
 /**
- * The recovery-side reading of the bound account, pinned the same way.
- * `removedKey` is the address a handover would remove, or `'no-creation-triple'`
- * when no creation triple was given; that literal is the extension's own.
+ * Why the removed-key inference names no key: no source names one, a supplied
+ * address holds no key, or a read failed.
+ */
+export const REMOVED_KEY_UNNAMED = ['no-source', 'not-a-key', 'unread'] as const
+export type RemovedKeyUnnamed = typeof REMOVED_KEY_UNNAMED[number]
+
+/**
+ * The one key a handover would remove, or why none is named. The inference
+ * names at most one key and never claims the account holds no other.
+ */
+export type RemovedKey = Address | RemovedKeyUnnamed
+
+/**
+ * The recovery-side reading of the bound account, pinned the same way. A
+ * failed removed-key read does not fail it: `removedKey` reads `'unread'`.
  */
 export interface RecoveryState {
   attempt: Attempt
   nextAttemptId: bigint
   setupCommitment: Hex
   setupNonce: bigint
-  removedKey: Address | 'no-creation-triple'
+  removedKey: RemovedKey
   block: BlockHeader
 }
 

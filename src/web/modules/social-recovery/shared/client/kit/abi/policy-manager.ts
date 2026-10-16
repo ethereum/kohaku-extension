@@ -364,6 +364,14 @@ export const POLICY_MANAGER_ABI = [
   },
   {
     type: 'error',
+    name: 'PolicyManager_ActionDoesNotServeAccount',
+    inputs: [
+      { name: '_action', type: 'address', internalType: 'address' },
+      { name: '_account', type: 'address', internalType: 'address' }
+    ]
+  },
+  {
+    type: 'error',
     name: 'PolicyManager_AttemptAlreadyActive',
     inputs: [
       { name: '_account', type: 'address', internalType: 'address' },

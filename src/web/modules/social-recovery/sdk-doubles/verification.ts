@@ -241,10 +241,14 @@ export const executeRevert = (
     )
   }
   if (!chain.isAuthority(handover.removedAuthority)) {
-    return kitError('ReservedAuthority', { authority: handover.removedAuthority }, 'action')
+    return kitError('RecoveryAction_NotAKey', { authority: handover.removedAuthority }, 'action')
   }
   if (chain.holdsAnyPrivilege(handover.newAuthority)) {
-    return kitError('ReservedAuthority', { authority: handover.newAuthority }, 'action')
+    return kitError(
+      'RecoveryAction_AlreadyPrivileged',
+      { authority: handover.newAuthority },
+      'action'
+    )
   }
   if (!chain.authorized) {
     return kitError(ACCOUNT_NOT_ARMED, { account: chain.account, action: chain.action }, 'account')

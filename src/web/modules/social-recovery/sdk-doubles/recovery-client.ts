@@ -38,7 +38,8 @@ import type {
   PaymentOrder,
   PreparedCall,
   PrepareOptions,
-  RecoveryState
+  RecoveryState,
+  RemovedKey
 } from '@web/modules/social-recovery/sdk-interfaces'
 import { zeroAddress } from 'viem'
 
@@ -64,6 +65,7 @@ import { composeCall, shouldSimulate, simulationFrom, withSimulation } from './p
 import { codedError, unansweredRead, validationRefusal } from './scripts'
 import type { ClientContext, RequestRow, SimulatedMember } from './types'
 import { acceptanceRevert, evaluateRule, executeRevert } from './verification'
+import { removedKeyOfReading } from './wallet-reads'
 
 export { MOMENT_SKEW_SPAN } from './gathering'
 
@@ -571,16 +573,19 @@ export class RecoveryClientDouble implements IRecoveryClient {
     chain.guard('recovery.recoveryState')
     const block = await pinBlock(this.ctx)
     const state = await manager.stateOf()
-    const removed = chain.removedKeyReading(!!config.creation)
+    let removedKey: RemovedKey
+    try {
+      chain.guard('walletReads.removedKey')
+      removedKey = removedKeyOfReading(chain.removedKeyReading(!!config.creation))
+    } catch {
+      removedKey = 'unread'
+    }
     return {
       attempt: state.attempt,
       nextAttemptId: state.nextAttemptId,
       setupCommitment: state.setupCommitment,
       setupNonce: state.setupNonce,
-      // `RecoveryState.removedKey` has no value for a replay that names no key or
-      // several, so both read as 'no-creation-triple'; the wallet reads'
-      // `removedKey()` names the cause.
-      removedKey: removed.kind === 'named' ? removed.key : 'no-creation-triple',
+      removedKey,
       block
     }
   }
