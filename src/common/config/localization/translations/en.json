@@ -886,14 +886,18 @@
       },
       "runningAttempt": {
         "title": "A recovery is already in progress for this account",
-        "lead": "The recovery registry allows one attempt at a time. This one finishes {{date}}.",
+        "lead": "The recovery registry allows one attempt at a time. This one can execute from {{date}}.",
         "yoursWallet": "This is your own recovery: the new key is one this wallet holds.",
         "yoursSeed": "This is your own recovery: the new key is the one this device wrote down on the fast track.",
         "continueWithKey": "Continue with that key",
         "notYours": "The new key is not one this wallet holds.",
         "waitItOut": "Wait it out. Only the account's own key can stop this recovery.",
         "cancelExit": "Cancel it with this wallet's key",
-        "cancelExitBody": "This wallet holds the account's own key, which can cancel the recovery before it finishes."
+        "cancelExitBody": "This wallet holds the account's own key, which can cancel the recovery before it finishes.",
+        "readFailed": "We could not read the running recovery. This says nothing about who started it or whether it still runs.",
+        "authorityFailed": "We could not check whether this wallet holds the account's key.",
+        "writeFailed": "This wallet could not save the recovery's countdown. Try again.",
+        "ended": "This recovery ended while you were reading. Continue to the readout."
       }
     },
     "readout": {
@@ -1149,7 +1153,7 @@
       "dueTitle": "The waiting period ended",
       "dueLead": "Nobody has executed yet. Execute now to finish the recovery.",
       "started": "Started {{date}}",
-      "finishes": "Finishes {{date}}",
+      "finishes": "Can execute from {{date}}",
       "ended": "Waiting period ended {{date}}",
       "endFromChainTitle": "Where the end comes from",
       "endFromChain": "The end comes from the recovery registry on chain, not from this device's clock.",
@@ -1385,7 +1389,7 @@
     "watcher": {
       "banner": {
         "title": "Somebody started recovering this account",
-        "finishes": "Finishes {{date}}",
+        "finishes": "Can execute from {{date}}",
         "waiting": "{{countdown}} · waiting",
         "executionDue": "Execution due",
         "dueBody": "The waiting period ended on {{date}} and nobody has executed yet.",
@@ -1403,6 +1407,7 @@
         "title": "We could not check this account",
         "body": "This says nothing about whether a recovery is running.",
         "lastRead": "Last checked {{date}}.",
+        "lastBlock": "Last read at block time {{date}}.",
         "retry": "Try again"
       },
       "executed": {
@@ -1426,7 +1431,9 @@
       },
       "inProgress": {
         "title": "Cancelling…",
-        "body": "The attempt is live until this lands. Keep this window open."
+        "body": "The attempt is live until this lands. Keep this window open.",
+        "earlierMayLand": "An earlier cancel of this account may still land and could end this recovery. Wait for it, or cancel again in a few minutes.",
+        "newerAttempt": "Another recovery of this account started meanwhile. This wallet offers its cancel once the earlier one is settled."
       },
       "landed": {
         "title": "The cancel landed",
