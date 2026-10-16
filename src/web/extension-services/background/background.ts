@@ -80,6 +80,11 @@ import TrezorController from '@web/modules/hardware-wallet/controllers/TrezorCon
 import LatticeSigner from '@web/modules/hardware-wallet/libs/LatticeSigner'
 import LedgerSigner from '@web/modules/hardware-wallet/libs/LedgerSigner'
 import TrezorSigner from '@web/modules/hardware-wallet/libs/TrezorSigner'
+import {
+  registerRecoveryWatcherAlarm,
+  startRecoveryWatcher,
+  watchedNetworkOf
+} from '@web/modules/social-recovery/watcher'
 import { getExtensionInstanceId } from '@web/utils/analytics'
 import getOriginFromUrl from '@web/utils/getOriginFromUrl'
 import { LOG_LEVELS, logInfoWithPrefix } from '@web/utils/logger'
@@ -166,6 +171,7 @@ let walletStateCtrl: WalletStateController
 // eslint-disable-next-line @typescript-eslint/no-floating-promises
 handleRegisterScripts()
 handleKeepAlive()
+registerRecoveryWatcherAlarm()
 
 // eslint-disable-next-line @typescript-eslint/no-floating-promises
 providerRequestTransport.reply(async ({ method, id, params }, meta) => {
@@ -442,8 +448,15 @@ function getIntervalRefreshTime(constUpdateInterval: number, newestOpTimestamp: 
       await mainCtrl.dapps.broadcastDappSessionEvent('logLevelUpdate', nextLogLevel)
     }
   })
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const badgesCtrl = new BadgesController(mainCtrl, walletStateCtrl)
+  startRecoveryWatcher({
+    accounts: () => mainCtrl.accounts.accounts,
+    network: () => watchedNetworkOf(mainCtrl.networks.networks),
+    ready: mainCtrl.accounts.initialLoadPromise,
+    onBadge: (count) => {
+      badgesCtrl.recoveryAttemptsCount = count
+    }
+  })
   const autoLockCtrl = new AutoLockController(() => {
     // Prevents sending multiple notifications if the event is triggered multiple times
     if (mainCtrl.keystore.isUnlocked) {

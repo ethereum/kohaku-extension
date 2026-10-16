@@ -27,10 +27,13 @@ import type {
   RemovedKeyUnavailableCause
 } from '@web/modules/social-recovery/sdk-doubles'
 import type {
+  ActionState,
   Address,
+  BlockHeader,
   BlockTag,
   CreationRecord,
   DeploymentDescriptor,
+  Handover,
   Hex,
   IMethodModuleReads,
   IMethodsOrchestrator,
@@ -48,6 +51,7 @@ import type { UNKNOWN_ACTION } from './audited-actions'
 import type { RECOVERY_CHAINS } from './chains'
 import type { PUBLISHERS } from './deployments'
 import type { DEPLOYMENT_CHECKS } from './kit/builder/construction'
+import type { AttemptLog } from './kit/events/types'
 import type { PROVIDER_READS } from './provider-adapter'
 import type { MISSING_SEND_ACTION, SEND_REFUSAL_REASONS } from './sender'
 import type { RECOVERY_CALLS } from './sending'
@@ -968,4 +972,81 @@ export interface SendingKeys {
   accountKey?: KeyHandle
   /** The recoverer's own key, which sends the submission and the execution. */
   recovererKey?: KeyHandle
+}
+
+// ---------------------------------------------------------------------------
+// The watcher's reads
+// ---------------------------------------------------------------------------
+
+/** What the watcher's reads of one deployment go through. */
+export interface WatcherReadsInput {
+  provider: IProvider
+  codeRead: CodeRead
+  descriptor: Pick<DeploymentDescriptor, 'manager' | 'action' | 'deployedAt'>
+  /** The widest block range one log query asks for; the kit's own default where none is given. */
+  chunkWidth?: number
+}
+
+/** The blocks a scan for one attempt's logs covers, both included. */
+export interface AttemptScan {
+  from: number
+  to: number
+  /**
+   * The log the backwards scan stops at: the attempt's opening (the default),
+   * or its ending where the caller needs the ending alone.
+   */
+  until?: 'opening' | 'ending'
+  /** Asked before each chunk; the scan answers what it found so far once it answers true. */
+  stop?: () => boolean
+  /**
+   * Told the first block of each chunk once its logs were read and held no
+   * opening; nothing more once the opening is found.
+   */
+  onChunk?: (from: number) => void
+}
+
+/** The logs of one attempt a scan found: its opening, and its ending where it ended. */
+export interface AttemptEvents {
+  started?: Extract<AttemptLog, { kind: 'attempt-started' }>
+  cancelled?: Extract<AttemptLog, { kind: 'attempt-cancelled' }>
+  consumed?: Extract<AttemptLog, { kind: 'attempt-consumed' }>
+}
+
+/**
+ * The cheap reads the watcher polls one deployment with, each at a block
+ * number the caller pinned. None runs the removed-key scan. A read that could
+ * not be made rejects, and never answers empty; a contract's revert met by
+ * the state or authorization read rejects as the kit's named error.
+ */
+export interface WatcherReads {
+  /** The latest block, never the finalized one. */
+  latestBlock(): Promise<BlockHeader>
+  /** Whether the account has code at the block. */
+  hasCode(account: Address, block: number): Promise<boolean>
+  /** The manager's record of the account at the deployment's action. */
+  stateOf(account: Address, block: number): Promise<ActionState>
+  /** Whether the account still authorizes the deployment's action. */
+  isAuthorized(account: Address, block: number): Promise<boolean>
+  /**
+   * The logs of one attempt of the account at the deployment's action,
+   * scanned backwards from the scan's last block in chunks, stopping at the
+   * first chunk that holds the attempt's opening, or its ending where the
+   * scan asks for the ending alone, or at the chunk before which the scan's
+   * `stop` answered true. The scan never starts before the manager's
+   * deployment block.
+   */
+  attemptEventsOf(account: Address, attemptId: bigint, scan: AttemptScan): Promise<AttemptEvents>
+  /** The timestamp of a block, in seconds. */
+  blockTime(block: number): Promise<number>
+  /** The handover a payload carries in the action's layout, or none where it does not decode. */
+  handoverOf(payload: Hex): Handover | undefined
+}
+
+/** The watcher's reads over the extension's own provider for one network record. */
+export interface WatcherConnection {
+  reads: WatcherReads
+  /** The key of the network fields the provider was built from. */
+  providerKey: string
+  /** Destroys the provider. */
+  destroy(): void
 }

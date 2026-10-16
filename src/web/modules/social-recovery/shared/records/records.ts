@@ -126,7 +126,8 @@ const recoveryEntryPrefix = (chainId: ChainId): string =>
  *   its landed state the countdown's record;
  * - `recoveryEntry`: the route and the receiving account of a recovery;
  * - `decryptedSetupCache`: the setup the recovery password unlocked;
- * - `saveInFlight`: the setup save sent to the wallet and not yet settled.
+ * - `saveInFlight`: the setup save sent to the wallet and not yet settled;
+ * - `watcher`: the watcher's last reading of the account's attempt.
  *
  * A ceremony request is keyed by its request id alone,
  * `socialRecovery:ceremonyRequest:<id>`, since the ceremony tab reads it from
@@ -143,6 +144,8 @@ export const recordKeys = {
     `${RECORDS_KEY_PREFIX}:decryptedSetupCache:${chainPart(chainId)}:${accountPart(account)}`,
   saveInFlight: (chainId: ChainId, account: Address): string =>
     `${RECORDS_KEY_PREFIX}:saveInFlight:${chainPart(chainId)}:${accountPart(account)}`,
+  watcher: (chainId: ChainId, account: Address): string =>
+    `${RECORDS_KEY_PREFIX}:watcher:${chainPart(chainId)}:${accountPart(account)}`,
   ceremonyRequest: (id: string): string =>
     `${RECORDS_KEY_PREFIX}:ceremonyRequest:${requestIdPart(id)}`
 }
@@ -424,7 +427,7 @@ const inMemoryQueue = <R>(key: string, task: () => Promise<R>): Promise<R> => {
  * holder cannot take a Web Locks lock twice, and the in-memory queue would
  * wait for itself.
  */
-const inQueue = <R>(key: string, task: () => Promise<R>): Promise<R> => {
+export const inQueue = <R>(key: string, task: () => Promise<R>): Promise<R> => {
   const locks = typeof navigator === 'undefined' ? undefined : navigator.locks
   if (locks) {
     return locks.request(key, () => task()) as Promise<R>
