@@ -1,7 +1,7 @@
 /**
  * The refusal of a member the deployed kit's client does not serve yet: the
- * setup's clear and the events feed's method filter. It names the member,
- * and no such member falls back to the scripted stand-in.
+ * events feed's method filter. It names the member, and no such member falls
+ * back to the scripted stand-in.
  */
 import type { NotServedRefusal } from '../../types'
 

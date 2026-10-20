@@ -107,7 +107,10 @@ const WEB_ROUTES = {
   socialRecoveryRecoveryInProgress: 'social-recovery/recovery/in-progress',
   socialRecoveryRecoverySubmit: 'social-recovery/recovery/submit',
   socialRecoveryRecoveryWait: 'social-recovery/recovery/wait',
-  socialRecoveryRecoveryDone: 'social-recovery/recovery/done'
+  socialRecoveryRecoveryDone: 'social-recovery/recovery/done',
+  socialRecoveryManageEdit: 'social-recovery/manage/edit',
+  socialRecoveryManageReview: 'social-recovery/manage/review',
+  socialRecoveryManageRemove: 'social-recovery/manage/remove'
 }
 
 const ROUTES = { ...MOBILE_ROUTES, ...WEB_ROUTES }

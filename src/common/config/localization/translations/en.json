@@ -1444,12 +1444,6 @@
         "unread": "The registry has not confirmed the end yet. Check again in a moment.",
         "checkAgain": "Check again"
       },
-      "landed": {
-        "title": "The cancel landed",
-        "body": "The transaction landed. The wallet reads the recovery registry to confirm the recovery ended.",
-        "unread": "The registry has not confirmed the end yet. Check again in a moment.",
-        "checkAgain": "Check again"
-      },
       "failed": {
         "title": "Could not cancel",
         "body": "The transaction was rejected before it reached the chain. The waiting period keeps running. Retry now, or move your funds.",
@@ -1463,10 +1457,154 @@
         "title": "You cancelled this recovery",
         "body": "The methods it used still work. Whoever holds them can try again. Replace them now, or move your funds.",
         "replace": "Replace them",
-        "replaceLater": "Replacing a method of a saved setup arrives with the recovery overview in a later release. Until then, move your funds if you cannot trust the methods.",
         "moveFunds": "Move funds",
         "done": "Done",
         "otherRoad": "Another road ended this recovery before your cancel: {{road}} Control did not move."
+      }
+    },
+    "management": {
+      "overview": {
+        "title": "Account recovery",
+        "lead": {
+          "setUp": "One recovery path is set up for this account. Every change here is a transaction you sign.",
+          "notSetUp": "This account has no recovery path yet.",
+          "inProgress": "A recovery is running on this account. One recovery path is set up for it, and every change here is a transaction you sign."
+        },
+        "empty": {
+          "body": "Recovery helps if you lose your key. It cannot stop someone who already has it.",
+          "action": "Set up recovery"
+        },
+        "path": {
+          "editPath": "Edit path",
+          "removeRecovery": "Remove recovery",
+          "pendingLine": "Editing or removing recovery cancels the recovery in progress."
+        },
+        "recover": {
+          "title": "Recover an account",
+          "body": "Lost access to another account? Start here."
+        },
+        "card": {
+          "title": "Recovery Card",
+          "body": "The printed card that carries this account's address and, at the hidden levels, the recovery password.",
+          "action": "Open the Recovery Card"
+        },
+        "reads": {
+          "loading": "Reading this account's recovery setup.",
+          "failedTitle": "This wallet could not read the setup",
+          "failedBody": "The read did not return. The setup on the chain is unchanged. Try again.",
+          "noticesFailedTitle": "This wallet could not read the notices",
+          "noticesFailedBody": "The read of the method and attempt events did not return. The setup on the chain is unchanged. Try again."
+        },
+        "writes": {
+          "dropped": "The node no longer knows this transaction. It did not land, and the account stands as it did. Send it again.",
+          "mayStillLand": "This change was sent and can still land. This wallet keeps watching for it.",
+          "inFlightElsewhere": "A change from the recovery overview is on its way for this account. Follow it there.",
+          "openOverview": "Open the recovery overview",
+          "editInFlight": "A change to the recovery path is on its way for this account. Follow it on the review of changes.",
+          "openReview": "Open the review of changes",
+          "removeInFlight": "The removal of recovery is on its way for this account. Follow it on the removal screen.",
+          "openRemove": "Open the removal"
+        },
+        "locked": {
+          "title": "Your recovery path is locked on this device",
+          "body": "This wallet cannot show your setup on this device yet. Enter the recovery password from your Recovery Card.",
+          "action": "Enter the recovery password",
+          "field": "Recovery password",
+          "wrong": "That is not the recovery password of this setup.",
+          "unlock": "Show the path"
+        },
+        "dormant": {
+          "title": "This setup is not active on the account",
+          "body": "The recovery module lost its authorization on this account. A later authorization would revive this setup under this rule, so repair it now.",
+          "reauthorize": "Re-authorize",
+          "clear": "Clear",
+          "reauthorizeNote": "Re-authorize shows the trust list first and saves your whole setup again. At a hidden privacy level it asks for your recovery password.",
+          "pendingLine": "The recovery in progress cannot execute until this account authorizes the recovery module again.",
+          "refused": "This wallet does not re-authorize while a recovery is in progress. It keeps the cancel and the repair apart: cancel the recovery first, then re-authorize.",
+          "clearCancels": "Clearing the setup ends the recovery in progress.",
+          "clearTitle": "Clear this setup",
+          "clearBody": "This removes the setup from the recovery registry. The account keeps no recovery path after it."
+        },
+        "mirror": {
+          "title": "This account authorizes the recovery module with no setup behind it",
+          "body": "A later save would re-arm recovery with no account write. Remove the authorization.",
+          "action": "Remove the authorization"
+        },
+        "movedKeys": {
+          "title": "{{method}}: the keys this method trusts moved",
+          "body": "The method's admin changed the keys this row was tested against. Run the test again to see whether the row still works.",
+          "admin": "This party can change the key this method trusts, so it could approve for this method.",
+          "caveat": "A passing test does not clear this risk. An admin who adds a key of their own beside the legitimate one leaves your own row verifying.",
+          "edit": "Edit path"
+        },
+        "ended": {
+          "ownerCancel": "You cancelled a recovery on {{date}}. The methods it used still work. Whoever holds them can try again.",
+          "setupWrite": "A setup change ended a recovery on {{date}}. Every approval under the old setup is dead, and the replaced rows cannot be used again.",
+          "replace": "Replace them"
+        },
+        "reauthorize": {
+          "title": "Re-authorize this setup",
+          "lead": "This wallet saves your whole setup again and authorizes the recovery module on the account, in one transaction your key signs.",
+          "action": "Re-authorize"
+        }
+      },
+      "editor": {
+        "title": "Edit your recovery path",
+        "lead": "Change the members, the rule or the waiting period. Every change ends in a review and one transaction you sign.",
+        "review": "Review changes",
+        "changes": {
+          "title": "What changes",
+          "none": "Nothing has changed yet.",
+          "members": "Members: {{added}} added, {{removed}} removed",
+          "rule": "Rule: {{before}} becomes {{after}}",
+          "waitingPeriod": "Waiting period: {{before}} becomes {{after}}",
+          "privacy": "Privacy level: {{before}} becomes {{after}}",
+          "password": "Recovery password: changed",
+          "pathChanged": "Members moved between groups"
+        },
+        "staleCard": "A changed recovery password or privacy level makes a printed Recovery Card stale. Print a new one after you save.",
+        "password": {
+          "action": "Change the recovery password",
+          "body": "Set a new recovery password for this setup. Your printed card carries the old one until you print it again.",
+          "field": "New recovery password",
+          "confirmField": "Repeat the new recovery password",
+          "mismatch": "The two passwords differ."
+        },
+        "stillNeeded": {
+          "title": "This member is still needed",
+          "body": "The path needs {{required}} of {{count}} in this group. Lower the threshold or add a replacement first, then remove this member."
+        },
+        "values": {
+          "change": "Change"
+        }
+      },
+      "review": {
+        "title": "Review your changes",
+        "lead": "This wallet writes your changed setup to the recovery registry in one transaction your key signs.",
+        "save": "Save changes",
+        "cancelsLine": "Saving will cancel the recovery in progress.",
+        "addedRows": "New rows",
+        "unchanged": "Nothing changed. There is nothing to save.",
+        "savedTitle": "Changes saved",
+        "savedBody": "Your recovery path is updated on the chain. Print a new Recovery Card if this screen says the old one is stale.",
+        "done": "Done",
+        "backToEditor": "Back to the editor",
+        "setupChangedBody": "Another device changed this setup after you opened the editor. The editor reloads it from the chain, and your unsaved changes are gone.",
+        "dormantRefused": "This setup is not active on the account and a recovery is in progress. This wallet does not re-commit a setup while that recovery runs: cancel it first."
+      },
+      "remove": {
+        "title": "Remove recovery",
+        "warning": "This account will have no recovery path. If you lose your key, nobody can recover this account.",
+        "body": "This clears the setup and removes the recovery module's authorization in one transaction your key signs.",
+        "cancelsLine": "Removing recovery cancels the recovery in progress.",
+        "typeToConfirm": "Type {{word}} to confirm",
+        "word": "REMOVE",
+        "action": "Remove recovery",
+        "doneTitle": "Recovery removed",
+        "doneBody": "This account has no recovery path now.",
+        "keep": "Keep recovery",
+        "alreadyTitle": "Recovery was already removed",
+        "alreadyBody": "Another device removed this account's recovery path before this wallet sent anything. This account has no recovery path now."
       }
     }
   }

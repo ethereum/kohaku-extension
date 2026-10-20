@@ -113,9 +113,9 @@ describe('a chain whose deployment record names a deployed kit', () => {
     expect(client.descriptor.manager).toBe(FACTS.manager)
     expect(client.descriptor.action).toBe(FACTS.action)
     expect(client.setup).not.toBeInstanceOf(SetupClientDouble)
-    expect(await thrownBy(client.setup.prepareClearSetup())).toMatchObject({
-      name: 'NotServedRefusal'
-    })
+    expect(() => client.recovery.events.methodFilter()).toThrow(
+      expect.objectContaining({ name: 'NotServedRefusal', member: 'events.methodFilter' })
+    )
     expect(builder).not.toHaveBeenCalled()
   })
 

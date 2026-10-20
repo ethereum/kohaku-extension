@@ -97,7 +97,7 @@ export const PASSWORD = 'correct horse battery staple'
 export const MANAGER_ABI = parseAbi([
   'function stateOf(address account, address action) view returns ((bytes32, uint64, uint64, uint48, (uint64, uint64, uint48, uint8, bool, bytes32, (address, uint256, address), address[])))',
   'function commitSetup(address action, bytes32 setupCommitment, uint64 nonce, bytes publicMetadata, bytes privateMetadata)',
-  'function clearSetup(address action, uint64 nonce)',
+  'function clearSetup(address action)',
   'event SetupCommitted(address indexed account, address indexed action, uint64 nonce, bytes32 setupCommitment, bytes publicMetadata, bytes privateMetadata)',
   'event SetupCleared(address indexed account, address indexed action, uint64 nonce)',
   'event AttemptStarted(address indexed account, address indexed action, uint64 attemptId, uint64 setupNonce, bytes setupBody, uint256[] usedPlaces, address[] usedMethods, bytes payload, (address token, uint256 amount, address payee) order, uint48 consumableAfter)',

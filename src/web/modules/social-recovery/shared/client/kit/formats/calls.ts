@@ -1,9 +1,9 @@
 /**
  * The calldata of the writes a setup and a recovery send: the manager's
- * `commitSetup`, the account's own `setAddrPrivilege` that arms or disarms
- * the kit, the manager's start and three cancels, and the action's execute
- * with the calls it runs (the manager's consume, the account's two privilege
- * writes and the payment's ERC-20 transfer). The kit
+ * `commitSetup` and `clearSetup`, the account's own `setAddrPrivilege` that
+ * arms or disarms the kit, the manager's start and three cancels, and the
+ * action's execute with the calls it runs (the manager's consume, the
+ * account's two privilege writes and the payment's ERC-20 transfer). The kit
  * is armed while the account grants the action's kit slot the action's
  * binding: the slot is the address `keccak256(abi.encode("kit", action))`
  * ends with, and the binding is `keccak256(abi.encode(action, bytes("")))`.
@@ -124,6 +124,10 @@ export const cancelByProofsData = (request: CancelRequest): Hex =>
 /** The manager's `cancelByOwner(action)`, sent by the account. */
 export const cancelByOwnerData = (action: Address): Hex =>
   encodeFunctionData({ abi: POLICY_MANAGER_ABI, functionName: 'cancelByOwner', args: [action] })
+
+/** The manager's `clearSetup(action)`, sent by the account. */
+export const clearSetupData = (action: Address): Hex =>
+  encodeFunctionData({ abi: POLICY_MANAGER_ABI, functionName: 'clearSetup', args: [action] })
 
 /** The manager's `cancelByVeto(account, action, attemptId, method)`. */
 export const cancelByVetoData = (

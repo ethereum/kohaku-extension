@@ -465,13 +465,10 @@ describe('the events feed', () => {
 })
 
 describe('the members the deployed kit does not serve yet', () => {
-  it("refuses the events feed's method filter and rejects the clear by name", async () => {
+  it("refuses the events feed's method filter by name", () => {
     const { client } = clientOver()
     expect(() => client.recovery.events.methodFilter()).toThrow(
       expect.objectContaining({ name: 'NotServedRefusal', member: 'events.methodFilter' })
     )
-    expect(await thrownBy(client.setup.prepareClearSetup())).toMatchObject({
-      member: 'setup.prepareClearSetup'
-    })
   })
 })

@@ -83,6 +83,8 @@ export const MODULE_READS = [
 export const SCRIPTED_REFUSALS = [
   'setup.prepareCommitSetup',
   'setup.prepareClearSetup',
+  'setup.prepareRemoveSetup',
+  'setup.prepareRemoveAuthorization',
   'setup.confirmSetup',
   'setup.getSetup',
   'recovery.initRecoveryGathering',
@@ -113,6 +115,8 @@ export const SCRIPTED_REFUSALS = [
 export const SCRIPTED_SIMULATIONS = [
   'setup.prepareCommitSetup',
   'setup.prepareClearSetup',
+  'setup.prepareRemoveSetup',
+  'setup.prepareRemoveAuthorization',
   'recovery.prepareStartAttempt',
   'recovery.prepareCancelByProofs',
   'recovery.prepareCancelByOwner',

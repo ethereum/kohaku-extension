@@ -1,10 +1,19 @@
 /**
  * The deployed kit's setup client over a node scripted by hand: the state, the
  * description, the validation's read rows, the commit's prepare, its check
- * after the landing and the restore, each over the real formats, reads,
- * events and backup.
+ * after the landing, the restore and the two removals, each over the real
+ * formats, reads, events and backup.
  */
-import { encodeErrorResult, getAddress, maxUint48, size, zeroHash } from 'viem'
+import {
+  decodeFunctionData,
+  encodeErrorResult,
+  getAddress,
+  maxUint48,
+  size,
+  slice,
+  toFunctionSelector,
+  zeroHash
+} from 'viem'
 
 import type {
   Configuration,
@@ -14,6 +23,7 @@ import type {
   PreparedCall,
   SetupDraft
 } from '@web/modules/social-recovery/sdk-interfaces'
+import { POLICY_MANAGER_ABI } from '@web/modules/social-recovery/shared/client/kit/abi'
 import {
   BACKUP_SEALED_SIZE,
   clearBackupOf,
@@ -890,15 +900,127 @@ describe('prepareCommitSetup', () => {
   })
 })
 
-describe('the members the deployed kit does not serve', () => {
-  it('refuses the clear, naming the member', async () => {
-    const world = kitWorld()
-    expect(await thrownBy(world.setup.prepareClearSetup())).toMatchObject({
-      name: 'NotServedRefusal',
-      member: 'setup.prepareClearSetup'
-    })
-    expect(world.node.calls).toEqual([])
+const CLEAR_SELECTOR = toFunctionSelector('function clearSetup(address)')
+const PRIVILEGE_SELECTOR = toFunctionSelector('function setAddrPrivilege(address,bytes32)')
+
+const armedWithSetup = (authorized: boolean) => {
+  const world = kitWorld({ accountCode: ACCOUNT_CODE })
+  scriptAction(world.node, { supportsAccount: true, authorized })
+  scriptState(world.node, {
+    setupCommitment: `0x${'5a'.repeat(32)}`,
+    setupNonce: 2n,
+    setupCommittedAtBlock: HEAD - 10
   })
+  return world
+}
+
+describe('prepareRemoveSetup', () => {
+  it('batches the clear to the manager first and the zero write to the kit slot second, at the pinned block', async () => {
+    const world = armedWithSetup(true)
+    const batch = await world.setup.prepareRemoveSetup()
+    const block = { number: HEAD, hash: world.node.head.hash }
+    expect(batch).toMatchObject({ kind: 'batch', atomic: true, block })
+    expect(batch.calls.map((c) => [c.kind, c.target, c.value, c.sender, c.block])).toEqual([
+      ['call', MANAGER, 0n, 'account', block],
+      ['call', ACCOUNT, 0n, 'account', block]
+    ])
+    const [clear, revoke] = batch.calls
+    expect(slice(clear!.data, 0, 4)).toBe(CLEAR_SELECTOR)
+    expect(decodeFunctionData({ abi: POLICY_MANAGER_ABI, data: clear!.data })).toEqual({
+      functionName: 'clearSetup',
+      args: [getAddress(ACTION)]
+    })
+    expect(slice(revoke!.data, 0, 4)).toBe(PRIVILEGE_SELECTOR)
+    expect(armingArgsOf(revoke!)).toEqual({ slot: kitSlotOf(ACTION), value: zeroHash })
+  })
+
+  it('pairs the same two writes for a setup the account no longer authorizes', async () => {
+    const batch = await armedWithSetup(false).setup.prepareRemoveSetup()
+    expect(batch.calls.map((c) => slice(c.data, 0, 4))).toEqual([
+      CLEAR_SELECTOR,
+      PRIVILEGE_SELECTOR
+    ])
+  })
+  ;[true, false].forEach((authorized) =>
+    it(`refuses where no setup stands, with the authorization ${
+      authorized ? 'held' : 'absent'
+    }`, async () => {
+      const world = kitWorld({ accountCode: ACCOUNT_CODE })
+      scriptAction(world.node, { supportsAccount: true, authorized })
+      expect(await thrownBy(world.setup.prepareRemoveSetup())).toMatchObject({
+        code: 'setup.no-setup'
+      })
+    })
+  )
+})
+
+describe('prepareRemoveAuthorization', () => {
+  it('writes a zero to the kit slot alone, sent by the account at the pinned block', async () => {
+    const world = kitWorld({ accountCode: ACCOUNT_CODE })
+    scriptAction(world.node, { supportsAccount: true, authorized: true })
+    const call = await world.setup.prepareRemoveAuthorization()
+    expect([call.kind, call.target, call.value, call.sender, call.block]).toEqual([
+      'call',
+      ACCOUNT,
+      0n,
+      'account',
+      { number: HEAD, hash: world.node.head.hash }
+    ])
+    expect(slice(call.data, 0, 4)).toBe(PRIVILEGE_SELECTOR)
+    expect(armingArgsOf(call)).toEqual({ slot: kitSlotOf(ACTION), value: zeroHash })
+  })
+
+  it('refuses an account that does not authorize the action, and an account with no code', async () => {
+    const unarmed = kitWorld({ accountCode: ACCOUNT_CODE })
+    scriptAction(unarmed.node, { supportsAccount: true, authorized: false })
+    expect(await thrownBy(unarmed.setup.prepareRemoveAuthorization())).toMatchObject({
+      code: 'setup.not-authorized'
+    })
+    expect(await thrownBy(kitWorld().setup.prepareRemoveAuthorization())).toMatchObject({
+      code: 'setup.not-authorized'
+    })
+  })
+})
+
+describe('prepareClearSetup', () => {
+  it("sends the manager's clear of the action alone, from the account at the pinned block", async () => {
+    const world = armedWithSetup(true)
+    const call = await world.setup.prepareClearSetup()
+    if (call.kind !== 'call') {
+      throw new Error('The clear came back as a batch.')
+    }
+    expect([call.kind, call.target, call.value, call.sender, call.block]).toEqual([
+      'call',
+      MANAGER,
+      0n,
+      'account',
+      { number: HEAD, hash: world.node.head.hash }
+    ])
+    expect(slice(call.data, 0, 4)).toBe(CLEAR_SELECTOR)
+    expect(decodeFunctionData({ abi: POLICY_MANAGER_ABI, data: call.data })).toEqual({
+      functionName: 'clearSetup',
+      args: [getAddress(ACTION)]
+    })
+  })
+
+  it('clears a setup the account no longer authorizes the same way', async () => {
+    const call = await armedWithSetup(false).setup.prepareClearSetup()
+    if (call.kind !== 'call') {
+      throw new Error('The clear came back as a batch.')
+    }
+    expect([call.target, slice(call.data, 0, 4)]).toEqual([MANAGER, CLEAR_SELECTOR])
+  })
+  ;[true, false].forEach((authorized) =>
+    it(`refuses where no setup stands, with the authorization ${
+      authorized ? 'held' : 'absent'
+    }`, async () => {
+      const world = kitWorld({ accountCode: ACCOUNT_CODE })
+      scriptAction(world.node, { supportsAccount: true, authorized })
+      expect(await thrownBy(world.setup.prepareClearSetup())).toMatchObject({
+        code: 'setup.no-setup'
+      })
+    })
+  )
 })
 
 describe('the method calls the client makes', () => {

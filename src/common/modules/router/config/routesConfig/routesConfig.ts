@@ -524,6 +524,21 @@ const routesConfig: RouteConfig = {
     route: ROUTES.socialRecoveryRecoveryDone,
     title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
     name: Platform.select({ default: i18n.t('socialRecovery.routes.recoveryDone') })
+  },
+  [ROUTES.socialRecoveryManageEdit]: {
+    route: ROUTES.socialRecoveryManageEdit,
+    title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
+    name: Platform.select({ default: i18n.t('socialRecovery.management.editor.title') })
+  },
+  [ROUTES.socialRecoveryManageReview]: {
+    route: ROUTES.socialRecoveryManageReview,
+    title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
+    name: Platform.select({ default: i18n.t('socialRecovery.management.review.title') })
+  },
+  [ROUTES.socialRecoveryManageRemove]: {
+    route: ROUTES.socialRecoveryManageRemove,
+    title: Platform.select({ default: i18n.t('socialRecovery.routes.title') }),
+    name: Platform.select({ default: i18n.t('socialRecovery.management.remove.title') })
   }
 }
 

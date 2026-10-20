@@ -109,19 +109,19 @@ describe('land, then read', () => {
   })
 
   describe('clearSetup', () => {
-    it('lands the leaving pair: no setup, no authorization, SetupCleared', async () => {
+    it('lands the clear alone: no setup, the authorization kept, SetupCleared', async () => {
       const world = createWorld()
       world.script.setupCommitted('private')
       world.script.authorized(true)
       const setup = await world.setupClient()
       const before = await setup.setupState()
       const prepared = await setup.prepareClearSetup()
-      expect(prepared.kind).toBe('batch')
+      expect(prepared.kind).toBe('call')
       expectClean(prepared)
       world.chain.land(prepared)
       const state = await setup.setupState()
       expect(state.hasSetup).toBe(false)
-      expect(state.isAuthorized).toBe(false)
+      expect(state.isAuthorized).toBe(true)
       expect(state.setupNonce).toBe(before.setupNonce + 1n)
       const cleared = ofKind(await stream(world), 'setup-cleared')
       expect(cleared).toHaveLength(1)

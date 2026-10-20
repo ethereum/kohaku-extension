@@ -24,6 +24,7 @@ export {
   cancelByProofsData,
   cancelByOwnerData,
   cancelByVetoData,
+  clearSetupData,
   executeHandoverData,
   consumeData,
   transferData
