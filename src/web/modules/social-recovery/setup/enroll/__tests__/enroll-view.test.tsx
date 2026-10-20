@@ -3,7 +3,8 @@
  *
  * The slot the search names: the screen serves an empty slot of the kind the
  * search names, or the credential it already placed there, and renders the
- * nothing-to-run line with Back alone for any other search or slot.
+ * nothing-to-run line with Back alone for any other search or slot. Back leads
+ * to the editor that opened the enrollment.
  */
 import type { Credential } from '@web/modules/social-recovery/sdk-interfaces'
 
@@ -214,6 +215,19 @@ describe('the enroll view', () => {
     })
     await view.press('enroll-back')
     expect(view.navigate).toHaveBeenCalledWith(WEB_ROUTES.socialRecoverySetupEditor)
+  })
+
+  it('goes back to the management editor where that editor opened the enrollment', async () => {
+    const { records } = await recordsWith(pathWith(emptySlot('ecdsa')))
+    view = await mountView({
+      records,
+      search: { kind: 'ecdsa', at: { clause: 0, member: 0 }, returnTo: 'manage' },
+      deps: depsOf()
+    })
+    expect(view.byTestId('enroll-guardian')).not.toBeNull()
+    await view.press('enroll-back')
+    expect(view.navigate).toHaveBeenCalledWith(WEB_ROUTES.socialRecoveryManageEdit)
+    expect(view.navigate).not.toHaveBeenCalledWith(WEB_ROUTES.socialRecoverySetupEditor)
   })
 
   each([

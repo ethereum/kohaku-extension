@@ -182,12 +182,17 @@ const EnrollScreen = () => {
 
   return (
     <SetupChrome
-      counter={{
-        labelKey: SETUP_STAGE_COUNTER_KEY,
-        step: 2,
-        total: SETUP_STAGES,
-        testID: 'enroll-stage'
-      }}
+      // An enrollment the management editor opened is no step of the setup.
+      counter={
+        search?.returnTo
+          ? undefined
+          : {
+              labelKey: SETUP_STAGE_COUNTER_KEY,
+              step: 2,
+              total: SETUP_STAGES,
+              testID: 'enroll-stage'
+            }
+      }
     >
       {!!account && (
         <EnrollView

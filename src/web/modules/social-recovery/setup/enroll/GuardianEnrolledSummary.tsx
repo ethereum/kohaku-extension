@@ -45,7 +45,7 @@ const GuardianEnrolledSummary = ({
         <StatusChip
           testID="guardian-chip"
           text={renderChip('method', TEST_CHIPS[enrollment.test], t)}
-          tone={enrollment.test === 'passed' ? 'success' : 'default'}
+          tone={enrollment.test === 'passed' || enrollment.test === 'live' ? 'success' : 'default'}
         />
       </View>
       {!!resolved && (

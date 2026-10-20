@@ -97,7 +97,7 @@ describe('the overview', () => {
     await view.press('overview-remove-recovery')
     expect(props.navigate).toHaveBeenCalledWith(WEB_ROUTES.socialRecoveryManageRemove)
     await view.press('overview-card-open')
-    expect(props.navigate).toHaveBeenCalledWith(WEB_ROUTES.socialRecoverySetupCard)
+    expect(props.navigate).toHaveBeenCalledWith(`${WEB_ROUTES.socialRecoverySetupCard}?from=manage`)
     expect(view.byTestId('overview-recover')).not.toBeNull()
   })
 

@@ -307,7 +307,8 @@ describe('the resume rows', () => {
       'Not tested',
       'Test failed',
       'Test unavailable',
-      'Not supported'
+      'Not supported',
+      'Live'
     ])
   })
 

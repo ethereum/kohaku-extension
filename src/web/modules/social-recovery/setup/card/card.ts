@@ -32,6 +32,17 @@ export const CARD_LINE_KEYS = [
 export const levelOfBackup = (backup: BackupForm): CardLevel =>
   backup === 'encrypted' ? 'hidden' : 'public'
 
+/** The search key that names the screen the card was opened from, and its one value, the overview. */
+export const CARD_FROM_KEY = 'from'
+export const CARD_FROM_MANAGE = 'manage'
+
+/**
+ * Whether the recovery overview opened the card, `?from=manage`: the card then
+ * stands outside the setup's stages and leads back to the overview.
+ */
+export const openedFromManage = (search: string): boolean =>
+  new URLSearchParams(search).get(CARD_FROM_KEY) === CARD_FROM_MANAGE
+
 /** The level the save names in the route's search, `?level=hidden|public`, or null. */
 export const levelFromSearch = (search: string): CardLevel | null => {
   const level = new URLSearchParams(search).get('level')

@@ -100,13 +100,18 @@ export type PathRecord = SetupDraft['clauses']
 export const SLOT_KINDS = ['ecdsa', 'passkey', 'zkpassport', 'aadhaar'] as const
 export type SlotKind = typeof SLOT_KINDS[number]
 
-/** The access test verdicts an enrollment carries: passed, or one of the four verdict states. */
+/**
+ * The access test verdicts an enrollment carries: passed, one of the four
+ * verdict states, or live for a method the committed setup already holds,
+ * which no test of this edit has run on.
+ */
 export const ENROLLMENT_TEST_VERDICTS = [
   'passed',
   'not-tested',
   'failed',
   'unavailable',
-  'not-supported'
+  'not-supported',
+  'live'
 ] as const
 export type EnrollmentTestVerdict = typeof ENROLLMENT_TEST_VERDICTS[number]
 

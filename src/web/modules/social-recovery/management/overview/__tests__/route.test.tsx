@@ -73,6 +73,15 @@ jest.mock('@web/modules/social-recovery/cancel/CancelScreen', () => mockScreen('
 jest.mock('@web/modules/social-recovery/management/overview/OverviewScreen', () =>
   mockScreen('overview')
 )
+jest.mock('@web/modules/social-recovery/management/editor/EditScreen', () =>
+  mockScreen('manage-edit')
+)
+jest.mock('@web/modules/social-recovery/management/editor/ReviewScreen', () =>
+  mockScreen('manage-review')
+)
+jest.mock('@web/modules/social-recovery/management/editor/RemoveScreen', () =>
+  mockScreen('manage-remove')
+)
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const React: typeof import('react') = require('react')

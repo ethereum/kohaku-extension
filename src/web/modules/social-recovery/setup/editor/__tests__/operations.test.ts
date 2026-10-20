@@ -509,8 +509,9 @@ describe('how far the path is filled', () => {
 })
 
 describe("a row chip's tone", () => {
-  it('reads as a success only for a method that passed its access test', () => {
+  it('reads as a success only for a method that passed its access test or is live', () => {
     expect(rowChipTone(PASSKEY, [enrolled(PASSKEY)])).toBe('success')
+    expect(rowChipTone(PASSKEY, [{ credential: PASSKEY, test: 'live' }])).toBe('success')
     expect(rowChipTone(PASSKEY, [{ credential: PASSKEY, test: 'not-tested' }])).toBe('default')
     expect(rowChipTone(PASSKEY, [{ credential: PASSKEY, test: 'failed' }])).toBe('default')
     expect(rowChipTone(emptySlotOf('passkey'), [])).toBe('default')

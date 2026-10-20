@@ -1,7 +1,9 @@
 /**
  * The screen's search, `?kind=<slug>&clause=<n>&member=<m>`, with
- * `&ceremony=<request id>` once a ceremony tab returns to it. A search is a
- * URL the holder can edit, so it is read here once and nowhere else.
+ * `&ceremony=<request id>` once a ceremony tab returns to it, and
+ * `&return=manage` where the management editor opened it, so its back leads
+ * there. A search is a URL the holder can edit, so it is read here once and
+ * nowhere else.
  */
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import { SLOT_KINDS } from '@web/modules/social-recovery/shared/records'
@@ -14,8 +16,12 @@ export const ENROLL_SEARCH_KEYS = {
   kind: 'kind',
   clause: 'clause',
   member: 'member',
-  ceremony: 'ceremony'
+  ceremony: 'ceremony',
+  returnTo: 'return'
 } as const
+
+/** The return target of an enrollment the management editor opened. */
+export const MANAGE_RETURN = 'manage'
 
 const POSITION = /^(0|[1-9][0-9]{0,3})$/
 const REQUEST_ID = /^[A-Za-z0-9_-]{1,128}$/
@@ -43,7 +49,8 @@ export const parseEnrollSearch = (search: string): EnrollSearch | null => {
   return {
     kind,
     at: { clause: Number(clause), member: Number(member) },
-    ...(ceremony !== null && REQUEST_ID.test(ceremony) ? { ceremony } : {})
+    ...(ceremony !== null && REQUEST_ID.test(ceremony) ? { ceremony } : {}),
+    ...(query.get(ENROLL_SEARCH_KEYS.returnTo) === MANAGE_RETURN ? { returnTo: MANAGE_RETURN } : {})
   }
 }
 
@@ -55,6 +62,9 @@ export const enrollPathOf = (search: EnrollSearch, ceremony?: string): string =>
   query.set(ENROLL_SEARCH_KEYS.member, String(search.at.member))
   if (ceremony) {
     query.set(ENROLL_SEARCH_KEYS.ceremony, ceremony)
+  }
+  if (search.returnTo) {
+    query.set(ENROLL_SEARCH_KEYS.returnTo, search.returnTo)
   }
   return `/${WEB_ROUTES.socialRecoverySetupEnroll}?${query.toString()}`
 }

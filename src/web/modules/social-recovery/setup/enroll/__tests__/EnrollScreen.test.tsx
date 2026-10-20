@@ -155,11 +155,11 @@ describe('the enroll screen while the wallet selects another account', () => {
     container.remove()
   })
 
-  const open = async (account: Address) => {
+  const open = async (account: Address, at: string = ENROLL_AT) => {
     mockSelected.state = { account: { addr: account } }
     await act(async () => {
       root.render(
-        <MemoryRouter initialEntries={[ENROLL_AT]}>
+        <MemoryRouter initialEntries={[at]}>
           <ThemeContext.Provider value={THEME_CONTEXT}>
             <EnrollScreen />
           </ThemeContext.Provider>
@@ -181,6 +181,12 @@ describe('the enroll screen while the wallet selects another account', () => {
   it('counts the enrollment with the editor, as the second of the setup stages', async () => {
     await open(ACCOUNT)
     expect(byTestId('enroll-stage')?.textContent).toBe('Set up · Step 2 of 7')
+  })
+
+  it('draws no setup step where the management editor opened the enrollment', async () => {
+    await open(ACCOUNT, `${ENROLL_AT}&return=manage`)
+    expect(byTestId('enroll-stage')).toBeNull()
+    expect(lastProps()?.search?.returnTo).toBe('manage')
   })
 
   it("keeps the step on the tab's account, with the same view and search, and says so", async () => {

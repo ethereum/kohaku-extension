@@ -73,7 +73,16 @@ const SECOND_METHOD_OFFERS: readonly RuleLineKey[] = [
   RULE_LINE_KEYS.secondMethodOfferAny
 ]
 
-const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps) => {
+const EditorView = ({
+  records,
+  client,
+  addressBook,
+  navigate,
+  stillNeeded,
+  heading,
+  continueLabel,
+  beforeActions
+}: EditorViewProps) => {
   const { t } = useTranslation()
   const [load, setLoad] = useState<EditorLoad | null>(null)
   const [refused, setRefused] = useState(false)
@@ -381,7 +390,7 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
   return (
     <TwoColumn testID="editor-columns" aside={aside}>
       <View testID="editor">
-        <EditorHeader fill={fillOf(clauses)} refused={refused} />
+        <EditorHeader fill={fillOf(clauses)} refused={refused} heading={heading} />
 
         <EditorPath
           rows={rows}
@@ -407,9 +416,21 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
             setMenu(null)
             apply(makeRequired(current(), index, member), () => [...currentRoles(), 'required'])
           }}
-          onRemoveMember={(index, member) =>
-            commit(removeMember(current(), index, member), currentRoles())
-          }
+          onRemoveMember={(index, member) => {
+            if (!stillNeeded?.has(`${index}:${member}`)) {
+              commit(removeMember(current(), index, member), currentRoles())
+            }
+          }}
+          onLowerAndRemove={(index, member) => {
+            const { threshold } = current()[index]
+            if (stillNeeded?.has(`${index}:${member}`) && threshold > 1) {
+              commit(
+                setThreshold(removeMember(current(), index, member), index, threshold - 1),
+                currentRoles()
+              )
+            }
+          }}
+          stillNeeded={stillNeeded}
           onRemoveGroup={(index) =>
             commit(removeClause(current(), index), withoutRole(currentRoles(), index))
           }
@@ -422,6 +443,8 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
             commit(makeItAGroup(current()), makeItAGroupRoles(rolesOf(current())))
           }
         />
+
+        {beforeActions}
 
         <EditorActions
           client={client}
@@ -437,6 +460,7 @@ const EditorView = ({ records, client, addressBook, navigate }: EditorViewProps)
           onRetryWrite={retryWrite}
           onContinue={onContinue}
           onBack={() => navigate(WEB_ROUTES.socialRecoverySetup)}
+          continueLabel={continueLabel}
         />
       </View>
     </TwoColumn>

@@ -29,6 +29,7 @@ import {
   StatusChip,
   TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
+import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
 import { renderHiddenValue, renderPasswordName } from '@web/modules/social-recovery/shared/display'
 
 import CardFace, { CARD_LABEL_COLUMN } from './CardFace'
@@ -49,7 +50,8 @@ const RecoveryCardView = ({
   renderPasswordAsk,
   onSetPasswordAgain,
   onBack,
-  onContinue
+  onContinue,
+  fromManage = false
 }: RecoveryCardViewProps) => {
   const { t } = useTranslation()
 
@@ -142,6 +144,15 @@ const RecoveryCardView = ({
     )
   } else if (missingPassword.kind === 'ask') {
     missingBody = <RecoveryPasswordAsk check={missingPassword.check} />
+  } else if (missingPassword.kind === 'failed') {
+    missingBody = (
+      <ReadFailedBlock
+        testID="card-password-check-failed"
+        title={t('socialRecovery.card.passwordCheckFailedTitle')}
+        body={t('socialRecovery.card.passwordCheckFailedBody')}
+        onRetry={missingPassword.retry}
+      />
+    )
   }
 
   // While the setup read runs the row holds its label alone.
@@ -272,7 +283,11 @@ const RecoveryCardView = ({
                 testID="card-continue"
                 type="primary"
                 hasBottomSpacing={false}
-                text={t('socialRecovery.actions.continue')}
+                text={t(
+                  fromManage
+                    ? 'socialRecovery.management.review.done'
+                    : 'socialRecovery.actions.continue'
+                )}
                 onPress={onContinue}
               />
             }

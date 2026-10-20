@@ -677,6 +677,21 @@ describe('a group while the holder edits it', () => {
     expectGroupCard(0)
   })
 
+  it('keeps the plain remove on a full group, with no still-needed chip and no lowering action', async () => {
+    const { stored } = await mount({
+      clauses: [{ threshold: 2, credentials: [PASSKEY, PASSPORT] }]
+    })
+    ;[0, 1].forEach((member) => {
+      expect(byTestId(`editor-member-0-${member}-still-needed`)).toBeNull()
+      expect(byTestId(`editor-member-0-${member}-lower-and-remove`)).toBeNull()
+      expect(byTestId(`editor-member-0-${member}-remove`)?.textContent).toBe(
+        en.socialRecovery.actions.remove
+      )
+    })
+    await press('editor-member-0-1-remove')
+    await expectPathMatchesDraft(stored, [{ threshold: 2, credentials: [PASSKEY] }])
+  })
+
   it('stays a group when a new group takes one member and a threshold of one', async () => {
     const { stored } = await mount()
     await press('editor-add-group')

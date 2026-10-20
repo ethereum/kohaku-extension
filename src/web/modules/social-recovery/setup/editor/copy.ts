@@ -37,7 +37,8 @@ const VERDICT_CHIPS: Record<EnrollmentTestVerdict, MethodChip> = {
   'not-tested': 'notTested',
   failed: 'testFailed',
   unavailable: 'testUnavailable',
-  'not-supported': 'notSupported'
+  'not-supported': 'notSupported',
+  live: 'live'
 }
 
 const REFUSAL_KEYS: Record<RefusalKey, string> = {
@@ -125,14 +126,14 @@ export const renderRowChip = (
   return enrollment ? renderChip('method', VERDICT_CHIPS[enrollment.test], t) : null
 }
 
-/** A row's chip reads as a success once its method passed the access test. */
+/** A row's chip reads as a success once its method passed the access test, or is live on chain. */
 export const rowChipTone = (
   credential: Credential,
   enrollments: readonly Enrollment[]
-): StatusChipTone =>
-  !isEmptySlot(credential) && enrollmentOf(credential, enrollments)?.test === 'passed'
-    ? 'success'
-    : 'default'
+): StatusChipTone => {
+  const test = isEmptySlot(credential) ? undefined : enrollmentOf(credential, enrollments)?.test
+  return test === 'passed' || test === 'live' ? 'success' : 'default'
+}
 
 /**
  * The line a failed access test carries beside its chip: that the check did

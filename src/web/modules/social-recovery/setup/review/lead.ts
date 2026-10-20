@@ -50,7 +50,8 @@ const VERDICT_CHIPS: Record<EnrollmentTestVerdict, MethodChip> = {
   'not-tested': 'notTested',
   failed: 'testFailed',
   unavailable: 'testUnavailable',
-  'not-supported': 'notSupported'
+  'not-supported': 'notSupported',
+  live: 'live'
 }
 
 const CEREMONY = 'socialRecovery.ceremony'
@@ -182,7 +183,7 @@ export const pathRowOf = (
     name,
     aside,
     chip: enrollment ? renderChip('method', VERDICT_CHIPS[enrollment.test], t) : null,
-    tested: enrollment?.test === 'passed',
+    tested: enrollment?.test === 'passed' || enrollment?.test === 'live',
     lines: [...(enrollment ? verdictLinesOf(enrollment, t) : []), ...kindLinesOf(kind, t)]
   }
 }
@@ -217,8 +218,8 @@ const SECONDS_PER_HOUR = 3600n
 
 /**
  * The waiting period as the picker named it: a chip's word where it is one of
- * the four lengths, otherwise its length in whole hours, or in whole minutes
- * under one hour.
+ * the four lengths, otherwise its length: minutes under one hour, whole hours,
+ * or hours with their minutes where it is not whole hours.
  */
 export const renderWait = (wait: SetupDraft['wait'], t: Translate): string => {
   const chip =

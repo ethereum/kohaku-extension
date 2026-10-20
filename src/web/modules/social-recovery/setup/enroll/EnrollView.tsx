@@ -74,7 +74,15 @@ const EnrollView = ({
     (enrollment: Enrollment) => setLoad({ status: 'enrolled', enrollment }),
     []
   )
-  const toEditor = useCallback(() => navigate(WEB_ROUTES.socialRecoverySetupEditor), [navigate])
+  const toEditor = useCallback(
+    () =>
+      navigate(
+        search?.returnTo
+          ? WEB_ROUTES.socialRecoveryManageEdit
+          : WEB_ROUTES.socialRecoverySetupEditor
+      ),
+    [navigate, search?.returnTo]
+  )
 
   const back = (
     <Button

@@ -13,7 +13,11 @@ import type {
   SignOptions,
   TypedDataToSign
 } from '@web/modules/social-recovery/shared/client'
-import type { RecordStorage, WalletRecords } from '@web/modules/social-recovery/shared/records'
+import type {
+  Enrollment,
+  RecordStorage,
+  WalletRecords
+} from '@web/modules/social-recovery/shared/records'
 
 import type { MethodChip } from '@web/modules/social-recovery/shared/display'
 
@@ -712,15 +716,32 @@ describe('the guardian row', () => {
   })
 
   describe('the access test while the client is not ready', () => {
-    const reopenEnrolled = async () => {
+    const reopenEnrolled = async (test: Enrollment['test'] = 'not-tested') => {
       const credential = { method: BOOK.methods.ecdsa, config: guardianConfigOf(HELD), label: '' }
       ;({ records } = await recordsWith(
         [PATH[0], { threshold: 1, credentials: [emptySlot('ecdsa'), credential] }],
-        [{ credential, test: 'not-tested' }]
+        [{ credential, test }]
       ))
       view?.unmount()
       view = await mountView({ records, search: SEARCH, client: { status: 'loading' }, deps })
     }
+
+    it("draws a live guardian's chip in the tested guardian's success tone", async () => {
+      deps = depsOf({ keys: [{ addr: HELD, type: 'internal' }] })
+      // The chip's tone is its drawn look: its classes and inline style.
+      const looks: Record<string, string> = {}
+      const verdicts: Enrollment['test'][] = ['live', 'passed', 'not-tested']
+      // Each verdict reopens the screen in turn.
+      await verdicts.reduce(async (previous, test) => {
+        await previous
+        await reopenEnrolled(test)
+        const node = view!.byTestId('guardian-chip')
+        looks[test] = `${node?.className}|${node?.getAttribute('style')}`
+      }, Promise.resolve())
+      expect(view!.byTestId('guardian-chip')?.textContent).toBe(chip('notTested'))
+      expect(looks.live).toBe(looks.passed)
+      expect(looks.live).not.toBe(looks['not-tested'])
+    })
 
     it('signs with a key the wallet holds', async () => {
       const signTypedData = jest.fn((_key: KeyHandle, typedData: TypedDataToSign) =>

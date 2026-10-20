@@ -46,12 +46,14 @@ const EditorPath = ({
   onThresholdText,
   onMakeRequired,
   onRemoveMember,
+  onLowerAndRemove,
   onToggleMenu,
   onRemoveGroup,
   onAddGroup,
   offersSecondMethod,
   canMakeItAGroup,
-  onMakeItAGroup
+  onMakeItAGroup,
+  stillNeeded
 }: EditorPathProps) => {
   const { t } = useTranslation()
   const shared = { addressBook, enrollments, checking, menu, onOpenSlot, onPickKind, onCloseMenu }
@@ -119,8 +121,10 @@ const EditorPath = ({
             onThresholdText={onThresholdText}
             onMakeRequired={onMakeRequired}
             onRemoveMember={onRemoveMember}
+            onLowerAndRemove={onLowerAndRemove}
             onToggleMenu={onToggleMenu}
             onRemoveGroup={onRemoveGroup}
+            stillNeeded={stillNeeded}
             {...shared}
           />
         </PathTreeNode>

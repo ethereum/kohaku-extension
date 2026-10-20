@@ -1,10 +1,14 @@
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import type { SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import { CARD_FROM_KEY, CARD_FROM_MANAGE } from '@web/modules/social-recovery/setup/card'
 import type { ManageIntent } from '@web/modules/social-recovery/shared/writes'
 
 import type { ElsewhereLink } from './types'
 
 export const OVERVIEW = 'socialRecovery.management.overview'
+
+/** The Recovery Card opened from the overview: no setup stage, and its done leads back here. */
+export const CARD_LINK = `${WEB_ROUTES.socialRecoverySetupCard}?${CARD_FROM_KEY}=${CARD_FROM_MANAGE}`
 
 /**
  * How many opened setups in a row may disagree with the commitment the facts

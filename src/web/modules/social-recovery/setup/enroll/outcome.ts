@@ -17,7 +17,8 @@ export const TEST_CHIPS: TestChips = {
   'not-tested': 'notTested',
   failed: 'testFailed',
   unavailable: 'testUnavailable',
-  'not-supported': 'notSupported'
+  'not-supported': 'notSupported',
+  live: 'live'
 }
 
 /** The stored verdict a test outcome reads as, or null for a dismissal. */

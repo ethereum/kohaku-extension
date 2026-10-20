@@ -1,6 +1,11 @@
 /**
- * The card's recovery password for the selected account: the one the holder
- * keeps in memory, else one a check opened here. At the hidden level with none,
+ * The card's recovery password for the selected account: one a check opened
+ * here, else the one the holder keeps in memory. At the hidden level the one
+ * in memory shows only once it opens the saved backup, checked the way a typed
+ * password is, since another device may have changed the password meanwhile:
+ * the row stays blank while the check runs, a refusal wipes it from memory and
+ * asks again, and a check that does not answer keeps it unshown and says so,
+ * with a retry that runs the check again. At the hidden level with none,
  * the account's setup is read: a saved setup lets the holder type the password
  * again, checked by opening the saved backup with it; no saved setup leads back
  * to the privacy step. A setup read that fails, or a client that cannot be
@@ -23,12 +28,14 @@ import { CHAIN_IDS, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/s
 import { useRecoveryClient } from '@web/modules/social-recovery/shared/client/useRecoveryClient'
 import {
   readRecoveryPassword,
-  setRecoveryPassword
+  setRecoveryPassword,
+  wipeRecoveryPassword
 } from '@web/modules/social-recovery/shared/records'
 
 import type {
   CardLevel,
   CardPassword,
+  HeldPasswordCheck,
   MissingPasswordRow,
   OpenedPassword,
   RecoveryPasswordCheck,
@@ -60,11 +67,28 @@ export const useCardPassword = (address: Address | null, level: CardLevel | null
     [address]
   )
   const [opened, setOpened] = useState<OpenedPassword | null>(null)
-  const password =
-    held ?? (opened && sameAccount(address, opened.address) ? opened.password : undefined)
+  const [heldCheck, setHeldCheck] = useState<HeldPasswordCheck | null>(null)
+  const openedPassword =
+    opened && sameAccount(address, opened.address) ? opened.password : undefined
+  const ownCheck =
+    heldCheck &&
+    held !== undefined &&
+    heldCheck.password === held &&
+    sameAccount(address, heldCheck.address)
+      ? heldCheck
+      : null
+  const heldResult = ownCheck?.result
+  // At the hidden level the held password shows only once it opens the backup on chain now,
+  // since another device may have sealed the backup under a new password meanwhile.
+  const hidden = level === 'hidden'
+  const heldToCheck = hidden && !openedPassword && held !== undefined && heldResult !== 'refused'
+  const heldShown = !hidden || heldResult === 'opened'
+  const password = openedPassword ?? (heldShown ? held : undefined)
+  // A check that could not run for want of a client runs again once a client is ready.
+  const checkHeldAgain = heldResult === 'failed' && ownCheck?.source === 'failed-client'
 
   // The client is built only while the card has no password to show.
-  const needed = !!address && level === 'hidden' && !password
+  const needed = !!address && hidden && !password
   const clientState = useRecoveryClient(needed && address ? address : undefined)
   const { retry } = clientState
   const kit = clientState.status === 'ready' ? clientState.client : null
@@ -77,7 +101,55 @@ export const useCardPassword = (address: Address | null, level: CardLevel | null
   const readAgain = ownReading?.source === 'failed-client'
 
   useEffect(() => {
-    if (!needed || !address || (readRow && !readAgain)) {
+    if (!heldToCheck || !address || held === undefined || (heldResult && !checkHeldAgain)) {
+      return
+    }
+    if (clientFailed) {
+      if (!heldResult) {
+        setHeldCheck({ address, password: held, result: 'failed', source: 'failed-client' })
+      }
+      return
+    }
+    if (!kit) {
+      return
+    }
+    let live = true
+    const checked = (result: HeldPasswordCheck['result']) =>
+      setHeldCheck({ address, password: held, result, source: 'setup' })
+    Promise.resolve()
+      .then(() => kit.setup.getSetup({ password: held }))
+      .then(
+        () => {
+          if (live) {
+            checked('opened')
+          }
+        },
+        (error: unknown) => {
+          if (!live) {
+            return
+          }
+          const cause = restoreCauseOf(error)
+          if (cause === 'restore.backup-unopened' || cause === 'restore.no-backup') {
+            wipeRecoveryPassword(chainId, address)
+            checked('refused')
+            setReading({
+              address,
+              row: cause === 'restore.no-backup' ? 'gone' : 'ask',
+              source: 'setup'
+            })
+            return
+          }
+          // The held password is kept, unshown, until a check opens the backup with it.
+          checked('failed')
+        }
+      )
+    return () => {
+      live = false
+    }
+  }, [heldToCheck, address, held, heldResult, checkHeldAgain, clientFailed, kit])
+
+  useEffect(() => {
+    if (!needed || !address || heldToCheck || (readRow && !readAgain)) {
       return
     }
     if (clientFailed) {
@@ -105,7 +177,7 @@ export const useCardPassword = (address: Address | null, level: CardLevel | null
     return () => {
       live = false
     }
-  }, [needed, address, readRow, readAgain, clientFailed, kit])
+  }, [needed, address, heldToCheck, readRow, readAgain, clientFailed, kit])
 
   // An answer counts only for the account still selected on a mounted screen,
   // and only for the latest check since the selection last changed.
@@ -160,7 +232,24 @@ export const useCardPassword = (address: Address | null, level: CardLevel | null
     [address, kit, clientFailed, retry]
   )
 
+  // The row holds its label alone while the first check of the held password runs.
+  const checkingHeld = heldToCheck && !heldResult
+  const heldCheckFailed = heldToCheck && heldResult === 'failed'
+  // Runs the check of the held password again from the start, with a client built again where none was.
+  const retryHeld = useCallback(() => {
+    setHeldCheck(null)
+    setReading(null)
+    if (clientFailed) {
+      retry()
+    }
+  }, [clientFailed, retry])
   const missingPassword = useMemo<MissingPasswordRow>(() => {
+    if (checkingHeld) {
+      return READING
+    }
+    if (heldCheckFailed) {
+      return { kind: 'failed', retry: retryHeld }
+    }
     if (readRow === 'gone') {
       return GONE
     }
@@ -168,7 +257,7 @@ export const useCardPassword = (address: Address | null, level: CardLevel | null
       return { kind: 'ask', check }
     }
     return READING
-  }, [readRow, check])
+  }, [checkingHeld, heldCheckFailed, retryHeld, readRow, check])
 
   return { password, missingPassword }
 }

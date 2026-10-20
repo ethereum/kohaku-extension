@@ -89,7 +89,7 @@ const PasskeyTestBlock = ({
           }
         />
       )}
-      {enrollment.test === 'not-tested' && skipped && (
+      {((enrollment.test === 'not-tested' && skipped) || enrollment.test === 'live') && (
         <ActionsRow
           primary={
             <Button

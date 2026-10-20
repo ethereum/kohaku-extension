@@ -4,11 +4,10 @@ import React from 'react'
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
-import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
 import { ActionsRow, SectionCard } from '@web/modules/social-recovery/shared/chrome'
 
-import { OVERVIEW } from './constants'
+import { CARD_LINK, OVERVIEW } from './constants'
 import type { OverviewNavigateProps } from './types'
 
 const CardEntry = ({ navigate }: OverviewNavigateProps) => {
@@ -28,7 +27,7 @@ const CardEntry = ({ navigate }: OverviewNavigateProps) => {
             type="secondary"
             size="small"
             text={t(`${OVERVIEW}.card.action`)}
-            onPress={() => navigate(WEB_ROUTES.socialRecoverySetupCard)}
+            onPress={() => navigate(CARD_LINK)}
             hasBottomSpacing={false}
           />
         }

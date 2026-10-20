@@ -129,6 +129,7 @@
       "remainingHours_plural": "{{count}} hours",
       "remainingMinutes": "{{count}} minute",
       "remainingMinutes_plural": "{{count}} minutes",
+      "hoursAndMinutes": "{{hours}} {{minutes}}",
       "publishers": {
         "ethereumFoundation": "Ethereum Foundation"
       },
@@ -729,7 +730,9 @@
       "passwordAskAction": "Show the card",
       "wrongRecoveryPassword": "That is not your recovery password. Try again.",
       "passwordUnchecked": "This wallet could not check your recovery password. Try again.",
-      "downloadUnavailable": "Your recovery password has characters a PDF cannot carry. Print the card instead."
+      "downloadUnavailable": "Your recovery password has characters a PDF cannot carry. Print the card instead.",
+      "passwordCheckFailedTitle": "This wallet could not check the recovery password",
+      "passwordCheckFailedBody": "The read did not return. The password stays on this device and is not shown until the check runs. Try again."
     },
     "create": {
       "controllingKeyRow": "Controlling key of {{account}}. The wallet adds it as an account of its own. Recovery does not cover funds held on it.",
@@ -1574,10 +1577,13 @@
         },
         "stillNeeded": {
           "title": "This member is still needed",
-          "body": "The path needs {{required}} of {{count}} in this group. Lower the threshold or add a replacement first, then remove this member."
+          "body": "The path needs {{required}} of {{count}} in this group. One tap lowers the threshold by one and removes this member.",
+          "action": "Lower the threshold and remove"
         },
         "values": {
-          "change": "Change"
+          "change": "Change",
+          "passwordChanged": "Changed",
+          "passwordKept": "Kept"
         }
       },
       "review": {
@@ -1606,7 +1612,10 @@
         "doneBody": "This account has no recovery path now.",
         "keep": "Keep recovery",
         "alreadyTitle": "Recovery was already removed",
-        "alreadyBody": "Another device removed this account's recovery path before this wallet sent anything. This account has no recovery path now."
+        "alreadyBody": "Another device removed this account's recovery path before this wallet sent anything. This account has no recovery path now.",
+        "disagreedTitle": "The chain still reads a recovery setup",
+        "disagreedBody": "The removal landed, but the chain still reads a setup or an authorization for this account. Read it again, or open the overview to see what stands.",
+        "readAgain": "Read again"
       }
     }
   }
