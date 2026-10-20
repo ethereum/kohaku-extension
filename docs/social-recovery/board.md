@@ -1,5 +1,43 @@
 # Social recovery board
 
+The state of the work at the end of milestone M-11 round 1 (the management overview and the management editor), 2026-10-20; M-11 started from `dev/wonderland` 3d9f1b7477 (M-10 round 1, the board, the design-text edits, the M-10 follow-ups). This milestone's log is `briefs/m11/LOG.md` beside its briefs in the coordinator's worktree (`.claude/worktrees/social-recovery-m11-overview-7dcee1`); the M-10 log stays in the M-10 coordinator's worktree under `briefs/m10/LOG.md`.
+
+## The board (M-11 round 1)
+
+| Column | What is in it |
+| --- | --- |
+| Ready | The next milestone on the owner's word; the SDK-types adoption task once scheduled; the follow-ups recorded below. |
+| Running | Nothing. |
+| Awaiting review | This board's docs PR (`docs/social-recovery-m11`). Upstream: the freeze `dev-wonderland-m11` at 267acb65c1 is pushed to ethereum/kohaku-extension and the fork, and ethereum/kohaku-extension#257 (M-11) is open as a draft on `dev-wonderland-m10`; #251 to #257 are drafts the owner marks ready and merges in order. |
+| Blocked | Nothing. |
+| Walked | Part A twice on the doubles (the save gate High found and fixed; the removal's endings and the stored-write blocks reached through the chain double) and part B on Sepolia (the overview, the ended-attempt notice of attempt 4, the signed edit through gas check, submitting, saved; the removal screen; the chain's nonce). Not reached: the sending's rejected and reverted states; the dormant and mirror states on the real chain. |
+| Merged | M-11 round 1 on `dev/wonderland` at 267acb65c1 (2026-10-20, one train): #126 the setup (2174b0f510, eight rounds), #127 PT-067 (080b11e77c, nine rounds), #128 PT-068 (267acb65c1, sixteen rounds); kohaku-commons#11 (c163fd9fb2) under them. Two review passes (Astra and CodeRabbit) and the owner's comments answered on every thread; three screen walks (`briefs/m11/walk/a`, `b`, `c`), the last on Sepolia with the owner's signed waiting-period edit (the SETUP2 setup's nonce 1 to 2). The final tree equals the last gated lane's. |
+
+## Rulings of M-11 (2026-10-19)
+
+- The round plan's five recommendations: the library's revoke exemption as a kohaku-commons PR (kohaku-commons#11) with the pointer bump in the setup PR; the settings sidebar's "Account recovery" opens the overview, whose empty state leads into the presets; the editor composed from the setup editor's exported pieces with maximum reuse (small optional props on the setup editor's view where needed); the ended-attempt notice in PT-067; the walk read only on Sepolia, the dormant states on the doubles.
+- No re-read of the setup state before the removal's send: the removal removes whatever stands (concurrent use is not expected).
+- The editor's save is refused while the setup is dormant and a recovery is in progress, since the save is the re-commit I-42 refuses; the removal is not affected.
+- A 1-of-1 group's member is not held as still needed; empty slots are never marked.
+- The doubles' `prepareClearSetup` is the manager's clear alone, as the chapter says (applied as a conformance fix).
+- The owner's four calls of 2026-10-20: the moved-keys notice ships without a test action; a committed row reads live in the editor (built); the row the path still needs offers one tap that lowers the threshold and removes (built); the security stop block stays absent from both reviews.
+- The review pass rulings: fixes ride the same pull request, strings included; a management write never follows a plain save; the kept recovery password follows the write that landed; the attempt is read again right before every management send.
+
+## Open with others
+
+| Question | Owner | What the code does meanwhile |
+| --- | --- | --- |
+| The deployed method ABI's `TrustedKeysUpdated` event | sdk owner | The kit decodes none; the moved-keys notice runs on the doubles only |
+| The parameter order of `PolicyManager_ActionDoesNotServeAccount`, the shape of `ISignerRecovery`, the pin move to a5f86fa | sdk owner | Stand-ins |
+
+## Recorded, not started
+
+The follow-ups of the review passes and the walks, none blocking: the arm's re-read acts on an unread check only (the editor re-reads a disagreed removal itself); the save screen's block for a failed read of the stored write has no title; the cache check's second state read is not counted toward the three-disagreement bound; a 3-of-3 group needs two taps to reach 1-of-2; the runtime verdict list sits in the records' types file (pre-existing); the card's lost-password link opens the setup privacy stage; the review's "another device changed this setup" words also cover this device's other tab; the review reads Submitting while the sign window waits; the wallet opens its transaction tab after a send (upstream). The notices read spans from the setup's commit block to the head on every open (a later lane carries the scanned block in a record); the edit's gate for an edit that adds no member lists the setup gate's required reads itself; the doubles client reads logs from block 0 through the real node and refuses a clear backup (doubles-only effects seen in the walk); the Recovery Card opened from the overview keeps the setup flow's counter and Continue; "What changes" lists members as counts.
+
+---
+
+# Social recovery board
+
 The state of the work at the end of milestone M-10 round 1 (the watcher, the banner and the owner's cancel, the running-attempt band), 2026-10-16; M-10 started from `dev/wonderland` cf4f8facfe (M-9 round 1, the board, FU-AT, FU-AU, FU-AV). This milestone's log is `briefs/m10/LOG.md` beside its briefs in the coordinator's worktree; the M-9 log stays in the M-9 coordinator's worktree under `briefs/m9/LOG.md`.
 
 ## The board (M-10 round 1)
@@ -10,6 +48,7 @@ The state of the work at the end of milestone M-10 round 1 (the watcher, the ban
 | Running | Nothing. |
 | Awaiting review | #124 this board with the design-text edits of the SDK reply and the rulings (`docs/social-recovery-m10`). #125 the M-10 follow-ups in one PR by the owner's word (`fix/social-recovery-m10-followups` at 5a7462e435: the deployed error names with four cause strings, the plain-JSON reply line, the ECDSA known-answer test, the removed-key values, the watcher's log lines, the wait route; two rounds, verified; gate green; one open question for the sdk owner on the parameter order of `PolicyManager_ActionDoesNotServeAccount`). Upstream: #251 (M-6), #253 (M-7), #254 (M-8), #255 (M-9 from `dev-wonderland-m9` at 56699ceb4b), drafts the owner marks ready; the M-10 freeze `dev-wonderland-m10` and its upstream draft on the owner's word. |
 | Blocked | Nothing. |
+| Walked | Part A twice on the doubles (the save gate High found and fixed; the removal's endings and the stored-write blocks reached through the chain double) and part B on Sepolia (the overview, the ended-attempt notice of attempt 4, the signed edit through gas check, submitting, saved; the removal screen; the chain's nonce). Not reached: the sending's rejected and reverted states; the dormant and mirror states on the real chain. |
 | Walked | The Sepolia walk of 2026-10-15/16 on a build of #123's head with #119's head merged (`briefs/m10/walk/`, four reports): attempt 4 opened by a fresh recoverer wallet and cancelled by the owner's key, two transactions signed by the owner; the watcher's record, badge and banner, the three bands and the cancel's terminal all as designed, with 23 findings recorded (the three under investigation named in the log). |
 | Merged | M-10 round 1 on `dev/wonderland` at 0704c9293d (2026-10-16, one train after the owner's #121 9b102a0d9c, the hierarchy pass): #122 the strings round 3 (508272a8c1), #119 PT-065 the watcher (e3ab5c9ccf), #120 PT-066 the banner and the owner's cancel (281b19ffd4), #123 PT-055 the running-attempt band (0704c9293d). Before them: #117 the M-10 setup (4c8a7c291c), the owner's #116 (28b27b83fb), #118 the strings round 2 (f26405e42f). The final tree equals the last gated lane's. |
 
@@ -67,6 +106,7 @@ The state of the work at the end of milestone M-9 round 1 (the guardian page), 2
 | Running | Nothing. |
 | Awaiting review | Nothing on the fork but this board. Upstream: #251 (M-6), #253 (M-7), #254 (M-8) and the M-9 draft from `dev-wonderland-m9` at ff60f6a256, drafts the owner marks ready. |
 | Blocked | Nothing. |
+| Walked | Part A twice on the doubles (the save gate High found and fixed; the removal's endings and the stored-write blocks reached through the chain double) and part B on Sepolia (the overview, the ended-attempt notice of attempt 4, the signed edit through gas check, submitting, saved; the removal screen; the chain's nonce). Not reached: the sending's rejected and reverted states; the dormant and mirror states on the real chain. |
 | Merged | M-9 round 1 on `dev/wonderland` at ff60f6a256 (2026-10-14, one train): #104 the setup (the strings, the unlock return, the signer facade's bigint fix), #106 the kit's ECDSA method, #107 the page's reading, #108 the page's signing and reply; beside them the owner's #105, #109 and #111. The final tree equals the last gated lane's. |
 
 Follow-ups recorded, not started: a fallback at the manager's deployment block when the archive code read is refused on a pruning RPC (part E); a read of the request's attempt-started event for a link reopened after a later attempt; the payload text and file helpers shared with the enroll lane; the enroll lane's unused bigint replacer; a clock read inside the late-approval check; the reply script's verify compare against the 32-byte answer; the upstream switch-account window that cannot read a `switchAccount` action; the Colibri verifier of the shared build failing on a fresh install (outside the module).
