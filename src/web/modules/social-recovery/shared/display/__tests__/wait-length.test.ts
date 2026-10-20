@@ -24,13 +24,23 @@ describe('a waiting period length', () => {
     ])
   })
 
-  it('reads whole hours from one hour on, rounded down', () => {
+  it('reads whole hours alone, and hours with their minutes otherwise', () => {
     const { calls, t } = recorded()
     renderWaitLength(3600n, t)
-    renderWaitLength(86_400n + 3599n, t)
+    renderWaitLength(86_400n + 59n, t)
+    renderWaitLength(3900n, t)
     expect(calls).toEqual([
       ['socialRecovery.display.remainingHours', { count: 1 }],
-      ['socialRecovery.display.remainingHours', { count: 24 }]
+      ['socialRecovery.display.remainingHours', { count: 24 }],
+      ['socialRecovery.display.remainingHours', { count: 1 }],
+      ['socialRecovery.display.remainingMinutes', { count: 5 }],
+      [
+        'socialRecovery.display.hoursAndMinutes',
+        {
+          hours: '<socialRecovery.display.remainingHours>',
+          minutes: '<socialRecovery.display.remainingMinutes>'
+        }
+      ]
     ])
   })
 
@@ -40,5 +50,8 @@ describe('a waiting period length', () => {
     expect(renderWaitLength(60n, t)).toBe('1 minute')
     expect(renderWaitLength(86_400n, t)).toBe('24 hours')
     expect(renderWaitLength(3600n, t)).toBe('1 hour')
+    expect(renderWaitLength(3900n, t)).toBe('1 hour 5 minutes')
+    expect(renderWaitLength(9000n, t)).toBe('2 hours 30 minutes')
+    expect(renderWaitLength(3660n, t)).toBe('1 hour 1 minute')
   })
 })

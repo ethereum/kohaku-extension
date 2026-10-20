@@ -1,7 +1,7 @@
 /**
  * The cancel screen's own blocks: the attempt's facts on the confirm, the
  * attempt a read found already ended (nothing sent), and the cancelled
- * terminal with its two defenses, the editor named in a line and moving funds.
+ * terminal with its two defenses, replacing the methods and moving funds.
  */
 import React from 'react'
 import { View } from 'react-native'
@@ -9,6 +9,8 @@ import { View } from 'react-native'
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
+import useNavigation from '@common/hooks/useNavigation'
+import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { SectionCard } from '@web/modules/social-recovery/shared/chrome'
@@ -158,8 +160,8 @@ export const EndedBlock = ({ reading, target, onBack, onCheckAgain, held }: Ende
 /**
  * The cancelled terminal. The owner's cancel ended the attempt it names, by
  * its new key where the reads found it: the methods it used still work, so the
- * terminal points at replacing them, which arrives with a later release, and
- * at moving funds. Another road ended it first: control did not move, so no
+ * terminal offers replacing them from the recovery overview, and moving
+ * funds. Another road ended it first: control did not move, so no
  * move-funds action.
  */
 export const CancelledBlock = ({
@@ -169,6 +171,7 @@ export const CancelledBlock = ({
   onDone
 }: CancelledBlockProps) => {
   const { t } = useTranslation()
+  const { navigate } = useNavigation()
   return (
     <SectionCard testID="cancel-cancelled">
       <Text
@@ -211,14 +214,6 @@ export const CancelledBlock = ({
           >
             {t(`${BANNER}.onlyOwnKey`)}
           </Text>
-          <Text
-            fontSize={14}
-            appearance="secondaryText"
-            style={spacings.mbTy}
-            testID="cancel-cancelled-replace-later"
-          >
-            {t(`${CANCEL}.cancelled.replaceLater`)}
-          </Text>
         </>
       ) : (
         <Text fontSize={14} style={spacings.mbTy} testID="cancel-other-road">
@@ -226,6 +221,17 @@ export const CancelledBlock = ({
         </Text>
       )}
       <View style={[flexbox.directionRow, flexbox.wrap, spacings.mtTy]}>
+        {after.stage === 'cancelled' && (
+          <Button
+            testID="cancel-replace"
+            type="secondary"
+            size="small"
+            text={t(`${CANCEL}.cancelled.replace`)}
+            onPress={() => navigate(WEB_ROUTES.socialRecoveryManage)}
+            hasBottomSpacing={false}
+            style={spacings.mrSm}
+          />
+        )}
         {after.stage === 'cancelled' && (
           <Button
             testID="cancel-move-funds"

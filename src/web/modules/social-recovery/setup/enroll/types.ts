@@ -41,6 +41,8 @@ export interface EnrollSearch {
   kind: SlotKind
   at: SlotPosition
   ceremony?: string
+  /** The management editor opened the enrollment, so its back returns there. */
+  returnTo?: 'manage'
 }
 
 /** The chip each stored test verdict reads as. */

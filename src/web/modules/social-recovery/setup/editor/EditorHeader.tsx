@@ -8,17 +8,17 @@ import { PageTitle } from '@web/modules/social-recovery/shared/chrome'
 import type { EditorHeaderProps } from './types'
 
 /**
- * The heading over the draft, whose lead follows how far its slots are filled,
- * and the line a refused duplicate leaves.
+ * The heading over the draft, whose lead follows how far its slots are filled
+ * unless the host gives its own, and the line a refused duplicate leaves.
  */
-const EditorHeader = ({ fill, refused }: EditorHeaderProps) => {
+const EditorHeader = ({ fill, refused, heading }: EditorHeaderProps) => {
   const { t } = useTranslation()
 
   return (
     <>
       <PageTitle
-        title={t('socialRecovery.editor.title')}
-        lead={t(`socialRecovery.editor.lead.${fill}`)}
+        title={heading?.title ?? t('socialRecovery.editor.title')}
+        lead={heading?.lead ?? t(`socialRecovery.editor.lead.${fill}`)}
         titleTestID="editor-title"
       />
 

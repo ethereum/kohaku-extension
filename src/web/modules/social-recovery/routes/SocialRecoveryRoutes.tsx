@@ -26,6 +26,10 @@ import ReadoutScreen from '@web/modules/social-recovery/recovery/entry/ReadoutSc
 import ApproveScreen from '@web/modules/social-recovery/guardian-page/ApproveScreen'
 import RecoveryKeystoreGuard from '@web/modules/social-recovery/routes/RecoveryKeystoreGuard'
 import CancelScreen from '@web/modules/social-recovery/cancel/CancelScreen'
+import OverviewScreen from '@web/modules/social-recovery/management/overview/OverviewScreen'
+import EditScreen from '@web/modules/social-recovery/management/editor/EditScreen'
+import ManageReviewScreen from '@web/modules/social-recovery/management/editor/ReviewScreen'
+import RemoveScreen from '@web/modules/social-recovery/management/editor/RemoveScreen'
 
 /**
  * The route registry of the account recovery module.
@@ -74,6 +78,10 @@ const SocialRecoveryRoutes = () => (
         <Route path="recovery/account" element={<AccountStepScreen />} />
         <Route path="recovery/readout" element={<ReadoutScreen />} />
         <Route path="cancel" element={<CancelScreen />} />
+        <Route path="manage" element={<OverviewScreen />} />
+        <Route path="manage/edit" element={<EditScreen />} />
+        <Route path="manage/review" element={<ManageReviewScreen />} />
+        <Route path="manage/remove" element={<RemoveScreen />} />
       </Route>
     </Route>
 

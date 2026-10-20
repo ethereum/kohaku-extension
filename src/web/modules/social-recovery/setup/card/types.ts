@@ -104,12 +104,14 @@ export type RecoveryPasswordAskLine = 'wrong' | 'unchecked'
 /**
  * The password row at the hidden level with no password in memory: blank while
  * the account's setup is read, the ask when a saved setup can check a typed
- * password, the way back to the privacy step when there is none.
+ * password, the way back to the privacy step when there is none, or the
+ * check of the password held in memory that did not answer, with its retry.
  */
 export type MissingPasswordRow =
   | { kind: 'reading' }
   | { kind: 'gone' }
   | { kind: 'ask'; check: (typed: string) => Promise<RecoveryPasswordCheck> }
+  | { kind: 'failed'; retry: () => void }
 
 export interface RecoveryPasswordAskProps {
   check: (typed: string) => Promise<RecoveryPasswordCheck>
@@ -125,6 +127,19 @@ export type SetupReadingSource = 'setup' | 'failed-client'
 export interface SetupReading {
   address: Address
   row: 'ask' | 'gone'
+  source: SetupReadingSource
+}
+
+/**
+ * What the check of the password held in memory found, with the account and
+ * the password it checked: it opens the account's backup, the backup refuses
+ * it or is gone, or the check did not answer. A check that could not run for
+ * want of a client runs again once a client is ready.
+ */
+export interface HeldPasswordCheck {
+  address: Address
+  password: string
+  result: 'opened' | 'refused' | 'failed'
   source: SetupReadingSource
 }
 
@@ -156,6 +171,8 @@ export interface RecoveryCardViewProps {
   onSetPasswordAgain: () => void
   onBack: () => void
   onContinue: () => void
+  /** The recovery overview opened the card: its primary action reads as done there, not as the next stage. */
+  fromManage?: boolean
 }
 
 export interface CardFaceProps {

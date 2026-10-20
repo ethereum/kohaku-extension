@@ -10,7 +10,12 @@ import type { Account } from '@ambire-common/interfaces/account'
 import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 import { shapeNoteOf } from '@web/modules/social-recovery/shared/client'
-import { canRetry, mayStillLand } from '@web/modules/social-recovery/shared/writes'
+import {
+  canRetry,
+  intentOfRequest,
+  mayStillLand,
+  requestIdOf
+} from '@web/modules/social-recovery/shared/writes'
 
 import {
   armScreenOf,
@@ -270,6 +275,280 @@ describe('the claim before the send', () => {
     expect(isSaved(store.state())).toBe(true)
     expect(page.confirmSetup).toHaveBeenCalledTimes(1)
     expect(page.saveSetup).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('a save that meets a write of the recovery overview at its claim', () => {
+  it('stops with nothing sent or followed where the overview claimed after the save read the account, and leaves its write stored', async () => {
+    const storage = memoryStorage()
+    const requests = requestsFake()
+    const overview = wireSave(account, script(), { storage, requests })
+    overview.receipts.wait.mockImplementation(() => pending())
+    const overviewSteps: SaveSteps = {
+      ...overview.steps,
+      newRequestId: () => requestIdOf('removeAuthorization')
+    }
+    const page = wireSave(account, script(), { storage, requests })
+    const store = createArmStore()
+
+    // The save reads the account and prepares; the overview claims before the save's claim.
+    const prepared = deferred<void>()
+    const pageSteps: SaveSteps = {
+      ...page.steps,
+      prepare: async () => {
+        await prepared.promise
+        return page.steps.prepare()
+      }
+    }
+    const running = startSave(store, pageSteps, OPTIONS)
+    await advanceTimers(0)
+    unawaited(startSave(createArmStore(), overviewSteps, OPTIONS))
+    await advanceTimers(0)
+    const held = await stored(overview)
+    expect(held && intentOfRequest(held.requestId)).toBe('removeAuthorization')
+
+    prepared.resolve()
+    await advanceTimers(SHORT_TIMEOUT_MS)
+    await running
+
+    expect(store.state().stop).toBe('held-by-another-write')
+    expect(armScreenOf(store.state())).toBe('held-by-another-write')
+    expect(page.port.sendAccountBatch).not.toHaveBeenCalled()
+    expect(page.receipts.wait).not.toHaveBeenCalled()
+    expect(page.confirmSetup).not.toHaveBeenCalled()
+    expect((await stored(page))?.requestId).toBe(held?.requestId)
+  })
+
+  it('stops with nothing sent where its claim held and the stored write became one of the overview before the send, and leaves that write stored', async () => {
+    const storage = memoryStorage()
+    const requests = requestsFake()
+    const page = wireSave(account, script(), { storage, requests })
+    const store = createArmStore()
+    const overviewId = requestIdOf('clear')
+    let claimedByRun: string | undefined
+    // Between the claim and the send another page released the save's claim and the overview claimed.
+    const pageSteps: SaveSteps = {
+      ...page.steps,
+      hasSetup: async () => {
+        const own = store.state().requestId
+        if (own && !claimedByRun) {
+          claimedByRun = own
+          await page.inFlight.release(own)
+          await page.inFlight.claim({
+            draft: page.draft,
+            prepared: page.prepared,
+            requestId: overviewId,
+            claimedAt: Date.now()
+          })
+        }
+        return page.steps.hasSetup()
+      }
+    }
+
+    const running = startSave(store, pageSteps, OPTIONS)
+    await advanceTimers(SHORT_TIMEOUT_MS)
+    await running
+
+    expect(claimedByRun).toBeDefined()
+    expect(store.state().stop).toBe('held-by-another-write')
+    expect(store.state().requestId).toBeUndefined()
+    expect(page.port.sendAccountBatch).not.toHaveBeenCalled()
+    expect(page.receipts.wait).not.toHaveBeenCalled()
+    expect(page.confirmSetup).not.toHaveBeenCalled()
+    expect((await stored(page))?.requestId).toBe(overviewId)
+  })
+})
+
+describe('an arrival that finds a stored write of another kind', () => {
+  const CASES = [
+    {
+      named: 'an overview clear that finds a save',
+      ownId: () => requestIdOf('clear'),
+      otherId: () => 'social-recovery-sender:7'
+    },
+    {
+      named: 'an overview removal of the authorization that finds a save',
+      ownId: () => requestIdOf('removeAuthorization'),
+      otherId: () => 'social-recovery-sender:7'
+    },
+    {
+      named: 'an overview re-authorize that finds a save',
+      ownId: () => requestIdOf('reauthorize'),
+      otherId: () => 'social-recovery-sender:7'
+    },
+    {
+      named: 'an editor run that finds a save',
+      ownId: () => 'social-recovery-sender:2:manage-remove',
+      otherId: () => 'social-recovery-sender:7'
+    },
+    {
+      named: 'a save that finds a write of the overview',
+      ownId: undefined,
+      otherId: () => requestIdOf('removeAuthorization')
+    },
+    {
+      named: 'an overview clear that finds the removal of the authorization',
+      ownId: () => requestIdOf('clear'),
+      otherId: () => requestIdOf('removeAuthorization')
+    },
+    {
+      named: 'an overview run that finds a write of the editor',
+      ownId: () => requestIdOf('reauthorize'),
+      otherId: () => 'social-recovery-sender:1:manage-edit'
+    }
+  ]
+
+  CASES.forEach(({ named, ownId, otherId: otherIdOf }) =>
+    it(`stops with nothing followed, sent or released for ${named}`, async () => {
+      const storage = memoryStorage()
+      const requests = requestsFake()
+      const page = wireSave(account, script(), { storage, requests })
+      const otherId = otherIdOf()
+      await page.inFlight.claim({
+        draft: page.draft,
+        prepared: page.prepared,
+        requestId: otherId,
+        claimedAt: Date.now()
+      })
+      await page.inFlight.markSent(otherId, TX_HASH, START_BLOCK)
+      const store = createArmStore()
+      const steps: SaveSteps = ownId ? { ...page.steps, newRequestId: ownId } : page.steps
+
+      await lookForSave(store, steps, OPTIONS)
+
+      expect(store.state().stop).toBe('held-by-another-write')
+      expect(store.state().requestId).toBeUndefined()
+      expect(page.receipts.wait).not.toHaveBeenCalled()
+      expect(page.port.sendAccountBatch).not.toHaveBeenCalled()
+      expect(page.confirmSetup).not.toHaveBeenCalled()
+      expect((await stored(page))?.requestId).toBe(otherId)
+    })
+  )
+
+  it('follows a stored save from a save, with nothing sent', async () => {
+    const storage = memoryStorage()
+    const requests = requestsFake()
+    const page = wireSave(account, script(), { storage, requests })
+    page.receipts.wait.mockImplementation(() => pending())
+    const otherId = 'social-recovery-sender:7'
+    await page.inFlight.claim({
+      draft: page.draft,
+      prepared: page.prepared,
+      requestId: otherId,
+      claimedAt: Date.now()
+    })
+    await page.inFlight.markSent(otherId, TX_HASH, START_BLOCK)
+    const store = createArmStore()
+
+    unawaited(lookForSave(store, page.steps, OPTIONS))
+    await advanceTimers(0)
+
+    expect(store.state().stop).toBeUndefined()
+    expect(store.state().requestId).toBe(otherId)
+    expect(page.receipts.wait).toHaveBeenCalledWith(TX_HASH, START_BLOCK)
+    expect(page.port.sendAccountBatch).not.toHaveBeenCalled()
+  })
+
+  it('follows a stored write of the same overview write, with nothing sent', async () => {
+    const storage = memoryStorage()
+    const requests = requestsFake()
+    const page = wireSave(account, script(), { storage, requests })
+    page.receipts.wait.mockImplementation(() => pending())
+    const otherId = requestIdOf('clear')
+    await page.inFlight.claim({
+      draft: page.draft,
+      prepared: page.prepared,
+      requestId: otherId,
+      claimedAt: Date.now()
+    })
+    await page.inFlight.markSent(otherId, TX_HASH, START_BLOCK)
+    const store = createArmStore()
+    const steps: SaveSteps = { ...page.steps, newRequestId: () => requestIdOf('clear') }
+
+    unawaited(lookForSave(store, steps, OPTIONS))
+    await advanceTimers(0)
+
+    expect(store.state().stop).toBeUndefined()
+    expect(store.state().requestId).toBe(otherId)
+    expect(page.receipts.wait).toHaveBeenCalledWith(TX_HASH, START_BLOCK)
+    expect(page.port.sendAccountBatch).not.toHaveBeenCalled()
+  })
+})
+
+describe('a management write that meets a write of another kind at its claim', () => {
+  const CASES = [
+    {
+      named: 'an overview clear that meets a save',
+      ownId: () => requestIdOf('clear'),
+      otherId: () => 'social-recovery-sender:7'
+    },
+    {
+      named: 'an overview run that meets a write of the editor',
+      ownId: () => requestIdOf('clear'),
+      otherId: () => 'social-recovery-sender:1:manage-edit'
+    },
+    {
+      named: 'an editor run that meets a write of the overview',
+      ownId: () => 'social-recovery-sender:2:manage-remove',
+      otherId: () => requestIdOf('reauthorize')
+    },
+    {
+      named: "an overview clear that meets the overview's re-authorize",
+      ownId: () => requestIdOf('clear'),
+      otherId: () => requestIdOf('reauthorize')
+    }
+  ]
+
+  CASES.forEach(({ named, ownId, otherId: otherIdOf }) =>
+    it(`stops with nothing sent or followed for ${named}, and leaves that write stored`, async () => {
+      const storage = memoryStorage()
+      const requests = requestsFake()
+      const page = wireSave(account, script(), { storage, requests })
+      const otherId = otherIdOf()
+      await page.inFlight.claim({
+        draft: page.draft,
+        prepared: page.prepared,
+        requestId: otherId,
+        claimedAt: Date.now()
+      })
+      const store = createArmStore()
+      const steps: SaveSteps = { ...page.steps, newRequestId: ownId }
+
+      const running = startSave(store, steps, OPTIONS)
+      await advanceTimers(SHORT_TIMEOUT_MS)
+      await running
+
+      expect(store.state().stop).toBe('held-by-another-write')
+      expect(page.port.sendAccountBatch).not.toHaveBeenCalled()
+      expect(page.receipts.wait).not.toHaveBeenCalled()
+      expect(page.confirmSetup).not.toHaveBeenCalled()
+      expect((await stored(page))?.requestId).toBe(otherId)
+    })
+  )
+
+  it('follows a write of the overview from another run of that same write, with nothing sent', async () => {
+    const storage = memoryStorage()
+    const requests = requestsFake()
+    const page = wireSave(account, script(), { storage, requests })
+    const otherId = requestIdOf('clear')
+    await page.inFlight.claim({
+      draft: page.draft,
+      prepared: page.prepared,
+      requestId: otherId,
+      claimedAt: Date.now()
+    })
+    await page.inFlight.markSent(otherId, TX_HASH, START_BLOCK)
+    const store = createArmStore()
+    const steps: SaveSteps = { ...page.steps, newRequestId: () => requestIdOf('clear') }
+
+    const running = startSave(store, steps, OPTIONS)
+    await advanceTimers(SHORT_TIMEOUT_MS)
+    await running
+
+    expect(store.state().stop).toBeUndefined()
+    expect(store.state().requestId).toBe(otherId)
+    expect(page.receipts.wait).toHaveBeenCalledWith(TX_HASH, START_BLOCK)
+    expect(page.port.sendAccountBatch).not.toHaveBeenCalled()
   })
 })
 

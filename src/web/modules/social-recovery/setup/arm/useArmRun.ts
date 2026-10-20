@@ -1,6 +1,8 @@
 /**
  * Holds the save's run for the screen, and the moves the screen offers
- * over the steps it is given. A move with no steps yet does nothing.
+ * over the steps it is given. A move with no steps yet does nothing. The run
+ * of another setup write over the save's steps names its write kind, so its
+ * gas check and its failed states read as that write's.
  *
  * The run lives outside the screen, one per chain and account, so a remount
  * (an account switch and back, a route rendered again) takes up the run in
@@ -17,6 +19,8 @@
  * next steps attached take it up.
  */
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
+
+import type { WriteKind } from '@web/modules/social-recovery/shared/writes'
 
 import {
   attachSteps,
@@ -36,18 +40,22 @@ import type { ArmRun, ArmStore, SaveSteps } from './types'
 
 const RUNS = new Map<string, ArmStore>()
 
-const storeFor = (runKey: string): ArmStore => {
+const storeFor = (runKey: string, write: WriteKind): ArmStore => {
   const held = RUNS.get(runKey)
   if (held) {
     return held
   }
-  const created = createArmStore()
+  const created = createArmStore(write)
   RUNS.set(runKey, created)
   return created
 }
 
-export const useArmRun = (steps: SaveSteps | null, runKey: string): ArmRun => {
-  const store = useMemo(() => storeFor(runKey), [runKey])
+export const useArmRun = (
+  steps: SaveSteps | null,
+  runKey: string,
+  write: WriteKind = 'save'
+): ArmRun => {
+  const store = useMemo(() => storeFor(runKey, write), [runKey, write])
   const state = useSyncExternalStore(store.subscribe, store.state)
   const stepsRef = useRef(steps)
   stepsRef.current = steps

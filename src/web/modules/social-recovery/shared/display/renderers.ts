@@ -337,14 +337,25 @@ export const renderRemaining = (remainingMs: number, t: Translate = i18n.t): str
 }
 
 /**
- * A waiting period's length: whole minutes under one hour, `5 minutes`, else
- * whole hours, `48 hours`. Both round down.
+ * A waiting period's length as it stands, so the holder never signs a value
+ * the screen rounds: minutes alone under one hour, `5 minutes`, whole hours,
+ * `48 hours`, and hours with their minutes otherwise, `1 hour 5 minutes`.
+ * Seconds past a whole minute round down.
  */
 export const renderWaitLength = (seconds: bigint, t: Translate = i18n.t): string => {
-  if (seconds < 3600n) {
-    return t('socialRecovery.display.remainingMinutes', { count: Number(seconds / 60n) })
+  const hours = Number(seconds / 3600n)
+  const minutes = Number((seconds % 3600n) / 60n)
+  if (hours === 0) {
+    return t('socialRecovery.display.remainingMinutes', { count: minutes })
   }
-  return t('socialRecovery.display.remainingHours', { count: Number(seconds / 3600n) })
+  const hoursText = t('socialRecovery.display.remainingHours', { count: hours })
+  if (minutes === 0) {
+    return hoursText
+  }
+  return t('socialRecovery.display.hoursAndMinutes', {
+    hours: hoursText,
+    minutes: t('socialRecovery.display.remainingMinutes', { count: minutes })
+  })
 }
 
 /**

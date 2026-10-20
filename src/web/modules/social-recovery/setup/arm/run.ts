@@ -8,6 +8,7 @@
  *                     ├─ deposit ──▶ needsDeposit ──recheck──▶ checkingGas: the setup read, the gas check
  *                     ├─ a refusal ─▶ failedNotSent (nothing sent)
  *                     └─ enough ───▶ the claim, the setup read again (time-limited)
+ *                                     ├─ held by another write ─▶ stopped (nothing sent or followed)
  *                                     ├─ a setup found ─▶ already set up (the claim released)
  *                                     └─ none ─▶ the send's block: the claim's, else read (time-limited)
  *                                                ├─ unread ─▶ failedNotSent (the claim released)
@@ -74,12 +75,14 @@ import {
   coversHashes,
   DROPPED_AFTER_MS,
   initialWriteState,
+  intentOfRequest,
   mayStillLand,
   writeReducer
 } from '@web/modules/social-recovery/shared/writes'
 import type {
   UnknownReading,
   WriteEvent,
+  WriteKind,
   WriteMachineState
 } from '@web/modules/social-recovery/shared/writes'
 
@@ -103,9 +106,9 @@ import type {
   SaveSteps
 } from './types'
 
-/** The save before anything ran. */
-export const initialArmState = (): ArmState => ({
-  write: initialWriteState('save'),
+/** The run before anything ran, of the save or of another setup write the run sends. */
+export const initialArmState = (write: WriteKind = 'save'): ArmState => ({
+  write: initialWriteState(write),
   after: { stage: 'none' }
 })
 
@@ -300,6 +303,20 @@ export const armReducer = (state: ArmState, event: ArmEvent): ArmState => {
         after: { stage: 'none' },
         stop: 'already-set-up'
       }
+    case 'heldByAnotherWrite':
+      // Taken after the claim and before the send, in place of a follow, or
+      // from the arrival's read of the stored write, before any start.
+      if (
+        !awaitingHashIn(state, event.run) &&
+        !(inRun(state, event.run) && state.write.status === 'idle' && state.lookup === 'reading')
+      ) {
+        return state
+      }
+      return {
+        write: writeReducer(state.write, { type: 'reset' }),
+        after: { stage: 'none' },
+        stop: 'held-by-another-write'
+      }
     case 'prepared':
       if (!inRun(state, event.run) || state.write.status !== 'checkingGas' || state.prepared) {
         return state
@@ -351,9 +368,9 @@ export const armReducer = (state: ArmState, event: ArmEvent): ArmState => {
   }
 }
 
-/** A store over the reducer, starting from `initial` or from nothing. */
-export const createArmStore = (initial: ArmState = initialArmState()): ArmStore => {
-  let current = initial
+/** A store over the reducer, starting from nothing for the write it sends. */
+export const createArmStore = (write: WriteKind = 'save'): ArmStore => {
+  let current = initialArmState(write)
   const listeners = new Set<() => void>()
   return {
     state: () => current,
@@ -1074,9 +1091,21 @@ const followSave = async (
 }
 
 /**
+ * Whether a run whose own request is `own` leaves the stored write to its
+ * holder instead of following it: a stored write is followed and judged only
+ * by a run of that same kind of write, so a save that meets a write of the
+ * recovery overview or of the management editor stops, and so does one of
+ * those writes that meets a save or another of them.
+ */
+const leftToHolder = (own: string, stored: SaveInFlightRecord): boolean =>
+  intentOfRequest(own) !== intentOfRequest(stored.requestId)
+
+/**
  * Before the save is offered: reads the save in flight stored on this device
- * and, where one is, follows it in a new run with nothing sent. Reads once per
- * run held, and again only after a read that failed.
+ * and, where one is, follows it in a new run with nothing sent. A stored write
+ * of another kind is left to its own screen: the run stops there
+ * with nothing followed, sent or released. Reads once per run held, and again
+ * only after a read that failed.
  */
 export const lookForSave = async (
   store: ArmStore,
@@ -1102,6 +1131,10 @@ export const lookForSave = async (
   }
   if (read.status !== 'present') {
     store.dispatch({ type: 'lookup', run, reading: 'none' })
+    return
+  }
+  if (leftToHolder(steps.newRequestId(), read.value)) {
+    store.dispatch({ type: 'heldByAnotherWrite', run })
     return
   }
   // A void save may have let another page store its own: the save is offered only where none is.
@@ -1267,8 +1300,9 @@ const followInstead = async (
 
 /**
  * A claimed run whose stored save is no longer its own: it sends nothing and
- * releases nothing. It follows the stored save another page holds now; where
- * none is stored, the save is looked for again before it is offered.
+ * releases nothing. It follows the stored save another page holds now, or
+ * stops where that write belongs to another screen's run; where none is
+ * stored, the save is looked for again before it is offered.
  */
 const yieldClaim = async (
   store: ArmStore,
@@ -1278,7 +1312,12 @@ const yieldClaim = async (
   options: ConfirmReadOptions
 ): Promise<void> => {
   if (stored.status === 'present') {
+    const own = store.state().requestId
     store.dispatch({ type: 'released', run })
+    if (own && leftToHolder(own, stored.value)) {
+      store.dispatch({ type: 'heldByAnotherWrite', run })
+      return
+    }
     await followInstead(store, steps, run, stored.value, options)
     return
   }
@@ -1327,6 +1366,10 @@ const checkAndSend = async (
     return
   }
   if (!claim.claimed) {
+    if (leftToHolder(requestId, claim.record.value)) {
+      store.dispatch({ type: 'heldByAnotherWrite', run })
+      return
+    }
     await followInstead(store, steps, run, claim.record.value, options)
     return
   }

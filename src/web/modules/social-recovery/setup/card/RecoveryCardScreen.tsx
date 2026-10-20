@@ -21,7 +21,7 @@ import {
   extensionRecordStorage
 } from '@web/modules/social-recovery/shared/records'
 
-import { levelFromSearch, levelOfBackup } from './card'
+import { levelFromSearch, levelOfBackup, openedFromManage } from './card'
 import { markCardCarried, wasCardCarried } from './carried'
 import { BROWSER_CARRIERS } from './carriers'
 import ExtensionPasswordAsk from './ExtensionPasswordAsk'
@@ -41,6 +41,7 @@ const RecoveryCardScreen = () => {
   const records = useMemo(() => createWalletRecords({ storage: extensionRecordStorage }), [])
 
   const searchLevel = useMemo(() => levelFromSearch(location.search), [location.search])
+  const fromManage = useMemo(() => openedFromManage(location.search), [location.search])
   // The draft's level belongs to the account it was read for, so another
   // account never shows it while its own draft loads.
   const [draftLevel, setDraftLevel] = useState<DraftLevel | null>(null)
@@ -90,12 +91,16 @@ const RecoveryCardScreen = () => {
 
   return (
     <SetupChrome
-      counter={{
-        labelKey: SETUP_STAGE_COUNTER_KEY,
-        step: 7,
-        total: SETUP_STAGES,
-        testID: 'card-stage'
-      }}
+      counter={
+        fromManage
+          ? undefined
+          : {
+              labelKey: SETUP_STAGE_COUNTER_KEY,
+              step: 7,
+              total: SETUP_STAGES,
+              testID: 'card-stage'
+            }
+      }
     >
       {!!address && !!level && (
         <RecoveryCardView
@@ -111,6 +116,7 @@ const RecoveryCardScreen = () => {
           onSetPasswordAgain={toPrivacy}
           onBack={goBack}
           onContinue={toManage}
+          fromManage={fromManage}
         />
       )}
     </SetupChrome>

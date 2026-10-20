@@ -62,10 +62,14 @@ import {
   ACTION_ABI,
   approverReplyTo,
   approverRequestAt,
+  commitArgsOf,
+  commitCallOf,
   committedLog,
+  CONFIGURATION,
   CONTRACT_CODE,
   DEPLOYED_AT,
   DESCRIPTOR,
+  draftAt,
   fakeNode,
   guardianAt,
   HEAD,
@@ -76,6 +80,7 @@ import {
   METHOD_PASSKEY,
   METHOD_ZKPASSPORT,
   NO_STATE,
+  scriptAction,
   scriptMethod,
   stateAnswer,
   stateOfCall,
@@ -365,6 +370,18 @@ describe("the wallet's reads", () => {
     expect(rangesAt(MANAGER)).toEqual([{ from: DEPLOYED_AT, to: HEAD }])
   })
 
+  it('computes the commitment of a configuration as the commit the setup client prepares carries it', async () => {
+    const { node, client } = clientOver()
+    node.answer(MANAGER, stateOfCall(DEPLOYED_ACTION), stateAnswer(NO_STATE))
+    scriptMethod(node, METHOD_ECDSA, { name: 'method-ecdsa' })
+    scriptAction(node, { at: DEPLOYED_ACTION })
+    const prepared = await client.setup.prepareCommitSetup(draftAt('public'))
+    const args = commitArgsOf(commitCallOf(prepared))
+    expect(client.walletReads.commitmentOf(args.nonce, CONFIGURATION)).toBe(args.setupCommitment)
+    const other = { ...CONFIGURATION, wait: CONFIGURATION.wait + 1n }
+    expect(client.walletReads.commitmentOf(args.nonce, other)).not.toBe(args.setupCommitment)
+  })
+
   it("verifies a pasted reply through the guardian method's own verify view", async () => {
     const { node, client } = clientOver()
     scriptMethod(node, METHOD_ECDSA, { verify: VERIFY_MAGIC })
@@ -465,13 +482,10 @@ describe('the events feed', () => {
 })
 
 describe('the members the deployed kit does not serve yet', () => {
-  it("refuses the events feed's method filter and rejects the clear by name", async () => {
+  it("refuses the events feed's method filter by name", () => {
     const { client } = clientOver()
     expect(() => client.recovery.events.methodFilter()).toThrow(
       expect.objectContaining({ name: 'NotServedRefusal', member: 'events.methodFilter' })
     )
-    expect(await thrownBy(client.setup.prepareClearSetup())).toMatchObject({
-      member: 'setup.prepareClearSetup'
-    })
   })
 })

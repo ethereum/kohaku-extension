@@ -2,8 +2,9 @@
  * The setup client of a deployed kit, over the chain's reads: the setup-side
  * state, the description and the validation of a draft, the commit's prepare
  * and its check after the landing, and the restore of the committed
- * configuration from its backup, and the events feed it is given. The clear
- * is not served yet and refuses.
+ * configuration from its backup, the clear of the setup, the removal of the
+ * setup with its authorization and of a lone authorization, and the events
+ * feed it is given.
  *
  * Every member pins one block first and makes each read at it. A setup
  * commits `keccak256(abi.encode(account, action, nonce, body))` at the next
@@ -55,14 +56,15 @@ import {
 import type { SetupLog } from '../events'
 import {
   armingData,
+  clearSetupData,
   commitSetupData,
+  disarmingData,
   placedCredentialsOf,
   setupBodyOf,
   setupCommitmentOf
 } from '../formats'
 import { draftFindingsOf, isBackupRefusal } from '../validation'
 import { storedCommitCallOf } from './commit-call'
-import { notServedRefusal } from './not-served'
 import { accountBatchOf, accountCallOf, pinnedBlockOf } from './prepared'
 import { withNamedRevert } from './reverts'
 import type { KitSetupContext, MethodStandingReads } from './types'
@@ -414,8 +416,49 @@ export const createKitSetupClient = (ctx: KitSetupContext): ISetupClient => {
       })
     },
 
-    prepareClearSetup(): Promise<PreparedCall | PreparedBatch> {
-      return Promise.reject(notServedRefusal('setup.prepareClearSetup'))
+    // No simulation runs, so the clear and the two removal prepares take no options.
+    prepareClearSetup(): Promise<PreparedCall> {
+      return withNamedRevert(async () => {
+        const block = await pin()
+        const [state, authorized] = await Promise.all([
+          manager.stateOf(account, actionAddress, block.number),
+          action.isAuthorized(account, block.number)
+        ])
+        if (state.setupCommitment === zeroHash) {
+          throw codedError('setup.no-setup', { isAuthorized: authorized })
+        }
+        return accountCallOf(descriptor.manager, clearSetupData(actionAddress), block)
+      })
+    },
+
+    prepareRemoveSetup(): Promise<PreparedBatch> {
+      return withNamedRevert(async () => {
+        const block = await pin()
+        const [state, authorized] = await Promise.all([
+          manager.stateOf(account, actionAddress, block.number),
+          action.isAuthorized(account, block.number)
+        ])
+        if (state.setupCommitment === zeroHash) {
+          throw codedError('setup.no-setup', { isAuthorized: authorized })
+        }
+        return accountBatchOf(
+          [
+            accountCallOf(descriptor.manager, clearSetupData(actionAddress), block),
+            accountCallOf(account, disarmingData(actionAddress), block)
+          ],
+          block
+        )
+      })
+    },
+
+    prepareRemoveAuthorization(): Promise<PreparedCall> {
+      return withNamedRevert(async () => {
+        const block = await pin()
+        if (!(await action.isAuthorized(account, block.number))) {
+          throw codedError('setup.not-authorized', { action: actionAddress })
+        }
+        return accountCallOf(account, disarmingData(actionAddress), block)
+      })
     },
 
     /**

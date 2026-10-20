@@ -284,6 +284,13 @@ describe('a row of the path', () => {
     })
   })
 
+  it('reads a live row with the live chip as a success, with no line', () => {
+    const row = rowOf(enrolled(PASSKEY, 'live', { backup: 'synced' }))
+    expect(row.chip).toBe(chip('live'))
+    expect(row.tested).toBe(true)
+    expect(row.lines).toEqual([])
+  })
+
   it('names a device-bound passkey with the device-bound word', () => {
     const row = rowOf(enrolled(PASSKEY, 'not-tested', { backup: 'device-bound' }))
     expect(row.aside).toBe(t('socialRecovery.review.passkeyDeviceBound'))

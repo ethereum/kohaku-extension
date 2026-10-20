@@ -41,7 +41,7 @@ const PasskeyEnrolledSummary = ({ enrollment, platform }: PasskeyEnrolledSummary
         <StatusChip
           testID="passkey-chip"
           text={renderChip('method', TEST_CHIPS[enrollment.test], t)}
-          tone={enrollment.test === 'passed' ? 'success' : 'default'}
+          tone={enrollment.test === 'passed' || enrollment.test === 'live' ? 'success' : 'default'}
         />
       </View>
       {!!facts && (

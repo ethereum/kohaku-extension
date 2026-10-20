@@ -17,6 +17,11 @@ jest.mock('viem/chains', () => {
   return jest.requireActual('viem/chains')
 })
 jest.mock('@common/utils/clipboard', () => ({ setStringAsync: async () => true }))
+const mockNavigate = jest.fn()
+jest.mock('@common/hooks/useNavigation', () => ({
+  __esModule: true,
+  default: () => ({ navigate: mockNavigate })
+}))
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const React: typeof import('react') = require('react')
@@ -24,6 +29,9 @@ const fixtures: typeof import('@web/modules/social-recovery/cancel/__fixtures__/
 const watcherFixtures: typeof import('@web/modules/social-recovery/watcher/__fixtures__/harness') = require('@web/modules/social-recovery/watcher/__fixtures__/harness')
 const runFixtures: typeof import('@web/modules/social-recovery/cancel/__fixtures__/run') = require('@web/modules/social-recovery/cancel/__fixtures__/run')
 const display: typeof import('@web/modules/social-recovery/shared/display') = require('@web/modules/social-recovery/shared/display')
+const {
+  WEB_ROUTES
+}: typeof import('@common/modules/router/constants/common') = require('@common/modules/router/constants/common')
 const {
   accountBatchRefusal
 }: typeof import('@web/modules/social-recovery/shared/client') = require('@web/modules/social-recovery/shared/client')
@@ -444,7 +452,7 @@ describe('the cancel screen', () => {
     expect(view.byTestId('cancel-move-funds')).toBeNull()
   })
 
-  it('ends on the cancelled terminal with its lines, move funds and done, and no action to the editor', async () => {
+  it('ends on the cancelled terminal with its lines, replace them, move funds and done', async () => {
     view = await render({
       run: withWrite(LANDED, { after: { stage: 'cancelled', attemptId: 4n } })
     })
@@ -457,22 +465,22 @@ describe('the cancel screen', () => {
     expect(view.textOf('cancel-cancelled-only-own-key')).toBe(
       t('socialRecovery.watcher.banner.onlyOwnKey')
     )
-    expect(view.textOf('cancel-cancelled-replace-later')).toBe(
-      t('socialRecovery.cancel.cancelled.replaceLater')
-    )
     const actions = Array.from(document.querySelectorAll('[tabindex]')).map(
       (node) => node.textContent
     )
-    expect(actions).not.toContain(t('socialRecovery.cancel.cancelled.replace'))
     expect(actions).toEqual(
       expect.arrayContaining([
+        t('socialRecovery.cancel.cancelled.replace'),
         t('socialRecovery.cancel.cancelled.moveFunds'),
         t('socialRecovery.cancel.cancelled.done')
       ])
     )
+    expect(view.textOf('cancel-replace')).toBe(t('socialRecovery.cancel.cancelled.replace'))
     expect(view.textOf('cancel-move-funds')).toBe(t('socialRecovery.cancel.cancelled.moveFunds'))
     expect(view.textOf('cancel-done')).toBe(t('socialRecovery.cancel.cancelled.done'))
 
+    await view.press('cancel-replace')
+    expect(mockNavigate).toHaveBeenCalledWith(WEB_ROUTES.socialRecoveryManage)
     await view.press('cancel-move-funds')
     expect(props.onMoveFunds).toHaveBeenCalled()
     await view.press('cancel-done')
@@ -495,7 +503,7 @@ describe('the cancel screen', () => {
     expect(view.textOf('cancel-cancelled-title')).toBe(t('socialRecovery.cancel.cancelled.title'))
   })
 
-  it('names the other road that ended the attempt first, with done and no move funds', async () => {
+  it('names the other road that ended the attempt first, with done, no move funds and no replace', async () => {
     view = await render({
       run: withWrite(LANDED, { after: { stage: 'otherRoad', attemptId: 4n, road: 'setupWrite' } })
     })
@@ -506,6 +514,7 @@ describe('the cancel screen', () => {
       })
     )
     expect(view.byTestId('cancel-move-funds')).toBeNull()
+    expect(view.byTestId('cancel-replace')).toBeNull()
     expect(view.byTestId('cancel-done')).not.toBeNull()
   })
 })

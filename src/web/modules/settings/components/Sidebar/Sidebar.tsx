@@ -83,7 +83,7 @@ export const SETTINGS_LINKS = [
     key: 'account-recovery',
     Icon: React.memo(PasswordRecoverySettingsIcon),
     label: 'Account recovery',
-    path: ROUTES.socialRecoverySetup
+    path: ROUTES.socialRecoveryManage
   }
   // {
   //   key: 'device-password-recovery',

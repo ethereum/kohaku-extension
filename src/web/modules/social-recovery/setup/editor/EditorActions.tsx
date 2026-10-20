@@ -33,7 +33,8 @@ const EditorActions = ({
   thresholdHeld,
   onRetryWrite,
   onContinue,
-  onBack
+  onBack,
+  continueLabel
 }: EditorActionsProps) => {
   const { t } = useTranslation()
   const refusalLines = clientRefusal ? renderClientRefusal(clientRefusal, t) : null
@@ -67,7 +68,7 @@ const EditorActions = ({
       <Button
         testID="editor-continue"
         type="primary"
-        text={t('socialRecovery.actions.continue')}
+        text={continueLabel ?? t('socialRecovery.actions.continue')}
         disabled={methodCount === 0 || writeFailed || thresholdHeld}
         onPress={onContinue}
         hasBottomSpacing={false}

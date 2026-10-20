@@ -929,6 +929,37 @@ describe('the passkey row', () => {
       expect(view!.byTestId('passkey-test-line')?.textContent).toBe(t(`${PASSKEY}.testPassed`))
     })
 
+    it('reads a live row as live and offers the test, which runs for its credential id', async () => {
+      await reopenWith({
+        credential: CREDENTIAL,
+        test: 'live',
+        backup: 'synced',
+        credentialId: 'credential-a'
+      })
+      expect(view!.byTestId('passkey-chip')?.textContent).toBe(chip('live'))
+      expect(view!.byTestId('passkey-run-test')?.textContent).toBe(
+        t('socialRecovery.actions.runTheTest')
+      )
+      await view!.press('passkey-run-test')
+      const asked = await storedRequest(deps.requestIds[deps.requestIds.length - 1])
+      expect(asked).toMatchObject({ call: 'testAccess', params: { credentialId: 'credential-a' } })
+    })
+
+    it("draws a live row's chip in the tested row's success tone", async () => {
+      // The chip's tone is its drawn look: its classes and inline style.
+      const looks: Record<string, string> = {}
+      const verdicts: Enrollment['test'][] = ['live', 'passed', 'not-tested']
+      // Each verdict reopens the screen in turn.
+      await verdicts.reduce(async (previous, test) => {
+        await previous
+        await reopenWith({ credential: CREDENTIAL, test, backup: 'synced' })
+        const node = view!.byTestId('passkey-chip')
+        looks[test] = `${node?.className}|${node?.getAttribute('style')}`
+      }, Promise.resolve())
+      expect(looks.live).toBe(looks.passed)
+      expect(looks.live).not.toBe(looks['not-tested'])
+    })
+
     it('runs the test for the credential id the record holds', async () => {
       await reopenWith({
         credential: CREDENTIAL,

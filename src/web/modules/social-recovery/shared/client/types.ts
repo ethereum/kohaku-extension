@@ -31,6 +31,7 @@ import type {
   Address,
   BlockHeader,
   BlockTag,
+  Configuration,
   CreationRecord,
   DeploymentDescriptor,
   Handover,
@@ -325,6 +326,13 @@ export type RecoveryAttemptState = Omit<RecoveryState, 'removedKey'>
  */
 export type WalletReads = IWalletReadsDouble & {
   attemptState(): Promise<RecoveryAttemptState>
+  /**
+   * The setup commitment the manager would store for the client's account and
+   * action over `configuration` at `nonce`, in the encoding the client's own
+   * commit uses, so a configuration read back can be bound to the state it
+   * was read beside.
+   */
+  commitmentOf(nonce: bigint, configuration: Configuration): Hex
 }
 export type { FitCheckReading, RemovedKeyReading, RemovedKeyUnavailableCause }
 

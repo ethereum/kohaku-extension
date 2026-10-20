@@ -19,7 +19,8 @@ const VERDICT_CHIPS: Record<EnrollmentTestVerdict, Chip<'method'>> = {
   'not-tested': 'notTested',
   failed: 'testFailed',
   unavailable: 'testUnavailable',
-  'not-supported': 'notSupported'
+  'not-supported': 'notSupported',
+  live: 'live'
 }
 
 const METHOD_NAME_KEYS: Partial<Record<SlotKind, string>> = {

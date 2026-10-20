@@ -1,10 +1,11 @@
 /**
  * @jest-environment jsdom
  *
- * The social recovery routes: the twenty-six WEB_ROUTES keys and their paths,
+ * The social recovery routes: the twenty-nine WEB_ROUTES keys and their paths,
  * one routesConfig entry per path with the feature name as its title, a name
  * of its own for each step of the recover flow, no path shared with a route
- * outside the module, and the settings sidebar's entry that opens the setup.
+ * outside the module, and the settings sidebar's entry that opens the
+ * management overview.
  *
  * The settings sidebar reads `location` while it loads, so the suite runs in
  * jsdom. Its list of links is plain data; the two hooks its component body
@@ -55,7 +56,10 @@ const EXPECTED_ROUTES: Record<string, string> = {
   socialRecoveryRecoveryInProgress: 'social-recovery/recovery/in-progress',
   socialRecoveryRecoverySubmit: 'social-recovery/recovery/submit',
   socialRecoveryRecoveryWait: 'social-recovery/recovery/wait',
-  socialRecoveryRecoveryDone: 'social-recovery/recovery/done'
+  socialRecoveryRecoveryDone: 'social-recovery/recovery/done',
+  socialRecoveryManageEdit: 'social-recovery/manage/edit',
+  socialRecoveryManageReview: 'social-recovery/manage/review',
+  socialRecoveryManageRemove: 'social-recovery/manage/remove'
 }
 
 // The recover flow's steps after its warning, each a screen of its own, so
@@ -143,10 +147,10 @@ describe('social recovery routes', () => {
     expect(clashes).toEqual([])
   })
 
-  it('offers exactly one settings sidebar entry, named for the feature, and it opens the setup', () => {
+  it('offers exactly one settings sidebar entry, named for the feature, and it opens the management overview', () => {
     const entries = SETTINGS_LINKS.filter(({ path }) => path.startsWith('social-recovery'))
     expect(entries.map(({ path, label }) => ({ path, label }))).toEqual([
-      { path: WEB_ROUTES.socialRecoverySetup, label: FEATURE_NAME }
+      { path: WEB_ROUTES.socialRecoveryManage, label: FEATURE_NAME }
     ])
   })
 })
