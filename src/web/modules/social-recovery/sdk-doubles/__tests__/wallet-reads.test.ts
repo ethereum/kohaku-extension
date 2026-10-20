@@ -1,7 +1,8 @@
 /**
  * The wallet reads the extension owns beside the SDK: the verify of a
  * pasted reply, the key a recovery would remove, the fit check against the
- * code the account will carry, and the manager's attempt state alone.
+ * code the account will carry, the manager's attempt state alone, and the
+ * commitment of a configuration at a nonce.
  */
 import type {
   Address,
@@ -144,6 +145,20 @@ describe('wallet reads double', () => {
       await expect(new WalletReadsDouble(world.chain).attemptState()).resolves.toHaveProperty(
         'nextAttemptId'
       )
+    })
+  })
+
+  describe('commitmentOf', () => {
+    it('answers the commitment the chain stores for each committed configuration, and another for any other', () => {
+      const world = createWorld()
+      const reads = new WalletReadsDouble(world.chain)
+      const older = world.chain.commitSetup({ level: 'public', configuration: world.configuration })
+      const newer = { ...world.configuration, wait: world.configuration.wait + 1n }
+      const now = world.chain.commitSetup({ level: 'public', configuration: newer })
+
+      expect(reads.commitmentOf(older.setupNonce, world.configuration)).toBe(older.setupCommitment)
+      expect(reads.commitmentOf(now.setupNonce, newer)).toBe(now.setupCommitment)
+      expect(reads.commitmentOf(now.setupNonce, world.configuration)).not.toBe(now.setupCommitment)
     })
   })
 

@@ -45,9 +45,20 @@ export {
 export { WRITE_EVENT_TYPES, WRITE_ANSWER_TYPES, initialWriteState, writeReducer } from './machine'
 export { driveSend, driveAccountBatch } from './send'
 export { sameHash } from './hashes'
-export { DROPPED_AFTER_MS, DROPPED_RECHECK_MS } from './constants'
+export {
+  DROPPED_AFTER_MS,
+  DROPPED_RECHECK_MS,
+  OVERVIEW_INTENTS,
+  MANAGE_INTENT_MARKS
+} from './constants'
 export { apartFrom, coversHashes } from './dropped'
-export { claimReadingOf, requestHoldOf } from './claims'
+export {
+  claimReadingOf,
+  requestHoldOf,
+  requestIdOf,
+  intentOfRequest,
+  overviewIntentOf
+} from './claims'
 export {
   FEE_HEADROOM_PERCENT,
   GAS_DISPLAY_DECIMALS,
@@ -126,5 +137,8 @@ export type {
   UnknownReading,
   StoredClaim,
   ClaimReading,
-  RequestHold
+  RequestHold,
+  OverviewIntent,
+  ManageIntent,
+  ManagementIntent
 } from './types'

@@ -9,14 +9,24 @@
  * soon as the step mounts, so a later mount at the same entry, for this
  * account or another, does not start again. A reload, a typed address, or
  * back and forward show the summary with the Save button instead. The
- * wallet's sign screen is the one confirmation.
+ * wallet's sign screen is the one confirmation. A change of the recovery
+ * overview stored as in flight for the account is left to the overview: the
+ * step points there and neither follows nor saves.
  */
-import React, { useCallback, useEffect, useMemo, useRef } from 'react'
-import { Linking } from 'react-native'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Linking, View } from 'react-native'
 import { useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { isAddress, isAddressEqual } from 'viem'
 
+import Alert from '@common/components/Alert'
+import Button from '@common/components/Button'
+import { useTranslation } from '@common/config/localization'
+import { WEB_ROUTES } from '@common/modules/router/constants/common'
+import spacings from '@common/styles/spacings'
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
+import type { EntryRead } from '@web/modules/social-recovery/recovery/entry/types'
+import { ActionsRow, PageTitle, TwoColumn } from '@web/modules/social-recovery/shared/chrome'
+import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useRequestsControllerState from '@web/hooks/useRequestsControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
@@ -32,6 +42,7 @@ import type { HeldRequestQueue, ListedAccount } from '@web/modules/social-recove
 import { useAccountFacts } from '@web/modules/social-recovery/shared/client/useAccountFacts'
 import { useRecoveryClient } from '@web/modules/social-recovery/shared/client/useRecoveryClient'
 import { readRecoveryPassword } from '@web/modules/social-recovery/shared/records'
+import { intentOfRequest } from '@web/modules/social-recovery/shared/writes'
 import { levelOfBackup } from '@web/modules/social-recovery/setup/card'
 import SettingsChrome from '@web/modules/social-recovery/setup/privacy/SettingsChrome'
 import type { StepViewProps } from '@web/modules/social-recovery/setup/privacy/types'
@@ -52,6 +63,7 @@ import { useArmRun } from './useArmRun'
 import { useSaveLoad } from './useSaveLoad'
 
 const ArmStep = ({ records, chainId, account, navigate }: StepViewProps) => {
+  const { t } = useTranslation()
   const { accounts } = useAccountsControllerState()
   const { dispatch, windowId } = useBackgroundService()
   const queue = useRequestsControllerState()
@@ -124,13 +136,58 @@ const ArmStep = ({ records, chainId, account, navigate }: StepViewProps) => {
     [requests, chainId]
   )
 
+  // A change the recovery overview stored as in flight is the overview's to follow and
+  // judge: the save neither follows it nor starts while it is stored.
+  const [overviewWrite, setOverviewWrite] = useState<EntryRead<boolean>>({ status: 'pending' })
+  const [overviewRound, setOverviewRound] = useState(0)
+  useEffect(() => {
+    setOverviewWrite({ status: 'pending' })
+    let live = true
+    records
+      .saveInFlight(chainId, account)
+      .read()
+      .then(
+        (held) => {
+          if (live) {
+            setOverviewWrite({
+              status: 'answered',
+              value: held.status === 'present' && !!intentOfRequest(held.value.requestId)
+            })
+          }
+        },
+        () => {
+          if (live) {
+            setOverviewWrite({ status: 'failed' })
+          }
+        }
+      )
+    return () => {
+      live = false
+    }
+  }, [records, chainId, account, overviewRound])
+  const heldElsewhere = overviewWrite.status === 'answered' && overviewWrite.value
+  // The other write may land and leave while this tab is hidden: shown again, the tab reads once more.
+  useEffect(() => {
+    if (!heldElsewhere) {
+      return undefined
+    }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        setOverviewRound((round) => round + 1)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [heldElsewhere])
+  const saveMayRun = overviewWrite.status === 'answered' && !overviewWrite.value
+
   const ready = facts.status === 'ready' ? facts.facts : null
   // The wallet's own record of the account the step saves, for its name.
   const listed = accounts?.find(
     (candidate) => isAddress(candidate.addr) && isAddressEqual(candidate.addr, account)
   )
   const steps = useMemo<SaveSteps | null>(() => {
-    if (!kit || !chainReads || !receipts || !ready?.key || !draft) {
+    if (!saveMayRun || !kit || !chainReads || !receipts || !ready?.key || !draft) {
       return null
     }
     return saveStepsOf({
@@ -148,7 +205,20 @@ const ArmStep = ({ records, chainId, account, navigate }: StepViewProps) => {
       draft,
       password
     })
-  }, [kit, chainReads, receipts, ready, draft, port, requests, records, chainId, account, password])
+  }, [
+    saveMayRun,
+    kit,
+    chainReads,
+    receipts,
+    ready,
+    draft,
+    port,
+    requests,
+    records,
+    chainId,
+    account,
+    password
+  ])
 
   const {
     state,
@@ -233,6 +303,46 @@ const ArmStep = ({ records, chainId, account, navigate }: StepViewProps) => {
     accountReads.removedKey.status === 'answered' && accountReads.removedKey.value.kind === 'named'
       ? accountReads.removedKey.value.key
       : undefined
+
+  if (overviewWrite.status === 'failed') {
+    return (
+      <ReadFailedBlock
+        testID="arm-overview-write-failed"
+        title={t('socialRecovery.records.loadFailed')}
+        onRetry={() => setOverviewRound((round) => round + 1)}
+      />
+    )
+  }
+  // Found on arrival, or met by the save's claim after that read.
+  if (heldElsewhere || state.stop === 'held-by-another-write') {
+    return (
+      <TwoColumn testID="arm-columns">
+        <View testID="arm-held">
+          <PageTitle title={t('socialRecovery.routes.setupSave')} titleTestID="arm-title" />
+          <Alert
+            testID="arm-overview-write"
+            type="warning"
+            size="sm"
+            style={spacings.mbSm}
+            text={t('socialRecovery.management.overview.writes.inFlightElsewhere')}
+          >
+            <ActionsRow
+              primary={
+                <Button
+                  testID="arm-open-overview"
+                  type="secondary"
+                  size="small"
+                  text={t('socialRecovery.management.overview.writes.openOverview')}
+                  onPress={() => navigate(WEB_ROUTES.socialRecoveryManage)}
+                  hasBottomSpacing={false}
+                />
+              }
+            />
+          </Alert>
+        </View>
+      </TwoColumn>
+    )
+  }
 
   return (
     <ArmView

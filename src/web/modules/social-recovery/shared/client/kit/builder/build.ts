@@ -4,7 +4,8 @@
  * gathering and prepares over the same reads and the setup client's restore,
  * the action and the module reads bound to the account, the wallet's
  * removed-key and fit reads over the same events feed and the transaction
- * read, its attempt-state read over the manager, its verify of a pasted reply
+ * read, its attempt-state read over the manager, the commitment of a
+ * configuration in the commit's own encoding, its verify of a pasted reply
  * through the method module's own `verify` view, and the approving side. The
  * approving side reads no chain: it is the kit's ECDSA method and the shipped
  * doubles for the rest, with the orchestrator over them, keyed by the
@@ -27,7 +28,7 @@ import type { SlotKind } from '@web/modules/social-recovery/shared/records'
 
 import type { RecoveryKitClient, WalletReads } from '../../types'
 import { createKitEventManager, createSetupEvents } from '../events'
-import { disarmingData } from '../formats'
+import { disarmingData, setupBodyOf, setupCommitmentOf } from '../formats'
 import { createEcdsaMethod } from '../methods'
 import { createMethodReads } from '../reads'
 import { createKitRecoveryClient } from '../recovery-client'
@@ -64,7 +65,9 @@ export const buildKitClient = (input: KitClientInput): RecoveryKitClient => {
     removedKey: () => kitWalletReads.removedKey(),
     attemptState: () => kitWalletReads.attemptState(),
     fitCheck: (implementation) => kitWalletReads.fitCheck(implementation),
-    verifyReply: (request, reply) => kitWalletReads.verifyReply(request, reply)
+    verifyReply: (request, reply) => kitWalletReads.verifyReply(request, reply),
+    commitmentOf: (nonce, configuration) =>
+      setupCommitmentOf(account, descriptor.action, nonce, setupBodyOf(account, configuration))
   }
   const setup = createKitSetupClient({
     account,

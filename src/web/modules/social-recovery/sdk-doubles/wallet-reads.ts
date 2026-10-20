@@ -15,7 +15,9 @@
  *   fresh account with no code yet is judged by the implementation it deploys.
  *
  * Beside them, `attemptState` reads the manager's state alone, the recovery
- * state without the removed key, for a surface that never shows that key.
+ * state without the removed key, for a surface that never shows that key, and
+ * `commitmentOf` computes the commitment of a configuration at a nonce in the
+ * stand-in chain's own encoding, which reads no chain.
  *
  * Every read throws when it could not be made, and never answers empty.
  */
@@ -23,6 +25,8 @@ import type {
   Address,
   ApproverReply,
   ApproverRequest,
+  Configuration,
+  Hex,
   RecoveryState,
   RemovedKey,
   Verdict
@@ -30,7 +34,13 @@ import type {
 
 import type { ScriptedChain } from './chain'
 import { DEFAULT_BLOCK_TAGS } from './context'
-import { digestOfRequest, doubleProof, sameAddress } from './encoding'
+import {
+  digestOfRequest,
+  doubleProof,
+  sameAddress,
+  setupBodyOf,
+  setupCommitmentOf
+} from './encoding'
 import { replyReadable, requestReadable } from './orchestrator'
 import type {
   FitCheckReading,
@@ -119,6 +129,11 @@ export class WalletReadsDouble implements IWalletReadsDouble {
       setupNonce: state.setupNonce,
       block
     }
+  }
+
+  commitmentOf(nonce: bigint, configuration: Configuration): Hex {
+    const { account, action } = this.chain
+    return setupCommitmentOf(account, action, nonce, setupBodyOf(account, configuration))
   }
 
   async fitCheck(accountImplementation?: Address): Promise<FitCheckReading> {

@@ -2377,3 +2377,88 @@ describe('the wallet selecting another account while the tab is open', () => {
     expect(port.sendAccountBatch.mock.calls[0][0]).toBe(address)
   })
 })
+
+describe('a change the recovery overview stored as in flight', () => {
+  /** The overview's clear, claimed and sent from another page of this device. */
+  const storeOverviewClear = async () => {
+    const { createWalletRecords, extensionRecordStorage } = jest.requireActual<
+      typeof import('@web/modules/social-recovery/shared/records')
+    >('@web/modules/social-recovery/shared/records')
+    const { requestIdOf } = jest.requireActual<
+      typeof import('@web/modules/social-recovery/shared/writes')
+    >('@web/modules/social-recovery/shared/writes')
+    const inFlight = createWalletRecords({ storage: extensionRecordStorage }).saveInFlight(
+      CHAIN_ID,
+      address
+    )
+    const requestId = requestIdOf('clear')
+    await inFlight.claim({
+      draft: draftOf('clear', '0x', []),
+      prepared: preparedOf(address, true),
+      requestId,
+      claimedAt: Date.now(),
+      startBlock: harness.START_BLOCK
+    })
+    await inFlight.markSent(requestId, harness.TX_HASH, harness.START_BLOCK)
+    return () => inFlight.release(requestId)
+  }
+
+  it('points to the overview under the save title and neither follows, judges nor sends it, on the push of the review', async () => {
+    await writeRecords(draftOf('encrypted'))
+    wireClient('ready')
+    await storeOverviewClear()
+
+    await openByPush()
+
+    expect(byTestId('arm-overview-write')?.textContent).toContain(
+      t('socialRecovery.management.overview.writes.inFlightElsewhere')
+    )
+    expect(byTestId('arm-title')?.textContent).toContain(t('socialRecovery.routes.setupSave'))
+    expect(byTestId('arm-account')).toBeNull()
+    expect(byTestId('arm-save')).toBeNull()
+    expect(byTestId('arm-disagreed-mismatch')).toBeNull()
+    expect(receipts.wait).not.toHaveBeenCalled()
+    expect(confirmSetup).not.toHaveBeenCalled()
+    expect(prepareCommitSetup).not.toHaveBeenCalled()
+    expect(port.sendAccountBatch).not.toHaveBeenCalled()
+    expect(storedSaves()).toHaveLength(1)
+    expect(wipes()).toBe(0)
+
+    await press('arm-open-overview')
+    expect(router.pathname).toBe(`/${WEB_ROUTES.socialRecoveryManage}`)
+  })
+
+  it('reads the stored change again when the tab is shown, and offers the save once it left', async () => {
+    await writeRecords(draftOf('encrypted'))
+    wireClient('ready')
+    const release = await storeOverviewClear()
+    await openByAddress()
+    expect(byTestId('arm-overview-write')).not.toBeNull()
+
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    await settle()
+    expect(byTestId('arm-overview-write')).not.toBeNull()
+    expect(byTestId('arm-save')).toBeNull()
+
+    await release()
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    await settle()
+
+    expect(byTestId('arm-overview-write')).toBeNull()
+    expect(byTestId('arm-save')).not.toBeNull()
+    expect(port.sendAccountBatch).not.toHaveBeenCalled()
+  })
+
+  it('offers the save as before once no overview change is stored', async () => {
+    await writeRecords(draftOf('encrypted'))
+    wireClient('ready')
+    await openByAddress()
+
+    expect(byTestId('arm-overview-write')).toBeNull()
+    expect(byTestId('arm-save')).not.toBeNull()
+  })
+})

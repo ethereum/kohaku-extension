@@ -1503,7 +1503,9 @@
           "editInFlight": "A change to the recovery path is on its way for this account. Follow it on the review of changes.",
           "openReview": "Open the review of changes",
           "removeInFlight": "The removal of recovery is on its way for this account. Follow it on the removal screen.",
-          "openRemove": "Open the removal"
+          "openRemove": "Open the removal",
+          "saveInFlight": "A save of your recovery setup is on its way for this account. Follow it on the save screen.",
+          "openSave": "Open the save screen"
         },
         "locked": {
           "title": "Your recovery path is locked on this device",
