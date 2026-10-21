@@ -288,7 +288,27 @@
       "backToMethod": "Back to the method",
       "orCopyLink": "Or copy the link",
       "passkeyTunnel": "Passkey: your phone creates the passkey. Your browser's vendor runs the tunnel that carries this between the two devices.",
-      "passportTunnel": "Passport: your phone reads the chip in your passport. zkPassport runs the flow that carries this between the two devices."
+      "passportTunnel": "Passport: your phone reads the chip in your passport. zkPassport runs the flow that carries this between the two devices.",
+      "scanWithApp": "Scan this code with the zkPassport app on your phone. The app reads the chip and this tab waits.",
+      "requestReceived": "Your phone received the request…",
+      "generating": "Your phone is preparing the result…",
+      "resultReceived": "Result received. Checking…",
+      "uploadTitle": "Upload the QR image",
+      "uploadHint": "The secure QR code from the mAadhaar app or the e-Aadhaar PDF, as a PNG or JPEG.",
+      "chooseImage": "Choose the image",
+      "noQrFound": "No QR code was found in this image. Choose another image.",
+      "fetchingFiles": "Downloading the check's files… this happens once.",
+      "proving": "Checking the QR code… this takes about a minute.",
+      "checkingResult": "Checking the result…",
+      "stopAction": "Stop",
+      "declinedNote": "Declined · you declined the request on the phone",
+      "phoneErrorNote": "Failed · your phone reported an error · Try again",
+      "noMatchCause": "The result did not match the identifier recorded at setup.",
+      "rejectedCause": "The result did not pass the method's own check. Try again with the same document.",
+      "phoneRequestName": "Kohaku",
+      "phoneRequestPurposeEnroll": "Enroll your passport as a way to recover your Kohaku account",
+      "phoneRequestPurposeClaim": "Approve the recovery of a Kohaku account",
+      "notOnThisNetworkLine": "This method is not available on this network."
     },
     "records": {
       "expiredTitle": "This request expired",
@@ -365,6 +385,7 @@
       "smartAccount": "If this address is a smart account, whoever controls it can approve for it.",
       "identity": "This method shows the details on the document, not that you are the one using it now.",
       "passportPublication": "If a recovery ever uses this method, the identifier your passport produces goes on chain in the clear, beside your account. Any later setup with the same passport can be linked to it.",
+      "aadhaarPublication": "If a recovery ever uses this method, the identifier your Aadhaar produces goes on chain in the clear, beside your account. Any later setup with the same Aadhaar can be linked to it.",
       "items": {
         "passkey": "your passkey",
         "passkeys": "your passkeys",
@@ -520,6 +541,29 @@
         "bringBackHeader": "Bring the signature back",
         "pasteSignature": "Paste the signature",
         "signaturePlaceholder": "0x…"
+      },
+      "passport": {
+        "title": "Passport",
+        "lead": "Your phone reads the chip in your passport with the zkPassport app. The result is an identifier only your passport produces.",
+        "needsApp": "You need the zkPassport app on a phone that can read the chip. The document must be a passport or an identity card with a chip.",
+        "noneYet": "No passport enrolled yet",
+        "scanAction": "Scan with your phone",
+        "scanLine": "A code appears on the next screen. Scan it with the zkPassport app, read the chip, and approve the request there.",
+        "enrolledLine": "Your passport is enrolled. The wallet stores the identifier, never the document.",
+        "testLead": "Run the check once now. Your phone reads the chip again and the chain confirms the result.",
+        "testPassed": "The chain confirmed the identifier your passport produces."
+      },
+      "aadhaar": {
+        "title": "Aadhaar identity",
+        "lead": "Upload the image of the secure QR code from the mAadhaar app or your e-Aadhaar PDF. The check runs in this browser, and the image never leaves this device.",
+        "noneYet": "No Aadhaar identity enrolled yet",
+        "uploadAction": "Choose the QR image",
+        "uploadLine": "A PNG or JPEG that shows the whole QR code.",
+        "takesTime": "The check takes about a minute and downloads its files once, about 300 MB. Keep the tab open.",
+        "sameQr": "At recovery you present the same QR code again.",
+        "enrolledLine": "Your Aadhaar identity is enrolled. The wallet stores the identifier, never the QR code.",
+        "testLead": "Run the check once now. Upload the QR image again and the chain confirms the result.",
+        "testPassed": "The chain confirmed the identifier your Aadhaar produces."
       }
     },
     "privacy": {
@@ -1081,6 +1125,17 @@
         "confirm": "Abandoning wipes every approval you collected from this device. Nothing was submitted.",
         "confirmAction": "Abandon",
         "keep": "Keep this recovery"
+      },
+      "passport": {
+        "lead": "Your phone reads the chip in your passport and approves this recovery.",
+        "scanAction": "Scan with your phone",
+        "phoneReads": "The phone that scans the code reads the account and the new key.",
+        "borrowedPhone": "If you borrow a phone, its owner learns the account and the new key."
+      },
+      "aadhaar": {
+        "lead": "Upload the same QR code you enrolled with. The check runs here and takes about a minute.",
+        "uploadAction": "Choose the QR image",
+        "sameQr": "It must be the same QR code as at setup. A new QR code from a renewed card may not match."
       }
     },
     "inProgress": {

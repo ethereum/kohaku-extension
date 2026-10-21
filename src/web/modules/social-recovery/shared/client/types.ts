@@ -116,6 +116,16 @@ export interface DeploymentFacts {
   methodPasskey: Address
   methodAadhaar?: Address
   methodZkpassport?: Address
+  /** The domain the zkPassport request names to the phone. */
+  zkPassportDomain?: string
+  /** The scope the zkPassport request names, which the identifier is derived under. */
+  zkPassportScope?: string
+  /** Whether the phone proves against the test certificate tree, set by a test deployment alone. */
+  zkPassportTestnetTree?: boolean
+  /** The Aadhaar nullifier seed, a decimal number. */
+  aadhaarNullifierSeed?: string
+  /** The PEM certificate the Aadhaar QR code's signature is checked against. */
+  aadhaarCertificate?: string
   action: Address
   /** The block the manager was deployed at, where event reads start. */
   deployedAt: number

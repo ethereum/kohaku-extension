@@ -46,6 +46,10 @@ module.exports = {
       path.dirname(require.resolve('@kohaku-eth/social-recovery/package.json')),
       'dist/index.js'
     ),
+    '^@kohaku-eth/social-recovery/recovery-methods$': path.join(
+      path.dirname(require.resolve('@kohaku-eth/social-recovery/package.json')),
+      'dist/recovery-methods.js'
+    ),
     // The path aliases of tsconfig.json, so a unit test imports like the code it tests
     '^@ambire-common/(.*)$': '<rootDir>/src/ambire-common/src/$1',
     '^@contracts/(.*)$': '<rootDir>/src/ambire-common/contracts/$1',
