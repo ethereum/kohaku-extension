@@ -42,7 +42,7 @@ import type {
   SetupDescription,
   SetupDraft,
   SetupState
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import {
   accountBatchRefusal,
   addressBookOf,
@@ -187,7 +187,7 @@ export const draftOf = (
   publicMetadata: Hex = '0x',
   clauses: Clause[] = PATH
 ): SetupDraft => ({
-  wait: 172800n,
+  wait: 172800,
   clauses,
   ignoresPause: true,
   privacy: { backup, publicMetadata }
@@ -788,22 +788,22 @@ export const runSave = async (
 // ---------------------------------------------------------------------------
 
 export const descriptionOf = (
-  candidateKeys: SetupDescription['candidateKeys'] = [{ address: REMOVED_KEY, isAuthority: true }]
+  candidateKeys: SetupDescription['candidateKeys'] = [{ key: REMOVED_KEY, isAuthority: true }]
 ): SetupDescription => ({
-  rule: null,
-  wait: { seconds: 172800n, defaultSeconds: 172800n },
-  failureDomains: null,
-  parties: null,
-  methodStanding: null,
-  passkeyDomains: null,
+  rule: { clauses: [] },
+  wait: { committed: 172800, clientDefault: 172800 },
+  failureDomains: [],
+  parties: { methods: [], walletGuardians: [] },
+  methodStanding: [],
+  passkeyDomains: [],
   candidateKeys,
   removedKey: REMOVED_KEY,
-  privacy: null,
-  backup: null,
-  reveals: null,
-  cancel: null,
-  upgrade: null,
-  pause: null
+  privacy: { publicMetadata: '0x', backup: 'encrypted' },
+  backup: { choice: 'encrypted', anySuppliedSalt: false },
+  reveals: { suppliedSaltPlaces: [] },
+  cancel: { cancelByVeto: true },
+  upgrade: {},
+  pause: { ignoresPause: true, methods: [] }
 })
 
 /** The ways the review's gate answers, each from the reads or the records that raise it. */
@@ -894,8 +894,8 @@ const gateInputOf = (gate: GateCase) => {
       reads.description = {
         status: 'answered',
         value: descriptionOf([
-          { address: REMOVED_KEY, isAuthority: true },
-          { address: KEY.addr, isAuthority: true }
+          { key: REMOVED_KEY, isAuthority: true },
+          { key: KEY.addr, isAuthority: true }
         ])
       }
       break

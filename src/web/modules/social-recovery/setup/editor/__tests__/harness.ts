@@ -12,7 +12,7 @@ import type {
   Hex,
   SetupDraft,
   ValidationResult
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import { addressBookOf } from '@web/modules/social-recovery/shared/client'
 import type {
   Enrollment,
@@ -199,7 +199,7 @@ if (expect.getState().testPath === __filename) {
     it('stores a draft and reads it back with its bigint wait, counting the write', async () => {
       const { storage, records } = makeRecords()
       const draft = {
-        wait: 86400n,
+        wait: 86400,
         clauses: presetPath(),
         ignoresPause: false,
         privacy: { publicMetadata: '0x' as const, backup: 'encrypted' as const }

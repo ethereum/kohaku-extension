@@ -6,7 +6,7 @@
  * counts a group as one unit, continue unlocked by a satisfied assessment
  * alone, and the rows outside the smallest set reading not needed.
  */
-import type { Configuration, Gathering } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Configuration, Gathering } from '@kohaku-eth/social-recovery'
 
 import type {
   Mounted,

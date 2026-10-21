@@ -6,7 +6,7 @@
  * where none is left. The home band renders a line for each live session and
  * nothing without one.
  */
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 import type {
   Mounted,
@@ -14,6 +14,7 @@ import type {
 } from '@web/modules/social-recovery/recovery/checklist/__tests__/harness'
 import {
   ACCOUNT,
+  BOOK,
   CHAIN_ID,
   each,
   entryOf,
@@ -144,7 +145,8 @@ describe('the recovery in progress', () => {
     expect((await storedSession(world.records, ACCOUNT))?.value).toEqual({
       state: 'wiped',
       reason: 'recoverer-abandoned',
-      account: ACCOUNT
+      account: ACCOUNT,
+      deployment: { manager: BOOK.manager, action: BOOK.action }
     })
     expect((await world.records.recoveryEntry(CHAIN_ID, ACCOUNT).read()).status).toBe('absent')
     expect(view.byTestId(`in-progress-${first}`)).toBeNull()

@@ -1,6 +1,6 @@
 import { zeroAddress } from 'viem'
 
-import type { PaymentOrder } from '@web/modules/social-recovery/sdk-interfaces'
+import type { PaymentOrder } from '@kohaku-eth/social-recovery'
 
 /** The first release's order: no payment, to nobody. */
 export const NO_PAYMENT_ORDER: PaymentOrder = {

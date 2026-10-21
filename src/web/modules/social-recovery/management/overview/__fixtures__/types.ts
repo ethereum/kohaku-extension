@@ -7,13 +7,14 @@ import type {
 import type { sdkStandIn as StandIn } from '@web/modules/social-recovery/shared/client/stand-in'
 import type { RecoveryClientState } from '@web/modules/social-recovery/shared/client/useRecoveryClient'
 import type { ChainId, WalletRecords } from '@web/modules/social-recovery/shared/records'
+import type { WatcherStorage } from '@web/modules/social-recovery/watcher'
 
 /** The client state the screen's hook hands back, with its retry. */
 export type ClientState = RecoveryClientState & { retry: () => void }
 
-/** A setup committed on the stand-in's chain, the client built over it and records in memory. */
+/** A setup committed on the account's fake node, the client built over it and records in memory. */
 export interface World {
-  chain: ReturnType<typeof StandIn.chainFor>
+  chain: ReturnType<typeof StandIn.nodeFor>
   client: RecoveryKitClient
   records: WalletRecords
 }
@@ -21,6 +22,7 @@ export interface World {
 export interface ReadsProbeProps {
   client: ClientState
   records: WalletRecords
+  watcherStorage?: WatcherStorage
   chainId: ChainId
   onOpen: (intent: OverviewIntent) => void
 }

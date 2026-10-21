@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import type { Clause, Credential, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Clause, Credential, SetupDraft } from '@kohaku-eth/social-recovery'
 import type { WalletRecords } from '@web/modules/social-recovery/shared/records'
 
 import type {
@@ -14,6 +14,7 @@ import {
   draftOf,
   harnessOf,
   holdReads,
+  readPublicNote,
   recordsOn
 } from '@web/modules/social-recovery/setup/privacy/__tests__/harness'
 
@@ -28,9 +29,6 @@ const {
   shapeNoteOf,
   WALLET_RECOVERY_CHAIN
 }: typeof import('@web/modules/social-recovery/shared/client') = require('@web/modules/social-recovery/shared/client')
-const {
-  readPublicNote
-}: typeof import('@web/modules/social-recovery/sdk-doubles') = require('@web/modules/social-recovery/sdk-doubles')
 const {
   PASSWORD_SET,
   readRecoveryPassword,
@@ -557,7 +555,7 @@ describe('the privacy step', () => {
       expect(readPublicNote(draft.privacy.publicMetadata)).toEqual({
         kind: 'shape',
         shape: {
-          wait: draft.wait,
+          wait: BigInt(draft.wait),
           ignoresPause: draft.ignoresPause,
           clauses: [{ threshold: 2, methods: [passkey.method, passport.method, guardian.method] }]
         }
@@ -633,14 +631,14 @@ describe('the privacy step', () => {
 
     it('continue with no draft starts one with a sealed backup beside a note that reads back as Shape visible', async () => {
       const records = recordsOn()
-      await records.setup(CHAIN_ID, ACCOUNT).waitingPeriod.write(259200n)
+      await records.setup(CHAIN_ID, ACCOUNT).waitingPeriod.write(259200)
       await h.mount(records)
       await h.press('level-shape-visible')
       await typePasswords('correct horse', 'correct horse')
       await h.press('continue')
       const draft = await storedDraft(records)
       expect(draft.clauses).toEqual([])
-      expect(draft.wait).toBe(259200n)
+      expect(draft.wait).toBe(259200)
       expect(draft.privacy.backup).toBe('encrypted')
       expect(draft.privacy.publicMetadata).not.toBe('0x')
       expect(privacyLevelOf(draft.privacy)).toBe('shape-visible')
@@ -652,9 +650,9 @@ describe('the privacy step', () => {
     it('continue carries the stored waiting period into the note', async () => {
       const records = recordsOn()
       const setup = records.setup(CHAIN_ID, ACCOUNT)
-      await setup.waitingPeriod.write(259200n)
+      await setup.waitingPeriod.write(259200)
       await setup.setupDraft.write(
-        draftOf({ wait: 259200n, clauses: PASSKEY_PASSPORT_AND_GUARDIAN })
+        draftOf({ wait: 259200, clauses: PASSKEY_PASSPORT_AND_GUARDIAN })
       )
       await h.mount(records)
       await h.press('level-shape-visible')
@@ -699,13 +697,13 @@ describe('the privacy step', () => {
 
     it('continue with no draft starts one in the clear that carries the stored waiting period', async () => {
       const records = recordsOn()
-      await records.setup(CHAIN_ID, ACCOUNT).waitingPeriod.write(259200n)
+      await records.setup(CHAIN_ID, ACCOUNT).waitingPeriod.write(259200)
       await h.mount(records)
       await h.press('level-public')
       await h.press('continue')
       const draft = await storedDraft(records)
       expect(draft.privacy.backup).toBe('clear')
-      expect(draft.wait).toBe(259200n)
+      expect(draft.wait).toBe(259200)
       expect(draft.clauses).toEqual([])
       expect(await flagOf(records)).toBeUndefined()
       expect(h.navigate).toHaveBeenCalledWith(WEB_ROUTES.socialRecoverySetupReview)

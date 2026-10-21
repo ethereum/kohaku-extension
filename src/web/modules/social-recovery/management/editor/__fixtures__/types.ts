@@ -16,7 +16,7 @@ export type LandingCase = 'lands' | 'refused'
 /** A committed setup on the stand-in's chain, a client over it, records in memory and the seams a run sends through. */
 export interface EditWorld {
   account: `0x${string}`
-  chain: ReturnType<typeof StandIn.chainFor>
+  chain: ReturnType<typeof StandIn.nodeFor>
   client: RecoveryKitClient
   storage: RecordStorage
   records: WalletRecords

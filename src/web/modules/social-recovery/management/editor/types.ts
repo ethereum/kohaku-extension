@@ -8,12 +8,12 @@ import type {
   Configuration,
   Credential,
   Hex,
-  PrivacyLevel,
   SetupConfirmation,
   SetupDraft,
   SetupState
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type {
+  PrivacyLevel,
   AddressBook,
   ChainReads,
   KeyHandle,

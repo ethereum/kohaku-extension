@@ -48,7 +48,7 @@ import type {
   SignUserRequest,
   TypedMessage
 } from '@ambire-common/interfaces/userRequest'
-import type { Address, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Hex } from '@kohaku-eth/social-recovery'
 
 import { sameAddress } from './addresses'
 import type {

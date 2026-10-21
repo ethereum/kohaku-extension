@@ -7,7 +7,7 @@ import { createRoot, Root } from 'react-dom/client'
 import type { Network } from '@ambire-common/interfaces/network'
 import { getRpcProvider } from '@ambire-common/services/provider/getRpcProvider'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
-import type { Address, IProvider } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, IProvider } from '@kohaku-eth/social-recovery'
 import type {
   HookState,
   ProviderMock
@@ -367,10 +367,10 @@ describe('useRecoveryClient over the network record', () => {
 describe('useRecoveryClient for a deployed kit', () => {
   it('hands the build a code read over the same provider', async () => {
     await render()
-    const { codeRead } = buildClient.mock.calls[0][0] as {
-      codeRead: { code(address: Address): Promise<string> }
+    const { provider } = buildClient.mock.calls[0][0] as {
+      provider: { code(address: Address, block: 'latest'): Promise<string> }
     }
-    await expect(codeRead.code(ACCOUNT)).resolves.toBe(ACCOUNT_CODE)
+    await expect(provider.code(ACCOUNT, 'latest')).resolves.toBe(ACCOUNT_CODE)
     expect(built[0].getCode).toHaveBeenCalledWith(ACCOUNT, 'latest')
   })
 

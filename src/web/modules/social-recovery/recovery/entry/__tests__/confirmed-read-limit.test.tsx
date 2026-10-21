@@ -1,7 +1,8 @@
 /**
  * @jest-environment jsdom
  */
-import type { Address, BlockTag } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, BlockTag, Hex } from '@kohaku-eth/social-recovery'
+
 import {
   advanceClock,
   BASIC,
@@ -16,33 +17,50 @@ import {
 } from '@web/modules/social-recovery/recovery/entry/__tests__/harness'
 import type { Mounted } from '@web/modules/social-recovery/recovery/entry/__tests__/harness'
 import {
-  ACCOUNT,
-  KEY_A
-} from '@web/modules/social-recovery/shared/client/kit/setup-client/__tests__/harness'
-import {
-  CREATION,
-  HOLDS,
-  same,
-  worldOf
-} from '@web/modules/social-recovery/shared/client/kit/wallet-reads/__fixtures__/world'
+  addressBookOf,
+  buildRecoveryClient,
+  descriptorOf,
+  WALLET_RECOVERY_CHAIN
+} from '@web/modules/social-recovery/shared/client'
+import { sdkStandIn } from '@web/modules/social-recovery/shared/client/stand-in'
 
 const HOUR_MS = 60 * 60 * 1000
 
-const listedDeployed = () =>
-  worldOf({
-    creation: CREATION,
-    initialPrivileges: [[KEY_A, HOLDS]],
-    associatedKeys: [KEY_A],
-    holders: [KEY_A],
+const KEY_A: Address = '0x00000000000000000000000000000000000ca1a1'
+// Any non-zero privilege value: the creation grants KEY_A the key privilege.
+const HOLDS: Hex = `0x${'00'.repeat(31)}01`
+const CREATION = {
+  factory: '0x00000000000000000000000000000000000fac70' as Address,
+  bytecode: '0x00' as Hex,
+  salt: `0x${'00'.repeat(32)}` as Hex,
+  block: 1
+}
+
+/** The listed basic account deployed on its fake node, KEY_A holding it, and a client over it. */
+const listedDeployed = async () => {
+  sdkStandIn.reset()
+  const addressBook = addressBookOf(WALLET_RECOVERY_CHAIN)
+  const node = sdkStandIn.nodeFor(descriptorOf(WALLET_RECOVERY_CHAIN, addressBook), BASIC, {
     authorities: [KEY_A]
   })
+  const client = await buildRecoveryClient({
+    chain: WALLET_RECOVERY_CHAIN,
+    account: BASIC,
+    addressBook,
+    provider: node,
+    creation: CREATION,
+    initialPrivileges: [[KEY_A, HOLDS]],
+    candidateKeys: [KEY_A]
+  })
+  return { node, client }
+}
 
 /** Holds the second code read of the account at a past block forever; every other read answers. */
-const holdSecondHistoricalCode = (world: ReturnType<typeof listedDeployed>) => {
-  const answer = world.node.codeRead.code.getMockImplementation()!
+const holdSecondHistoricalCode = (world: Awaited<ReturnType<typeof listedDeployed>>) => {
+  const answer = world.node.code.bind(world.node)
   let numbered = 0
-  world.node.codeRead.code.mockImplementation((address: Address, block?: BlockTag) => {
-    if (same(address, ACCOUNT) && typeof block === 'number') {
+  return jest.spyOn(world.node, 'code').mockImplementation((address: Address, block: BlockTag) => {
+    if (address.toLowerCase() === BASIC.toLowerCase() && typeof block === 'number') {
       numbered += 1
       if (numbered === 2) {
         return new Promise<never>(() => {})
@@ -64,9 +82,9 @@ afterEach(() => {
 
 describe('the reads after the confirmation have a time limit', () => {
   it('shows the failed fit view with its retry when a code read of the search never answers', async () => {
-    const world = listedDeployed()
-    holdSecondHistoricalCode(world)
-    kit.removedKey.mockImplementation(() => world.reads.removedKey())
+    const world = await listedDeployed()
+    const code = holdSecondHistoricalCode(world)
+    kit.removedKey.mockImplementation(() => world.client.walletReads.removedKey())
     useLiveFakeClock()
     screen = await mountAccountStep(searchOf('logged-in', BASIC))
     await confirmLost(screen)
@@ -74,9 +92,7 @@ describe('the reads after the confirmation have a time limit', () => {
 
     await waitAnHour()
 
-    expect(
-      world.node.codeRead.code.mock.calls.filter(([, block]) => typeof block === 'number').length
-    ).toBe(2)
+    expect(code.mock.calls.filter(([, block]) => typeof block === 'number').length).toBe(2)
     expect(screen.has('entry-reads-fit-failed-retry')).toBe(true)
     expect(screen.has('entry-reads-fit-loading')).toBe(false)
   })

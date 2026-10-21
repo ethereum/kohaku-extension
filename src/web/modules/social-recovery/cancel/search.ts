@@ -1,7 +1,7 @@
 import { getAddress, isAddress } from 'viem'
 
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 import { CANCEL_ACCOUNT_KEY } from './constants'
 

@@ -11,7 +11,7 @@
  */
 import { isHex } from 'viem'
 
-import type { Address, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Hex } from '@kohaku-eth/social-recovery'
 import { isDecimalString } from '@web/modules/social-recovery/shared/records/guards'
 import { inQueue, RECORDS_KEY_PREFIX } from '@web/modules/social-recovery/shared/records/records'
 import type { ChainId } from '@web/modules/social-recovery/shared/records/types'

@@ -72,7 +72,7 @@ const CountdownBlock = ({
     return null
   }
   const startedMs = configuration
-    ? (phase.attempt.consumableAfter - Number(configuration.wait)) * 1000
+    ? (phase.attempt.consumableAfter - configuration.wait) * 1000
     : startedAt
 
   const due = phase.kind === 'executionDue'

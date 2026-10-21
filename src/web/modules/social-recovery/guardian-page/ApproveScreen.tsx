@@ -39,7 +39,7 @@ import {
   signRequestPort,
   WALLET_RECOVERY_CHAIN
 } from '@web/modules/social-recovery/shared/client'
-import type { ApproverRequest } from '@web/modules/social-recovery/sdk-interfaces'
+import type { ApproverRequest } from '@kohaku-eth/social-recovery'
 import type { ListedAccount } from '@web/modules/social-recovery/shared/client'
 import { useRecoveryClient } from '@web/modules/social-recovery/shared/client/useRecoveryClient'
 

@@ -13,12 +13,8 @@ import {
   stillNeededOf
 } from '@web/modules/social-recovery/management/editor/changes'
 import type { EditSession } from '@web/modules/social-recovery/management/editor/types'
-import type {
-  Clause,
-  Credential,
-  PrivacyLevel,
-  SetupDraft
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { Clause, Credential, SetupDraft } from '@kohaku-eth/social-recovery'
+import type { PrivacyLevel } from '@web/modules/social-recovery/shared/client'
 import { privacyOfLevel } from '@web/modules/social-recovery/setup/privacy/writes'
 import {
   addGroup,
@@ -40,7 +36,7 @@ const D = credentialOf(4)
 const COMMITTED: Clause[] = [{ threshold: 2, credentials: [A, B, C] }]
 
 const sessionAt = (level: PrivacyLevel = 'private'): EditSession => ({
-  configuration: { clauses: COMMITTED, wait: 172_800n, ignoresPause: true },
+  configuration: { clauses: COMMITTED, wait: 172_800, ignoresPause: true },
   setupNonce: 3n,
   setupCommitment: `0x${'ab'.repeat(32)}`,
   level,
@@ -49,7 +45,7 @@ const sessionAt = (level: PrivacyLevel = 'private'): EditSession => ({
 
 const draftOf = (
   clauses: Clause[] = COMMITTED,
-  wait = 172_800n,
+  wait = 172_800,
   level: PrivacyLevel = 'private'
 ): SetupDraft => {
   const body = { clauses, wait, ignoresPause: true }
@@ -87,13 +83,13 @@ describe('the changes of an edit', () => {
   })
 
   it('names the waiting period before and after', () => {
-    expect(rowsOf(draftOf(COMMITTED, 259_200n))).toEqual([
-      { kind: 'waitingPeriod', before: 172_800n, after: 259_200n }
+    expect(rowsOf(draftOf(COMMITTED, 259_200))).toEqual([
+      { kind: 'waitingPeriod', before: 172_800, after: 259_200 }
     ])
   })
 
   it('names the privacy level before and after, and a changed password', () => {
-    expect(rowsOf(draftOf(COMMITTED, 172_800n, 'shape-visible'))).toEqual([
+    expect(rowsOf(draftOf(COMMITTED, 172_800, 'shape-visible'))).toEqual([
       { kind: 'privacy', before: 'private', after: 'shape-visible' }
     ])
     expect(rowsOf(draftOf(), true)).toEqual([{ kind: 'password' }])
@@ -108,7 +104,7 @@ describe('the changed password', () => {
   })
 
   it('reads unchanged for a setup saved in the clear', () => {
-    expect(passwordChangedOf(sessionAt(), draftOf(COMMITTED, 172_800n, 'public'), 'changed')).toBe(
+    expect(passwordChangedOf(sessionAt(), draftOf(COMMITTED, 172_800, 'public'), 'changed')).toBe(
       false
     )
   })
@@ -122,7 +118,7 @@ describe('the stale card line', () => {
       makesCardStale([
         { kind: 'members', added: 1, removed: 0 },
         { kind: 'rule', before: 'a', after: 'b' },
-        { kind: 'waitingPeriod', before: 1n, after: 2n }
+        { kind: 'waitingPeriod', before: 1, after: 2 }
       ])
     ).toBe(false)
     expect(makesCardStale([])).toBe(false)
@@ -177,7 +173,7 @@ describe('members moved between groups', () => {
   ]
   const baseline: EditSession = {
     ...sessionAt(),
-    configuration: { clauses: twoGroups, wait: 172_800n, ignoresPause: true }
+    configuration: { clauses: twoGroups, wait: 172_800, ignoresPause: true }
   }
 
   it('reads a swap across groups as a changed path, though the members and the rule stay', () => {

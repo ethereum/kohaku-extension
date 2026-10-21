@@ -5,18 +5,14 @@
  * that throws, or a verdict that judges nothing, is a check that failed and
  * is tried again.
  */
-import type {
-  ApproverReply,
-  ApproverRequest,
-  Gathering
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { ApproverRequest, Gathering, Reply } from '@kohaku-eth/social-recovery'
 
 import type { SubmitKitClient, VerifyReading, VerifyStepResult } from './types'
 
 const verifyOne = async (
   client: Pick<SubmitKitClient, 'walletReads'>,
   request: ApproverRequest | undefined,
-  reply: ApproverReply | undefined
+  reply: Reply | undefined
 ): Promise<VerifyStepResult> => {
   if (!request || !reply) {
     return 'rejected'

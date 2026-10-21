@@ -6,7 +6,7 @@
  * the page opens in place of its own provider; every other edge is the
  * harness's.
  */
-import type { ActionState, Address, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { ActionState, Address, Hex } from '@kohaku-eth/social-recovery'
 import type { AttemptEvents, AttemptScan } from '@web/modules/social-recovery/shared/client'
 import {
   advanceClock,
@@ -14,6 +14,7 @@ import {
   CHAIN_ID,
   confirmLost,
   DAILY,
+  DEPLOYMENT,
   DESCRIPTOR,
   gatheringFor,
   keyOf,
@@ -402,13 +403,15 @@ describe('the running attempt band', () => {
       account: LOST,
       attemptId: ATTEMPT_ID.toString(),
       setupNonce: SETUP_NONCE.toString(),
-      payloadHash: keccak256(PAYLOAD)
+      payloadHash: keccak256(PAYLOAD),
+      deployment: DEPLOYMENT
     })
     expect(countdown.status === 'present' && countdown.savedAt).toBe(OPENED_AT * 1000)
     expect(await storedEntry(LOST)).toEqual({
       account: LOST,
       route: 'logged-in',
-      receivingAccount: VAULT.addr
+      receivingAccount: VAULT.addr,
+      deployment: DEPLOYMENT
     })
     expect(navigate).toHaveBeenCalledWith(waitPathOf(LOST))
     page.unmount()

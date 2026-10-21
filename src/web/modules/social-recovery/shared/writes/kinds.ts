@@ -8,7 +8,7 @@
  * (the submission, the execution) by the recoverer's own key, since the first
  * release configures no sponsor (shared/client `sending.ts`).
  */
-import type { PreparedBatch, PreparedCall } from '@web/modules/social-recovery/sdk-interfaces'
+import type { PreparedBatch, PreparedCall } from '@kohaku-eth/social-recovery'
 
 import type { OwnerWrite, Payer, RecoveryCall, WriteKind } from './types'
 

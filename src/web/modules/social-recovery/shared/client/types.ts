@@ -21,16 +21,12 @@ import type { TokenResult } from '@ambire-common/libs/portfolio'
 import type { Action } from '@web/extension-services/background/actions'
 import type { VisibilitySource } from '@web/modules/social-recovery/shared/ceremony'
 import type {
-  FitCheckReading,
-  IWalletReadsDouble,
-  RemovedKeyReading,
-  RemovedKeyUnavailableCause
-} from '@web/modules/social-recovery/sdk-doubles'
-import type {
   ActionState,
   Address,
+  ApproverRequest,
   BlockHeader,
   BlockTag,
+  BlockTags,
   Configuration,
   CreationRecord,
   DeploymentDescriptor,
@@ -38,21 +34,28 @@ import type {
   Hex,
   IMethodModuleReads,
   IMethodsOrchestrator,
+  IPolicyManagerInteractor,
   IProvider,
   IRecoveryActionInteractor,
   IRecoveryClient,
   IRecoveryMethod,
   ISetupClient,
+  KitError,
+  KitNotification,
+  PreparedBatch,
   PreparedCall,
-  RecoveryState
-} from '@web/modules/social-recovery/sdk-interfaces'
+  PrepareOptions,
+  RecoveryState,
+  Reply,
+  Verdict
+} from '@kohaku-eth/social-recovery'
 import type { ChainId, SlotKind, WalletRecords } from '@web/modules/social-recovery/shared/records'
 
 import type { UNKNOWN_ACTION } from './audited-actions'
 import type { RECOVERY_CHAINS } from './chains'
 import type { PUBLISHERS } from './deployments'
-import type { DEPLOYMENT_CHECKS } from './kit/builder/construction'
-import type { AttemptLog } from './kit/events/types'
+import type { DEPLOYMENT_CHECKS } from './deployment-checks/checks'
+import type { KIT_ERROR_NAMES, PRIVACY_LEVELS } from './lists'
 import type { PROVIDER_READS } from './provider-adapter'
 import type { MISSING_SEND_ACTION, SEND_REFUSAL_REASONS } from './sender'
 import type { RECOVERY_CALLS } from './sending'
@@ -168,10 +171,6 @@ export interface RecoveryClientConfiguration extends AccountFacts {
   addressBook: AddressBook
   /** The provider adapter over the extension's own provider (`createProviderAdapter`). */
   provider: IProvider
-  /** The code read beside the provider adapter (`createCodeRead`), which a deployed kit needs. */
-  codeRead: CodeRead
-  /** The transaction read beside the provider adapter (`createTransactionRead`), which a deployed kit needs. */
-  transactionRead: TransactionRead
 }
 
 // ---------------------------------------------------------------------------
@@ -179,7 +178,10 @@ export interface RecoveryClientConfiguration extends AccountFacts {
 // ---------------------------------------------------------------------------
 
 /** The members of the extension's provider the adapter reads through. */
-export type AdapterProvider = Pick<RPCProvider, 'call' | 'getLogs' | 'getBlock' | 'send'>
+export type AdapterProvider = Pick<
+  RPCProvider,
+  'call' | 'getLogs' | 'getBlock' | 'send' | 'getCode' | 'getTransaction'
+>
 
 /** One log as the extension's provider answers it. */
 export type ProviderLog = Awaited<ReturnType<AdapterProvider['getLogs']>>[number]
@@ -319,13 +321,39 @@ export type ExtensionProvider = AdapterProvider &
  */
 export type RecoveryAttemptState = Omit<RecoveryState, 'removedKey'>
 
+/** Why the key a recovery would remove cannot be named: no source names a key, no candidate holds one, or several do. */
+export type RemovedKeyUnavailableCause = 'no-source' | 'not-a-key' | 'several-key-entries'
+
+/** The key a recovery of the account would remove, or why it cannot be named. */
+export type RemovedKeyReading =
+  | { kind: 'named'; key: Address }
+  | { kind: 'unavailable'; cause: RemovedKeyUnavailableCause }
+
+/**
+ * What the fit check read: against the code the account holds, against the
+ * implementation it will deploy, or neither (no code and no implementation named).
+ */
+export type FitCheckReading =
+  | { basis: 'deployed-code'; fits: boolean }
+  | { basis: 'code-to-be'; implementation: Address; fits: boolean }
+  | { basis: 'no-code'; fits: false }
+
 /**
  * The wallet's own reads the SDK does not offer, under the name screens use,
  * and the attempt state alone, for a surface that never shows the removed key
- * and so does not pay for its scans.
+ * and so does not pay for its scans. Each read throws when it could not be
+ * made and never answers empty.
  */
-export type WalletReads = IWalletReadsDouble & {
+export interface WalletReads {
+  /** The module's own verdict over one pasted reply against the request it answers. */
+  verifyReply(request: ApproverRequest, reply: Reply): Promise<Verdict>
+  /** The key a recovery of this account would remove, or why it cannot be named. */
+  removedKey(): Promise<RemovedKeyReading>
+  /** Whether the action fits the account, judged against the code it will carry. */
+  fitCheck(accountImplementation?: Address): Promise<FitCheckReading>
   attemptState(): Promise<RecoveryAttemptState>
+  /** The time of a block by its number, in seconds, on the provider the client reads. */
+  blockTime(blockNumber: number): Promise<number>
   /**
    * The setup commitment the manager would store for the client's account and
    * action over `configuration` at `nonce`, in the encoding the client's own
@@ -334,7 +362,50 @@ export type WalletReads = IWalletReadsDouble & {
    */
   commitmentOf(nonce: bigint, configuration: Configuration): Hex
 }
-export type { FitCheckReading, RemovedKeyReading, RemovedKeyUnavailableCause }
+
+/**
+ * The setup client the screens use: the SDK's, with its clear split into the
+ * three writes a screen offers. `prepareClearSetup` is the manager's clear
+ * alone and refuses where no setup stands; `prepareRemoveSetup` is the clear
+ * and the revoke of the action's authorization as one batch the account
+ * sends, and refuses where no setup stands; `prepareRemoveAuthorization` is
+ * the revoke alone and refuses where the account does not authorize the
+ * action. `confirmSetup` reads a commit as landed only where the manager
+ * still holds its nonce and commitment, and `getSetup` opens a clear backup
+ * under a password source too.
+ */
+export type RecoverySetupClient = Omit<ISetupClient, 'prepareClearSetup'> & {
+  prepareClearSetup(options?: PrepareOptions): Promise<PreparedCall>
+  prepareRemoveSetup(options?: PrepareOptions): Promise<PreparedBatch>
+  prepareRemoveAuthorization(options?: PrepareOptions): Promise<PreparedCall>
+}
+
+/** A refusal of the client layer's own, with the code a screen reads and the values it refused on. */
+export interface CodedRefusal extends Error {
+  name: 'CodedRefusal'
+  code: string
+  values: Record<string, unknown>
+}
+
+/** A contract's revert met by a read or a landing, named by the decoded error it carries. */
+export interface LandingRevert extends Error {
+  name: 'LandingRevert'
+  code: string
+  values: Record<string, unknown>
+  error: KitError
+}
+
+/** The privacy levels the setup screen offers, the extension's own encoding over the two metadata fields. */
+export type PrivacyLevel = typeof PRIVACY_LEVELS[number]
+
+/** The kit errors by name, without their contract's prefix. */
+export type KitErrorName = typeof KIT_ERROR_NAMES[number]
+
+/** The logs of one attempt: its opening, its cancel and its consumption. */
+export type AttemptLog = Extract<
+  KitNotification,
+  { kind: 'attempt-started' | 'attempt-cancelled' | 'attempt-consumed' }
+>
 
 // ---------------------------------------------------------------------------
 // The account's facts
@@ -453,6 +524,18 @@ export interface PrivilegeReads {
   ): Promise<PrivilegeHoldersReading>
 }
 
+/** What the screens' setup client is built over: the SDK's, and the parts it shares with it. */
+export interface SetupClientInput {
+  setup: ISetupClient
+  policyManager: Pick<IPolicyManagerInteractor, 'stateOf'>
+  action: Pick<IRecoveryActionInteractor, 'isAuthorized' | 'disarmingCall'>
+  provider: IProvider
+  account: Address
+  descriptor: Pick<DeploymentDescriptor, 'action'>
+  blockTags: BlockTags
+  logChunkSize: number
+}
+
 /**
  * What the extension holds for one account: the two entry clients, the two
  * narrow seams the builder hands out, the approving side and its methods, and
@@ -463,7 +546,7 @@ export interface RecoveryKitClient {
   chain: RecoveryChain
   account: Address
   descriptor: DeploymentDescriptor
-  setup: ISetupClient
+  setup: RecoverySetupClient
   recovery: IRecoveryClient
   /** `IRecoveryActionInteractor` alone; the arming seam stays inside the setup client. */
   action: IRecoveryActionInteractor
@@ -528,13 +611,6 @@ export interface DeploymentRefusal extends Error {
 }
 
 export type DeploymentCheck = typeof DEPLOYMENT_CHECKS[number]
-
-/** The refusal of a client member the deployed kit does not serve yet. */
-export interface NotServedRefusal extends Error {
-  name: 'NotServedRefusal'
-  /** The member, as `<part>.<member>`. */
-  member: string
-}
 
 export type RecoveryClientState =
   | { status: 'loading' }
@@ -989,9 +1065,8 @@ export interface SendingKeys {
 /** What the watcher's reads of one deployment go through. */
 export interface WatcherReadsInput {
   provider: IProvider
-  codeRead: CodeRead
-  descriptor: Pick<DeploymentDescriptor, 'manager' | 'action' | 'deployedAt'>
-  /** The widest block range one log query asks for; the kit's own default where none is given. */
+  descriptor: DeploymentDescriptor
+  /** The widest block range one log query asks for; the SDK's default where none is given. */
   chunkWidth?: number
 }
 

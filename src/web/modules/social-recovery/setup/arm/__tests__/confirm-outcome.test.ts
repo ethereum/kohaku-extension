@@ -11,7 +11,7 @@ import {
   outcomeOfConfirmation,
   outcomeOfConfirmFailure
 } from '@web/modules/social-recovery/setup/arm'
-import type { SetupConfirmation } from '@web/modules/social-recovery/sdk-interfaces'
+import type { SetupConfirmation } from '@kohaku-eth/social-recovery'
 
 import { codedError, confirmation } from '@web/modules/social-recovery/setup/arm/__tests__/harness'
 

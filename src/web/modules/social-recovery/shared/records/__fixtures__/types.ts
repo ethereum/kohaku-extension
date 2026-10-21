@@ -1,8 +1,15 @@
+import type { Gathering } from '@kohaku-eth/social-recovery'
 import type {
   ExpectedRevision,
   RecordStorage,
   WalletRecords
 } from '@web/modules/social-recovery/shared/records'
+
+/** The request of an approval gathering, the purpose a live session holds. */
+export type ApprovalRequest = Extract<Gathering, { purpose: 'approval' }>['request']
+
+/** The members every gathering request shares, whatever its purpose. */
+export type RequestMembers = Omit<ApprovalRequest, 'payload' | 'order'>
 
 /** A double of the extension's storage helper that stores rich JSON strings, as it does. */
 export type RichJsonStorageDouble = {

@@ -15,7 +15,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import type { ApproverRequest } from '@web/modules/social-recovery/sdk-interfaces'
+import type { ApproverRequest } from '@kohaku-eth/social-recovery'
 import {
   ceremonyPath,
   ceremonyResultKey,

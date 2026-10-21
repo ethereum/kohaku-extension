@@ -1,4 +1,4 @@
-import type { Address, Clause, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Clause, SetupDraft } from '@kohaku-eth/social-recovery'
 import type { SlotKind } from '@web/modules/social-recovery/shared/records/types'
 
 import type { RULE_LINE_KEYS } from './ruleLines'

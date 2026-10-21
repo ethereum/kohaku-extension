@@ -7,7 +7,7 @@
 import { isAddress } from 'viem'
 
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import type { RecoveryRoute } from '@web/modules/social-recovery/shared/records'
 
 import { CHECKLIST_SEARCH_KEYS } from './constants'

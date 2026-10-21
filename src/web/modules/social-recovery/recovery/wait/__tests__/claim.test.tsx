@@ -32,7 +32,7 @@ import {
   useWaitClock
 } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
 import type { Mounted, World } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 import type { ProviderTransactionReceipt } from '@web/modules/social-recovery/shared/client'
 import { recordKeys } from '@web/modules/social-recovery/shared/records'
 import type { StoredSession } from '@web/modules/social-recovery/shared/records'
@@ -724,7 +724,8 @@ describe('a countdown another tab replaced with another attempt', () => {
         attemptId: NEXT_ATTEMPT.toString(),
         setupNonce: '1',
         payloadHash: PAYLOAD_HASH,
-        ...(execution ? { execution } : {})
+        ...(execution ? { execution } : {}),
+        ...(stored.value.state === 'landed' ? { deployment: stored.value.deployment } : {})
       }
     })
     const { chain } = world.kit

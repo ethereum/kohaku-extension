@@ -9,7 +9,7 @@
 import { getAddress, zeroAddress } from 'viem'
 
 import { PROXY_AMBIRE_ACCOUNT } from '@ambire-common/consts/deploy'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import {
   addressBookOf,
   AUDITED_ACTIONS,
@@ -337,7 +337,7 @@ describe('a fresh record at every call', () => {
     book.manager = SECOND_ACTION
     book.methods.ecdsa = SECOND_ACTION
     const descriptor = deploymentDescriptor('sepolia')
-    descriptor.auditedActions.push(MANAGER)
+    ;(descriptor.auditedActions as string[]).push(MANAGER)
     const rows = auditedActionsOn('sepolia')
     rows[0].action = MANAGER
     rows.pop()

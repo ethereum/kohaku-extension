@@ -17,7 +17,7 @@ import type {
   Finding,
   SetupDraft,
   ValidationResult
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import type { SlotKind } from '@web/modules/social-recovery/shared/records'
 import {

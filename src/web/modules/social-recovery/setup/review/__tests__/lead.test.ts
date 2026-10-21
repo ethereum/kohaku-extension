@@ -1,5 +1,5 @@
 import i18n from '@common/config/localization'
-import type { Clause, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Clause, SetupDraft } from '@kohaku-eth/social-recovery'
 import { shapeNoteOf } from '@web/modules/social-recovery/shared/client'
 import { renderFullAddress } from '@web/modules/social-recovery/shared/display'
 import { emptySlot } from '@web/modules/social-recovery/shared/records/slots'
@@ -142,11 +142,11 @@ describe('the publication items', () => {
 })
 
 describe('the waiting period', () => {
-  const CHIPS: [bigint, string][] = [
-    [86400n, 'hours24'],
-    [172800n, 'hours48'],
-    [259200n, 'hours72'],
-    [604800n, 'days7']
+  const CHIPS: [number, string][] = [
+    [86400, 'hours24'],
+    [172800, 'hours48'],
+    [259200, 'hours72'],
+    [604800, 'days7']
   ]
   CHIPS.forEach(([wait, chip]) => {
     it(`names ${wait} seconds by the picker chip ${chip}`, () => {
@@ -155,17 +155,15 @@ describe('the waiting period', () => {
   })
 
   it('names any other length by its count of hours', () => {
-    expect(renderWait(36n * 3600n, t)).toBe(
-      t('socialRecovery.display.remainingHours', { count: 36 })
-    )
-    expect(renderWait(3600n, t)).toBe(t('socialRecovery.display.remainingHours', { count: 1 }))
-    expect(renderWait(36n * 3600n, t)).not.toBe(renderWait(3600n, t))
+    expect(renderWait(36 * 3600, t)).toBe(t('socialRecovery.display.remainingHours', { count: 36 }))
+    expect(renderWait(3600, t)).toBe(t('socialRecovery.display.remainingHours', { count: 1 }))
+    expect(renderWait(36 * 3600, t)).not.toBe(renderWait(3600, t))
   })
 
   it('names a length under one hour by its whole minutes, never as zero hours', () => {
-    expect(renderWait(300n, t)).toBe(t('socialRecovery.display.remainingMinutes', { count: 5 }))
-    expect(renderWait(3599n, t)).toBe(t('socialRecovery.display.remainingMinutes', { count: 59 }))
-    expect(renderWait(300n, t)).not.toBe(t('socialRecovery.display.remainingHours', { count: 0 }))
+    expect(renderWait(300, t)).toBe(t('socialRecovery.display.remainingMinutes', { count: 5 }))
+    expect(renderWait(3599, t)).toBe(t('socialRecovery.display.remainingMinutes', { count: 59 }))
+    expect(renderWait(300, t)).not.toBe(t('socialRecovery.display.remainingHours', { count: 0 }))
   })
 })
 
@@ -380,7 +378,7 @@ describe('the privacy lines', () => {
       clauses,
       privacy: {
         backup: 'encrypted',
-        publicMetadata: shapeNoteOf({ clauses, wait: 172800n, ignoresPause: true })
+        publicMetadata: shapeNoteOf({ clauses, wait: 172800, ignoresPause: true })
       }
     }
     const shapeLine = t('socialRecovery.privacy.level.shapeVisible.line', {
@@ -416,7 +414,7 @@ describe('the privacy lines', () => {
         clauses: [],
         privacy: {
           backup: 'encrypted',
-          publicMetadata: shapeNoteOf({ clauses: [], wait: 172800n, ignoresPause: true })
+          publicMetadata: shapeNoteOf({ clauses: [], wait: 172800, ignoresPause: true })
         }
       }
       const emptyLine = t('socialRecovery.privacy.level.shapeVisible.lineEmpty')
@@ -438,7 +436,7 @@ describe('the privacy lines', () => {
           backup: 'encrypted',
           publicMetadata: shapeNoteOf({
             clauses: memberlessGroups,
-            wait: 172800n,
+            wait: 172800,
             ignoresPause: true
           })
         }
@@ -469,7 +467,7 @@ describe('the privacy lines', () => {
           clauses,
           privacy: {
             backup: 'clear',
-            publicMetadata: shapeNoteOf({ clauses, wait: 172800n, ignoresPause: true })
+            publicMetadata: shapeNoteOf({ clauses, wait: 172800, ignoresPause: true })
           }
         },
         BOOK,

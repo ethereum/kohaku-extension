@@ -13,10 +13,11 @@ import { TextDecoder, TextEncoder } from 'util'
 
 import type {
   Clause,
-  Finding,
+  ErrorCode,
   SetupDraft,
+  ValidationError,
   ValidationResult
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 
 import type { Root, Validate } from '@web/modules/social-recovery/setup/editor/__tests__/harness'
 
@@ -59,9 +60,9 @@ const groupLabel = (n: number) => i18n.t('socialRecovery.shape.group', { n })
 const EMPTY_GROUP_SLOT = i18n.t('socialRecovery.editor.refusals.emptyGroupSlot')
 
 /** Two to the 48 seconds, the first wait a 48-bit field cannot hold. */
-const TWO_TO_THE_48 = 281474976710656n
+const TWO_TO_THE_48 = 281474976710656
 
-const draftOf = (clauses: Clause[], wait = 259200n): SetupDraft => ({
+const draftOf = (clauses: Clause[], wait = 259200): SetupDraft => ({
   wait,
   clauses,
   ignoresPause: false,
@@ -69,7 +70,7 @@ const draftOf = (clauses: Clause[], wait = 259200n): SetupDraft => ({
 })
 
 const NO_FINDING: ValidationResult = { errors: [], warnings: [] }
-const finding = (code: Finding['code']): Finding => ({ code, subject: 'setup', values: {} })
+const finding = (code: ErrorCode): ValidationError => ({ code, subject: 'setup', values: {} })
 
 let container: HTMLDivElement
 let root: Root
@@ -130,7 +131,7 @@ const mount = async ({
   clauses,
   wait,
   validate = async () => NO_FINDING
-}: { clauses?: Clause[]; wait?: bigint; validate?: Validate } = {}) => {
+}: { clauses?: Clause[]; wait?: number; validate?: Validate } = {}) => {
   const { records, storage } = makeRecords()
   if (clauses) {
     await records.setupDraft.write(draftOf(clauses, wait))

@@ -68,8 +68,6 @@ const ReadsGate = ({
           onRetry={reads.retryPath}
         />
       )
-    case 'update-the-wallet':
-      return updateTheWallet
     case 'read-failed':
     case 'no-details':
     case 'mismatch':

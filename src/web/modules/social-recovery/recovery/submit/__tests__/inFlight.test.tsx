@@ -11,7 +11,7 @@
  * already running, and a landing another page made first. Each page has its
  * own records over the device's one storage. The clock is Jest's.
  */
-import type { Attempt, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Attempt, Hex } from '@kohaku-eth/social-recovery'
 import type { WriteEvent } from '@web/modules/social-recovery/shared/writes'
 import type { SendingPlan, SubmitStore } from '@web/modules/social-recovery/recovery/submit'
 

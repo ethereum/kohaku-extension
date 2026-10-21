@@ -75,6 +75,10 @@ jest.mock('@web/modules/social-recovery/shared/client', () => ({
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const React: typeof import('react') = require('react')
+const { toFunctionSelector }: typeof import('viem') = require('viem')
+const {
+  POLICY_MANAGER_TRUSTED_PARTIES_ABI
+}: typeof import('@kohaku-eth/social-recovery') = require('@kohaku-eth/social-recovery')
 const { flushSync }: typeof import('react-dom') = require('react-dom')
 const harness: typeof import('@web/modules/social-recovery/management/overview/__fixtures__/harness') = require('@web/modules/social-recovery/management/overview/__fixtures__/harness')
 const armHarness: typeof import('@web/modules/social-recovery/setup/arm/__tests__/harness') = require('@web/modules/social-recovery/setup/arm/__tests__/harness')
@@ -171,6 +175,7 @@ describe("the overview's write step", () => {
     const facts = await factsOver(world)
     const element = () => stepOf(world, facts, { intent: 'reauthorize', receipts: receiptsOver() })
     view = await mount(element())
+    await harness.settleReads()
     expect(view.byTestId('overview-step-password')).not.toBeNull()
     expect(view.isDisabled('overview-step-start')).toBe(true)
 
@@ -186,10 +191,14 @@ describe("the overview's write step", () => {
     world.chain.setAuthorized(false)
     mockWallet.port = sendPortOver()
     const held = deferred<void>()
-    const trustedParties = world.client.moduleReads.trustedParties.bind(world.client.moduleReads)
-    jest.spyOn(world.client.moduleReads, 'trustedParties').mockImplementation(async (method) => {
-      await held.promise
-      return trustedParties(method)
+    // The node holds every trust-list read until the test lets it answer.
+    const selector = toFunctionSelector(POLICY_MANAGER_TRUSTED_PARTIES_ABI[0])
+    const call = world.chain.call.bind(world.chain)
+    jest.spyOn(world.chain, 'call').mockImplementation(async (...args) => {
+      if (args[1].startsWith(selector)) {
+        await held.promise
+      }
+      return call(...args)
     })
     view = await mount(
       stepOf(world, await factsOver(world), { intent: 'reauthorize', receipts: receiptsOver() })
@@ -242,7 +251,7 @@ describe("the overview's write step", () => {
     expect(refused.byTestId('overview-step-reauthorize')).toBeNull()
     refused.unmount()
 
-    world.chain.cancelAttempt('account')
+    world.chain.cancelAttempt()
     view = await mount(
       stepOf(world, await factsOver(world), { intent: 'reauthorize', receipts: receiptsOver() })
     )
@@ -306,7 +315,7 @@ describe("the overview's write step", () => {
     world.chain.setAuthorized(false)
     const port = sendPortOver(() => {
       world.chain.clearSetup()
-      world.chain.failRead('setup.setupState')
+      world.chain.failRead('stateOf')
     })
     mockWallet.port = port
     const onFinished = jest.fn()
@@ -318,7 +327,7 @@ describe("the overview's write step", () => {
     expect(view.byTestId('overview-step-unread')).not.toBeNull()
     expect(onFinished).not.toHaveBeenCalled()
 
-    world.chain.restoreRead('setup.setupState')
+    world.chain.restoreRead('stateOf')
     await view.press('overview-step-reread')
     expect(onFinished).toHaveBeenCalled()
     expect(port.sendAccountBatch).toHaveBeenCalledTimes(1)

@@ -20,10 +20,9 @@ import type {
   ApproverRequest,
   Clause,
   Hex,
-  IMethodsOrchestrator,
   IRecoveryMethod,
   SetupDraft
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type {
   CeremonyCall,
   CeremonyOutcome,
@@ -88,6 +87,11 @@ const themeConfig: typeof import('@common/styles/themeConfig') = require('@commo
 const i18n: typeof import('@common/config/localization').default =
   require('@common/config/localization').default
 const { encodeAbiParameters }: typeof import('viem') = require('viem')
+const {
+  MethodsOrchestrator,
+  passkeyMethod,
+  walletMethod
+}: typeof import('@kohaku-eth/social-recovery') = require('@kohaku-eth/social-recovery')
 const {
   ceremonyReport,
   ceremonyResultKey
@@ -182,7 +186,7 @@ export const makeStorage = (faults: StorageFaults = {}): RecordStorage => {
 }
 
 export const draftOf = (clauses: Clause[]): SetupDraft => ({
-  wait: 172800n,
+  wait: 172800,
   clauses,
   ignoresPause: false,
   privacy: { backup: 'encrypted', publicMetadata: '0x' }
@@ -208,7 +212,7 @@ export const recordsWith = async (
   return { records, faults, storage }
 }
 
-export const storedClauses = async (records: WalletRecords): Promise<Clause[]> => {
+export const storedClauses = async (records: WalletRecords): Promise<readonly Clause[]> => {
   const read = await records.setup(CHAIN_ID, ACCOUNT).setupDraft.read()
   if (read.status !== 'present') {
     throw new Error('no draft stored')
@@ -311,25 +315,33 @@ export interface FakeClient {
 }
 
 /**
- * A ready client whose orchestrator hands the guardian's address back as its
- * config, and records every request it is asked to build signing input for.
+ * A ready client over the SDK's orchestrator with the two shipped methods,
+ * each serving the modules the descriptor names for it. It records every
+ * enrollment's params and every request it is asked to build signing input for.
  */
 export const readyClient = (): FakeClient => {
   const signingInputs: ApproverRequest[] = []
   const enrollParams: unknown[] = []
-  const approving = {
-    enrollInput: (_method: Address, params: unknown) => {
-      enrollParams.push(params)
-      return params
-    },
-    configFrom: async (_method: Address, _input: unknown, material: unknown) =>
-      guardianConfigOf((material as { address: Address }).address),
-    signingInput: (request: ApproverRequest) => {
-      signingInputs.push(request)
-      return undefined
-    }
-  } as unknown as IMethodsOrchestrator
-  const ecdsa = { deviceBinding: 'none' } as unknown as IRecoveryMethod
+  const ecdsa = walletMethod()
+  const methods: IRecoveryMethod[] = [ecdsa, passkeyMethod()]
+  const approving = new MethodsOrchestrator(
+    new Map(
+      methods.flatMap((method) =>
+        method.modules(DESCRIPTOR).map((module) => [module, method] as const)
+      )
+    ),
+    new Map(),
+    methods.map((method) => method.deviceBinding)
+  )
+  const { enrollInput, signingInput } = approving
+  jest.spyOn(approving, 'enrollInput').mockImplementation((method, params) => {
+    enrollParams.push(params)
+    return enrollInput.call(approving, method, params)
+  })
+  jest.spyOn(approving, 'signingInput').mockImplementation((request, params) => {
+    signingInputs.push(request)
+    return signingInput.call(approving, request, params)
+  })
   return {
     state: {
       status: 'ready',

@@ -23,7 +23,7 @@ import {
   useWaitClock
 } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
 import type { Mounted, World } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 
 const POLL_MS = 30_000
 

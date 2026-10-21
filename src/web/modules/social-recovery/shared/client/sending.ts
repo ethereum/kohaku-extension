@@ -10,7 +10,7 @@
  * not a recovery call: whoever submits it pays for it, and it is not part of
  * this release, so no key is named for it here.
  */
-import type { PreparedBatch, PreparedCall } from '@web/modules/social-recovery/sdk-interfaces'
+import type { PreparedBatch, PreparedCall } from '@kohaku-eth/social-recovery'
 
 import type { KeyHandle, RecoveryCall, SendingKeys } from './types'
 

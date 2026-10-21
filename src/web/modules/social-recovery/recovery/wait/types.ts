@@ -5,9 +5,9 @@ import type {
   CancelledBy,
   Configuration,
   Hex,
-  Notification,
+  KitNotification,
   PreparedCall
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type { VisibilitySource } from '@web/modules/social-recovery/shared/ceremony'
 import type {
   AddGate,
@@ -115,8 +115,8 @@ export interface WaitFacts {
   newKeyHolds: boolean
 }
 
-export type StartedNotice = Extract<Notification, { kind: 'attempt-started' }>
-export type CancelledNotice = Extract<Notification, { kind: 'attempt-cancelled' }>
+export type StartedNotice = Extract<KitNotification, { kind: 'attempt-started' }>
+export type CancelledNotice = Extract<KitNotification, { kind: 'attempt-cancelled' }>
 
 /**
  * What the manager's events tell of the recovery's attempt: its opening (the

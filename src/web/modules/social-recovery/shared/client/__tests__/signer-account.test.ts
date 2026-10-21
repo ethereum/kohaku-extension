@@ -15,8 +15,8 @@ import { hexToBytes, verifyMessage, verifyTypedData } from 'viem'
 import type { Key } from '@ambire-common/interfaces/keystore'
 import type { PlainTextMessage, TypedMessage } from '@ambire-common/interfaces/userRequest'
 import { KeystoreSigner } from '@ambire-common/libs/keystoreSigner/keystoreSigner'
-import { addressOf } from '@web/modules/social-recovery/sdk-doubles'
-import type { Address, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import { addressOf } from '@web/modules/social-recovery/shared/client/__fixtures__/addresses'
+import type { Address, Hex } from '@kohaku-eth/social-recovery'
 
 import {
   accountFor,

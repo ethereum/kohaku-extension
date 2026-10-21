@@ -7,7 +7,7 @@
  * ceremony that did not pass leaves its note with a retry; a passkey another
  * origin committed offers no action.
  */
-import type { Configuration } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Configuration } from '@kohaku-eth/social-recovery'
 import type { CeremonyOutcome, ReportStore } from '@web/modules/social-recovery/shared/ceremony'
 import type { ChainId } from '@web/modules/social-recovery/shared/records'
 
@@ -599,6 +599,7 @@ describe('the passkey row', () => {
         .write(withReplies(gathering, [0]), read?.revision ?? null)
       if (refuses) {
         kit.addApproverReply.mockImplementation((held) => ({
+          outcome: 'refused',
           gathering: held,
           reason: { kind: 'add-refusal', cause: 'binding-mismatch' }
         }))

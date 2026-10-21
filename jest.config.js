@@ -25,8 +25,10 @@ module.exports = {
   // One ts-jest rule for .ts and .tsx compiles JSX with the React runtime, so a test can mount a view
   transform: {
     ...baseConfig.transform,
-    '^.+\\.tsx?$': ['ts-jest', { tsconfig: { jsx: 'react-jsx' } }]
+    '^.+\\.tsx?$': ['ts-jest', { tsconfig: { jsx: 'react-jsx' } }],
+    'node_modules/@kohaku-eth/social-recovery/.+\\.js$': 'babel-jest'
   },
+  transformIgnorePatterns: ['node_modules/(?!(validator|@kohaku-eth/social-recovery)/.*)'],
   setupFiles: [],
   moduleNameMapper: {
     // Modules a mounted view reaches that Jest cannot load. They come before the
@@ -38,6 +40,12 @@ module.exports = {
       '<rootDir>/src/web/modules/social-recovery/__tests__/stubs/safeAreaContext.ts',
     '^react-native-svg$': 'react-native-svg/lib/commonjs/ReactNativeSVG.web.js',
     '^nanoid$': '<rootDir>/src/web/modules/social-recovery/__tests__/stubs/nanoid.ts',
+    // The social recovery SDK ships ES modules only and its exports map has no CommonJS
+    // condition, so Jest loads its built entry by path and Babel transforms it
+    '^@kohaku-eth/social-recovery$': path.join(
+      path.dirname(require.resolve('@kohaku-eth/social-recovery/package.json')),
+      'dist/index.js'
+    ),
     // The path aliases of tsconfig.json, so a unit test imports like the code it tests
     '^@ambire-common/(.*)$': '<rootDir>/src/ambire-common/src/$1',
     '^@contracts/(.*)$': '<rootDir>/src/ambire-common/contracts/$1',

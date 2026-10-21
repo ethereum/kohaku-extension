@@ -6,12 +6,16 @@ import {
   CHAIN_ID,
   CHAIN_TIME,
   elapse,
+  gatheringOf,
   HOUR,
+  MIXED_PATH,
   mountBand,
   NO_ATTEMPT,
   openWorld,
   resetTab,
+  RETIRED_MANAGER,
   showTab,
+  storeCountdownOnRetiredManager,
   storeCountdownWithoutAttempt,
   t,
   tick,
@@ -20,7 +24,7 @@ import {
   waiting
 } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
 import type { Mounted, World } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
-import type { Attempt } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Attempt } from '@kohaku-eth/social-recovery'
 import { renderShortAddress } from '@web/modules/social-recovery/shared/display'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 
@@ -91,6 +95,37 @@ describe('the home band for a landed recovery', () => {
       t('socialRecovery.home.recovering', { account: renderShortAddress(world.account) })
     )
     expect(view.byTestId(`home-countdown-${id}-time`)).toBeNull()
+  })
+
+  it('renders no countdown line for a countdown of a retired manager', async () => {
+    const world = await openWorld()
+    await storeCountdownOnRetiredManager(world.storage, world.account)
+    view = await mountBand(world.records)
+
+    expect(view.byTestId(`home-countdown-${world.account.toLowerCase()}`)).toBeNull()
+    expect(view.text()).toBe('')
+  })
+
+  it('lists a live session of this deployment, and none of a retired manager', async () => {
+    const world = await openWorld({ countdown: false })
+    const ours = gatheringOf(MIXED_PATH, 1, world.account)
+    await world.records.recoverySession(CHAIN_ID, world.account).write(ours, null)
+    view = await mountBand(world.records)
+    const id = world.account.toLowerCase()
+    expect(view.byTestId(`home-recovery-${id}`)).not.toBeNull()
+    view.unmount()
+
+    const other = await openWorld({ countdown: false })
+    const theirs = gatheringOf(MIXED_PATH, 1, other.account)
+    await other.records
+      .recoverySession(CHAIN_ID, other.account)
+      .write(
+        { ...theirs, request: { ...theirs.request, manager: RETIRED_MANAGER } } as typeof theirs,
+        null
+      )
+    view = await mountBand(other.records)
+    expect(view.byTestId(`home-recovery-${other.account.toLowerCase()}`)).toBeNull()
+    expect(view.text()).toBe('')
   })
 
   it('renders no countdown line once the countdown ended', async () => {

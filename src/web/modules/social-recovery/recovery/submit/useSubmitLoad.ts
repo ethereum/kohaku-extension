@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { addressBookOf, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
+import { isSessionOfDeployment } from '@web/modules/social-recovery/shared/records'
 import {
   checklistPathOf,
   chosenPlacesOf,
@@ -71,11 +72,13 @@ const useSubmitLoad = ({
       if (!live) {
         return
       }
-      if (read.status === 'present' && read.value.state === 'landed') {
+      // A session of another deployment, or one that names none, goes back to the checklist, which replaces it.
+      const ours = read.status === 'present' && isSessionOfDeployment(read.value, kit.descriptor)
+      if (ours && read.status === 'present' && read.value.state === 'landed') {
         navigateRef.current(waitPathOf(account), { replace: true })
         return
       }
-      if (read.status !== 'present' || read.value.state !== 'live') {
+      if (!ours || read.status !== 'present' || read.value.state !== 'live') {
         navigateRef.current(checklistPathOf(account), { replace: true })
         return
       }

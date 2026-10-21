@@ -6,12 +6,7 @@
  */
 import { decodeAbiParameters } from 'viem'
 
-import type {
-  Address,
-  Clause,
-  Credential,
-  SetupDraft
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Clause, Credential, SetupDraft } from '@kohaku-eth/social-recovery'
 import { privacyLevelOf, sameAddress } from '@web/modules/social-recovery/shared/client'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import {
@@ -214,7 +209,7 @@ export const ruleLinesOf = (
   )
 }
 
-const SECONDS_PER_HOUR = 3600n
+const SECONDS_PER_HOUR = 3600
 
 /**
  * The waiting period as the picker named it: a chip's word where it is one of
@@ -223,8 +218,8 @@ const SECONDS_PER_HOUR = 3600n
  */
 export const renderWait = (wait: SetupDraft['wait'], t: Translate): string => {
   const chip =
-    wait % SECONDS_PER_HOUR === 0n
-      ? REVIEW_WAIT_CHIPS.find(({ hours }) => BigInt(hours) * SECONDS_PER_HOUR === wait)
+    wait % SECONDS_PER_HOUR === 0
+      ? REVIEW_WAIT_CHIPS.find(({ hours }) => hours * SECONDS_PER_HOUR === wait)
       : undefined
   if (chip) {
     return t(`socialRecovery.privacy.waitingPeriod.chips.${chip.id}`)

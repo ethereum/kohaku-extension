@@ -22,6 +22,7 @@ const RunningAttemptBand = ({
   claim,
   account,
   chainId,
+  deployment,
   records,
   navigate
 }: RunningAttemptBandProps) => {
@@ -58,7 +59,8 @@ const RunningAttemptBand = ({
           attemptId: running.attemptId,
           setupNonce: running.setupNonce,
           payloadHash: running.payloadHash,
-          openedAtMs: openedAt * 1000
+          openedAtMs: openedAt * 1000,
+          deployment
         },
         target
       )
@@ -73,7 +75,18 @@ const RunningAttemptBand = ({
       },
       () => setContinueState('failed')
     )
-  }, [target, attempt, opening, continueState, recheck, records, chainId, account, navigate])
+  }, [
+    target,
+    attempt,
+    opening,
+    continueState,
+    recheck,
+    records,
+    chainId,
+    account,
+    deployment,
+    navigate
+  ])
 
   const onCancel = useCallback(() => navigate(cancelPathOf(account)), [navigate, account])
 

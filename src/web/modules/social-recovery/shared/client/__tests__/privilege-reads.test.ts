@@ -8,8 +8,8 @@
 import { Interface, toBeHex } from 'ethers'
 
 import { ERC_4337_ENTRYPOINT } from '@ambire-common/consts/deploy'
-import { addressOf } from '@web/modules/social-recovery/sdk-doubles'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import { addressOf } from '@web/modules/social-recovery/shared/client/__fixtures__/addresses'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 import {
   createPrivilegeReads,

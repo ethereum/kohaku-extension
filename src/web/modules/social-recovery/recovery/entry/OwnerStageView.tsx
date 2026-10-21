@@ -25,7 +25,7 @@ import {
   renderShortAddress,
   renderValueLabel
 } from '@web/modules/social-recovery/shared/display'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 import { choiceFor } from './receiving'
 import ReceivingRow from './ReceivingRow'

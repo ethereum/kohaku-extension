@@ -11,7 +11,7 @@
 import { etherUnits } from 'viem'
 
 import i18n from '@common/config/localization'
-import type { KitErrorName } from '@web/modules/social-recovery/sdk-interfaces'
+import type { KitErrorName } from '@web/modules/social-recovery/shared/client'
 import {
   renderChip,
   renderFullAddress,

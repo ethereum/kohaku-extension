@@ -9,14 +9,11 @@
  * reads as live; a test run on it in the edit moves it to that test's verdict.
  */
 import {
-  isCacheCurrent,
+  isReadUnder,
   reauthorizeDraftOf
 } from '@web/modules/social-recovery/management/overview/readings'
-import type {
-  Configuration,
-  PrivacyLevel,
-  SetupDraft
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { Configuration, SetupDraft } from '@kohaku-eth/social-recovery'
+import type { PrivacyLevel } from '@web/modules/social-recovery/shared/client'
 import { PASSWORD_SET } from '@web/modules/social-recovery/shared/records'
 import type { Enrollment, SetupRecords } from '@web/modules/social-recovery/shared/records'
 
@@ -85,7 +82,7 @@ export const openEditSession = async ({
   level
 }: OpenEditInput): Promise<EditSession> => {
   const held = await session.read()
-  if (held && isCacheCurrent(held, state) && (await setup.setupDraft.read()).status === 'present') {
+  if (held && isReadUnder(held, state) && (await setup.setupDraft.read()).status === 'present') {
     return held
   }
   await writeLoadedRecords(setup, recordsOfConfiguration(configuration, level))

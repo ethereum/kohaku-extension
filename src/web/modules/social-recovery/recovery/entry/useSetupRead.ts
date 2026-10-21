@@ -4,7 +4,7 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 
-import type { SetupState } from '@web/modules/social-recovery/sdk-interfaces'
+import type { SetupState } from '@kohaku-eth/social-recovery'
 
 import type { EntryKitClient, EntryRead } from './types'
 

@@ -5,12 +5,7 @@
  * finding renders as. Every setup error renders a sentence; any other finding
  * renders its code.
  */
-import type {
-  Credential,
-  Finding,
-  FindingCode,
-  SetupErrorCode
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { Credential, Finding } from '@kohaku-eth/social-recovery'
 import { renderChip } from '@web/modules/social-recovery/shared/display'
 import type { StatusChipTone } from '@web/modules/social-recovery/shared/chrome'
 import type { MethodChip, Translate } from '@web/modules/social-recovery/shared/display'
@@ -23,7 +18,7 @@ import type {
 
 import { enrollmentOf } from '@web/modules/social-recovery/shared/records'
 import { isEmptySlot } from './operations'
-import type { ClauseRole, ClientRefusal, Refusal, RefusalKey } from './types'
+import type { ClauseRole, ClientRefusal, Refusal, RefusalKey, SetupErrorCode } from './types'
 
 const KIND_NAME_KEYS: Record<SlotKind, string> = {
   passkey: 'socialRecovery.methodNames.passkey',
@@ -73,7 +68,7 @@ const SETUP_ERROR_KEYS: Record<SetupErrorCode, string> = {
   'backup.too-wide': 'socialRecovery.editor.refusals.backupTooWide'
 }
 
-const FINDING_KEYS: Partial<Record<FindingCode, string>> = SETUP_ERROR_KEYS
+const FINDING_KEYS: Partial<Record<Finding['code'], string>> = SETUP_ERROR_KEYS
 
 const CLIENT_REFUSAL_KEYS: Record<ClientRefusal, { title: string; body: string }> = {
   'update-the-wallet': {

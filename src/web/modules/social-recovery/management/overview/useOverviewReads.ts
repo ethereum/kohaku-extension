@@ -10,7 +10,12 @@
  * state and its failed state with retry, and a read that failed or has not
  * returned never renders as an answer. An answer from a block below the last
  * one the facts accepted reads as failed with retry, so a lagging provider
- * never shows an older state.
+ * never shows an older state; so does an answer whose setup nonce is below
+ * one this device has seen for the account at the same manager and action,
+ * or one of no setup from a block before the watcher's last reading that
+ * found one, so a node that lags or lost its state never shows a setup as
+ * gone. A stored record that cannot be read fails the facts with retry; a
+ * record that is absent sets no floor.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -19,14 +24,23 @@ import {
   unlockFailureOf
 } from '@web/modules/social-recovery/recovery/entry/readout'
 import type { EntryRead, UnlockState } from '@web/modules/social-recovery/recovery/entry/types'
-import type { Configuration, SetupState } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Configuration, SetupState } from '@kohaku-eth/social-recovery'
 import {
   readRecoveryPassword,
+  recordDeploymentOf,
   setRecoveryPassword
 } from '@web/modules/social-recovery/shared/records'
+import { readWatcherRecord } from '@web/modules/social-recovery/watcher'
 
 import { COMMITMENT_DISAGREEMENT_LIMIT } from './constants'
-import { attemptOpenOf, isCacheCurrent, isSameSetup, noticesOf } from './readings'
+import {
+  attemptOpenOf,
+  isBelowFloor,
+  isCacheCurrent,
+  isSameSetup,
+  knownFloorOf,
+  noticesOf
+} from './readings'
 import type {
   OverviewFactsRead,
   OverviewNotices,
@@ -42,6 +56,7 @@ const NONE: PathStep = { kind: 'none' }
 export const useOverviewReads = ({
   client,
   records,
+  watcherStorage,
   chainId,
   account
 }: OverviewReadsInput): OverviewReads => {
@@ -83,12 +98,22 @@ export const useOverviewReads = ({
       return undefined
     }
     let live = true
-    Promise.all([kit.setup.setupState(), kit.walletReads.attemptState()]).then(
-      ([state, attempt]) => {
+    const known = Promise.all([
+      records
+        .decryptedSetupCache(chainId, account)
+        .read()
+        .then((cached) => (cached.status === 'present' ? cached.value : undefined)),
+      watcherStorage ? readWatcherRecord(watcherStorage, chainId, account) : undefined
+    ]).then(([cached, watched]) => knownFloorOf(cached, watched, kit.descriptor))
+    Promise.all([kit.setup.setupState(), kit.walletReads.attemptState(), known]).then(
+      ([state, attempt, seen]) => {
         if (!live) {
           return
         }
-        if (floor.current !== undefined && state.block.number < floor.current) {
+        if (
+          (floor.current !== undefined && state.block.number < floor.current) ||
+          isBelowFloor(state, seen)
+        ) {
           setFacts({ status: 'failed' })
           return
         }
@@ -107,7 +132,7 @@ export const useOverviewReads = ({
     return () => {
       live = false
     }
-  }, [client.status, kit, factsRound])
+  }, [client.status, kit, records, watcherStorage, chainId, account, factsRound])
 
   /**
    * Keeps the opened setup on this device where it is the setup the facts read,
@@ -139,7 +164,8 @@ export const useOverviewReads = ({
         .write({
           configuration,
           setupNonce: state.setupNonce,
-          setupCommitment: state.setupCommitment
+          setupCommitment: state.setupCommitment,
+          deployment: recordDeploymentOf(kit.descriptor)
         })
         .catch(() => undefined)
       return true
@@ -165,7 +191,7 @@ export const useOverviewReads = ({
         .decryptedSetupCache(chainId, account)
         .read()
         .catch(() => null)
-      if (cached?.status === 'present' && isCacheCurrent(cached.value, setup)) {
+      if (cached?.status === 'present' && isCacheCurrent(cached.value, setup, kit.descriptor)) {
         return { kind: 'readable', configuration: cached.value.configuration }
       }
       const held = readRecoveryPassword(chainId, account)
@@ -185,8 +211,6 @@ export const useOverviewReads = ({
           return { kind: 'locked', level: 'shape-visible', shape: reading.shape }
         case 'sealed':
           return { kind: 'locked', level: 'private' }
-        case 'unreadable':
-          return { kind: 'update-the-wallet' }
         default:
           return { kind: reading.kind }
       }
@@ -223,18 +247,9 @@ export const useOverviewReads = ({
     let live = true
     const { events } = kit.setup
     const range = { from: setup.setupCommittedAtBlock, to: setup.block.number }
-    // A kit that does not serve the method logs reads as none moved; any other failure fails the read.
-    const methodLogs = Promise.resolve()
-      .then(() => events.fetch(events.methodFilter(), range))
-      .catch((error: unknown) => {
-        if (error instanceof Error && error.name === 'NotServedRefusal') {
-          return []
-        }
-        throw error
-      })
     Promise.all([
       Promise.resolve().then(() => events.fetch(events.accountFilter(), range)),
-      methodLogs
+      Promise.resolve().then(() => events.fetch(events.methodFilter(), range))
     ]).then(
       ([own, methods]) => {
         if (live) {
@@ -301,7 +316,7 @@ export const useOverviewReads = ({
             return
           }
           setAsk(IDLE)
-          setPath(failure === 'unreadable' ? { kind: 'update-the-wallet' } : { kind: failure })
+          setPath({ kind: failure })
         }
       )
     },

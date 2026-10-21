@@ -14,5 +14,12 @@ export {
   pathHolds
 } from './slots'
 export { isStoredAddress, isDecimalString } from './guards'
+export {
+  recordDeploymentOf,
+  recordDeploymentFrom,
+  isOfDeployment,
+  isSessionOfDeployment,
+  countdownOfDeployment
+} from './deployment'
 export { extensionRecordStorage } from './extensionStorage'
 export { readRecoveryPassword, setRecoveryPassword, wipeRecoveryPassword } from './recoveryPassword'

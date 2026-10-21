@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { isAddress } from 'viem'
 
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 import {
   checkLinesOf,

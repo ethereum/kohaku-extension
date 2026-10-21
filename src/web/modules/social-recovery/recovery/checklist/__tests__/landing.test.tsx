@@ -9,9 +9,10 @@
  * another setup is not this request's either. The landing leaves no claim
  * request and no report of the request that landed.
  */
-import type { Gathering, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Gathering, Hex } from '@kohaku-eth/social-recovery'
 
 import type {
+  ApprovalGathering,
   FakeDeps,
   FakeKit,
   Mounted,
@@ -20,6 +21,7 @@ import type {
 } from '@web/modules/social-recovery/recovery/checklist/__tests__/harness'
 import {
   ACCOUNT,
+  BOOK,
   CHAIN_ID,
   depsOf,
   fakeKit,
@@ -61,7 +63,7 @@ const PAYLOAD: Hex = '0xabcdef'
 const OTHER_PAYLOAD: Hex = '0x123456'
 
 /** The gathering of attempt one, with the payload its submission would carry. */
-const withPayload = (gathering: Gathering, payload: Hex = PAYLOAD): Gathering => ({
+const withPayload = (gathering: ApprovalGathering, payload: Hex = PAYLOAD): Gathering => ({
   ...gathering,
   request: { ...gathering.request, payload }
 })
@@ -73,7 +75,12 @@ const WAIT_PATH = `/${WEB_ROUTES.socialRecoveryRecoveryWait}?account=${ACCOUNT}`
  * the records keep it: the attempt id and the setup nonce as the request
  * carries them, and the hash of its payload. Nothing else of the gathering.
  */
-const LANDED_REQUEST = { attemptId: '1', setupNonce: '1', payloadHash: keccak256(PAYLOAD) }
+const LANDED_REQUEST = {
+  attemptId: '1',
+  setupNonce: '1',
+  payloadHash: keccak256(PAYLOAD),
+  deployment: { manager: BOOK.manager, action: BOOK.action }
+}
 
 describe('the request lands on the chain', () => {
   let view: Mounted | undefined

@@ -6,7 +6,7 @@ import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
-import type { Credential } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Credential } from '@kohaku-eth/social-recovery'
 import {
   MethodRow,
   PathTree,

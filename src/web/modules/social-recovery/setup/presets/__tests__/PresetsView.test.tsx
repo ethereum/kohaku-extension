@@ -12,7 +12,7 @@ import { TextDecoder, TextEncoder } from 'util'
 
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
-import type { Address, Clause, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Clause, SetupDraft } from '@kohaku-eth/social-recovery'
 import type { PresetChoice, PresetId } from '@web/modules/social-recovery/setup/presets'
 import type {
   Enrollment,
@@ -378,13 +378,13 @@ describe('the presets view', () => {
     const storeDraft = async (enrollments: Enrollment[]) => {
       records = createWalletRecords({ storage: makeStorage(), now: () => SAVED_AT })
       await setup().setupDraft.write({
-        wait: 172800n,
+        wait: 172800,
         clauses: [],
         ignoresPause: true,
         privacy: { backup: 'encrypted', publicMetadata: '0x' }
       })
       await setup().enrollments.write(enrollments)
-      await setup().waitingPeriod.write(86400n)
+      await setup().waitingPeriod.write(86400)
     }
 
     const ENROLLMENTS: Enrollment[] = [
@@ -470,7 +470,7 @@ describe('the presets view', () => {
   ) => {
     records = createWalletRecords({ storage: makeStorage(faults), now: () => DRAFTED_AT })
     await setup().setupDraft.write({
-      wait: 172800n,
+      wait: 172800,
       clauses,
       ignoresPause: true,
       privacy: { backup: 'encrypted', publicMetadata: '0x' }
@@ -533,7 +533,7 @@ describe('the presets view', () => {
       await storeOn({}, [], [{ test: 'passed' } as unknown as Enrollment])
       await setup().inventory.write(['passport'])
       await setup().path.write([])
-      await setup().waitingPeriod.write(86400n)
+      await setup().waitingPeriod.write(86400)
       await setup().passwordSet.write('password-set')
       await mount()
       expect(byTestId('presets-load-failed')?.textContent).toContain(S.records.startOverNote)
@@ -858,7 +858,7 @@ describe('the presets view', () => {
 
     const draftFor = async (setupRecords: ReturnType<typeof setup>, passkey: Enrollment) => {
       await setupRecords.setupDraft.write({
-        wait: 172800n,
+        wait: 172800,
         clauses: [],
         ignoresPause: true,
         privacy: { backup: 'encrypted', publicMetadata: '0x' }
@@ -941,7 +941,7 @@ describe('the presets view', () => {
       )
       await setup().inventory.write(['passport'])
       await setup().path.write([])
-      await setup().waitingPeriod.write(86400n)
+      await setup().waitingPeriod.write(86400)
       await setup().passwordSet.write('password-set')
     }
 

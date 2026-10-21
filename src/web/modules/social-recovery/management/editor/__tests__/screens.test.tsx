@@ -18,7 +18,7 @@ import { TextDecoder, TextEncoder } from 'util'
 
 import type { ScreensWorld } from '@web/modules/social-recovery/management/editor/__fixtures__/types'
 import type { EditSession } from '@web/modules/social-recovery/management/editor/types'
-import type { Clause } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Clause } from '@kohaku-eth/social-recovery'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 
@@ -119,7 +119,7 @@ const REMOVE = 'socialRecovery.management.remove'
 const COMMITTED: Clause[] = [review.group(1, ALICE)]
 
 const baseline: EditSession = {
-  configuration: { clauses: COMMITTED, wait: 172_800n, ignoresPause: true },
+  configuration: { clauses: COMMITTED, wait: 172_800, ignoresPause: true },
   setupNonce: 1n,
   setupCommitment: `0x${'ab'.repeat(32)}`,
   level: 'private',
@@ -181,7 +181,7 @@ const given = async ({
   authorized?: boolean
   /** The path the edit started from. */
   committed?: Clause[]
-  wait?: bigint
+  wait?: number
   password?: EditSession['password']
 }) => {
   const storage = makeStorage()
@@ -277,7 +277,7 @@ describe('the save of an edit that adds no row', () => {
     },
     {
       name: 'a waiting period change',
-      options: { ...noTrust, clauses: COMMITTED, wait: 259_200n },
+      options: { ...noTrust, clauses: COMMITTED, wait: 259_200 },
       change: 'manage-change-waitingPeriod'
     },
     {

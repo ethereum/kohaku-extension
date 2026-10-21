@@ -6,7 +6,7 @@
  * the extension's records over an in-memory storage.
  */
 import type { Account } from '@ambire-common/interfaces/account'
-import type { SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { SetupDraft } from '@kohaku-eth/social-recovery'
 import {
   accountBatchRefusal,
   accountBatchTransactionOf,
@@ -245,7 +245,7 @@ describe('the prepare', () => {
   })
 
   it('rebuilds a stale shape note from the final path, writes the draft back, and prepares that draft', async () => {
-    const stale = shapeNoteOf({ clauses: [], wait: 1n, ignoresPause: true })
+    const stale = shapeNoteOf({ clauses: [], wait: 1, ignoresPause: true })
     const wired = wireSave(account, script({ publicMetadata: stale }))
     expect(privacyLevelOf(wired.draft.privacy)).toBe('shape-visible')
     await runSave(wired.steps)

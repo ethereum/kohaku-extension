@@ -4,7 +4,8 @@
  *
  * A passkey signs an approval request for place zero of attempt zero under
  * setup number zero, with no handover and no payment, which the ceremony tab
- * checks through its method.
+ * checks through its method. A passkey's credential is no address, so it
+ * holds no code.
  *
  * A guardian's key signs typed data of its own, under a domain with no
  * verifying contract and a primary type no approval uses, so a test signature
@@ -12,7 +13,7 @@
  */
 import { bytesToHex, zeroAddress, zeroHash } from 'viem'
 
-import type { ApproverRequest } from '@web/modules/social-recovery/sdk-interfaces'
+import type { ApproverRequest } from '@kohaku-eth/social-recovery'
 import { REQUEST_WINDOW_SECONDS } from '@web/modules/social-recovery/shared/client'
 import type { TypedDataToSign } from '@web/modules/social-recovery/shared/client'
 
@@ -46,7 +47,8 @@ export const testRequestOf = ({
   place: 0,
   method,
   config,
-  salt: bytesToHex(randomBytes(32))
+  salt: bytesToHex(randomBytes(32)),
+  credentialHoldsCode: false
 })
 
 export const KEY_TEST_DOMAIN_NAME = 'Kohaku recovery key test'

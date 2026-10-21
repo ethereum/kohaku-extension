@@ -6,7 +6,7 @@
  * which the path's rule lines describe instead. A passkey is named by its
  * label where it carries one.
  */
-import type { Configuration, Credential } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Configuration, Credential } from '@kohaku-eth/social-recovery'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import type { Translate } from '@web/modules/social-recovery/shared/display'
 import { kindNameOf, kindOf } from '@web/modules/social-recovery/setup/review'

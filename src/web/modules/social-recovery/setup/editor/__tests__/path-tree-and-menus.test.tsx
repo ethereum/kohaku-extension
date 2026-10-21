@@ -9,12 +9,7 @@
  */
 import { TextDecoder, TextEncoder } from 'util'
 
-import type {
-  Clause,
-  Credential,
-  SetupDraft,
-  ValidationResult
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { Clause, Credential, SetupDraft, ValidationResult } from '@kohaku-eth/social-recovery'
 import type { Enrollment, SlotKind } from '@web/modules/social-recovery/shared/records'
 
 import type { Root } from '@web/modules/social-recovery/setup/editor/__tests__/harness'
@@ -85,7 +80,7 @@ const KIND_NAMES: Record<SlotKind, string> = {
 }
 
 const draftOf = (clauses: Clause[]): SetupDraft => ({
-  wait: 259200n,
+  wait: 259200,
   clauses,
   ignoresPause: false,
   privacy: { publicMetadata: '0x', backup: 'encrypted' }

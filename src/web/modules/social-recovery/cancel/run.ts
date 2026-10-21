@@ -65,7 +65,7 @@ import {
   writeReducer
 } from '@web/modules/social-recovery/shared/writes'
 import type { WriteEvent, WriteMachineState } from '@web/modules/social-recovery/shared/writes'
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 import type { WatcherReading } from '@web/modules/social-recovery/watcher'
 
 import {

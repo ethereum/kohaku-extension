@@ -4,7 +4,7 @@
  * password it seals the backup under, the save's own gate, and whether a run
  * stands where nothing is on its way to the chain.
  */
-import type { Credential, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Credential, SetupDraft } from '@kohaku-eth/social-recovery'
 import { sameAddress } from '@web/modules/social-recovery/shared/client'
 import { sameCredential } from '@web/modules/social-recovery/shared/records'
 import { mayStillLand } from '@web/modules/social-recovery/shared/writes'

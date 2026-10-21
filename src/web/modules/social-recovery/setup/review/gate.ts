@@ -9,7 +9,7 @@
  * action does not fit it or it holds more than one key, a setup that already
  * exists). An untested method warns beside Save and never disables it.
  */
-import type { Address, Clause, SetupDescription } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Clause, SetupDescription } from '@kohaku-eth/social-recovery'
 import type { Enrollment } from '@web/modules/social-recovery/shared/records'
 import { enrollmentOf, isEmptySlot } from '@web/modules/social-recovery/shared/records/slots'
 
@@ -47,7 +47,7 @@ export const untestedInPath = (
 
 /** The candidate keys that hold authority over the account. */
 const authoritiesOf = (description: SetupDescription): Address[] =>
-  description.candidateKeys.filter(({ isAuthority }) => isAuthority).map(({ address }) => address)
+  description.candidateKeys.filter(({ isAuthority }) => isAuthority).map(({ key }) => key)
 
 /** Whether a member of any clause of the path is a slot no method fills. */
 const hasEmptySlot = (clauses: readonly Clause[]): boolean =>

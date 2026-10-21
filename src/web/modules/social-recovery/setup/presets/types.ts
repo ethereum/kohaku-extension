@@ -1,4 +1,4 @@
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import type { ChainId, SlotKind, WalletRecords } from '@web/modules/social-recovery/shared/records'
 
 export type { SlotKind } from '@web/modules/social-recovery/shared/records'

@@ -1,5 +1,5 @@
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
-import type { SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { SetupDraft } from '@kohaku-eth/social-recovery'
 import { CARD_FROM_KEY, CARD_FROM_MANAGE } from '@web/modules/social-recovery/setup/card'
 import type { ManageIntent } from '@web/modules/social-recovery/shared/writes'
 
@@ -25,7 +25,7 @@ export const LOCKED = `${OVERVIEW}.locked`
  * holds a draft, and a removal commits none. Nothing reads it back.
  */
 export const REMOVAL_DRAFT: SetupDraft = {
-  wait: 0n,
+  wait: 0,
   clauses: [],
   ignoresPause: true,
   privacy: { publicMetadata: '0x', backup: 'empty' }

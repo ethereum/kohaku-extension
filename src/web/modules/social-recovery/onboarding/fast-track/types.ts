@@ -1,6 +1,6 @@
 import type { KeystoreSeed } from '@ambire-common/interfaces/keystore'
 import type useKeyStoreSetup from '@web/modules/keystore/components/KeyStoreSetupForm/hooks/useKeyStoreSetup'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import type { ChainReads } from '@web/modules/social-recovery/shared/client'
 import type { RecoveryEntryRecord } from '@web/modules/social-recovery/shared/records'
 import type { DepositStep, GasNetwork } from '@web/modules/social-recovery/shared/writes'

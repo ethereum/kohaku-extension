@@ -9,7 +9,7 @@ import type { Account } from '@ambire-common/interfaces/account'
 import { dedicatedToOneSAPriv } from '@ambire-common/interfaces/keystore'
 import type { Network } from '@ambire-common/interfaces/network'
 import { getBasicAccount, getSmartAccount } from '@ambire-common/libs/account/account'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import {
   accountBatchTransactionOf,
   accountFactsOf,

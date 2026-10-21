@@ -81,7 +81,13 @@ export const ReviewStageView = ({
 }: EditStageProps) => {
   const { t } = useTranslation()
   const clientState = useRecoveryClient(account)
-  const reads = useOverviewReads({ client: clientState, records, chainId, account })
+  const reads = useOverviewReads({
+    client: clientState,
+    records,
+    watcherStorage: extensionRecordStorage,
+    chainId,
+    account
+  })
   const kit = clientState.status === 'ready' ? clientState.client : null
   const facts = reads.facts.status === 'answered' ? reads.facts.value : null
   // The attempt as the save last read it before the send; a new read of the overview's facts replaces it.

@@ -22,7 +22,7 @@ import { cancelPathOf } from '@web/modules/social-recovery/cancel/search'
 import { useDismissed } from '@web/modules/social-recovery/cancel/useDismissed'
 import { CHAIN_NAMES } from '@web/modules/social-recovery/recovery/entry/constants'
 import type { ReadoutRowContext } from '@web/modules/social-recovery/recovery/entry/types'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import { relyingPartyOf } from '@web/modules/social-recovery/shared/ceremony'
 import { ActionsRow } from '@web/modules/social-recovery/shared/chrome'
 import SetupChrome from '@web/modules/social-recovery/shared/chrome/SetupChrome'
@@ -58,7 +58,13 @@ const OverviewStage = ({ records, chainId, account, navigate }: OverviewStagePro
   const { t } = useTranslation()
   const { networks } = useNetworksControllerState()
   const clientState = useRecoveryClient(account)
-  const reads = useOverviewReads({ client: clientState, records, chainId, account })
+  const reads = useOverviewReads({
+    client: clientState,
+    records,
+    watcherStorage: extensionRecordStorage,
+    chainId,
+    account
+  })
   const watched = useWatchedAttempt(account)
   const timeZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
   const kit = clientState.status === 'ready' ? clientState.client : null

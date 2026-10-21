@@ -251,7 +251,7 @@ describe('the submission', () => {
         const request = picked(...args)
         return {
           ...request,
-          proofs: [...request.proofs.slice(0, 3), { ...request.proofs[3], place: 4n }]
+          proofs: [...request.proofs.slice(0, 3), { ...request.proofs[3], place: 4 }]
         }
       })
       await mounted.press('submit-action')
@@ -276,7 +276,11 @@ describe('the submission', () => {
         account: world.account,
         attemptId: world.gathering.request.attemptId,
         setupNonce: world.gathering.request.setupNonce,
-        payloadHash: PAYLOAD_HASH
+        payloadHash: PAYLOAD_HASH,
+        deployment: {
+          manager: world.gathering.request.manager,
+          action: world.gathering.request.action
+        }
       })
       expect(await rawStorage(world.storage)).not.toContain('"gathering"')
       expect(mockWallet.navigate).toHaveBeenLastCalledWith(waitPathOf(world.account), {

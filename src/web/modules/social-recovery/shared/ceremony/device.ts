@@ -8,6 +8,8 @@
  * phone that never connected. A host never calls the method's packaging after
  * a stop.
  */
+import type { Material } from '@kohaku-eth/social-recovery'
+
 import type { CeremonyDevice } from './types'
 
 /** The steps a host renders while it runs. */
@@ -26,8 +28,8 @@ export const CEREMONY_STEPS = [
  * device asks nothing of anyone.
  */
 export const providedMaterialDevice = (material: {
-  enroll?: unknown
-  sign?: unknown
+  enroll?: Material
+  sign?: Material
 }): CeremonyDevice => ({
   enroll: async () => ({ ok: true, material: material.enroll }),
   sign: async () => ({ ok: true, material: material.sign })

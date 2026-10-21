@@ -6,7 +6,7 @@
  */
 import i18n from '@common/config/localization'
 import { previewPathOf } from '@web/modules/social-recovery/recovery/entry/readout'
-import type { Address, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Hex } from '@kohaku-eth/social-recovery'
 import { addressBookOf, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
 
 const BOOK = addressBookOf(WALLET_RECOVERY_CHAIN)

@@ -9,12 +9,18 @@ import type {
   Address,
   Configuration,
   Gathering,
-  RestoreCause,
-  RestoreRefusal
-} from '@web/modules/social-recovery/sdk-interfaces'
-import { RESTORE_CAUSES } from '@web/modules/social-recovery/sdk-interfaces'
-import { REQUEST_WINDOW_SECONDS } from '@web/modules/social-recovery/shared/client'
-import { isSessionRevisionConflict } from '@web/modules/social-recovery/shared/records'
+  KitRefusalError,
+  RestoreCauseCode
+} from '@kohaku-eth/social-recovery'
+import {
+  RESTORE_CAUSE_CODES,
+  REQUEST_WINDOW_SECONDS
+} from '@web/modules/social-recovery/shared/client'
+import {
+  isOfDeployment,
+  isSessionRevisionConflict,
+  isSessionOfDeployment
+} from '@web/modules/social-recovery/shared/records'
 import type { ExpectedRevision, SessionRead } from '@web/modules/social-recovery/shared/records'
 
 import { NO_PAYMENT_ORDER } from './constants'
@@ -27,13 +33,17 @@ import type {
 } from './types'
 
 /**
- * The setup's configuration: the decrypted cache where this device holds it,
- * else the one the recovery password held in memory opens. With neither, the
- * holder unlocks the setup at the readout.
+ * The setup's configuration: the decrypted cache where this device holds it
+ * for the client's deployment, else the one the recovery password held in
+ * memory opens. A cache of another deployment, or one that names none, is not
+ * read. With neither, the holder unlocks the setup at the readout.
  */
 export const configurationOf = async (input: ConfigurationInput): Promise<ConfigurationReading> => {
   const cached = await input.records.decryptedSetupCache(input.chainId, input.account).read()
-  if (cached.status === 'present') {
+  if (
+    cached.status === 'present' &&
+    isOfDeployment(cached.value.deployment, input.client.descriptor)
+  ) {
     return { kind: 'configuration', configuration: cached.value.configuration, source: 'cache' }
   }
   if (input.password === undefined) {
@@ -46,15 +56,15 @@ export const configurationOf = async (input: ConfigurationInput): Promise<Config
 }
 
 /** The restore cause a thrown value carries, where it is a restore refusal. */
-const restoreCauseOf = (error: unknown): RestoreCause | undefined => {
-  if (typeof error !== 'object' || error === null || !('cause' in error)) {
+const restoreCauseOf = (error: unknown): RestoreCauseCode | undefined => {
+  if (typeof error !== 'object' || error === null || !('restoreCause' in error)) {
     return undefined
   }
-  const { cause } = error as Partial<RestoreRefusal>
+  const { restoreCause: cause } = error as Partial<KitRefusalError>
   if (typeof cause !== 'object' || cause === null) {
     return undefined
   }
-  return RESTORE_CAUSES.find((known) => known === cause.code)
+  return RESTORE_CAUSE_CODES.find((known) => known === cause.code)
 }
 
 /** A stored session as what opening found. */
@@ -150,23 +160,26 @@ const startGathering = async (
 }
 
 /**
- * What the checklist opens on: a stored live, wiped or landed session, and
- * otherwise a new gathering once the destination key is known. The line the
- * recoverer's own abandon leaves is no reason to show: it counts as no session,
- * and the new gathering replaces it.
+ * What the checklist opens on: a stored live, wiped or landed session of the
+ * deployment the client reads, and otherwise a new gathering once the
+ * destination key is known. The line the recoverer's own abandon leaves is no
+ * reason to show, and a session of another deployment, or one that names none,
+ * holds nothing of this one: either counts as no session, and the new
+ * gathering replaces it.
  */
 export const openChecklist = async (input: OpenInput): Promise<OpenResult> => {
   const read = await input.records.recoverySession(input.chainId, input.account).read()
   const found = resultOfRead(read)
-  const abandoned =
-    found?.kind === 'wiped' && found.session.reason === 'recoverer-abandoned' ? found : null
-  if (found && !abandoned) {
+  const abandoned = found?.kind === 'wiped' && found.session.reason === 'recoverer-abandoned'
+  const foreign =
+    read.status === 'present' && !isSessionOfDeployment(read.value, input.client.descriptor)
+  if (found && !abandoned && !foreign) {
     return found
   }
   if (!input.destination) {
     return { kind: 'needs-destination' }
   }
-  return startGathering(input, input.destination, abandoned ? abandoned.revision : null)
+  return startGathering(input, input.destination, read.status === 'present' ? read.revision : null)
 }
 
 /**

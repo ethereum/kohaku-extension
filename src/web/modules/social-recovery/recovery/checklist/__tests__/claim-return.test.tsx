@@ -10,7 +10,7 @@
  * recovery client, the receiving account's facts and the report channel are
  * the harness's fakes; the extension's storage is its in-memory double.
  */
-import type { Configuration } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Configuration } from '@kohaku-eth/social-recovery'
 import type { CeremonyOutcome } from '@web/modules/social-recovery/shared/ceremony'
 
 import type {

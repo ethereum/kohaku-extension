@@ -2,12 +2,7 @@ import i18next from 'i18next'
 import { isAddressEqual } from 'viem'
 
 import en from '@common/config/localization/translations/en.json'
-import type {
-  Clause,
-  Credential,
-  Hex,
-  SetupDraft
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { Clause, Credential, Hex, SetupDraft } from '@kohaku-eth/social-recovery'
 
 import { addressBookOf } from '@web/modules/social-recovery/shared/client/addresses'
 import { emptySlot, SLOT_KINDS } from '@web/modules/social-recovery/shared/records'
@@ -53,7 +48,7 @@ const group = (threshold: number, methods: Hex[]): Clause => ({
 })
 
 const draft = (clauses: Clause[]): SetupDraft => ({
-  wait: 604800n,
+  wait: 604800,
   clauses,
   ignoresPause: false,
   privacy: { publicMetadata: '0x' as Hex, backup: 'encrypted' }

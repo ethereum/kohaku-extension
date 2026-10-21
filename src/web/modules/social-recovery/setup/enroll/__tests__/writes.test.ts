@@ -7,7 +7,7 @@
  * Every other enrollment stays. The records sit on the harness's storage
  * double, and the harness loads the view, which needs a DOM.
  */
-import type { Credential } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Credential } from '@kohaku-eth/social-recovery'
 import type { Enrollment, SetupRecords } from '@web/modules/social-recovery/shared/records'
 
 import type { EnrollSearch } from '@web/modules/social-recovery/setup/enroll/types'

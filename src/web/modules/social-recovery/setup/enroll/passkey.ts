@@ -8,7 +8,7 @@
  */
 import { isHex } from 'viem'
 
-import type { Address, ApproverRequest } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, ApproverRequest } from '@kohaku-eth/social-recovery'
 import {
   AUTHENTICATOR_PLACES,
   deviceOf,

@@ -6,7 +6,7 @@
  */
 import { isAddress } from 'viem'
 
-import type { Address, ApproverRequest, Verdict } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, ApproverRequest, Verdict } from '@kohaku-eth/social-recovery'
 import { isObject } from '@web/modules/social-recovery/recovery/checklist/codec'
 import { isSignFlowFailure, sameAddress } from '@web/modules/social-recovery/shared/client'
 import type { RecoveryKitClient, TypedDataToSign } from '@web/modules/social-recovery/shared/client'
@@ -18,8 +18,8 @@ import type { KeyReading, KeystoreFacts, OfflineFailure, SigningFailure } from '
 /**
  * The address the request's credential names: the wallet method's own codec
  * decodes the config, for a request whose method is the one the wallet
- * method serves. Null where the request names another method or the config
- * does not decode to an address.
+ * method serves; the codec names the address `signer`. Null where the request
+ * names another method or the config does not decode to an address.
  */
 export const requestKeyOf = (
   client: Pick<RecoveryKitClient, 'methodFor' | 'descriptor'>,
@@ -31,8 +31,8 @@ export const requestKeyOf = (
   }
   try {
     const fields: unknown = method.codec.decodeConfig(request.config)
-    return isObject(fields) && typeof fields.address === 'string' && isAddress(fields.address)
-      ? fields.address
+    return isObject(fields) && typeof fields.signer === 'string' && isAddress(fields.signer)
+      ? fields.signer
       : null
   } catch {
     return null

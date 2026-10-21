@@ -1,6 +1,6 @@
 import { decodeAbiParameters } from 'viem'
 
-import type { Clause } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Clause } from '@kohaku-eth/social-recovery'
 import { sameAddress } from '@web/modules/social-recovery/shared/client'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import {

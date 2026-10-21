@@ -14,7 +14,7 @@
  */
 import { zeroHash } from 'viem'
 
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 import { accountBatchRefusal } from '@web/modules/social-recovery/shared/client'
 import { mayStillLand } from '@web/modules/social-recovery/shared/writes'
 import type { DepositStep, GasCheck } from '@web/modules/social-recovery/shared/writes'

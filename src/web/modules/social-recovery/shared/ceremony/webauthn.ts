@@ -7,7 +7,7 @@
  * runs under Jest's node environment.
  */
 /* eslint-disable no-bitwise -- byte handling of the authenticator data and of DER */
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 import { bytesOf } from '@web/modules/social-recovery/shared/webauthn'
 import { bytesToHex, sha256, stringToBytes } from 'viem'
 

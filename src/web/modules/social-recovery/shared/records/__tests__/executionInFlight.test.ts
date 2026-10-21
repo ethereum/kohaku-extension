@@ -11,12 +11,7 @@
  */
 import { keccak256 } from 'viem'
 
-import type {
-  Address,
-  ApproverReply,
-  Gathering,
-  Hex
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Gathering, Hex, Reply } from '@kohaku-eth/social-recovery'
 import {
   CountdownRead,
   createWalletRecords,
@@ -40,6 +35,7 @@ const T0 = 1_700_000_000_000
 const SESSION_KEY = recordKeys.recoverySession(CHAIN_ID, ACCOUNT)
 
 const PAYLOAD: Hex = `0x${'0123456789abcdef'.repeat(4)}`
+const ORDER = { token: METHOD, amount: '0', payee: ACCOUNT }
 const HASH_A: Hex = `0x${'aa'.repeat(32)}`
 const HASH_B: Hex = `0x${'bb'.repeat(32)}`
 
@@ -54,7 +50,7 @@ const OTHER_CLAIM: ExecutionInFlightClaim = {
   claimedAt: T0 + 1000
 }
 
-const reply = (place: number): ApproverReply => ({
+const reply = (place: number): Reply => ({
   kind: 'recovery-proof-reply',
   version: 1,
   chainId: CHAIN_ID.toString(),
@@ -71,7 +67,7 @@ const reply = (place: number): ApproverReply => ({
   proof: place === 0 ? '0xdeadbeefdeadbeef' : '0xfeedfacefeedface'
 })
 
-const gathering = (payload?: Hex): Gathering => ({
+const gathering = (payload: Hex): Gathering => ({
   kind: 'gathering',
   version: 1,
   purpose: 'approval',
@@ -84,7 +80,8 @@ const gathering = (payload?: Hex): Gathering => ({
     attemptId: '42',
     setupNonce: '9',
     setupBody: '0x00',
-    ...(payload === undefined ? {} : { payload }),
+    payload,
+    order: ORDER,
     validUntil: '1700086400',
     block: { number: 1, timestamp: '1700000000', hash: '0x01' }
   },
@@ -94,13 +91,19 @@ const gathering = (payload?: Hex): Gathering => ({
     config: '0xabcd',
     salt: '0x01',
     standing: 'not-stopped',
-    stoppable: false
+    stoppable: false,
+    credentialHoldsCode: false
   })),
   replies: [reply(0), reply(1)]
 })
 
 // What the landing of `gathering(PAYLOAD)` keeps beside the account.
-const ATTEMPT = { attemptId: '42', setupNonce: '9', payloadHash: keccak256(PAYLOAD) }
+const ATTEMPT = {
+  attemptId: '42',
+  setupNonce: '9',
+  payloadHash: keccak256(PAYLOAD),
+  deployment: { manager: MANAGER, action: ACTION }
+}
 
 const setup = () => {
   const storage = makeStorage()
@@ -207,31 +210,31 @@ describe('the landed session keeps the attempt of the landed request', () => {
     expect(presentOf(await countdown(reopened).read())).toEqual({ status: 'present', ...written })
   })
 
-  it('a request with no payload lands with its attempt id and setup nonce and no payload hash', async () => {
-    const { storage, records } = await landed(gathering())
-    expect(presentOf(await countdown(records).read()).value).toEqual({
-      account: ACCOUNT,
-      attemptId: '42',
-      setupNonce: '9'
-    })
-    expect(storedSession(storage)).not.toContain('payloadHash')
-  })
+  // A session an earlier build or a damaged storage left: the storage keeps no undefined key.
+  const STORED_PAYLOADS: [string, string | undefined][] = [
+    ['no payload', undefined],
+    ['a payload that is not hex', 'zz']
+  ]
 
-  it('a stored request whose payload is not hex lands with no payload hash', async () => {
-    const { storage, records } = setup()
-    const live = gathering()
-    await storage.set(SESSION_KEY, {
-      value: { state: 'live', gathering: { ...live, request: { ...live.request, payload: 'zz' } } },
-      savedAt: T0,
-      revision: 'b'.repeat(24)
+  STORED_PAYLOADS.forEach(([label, payload]) =>
+    it(`a stored request with ${label} lands with its attempt id and setup nonce and no payload hash`, async () => {
+      const { storage, records } = setup()
+      const live = gathering(PAYLOAD)
+      await storage.set(SESSION_KEY, {
+        value: { state: 'live', gathering: { ...live, request: { ...live.request, payload } } },
+        savedAt: T0,
+        revision: 'b'.repeat(24)
+      })
+      await land(records)
+      expect(presentOf(await countdown(records).read()).value).toEqual({
+        account: ACCOUNT,
+        attemptId: '42',
+        setupNonce: '9',
+        deployment: ATTEMPT.deployment
+      })
+      expect(storedSession(storage)).not.toContain('payloadHash')
     })
-    await land(records)
-    expect(presentOf(await countdown(records).read()).value).toEqual({
-      account: ACCOUNT,
-      attemptId: '42',
-      setupNonce: '9'
-    })
-  })
+  )
 
   it('a landed session stored with the account alone reads with no attempt, and its list too', async () => {
     const { storage, records } = setup()

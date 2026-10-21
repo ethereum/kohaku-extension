@@ -1,17 +1,13 @@
+import { ERRORS_MANAGER_ABI } from '@kohaku-eth/social-recovery'
 import { encodeErrorResult } from 'viem'
 
-import { createWatcherReads, providerReadFailure } from '@web/modules/social-recovery/shared/client'
-import { POLICY_MANAGER_ABI } from '@web/modules/social-recovery/shared/client/kit/abi'
 import {
-  ACCOUNT as KIT_ACCOUNT,
-  ACCOUNT_CODE,
-  DEPLOYED_AT,
-  DESCRIPTOR,
-  fakeNode,
-  MANAGER,
-  reverting,
-  stateOfCall
-} from '@web/modules/social-recovery/shared/client/kit/setup-client/__tests__/harness'
+  createWatcherReads,
+  deploymentDescriptor,
+  providerReadFailure
+} from '@web/modules/social-recovery/shared/client'
+import { addressOf } from '@web/modules/social-recovery/shared/client/__fixtures__/addresses'
+import { ScriptedNode } from '@web/modules/social-recovery/shared/client/scripted'
 import type { AttemptScan } from '@web/modules/social-recovery/shared/client/types'
 import {
   dismissAttempt,
@@ -26,6 +22,8 @@ import {
   cancelledEvent,
   COMMITTED_AT,
   consumedEvent,
+  DEPLOYMENT,
+  RETIRED_DEPLOYMENT,
   ENDED_TIME,
   HEAD,
   HEAD_TIME,
@@ -43,6 +41,7 @@ import {
 } from '@web/modules/social-recovery/watcher/__fixtures__/harness'
 
 const NOW = 1_800_000_123_000
+const KIT_ACCOUNT = addressOf('kit-account')
 
 const setUp = (accounts = [ACCOUNT]) => {
   const chain = scriptedChain()
@@ -51,6 +50,7 @@ const setUp = (accounts = [ACCOUNT]) => {
   const poll = (limitMs = 1_000, scanLimitMs = 1_000, polledAt = NOW) =>
     pollAccounts({
       reads: chain.reads,
+      deployment: DEPLOYMENT,
       accounts,
       chainId: SEPOLIA,
       storage,
@@ -70,7 +70,7 @@ const scansOf = (chain: ReturnType<typeof scriptedChain>) =>
   chain.reads.attemptEventsOf.mock.calls.map(([, , { from, to, until }]) => ({ from, to, until }))
 
 describe('a poll of the watched accounts', () => {
-  it('writes a reading with no attempt and no badge where none is open', async () => {
+  it('writes a reading with no attempt and no badge where none is open, naming the deployment it read', async () => {
     const { chain, poll, record } = setUp()
     chain.setState(ACCOUNT, stateWith())
 
@@ -80,7 +80,8 @@ describe('a poll of the watched accounts', () => {
       account: ACCOUNT,
       block: { number: HEAD, timestamp: HEAD_TIME },
       hasSetup: true,
-      dormant: false
+      dormant: false,
+      deployment: DEPLOYMENT
     })
     expect(written?.failed).toBeUndefined()
   })
@@ -135,6 +136,32 @@ describe('a poll of the watched accounts', () => {
     await poll()
 
     expect(chain.reads.attemptEventsOf).toHaveBeenCalledTimes(1)
+  })
+
+  it("reads the opening of a new manager's attempt afresh beside a reading of the same attempt id on a retired manager", async () => {
+    const { chain, storage, poll, record } = setUp()
+    chain.setState(ACCOUNT, stateWith({ attemptId: 1n, state: 'Waiting', payload: PAYLOAD }))
+    chain.setEvents(ACCOUNT, 1n, { started: startedEvent(1n, PAYLOAD) })
+    const retired = { manager: addressOf('retired-manager'), action: DEPLOYMENT.action }
+    await pollAccounts({
+      reads: chain.reads,
+      deployment: retired,
+      accounts: [ACCOUNT],
+      chainId: SEPOLIA,
+      storage,
+      now: () => NOW,
+      limitMs: 1_000,
+      scanLimitMs: 1_000
+    })
+    expect((await record())?.reading?.attempt?.newKey).toBe(NEW_KEY)
+
+    await poll()
+
+    expect(chain.reads.attemptEventsOf).toHaveBeenCalledTimes(2)
+    expect((await record())?.reading).toMatchObject({
+      deployment: DEPLOYMENT,
+      attempt: { attemptId: 1n, newKey: NEW_KEY }
+    })
   })
 
   it('names no key from an opening whose payload is not the one the attempt committed', async () => {
@@ -342,6 +369,7 @@ describe('a poll of the watched accounts', () => {
     const storage = memoryStorage()
     await pollAccounts({
       reads: chain.reads,
+      deployment: DEPLOYMENT,
       accounts: [ACCOUNT],
       chainId: SEPOLIA,
       storage,
@@ -355,6 +383,26 @@ describe('a poll of the watched accounts', () => {
       hasSetup: false,
       dormant: false
     })
+  })
+
+  it('counts attempt 1 of this deployment on the badge though attempt 1 of a retired one was dismissed', async () => {
+    const { chain, storage, poll, record } = setUp()
+    chain.setState(ACCOUNT, stateWith({ attemptId: 1n, state: 'Waiting', payload: PAYLOAD }))
+    await pollAccounts({
+      reads: chain.reads,
+      deployment: RETIRED_DEPLOYMENT,
+      accounts: [ACCOUNT],
+      chainId: SEPOLIA,
+      storage,
+      now: () => NOW,
+      polledAt: NOW,
+      limitMs: 1_000,
+      scanLimitMs: 1_000
+    })
+    await dismissAttempt(SEPOLIA, ACCOUNT, 1n, storage)
+
+    expect(await poll()).toBe(1)
+    expect((await record())?.dismissed).toEqual([])
   })
 
   it('stops counting a dismissed attempt on the badge, and counts the next attempt', async () => {
@@ -642,28 +690,21 @@ describe('a poll of the watched accounts', () => {
   })
 
   it("names the manager's revert in the failure of the poll", async () => {
-    const node = fakeNode()
-    node.setCode(KIT_ACCOUNT, ACCOUNT_CODE, DEPLOYED_AT)
-    node.setCode(MANAGER, ACCOUNT_CODE)
-    node.answer(
-      MANAGER,
-      stateOfCall(),
-      reverting(
-        encodeErrorResult({
-          abi: POLICY_MANAGER_ABI,
-          errorName: 'PolicyManager_WrongSetupNonce',
-          args: [2n, 3n]
-        })
-      )
-    )
+    const descriptor = deploymentDescriptor('sepolia')
+    const node = new ScriptedNode({ descriptor, account: KIT_ACCOUNT })
+    node.failRead('stateOf', {
+      kind: 'revert',
+      data: encodeErrorResult({
+        abi: ERRORS_MANAGER_ABI,
+        errorName: 'PolicyManager_WrongSetupNonce',
+        args: [2n, 3n]
+      })
+    })
     const storage = memoryStorage()
 
     await pollAccounts({
-      reads: createWatcherReads({
-        provider: node.provider,
-        codeRead: node.codeRead,
-        descriptor: DESCRIPTOR
-      }),
+      reads: createWatcherReads({ provider: node, descriptor }),
+      deployment: DEPLOYMENT,
       accounts: [KIT_ACCOUNT],
       chainId: SEPOLIA,
       storage,

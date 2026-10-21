@@ -45,7 +45,7 @@ import type {
 import { ADD_LIMIT_MS } from '@web/modules/social-recovery/recovery/done'
 import { POLL_LIMIT_MS } from '@web/modules/social-recovery/recovery/checklist/constants'
 import { waitPathOf } from '@web/modules/social-recovery/recovery/checklist'
-import type { Address, Attempt, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Attempt, Hex } from '@kohaku-eth/social-recovery'
 import { renderFullAddress } from '@web/modules/social-recovery/shared/display'
 import { kindNameOf } from '@web/modules/social-recovery/setup/review'
 import {

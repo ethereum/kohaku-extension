@@ -12,6 +12,7 @@
  */
 import {
   ADD_ACTION,
+  BOOK,
   CHAIN_ID,
   dispatchedOf,
   endStoredCountdown,
@@ -33,15 +34,21 @@ import {
 } from '@web/modules/social-recovery/recovery/done/__tests__/harness'
 import type { World } from '@web/modules/social-recovery/recovery/done/__tests__/harness'
 import { POLL_LIMIT_MS } from '@web/modules/social-recovery/recovery/checklist/constants'
+import { waitPathOf } from '@web/modules/social-recovery/recovery/checklist'
 import { renderFullAddress } from '@web/modules/social-recovery/shared/display'
+import type { Address } from '@kohaku-eth/social-recovery'
 import {
   readRecoveryPassword,
+  recordKeys,
   setRecoveryPassword
 } from '@web/modules/social-recovery/shared/records'
+import type { StoredSession } from '@web/modules/social-recovery/shared/records'
 
 useDoneClock()
 
 const DONE = 'socialRecovery.done'
+// A manager this build no longer reads.
+const RETIRED_MANAGER: Address = '0x00000000000000000000000000000000000Dead1'
 
 const recordsOf = async ({ records, account }: World) => ({
   countdown: (await records.countdown(CHAIN_ID, account).read()).status,
@@ -69,6 +76,23 @@ const openDone = async (options: Parameters<typeof openWorld>[0] = {}) => {
 }
 
 describe('the last act', () => {
+  it('shows no done over a countdown of a retired manager: back to the wait, nothing of it ended', async () => {
+    const world = await openWorld({ route: 'fresh-install', walletAdds: true })
+    setRecoveryPassword(CHAIN_ID, world.account, PASSWORD)
+    const key = recordKeys.recoverySession(CHAIN_ID, world.account)
+    const stored = (await world.storage.get(key)) as StoredSession
+    await world.storage.set(key, {
+      ...stored,
+      value: { ...stored.value, deployment: { manager: RETIRED_MANAGER, action: BOOK.action } }
+    })
+    const screen = await mountDone(world.account)
+    expect(screen.has('done')).toBe(false)
+    expect(screen.has('done-read-failed')).toBe(false)
+    expect(screen.paths()).toEqual([waitPathOf(world.account)])
+    expect(await recordsOf(world)).toEqual(BEFORE)
+    screen.unmount()
+  })
+
   it('on Close ends the countdown, clears the entry and the password, keeps the cache, and leaves for the dashboard', async () => {
     const { world, screen } = await openDone({ route: 'fresh-install' })
     expect(await recordsOf(world)).toEqual(BEFORE)

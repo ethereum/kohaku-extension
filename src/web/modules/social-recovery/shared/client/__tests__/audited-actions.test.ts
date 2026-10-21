@@ -8,7 +8,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 
 import { PROXY_AMBIRE_ACCOUNT } from '@ambire-common/consts/deploy'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 import {
   AUDITED_ACTIONS,
@@ -118,7 +118,7 @@ describe('the deployment descriptors', () => {
 
   it('answers a fresh record every call, so no caller moves the shipped data', () => {
     const first = deploymentDescriptor('sepolia')
-    first.auditedActions.push(ABSENT)
+    ;(first.auditedActions as string[]).push(ABSENT)
     expect(deploymentDescriptor('sepolia').auditedActions).not.toContain(ABSENT)
   })
 

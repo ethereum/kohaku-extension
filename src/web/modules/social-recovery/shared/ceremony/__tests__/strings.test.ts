@@ -98,7 +98,7 @@ describe('the keys an outcome selects', () => {
       'device-unavailable',
       'material-rejected',
       'method-unsupported',
-      'version-unread',
+      'request-unsupported',
       ...HOST_CAUSES
     ] as const
     return [

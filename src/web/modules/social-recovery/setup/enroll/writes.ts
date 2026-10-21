@@ -3,7 +3,7 @@
  * test: the enrollment joins the list, then the slot takes its credential in
  * one write of the draft and the path. A test updates its enrollment alone.
  */
-import type { Credential } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Credential } from '@kohaku-eth/social-recovery'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import type {
   Enrollment,

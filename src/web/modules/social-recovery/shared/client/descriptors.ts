@@ -14,7 +14,7 @@
  * `shippedMethods` are the four shipped modules and `auditedActions` come from
  * the one audited-actions table (audited-actions.ts).
  */
-import type { DeploymentDescriptor } from '@web/modules/social-recovery/sdk-interfaces'
+import type { DeploymentDescriptor } from '@kohaku-eth/social-recovery'
 
 import { deploymentAddressesOf } from './addresses'
 import { auditedActionsOn } from './audited-actions'

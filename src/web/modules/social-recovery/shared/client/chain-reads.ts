@@ -8,7 +8,7 @@
  */
 import { parseGwei } from 'viem'
 
-import type { Address, BlockTag, PreparedCall } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, BlockTag, PreparedCall } from '@kohaku-eth/social-recovery'
 
 import { attemptRead, callFailureOf, quantityOf, retryWhileRateLimited } from './provider-adapter'
 import type { ChainReads, ChainReadsProvider, GasEstimateCall } from './types'

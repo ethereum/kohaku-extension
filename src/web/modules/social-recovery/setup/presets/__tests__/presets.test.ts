@@ -10,7 +10,7 @@ import { encodeAbiParameters, zeroAddress } from 'viem'
 import { parse, stringify } from '@ambire-common/libs/richJson/richJson'
 import i18n from '@common/config/localization'
 import en from '@common/config/localization/translations/en.json'
-import type { Address, Credential, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Credential, SetupDraft } from '@kohaku-eth/social-recovery'
 import {
   cardRuleLines,
   clausesOfShape,
@@ -143,7 +143,7 @@ describe('a preset starts its draft', () => {
       const { setup } = setupOn()
       await startDraft(setup, id)
       const draft = await readDraft(setup)
-      expect(draft.wait).toBe(172800n)
+      expect(draft.wait).toBe(172800)
       expect(draft.ignoresPause).toBe(true)
       expect(draft.privacy).toEqual({ backup: 'encrypted', publicMetadata: '0x' })
     })
@@ -173,9 +173,9 @@ describe('a preset starts its draft', () => {
 
   it('hands out a fresh draft each time, so a changed draft never changes the next one', () => {
     const first = draftOf('deviceAndGuardians')
-    first.clauses[1].credentials.pop()
-    first.clauses[0].credentials[0].label = 'ecdsa'
-    first.privacy.backup = 'clear'
+    Array.prototype.pop.call(first.clauses[1].credentials)
+    Object.assign(first.clauses[0].credentials[0], { label: 'ecdsa' })
+    Object.assign(first.privacy, { backup: 'clear' })
     const second = draftOf('deviceAndGuardians')
     expect(second.clauses[1].credentials).toHaveLength(3)
     expect(second.clauses[0].credentials[0].label).toBe('passkey')

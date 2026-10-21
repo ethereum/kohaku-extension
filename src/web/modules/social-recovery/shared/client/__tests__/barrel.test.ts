@@ -1,9 +1,11 @@
 /**
- * A screen imports `@web/modules/social-recovery/shared/client` and never the
- * doubles, so the swap to the real SDK touches one folder. The stand-in that
- * builds against the doubles and the React hook stay out of that barrel.
+ * A screen imports the SDK's runtime through
+ * `@web/modules/social-recovery/shared/client`. The stand-in that builds over
+ * the fake node and the React hooks stay out of that barrel, and the barrel
+ * hands out the client layer's own functions, never one of the package's.
  */
-import * as doubles from '@web/modules/social-recovery/sdk-doubles'
+import * as sdk from '@kohaku-eth/social-recovery'
+
 import * as client from '@web/modules/social-recovery/shared/client'
 
 describe('the client barrel', () => {
@@ -16,12 +18,12 @@ describe('the client barrel', () => {
     expect(Object.keys(client)).not.toContain('useAccountFacts')
   })
 
-  it('hands a screen no class or function of the doubles', () => {
-    const fromDoubles = new Set<unknown>(
-      Object.values(doubles).filter((value) => typeof value === 'function')
+  it('hands a screen no class or function of the SDK package', () => {
+    const fromPackage = new Set<unknown>(
+      Object.values(sdk).filter((value) => typeof value === 'function')
     )
     const leaked = Object.entries(client)
-      .filter(([, value]) => typeof value === 'function' && fromDoubles.has(value))
+      .filter(([, value]) => typeof value === 'function' && fromPackage.has(value))
       .map(([name]) => name)
     expect(leaked).toEqual([])
   })

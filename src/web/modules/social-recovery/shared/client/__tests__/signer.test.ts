@@ -22,9 +22,10 @@ import { hashTypedData } from 'viem'
 import type { Key } from '@ambire-common/interfaces/keystore'
 import type { TypedMessage } from '@ambire-common/interfaces/userRequest'
 import { KeystoreSigner } from '@ambire-common/libs/keystoreSigner/keystoreSigner'
-import { addressOf, digestOf, typedDataOf } from '@web/modules/social-recovery/sdk-doubles'
-import { membersOfRequest } from '@web/modules/social-recovery/sdk-doubles/encoding'
-import type { Address, ApproverRequest, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import { approvalDigest, approvalTypedData } from '@kohaku-eth/social-recovery'
+
+import { addressOf } from '@web/modules/social-recovery/shared/client/__fixtures__/addresses'
+import type { Address, ApproverRequest, Hex } from '@kohaku-eth/social-recovery'
 
 import {
   ABSENCE_GRACE_MS,
@@ -578,16 +579,32 @@ describe('the signer facade over the request queue', () => {
         place: 1,
         method: `0x${'ff'.repeat(20)}`,
         config: '0x',
-        salt: `0x${'00'.repeat(32)}`
+        salt: `0x${'00'.repeat(32)}`,
+        credentialHoldsCode: false
       }
-      const members = membersOfRequest(request)
-      const typed = typedDataOf(members) as unknown as TypedDataToSign
+      const members = {
+        chainId: SEPOLIA,
+        manager: request.manager,
+        account: request.account,
+        action: request.action,
+        attemptId: 4n,
+        setupNonce: 2n,
+        setupBodyHash: request.setupBodyHash,
+        validUntil: 1_790_000_000,
+        payload: '0x1234' as Hex,
+        order: {
+          token: `0x${'ee'.repeat(20)}` as Hex,
+          amount: 1_000_000_000_000_000_000n,
+          payee: KEY
+        }
+      }
+      const typed = approvalTypedData(members, request.place) as unknown as TypedDataToSign
       const q = queueOver([basicAccount(KEY)])
       const signing = track(q.signer.signTypedData(HANDLE, typed))
       const { userRequest } = addedRequest(q.dispatch)
       const action = userRequest.action as TypedMessage
       expect(() => JSON.stringify(action)).not.toThrow()
-      expect(digestOfTyped(action)).toBe(digestOf(members))
+      expect(digestOfTyped(action)).toBe(approvalDigest(members, request.place))
 
       const signature = (await keystoreSigner().signTypedData(action)) as Hex
       q.push(signedFor(userRequest.id, signature))

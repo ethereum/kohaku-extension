@@ -20,8 +20,9 @@
  */
 import { isHex } from 'viem'
 
-import type { Hex, KitError, KitErrorName } from '@web/modules/social-recovery/sdk-interfaces'
-import { CANCELLED_BY, KIT_ERROR_NAMES } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex, KitError } from '@kohaku-eth/social-recovery'
+import type { KitErrorName } from '@web/modules/social-recovery/shared/client'
+import { CANCELLED_BY, KIT_ERROR_NAMES } from '@web/modules/social-recovery/shared/client'
 
 import type {
   AttemptAfterCancel,
@@ -183,16 +184,32 @@ export const REVERT_CAUSE_KINDS = ['named', 'unnamed', 'attemptGone'] as const
 const isKitErrorName = (name: string): name is KitErrorName =>
   (KIT_ERROR_NAMES as readonly string[]).includes(name)
 
+/** The contract prefixes a decoded error name carries, which the wallet's names drop. */
+const CONTRACT_PREFIXES = ['PolicyManager_', 'RecoveryAction_']
+
+/**
+ * The wallet's name of a decoded error name: the name itself where the wallet
+ * keeps its prefix, the name without its contract prefix otherwise.
+ */
+const kitErrorNameOfDecoded = (name: string): KitErrorName | undefined => {
+  if (isKitErrorName(name)) {
+    return name
+  }
+  const prefix = CONTRACT_PREFIXES.find((contract) => name.startsWith(contract))
+  const bare = prefix ? name.slice(prefix.length) : undefined
+  return bare !== undefined && isKitErrorName(bare) ? bare : undefined
+}
+
 /** The kit error of the decoded cause, where the wallet decoded one it knows. */
 export const kitErrorNameOf = (cause?: KitError): KitErrorName | undefined =>
-  cause?.kind === 'known' && isKitErrorName(cause.name) ? cause.name : undefined
+  cause?.known ? kitErrorNameOfDecoded(cause.name) : undefined
 
 const plainCause = (cause?: KitError): RevertCause => {
   const known = kitErrorNameOf(cause)
   if (known !== undefined && cause) {
     return { kind: 'named', name: known, error: cause }
   }
-  return cause?.kind === 'unknown' ? { kind: 'unnamed', data: cause.data } : { kind: 'unnamed' }
+  return cause && !cause.known ? { kind: 'unnamed', data: cause.data } : { kind: 'unnamed' }
 }
 
 /**

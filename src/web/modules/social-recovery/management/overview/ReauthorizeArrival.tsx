@@ -61,7 +61,7 @@ const ReauthorizeArrival = ({
       />
     )
   }
-  if (level.status === 'unreadable' || path.kind === 'update-the-wallet') {
+  if (level.status === 'unreadable') {
     return (
       <Alert
         testID="overview-step-update-the-wallet"

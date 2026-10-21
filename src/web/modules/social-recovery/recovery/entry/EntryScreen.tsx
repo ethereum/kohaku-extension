@@ -10,7 +10,7 @@ import useNavigation from '@common/hooks/useNavigation'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import RecoveryChrome from '@web/modules/social-recovery/shared/chrome/RecoveryChrome'
 
 import { ACKNOWLEDGED_STATE, OWNER_STAGE } from './constants'

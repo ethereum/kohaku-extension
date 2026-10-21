@@ -5,7 +5,7 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import { defaultSetupDraft } from '@web/modules/social-recovery/shared/records'
 import type { ChainId, WalletRecords } from '@web/modules/social-recovery/shared/records'
 

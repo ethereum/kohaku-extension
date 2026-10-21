@@ -28,21 +28,24 @@ module.exports = {
   },
   overrides: [
     {
-      // Account recovery: only shared/client and the sdk-doubles folder may import the SDK doubles.
+      // Account recovery: only shared/client imports the SDK's runtime; every folder may import its types.
+      // Tests and fixtures may use the SDK's encoders to build their records.
       files: ['src/web/modules/social-recovery/**/*.{ts,tsx,js,jsx}'],
       excludedFiles: [
         'src/web/modules/social-recovery/shared/client/**',
-        'src/web/modules/social-recovery/sdk-doubles/**'
+        'src/web/modules/social-recovery/**/__tests__/**',
+        'src/web/modules/social-recovery/**/__fixtures__/**'
       ],
       rules: {
-        'no-restricted-imports': [
+        '@typescript-eslint/no-restricted-imports': [
           'error',
           {
             patterns: [
               {
-                group: ['**/sdk-doubles', '**/sdk-doubles/**'],
+                group: ['@kohaku-eth/social-recovery'],
+                allowTypeImports: true,
                 message:
-                  'Import the SDK through @web/modules/social-recovery/shared/client, never the doubles directly.'
+                  "Import the SDK's runtime through @web/modules/social-recovery/shared/client; type imports are fine."
               }
             ]
           }

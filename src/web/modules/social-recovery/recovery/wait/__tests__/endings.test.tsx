@@ -21,6 +21,7 @@ import {
   PAYLOAD,
   PAYLOAD_HASH,
   readyFacts,
+  storeCountdownOnRetiredManager,
   factsOf,
   basicAccount,
   mockWallet,
@@ -34,7 +35,7 @@ import type {
   RoutedWait,
   World
 } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
-import type { CancelledBy } from '@web/modules/social-recovery/sdk-interfaces'
+import type { CancelledBy } from '@kohaku-eth/social-recovery'
 import { recordKeys } from '@web/modules/social-recovery/shared/records'
 import type { StoredSession } from '@web/modules/social-recovery/shared/records'
 
@@ -82,6 +83,16 @@ describe('where the wait sends the holder on open', () => {
     expect(view.paths()).toEqual([
       `/${WEB_ROUTES.socialRecoveryRecoveryChecklist}?account=${world.account}`
     ])
+    expect(world.kit.recoveryState).not.toHaveBeenCalled()
+  })
+
+  it("goes to the logged-in route's entry over a countdown of a retired manager, never a state of it", async () => {
+    const world = await openWorld()
+    await storeCountdownOnRetiredManager(world.storage, world.account)
+    view = await mountWait(world.account)
+
+    expect(view.paths()).toEqual([SETTINGS_ENTRY])
+    expect(view.byTestId('wait-execute')).toBeNull()
     expect(world.kit.recoveryState).not.toHaveBeenCalled()
   })
 
@@ -346,7 +357,8 @@ describe('the cancelled terminals', () => {
         account: world.account,
         attemptId: '2',
         setupNonce: '1',
-        payloadHash: PAYLOAD_HASH
+        payloadHash: PAYLOAD_HASH,
+        ...(stored.value.state === 'landed' ? { deployment: stored.value.deployment } : {})
       }
     }
     await world.storage.set(key, later)

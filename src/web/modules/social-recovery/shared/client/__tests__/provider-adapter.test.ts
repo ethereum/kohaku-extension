@@ -1,10 +1,10 @@
 /**
- * The provider adapter answers `IProvider`'s four reads, each routed once
+ * The provider adapter answers `IProvider`'s six reads, each routed once
  * through the extension's own provider with the arguments the SDK fixes. A read
  * the adapter could not make reaches the SDK as a failure, never as an empty
  * answer, and a reverted call rejects with the raw revert data. The balance and
  * gas reads run on the same provider beside the adapter, since the SDK's
- * provider answers four reads and no balance.
+ * provider answers six reads and no balance.
  *
  * The SDK fixes the arguments, not the ethers member, so the first checks of
  * each read accept the high-level ethers member or the raw JSON-RPC `send`. The
@@ -12,22 +12,17 @@
  * what the ethers provider the extension builds then sends the node.
  */
 import { AbiCoder, makeError } from 'ethers'
+import { zeroAddress } from 'viem'
 
 import type { Network } from '@ambire-common/interfaces/network'
 
-import { ScriptedChain } from '@web/modules/social-recovery/sdk-doubles'
-import type {
-  Address,
-  BlockTag,
-  FilterSpec,
-  Hex,
-  PreparedCall
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, BlockTag, FilterSpec, Hex, PreparedCall } from '@kohaku-eth/social-recovery'
 
 import {
   AdapterWorld,
   adapterOver,
   callException,
+  createWorld,
   createChainReads,
   createProviderAdapter,
   ethersOver,
@@ -71,7 +66,7 @@ const sameNumber = (seen: unknown, n: number): boolean =>
 const lower = (a: unknown) => (typeof a === 'string' ? a.toLowerCase() : a)
 
 const world = (): AdapterWorld => {
-  const chain = new ScriptedChain()
+  const { chain } = createWorld()
   const ethers = ethersOver(chain)
   return { chain, ethers, adapter: adapterOver(ethers) }
 }
@@ -93,8 +88,15 @@ const colibriError = (code: number, message: string, data?: Hex) =>
 const readOf = (caught: unknown) => (caught as { read?: unknown }).read
 
 describe('the provider adapter, IProvider over the extension provider', () => {
-  it('answers the four reads and nothing else', () => {
-    expect(functionMembersOf(world().adapter).sort()).toEqual(['block', 'call', 'chainId', 'logs'])
+  it('answers the six reads and nothing else', () => {
+    expect(functionMembersOf(world().adapter).sort()).toEqual([
+      'block',
+      'call',
+      'chainId',
+      'code',
+      'logs',
+      'transaction'
+    ])
   })
 
   describe('chainId()', () => {
@@ -119,15 +121,15 @@ describe('the provider adapter, IProvider over the extension provider', () => {
   })
 
   describe('call(to, data, from, block)', () => {
-    const CALL_CASES: [string, Address | undefined, BlockTag][] = [
+    const CALL_CASES: [string, Address, BlockTag][] = [
       ['a from address at latest', FROM, 'latest'],
-      ['no from address at finalized', undefined, 'finalized'],
+      ['the zero from address at finalized', zeroAddress, 'finalized'],
       ['a from address at a block number', FROM, 1234]
     ]
     CALL_CASES.forEach(([title, from, tag]) =>
       it(`runs one eth_call with the target, the calldata, ${title}`, async () => {
         const w = world()
-        w.chain.calls.set(`${TO.toLowerCase()}:${DATA.toLowerCase()}`, { result: '0xcafe' })
+        jest.spyOn(w.chain, 'call').mockResolvedValueOnce('0xcafe')
         await expect(w.adapter.call(TO, DATA, from, tag)).resolves.toBe('0xcafe')
         const [member, args] = onlyCall(w.ethers)
         let tx: Record<string, unknown>
@@ -145,11 +147,7 @@ describe('the provider adapter, IProvider over the extension provider', () => {
         }
         expect(lower(tx.to)).toBe(TO.toLowerCase())
         expect(lower(tx.data)).toBe(DATA.toLowerCase())
-        if (from) {
-          expect(lower(tx.from)).toBe(from.toLowerCase())
-        } else {
-          expect(tx.from).toBeUndefined()
-        }
+        expect(lower(tx.from)).toBe(from.toLowerCase())
         expect(sameTag(seenTag, tag)).toBe(true)
       })
     )
@@ -178,7 +176,7 @@ describe('the provider adapter, IProvider over the extension provider', () => {
   })
 
   describe('logs(filterSpec, range)', () => {
-    const filter: FilterSpec = { addresses: [TO], topics: [TOPIC, null] }
+    const filter: FilterSpec = { address: [TO], topics: [TOPIC, null] }
 
     it('runs one eth_getLogs over the addresses, the topics and the two blocks of the range', async () => {
       const w = world()
@@ -451,14 +449,6 @@ describe('the four reads on the typed members of the ethers provider', () => {
       ])
     })
 
-    it('names no sender where none is given', async () => {
-      const w = world()
-      w.ethers.call.mockResolvedValue('0x')
-      await w.adapter.call(TO, DATA, undefined, 'finalized')
-      const [[, [request]]] = underlyingCalls(w.ethers)
-      expect(request).toEqual({ to: TO, data: DATA, blockTag: 'finalized' })
-    })
-
     it('rejects a CALL_EXCEPTION ethers throws from call with the raw revert data', async () => {
       const w = world()
       w.ethers.call.mockRejectedValue(ethersRevert('call', REVERT))
@@ -493,7 +483,7 @@ describe('the four reads on the typed members of the ethers provider', () => {
   })
 
   describe('logs(filterSpec, range)', () => {
-    const filter: FilterSpec = { addresses: [TO], topics: [TOPIC, null] }
+    const filter: FilterSpec = { address: [TO], topics: [TOPIC, null] }
     const ethersLog = {
       address: TO,
       topics: Object.freeze([TOPIC]),
@@ -790,7 +780,7 @@ describe('through the ethers provider the extension builds for a network', () =>
   it('sends one eth_getLogs over the range as quantities and answers the log with its checksummed address', async () => {
     const node = nodeAnswering({ eth_getLogs: [NODE_LOG] })
     const logs = await createProviderAdapter(node.provider).logs(
-      { addresses: [CHECKSUMMED], topics: [TOPIC, null] },
+      { address: [CHECKSUMMED], topics: [TOPIC, null] },
       { from: 900, to: 1900 }
     )
     expect(logs).toEqual([
@@ -859,7 +849,7 @@ describe('through the ethers provider the extension builds for a network', () =>
       'logs',
       (provider) =>
         createProviderAdapter(provider).logs(
-          { addresses: [TO, BAD_CHECKSUM], topics: [TOPIC] },
+          { address: [TO, BAD_CHECKSUM], topics: [TOPIC] },
           { from: 900, to: 1900 }
         )
     ]
@@ -910,7 +900,7 @@ describe('through the ethers provider the extension builds for a network', () =>
       const node = nodeAnswering({ eth_getLogs: [NODE_LOG, log] })
       const caught = await thrownBy(
         createProviderAdapter(node.provider).logs(
-          { addresses: [CHECKSUMMED], topics: [TOPIC] },
+          { address: [CHECKSUMMED], topics: [TOPIC] },
           { from: 900, to: 1900 }
         )
       )

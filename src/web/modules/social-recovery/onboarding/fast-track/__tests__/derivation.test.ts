@@ -22,7 +22,7 @@ import { acknowledgedInState } from '@web/modules/social-recovery/recovery/entry
 import type { Account } from '@ambire-common/interfaces/account'
 import type { Key } from '@ambire-common/interfaces/keystore'
 import type { TempSeed } from '@web/modules/social-recovery/onboarding/fast-track'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import { seedBasicAccountOf } from '@web/modules/social-recovery/shared/client'
 import slot from '@web/modules/social-recovery/onboarding/fast-track/__fixtures__/slot.json'
 

@@ -1,12 +1,13 @@
 /**
  * Mounts the overview's view in jsdom with the light theme, over given reads
  * or over the overview's own reads hook on a client built over the stand-in's
- * scripted chain, with real records on an in-memory storage. The write step's
+ * fake node, with real records on an in-memory storage. The write step's
  * edges are fakes: the gas reads, the receipt waits and a send port whose
  * batch changes the scripted chain as the landed write would. jsdom has no
  * `TextEncoder`, which viem reads when it loads, so the harness sets Node's
  * before it loads the modules.
  */
+import { webcrypto } from 'crypto'
 import { TextDecoder, TextEncoder } from 'util'
 
 import type { Account } from '@ambire-common/interfaces/account'
@@ -15,19 +16,14 @@ import type {
   OverviewReads,
   OverviewViewProps
 } from '@web/modules/social-recovery/management/overview/types'
-import type {
-  Address,
-  Configuration,
-  Hex,
-  PrivacyLevel,
-  SetupState
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Configuration, Hex, SetupState } from '@kohaku-eth/social-recovery'
 import type {
   ChainReads,
   KeyHandle,
   RecoveryKitClient
 } from '@web/modules/social-recovery/shared/client'
 import type { RecordStorage } from '@web/modules/social-recovery/shared/records'
+import type { OfferedLevel } from '@web/modules/social-recovery/setup/privacy/types'
 
 import type {
   AdvancingFakeTimers,
@@ -39,6 +35,8 @@ import type {
 } from './types'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
+// The fake node seals a backup with WebCrypto, which jsdom does not carry.
+Object.defineProperty(globalThis, 'crypto', { value: webcrypto, configurable: true })
 
 // The stand-in's chain answers the overview's client; no deployment variable
 // from a developer's environment turns it into the deployed kit.
@@ -49,6 +47,13 @@ jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const React: typeof import('react') = require('react')
+const { getAddress }: typeof import('viem') = require('viem')
+const {
+  walletMethod
+}: typeof import('@kohaku-eth/social-recovery') = require('@kohaku-eth/social-recovery')
+const {
+  privacyOfLevel
+}: typeof import('@web/modules/social-recovery/setup/privacy/writes') = require('@web/modules/social-recovery/setup/privacy/writes')
 const cancelMount: typeof import('@web/modules/social-recovery/cancel/__fixtures__/mount') = require('@web/modules/social-recovery/cancel/__fixtures__/mount')
 const {
   addressBookOf,
@@ -60,9 +65,6 @@ const {
 const {
   sdkStandIn
 }: typeof import('@web/modules/social-recovery/shared/client/stand-in') = require('@web/modules/social-recovery/shared/client/stand-in')
-const {
-  ecdsaConfigOf
-}: typeof import('@web/modules/social-recovery/shared/client/kit/formats/credentials') = require('@web/modules/social-recovery/shared/client/kit/formats/credentials')
 const {
   createWalletRecords
 }: typeof import('@web/modules/social-recovery/shared/records') = require('@web/modules/social-recovery/shared/records')
@@ -95,14 +97,20 @@ export const GUARDIAN = '0x00000000000000000000000000000000000B0b00' as const
 export const HASH = `0x${'11'.repeat(32)}` as const
 export const PASSWORD = 'card password'
 
+// Checksummed, as the SDK opens a method address from a backup.
 export const CONFIGURATION: Configuration = {
   clauses: [
     {
       threshold: 1,
-      credentials: [{ method: ADDRESS_BOOK.methods.ecdsa, config: ecdsaConfigOf(GUARDIAN) }]
+      credentials: [
+        {
+          method: getAddress(ADDRESS_BOOK.methods.ecdsa),
+          config: walletMethod().codec.encodeConfig({ signer: GUARDIAN })
+        }
+      ]
     }
   ],
-  wait: 172_800n,
+  wait: 172_800,
   ignoresPause: true
 }
 
@@ -110,6 +118,28 @@ export const CONTEXT: OverviewViewProps['context'] = {
   addressBook: ADDRESS_BOOK,
   ownRpIdHash: HASH
 }
+
+/**
+ * Settles until the check holds: a sealed backup's open runs its key
+ * derivation on the real clock, longer than one settle.
+ */
+export const settleUntil = async (check: () => boolean, rounds = 100): Promise<void> => {
+  for (let round = 0; round < rounds && !check(); round += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await act(async () => {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 20)
+      })
+    })
+  }
+  await settle()
+}
+
+/** Settles until no read or password check on the page is still running. */
+export const settleReads = (): Promise<void> =>
+  settleUntil(
+    () => !document.querySelector('[data-testid$="-reading"], [data-testid$="-checking"]')
+  )
 
 /** Types into a field the way a holder does, so React hears the change. */
 export const typeInto = async (container: HTMLElement | null, value: string): Promise<void> => {
@@ -177,29 +207,47 @@ export const readyOver = (
 ): ClientState =>
   ({ status: 'ready', client, reads, receipts, retry: () => {} } as unknown as ClientState)
 
-/** A setup committed on the stand-in's chain at a privacy level, and a client and records over it. */
+/** Commits a configuration on a fake node at a privacy level, sealed under the card password unless public. */
+export const commitAt = (
+  chain: World['chain'],
+  level: OfferedLevel,
+  configuration: Configuration = CONFIGURATION
+) =>
+  chain.commitSetup(
+    configuration,
+    privacyOfLevel({ ...configuration, privacy: { publicMetadata: '0x', backup: 'empty' } }, level),
+    level === 'public' ? undefined : PASSWORD
+  )
+
+/** A setup committed on the account's fake node at a privacy level, and a client and records over it. */
 export const worldAt = async (
-  level: PrivacyLevel,
+  level: OfferedLevel,
   account: Address = ACCOUNT,
   storage: RecordStorage = makeStorage()
 ): Promise<World> => {
   sdkStandIn.reset()
-  const chain = sdkStandIn.chainFor(descriptorOf(WALLET_RECOVERY_CHAIN, ADDRESS_BOOK), account)
-  chain.commitSetup({
-    level,
-    configuration: CONFIGURATION,
-    password: level === 'public' ? undefined : PASSWORD
-  })
+  const chain = sdkStandIn.nodeFor(descriptorOf(WALLET_RECOVERY_CHAIN, ADDRESS_BOOK), account)
+  await commitAt(chain, level)
   chain.setAuthorized(true)
   const client = await buildRecoveryClient({
     chain: WALLET_RECOVERY_CHAIN,
     account,
     addressBook: ADDRESS_BOOK,
-    provider: sdkStandIn.providerFor(chain),
-    codeRead: { code: async () => '0x' },
-    transactionRead: async () => null
+    provider: sdkStandIn.providerFor(chain)
   })
   return { chain, client, records: createWalletRecords({ storage }) }
+}
+
+/** A client over a fake node that starts afresh for the account, as a new page builds it: no setup, nonce zero. */
+export const freshClientOf = async (account: Address = ACCOUNT): Promise<RecoveryKitClient> => {
+  sdkStandIn.reset()
+  const chain = sdkStandIn.nodeFor(descriptorOf(WALLET_RECOVERY_CHAIN, ADDRESS_BOOK), account)
+  return buildRecoveryClient({
+    chain: WALLET_RECOVERY_CHAIN,
+    account,
+    addressBook: ADDRESS_BOOK,
+    provider: sdkStandIn.providerFor(chain)
+  })
 }
 
 /** Fake timers that also follow the real clock, so a render's settle still runs while a test moves time. */
@@ -267,7 +315,13 @@ export const storeOverviewWrite = async (
 }
 
 /** The view over the overview's own reads, for one client state. */
-export const ReadsProbe = ({ client, records, chainId, onOpen }: ReadsProbeProps) => {
-  const reads = useOverviewReads({ client, records, chainId, account: ACCOUNT })
+export const ReadsProbe = ({
+  client,
+  records,
+  watcherStorage,
+  chainId,
+  onOpen
+}: ReadsProbeProps) => {
+  const reads = useOverviewReads({ client, records, watcherStorage, chainId, account: ACCOUNT })
   return React.createElement(OverviewView, viewPropsOf({ reads, onOpen }))
 }

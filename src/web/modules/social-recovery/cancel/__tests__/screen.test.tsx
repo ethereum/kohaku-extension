@@ -7,7 +7,7 @@
  * funds.
  */
 import type { Network } from '@ambire-common/interfaces/network'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 jest.mock('viem', () => {
   // eslint-disable-next-line global-require

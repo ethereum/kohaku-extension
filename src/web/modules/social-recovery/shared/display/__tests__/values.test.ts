@@ -1,6 +1,6 @@
 import { maxUint256 } from 'viem'
 
-import type { Address, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Hex } from '@kohaku-eth/social-recovery'
 
 import {
   checksumAddress,

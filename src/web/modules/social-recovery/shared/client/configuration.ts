@@ -8,11 +8,8 @@
  * stores nothing and holds no signer, so the extension keeps both outside the
  * client, and the first release configures no rail.
  */
-import {
-  DEFAULT_REQUEST_WINDOW,
-  defaultClientConfiguration
-} from '@web/modules/social-recovery/sdk-doubles'
-import type { ClientConfiguration } from '@web/modules/social-recovery/sdk-interfaces'
+import { BUILDER_DEFAULT_CONFIGURATION, BUILDER_REQUEST_WINDOW } from '@kohaku-eth/social-recovery'
+import type { ClientConfiguration } from '@kohaku-eth/social-recovery'
 
 import type { RecoveryClientConfiguration } from './types'
 
@@ -25,16 +22,26 @@ import type { RecoveryClientConfiguration } from './types'
 export const REQUEST_WINDOW_SECONDS = 24 * 3600
 
 /**
- * The SDK client configuration of one extension configuration: the SDK's
- * shipped numbers, the wallet's own request window, no token allowlist (the
- * first release names no payment order) and the account facts where the wallet
- * has them.
+ * The widest block range one log query asks for, since a node may cap the
+ * range: the wallet's own, set on the SDK's event manager and on the scans
+ * the wallet runs beside it.
  */
-export const clientConfigurationOf = (config: RecoveryClientConfiguration): ClientConfiguration =>
-  defaultClientConfiguration({
-    tokens: [],
-    candidateKeys: [...(config.candidateKeys ?? [])],
-    requestWindow: { ...DEFAULT_REQUEST_WINDOW, default: REQUEST_WINDOW_SECONDS },
-    ...(config.creation ? { creation: { ...config.creation } } : {}),
-    ...(config.accountImplementation ? { accountImplementation: config.accountImplementation } : {})
-  })
+export const LOG_CHUNK_SIZE = 10_000
+
+/**
+ * The SDK client configuration of one extension configuration: the SDK's
+ * shipped numbers, the wallet's own request window and log chunk size, no
+ * token allowlist (the first release names no payment order) and the account
+ * facts where the wallet has them. No creation record is passed: the SDK
+ * builds nothing on it.
+ */
+export const clientConfigurationOf = (
+  config: RecoveryClientConfiguration
+): ClientConfiguration => ({
+  ...BUILDER_DEFAULT_CONFIGURATION,
+  tokens: [],
+  candidateKeys: [...(config.candidateKeys ?? [])],
+  requestWindow: { ...BUILDER_REQUEST_WINDOW, default: REQUEST_WINDOW_SECONDS },
+  logChunkSize: LOG_CHUNK_SIZE,
+  ...(config.accountImplementation ? { accountImplementation: config.accountImplementation } : {})
+})

@@ -13,7 +13,7 @@
  */
 import { isAddressEqual } from 'viem'
 
-import type { Address, Configuration } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Configuration } from '@kohaku-eth/social-recovery'
 import { SLOT_KINDS } from '@web/modules/social-recovery/shared/records/types'
 import type { SlotKind } from '@web/modules/social-recovery/shared/records/types'
 

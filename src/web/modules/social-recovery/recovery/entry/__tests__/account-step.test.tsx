@@ -19,6 +19,8 @@ import {
   readyClient,
   reloadAccountStep,
   kit,
+  DEPLOYMENT,
+  gatheringFor,
   LOST,
   LOST_KEY,
   MODULE,
@@ -50,6 +52,8 @@ import {
 } from '@web/modules/social-recovery/recovery/entry/__tests__/harness'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 
+// A manager this build no longer reads.
+const RETIRED_MANAGER = '0x00000000000000000000000000000000000Dead1' as const
 const LOGGED_IN = searchOf('logged-in', BASIC)
 const FRESH_INSTALL = searchOf('fresh-install', SMART)
 const NO_SETUP_SENTENCE = t('socialRecovery.entry.noSetup.title', { network: NETWORK })
@@ -490,9 +494,46 @@ describe('the confirmation', () => {
     expect(await storedEntry(LOST)).toEqual({
       account: LOST,
       route: 'fresh-install',
-      receivingAccount: SMART
+      receivingAccount: SMART,
+      deployment: DEPLOYMENT
     })
     expect(kit.isAuthorized).not.toHaveBeenCalled()
+  })
+
+  it('resumes no recovery whose entry and live session run on a retired manager, and writes its own entry', async () => {
+    const retired = { ...DEPLOYMENT, manager: RETIRED_MANAGER }
+    const held = records()
+    await held.recoveryEntry(CHAIN_ID, LOST).write({
+      account: LOST,
+      route: 'fresh-install',
+      receivingAccount: SMART,
+      deployment: retired
+    })
+    const old = gatheringFor(LOST)
+    await held
+      .recoverySession(CHAIN_ID, LOST)
+      .write({ ...old, request: { ...old.request, manager: RETIRED_MANAGER } } as typeof old, null)
+    const page = await open(LOGGED_IN)
+    await confirmLost(page)
+    expect(navigationsAway()).toEqual([])
+    expect(await storedEntry(LOST)).toEqual({
+      account: LOST,
+      route: 'logged-in',
+      receivingAccount: BASIC,
+      deployment: DEPLOYMENT
+    })
+    expect(page.has('entry-continue')).toBe(true)
+  })
+
+  it('resumes no recovery whose entry an earlier build wrote with no deployment', async () => {
+    await storeLiveRecovery(LOST, { route: 'fresh-install', receivingAccount: SMART })
+    await records()
+      .recoveryEntry(CHAIN_ID, LOST)
+      .write({ account: LOST, route: 'fresh-install', receivingAccount: SMART })
+    const page = await open(LOGGED_IN)
+    await confirmLost(page)
+    expect(navigationsAway()).toEqual([])
+    expect((await storedEntry(LOST))?.deployment).toEqual(DEPLOYMENT)
   })
 
   it('overwrites an entry whose session is no longer live, and reads on', async () => {
@@ -503,7 +544,8 @@ describe('the confirmation', () => {
     expect(await storedEntry(LOST)).toEqual({
       account: LOST,
       route: 'logged-in',
-      receivingAccount: BASIC
+      receivingAccount: BASIC,
+      deployment: DEPLOYMENT
     })
     expect(kit.isAuthorized).toHaveBeenCalledTimes(1)
     expect(page.has('entry-continue')).toBe(true)
@@ -546,7 +588,8 @@ describe('the confirmation', () => {
     expect(entry.status === 'present' && entry.value).toEqual({
       account: LOST,
       route: 'logged-in',
-      receivingAccount: BASIC
+      receivingAccount: BASIC,
+      deployment: DEPLOYMENT
     })
     expect(kit.isAuthorized).toHaveBeenCalledTimes(1)
     expect(page.has('entry-continue')).toBe(true)
@@ -559,7 +602,8 @@ describe('the confirmation', () => {
     expect(entry.status === 'present' && entry.value).toEqual({
       account: LOST,
       route: 'fresh-install',
-      receivingAccount: SMART
+      receivingAccount: SMART,
+      deployment: DEPLOYMENT
     })
   })
 

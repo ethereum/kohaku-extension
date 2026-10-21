@@ -18,9 +18,8 @@ import { webcrypto } from 'crypto'
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
 import type {
-  AddResult,
   Address,
-  ApproverReply,
+  AddResult,
   ApproverRequest,
   Assessment,
   AttemptRequest,
@@ -29,8 +28,9 @@ import type {
   Credential,
   Gathering,
   Hex,
+  Reply,
   SerializedPaymentOrder
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type {
   CeremonyCall,
   CeremonyOutcome,
@@ -318,7 +318,7 @@ export const passportCredential = (): Credential => ({
 
 export const configurationOf = (clauses: Clause[]): Configuration => ({
   clauses,
-  wait: 172800n,
+  wait: 172800,
   ignoresPause: false
 })
 
@@ -351,12 +351,25 @@ export const MIXED_PATH = configurationOf([
 // The gathering records
 // ---------------------------------------------------------------------------
 
+/** The order of the first release, no payment, as the client serialises it on a request. */
+export const NO_PAYMENT: SerializedPaymentOrder = {
+  token: '0x0000000000000000000000000000000000000000',
+  amount: '0',
+  payee: '0x0000000000000000000000000000000000000000'
+}
+
+/** The handover bytes an approval request carries. */
+export const HANDOVER: Hex = '0xabcdef'
+
+/** The approval branch of a gathering, the one a recovery opens. */
+export type ApprovalGathering = Extract<Gathering, { purpose: 'approval' }>
+
 /** The gathering an init opens over a configuration; `attempt` tells two inits apart. */
 export const gatheringOf = (
   configuration: Configuration,
   attempt = 1,
   account: Address = ACCOUNT
-): Gathering => ({
+): ApprovalGathering => ({
   kind: 'gathering',
   version: 1,
   purpose: 'approval',
@@ -370,7 +383,9 @@ export const gatheringOf = (
     setupNonce: '1',
     setupBody: '0x01',
     validUntil: String(NOW_SECONDS + DAY_SECONDS),
-    block: { number: 100 + attempt, timestamp: String(NOW_SECONDS), hash: zeroHash }
+    block: { number: 100 + attempt, timestamp: String(NOW_SECONDS), hash: zeroHash },
+    payload: HANDOVER,
+    order: NO_PAYMENT
   },
   places: configuration.clauses
     .flatMap((clause) => clause.credentials)
@@ -381,18 +396,19 @@ export const gatheringOf = (
       salt: word(1000 + place),
       ...(credential.label ? { label: credential.label } : {}),
       standing: 'not-stopped' as const,
-      stoppable: false
+      stoppable: false,
+      credentialHoldsCode: false
     })),
   replies: []
 })
 
+/** A place's request as the client serves it: an approval carries the order and the handover bytes. */
 export const requestOf = (gathering: Gathering, place: number): ApproverRequest => {
   const at = gathering.places[place]
   const r = gathering.request
-  return {
-    kind: 'recovery-proof-request',
+  const members = {
+    kind: 'recovery-proof-request' as const,
     version: 1,
-    purpose: gathering.purpose,
     chainId: r.chainId,
     manager: r.manager,
     digestVersion: r.digestVersion,
@@ -405,28 +421,23 @@ export const requestOf = (gathering: Gathering, place: number): ApproverRequest 
     place,
     method: at.method,
     config: at.config,
-    salt: at.salt
+    salt: at.salt,
+    credentialHoldsCode: at.credentialHoldsCode
   }
+  return gathering.purpose === 'approval'
+    ? {
+        ...members,
+        purpose: 'approval',
+        payload: gathering.request.payload,
+        order: gathering.request.order
+      }
+    : { ...members, purpose: 'cancellation' }
 }
 
-/** The order of the first release, no payment, as the client serialises it on a request. */
-export const NO_PAYMENT: SerializedPaymentOrder = {
-  token: '0x0000000000000000000000000000000000000000',
-  amount: '0',
-  payee: '0x0000000000000000000000000000000000000000'
-}
+/** A place's request as the client serves it. */
+export const servedRequestOf = requestOf
 
-/** The handover bytes a served request carries. */
-export const HANDOVER: Hex = '0xabcdef'
-
-/** A place's request as the client serves it: with the order and the handover bytes. */
-export const servedRequestOf = (gathering: Gathering, place: number): ApproverRequest => ({
-  ...requestOf(gathering, place),
-  payload: HANDOVER,
-  order: NO_PAYMENT
-})
-
-export const replyOf = (gathering: Gathering, place: number): ApproverReply => {
+export const replyOf = (gathering: Gathering, place: number): Reply => {
   const at = gathering.places[place]
   const r = gathering.request
   return {
@@ -447,7 +458,7 @@ export const replyOf = (gathering: Gathering, place: number): ApproverReply => {
   }
 }
 
-export const withReplies = (gathering: Gathering, places: number[]): Gathering => ({
+export const withReplies = <G extends Gathering>(gathering: G, places: number[]): G => ({
   ...gathering,
   replies: places.map((place) => replyOf(gathering, place))
 })
@@ -493,12 +504,8 @@ export interface FakeKit {
   recoveryState: jest.Mock
   isAuthorized: jest.Mock
   complete: jest.Mock
-  verifyReply: jest.Mock
-}
-
-export interface FakeKitOptions {
-  /** Requests carry the order and the handover bytes, as the client serves them. */
-  served?: boolean
+  /** The approving side's local verify, which a paste runs before the add. */
+  verify: jest.Mock
 }
 
 /**
@@ -506,22 +513,25 @@ export interface FakeKitOptions {
  * under the next attempt number; a reply the gathering does not name is
  * refused as the SDK refuses it.
  */
-export const fakeKit = (configuration: Configuration, options: FakeKitOptions = {}): FakeKit => {
+export const fakeKit = (configuration: Configuration): FakeKit => {
   let inits = 0
   const initRecoveryGathering = jest.fn(async () => {
     inits += 1
     return gatheringOf(configuration, inits)
   })
   const getApproverRequests = jest.fn((gathering: Gathering) =>
-    gathering.places.map((place) =>
-      (options.served ? servedRequestOf : requestOf)(gathering, place.place)
-    )
+    gathering.places.map((place) => requestOf(gathering, place.place))
   )
-  const addApproverReply = jest.fn((gathering: Gathering, reply: ApproverReply): AddResult => {
+  const addApproverReply = jest.fn((gathering: Gathering, reply: Reply): AddResult => {
     if (reply.attemptId !== gathering.request.attemptId) {
-      return { gathering, reason: { kind: 'add-refusal', cause: 'binding-mismatch' } }
+      return {
+        outcome: 'refused',
+        gathering,
+        reason: { kind: 'add-refusal', cause: 'binding-mismatch' }
+      }
     }
     return {
+      outcome: 'filed',
       gathering: {
         ...gathering,
         replies: [...gathering.replies.filter((held) => held.place !== reply.place), reply]
@@ -541,7 +551,7 @@ export const fakeKit = (configuration: Configuration, options: FakeKitOptions = 
   const complete = jest.fn((): AttemptRequest => {
     throw new Error('no submission built')
   })
-  const verifyReply = jest.fn(async () => 'satisfied')
+  const verify = jest.fn(async () => 'satisfied')
   const client = {
     recovery: {
       initRecoveryGathering,
@@ -552,8 +562,10 @@ export const fakeKit = (configuration: Configuration, options: FakeKitOptions = 
       complete
     },
     setup: { getSetup },
-    walletReads: { removedKey, verifyReply },
-    action: { isAuthorized }
+    walletReads: { removedKey },
+    action: { isAuthorized },
+    approving: { verify },
+    descriptor: { manager: BOOK.manager, action: BOOK.action }
   } as unknown as ChecklistKitClient
   return {
     state: { status: 'ready', client },
@@ -566,7 +578,7 @@ export const fakeKit = (configuration: Configuration, options: FakeKitOptions = 
     recoveryState,
     isAuthorized,
     complete,
-    verifyReply
+    verify
   }
 }
 
@@ -597,7 +609,11 @@ export const recoveryStateOf = ({
 /** The refusal an init throws where the configuration is not the one the chain commits. */
 export const commitmentMismatch = (): Error =>
   Object.assign(new Error('The configuration does not match the setup commitment'), {
-    cause: { code: 'restore.commitment-mismatch', subject: 'setup', severity: 'error' }
+    restoreCause: {
+      code: 'restore.commitment-mismatch',
+      subject: 'restore',
+      values: { recomputed: `0x${'01'.repeat(32)}`, committed: `0x${'02'.repeat(32)}` }
+    }
   })
 
 // ---------------------------------------------------------------------------
@@ -623,7 +639,11 @@ export const seedCache = async (
   configuration: Configuration,
   account: Address = ACCOUNT
 ) => {
-  await records.decryptedSetupCache(CHAIN_ID, account).write({ configuration, setupNonce: 1n })
+  await records.decryptedSetupCache(CHAIN_ID, account).write({
+    configuration,
+    setupNonce: 1n,
+    deployment: { manager: BOOK.manager, action: BOOK.action }
+  })
 }
 
 export const seedSession = async (
@@ -957,6 +977,7 @@ export const mountBand = (input: {
     <HomeRecoveryBandView
       records={input.records}
       chainId={CHAIN_ID}
+      deployment={{ manager: BOOK.manager, action: BOOK.action }}
       navigate={navigate}
       timeZone={TIME_ZONE}
       useHeadline={headlineHook(

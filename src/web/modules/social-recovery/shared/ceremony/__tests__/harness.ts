@@ -9,27 +9,33 @@
  * note throws instead of being coerced.
  *
  * The fakes of `IRecoveryMethod` and `IMethodsOrchestrator` are hand-written and
- * typed by `sdk-interfaces/`: the ESLint fence forbids this module to import the
- * doubles of `sdk-doubles/`. `navigator.credentials` is mocked; no test reaches
- * a real authenticator.
+ * typed by the SDK package; unless a test scripts them, the fake method's
+ * `enrollInput` and `signingInput` answer what the SDK's own passkey method
+ * returns. `navigator.credentials` is mocked; no test reaches a real
+ * authenticator.
  */
 /* eslint-disable max-classes-per-file -- the WebAuthn classes jsdom lacks, and one encoder */
 import type {
   Address,
-  ApproverReply,
   ApproverRequest,
+  Ctx,
   DeviceBinding,
   EnrollFailure,
+  EnrollInput,
   Hex,
   IMethodCodec,
   IMethodsOrchestrator,
+  Input,
   IRecoveryMethod,
-  MethodContext,
-  MethodFailureCause,
+  Material,
+  Params,
+  Reply,
   ReplyFailure,
+  ReplyFailureCause,
   RequestDescription,
+  TypedData,
   Verdict
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 
 // ---------------------------------------------------------------------------
 // The jsdom globals the module needs and jest-environment-jsdom 29 leaves out
@@ -69,6 +75,12 @@ if (!globalThis.crypto?.subtle) {
 // viem builds a TextEncoder when it loads, so it loads after the globals above
 // and a jsdom test reads its helpers from here.
 const viem = require('viem') as typeof import('viem')
+
+/** The SDK's own passkey method; the SDK builds a TextEncoder when it loads, so it loads late. */
+export const sdkPasskeyMethod = (): IRecoveryMethod =>
+  (
+    require('@kohaku-eth/social-recovery') as typeof import('@kohaku-eth/social-recovery')
+  ).passkeyMethod()
 /* eslint-enable global-require, @typescript-eslint/no-var-requires */
 
 export const { bytesToHex, hexToBytes, zeroHash } = viem
@@ -656,25 +668,29 @@ export const flush = async (rounds = 10) => {
 // The request and the context a claim works from
 // ---------------------------------------------------------------------------
 
-export const fixtureRequest = (overrides: Partial<ApproverRequest> = {}): ApproverRequest => ({
-  kind: 'recovery-proof-request',
-  version: 1,
-  purpose: 'approval',
-  chainId: '11155111',
-  manager: '0x2222222222222222222222222222222222222222',
-  digestVersion: '1',
-  account: ACCOUNT,
-  action: '0x3333333333333333333333333333333333333333',
-  attemptId: '1',
-  setupNonce: '1',
-  setupBodyHash: `0x${'44'.repeat(32)}`,
-  validUntil: '1790000000',
-  place: 0,
-  method: PASSKEY_METHOD,
-  config: `0x${'55'.repeat(64)}`,
-  salt: `0x${'66'.repeat(32)}`,
-  ...overrides
-})
+export const fixtureRequest = (overrides: Partial<ApproverRequest> = {}): ApproverRequest =>
+  ({
+    kind: 'recovery-proof-request',
+    version: 1,
+    purpose: 'approval',
+    chainId: '11155111',
+    manager: '0x2222222222222222222222222222222222222222',
+    digestVersion: '1',
+    account: ACCOUNT,
+    action: '0x3333333333333333333333333333333333333333',
+    attemptId: '1',
+    setupNonce: '1',
+    setupBodyHash: `0x${'44'.repeat(32)}`,
+    validUntil: '1790000000',
+    place: 0,
+    method: PASSKEY_METHOD,
+    config: `0x${'55'.repeat(64)}`,
+    salt: `0x${'66'.repeat(32)}`,
+    credentialHoldsCode: false,
+    payload: '0x',
+    order: { token: ACCOUNT, amount: '0', payee: ACCOUNT },
+    ...overrides
+  } as ApproverRequest)
 
 export const FIXTURE_DIGEST: Hex = `0x${'ab'.repeat(32)}`
 
@@ -689,8 +705,8 @@ export interface MethodScript {
   configFrom?: Scripted<Hex | EnrollFailure>
   replyFrom?: Scripted<Hex | ReplyFailure>
   verify?: Scripted<Verdict>
-  enrollInput?: Scripted<unknown>
-  signingInput?: Scripted<unknown>
+  enrollInput?: Scripted<EnrollInput>
+  signingInput?: Scripted<Input>
 }
 
 const answer = async <T>(scripted: Scripted<T>): Promise<T> => {
@@ -710,11 +726,11 @@ const answerSync = <T>(scripted: Scripted<T>): T => {
 export const CONFIG_HEX: Hex = `0x${'c0'.repeat(64)}`
 export const PROOF_HEX: Hex = `0x${'9f'.repeat(96)}`
 
-export const enrollFailure = (cause: MethodFailureCause): EnrollFailure => ({
-  kind: 'enroll-failure',
+export const enrollFailure = (cause: ReplyFailureCause): EnrollFailure => ({
+  kind: 'reply-failure',
   cause
 })
-export const replyFailure = (cause: MethodFailureCause): ReplyFailure => ({
+export const replyFailure = (cause: ReplyFailureCause): ReplyFailure => ({
   kind: 'reply-failure',
   cause
 })
@@ -729,11 +745,11 @@ const opaqueCodec: IMethodCodec = {
 /** A hand-written `IRecoveryMethod` whose every member is a spy. */
 export interface FakeMethod extends IRecoveryMethod {
   modules: jest.Mock<Address[], [unknown]>
-  enrollInput: jest.Mock<unknown, [unknown]>
-  configFrom: jest.Mock<Promise<Hex | EnrollFailure>, [unknown, unknown]>
-  signingInput: jest.Mock<unknown, [MethodContext, unknown?]>
-  replyFrom: jest.Mock<Promise<Hex | ReplyFailure>, [MethodContext, unknown, unknown]>
-  verify: jest.Mock<Promise<Verdict>, [MethodContext, Hex]>
+  enrollInput: jest.Mock<EnrollInput, [Params]>
+  configFrom: jest.Mock<Promise<Hex | EnrollFailure>, [EnrollInput, Material]>
+  signingInput: jest.Mock<Input, [Ctx, Params?]>
+  replyFrom: jest.Mock<Promise<Hex | ReplyFailure>, [Ctx, Input, Material]>
+  verify: jest.Mock<Promise<Verdict>, [Ctx, Hex]>
   describe: jest.Mock
 }
 
@@ -742,29 +758,25 @@ export const fakeMethod = (
   deviceBinding: DeviceBinding = 'browser-authenticator'
 ): FakeMethod => ({
   modules: jest.fn<Address[], [unknown]>(() => [PASSKEY_METHOD]),
-  enrollInput: jest.fn((params: unknown) => {
+  enrollInput: jest.fn((params: Params): EnrollInput => {
     if (script.enrollInput !== undefined) {
       return answerSync(script.enrollInput)
     }
-    const p = params as { relyingPartyId?: string; userName?: string } | undefined
-    return { rp: { id: p?.relyingPartyId }, user: { name: p?.userName }, params }
+    return sdkPasskeyMethod().enrollInput(params)
   }),
-  configFrom: jest.fn<Promise<Hex | EnrollFailure>, [unknown, unknown]>(async () =>
+  configFrom: jest.fn<Promise<Hex | EnrollFailure>, [EnrollInput, Material]>(async () =>
     answer(script.configFrom ?? CONFIG_HEX)
   ),
-  signingInput: jest.fn((ctx: MethodContext, params?: unknown) => {
+  signingInput: jest.fn((ctx: Ctx, params?: Params): Input => {
     if (script.signingInput !== undefined) {
       return answerSync(script.signingInput)
     }
-    const p = params as { relyingPartyId?: string } | undefined
-    return { challenge: ctx.digest, rpId: p?.relyingPartyId, params }
+    return sdkPasskeyMethod().signingInput(ctx, params)
   }),
-  replyFrom: jest.fn<Promise<Hex | ReplyFailure>, [MethodContext, unknown, unknown]>(async () =>
+  replyFrom: jest.fn<Promise<Hex | ReplyFailure>, [Ctx, Input, Material]>(async () =>
     answer(script.replyFrom ?? PROOF_HEX)
   ),
-  verify: jest.fn<Promise<Verdict>, [MethodContext, Hex]>(async () =>
-    answer(script.verify ?? 'satisfied')
-  ),
+  verify: jest.fn<Promise<Verdict>, [Ctx, Hex]>(async () => answer(script.verify ?? 'satisfied')),
   codec: opaqueCodec,
   deviceBinding,
   describe: jest.fn(() => ({ kind: 'webauthn-authenticator' as const })),
@@ -775,24 +787,24 @@ export const fakeMethod = (
 export interface FakeOrchestrator extends IMethodsOrchestrator {
   describeRequest: jest.Mock<RequestDescription, [ApproverRequest]>
   verify: jest.Mock<Promise<Verdict>, [ApproverRequest, number, Hex]>
-  signingInput: jest.Mock<unknown, [ApproverRequest, unknown?]>
-  replyFrom: jest.Mock<Promise<ApproverReply | ReplyFailure>, [ApproverRequest, unknown, unknown]>
-  enrollInput: jest.Mock<unknown, [Address, unknown]>
-  configFrom: jest.Mock<Promise<Hex | EnrollFailure>, [Address, unknown, unknown]>
+  signingInput: jest.Mock<Input, [ApproverRequest, Params?]>
+  replyFrom: jest.Mock<Promise<Reply | ReplyFailure>, [ApproverRequest, Input, Material]>
+  enrollInput: jest.Mock<EnrollInput, [Address, Params]>
+  configFrom: jest.Mock<Promise<Hex | EnrollFailure>, [Address, EnrollInput, Material]>
 }
 
-const ctxOf = (request: ApproverRequest): MethodContext => ({
+const ctxOf = (request: ApproverRequest): Ctx => ({
   request,
   place: request.place,
   digest: FIXTURE_DIGEST,
-  typedData: {}
+  typedData: {} as TypedData
 })
 
 export const fakeOrchestrator = (method: FakeMethod): FakeOrchestrator => ({
   describeRequest: jest.fn(
     (request: ApproverRequest): RequestDescription => ({
       account: request.account,
-      chainId: BigInt(request.chainId),
+      chainId: Number(request.chainId),
       manager: request.manager,
       action: request.action,
       attemptId: BigInt(request.attemptId),
@@ -800,17 +812,17 @@ export const fakeOrchestrator = (method: FakeMethod): FakeOrchestrator => ({
       purpose: request.purpose,
       validUntil: Number(request.validUntil),
       place: request.place,
-      identityPublic: {},
+      identityPublic: { method: request.method, config: request.config, saltPublished: true },
       device: method.describe(ctxOf(request))
     })
   ),
   verify: jest.fn((request: ApproverRequest, place: number, proof: Hex) =>
     method.verify({ ...ctxOf(request), place }, proof)
   ),
-  signingInput: jest.fn((request: ApproverRequest, params?: unknown) =>
+  signingInput: jest.fn((request: ApproverRequest, params?: Params) =>
     method.signingInput(ctxOf(request), params)
   ),
-  replyFrom: jest.fn(async (request: ApproverRequest, input: unknown, material: unknown) => {
+  replyFrom: jest.fn(async (request: ApproverRequest, input: Input, material: Material) => {
     const out = await method.replyFrom(ctxOf(request), input, material)
     if (typeof out !== 'string') {
       return out
@@ -832,8 +844,8 @@ export const fakeOrchestrator = (method: FakeMethod): FakeOrchestrator => ({
       proof: out
     }
   }),
-  enrollInput: jest.fn((_address: Address, params: unknown) => method.enrollInput(params)),
-  configFrom: jest.fn((_address: Address, input: unknown, material: unknown) =>
+  enrollInput: jest.fn((_address: Address, params: Params) => method.enrollInput(params)),
+  configFrom: jest.fn((_address: Address, input: EnrollInput, material: Material) =>
     method.configFrom(input, material)
   )
 })
@@ -924,7 +936,7 @@ export interface HostEnv {
   orchestrator: FakeOrchestrator
   request?: ApproverRequest
   /** What the caller's record hands the method; by default the origin string as its relying party id. */
-  params?: unknown
+  params?: Params
   /** The holder chose the browser's phone hand-off. */
   handOff?: boolean
   /** The device the caller's record supplies (`ResolvedCeremony.device`). */

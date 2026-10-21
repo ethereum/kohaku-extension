@@ -35,7 +35,7 @@ import {
   useWaitClock
 } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
 import type { Mounted, World } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
-import type { Notification } from '@web/modules/social-recovery/sdk-interfaces'
+import type { KitNotification } from '@kohaku-eth/social-recovery'
 import type { ProviderTransactionReceipt } from '@web/modules/social-recovery/shared/client'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 
@@ -595,7 +595,7 @@ describe('the two readings of a send no node knows', () => {
     const world = await openWorld()
     let failNext = false
     world.kit.fetch.mockImplementation(
-      async (_filter: unknown, range: { from: number }): Promise<Notification[]> => {
+      async (_filter: unknown, range: { from: number }): Promise<KitNotification[]> => {
         if (range.from === SEND_BLOCK && failNext) {
           failNext = false
           throw new Error('the node did not answer')

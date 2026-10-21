@@ -14,10 +14,13 @@ import { TextDecoder, TextEncoder } from 'util'
 
 import type {
   Clause,
-  Finding,
+  ErrorCode,
   SetupDraft,
-  ValidationResult
-} from '@web/modules/social-recovery/sdk-interfaces'
+  ValidationError,
+  ValidationResult,
+  ValidationWarning,
+  WarningCode
+} from '@kohaku-eth/social-recovery'
 import type { Enrollment } from '@web/modules/social-recovery/shared/records'
 
 import type {
@@ -83,14 +86,15 @@ const {
 } = harness
 
 const draftOf = (clauses: Clause[]): SetupDraft => ({
-  wait: 259200n,
+  wait: 259200,
   clauses,
   ignoresPause: false,
   privacy: { publicMetadata: '0x', backup: 'encrypted' }
 })
 
 const NO_FINDING: ValidationResult = { errors: [], warnings: [] }
-const finding = (code: Finding['code']): Finding => ({ code, subject: 'clause', values: {} })
+const finding = (code: ErrorCode): ValidationError => ({ code, subject: 'clause', values: {} })
+const warning = (code: WarningCode): ValidationWarning => ({ code, subject: 'clause', values: {} })
 
 let container: HTMLDivElement
 let root: Root
@@ -216,7 +220,7 @@ const mount = async ({
 }
 
 const expectPathMatchesDraft = async (
-  stored: () => Promise<{ draft: SetupDraft | null; path: Clause[] | null }>,
+  stored: () => Promise<{ draft: SetupDraft | null; path: readonly Clause[] | null }>,
   clauses: Clause[]
 ) => {
   const { draft, path } = await stored()
@@ -570,7 +574,7 @@ describe('continue', () => {
   it('goes on past warnings alone and renders none of them', async () => {
     const { navigate } = await mount({
       clauses: presetPath(),
-      validate: async () => ({ errors: [], warnings: [finding('clause.shared-failure')] })
+      validate: async () => ({ errors: [], warnings: [warning('clause.shared-failure')] })
     })
     await press('editor-continue')
     expect(navigate).toHaveBeenCalledWith(WEB_ROUTES.socialRecoverySetupWaitingPeriod)
@@ -599,7 +603,7 @@ describe('the first edit over no stored draft', () => {
     await press('editor-add-group')
     const { draft, path } = await stored()
     expect(draft).toEqual({
-      wait: BigInt(48 * 60 * 60),
+      wait: 48 * 60 * 60,
       clauses: [{ threshold: 2, credentials: [] }],
       ignoresPause: true,
       privacy: { publicMetadata: '0x', backup: 'encrypted' }

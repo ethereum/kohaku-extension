@@ -12,7 +12,7 @@ import { ActivityIndicator, View } from 'react-native'
 import useNavigation from '@common/hooks/useNavigation'
 import RecoveryChrome from '@web/modules/social-recovery/shared/chrome/RecoveryChrome'
 import { CHAIN_IDS, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import {
   createWalletRecords,
   extensionRecordStorage,

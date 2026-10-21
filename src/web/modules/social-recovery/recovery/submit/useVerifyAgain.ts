@@ -5,7 +5,7 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 
-import type { Gathering } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Gathering } from '@kohaku-eth/social-recovery'
 
 import type { SubmitKitClient, VerifyHook, VerifyReading } from './types'
 import { verifyAgain } from './verify'

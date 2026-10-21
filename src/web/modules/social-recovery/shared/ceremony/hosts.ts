@@ -3,8 +3,8 @@
  * and health check.
  *
  * A host takes the orchestrator and the method implementation as injected
- * parameters typed by `sdk-interfaces`, and never imports the SDK doubles: the
- * ESLint fence keeps them to `shared/client`. The tab gets both from its
+ * parameters typed by the SDK package, and never imports the SDK's runtime:
+ * the ESLint fence keeps it to `shared/client`. The tab gets both from its
  * source's resolver, by default the one `shared/client` builds over the
  * wallet's records and the client. A test passes its own. Each host renders
  * its steps through `onStep`, honours `signal` as the abort, and returns
@@ -21,7 +21,14 @@
  * again after every call it awaits: an abort that arrives while the method
  * packages or checks ends in the cancelled note, and its answer is dropped.
  */
-import type { Address, ApproverRequest } from '@web/modules/social-recovery/sdk-interfaces'
+import type {
+  Address,
+  ApproverRequest,
+  EnrollInput,
+  Input,
+  Material,
+  Params
+} from '@kohaku-eth/social-recovery'
 
 import type {
   CeremonyCall,
@@ -44,7 +51,7 @@ import {
   passed
 } from './verdicts'
 
-const isPlainRecord = (value: unknown): value is Record<string, unknown> => {
+const isPlainRecord = (value: Params | Material): value is Params => {
   if (typeof value !== 'object' || value === null) {
     return false
   }
@@ -61,7 +68,10 @@ const isPlainRecord = (value: unknown): value is Record<string, unknown> => {
  * caller passed is replaced. Any other binding runs the caller's device, or
  * the page's device for that binding.
  */
-const chooseDevice = (context: HostContext, params: unknown): DeviceChoice | undefined => {
+const chooseDevice = (
+  context: HostContext,
+  params: Params | undefined
+): DeviceChoice | undefined => {
   if (context.method.deviceBinding === 'browser-authenticator') {
     const own = context.devices?.['browser-authenticator']
     if (!own) {
@@ -89,7 +99,7 @@ const cancelledByAbort = (context: HostContext) =>
  * ceremony's signal where the device set none. No other binding's material
  * takes a signal, so it passes unchanged.
  */
-const materialFor = (context: HostContext, material: unknown): unknown => {
+const materialFor = (context: HostContext, material: Material): Material => {
   if (context.method.deviceBinding !== 'in-browser-prover' || !context.signal) {
     return material
   }
@@ -118,7 +128,7 @@ const deviceContext = (context: HostContext, call: CeremonyCall): DeviceCallCont
  * failed with its cause, a relying party the provider refused among them.
  */
 export const enrollHost = async (
-  context: HostContext & { methodAddress: Address; params: unknown }
+  context: HostContext & { methodAddress: Address; params?: Params }
 ): Promise<CeremonyOutcome<EnrollValue>> => {
   const aborted = cancelledByAbort(context)
   if (aborted) {
@@ -131,9 +141,9 @@ export const enrollHost = async (
   const { device } = chosen
 
   context.onStep?.('preparing')
-  let input: unknown
+  let input: EnrollInput
   try {
-    input = context.orchestrator.enrollInput(context.methodAddress, chosen.params)
+    input = context.orchestrator.enrollInput(context.methodAddress, chosen.params ?? {})
   } catch (error) {
     return outcomeOfThrown(error)
   }
@@ -173,7 +183,7 @@ export const enrollHost = async (
 
 /** The signing half test access and create claim share: options, ceremony, reply. */
 const signForRequest = async (
-  context: HostContext & { request: ApproverRequest; params?: unknown },
+  context: HostContext & { request: ApproverRequest; params?: Params },
   call: 'testAccess' | 'createClaim'
 ): Promise<SignedReply> => {
   const aborted = cancelledByAbort(context)
@@ -187,7 +197,7 @@ const signForRequest = async (
   const { device } = chosen
 
   context.onStep?.('preparing')
-  let input: unknown
+  let input: Input
   try {
     input = context.orchestrator.signingInput(context.request, chosen.params)
   } catch (error) {
@@ -230,7 +240,7 @@ const signForRequest = async (
  * orchestrator's own verdict member, so no page holds a ctx.
  */
 export const testAccessHost = async (
-  context: HostContext & { request: ApproverRequest; params?: unknown }
+  context: HostContext & { request: ApproverRequest; params?: Params }
 ): Promise<CeremonyOutcome<TestAccessValue>> => {
   const signed = await signForRequest(context, 'testAccess')
   if (!signed.ok) {
@@ -262,7 +272,7 @@ export const testAccessHost = async (
  * none. An abort before the reply returns publishes no claim.
  */
 export const createClaimHost = async (
-  context: HostContext & { request: ApproverRequest; params?: unknown }
+  context: HostContext & { request: ApproverRequest; params?: Params }
 ): Promise<CeremonyOutcome<ClaimValue>> => {
   const signed = await signForRequest(context, 'createClaim')
   if (!signed.ok) {

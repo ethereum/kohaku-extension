@@ -5,12 +5,7 @@
  */
 import { zeroAddress } from 'viem'
 
-import type {
-  Address,
-  Clause,
-  Credential,
-  TrustedParties
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Clause, Credential, Parties } from '@kohaku-eth/social-recovery'
 import { sameAddress } from '@web/modules/social-recovery/shared/client'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import { enrollmentOf, isEmptySlot } from '@web/modules/social-recovery/shared/records/slots'
@@ -91,7 +86,7 @@ const nonZero = (address: Address): Address | undefined =>
 /** What a method's declaration says about its admin, and whether that admin could recover alone. */
 const adminDeclarationOf = (
   method: Address,
-  trustedParties: TrustedParties,
+  trustedParties: Parties,
   input: TrustRowsInput
 ): AdminDeclaration => {
   const admin = nonZero(trustedParties.admin)

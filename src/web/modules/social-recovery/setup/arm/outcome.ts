@@ -2,13 +2,14 @@
  * The check after a landed save, read once the batch's receipt came back. The
  * save reads as saved only where the check answers that the setup landed and
  * that the recovery module recognizes the account's authorization. A setup the
- * module does not recognize, a commitment the wallet rebuilds differently, or
- * a setup the check still cannot find after a few more reads, each made once
- * the chain moved a block, each read as disagreed. A check that throws for any
+ * module does not recognize, a commitment the wallet rebuilds differently, a
+ * commitment the manager holds other than the one saved, or a setup the check
+ * still cannot find after a few more reads, each made once the chain moved a
+ * block, each read as disagreed. A check that throws for any
  * other reason, or does not answer in time, reads as unanswered. No answer but
  * the first reads as saved.
  */
-import type { SetupConfirmation } from '@web/modules/social-recovery/sdk-interfaces'
+import type { SetupConfirmation } from '@kohaku-eth/social-recovery'
 
 import {
   COMMITMENT_MISMATCH_CODE,
@@ -25,11 +26,13 @@ const UNREAD: ConfirmOutcome = { kind: 'unread' }
 
 /**
  * The outcome of one answer of the check, or null where it did not find the
- * setup on chain, which the save reads once more.
+ * setup's event on chain yet, which the save reads once more. An event that
+ * carries another commitment, or a manager that holds another, disagrees at
+ * once: no later read finds the saved one.
  */
 export const outcomeOfConfirmation = (confirmation: SetupConfirmation): ConfirmOutcome | null => {
   if (!confirmation.landed) {
-    return null
+    return confirmation.cause === 'other-commitment' ? MISMATCH : null
   }
   return confirmation.isAuthorized ? AGREED : UNAUTHORIZED
 }

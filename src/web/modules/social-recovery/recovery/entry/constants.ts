@@ -1,7 +1,7 @@
 import { toFunctionSelector } from 'viem'
 import { mainnet, sepolia } from 'viem/chains'
 
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 import type { RecoveryChain } from '@web/modules/social-recovery/shared/client'
 
 import type { ConfirmedStage } from './types'

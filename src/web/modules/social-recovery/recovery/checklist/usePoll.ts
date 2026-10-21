@@ -7,14 +7,16 @@
  * again from nothing returned, so no reading of an earlier session ever
  * stands for the new one. A client rebuilt for the same session drops the
  * round its predecessor had in flight and reads again at once; until that
- * round returns, the poll stands as it was, as for any round in flight.
+ * round returns, the poll stands as it was, as for any round in flight. An
+ * answer older than the live request, from the manager it names, is a failed
+ * round.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { isVisible } from '@web/modules/social-recovery/shared/ceremony'
 
 import { CHECKLIST_POLL_MS, POLL_LIMIT_MS } from './constants'
-import { readPollFacts } from './poll'
+import { behindRequest, readPollFacts } from './poll'
 import type { PollHook, PollInput, PollState } from './types'
 
 const PENDING: PollState = { status: 'pending' }
@@ -47,8 +49,13 @@ const usePoll = ({ kit, target, deps, after }: PollInput): PollHook => {
       return
     }
     const clock = depsRef.current.now()
+    const asked = targetRef.current
     inFlight.current = id
-    const facts = await readPollFacts(current, POLL_LIMIT_MS)
+    const answer = await readPollFacts(current, POLL_LIMIT_MS)
+    const facts =
+      answer && asked.kind === 'live' && behindRequest(asked.gathering, answer, current.descriptor)
+        ? undefined
+        : answer
     if (inFlight.current === id) {
       inFlight.current = null
     }

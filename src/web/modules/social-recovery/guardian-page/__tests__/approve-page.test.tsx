@@ -142,7 +142,7 @@ describe('the lead of a live request', () => {
 
   it('renders the handover as not readable where the orchestrator could not decode it', async () => {
     kit.describeRequest.mockImplementation((request) =>
-      descriptionOf(request, { handover: { decoded: false } })
+      descriptionOf(request, { handover: { decoded: false, cause: 'no-codec' } })
     )
     const page = await mountLive()
     expect(page.has('guardian-value-newKey')).toBe(false)
@@ -225,13 +225,10 @@ describe('the sign action', () => {
   it('drops the tick when another request for the same account opens in the same tab', async () => {
     const otherKey = '0x5000000000000000000000000000000000000042'
     kit.describeRequest.mockImplementation((request) =>
-      request.payload === PAYLOAD
+      'payload' in request && request.payload === PAYLOAD
         ? descriptionOf(request)
         : descriptionOf(request, {
-            handover: {
-              decoded: true,
-              value: { newAuthority: otherKey, removedAuthority: REMOVED_KEY }
-            }
+            handover: { decoded: true, newAuthority: otherKey, removedAuthority: REMOVED_KEY }
           })
     )
     const page = await mountLive()

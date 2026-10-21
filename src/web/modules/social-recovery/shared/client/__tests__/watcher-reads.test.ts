@@ -1,8 +1,14 @@
 /**
- * The watcher's reads over a node scripted by hand: each read pinned to the
- * block it is given, and the logs of one attempt scanned backwards until its
- * opening.
+ * The watcher's reads over a provider scripted by hand: each read pinned to
+ * the block it is given, and the logs of one attempt scanned backwards until
+ * its opening.
  */
+import {
+  ERRORS_MANAGER_ABI,
+  MANAGER_EVENTS_ABI,
+  RECOVERY_ACTION_VIEWS_ABI
+} from '@kohaku-eth/social-recovery'
+import type { BlockRange, FilterSpec, RawLog } from '@kohaku-eth/social-recovery'
 import {
   encodeAbiParameters,
   encodeErrorResult,
@@ -10,57 +16,47 @@ import {
   encodeFunctionResult,
   type Hex,
   pad,
-  parseAbi,
-  parseAbiParameters,
   toFunctionSelector,
   zeroAddress
 } from 'viem'
 
-import type { BlockRange, FilterSpec, RawLog } from '@web/modules/social-recovery/sdk-interfaces'
 import { createWatcherReads } from '@web/modules/social-recovery/shared/client'
-import { POLICY_MANAGER_ABI } from '@web/modules/social-recovery/shared/client/kit/abi'
 import {
   ACCOUNT,
   ACCOUNT_CODE,
   ACTION,
-  ACTION_ABI,
   attemptConsumedLog,
   attemptStartedLog,
   CONTRACT_CODE,
   DEPLOYED_AT,
   DESCRIPTOR,
-  fakeNode,
   HEAD,
   MANAGER,
   OTHER_ACTION,
   reverting,
+  scriptedProvider,
   scriptState,
   stateOfCall,
   thrownBy
-} from '@web/modules/social-recovery/shared/client/kit/setup-client/__tests__/harness'
+} from '@web/modules/social-recovery/shared/client/__fixtures__/scripted-provider'
 import {
   handoverTo,
   NEW_KEY
-} from '@web/modules/social-recovery/shared/client/kit/wallet-reads/__fixtures__/world'
+} from '@web/modules/social-recovery/shared/client/wallet-reads/__fixtures__/world'
 
-const CANCELLED = parseAbi([
-  'event AttemptCancelled(address indexed account, address indexed action, uint64 attemptId, address canceller, address stoppedMethod, uint64 setupNonce, uint256[] usedPlaces)'
-])
+const [, , , ATTEMPT_CANCELLED] = MANAGER_EVENTS_ABI
 
 const cancelledLog = (attemptId: bigint, blockNumber: number): RawLog => ({
   address: MANAGER,
   topics: encodeEventTopics({
-    abi: CANCELLED,
+    abi: MANAGER_EVENTS_ABI,
     eventName: 'AttemptCancelled',
     args: { account: ACCOUNT, action: ACTION }
   }) as Hex[],
-  data: encodeAbiParameters(parseAbiParameters('uint64, address, address, uint64, uint256[]'), [
-    attemptId,
-    ACCOUNT,
-    zeroAddress,
-    1n,
-    []
-  ]),
+  data: encodeAbiParameters(
+    ATTEMPT_CANCELLED.inputs.filter((input) => !input.indexed),
+    [attemptId, ACCOUNT, zeroAddress, 1n, []]
+  ),
   blockNumber,
   blockHash: pad(`0x${blockNumber.toString(16)}`),
   logIndex: 0,
@@ -71,14 +67,13 @@ const cancelledLog = (attemptId: bigint, blockNumber: number): RawLog => ({
 const CHUNK = 100
 
 const worldWith = (logs: RawLog[]) => {
-  const node = fakeNode()
+  const node = scriptedProvider()
   node.setCode(ACCOUNT, ACCOUNT_CODE, DEPLOYED_AT + 10)
   node.setCode(MANAGER, CONTRACT_CODE)
   node.setCode(ACTION, CONTRACT_CODE)
   logs.forEach((log) => node.addLog(log))
   const reads = createWatcherReads({
     provider: node.provider,
-    codeRead: node.codeRead,
     descriptor: DESCRIPTOR,
     chunkWidth: CHUNK
   })
@@ -182,7 +177,7 @@ describe('the watcher reads', () => {
       stateOfCall(),
       reverting(
         encodeErrorResult({
-          abi: POLICY_MANAGER_ABI,
+          abi: ERRORS_MANAGER_ABI,
           errorName: 'PolicyManager_WrongSetupNonce',
           args: [2n, 3n]
         })
@@ -190,7 +185,7 @@ describe('the watcher reads', () => {
     )
 
     const thrown = await thrownBy(reads.stateOf(ACCOUNT, HEAD))
-    expect(thrown).toMatchObject({ name: 'LandingRevert', code: 'WrongSetupNonce' })
+    expect(thrown).toMatchObject({ name: 'LandingRevert', code: 'PolicyManager_WrongSetupNonce' })
     expect((thrown as Error).message).toContain('WrongSetupNonce')
   })
 
@@ -215,7 +210,11 @@ describe('the watcher reads', () => {
       consumableAfter: 1_900_000_000
     })
     node.answerWith(ACTION, toFunctionSelector('isAuthorized(address)'), () =>
-      encodeFunctionResult({ abi: ACTION_ABI, functionName: 'isAuthorized', result: true })
+      encodeFunctionResult({
+        abi: RECOVERY_ACTION_VIEWS_ABI,
+        functionName: 'isAuthorized',
+        result: true
+      })
     )
 
     const state = await reads.stateOf(ACCOUNT, HEAD - 5)

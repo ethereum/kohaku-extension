@@ -11,7 +11,7 @@ import { TextDecoder, TextEncoder } from 'util'
 
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
-import type { Address, Hex, KitError } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Hex, KitError } from '@kohaku-eth/social-recovery'
 import type { DepositStep, WriteMachineState } from '@web/modules/social-recovery/shared/writes'
 import type { SaveBlock } from '@web/modules/social-recovery/setup/review'
 
@@ -92,9 +92,9 @@ const LANDED: WriteMachineState = {
 }
 
 const kitError = (name: 'InvalidCommitment'): KitError => ({
-  kind: 'known',
+  known: true,
   source: 'manager',
-  name,
+  name: `PolicyManager_${name}`,
   selector: '0x12345678',
   args: {}
 })

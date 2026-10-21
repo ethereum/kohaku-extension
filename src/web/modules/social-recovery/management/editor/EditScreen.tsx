@@ -19,7 +19,7 @@ import useNavigation from '@common/hooks/useNavigation'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
 import { useOverviewReads } from '@web/modules/social-recovery/management/overview/useOverviewReads'
-import type { SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { SetupDraft } from '@kohaku-eth/social-recovery'
 import { PageTitle } from '@web/modules/social-recovery/shared/chrome'
 import SetupChrome from '@web/modules/social-recovery/shared/chrome/SetupChrome'
 import useSetupAccount from '@web/modules/social-recovery/shared/chrome/useSetupAccount'
@@ -59,7 +59,13 @@ import { useCommittedLevel } from './useCommittedLevel'
 export const EditStageView = ({ records, session, chainId, account, navigate }: EditStageProps) => {
   const { t } = useTranslation()
   const clientState = useRecoveryClient(account)
-  const reads = useOverviewReads({ client: clientState, records, chainId, account })
+  const reads = useOverviewReads({
+    client: clientState,
+    records,
+    watcherStorage: extensionRecordStorage,
+    chainId,
+    account
+  })
   const kit = clientState.status === 'ready' ? clientState.client : null
   const setupState = reads.facts.status === 'answered' ? reads.facts.value.setup : null
   const committedLevel = useCommittedLevel(kit, setupState)

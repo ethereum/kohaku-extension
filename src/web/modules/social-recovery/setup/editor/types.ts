@@ -6,8 +6,9 @@ import type {
   Credential,
   Finding,
   ISetupClient,
+  SETUP_ERROR_CODES,
   SetupDraft
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import type {
   Enrollment,
@@ -16,6 +17,9 @@ import type {
   SlotPosition
 } from '@web/modules/social-recovery/shared/records'
 import type { RuleLine } from '@web/modules/social-recovery/shared/rule-lines'
+
+/** The code of an error the SDK's setup check finds. */
+export type SetupErrorCode = typeof SETUP_ERROR_CODES[number]
 
 /** A shape this wallet refuses to save, named by its sentence. */
 export type RefusalKey =

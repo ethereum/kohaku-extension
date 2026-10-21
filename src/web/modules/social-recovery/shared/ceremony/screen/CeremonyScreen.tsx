@@ -26,7 +26,7 @@ import {
   TabLayoutContainer,
   TabLayoutWrapperMainContent
 } from '@web/components/TabLayoutWrapper/TabLayoutWrapper'
-import type { DeviceBinding } from '@web/modules/social-recovery/sdk-interfaces'
+import type { DeviceBinding } from '@kohaku-eth/social-recovery'
 import { TwoColumn } from '@web/modules/social-recovery/shared/chrome'
 import { renderChip, renderHash } from '@web/modules/social-recovery/shared/display'
 import { getUiType } from '@web/utils/uiType'

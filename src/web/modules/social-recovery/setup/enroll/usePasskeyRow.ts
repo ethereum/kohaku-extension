@@ -2,7 +2,7 @@
 import { useCallback, useRef, useState } from 'react'
 
 import { useTranslation } from '@common/config/localization'
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 import { failed } from '@web/modules/social-recovery/shared/ceremony'
 import type { CeremonyOutcome, CeremonyReport } from '@web/modules/social-recovery/shared/ceremony'
 

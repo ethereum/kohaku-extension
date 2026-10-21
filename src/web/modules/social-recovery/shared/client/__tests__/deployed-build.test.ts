@@ -1,51 +1,29 @@
 /**
  * The one client build follows the chain's deployment record. With no
- * deployment variable, the stand-in builds as it always did and no deployed
- * contract is read. With one, the deployed manager and action are checked
+ * deployment variable, the client is built over the stand-in's fake node and
+ * the extension's provider is never read. With one, the build reads through
+ * the extension's provider: the deployed manager and action are checked
  * before any client exists, in the SDK's order and then the deployment's
- * own, and the deployed kit's client is built over the chain. The variable is
- * read through its one module, mocked here; every address in it is made up
- * but the deployed action's, whose kit slot and binding the checks compare.
+ * own, and the SDK's client is built over the chain. The variable is read
+ * through its one module, mocked here; the deployment is a fake node of its
+ * own, every address in it made up.
  */
-import { encodeFunctionData, parseAbi, zeroHash } from 'viem'
+import { BUILDER_CHAIN_MISMATCH_MESSAGE } from '@kohaku-eth/social-recovery'
+import type { Address, Hex } from '@kohaku-eth/social-recovery'
+import { toFunctionSelector, zeroHash } from 'viem'
 
 import {
   addressOf,
-  RecoveryKitBuilderDouble,
-  SetupClientDouble
-} from '@web/modules/social-recovery/sdk-doubles'
-import {
-  addressBookOf,
   buildRecoveryClient,
-  type RecoveryClientConfiguration
-} from '@web/modules/social-recovery/shared/client'
-import { createWorld } from '@web/modules/social-recovery/shared/client/__tests__/harness'
+  createDeployedWorld,
+  createWorld,
+  DEPLOYED_FACTS,
+  isDigestVersionRefusal,
+  isProviderReadFailure,
+  thrownBy,
+  World
+} from '@web/modules/social-recovery/shared/client/__tests__/harness'
 import { sepoliaDeploymentVariable } from '@web/modules/social-recovery/shared/client/deployment-env'
-import {
-  CONSTANT_CALLS,
-  DEPLOYED_ACTION,
-  DOMAIN_CALL,
-  FACTS,
-  scriptDeployment
-} from '@web/modules/social-recovery/shared/client/kit/builder/__tests__/harness'
-import {
-  ACCOUNT,
-  draftAt,
-  fakeNode,
-  KEY_A,
-  KEY_B,
-  MANAGER,
-  METHOD_ECDSA,
-  NO_STATE,
-  reverting,
-  scriptAction,
-  scriptMethod,
-  stateAnswer,
-  stateOfCall,
-  thrownBy
-} from '@web/modules/social-recovery/shared/client/kit/setup-client/__tests__/harness'
-import type { ScriptedDeployment } from '@web/modules/social-recovery/shared/client/kit/builder/__fixtures__/types'
-import { providerReadFailure } from '@web/modules/social-recovery/shared/client/provider-adapter'
 
 jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
   ...jest.requireActual('@web/modules/social-recovery/shared/client/deployment-env'),
@@ -54,40 +32,26 @@ jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
 
 const variable = sepoliaDeploymentVariable as jest.MockedFunction<typeof sepoliaDeploymentVariable>
 
-const ARMED = '0x0000000000000000000000000000000000000000000000000000000000000001'
-const PRIVILEGES_VIEW = parseAbi(['function privileges(address) view returns (bytes32)'])
-const ELSEWHERE = '0x00000000000000000000000000000000000e15e0'
+const isDeploymentRefusal = (caught: unknown): boolean =>
+  caught instanceof Error && caught.name === 'DeploymentRefusal'
 
-const deployedNode = (script: ScriptedDeployment = {}) => {
-  const node = fakeNode()
-  scriptDeployment(node, script)
-  return node
-}
+const ARMED: Hex = '0x0000000000000000000000000000000000000000000000000000000000000001'
+const ELSEWHERE: Address = '0x00000000000000000000000000000000000e15e0'
+const KEY_A = addressOf('key-a')
+const KEY_B = addressOf('key-b')
 
-const configOver = (
-  node: ReturnType<typeof fakeNode>,
-  overrides: Partial<RecoveryClientConfiguration> = {}
-): RecoveryClientConfiguration => ({
-  chain: 'sepolia',
-  account: ACCOUNT,
-  addressBook: addressBookOf('sepolia'),
-  provider: node.provider,
-  codeRead: node.codeRead,
-  transactionRead: node.transactionRead,
-  ...overrides
-})
+const VIEW_NAMES = new Map<string, string>(
+  ['eip712Domain()', 'MANAGER()', 'AMBIRE_IMPLEMENTATION()', 'KIT_SLOT()', 'BINDING()'].map(
+    (signature) => [toFunctionSelector(signature), signature.replace('()', '')]
+  )
+)
 
-/** The calls the build made, as the reads they were. */
-const readsOf = (node: ReturnType<typeof fakeNode>) => {
-  const names = new Map<string, string>([
-    [DOMAIN_CALL, 'eip712Domain'],
-    [CONSTANT_CALLS.manager, 'MANAGER'],
-    [CONSTANT_CALLS.implementation, 'AMBIRE_IMPLEMENTATION'],
-    [CONSTANT_CALLS.kitSlot, 'KIT_SLOT'],
-    [CONSTANT_CALLS.binding, 'BINDING']
-  ])
-  return node.calls.map((call) => names.get(call.data) ?? call.data)
-}
+/** The deployment checks' reads the build made through the extension's provider, by name, in order. */
+const checksOf = (world: World): string[] =>
+  world.ethers.call.mock.calls.flatMap(([tx]: [{ data?: string }]) => {
+    const name = VIEW_NAMES.get((tx.data ?? '').slice(0, 10))
+    return name ? [name] : []
+  })
 
 afterEach(() => {
   jest.restoreAllMocks()
@@ -95,177 +59,189 @@ afterEach(() => {
 
 describe('a chain whose deployment record names a deployed kit', () => {
   beforeEach(() => {
-    variable.mockReturnValue(JSON.stringify(FACTS))
+    variable.mockReturnValue(JSON.stringify(DEPLOYED_FACTS))
   })
 
-  it("checks the chain, the manager's domain and the action's four constants, then builds the kit's client", async () => {
-    const builder = jest.spyOn(RecoveryKitBuilderDouble.prototype, 'buildSetupClient')
-    const node = deployedNode()
-    const client = await buildRecoveryClient(configOver(node))
-    expect(node.provider.chainId).toHaveBeenCalledTimes(1)
-    expect(readsOf(node)).toEqual([
-      'eip712Domain',
+  it("checks the chain, the manager's domain and the action's four constants through the extension's provider, then builds", async () => {
+    const world = createDeployedWorld()
+    const client = await buildRecoveryClient(world.config)
+    expect(world.ethers.send).toHaveBeenCalledWith('eth_chainId', [])
+    const checks = checksOf(world)
+    expect(checks[0]).toBe('eip712Domain')
+    expect(checks.filter((name) => name !== 'eip712Domain')).toEqual([
       'MANAGER',
       'AMBIRE_IMPLEMENTATION',
       'KIT_SLOT',
       'BINDING'
     ])
-    expect(client.descriptor.manager).toBe(FACTS.manager)
-    expect(client.descriptor.action).toBe(FACTS.action)
-    expect(client.setup).not.toBeInstanceOf(SetupClientDouble)
-    expect(() => client.recovery.events.methodFilter()).toThrow(
-      expect.objectContaining({ name: 'NotServedRefusal', member: 'events.methodFilter' })
-    )
-    expect(builder).not.toHaveBeenCalled()
+    expect(client.descriptor.manager).toBe(DEPLOYED_FACTS.manager)
+    expect(client.descriptor.action).toBe(DEPLOYED_FACTS.action)
   })
 
-  const REFUSALS: [string, ScriptedDeployment, string][] = [
-    ['a manager address with no code', { managerCode: false }, 'manager'],
-    ['a manager whose domain read reverts', { domain: reverting() }, 'manager'],
-    ['an action address with no code', { actionCode: false }, 'action'],
-    ['an action whose constant read reverts', { manager: reverting('0xdeadbeef') }, 'action'],
-    ['an action bound to another manager', { manager: ELSEWHERE }, 'action-manager'],
+  const REFUSALS: [string, (world: World) => void, string][] = [
+    [
+      'a manager address with no code',
+      ({ chain, descriptor }) => chain.setContractCode(descriptor.manager, false),
+      'manager'
+    ],
+    [
+      'a manager whose domain read reverts',
+      ({ chain }) => chain.failRead('eip712Domain', { kind: 'revert', data: '0x' }),
+      'manager'
+    ],
+    [
+      'an action address with no code',
+      ({ chain, descriptor }) => chain.setContractCode(descriptor.action, false),
+      'action'
+    ],
+    [
+      'an action whose constant read reverts',
+      ({ chain }) => chain.failRead('MANAGER', { kind: 'revert', data: '0xdeadbeef' }),
+      'action'
+    ],
+    [
+      'an action bound to another manager',
+      ({ chain }) => chain.setConstants({ manager: ELSEWHERE }),
+      'action-manager'
+    ],
     [
       'an action serving another implementation',
-      { implementation: ELSEWHERE },
+      ({ chain }) => chain.setConstants({ ambireImplementation: ELSEWHERE }),
       'served-implementation'
     ],
-    ['an action holding another kit slot', { kitSlot: ELSEWHERE }, 'kit-slot'],
-    ['an action holding another binding', { binding: `0x${'34'.repeat(32)}` }, 'binding']
-  ]
-
-  REFUSALS.forEach(([name, script, check]) =>
-    it(`refuses ${name} with a deployment refusal`, async () => {
-      const node = deployedNode(script)
-      expect(await thrownBy(buildRecoveryClient(configOver(node)))).toMatchObject({
-        name: 'DeploymentRefusal',
-        check
-      })
-    })
-  )
-
-  const CONSTRUCTION: [string, ScriptedDeployment, object][] = [
     [
-      'a provider on another chain',
-      { chainId: 1 },
-      { name: 'ConstructionRefusal', check: 'chain-id' }
+      'an action holding another kit slot',
+      ({ chain }) => chain.setConstants({ kitSlot: ELSEWHERE }),
+      'kit-slot'
     ],
     [
-      'a domain on another chain',
-      { domain: { chainId: 1n } },
-      { name: 'ConstructionRefusal', check: 'domain' }
-    ],
-    [
-      'a domain naming another verifying contract',
-      { domain: { verifyingContract: ELSEWHERE } },
-      { name: 'ConstructionRefusal', check: 'domain' }
-    ],
-    [
-      'a domain carrying other members',
-      { domain: { fields: '0x1f' } },
-      { name: 'ConstructionRefusal', check: 'domain-fields' }
-    ],
-    [
-      'a domain of another digest version',
-      { domain: { version: '2' } },
-      {
-        name: 'DigestVersionRefusal',
-        state: 'update-the-wallet',
-        published: { name: 'PolicyManager', version: '2' }
-      }
-    ],
-    [
-      'a domain of another name',
-      { domain: { name: 'OtherManager' } },
-      { name: 'DigestVersionRefusal', published: { name: 'OtherManager', version: '1' } }
+      'an action holding another binding',
+      ({ chain }) => chain.setConstants({ binding: `0x${'34'.repeat(32)}` }),
+      'binding'
     ]
   ]
 
-  CONSTRUCTION.forEach(([name, script, refusal]) =>
-    it(`refuses ${name} before reading the action`, async () => {
-      const node = deployedNode(script)
-      expect(await thrownBy(buildRecoveryClient(configOver(node)))).toMatchObject(refusal)
-      expect(readsOf(node).filter((read) => read !== 'eip712Domain')).toEqual([])
+  REFUSALS.forEach(([name, seed, check]) =>
+    it(`refuses ${name} with a deployment refusal`, async () => {
+      const world = createDeployedWorld()
+      seed(world)
+      const caught = await thrownBy(buildRecoveryClient(world.config))
+      expect(isDeploymentRefusal(caught)).toBe(true)
+      expect(caught).toMatchObject({ name: 'DeploymentRefusal', check })
     })
   )
 
-  it('refuses another chain before reading the domain', async () => {
-    const node = deployedNode({ chainId: 1 })
-    await thrownBy(buildRecoveryClient(configOver(node)))
-    expect(node.calls).toEqual([])
+  const CONSTRUCTION: [string, (world: World) => void][] = [
+    [
+      'a provider on another chain',
+      ({ ethers }) => {
+        Object.assign(ethers, { answeredChainId: 1 })
+      }
+    ],
+    ['a domain on another chain', ({ chain }) => chain.setDomain({ chainId: 1n })],
+    [
+      'a domain naming another verifying contract',
+      ({ chain }) => chain.setDomain({ verifyingContract: ELSEWHERE })
+    ],
+    ['a domain carrying other members', ({ chain }) => chain.setDomain({ fields: '0x1f' })],
+    ['a domain of another name', ({ chain }) => chain.setDomain({ name: 'OtherManager' })]
+  ]
+
+  CONSTRUCTION.forEach(([name, seed]) =>
+    it(`refuses ${name} before reading the action, and not as a deployment refusal`, async () => {
+      const world = createDeployedWorld()
+      seed(world)
+      const caught = await thrownBy(buildRecoveryClient(world.config))
+      expect(caught).toBeInstanceOf(Error)
+      expect(isDeploymentRefusal(caught)).toBe(false)
+      expect(checksOf(world).filter((read) => read !== 'eip712Domain')).toEqual([])
+    })
+  )
+
+  it('refuses a domain of another digest version as update the wallet, before reading the action', async () => {
+    const world = createDeployedWorld()
+    world.chain.setDomain({ version: '2' })
+    const caught = await thrownBy(buildRecoveryClient(world.config))
+    expect(isDigestVersionRefusal(caught)).toBe(true)
+    expect(caught).toMatchObject({
+      state: 'update-the-wallet',
+      published: { name: 'PolicyManager', version: '2' }
+    })
+    expect(checksOf(world).filter((read) => read !== 'eip712Domain')).toEqual([])
   })
 
-  it('passes a read the provider could not make through as it failed', async () => {
-    const failure = providerReadFailure('call', new Error('down'))
-    expect(await thrownBy(buildRecoveryClient(configOver(deployedNode({ domain: failure }))))).toBe(
-      failure
-    )
-    expect(
-      await thrownBy(buildRecoveryClient(configOver(deployedNode({ binding: failure }))))
-    ).toBe(failure)
-    const chainFailure = providerReadFailure('chainId', new Error('down'))
-    const node = deployedNode()
-    node.provider.chainId.mockRejectedValue(chainFailure)
-    expect(await thrownBy(buildRecoveryClient(configOver(node)))).toBe(chainFailure)
+  it("refuses another chain after the one domain read the client's own deployment check makes", async () => {
+    const world = createDeployedWorld()
+    world.ethers.answeredChainId = 1
+    const caught = await thrownBy(buildRecoveryClient(world.config))
+    expect(caught).toMatchObject({ message: BUILDER_CHAIN_MISMATCH_MESSAGE })
+    expect(isDigestVersionRefusal(caught)).toBe(false)
+    expect(isDeploymentRefusal(caught)).toBe(false)
+    expect(checksOf(world)).toEqual(['eip712Domain'])
+  })
+
+  it('passes a read the provider could not make through as a read failure, never a refusal', async () => {
+    const down = new Error('the node did not answer')
+    const failing: [string, (world: World) => void][] = [
+      ['the domain', ({ ethers }) => ethers.call.mockRejectedValue(down)],
+      [
+        'the binding',
+        ({ ethers }) => {
+          const answer = ethers.call.getMockImplementation()
+          ethers.call.mockImplementation(async (tx: { data?: string }) => {
+            if (VIEW_NAMES.get((tx.data ?? '').slice(0, 10)) === 'BINDING') {
+              throw down
+            }
+            return answer?.(tx)
+          })
+        }
+      ],
+      ['the chain id', ({ ethers }) => ethers.send.mockRejectedValue(down)]
+    ]
+    await failing.reduce(async (previous, [, fail]) => {
+      await previous
+      const world = createDeployedWorld()
+      fail(world)
+      const caught = await thrownBy(buildRecoveryClient(world.config))
+      expect(isProviderReadFailure(caught)).toBe(true)
+      expect(isDeploymentRefusal(caught)).toBe(false)
+    }, Promise.resolve())
   })
 
   it("judges an account with no code by the creation's privileges the configuration carries", async () => {
-    const node = deployedNode()
-    node.answer(MANAGER, stateOfCall(DEPLOYED_ACTION), stateAnswer(NO_STATE))
-    scriptMethod(node, METHOD_ECDSA)
-    scriptAction(node, { at: DEPLOYED_ACTION })
-    const creation = { factory: MANAGER, bytecode: '0x00' as const, salt: zeroHash, block: 1 }
-    const client = await buildRecoveryClient(
-      configOver(node, {
-        candidateKeys: [KEY_A, KEY_B],
-        initialPrivileges: [
-          [KEY_A, ARMED],
-          [KEY_B, zeroHash]
-        ],
-        creation
-      })
-    )
-    const described = await client.setup.describeSetup(draftAt('private'))
-    expect(described.candidateKeys).toEqual([
-      { address: KEY_A, isAuthority: true },
-      { address: KEY_B, isAuthority: false }
-    ])
-    expect(described.removedKey).toBe(KEY_A)
-    const bare = await buildRecoveryClient(configOver(node, { candidateKeys: [KEY_A], creation }))
-    expect((await bare.setup.describeSetup(draftAt('private'))).candidateKeys).toEqual([
-      { address: KEY_A, isAuthority: false }
-    ])
+    const world = createDeployedWorld()
+    world.chain.setHasCode(false)
+    const creation = {
+      factory: DEPLOYED_FACTS.manager,
+      bytecode: '0x00' as const,
+      salt: zeroHash,
+      block: 1
+    }
+    const client = await buildRecoveryClient({
+      ...world.config,
+      candidateKeys: [KEY_A, KEY_B],
+      initialPrivileges: [
+        [KEY_A, ARMED],
+        [KEY_B, zeroHash]
+      ],
+      creation
+    })
+    await expect(client.walletReads.removedKey()).resolves.toEqual({ kind: 'named', key: KEY_A })
   })
 
   it('asks the action about the keys the configuration names for an account with code', async () => {
-    const node = deployedNode()
-    node.setCode(ACCOUNT, '0x6080604052')
-    scriptAction(node, { at: DEPLOYED_ACTION, supportsAccount: true, authorities: [KEY_B] })
-    ;(
-      [
-        [KEY_A, zeroHash],
-        [KEY_B, ARMED]
-      ] as const
-    ).forEach(([key, privilege]) =>
-      node.answer(
-        ACCOUNT,
-        encodeFunctionData({ abi: PRIVILEGES_VIEW, functionName: 'privileges', args: [key] }),
-        privilege
-      )
-    )
-    const creation = { factory: MANAGER, bytecode: '0x00' as const, salt: zeroHash, block: 1 }
-    const named = await buildRecoveryClient(
-      configOver(node, { candidateKeys: [KEY_A, KEY_B], creation })
-    )
-    await expect(named.walletReads.removedKey()).resolves.toEqual({ kind: 'named', key: KEY_B })
+    const world = createDeployedWorld()
+    world.chain.setAuthorities([KEY_B])
+    const client = await buildRecoveryClient({ ...world.config, candidateKeys: [KEY_A, KEY_B] })
+    await expect(client.walletReads.removedKey()).resolves.toEqual({ kind: 'named', key: KEY_B })
   })
 
-  it('builds mainnet over the stand-in, which the variable does not name', async () => {
+  it('builds mainnet over the stand-in, which the variable does not name, reading nothing through the extension', async () => {
     const world = createWorld({ chain: 'mainnet' })
-    const codeRead = { code: jest.fn() }
-    const client = await buildRecoveryClient({ ...world.config, codeRead })
-    expect(client.setup).toBeInstanceOf(SetupClientDouble)
-    expect(codeRead.code).not.toHaveBeenCalled()
+    await buildRecoveryClient(world.config)
+    expect(world.ethers.send).not.toHaveBeenCalled()
+    expect(world.ethers.call).not.toHaveBeenCalled()
+    expect(world.ethers.getCode).not.toHaveBeenCalled()
   })
 })
 
@@ -274,18 +250,12 @@ describe('a chain whose deployment record names the stand-in', () => {
     variable.mockReturnValue(undefined)
   })
 
-  it('builds the stand-in through its builder and reads no deployed contract', async () => {
-    const builder = jest.spyOn(RecoveryKitBuilderDouble.prototype, 'buildSetupClient')
+  it("builds over the stand-in's fake node and reads nothing through the extension's provider", async () => {
     const world = createWorld({ account: addressOf('account') })
-    const codeRead = { code: jest.fn() }
-    const client = await buildRecoveryClient({ ...world.config, codeRead })
-    expect(client.setup).toBeInstanceOf(SetupClientDouble)
-    expect(builder).toHaveBeenCalledTimes(1)
-    expect(codeRead.code).not.toHaveBeenCalled()
+    const client = await buildRecoveryClient(world.config)
+    expect(client.descriptor).toEqual(world.descriptor)
+    expect(world.ethers.send).not.toHaveBeenCalled()
+    expect(world.ethers.call).not.toHaveBeenCalled()
     expect(world.ethers.getCode).not.toHaveBeenCalled()
-    const asked = world.ethers.call.mock.calls.map(([tx]: [{ data?: string }]) => tx.data)
-    expect(
-      asked.filter((data) => Object.values(CONSTANT_CALLS).includes(data as `0x${string}`))
-    ).toEqual([])
   })
 })

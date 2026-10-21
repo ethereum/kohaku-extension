@@ -84,11 +84,11 @@ describe('the waiting period step', () => {
       ])
     })
 
-    const LENGTHS: [string, bigint][] = [
-      ['hours24', 86400n],
-      ['hours48', 172800n],
-      ['hours72', 259200n],
-      ['days7', 604800n]
+    const LENGTHS: [string, number][] = [
+      ['hours24', 86400],
+      ['hours48', 172800],
+      ['hours72', 259200],
+      ['days7', 604800]
     ]
 
     LENGTHS.forEach(([id, seconds]) =>
@@ -146,7 +146,7 @@ describe('the waiting period step', () => {
       expect(h.byTestId('wait-refusal')).toBeNull()
       expect(h.isDisabled('continue')).toBe(false)
       await h.press('continue')
-      expect(await storedRecord(records)).toBe(86400n)
+      expect(await storedRecord(records)).toBe(86400)
     })
 
     it('refuses 23 hours with the wallet floor and stores nothing', async () => {
@@ -168,7 +168,7 @@ describe('the waiting period step', () => {
       await h.type('wait-custom-hours', '720')
       expect(h.byTestId('wait-refusal')).toBeNull()
       await h.press('continue')
-      expect(await storedRecord(records)).toBe(720n * 3600n)
+      expect(await storedRecord(records)).toBe(720 * 3600)
     })
 
     it('refuses 721 hours with the ceiling line that names 720, and stores nothing', async () => {
@@ -211,7 +211,7 @@ describe('the waiting period step', () => {
       await h.type('wait-custom-hours', '100')
       expect(h.byTestId('wait-refusal')).toBeNull()
       await h.press('continue')
-      expect(await storedRecord(records)).toBe(100n * 3600n)
+      expect(await storedRecord(records)).toBe(100 * 3600)
     })
 
     it('disables the 7-day chip past a ceiling of 100 hours and keeps the shorter chips', async () => {
@@ -222,12 +222,12 @@ describe('the waiting period step', () => {
       expect(checkedChipIds()).toEqual(['hours48'])
       expect(h.byTestId('wait-refusal')).toBeNull()
       await h.press('continue')
-      expect(await storedRecord(records)).toBe(172800n)
+      expect(await storedRecord(records)).toBe(172800)
     })
 
     it('a stored 7-day choice past a ceiling of 100 hours shows the refusal, holds continue and stores nothing', async () => {
       const records = recordsOn()
-      await records.setup(CHAIN_ID, ACCOUNT).setupDraft.write(draftOf({ wait: 604800n }))
+      await records.setup(CHAIN_ID, ACCOUNT).setupDraft.write(draftOf({ wait: 604800 }))
       await mountWithCeiling(100, records)
       expect(checkedChipIds()).toEqual(['days7'])
       expect(h.byTestId('wait-refusal')?.textContent).toBe(
@@ -236,12 +236,12 @@ describe('the waiting period step', () => {
       expect(h.isDisabled('continue')).toBe(true)
       await h.press('continue')
       expect(h.navigate).not.toHaveBeenCalled()
-      expect(await storedDraftWait(records)).toBe(604800n)
+      expect(await storedDraftWait(records)).toBe(604800)
       expect(await storedRecord(records)).toBeUndefined()
       await h.press('wait-chip-hours72')
       expect(h.byTestId('wait-refusal')).toBeNull()
       await h.press('continue')
-      expect(await storedDraftWait(records)).toBe(259200n)
+      expect(await storedDraftWait(records)).toBe(259200)
     })
 
     it('keeps an entry typed with a unit as typed and refuses it as not whole hours', async () => {
@@ -266,7 +266,7 @@ describe('the waiting period step', () => {
       await h.type('wait-custom-hours', '48')
       expect(h.byTestId('wait-refusal')).toBeNull()
       await h.press('continue')
-      expect(await storedRecord(records)).toBe(172800n)
+      expect(await storedRecord(records)).toBe(172800)
     })
 
     it('holds continue while the custom entry is empty', async () => {
@@ -292,28 +292,28 @@ describe('the waiting period step', () => {
   describe('the default and a stored length', () => {
     it("with a draft and no record pre-selects the draft's wait and stores it in both", async () => {
       const records = recordsOn()
-      await records.setup(CHAIN_ID, ACCOUNT).setupDraft.write(draftOf({ wait: 86400n }))
+      await records.setup(CHAIN_ID, ACCOUNT).setupDraft.write(draftOf({ wait: 86400 }))
       await h.mount(records)
       await h.press('continue')
-      expect(await storedRecord(records)).toBe(86400n)
-      expect(await storedDraftWait(records)).toBe(86400n)
+      expect(await storedRecord(records)).toBe(86400)
+      expect(await storedDraftWait(records)).toBe(86400)
     })
 
     it("pre-selects the draft's wait over a record that disagrees", async () => {
       const records = recordsOn()
       const setup = records.setup(CHAIN_ID, ACCOUNT)
-      await setup.waitingPeriod.write(604800n)
-      await setup.setupDraft.write(draftOf({ wait: 259200n }))
+      await setup.waitingPeriod.write(604800)
+      await setup.setupDraft.write(draftOf({ wait: 259200 }))
       await h.mount(records)
       await h.press('continue')
-      expect(await storedRecord(records)).toBe(259200n)
-      expect(await storedDraftWait(records)).toBe(259200n)
+      expect(await storedRecord(records)).toBe(259200)
+      expect(await storedDraftWait(records)).toBe(259200)
     })
 
     it('keeps the rest of the draft as it was', async () => {
       const records = recordsOn()
       const draft = draftOf({
-        wait: 86400n,
+        wait: 86400,
         ignoresPause: false,
         privacy: { backup: 'clear', publicMetadata: '0xabcd' }
       })
@@ -322,44 +322,44 @@ describe('the waiting period step', () => {
       await h.press('wait-chip-hours72')
       await h.press('continue')
       const read = await records.setup(CHAIN_ID, ACCOUNT).setupDraft.read()
-      expect(read.status === 'present' && read.value).toEqual({ ...draft, wait: 259200n })
+      expect(read.status === 'present' && read.value).toEqual({ ...draft, wait: 259200 })
     })
 
     it('with no draft stores the record alone', async () => {
       const records = recordsOn()
       await h.mount(records)
       await h.press('continue')
-      expect(await storedRecord(records)).toBe(172800n)
+      expect(await storedRecord(records)).toBe(172800)
       expect(await storedDraftWait(records)).toBeUndefined()
     })
 
     it('pre-selects the chip of a stored record', async () => {
       const records = recordsOn()
-      await records.setup(CHAIN_ID, ACCOUNT).waitingPeriod.write(604800n)
+      await records.setup(CHAIN_ID, ACCOUNT).waitingPeriod.write(604800)
       await h.mount(records)
       expect(h.inputOf('wait-custom-hours')).toBeNull()
       await h.press('continue')
-      expect(await storedRecord(records)).toBe(604800n)
+      expect(await storedRecord(records)).toBe(604800)
     })
 
     it('pre-fills the custom entry with a stored length no chip holds', async () => {
       const records = recordsOn()
-      await records.setup(CHAIN_ID, ACCOUNT).waitingPeriod.write(30n * 3600n)
+      await records.setup(CHAIN_ID, ACCOUNT).waitingPeriod.write(30 * 3600)
       await h.mount(records)
       expect(h.inputOf('wait-custom-hours')?.value).toBe('30')
       await h.press('continue')
-      expect(await storedRecord(records)).toBe(30n * 3600n)
+      expect(await storedRecord(records)).toBe(30 * 3600)
     })
 
-    const REFUSED_STORED: [string, bigint, string, string][] = [
-      ['under the floor', 3600n, '1', 'This wallet needs 24 hours or more.'],
+    const REFUSED_STORED: [string, number, string, string][] = [
+      ['under the floor', 3600, '1', 'This wallet needs 24 hours or more.'],
       [
         'past the ceiling',
-        721n * 3600n,
+        721 * 3600,
         '721',
         'This wallet cannot save a waiting period this long. The longest it accepts is 720 hours.'
       ],
-      ['not a whole number of hours', 48n * 3600n + 1800n, '48.5', W.wholeHours]
+      ['not a whole number of hours', 48 * 3600 + 1800, '48.5', W.wholeHours]
     ]
 
     REFUSED_STORED.forEach(([name, seconds, text, refusal]) =>
@@ -378,7 +378,7 @@ describe('the waiting period step', () => {
 
     it('puts a refused stored record into the custom entry when no draft exists', async () => {
       const records = recordsOn()
-      await records.setup(CHAIN_ID, ACCOUNT).waitingPeriod.write(3600n)
+      await records.setup(CHAIN_ID, ACCOUNT).waitingPeriod.write(3600)
       await h.mount(records)
       expect(h.inputOf('wait-custom-hours')?.value).toBe('1')
       expect(h.isDisabled('continue')).toBe(true)
@@ -388,7 +388,7 @@ describe('the waiting period step', () => {
   describe('a stored wait still loading', () => {
     // Mounts the step on a draft holding the given wait whose reads wait until
     // the returned function lets them through.
-    const mountHeld = async (wait: bigint) => {
+    const mountHeld = async (wait: number) => {
       const faults: StorageFaults = {}
       const records = recordsOn(faults)
       await records.setup(CHAIN_ID, ACCOUNT).setupDraft.write(draftOf({ wait }))
@@ -398,7 +398,7 @@ describe('the waiting period step', () => {
     }
 
     it('holds every chip and continue until the stored wait is read', async () => {
-      const { release } = await mountHeld(259200n)
+      const { release } = await mountHeld(259200)
       expect(disabledChipIds()).toEqual(CHIP_IDS)
       expect(h.isDisabled('continue')).toBe(true)
       await release()
@@ -407,30 +407,30 @@ describe('the waiting period step', () => {
     })
 
     it('keeps a stored 72 hours over presses made while it loads and never writes the 48-hour default', async () => {
-      const { records, release } = await mountHeld(259200n)
+      const { records, release } = await mountHeld(259200)
       await h.press('wait-chip-hours24')
       await h.press('continue')
       await release()
       expect(checkedChipIds()).toEqual(['hours72'])
       expect(h.navigate).not.toHaveBeenCalled()
-      expect(await storedDraftWait(records)).toBe(259200n)
+      expect(await storedDraftWait(records)).toBe(259200)
       expect(await storedRecord(records)).toBeUndefined()
       await h.press('continue')
-      expect(await storedDraftWait(records)).toBe(259200n)
-      expect(await storedRecord(records)).toBe(259200n)
+      expect(await storedDraftWait(records)).toBe(259200)
+      expect(await storedRecord(records)).toBe(259200)
     })
 
     it('a chip picked after the stored wait is read stays and is what continue stores', async () => {
-      const { records, release } = await mountHeld(259200n)
+      const { records, release } = await mountHeld(259200)
       await release()
       await h.press('wait-chip-hours24')
       expect(checkedChipIds()).toEqual(['hours24'])
       await h.press('continue')
-      expect(await storedDraftWait(records)).toBe(86400n)
+      expect(await storedDraftWait(records)).toBe(86400)
     })
 
     it('opens no custom entry while a stored custom wait loads, and shows its hours once read', async () => {
-      const { release } = await mountHeld(100n * 3600n)
+      const { release } = await mountHeld(100 * 3600)
       expect(h.isDisabled('wait-chip-custom')).toBe(true)
       await h.press('wait-chip-custom')
       expect(h.inputOf('wait-custom-hours')).toBeNull()
@@ -518,15 +518,15 @@ describe('the waiting period step', () => {
       await h.press('continue')
       await h.press('continue')
       expect(h.byTestId('write-failed')).toBeNull()
-      expect(await storedRecord(records)).toBe(172800n)
+      expect(await storedRecord(records)).toBe(172800)
       expect(h.navigate).toHaveBeenCalledWith(WEB_ROUTES.socialRecoverySetupPrivacy)
     })
 
     const withDraftAndRecord = async (faults: StorageFaults) => {
       const records = recordsOn(faults)
       const setup = records.setup(CHAIN_ID, ACCOUNT)
-      await setup.setupDraft.write(draftOf({ wait: 259200n }))
-      await setup.waitingPeriod.write(259200n)
+      await setup.setupDraft.write(draftOf({ wait: 259200 }))
+      await setup.waitingPeriod.write(259200)
       return records
     }
 
@@ -539,8 +539,8 @@ describe('the waiting period step', () => {
       await h.press('continue')
       expect(h.byTestId('write-failed')?.textContent).toBe(S.records.writeFailed)
       expect(h.navigate).not.toHaveBeenCalled()
-      expect(await storedDraftWait(records)).toBe(259200n)
-      expect(await storedRecord(records)).toBe(259200n)
+      expect(await storedDraftWait(records)).toBe(259200)
+      expect(await storedRecord(records)).toBe(259200)
     })
 
     it('a refused draft leaves the record at the earlier wait', async () => {
@@ -552,8 +552,8 @@ describe('the waiting period step', () => {
       await h.press('continue')
       expect(h.byTestId('write-failed')?.textContent).toBe(S.records.writeFailed)
       expect(h.navigate).not.toHaveBeenCalled()
-      expect(await storedDraftWait(records)).toBe(259200n)
-      expect(await storedRecord(records)).toBe(259200n)
+      expect(await storedDraftWait(records)).toBe(259200)
+      expect(await storedRecord(records)).toBe(259200)
     })
 
     it('a failed read shows its line, holds continue and stores nothing once storage is back', async () => {

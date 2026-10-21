@@ -9,9 +9,9 @@
 import { AbiCoder, FetchRequest, FetchResponse, JsonRpcApiProvider, makeError } from 'ethers'
 import { zeroHash } from 'viem'
 
-import type { Address, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Hex } from '@kohaku-eth/social-recovery'
 import { createChainReads } from '@web/modules/social-recovery/shared/client/chain-reads'
-import { advanceClock } from '@web/modules/social-recovery/shared/client/kit/events/__fixtures__/retries'
+import { advanceClock } from '@web/modules/social-recovery/shared/client/events/__fixtures__/retries'
 import {
   createCodeRead,
   createProviderAdapter,
@@ -106,7 +106,12 @@ describe('a call the node refuses for its rate limit', () => {
   it('is made again after one second and then two, and answers', async () => {
     const refusal = nodeAnswered('eth_call', TOO_MANY)
     const call = refusingThen([refusal, refusal], ANSWER)
-    const read = adapterOf({ call }).call(TO, DATA, undefined, 'latest')
+    const read = adapterOf({ call }).call(
+      TO,
+      DATA,
+      '0x0000000000000000000000000000000000000000',
+      'latest'
+    )
     expect(await triesAfter(call, 0)).toBe(1)
     expect(await triesAfter(call, RATE_LIMIT_RETRY_MS - 1)).toBe(1)
     expect(await triesAfter(call, 1)).toBe(2)
@@ -120,7 +125,9 @@ describe('a call the node refuses for its rate limit', () => {
     const last = nodeAnswered('eth_call', TOO_MANY)
     const refusal = nodeAnswered('eth_call', TOO_MANY)
     const call = refusingThen([refusal, refusal, refusal, last], ANSWER)
-    const read = thrownBy(adapterOf({ call }).call(TO, DATA, undefined, 'latest'))
+    const read = thrownBy(
+      adapterOf({ call }).call(TO, DATA, '0x0000000000000000000000000000000000000000', 'latest')
+    )
     expect(await triesAfter(call, 7 * RATE_LIMIT_RETRY_MS - 1)).toBe(3)
     expect(await triesAfter(call, 1)).toBe(4)
     const thrown = await read
@@ -136,7 +143,9 @@ describe('a failure that is not the rate limit', () => {
       [nodeAnswered('eth_call', { code: 3, message: 'execution reverted', data: REVERT })],
       ANSWER
     )
-    const read = thrownBy(adapterOf({ call }).call(TO, DATA, undefined, 'latest'))
+    const read = thrownBy(
+      adapterOf({ call }).call(TO, DATA, '0x0000000000000000000000000000000000000000', 'latest')
+    )
     await advanceClock(60_000)
     const thrown = await read
     expect(isRevertedCall(thrown)).toBe(true)
@@ -207,7 +216,7 @@ describe('the other reads the node refuses for its rate limit', () => {
     const send = refusingThen([nodeAnswered('eth_chainId', TOO_MANY)], '0xaa36a7')
     const adapter = adapterOf({ getLogs, getBlock, send })
     const reads = Promise.all([
-      adapter.logs({ addresses: [TO], topics: [] }, { from: 1, to: 2 }),
+      adapter.logs({ address: [TO], topics: [] }, { from: 1, to: 2 }),
       adapter.block('latest'),
       adapter.chainId()
     ])

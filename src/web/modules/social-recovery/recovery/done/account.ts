@@ -15,7 +15,7 @@ import type { Account } from '@ambire-common/interfaces/account'
 import { getDefaultAccountPreferences, getSmartAccount } from '@ambire-common/libs/account/account'
 import { isAddressEqual } from 'viem'
 
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 import { CREATION_STAND_IN } from './constants'
 import type { RecoveredAccount, RecoveredAccountInput } from './types'

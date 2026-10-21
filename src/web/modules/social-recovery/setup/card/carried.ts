@@ -3,7 +3,7 @@
  * freely; every later one asks the extension password. Held in memory, so a
  * reload or a new tab starts empty, as the recovery password holder does.
  */
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import type { ChainId } from '@web/modules/social-recovery/shared/records'
 
 const carried = new Set<string>()

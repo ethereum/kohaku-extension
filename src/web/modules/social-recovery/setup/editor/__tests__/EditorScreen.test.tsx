@@ -15,7 +15,7 @@ import { TextDecoder, TextEncoder } from 'util'
 import { parse, stringify } from '@ambire-common/libs/richJson/richJson'
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import type { RecordStorage } from '@web/modules/social-recovery/shared/records'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })

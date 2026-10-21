@@ -8,12 +8,12 @@ import type {
   Credential,
   Hex,
   ModuleInfo,
+  Parties,
   ReadResult,
   SetupDescription,
   SetupDraft,
-  SetupState,
-  TrustedParties
-} from '@web/modules/social-recovery/sdk-interfaces'
+  SetupState
+} from '@kohaku-eth/social-recovery'
 import { addressBookOf, deploymentDescriptor } from '@web/modules/social-recovery/shared/client'
 import type { FitCheckReading, RemovedKeyReading } from '@web/modules/social-recovery/shared/client'
 import type { Enrollment } from '@web/modules/social-recovery/shared/records'
@@ -82,7 +82,7 @@ export const enrolled = (
 export const declaration = (
   admin: Address = zeroAddress,
   pendingAdmin: Address = zeroAddress
-): ReadResult<TrustedParties> => ({
+): ReadResult<Parties> => ({
   answered: true,
   value: {
     admin,
@@ -104,7 +104,7 @@ export const NOT_PAUSED: ReadResult<boolean> = { answered: true, value: false }
 
 /** Every read of a method answered: the declaration given, a module that answers to the method interface, and not stopped. */
 export const answered = (
-  trustedParties: ReadResult<TrustedParties> = declaration(),
+  trustedParties: ReadResult<Parties> = declaration(),
   moduleInfo: ReadResult<ModuleInfo> = info(),
   paused: ReadResult<boolean> = NOT_PAUSED
 ): MethodReads => ({ trustedParties, moduleInfo, paused })
@@ -122,23 +122,23 @@ export const setupStateOf = (hasSetup = false): SetupState => ({
 
 /** A setup description naming the candidate keys and the key a recovery removes. */
 export const descriptionOf = (
-  candidateKeys: SetupDescription['candidateKeys'] = [{ address: REMOVED_KEY, isAuthority: true }],
+  candidateKeys: SetupDescription['candidateKeys'] = [{ key: REMOVED_KEY, isAuthority: true }],
   removedKey: SetupDescription['removedKey'] = REMOVED_KEY
 ): SetupDescription => ({
-  rule: null,
-  wait: { seconds: 172800n, defaultSeconds: 172800n },
-  failureDomains: null,
-  parties: null,
-  methodStanding: null,
-  passkeyDomains: null,
+  rule: { clauses: [] },
+  wait: { committed: 172800, clientDefault: 172800 },
+  failureDomains: [],
+  parties: { methods: [], walletGuardians: [] },
+  methodStanding: [],
+  passkeyDomains: [],
   candidateKeys,
   removedKey,
-  privacy: null,
-  backup: null,
-  reveals: null,
-  cancel: null,
-  upgrade: null,
-  pause: null
+  privacy: { publicMetadata: '0x', backup: 'encrypted' },
+  backup: { choice: 'encrypted', anySuppliedSalt: false },
+  reveals: { suppliedSaltPlaces: [] },
+  cancel: { cancelByVeto: true },
+  upgrade: {},
+  pause: { ignoresPause: true, methods: [] }
 })
 
 /** The reads keyed as the trust list holds them, by the method's lowercased address. */
@@ -154,12 +154,12 @@ export type Answer<T> = (module: Address) => Promise<ReadResult<T>>
 export interface MountOptions {
   clauses?: Clause[]
   enrollments?: Enrollment[]
-  wait?: bigint
+  wait?: number
   backup?: SetupDraft['privacy']['backup']
   publicMetadata?: SetupDraft['privacy']['publicMetadata']
   passwordSet?: boolean
   client?: 'loading' | 'failed' | 'update-the-wallet'
-  trustedParties?: Answer<TrustedParties>
+  trustedParties?: Answer<Parties>
   moduleInfo?: Answer<ModuleInfo>
   paused?: Answer<boolean>
   removedKey?: () => Promise<RemovedKeyReading>

@@ -8,7 +8,7 @@
  * pasted signature, the copy actions, the reads stopping once an approval
  * exists, and the decline's message.
  */
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 import type { SignOptions, TypedDataToSign } from '@web/modules/social-recovery/shared/client'
 
 import {

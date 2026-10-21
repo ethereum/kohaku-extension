@@ -16,7 +16,7 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import useRequestsControllerState from '@web/hooks/useRequestsControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import RecoveryChrome from '@web/modules/social-recovery/shared/chrome/RecoveryChrome'
 import {
   CHAIN_IDS,
@@ -33,6 +33,7 @@ import type {
 import { useAccountFacts } from '@web/modules/social-recovery/shared/client/useAccountFacts'
 import { useRecoveryClient } from '@web/modules/social-recovery/shared/client/useRecoveryClient'
 import { watcherConnectionFor } from '@web/modules/social-recovery/shared/client/watcher-reads'
+import { recordDeploymentOf } from '@web/modules/social-recovery/shared/records/deployment'
 import { extensionRecordStorage } from '@web/modules/social-recovery/shared/records/extensionStorage'
 import { watchedNetworkOf } from '@web/modules/social-recovery/watcher'
 
@@ -86,8 +87,14 @@ const CancelBody = ({ account }: CancelBodyProps) => {
   }, [networkKey, descriptor])
 
   const readAttempt = useMemo<AttemptReader | null>(() => {
-    if (connection) {
-      return attemptReaderOf({ reads: connection.reads, account, chainId: CHAIN_ID, storage })
+    if (connection && descriptor) {
+      return attemptReaderOf({
+        reads: connection.reads,
+        deployment: recordDeploymentOf(descriptor),
+        account,
+        chainId: CHAIN_ID,
+        storage
+      })
     }
     // A build that reads no deployed kit, or a wallet with no network for the chain, cannot read.
     if (networks && (!network || !descriptor)) {

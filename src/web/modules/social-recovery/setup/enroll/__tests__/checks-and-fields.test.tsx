@@ -5,7 +5,7 @@
  * an icon in its tone beside its text; and the passkey name and the guardian
  * address take a neutral focus, not the colours of an error.
  */
-import type { Address, Clause, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Clause, Hex } from '@kohaku-eth/social-recovery'
 
 import type {
   CheckTone,

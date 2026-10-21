@@ -1,4 +1,4 @@
-import type { Clause, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Clause, SetupDraft } from '@kohaku-eth/social-recovery'
 import { defaultSetupDraft, emptySlot } from '@web/modules/social-recovery/shared/records'
 
 import type { Preset, PresetChoice, PresetId, ShapeClause } from './types'

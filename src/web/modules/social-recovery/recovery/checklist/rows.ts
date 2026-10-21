@@ -5,12 +5,7 @@
  */
 import { decodeAbiParameters } from 'viem'
 
-import type {
-  Assessment,
-  Configuration,
-  Gathering,
-  Hex
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { Assessment, Configuration, Gathering, Hex } from '@kohaku-eth/social-recovery'
 import type { CeremonyOutcome } from '@web/modules/social-recovery/shared/ceremony'
 import { sameAddress } from '@web/modules/social-recovery/shared/client'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
@@ -204,7 +199,7 @@ export const chosenPlacesOf = (
   }
   try {
     const built = kit.recovery.complete(gathering, undefined, nowSeconds)
-    return new Set(built.proofs.map((proof) => Number(proof.place)))
+    return new Set(built.proofs.map((proof) => proof.place))
   } catch {
     return undefined
   }

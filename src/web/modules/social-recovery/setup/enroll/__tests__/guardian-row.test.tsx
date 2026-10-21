@@ -7,7 +7,7 @@
  * through the request queue or brought back through the offline block, with
  * the signature checked locally.
  */
-import type { Address, Clause, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Clause, Hex } from '@kohaku-eth/social-recovery'
 import type {
   KeyHandle,
   SignOptions,
@@ -462,9 +462,9 @@ describe('the guardian row', () => {
       if (client.state.status !== 'ready') {
         throw new Error('client not ready')
       }
-      client.state.client.approving.enrollInput = () => {
+      jest.spyOn(client.state.client.approving, 'enrollInput').mockImplementation(() => {
         throw new Error('bad address')
-      }
+      })
       await addGuardian()
       expect(view!.byTestId('guardian-add-note')?.textContent).toBe(t(`${CEREMONY}.failedNote`))
       expect(view!.inputOf('guardian-address')?.value).toBe(HELD)

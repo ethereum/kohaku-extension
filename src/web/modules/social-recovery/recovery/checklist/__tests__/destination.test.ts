@@ -3,7 +3,7 @@
  * as the keystore holds it, and a basic account's own address where the
  * keystore holds its key.
  */
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import type { ListedAccountFacts } from '@web/modules/social-recovery/shared/client'
 
 import { destinationKeyOf } from '@web/modules/social-recovery/recovery/checklist'

@@ -13,7 +13,7 @@ import { TextDecoder, TextEncoder } from 'util'
 
 import type { Location, NavigateFunction } from 'react-router-dom'
 
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import type { SetupAccount } from '@web/modules/social-recovery/shared/chrome'
 
 import type {

@@ -27,11 +27,12 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
 import useRequestsControllerState from '@web/hooks/useRequestsControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
-import type { Configuration, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Configuration, Hex } from '@kohaku-eth/social-recovery'
 import EntryReadFallback from '@web/modules/social-recovery/shared/chrome/EntryReadFallback'
 import RecoveryChrome from '@web/modules/social-recovery/shared/chrome/RecoveryChrome'
 import useRecoveryEntryRead from '@web/modules/social-recovery/shared/chrome/useRecoveryEntryRead'
 import {
+  addressBookOf,
   CHAIN_IDS,
   createSendPort,
   seedBasicAccountOf,
@@ -42,8 +43,11 @@ import type { HeldRequestQueue, ListedAccount } from '@web/modules/social-recove
 import { useAccountFacts } from '@web/modules/social-recovery/shared/client/useAccountFacts'
 import { useRecoveryClient } from '@web/modules/social-recovery/shared/client/useRecoveryClient'
 import {
+  countdownOfDeployment,
   createWalletRecords,
   extensionRecordStorage,
+  isOfDeployment,
+  isSessionOfDeployment,
   readRecoveryPassword
 } from '@web/modules/social-recovery/shared/records'
 import {
@@ -437,7 +441,12 @@ const WaitGate = ({ records, account, entry }: WaitGateProps) => {
     let live = true
     setReading({ status: 'loading' })
     const read = async () => {
-      const countdown = await records.countdown(CHAIN_ID, account).read()
+      // A countdown or a session of another deployment is no recovery of this build.
+      const build = addressBookOf(WALLET_RECOVERY_CHAIN)
+      const countdown = countdownOfDeployment(
+        await records.countdown(CHAIN_ID, account).read(),
+        build
+      )
       if (!live) {
         return
       }
@@ -454,7 +463,9 @@ const WaitGate = ({ records, account, entry }: WaitGateProps) => {
         return
       }
       navigate(
-        session.status === 'present' ? checklistPathOf(account) : routeEntryPathOf(entry.route),
+        session.status === 'present' && isSessionOfDeployment(session.value, build)
+          ? checklistPathOf(account)
+          : routeEntryPathOf(entry.route),
         { replace: true }
       )
     }
@@ -531,7 +542,9 @@ const WaitScreen = () => {
       toAccountStep()
       return
     }
-    records.listCountdowns(CHAIN_ID).then((landed) => {
+    records.listCountdowns(CHAIN_ID).then((listed) => {
+      const build = addressBookOf(WALLET_RECOVERY_CHAIN)
+      const landed = listed.filter(({ record }) => isOfDeployment(record.value.deployment, build))
       if (landed.length !== 1) {
         toAccountStep()
       } else if (generation.current === started) {

@@ -7,7 +7,7 @@
  * key the fast track made on this device, a key the wallet holds, or neither.
  */
 import { isOpeningOf } from '@web/modules/social-recovery/recovery/wait'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import { sameAddress } from '@web/modules/social-recovery/shared/client'
 import type {
   ListedRecoveryEntry,

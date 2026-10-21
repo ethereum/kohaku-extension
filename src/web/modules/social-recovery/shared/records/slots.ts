@@ -6,7 +6,7 @@
  */
 import { isAddressEqual, zeroAddress } from 'viem'
 
-import type { Clause, Credential } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Clause, Credential } from '@kohaku-eth/social-recovery'
 
 import { isStoredAddress } from './guards'
 import { SLOT_KINDS } from './types'

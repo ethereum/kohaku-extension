@@ -6,9 +6,9 @@ import type {
   DeploymentDescriptor,
   Hex,
   IEventManager,
-  Notification,
+  KitNotification,
   PreparedCall
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type {
   AddGate,
   ChainReads,
@@ -22,7 +22,7 @@ import type {
   WatcherConnection,
   WatcherReads
 } from '@web/modules/social-recovery/shared/client/types'
-import type { ChainId } from '@web/modules/social-recovery/shared/records/types'
+import type { ChainId, RecordDeployment } from '@web/modules/social-recovery/shared/records/types'
 import type {
   GasCheck,
   RequestHold,
@@ -149,6 +149,8 @@ export interface PollOnceInput {
 /** One fresh reading of an account's attempt, written to its watcher record. */
 export interface AttemptReaderInput {
   reads: WatcherReads
+  /** The manager and the action `reads` go to, written with each reading. */
+  deployment: RecordDeployment
   account: Address
   chainId: ChainId
   storage: WatcherStorage
@@ -160,7 +162,7 @@ export interface AttemptReaderInput {
 export type AttemptReader = () => Promise<WatcherReading>
 
 /** An attempt's cancel as the manager's log names it. */
-export type CancelLog = Extract<Notification, { kind: 'attempt-cancelled' }>
+export type CancelLog = Extract<KitNotification, { kind: 'attempt-cancelled' }>
 
 /** The members of a log on ethers' receipt that the decoding reads. */
 export type ReceiptLog = Pick<

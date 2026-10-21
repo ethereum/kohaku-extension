@@ -4,7 +4,7 @@
  * the tab's report. A stored request and a report are read from storage, so
  * their values are checked here before the row uses them.
  */
-import type { ApproverReply } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Reply } from '@kohaku-eth/social-recovery'
 import { AUTHENTICATOR_PLACES } from '@web/modules/social-recovery/shared/ceremony'
 import { sameAddress } from '@web/modules/social-recovery/shared/client'
 import { recordKeys } from '@web/modules/social-recovery/shared/records'
@@ -100,5 +100,5 @@ export const claimReplyOf = (value: unknown): PassedClaim | null => {
   const place = isRecord(facts)
     ? AUTHENTICATOR_PLACES.find((known) => known === facts.place)
     : undefined
-  return { reply: reply as unknown as ApproverReply, ...(place ? { facts: { place } } : {}) }
+  return { reply: reply as unknown as Reply, ...(place ? { facts: { place } } : {}) }
 }

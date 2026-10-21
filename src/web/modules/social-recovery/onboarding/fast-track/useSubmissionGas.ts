@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { Network } from '@ambire-common/interfaces/network'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import type { ExtensionProvider } from '@web/modules/social-recovery/shared/client'
 import { createChainReads, extensionProviderFor } from '@web/modules/social-recovery/shared/client'
 import { providerKeyOf } from '@web/modules/social-recovery/shared/client/extension-provider'

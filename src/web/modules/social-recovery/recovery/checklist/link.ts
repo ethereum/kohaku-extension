@@ -9,10 +9,7 @@ import { isHex } from 'viem'
 
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import { browser } from '@web/constants/browserapi'
-import type {
-  ApproverRequest,
-  SerializedPaymentOrder
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { ApproverRequest, SerializedPaymentOrder } from '@kohaku-eth/social-recovery'
 
 import { isDecimalString, isStoredAddress } from '@web/modules/social-recovery/shared/records'
 
@@ -38,45 +35,39 @@ export const tabPageUrl = (): string => {
  * The request's declared fields in a fresh object, so a field a client adds
  * beside them never travels in the link.
  */
-const declaredFieldsOf = ({
-  kind,
-  version,
-  purpose,
-  chainId,
-  manager,
-  digestVersion,
-  account,
-  action,
-  attemptId,
-  setupNonce,
-  setupBodyHash,
-  payload,
-  order,
-  validUntil,
-  place,
-  method,
-  config,
-  salt
-}: ApproverRequest): ApproverRequest => ({
-  kind,
-  version,
-  purpose,
-  chainId,
-  manager,
-  digestVersion,
-  account,
-  action,
-  attemptId,
-  setupNonce,
-  setupBodyHash,
-  ...(payload !== undefined ? { payload } : {}),
-  ...(order ? { order: { token: order.token, amount: order.amount, payee: order.payee } } : {}),
-  validUntil,
-  place,
-  method,
-  config,
-  salt
-})
+const declaredFieldsOf = (request: ApproverRequest): ApproverRequest => {
+  const head = { kind: request.kind, version: request.version }
+  const members = {
+    chainId: request.chainId,
+    manager: request.manager,
+    digestVersion: request.digestVersion,
+    account: request.account,
+    action: request.action,
+    attemptId: request.attemptId,
+    setupNonce: request.setupNonce,
+    setupBodyHash: request.setupBodyHash
+  }
+  const tail = {
+    validUntil: request.validUntil,
+    place: request.place,
+    method: request.method,
+    config: request.config,
+    salt: request.salt,
+    credentialHoldsCode: request.credentialHoldsCode
+  }
+  if (request.purpose === 'approval') {
+    const { token, amount, payee } = request.order
+    return {
+      ...head,
+      purpose: 'approval',
+      ...members,
+      payload: request.payload,
+      order: { token, amount, payee },
+      ...tail
+    }
+  }
+  return { ...head, purpose: 'cancellation', ...members, ...tail }
+}
 
 /** The link to the approval page for one place's request, one line. */
 export const approvalLinkOf = (request: ApproverRequest, tabUrl: string = tabPageUrl()): string => {
@@ -85,11 +76,8 @@ export const approvalLinkOf = (request: ApproverRequest, tabUrl: string = tabPag
   return `${tabUrl}#/${WEB_ROUTES.socialRecoveryApprove}?${query.toString()}`
 }
 
-/** A request's payment order: undefined where it carries none, null where it is malformed. */
-const orderOf = (value: unknown): SerializedPaymentOrder | null | undefined => {
-  if (value === undefined) {
-    return undefined
-  }
+/** A request's payment order, or null where it is missing or malformed. */
+const orderOf = (value: unknown): SerializedPaymentOrder | null => {
   if (
     !isObject(value) ||
     !isStoredAddress(value.token) ||
@@ -104,8 +92,9 @@ const orderOf = (value: unknown): SerializedPaymentOrder | null | undefined => {
 /**
  * The request a link carries, from the link itself or from the route's search
  * string, or null where any field is missing or has the wrong type. An
- * approval request carries the handover bytes; a missing payment order means
- * no payment.
+ * approval request carries the handover bytes and its payment order. A link
+ * that does not say whether the credential's address holds code reads as one
+ * that holds none.
  */
 export const requestOfApprovalLink = (search: string): ApproverRequest | null => {
   const at = search.lastIndexOf('?')
@@ -118,9 +107,7 @@ export const requestOfApprovalLink = (search: string): ApproverRequest | null =>
   if (!isObject(r)) {
     return null
   }
-  const order = orderOf(r.order)
   if (
-    order === null ||
     r.kind !== 'recovery-proof-request' ||
     !isIndex(r.version) ||
     !isPurpose(r.purpose) ||
@@ -132,20 +119,17 @@ export const requestOfApprovalLink = (search: string): ApproverRequest | null =>
     !isDecimalString(r.attemptId) ||
     !isDecimalString(r.setupNonce) ||
     !isHex(r.setupBodyHash) ||
-    (r.payload !== undefined && !isHex(r.payload)) ||
-    (r.purpose === 'approval' && r.payload === undefined) ||
     !isDecimalString(r.validUntil) ||
     !isIndex(r.place) ||
     !isStoredAddress(r.method) ||
     !isHex(r.config) ||
-    !isHex(r.salt)
+    !isHex(r.salt) ||
+    (r.credentialHoldsCode !== undefined && typeof r.credentialHoldsCode !== 'boolean')
   ) {
     return null
   }
-  return {
-    kind: r.kind,
-    version: r.version,
-    purpose: r.purpose,
+  const head = { kind: r.kind, version: r.version } as const
+  const members = {
     chainId: r.chainId,
     manager: r.manager,
     digestVersion: r.digestVersion,
@@ -153,15 +137,24 @@ export const requestOfApprovalLink = (search: string): ApproverRequest | null =>
     action: r.action,
     attemptId: r.attemptId,
     setupNonce: r.setupNonce,
-    setupBodyHash: r.setupBodyHash,
-    ...(r.payload !== undefined ? { payload: r.payload } : {}),
-    ...(order ? { order } : {}),
+    setupBodyHash: r.setupBodyHash
+  }
+  const tail = {
     validUntil: r.validUntil,
     place: r.place,
     method: r.method,
     config: r.config,
-    salt: r.salt
+    salt: r.salt,
+    credentialHoldsCode: r.credentialHoldsCode ?? false
   }
+  if (r.purpose === 'cancellation') {
+    return { ...head, purpose: 'cancellation', ...members, ...tail }
+  }
+  const order = orderOf(r.order)
+  if (!isHex(r.payload) || !order) {
+    return null
+  }
+  return { ...head, purpose: 'approval', ...members, payload: r.payload, order, ...tail }
 }
 
 /** Opens the approval page in a new full tab, beside the checklist. */

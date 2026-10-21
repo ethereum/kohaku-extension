@@ -7,7 +7,7 @@ import { Wallet } from 'ethers'
 
 import { dedicatedToOneSAPriv } from '@ambire-common/interfaces/keystore'
 import { getBasicAccount, getSmartAccount } from '@ambire-common/libs/account/account'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import {
   CONTROLLING_KEY,
   creationPrivilegesOf

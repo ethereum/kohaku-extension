@@ -5,8 +5,8 @@
  * the account and chain that request names.
  */
 import { getRpcProvider } from '@ambire-common/services/provider/getRpcProvider'
-import { addressOf, PasskeyMethodDouble } from '@web/modules/social-recovery/sdk-doubles'
-import type { ApproverRequest, IRecoveryMethod } from '@web/modules/social-recovery/sdk-interfaces'
+import { passkeyMethod } from '@kohaku-eth/social-recovery'
+import type { ApproverRequest, IRecoveryMethod } from '@kohaku-eth/social-recovery'
 import {
   CEREMONY_REPORT_CLOCK_SKEW_MS,
   CEREMONY_REPORT_TTL_MS,
@@ -29,7 +29,9 @@ import {
   buildRecoveryClient,
   CHAIN_IDS,
   createCeremonyResolver,
+  createDeployedWorld,
   createWorld,
+  DEPLOYED_FACTS,
   deploymentDescriptor,
   extensionClientFor,
   fakeApprovingClient,
@@ -39,8 +41,8 @@ import {
   spyOnBuilder,
   thrownBy
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
+import { addressOf } from '@web/modules/social-recovery/shared/client/__fixtures__/addresses'
 import { sepoliaDeploymentVariable } from '@web/modules/social-recovery/shared/client/deployment-env'
-import { FACTS } from '@web/modules/social-recovery/shared/client/kit/builder/__tests__/harness'
 
 jest.mock('@ambire-common/services/provider/getRpcProvider', () => ({
   getRpcProvider: jest.fn()
@@ -61,9 +63,16 @@ afterEach(() => {
   deploymentVariable.mockReset()
 })
 
-const SLUGS = ['ecdsa', 'passkey', 'aadhaar', 'zkpassport'] as const
+const SLUGS = ['ecdsa', 'passkey'] as const
 
 describe("the client's method implementation by slug", () => {
+  ;(['aadhaar', 'zkpassport'] as const).forEach((slug) =>
+    it(`hands out nothing for ${slug}, which this build ships no implementation of`, async () => {
+      const client = await buildRecoveryClient(createWorld().config)
+      expect(client.methodFor(slug)).toBeUndefined()
+    })
+  )
+
   SLUGS.forEach((slug) =>
     it(`hands out for ${slug} the implementation the approving side runs for its module`, async () => {
       const world = createWorld()
@@ -76,9 +85,10 @@ describe("the client's method implementation by slug", () => {
       expect(method.modules(world.descriptor).some((served) => sameAddress(served, module))).toBe(
         true
       )
-      const input = { enrolling: slug }
-      jest.spyOn(method, 'enrollInput').mockReturnValue(input)
-      expect(client.approving.enrollInput(module, {})).toBe(input)
+      const input = { kind: 'nothing-to-perform' } as const
+      const enroll = jest.spyOn(method, 'enrollInput').mockReturnValue(input)
+      expect(client.approving.enrollInput(module, {})).toEqual(input)
+      expect(enroll).toHaveBeenCalledTimes(1)
     })
   )
 
@@ -89,7 +99,7 @@ describe("the client's method implementation by slug", () => {
     SLUGS.forEach((slug, i) => expect(client.methodFor(slug)).toBe(methods[i]))
   })
 
-  it('hands out, for two slugs on one module, the method registered last, the one the approving side runs', async () => {
+  it('hands out, for two slugs on one module, the one method the approving side runs for it', async () => {
     const { addressBook } = createWorld().config
     const shared = addressBook.methods.passkey
     const world = createWorld({
@@ -97,18 +107,19 @@ describe("the client's method implementation by slug", () => {
     })
     const spies = spyOnBuilder()
     const client = await buildRecoveryClient(world.config)
-    const serving = spies.method.mock.calls
+    const serving = spies.withMethod.mock.calls
       .map(([registered]) => registered as IRecoveryMethod)
       .filter((registered) =>
         registered.modules(world.descriptor).some((served) => sameAddress(served, shared))
       )
-    expect(serving).toHaveLength(2)
-    const last = serving[serving.length - 1]
-    expect(client.methodFor('passkey')).toBe(last)
-    expect(client.methodFor('aadhaar')).toBe(last)
-    const input = { enrolling: 'shared' }
-    jest.spyOn(last, 'enrollInput').mockReturnValue(input)
-    expect(client.approving.enrollInput(shared, {})).toBe(input)
+    expect(serving).toHaveLength(1)
+    const [method] = serving
+    expect(client.methodFor('passkey')).toBe(method)
+    expect(client.methodFor('aadhaar')).toBe(method)
+    const input = { kind: 'nothing-to-perform' } as const
+    const enroll = jest.spyOn(method, 'enrollInput').mockReturnValue(input)
+    expect(client.approving.enrollInput(shared, {})).toEqual(input)
+    expect(enroll).toHaveBeenCalledTimes(1)
   })
 
   const UNKNOWN = [
@@ -151,7 +162,10 @@ const REQUEST: ApproverRequest = {
   place: 0,
   method: METHOD_ADDRESS,
   config: '0xabcd',
-  salt: '0x01'
+  salt: '0x01',
+  credentialHoldsCode: false,
+  payload: '0x',
+  order: { token: addressOf('token'), amount: '0', payee: addressOf('payee') }
 }
 const target = { account: ACCOUNT, chainId: CHAIN_ID, method: 'passkey' }
 const ENROLL: CeremonyRequestRecord = {
@@ -176,7 +190,7 @@ const resolverWorld = (
   served: Record<string, IRecoveryMethod> = {},
   descriptor = deploymentDescriptor('sepolia')
 ) => {
-  const passkey = new PasskeyMethodDouble()
+  const passkey = passkeyMethod()
   const { records, storage, clock } = recordsInMemory({ t: T0 })
   const client = fakeApprovingClient({ passkey, ...served }, descriptor)
   const clientFor = jest.fn(async () => client)
@@ -268,7 +282,7 @@ describe('the ceremony resolver', () => {
     const { records, clock } = recordsInMemory()
     const resolve = createCeremonyResolver({
       records,
-      clientFor: async () => fakeApprovingClient({ passkey: new PasskeyMethodDouble() })
+      clientFor: async () => fakeApprovingClient({ passkey: passkeyMethod() })
     })
     await records.ceremonyRequest('fresh').write(ENROLL)
     clock.t = Date.now() - CEREMONY_REPORT_TTL_MS - 1000
@@ -442,12 +456,14 @@ describe('the client builder the ceremony tab uses', () => {
     const client = await clientFor(world.account, CHAIN_ID)
     expect(buildProvider).toHaveBeenCalledTimes(1)
     expect(buildProvider.mock.calls[0][0]).toBe(SEPOLIA)
-    expect(world.ethers.send).toHaveBeenCalledWith('eth_chainId', [])
     SLUGS.forEach((slug) => expect(client.methodFor(slug)).toBeDefined())
     const module = world.config.addressBook.methods.passkey
-    const input = { enrolling: 'passkey' }
-    jest.spyOn(client.methodFor('passkey') as IRecoveryMethod, 'enrollInput').mockReturnValue(input)
-    expect(client.approving.enrollInput(module, {})).toBe(input)
+    const input = { kind: 'nothing-to-perform' } as const
+    const enroll = jest
+      .spyOn(client.methodFor('passkey') as IRecoveryMethod, 'enrollInput')
+      .mockReturnValue(input)
+    expect(client.approving.enrollInput(module, {})).toEqual(input)
+    expect(enroll).toHaveBeenCalledTimes(1)
     expect(world.ethers.destroy).toHaveBeenCalledTimes(1)
   })
 
@@ -460,21 +476,22 @@ describe('the client builder the ceremony tab uses', () => {
 
   it('destroys the provider and rejects with the refusal where the build is refused', async () => {
     const world = createWorld()
-    world.ethers.answeredChainId = 1
+    world.chain.setChainId(1)
     buildProvider.mockReturnValue(world.ethers)
     const caught = await thrownBy(extensionClientFor(() => [SEPOLIA])(world.account, CHAIN_ID))
     expect(caught).toBeInstanceOf(Error)
-    expect((caught as { check?: string }).check).toBe('chain-id')
+    expect(caught).toMatchObject({ message: expect.stringMatching(/chain/i) })
     expect(world.ethers.destroy).toHaveBeenCalledTimes(1)
   })
 
   it('reads code over the same provider, so a deployed action address with no code is refused as undeployed', async () => {
-    deploymentVariable.mockReturnValue(JSON.stringify(FACTS))
-    const world = createWorld()
+    deploymentVariable.mockReturnValue(JSON.stringify(DEPLOYED_FACTS))
+    const world = createDeployedWorld()
+    world.chain.setContractCode(world.descriptor.action, false)
     buildProvider.mockReturnValue(world.ethers)
     const caught = await thrownBy(extensionClientFor(() => [SEPOLIA])(world.account, CHAIN_ID))
     expect(caught).toMatchObject({ name: 'DeploymentRefusal', check: 'action' })
-    expect(world.ethers.getCode).toHaveBeenCalledWith(FACTS.action, 'latest')
+    expect(world.ethers.getCode).toHaveBeenCalledWith(DEPLOYED_FACTS.action, 'latest')
     expect(world.ethers.destroy).toHaveBeenCalledTimes(1)
   })
 
@@ -517,7 +534,31 @@ describe('the client builder the ceremony tab uses', () => {
 })
 
 describe('a request for a method the page serves no device for, on the client the extension builds', () => {
-  const OTHER_SLUGS = ['ecdsa', 'zkpassport', 'aadhaar'] as const
+  ;(['zkpassport', 'aadhaar'] as const).forEach((slug) =>
+    it(`refuses a request for ${slug}, which this build ships no implementation of`, async () => {
+      const world = createWorld()
+      buildProvider.mockReturnValue(world.ethers)
+      const { records } = recordsInMemory()
+      const resolve = createCeremonyResolver({
+        records,
+        clientFor: extensionClientFor(() => [networkRecord('sepolia')])
+      })
+      const module = world.config.addressBook.methods[slug]
+      await records.ceremonyRequest(ID).write({
+        account: world.account,
+        chainId: CHAIN_ID,
+        method: slug,
+        call: 'enroll',
+        methodAddress: module,
+        params: {}
+      })
+      await expect(resolve(routeOf('enroll', slug))).resolves.toEqual({
+        refused: 'no-implementation'
+      })
+    })
+  )
+
+  const OTHER_SLUGS = ['ecdsa'] as const
   OTHER_SLUGS.forEach((slug) =>
     (['enroll', 'testAccess'] as const).forEach((call) =>
       it(`ends the ${call} of ${slug} as not supported with no retry, since the page serves only the browser authenticator`, async () => {

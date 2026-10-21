@@ -4,7 +4,7 @@
  * implementation of the client built for the request's account and chain.
  */
 import type { Network } from '@ambire-common/interfaces/network'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import type { CeremonyResolver } from '@web/modules/social-recovery/shared/ceremony'
 import { isWithinExpiry } from '@web/modules/social-recovery/shared/ceremony'
 
@@ -12,7 +12,7 @@ import { addressBookOf, sameAddress } from './addresses'
 import { buildRecoveryClient } from './build-client'
 import { CHAIN_IDS, recoveryChainOf, WALLET_RECOVERY_CHAIN } from './chains'
 import { extensionProviderFor, networkOf } from './extension-provider'
-import { createCodeRead, createProviderAdapter, createTransactionRead } from './provider-adapter'
+import { createProviderAdapter } from './provider-adapter'
 import type { CeremonyClientFor, CeremonyResolverOptions } from './types'
 
 /**
@@ -97,9 +97,7 @@ export const extensionClientFor =
         chain,
         account,
         addressBook: addressBookOf(chain),
-        provider: createProviderAdapter(provider),
-        codeRead: createCodeRead(provider),
-        transactionRead: createTransactionRead(provider)
+        provider: createProviderAdapter(provider)
       })
     } finally {
       provider.destroy()

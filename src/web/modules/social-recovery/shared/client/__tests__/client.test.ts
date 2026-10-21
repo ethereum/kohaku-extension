@@ -1,29 +1,29 @@
 /**
- * The extension builds one client from a configuration naming one chain, the
- * address book of the manager, the methods and the action, and a provider
- * adapter whose four reads route through the extension's own provider. It
- * hands the client no signer and no storage. With no sponsor rail configured,
- * every prepared call is sent from a key the signer holds.
+ * The extension builds one client from a configuration naming one chain and
+ * the address book of the manager, the methods and the action, through the
+ * SDK's builder. On a chain with no deployment the builder reads the
+ * stand-in's fake node, never the extension's provider. It hands the client
+ * no signer and no storage. With no sponsor rail configured, every prepared
+ * call is sent from a key the signer holds.
  */
 import { PROXY_AMBIRE_ACCOUNT } from '@ambire-common/consts/deploy'
 import {
-  addressOf,
-  DEFAULT_REQUEST_WINDOW,
-  MANAGER_DOMAIN_FIELDS,
-  PolicyManagerDouble,
-  ProviderDouble,
-  WalletMethodDouble
-} from '@web/modules/social-recovery/sdk-doubles'
+  AmbireActionCodec,
+  BUILDER_DOMAIN_FIELDS,
+  BUILDER_REQUEST_WINDOW,
+  PolicyManager,
+  walletMethod
+} from '@kohaku-eth/social-recovery'
 import type {
   Configuration,
   DeploymentDescriptor,
   Hex,
-  IProvider,
   PreparedBatch,
   PreparedCall
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 
 import {
+  addressOf,
   buildRecoveryClient,
   CHAIN_IDS,
   CLIENT_CONFIGURATION_KEYS,
@@ -31,23 +31,30 @@ import {
   createWorld,
   deploymentDescriptor,
   descriptorOf,
-  functionMembersOf,
   isDigestVersionRefusal,
   KeyHandle,
   keysUnder,
   lastArg,
   namesSignerOrStorage,
-  providerDoubleReads,
   RECOVERY_CALLS,
   sendingKeyOf,
   spyOnBuilder,
-  thrownBy,
-  underlyingCalls
+  thrownBy
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
 
-const IPROVIDER_READS = ['block', 'call', 'chainId', 'logs']
-
 afterEach(() => jest.restoreAllMocks())
+
+/** What the builder was built from: the provider, the account, the descriptor and the configuration. */
+const inputsOf = (spies: ReturnType<typeof spyOnBuilder>) =>
+  lastArg(spies.from) as {
+    provider: unknown
+    account: unknown
+    descriptor: DeploymentDescriptor
+    configuration: Record<string, unknown>
+  }
+
+const guardianConfig = (): Hex =>
+  walletMethod().codec.encodeConfig({ signer: addressOf('approver') })
 
 describe('buildRecoveryClient', () => {
   it('builds one client from a configuration naming one chain and the address book', async () => {
@@ -63,34 +70,38 @@ describe('buildRecoveryClient', () => {
     expect(typeof client.setup.prepareCommitSetup).toBe('function')
   })
 
-  it('hands the builder double exactly the configuration, the adapter and the descriptor', async () => {
+  it("hands the builder the stand-in's node, the descriptor, the account and the configuration, once", async () => {
     const spies = spyOnBuilder()
     const world = createWorld()
     await buildRecoveryClient(world.config)
 
-    // One builder, each setter called once.
-    expect(spies.provider).toHaveBeenCalledTimes(1)
-    expect(spies.descriptor).toHaveBeenCalledTimes(1)
-    expect(spies.config).toHaveBeenCalledTimes(1)
-    expect(spies.account).toHaveBeenCalledTimes(1)
-
-    expect(lastArg(spies.provider)).toBe(world.config.provider)
-    expect(lastArg(spies.descriptor)).toEqual(
-      descriptorOf(world.config.chain, world.config.addressBook)
-    )
-    expect(lastArg(spies.descriptor)).toEqual(deploymentDescriptor(world.config.chain))
-    expect(lastArg(spies.config)).toEqual({
+    expect(spies.from).toHaveBeenCalledTimes(1)
+    const inputs = inputsOf(spies)
+    expect(inputs.provider).toBe(world.chain)
+    expect(inputs.descriptor).toEqual(descriptorOf(world.config.chain, world.config.addressBook))
+    expect(inputs.descriptor).toEqual(deploymentDescriptor(world.config.chain))
+    expect(inputs.configuration).toEqual({
       ...clientConfigurationOf(world.config),
       accountImplementation: PROXY_AMBIRE_ACCOUNT
     })
-    expect(lastArg(spies.account)).toBe(world.account)
+    expect(inputs.account).toBe(world.account)
+  })
 
-    // The rest the builder receives is the stand-in SDK's own parts, never the extension's.
-    spies.policyManager.mock.calls.forEach(([pm]) => expect(pm).toBeInstanceOf(PolicyManagerDouble))
-    expect(spies.method).toHaveBeenCalledTimes(4)
-    expect(spies.action).not.toHaveBeenCalled()
-    expect(spies.eventManager).not.toHaveBeenCalled()
-    expect(spies.codec).not.toHaveBeenCalled()
+  it("hands the builder the SDK's own parts: its policy manager, the action codec and the two shipped methods", async () => {
+    const spies = spyOnBuilder()
+    const world = createWorld()
+    await buildRecoveryClient(world.config)
+
+    expect(spies.withPolicyManager).toHaveBeenCalledTimes(1)
+    expect(lastArg(spies.withPolicyManager)).toBeInstanceOf(PolicyManager)
+    expect(spies.withCodec).toHaveBeenCalledTimes(1)
+    expect(lastArg(spies.withCodec)).toBeInstanceOf(AmbireActionCodec)
+    expect(spies.withMethod).toHaveBeenCalledTimes(2)
+    expect(spies.withEventManager).toHaveBeenCalledWith({
+      logChunkSize: clientConfigurationOf(world.config).logChunkSize
+    })
+    expect(spies.withSignerRecovery).toHaveBeenCalledTimes(1)
+    expect(spies.withRecoveryAction).not.toHaveBeenCalled()
   })
 
   it('keeps an account implementation the configuration names', async () => {
@@ -98,7 +109,7 @@ describe('buildRecoveryClient', () => {
     const implementation = addressOf('other-implementation')
     const world = createWorld({ accountImplementation: implementation })
     await buildRecoveryClient(world.config)
-    const configuration = lastArg(spies.config) as { accountImplementation?: string }
+    const { configuration } = inputsOf(spies)
     expect(configuration.accountImplementation).toBe(implementation)
     expect(configuration.accountImplementation).not.toBe(PROXY_AMBIRE_ACCOUNT)
   })
@@ -107,7 +118,7 @@ describe('buildRecoveryClient', () => {
     const spies = spyOnBuilder()
     const world = createWorld()
     await buildRecoveryClient(world.config)
-    const configuration = lastArg(spies.config) as {
+    const configuration = inputsOf(spies).configuration as {
       requestWindow?: { default: number }
       tokens?: unknown[]
     }
@@ -119,8 +130,7 @@ describe('buildRecoveryClient', () => {
     const spies = spyOnBuilder()
     const world = createWorld()
     await buildRecoveryClient(world.config)
-    const configuration = lastArg(spies.config) as Record<string, unknown>
-    Object.keys(configuration).forEach((key) =>
+    Object.keys(inputsOf(spies).configuration).forEach((key) =>
       expect(CLIENT_CONFIGURATION_KEYS as string[]).toContain(key)
     )
   })
@@ -129,49 +139,54 @@ describe('buildRecoveryClient', () => {
     const spies = spyOnBuilder()
     const world = createWorld()
     await buildRecoveryClient(world.config)
-    const fromTheExtension = [spies.provider, spies.descriptor, spies.account, spies.config]
-      .flatMap((spy) => spy.mock.calls.flat())
-      .flatMap((value) => keysUnder(value, 3, [world.ethers]))
+    const { account, descriptor, configuration } = inputsOf(spies)
+    const fromTheExtension = [account, descriptor, configuration].flatMap((value) =>
+      keysUnder(value, 3, [world.ethers])
+    )
     expect(fromTheExtension.filter(namesSignerOrStorage)).toEqual([])
   })
 
-  it('routes the construction reads through the extension provider, never the provider double', async () => {
-    const doubleReads = providerDoubleReads()
+  it("reads the construction over the stand-in's node, never the extension provider", async () => {
     const world = createWorld()
+    const chainId = jest.spyOn(world.chain, 'chainId')
     await buildRecoveryClient(world.config)
-    doubleReads.forEach((spy) => expect(spy).not.toHaveBeenCalled())
-    const methods = underlyingCalls(world.ethers).map(([member, args]) =>
-      member === 'send' ? args[0] : member
-    )
-    expect(methods).toContain('eth_chainId')
-    expect(methods.every((m) => typeof m === 'string' && m.startsWith('eth_'))).toBe(true)
+    expect(chainId).toHaveBeenCalled()
+    expect(world.ethers.send).not.toHaveBeenCalled()
+    expect(world.ethers.call).not.toHaveBeenCalled()
   })
 
-  it('routes a prepare pin through the extension provider', async () => {
+  it("pins a prepare over the stand-in's node", async () => {
     const world = createWorld()
     const client = await buildRecoveryClient(world.config)
+    await world.chain.commitSetup(
+      { clauses: [{ threshold: 1, credentials: [] }], wait: 432_000, ignoresPause: false },
+      { publicMetadata: '0x', backup: 'empty' }
+    )
     world.chain.openAttempt()
-    world.ethers.getBlock.mockClear()
+    const block = jest.spyOn(world.chain, 'block')
     await client.recovery.prepareCancelByOwner()
-    expect(world.ethers.getBlock).toHaveBeenCalled()
+    expect(block).toHaveBeenCalled()
+    expect(world.ethers.getBlock).not.toHaveBeenCalled()
   })
 
-  it('hands the client a provider of the four reads and no send, balance or estimate', async () => {
-    const spies = spyOnBuilder()
+  it("reads a block's time over the stand-in's node, never the extension provider, and fails where the node cannot answer", async () => {
     const world = createWorld()
-    await buildRecoveryClient(world.config)
-    const adapter = lastArg(spies.provider) as IProvider
-    expect(adapter).not.toBeInstanceOf(ProviderDouble)
-    expect(functionMembersOf(adapter).sort()).toEqual(IPROVIDER_READS)
+    const client = await buildRecoveryClient(world.config)
+    const earlier = world.chain.mine()
+    world.chain.mine()
+    expect(await client.walletReads.blockTime(earlier.number)).toBe(earlier.timestamp)
+    expect(world.ethers.getBlock).not.toHaveBeenCalled()
+
+    world.chain.failRead('block')
+    expect(await thrownBy(client.walletReads.blockTime(earlier.number))).toBeInstanceOf(Error)
   })
 
-  it('binds the one chain the configuration names and refuses a provider on another', async () => {
+  it('binds the one chain the configuration names and refuses a node on another', async () => {
     const world = createWorld()
-    world.ethers.answeredChainId = 1
+    world.chain.setChainId(1)
     const caught = await thrownBy(buildRecoveryClient(world.config))
     expect(caught).toBeInstanceOf(Error)
     expect(isDigestVersionRefusal(caught)).toBe(false)
-    expect((caught as { check?: string }).check).toBe('chain-id')
   })
 
   it('builds one set of shared parts: the setup and recovery clients read the same events', async () => {
@@ -182,15 +197,14 @@ describe('buildRecoveryClient', () => {
 })
 
 describe("the manager domain's members", () => {
-  it('builds the client over the members the doubles serve, written in either case', async () => {
+  it('builds the client over the members the SDK serves, written in either case', async () => {
     const world = createWorld()
     await expect(buildRecoveryClient(world.config)).resolves.toBeDefined()
 
     const upper = createWorld()
-    upper.chain.manager.domain.fields = MANAGER_DOMAIN_FIELDS.replace(/[a-f]/g, (c) =>
-      c.toUpperCase()
-    ) as Hex
-    expect(upper.chain.manager.domain.fields).not.toBe(MANAGER_DOMAIN_FIELDS)
+    const fields = BUILDER_DOMAIN_FIELDS.replace(/[a-f]/g, (c) => c.toUpperCase()) as Hex
+    expect(fields).not.toBe(BUILDER_DOMAIN_FIELDS)
+    upper.chain.setDomain({ fields })
     await expect(buildRecoveryClient(upper.config)).resolves.toBeDefined()
   })
 
@@ -199,11 +213,10 @@ describe("the manager domain's members", () => {
     it(`refuses a domain carrying the members ${fields} before any client is built`, async () => {
       const builder = spyOnBuilder()
       const world = createWorld()
-      world.chain.manager.domain.fields = fields
+      world.chain.setDomain({ fields })
       const caught = await thrownBy(buildRecoveryClient(world.config))
+      expect(caught).toBeInstanceOf(Error)
       expect(isDigestVersionRefusal(caught)).toBe(false)
-      expect((caught as { check?: string }).check).toBe('domain-fields')
-      expect(builder.buildSetupClient).not.toHaveBeenCalled()
       expect(builder.buildRecoveryClient).not.toHaveBeenCalled()
     })
   )
@@ -214,24 +227,17 @@ describe('the fit check the built client runs against the account implementation
     const client = await buildRecoveryClient(world.config)
     world.chain.setHasCode(false)
     const result = await client.setup.validateSetup({
-      wait: 432_000n,
+      wait: 432_000,
       clauses: [
         {
           threshold: 1,
-          credentials: [
-            {
-              method: world.descriptor.methodEcdsa,
-              config: new WalletMethodDouble().codec.encodeConfig({
-                address: addressOf('approver')
-              })
-            }
-          ]
+          credentials: [{ method: world.descriptor.methodEcdsa, config: guardianConfig() }]
         }
       ],
       ignoresPause: false,
       privacy: { publicMetadata: '0x', backup: 'encrypted' }
     })
-    const codes = (findings: { code: string }[]) =>
+    const codes = (findings: readonly { code: string }[]) =>
       findings
         .map((finding) => finding.code)
         .filter((code) => code === 'action.unsupported' || code === 'action.fit-unchecked')
@@ -259,20 +265,13 @@ describe('the request window the built client judges', () => {
       clauses: [
         {
           threshold: 1,
-          credentials: [
-            {
-              method: world.descriptor.methodEcdsa,
-              config: new WalletMethodDouble().codec.encodeConfig({
-                address: addressOf('approver')
-              })
-            }
-          ]
+          credentials: [{ method: world.descriptor.methodEcdsa, config: guardianConfig() }]
         }
       ],
-      wait: 432_000n,
+      wait: 432_000,
       ignoresPause: false
     }
-    world.chain.commitSetup({ level: 'public', configuration })
+    await world.chain.commitSetup(configuration, { publicMetadata: '0x', backup: 'clear' })
     world.chain.openAttempt()
     const shortWindowFindings = async (window: number) => {
       const gathering = await client.recovery.initCancelGathering(configuration, { window })
@@ -282,7 +281,7 @@ describe('the request window the built client judges', () => {
         .findings.filter((finding) => finding.code === 'request.window-short')
         .map((finding) => finding.values)
     }
-    const { floor } = DEFAULT_REQUEST_WINDOW
+    const { floor } = BUILDER_REQUEST_WINDOW
     await expect(shortWindowFindings(floor)).resolves.toEqual([])
     await expect(shortWindowFindings(floor - 1)).resolves.toEqual([{ window: floor - 1, floor }])
   })
@@ -368,7 +367,7 @@ describe('an address book naming another action', () => {
     const world = createWorld({ addressBook: book })
     const spies = spyOnBuilder()
     await buildRecoveryClient(world.config)
-    const descriptor = lastArg(spies.descriptor) as DeploymentDescriptor
+    const { descriptor } = inputsOf(spies)
     expect(descriptor.action).toBe(other)
     expect(descriptor.auditedActions).toEqual(
       deploymentDescriptor(world.config.chain).auditedActions

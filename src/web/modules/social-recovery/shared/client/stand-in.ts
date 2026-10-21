@@ -1,60 +1,47 @@
 /**
- * The SDK stand-in: the doubles the client is built against until the SDK
- * lands. This folder is the only one outside `sdk-doubles/` that imports the
- * doubles, so the swap to the real SDK touches this folder alone. This file
- * goes with the swap.
- *
- * The doubles serve one scripted chain record per account. The stand-in keeps
- * one record per deployment and account for the life of the page, so a setup
- * client and a recovery client built for one account read the same world.
- * Tests and the development build script that world through `chainFor`.
- *
- * The doubles pin blocks and read logs through the configured provider, while
- * the manager, action and method state comes from the scripted record. A
- * client built over a real node therefore reads the record's state at the
- * node's blocks; a coherent development world passes `providerFor(chain)` as
- * the provider.
+ * The fake nodes the client is built over on a chain with no deployment: one
+ * per deployment and account for the life of the page, so a setup client and
+ * a recovery client built for one account read the same world, and a reload
+ * starts it afresh. Tests and the development build seed that world through
+ * `nodeFor`.
  */
-import type { ChainSeed } from '@web/modules/social-recovery/sdk-doubles'
-import { ProviderDouble, ScriptedChain } from '@web/modules/social-recovery/sdk-doubles'
-import type {
-  Address,
-  DeploymentDescriptor,
-  IProvider
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, DeploymentDescriptor, IProvider } from '@kohaku-eth/social-recovery'
 
-const chains = new Map<string, ScriptedChain>()
+import { ScriptedNode } from './scripted'
+import type { ScriptedNodeSeed } from './scripted'
+
+const nodes = new Map<string, ScriptedNode>()
 
 const keyOf = (descriptor: DeploymentDescriptor, account: Address): string =>
   [descriptor.chainId, descriptor.manager, descriptor.action, account].join(':').toLowerCase()
 
 export const sdkStandIn = {
   /**
-   * The scripted chain record for one deployment and one account, created on
-   * first use from the descriptor and the account, with the doubles' defaults
-   * for the rest of the world (or the seed given at that first use).
+   * The fake node for one deployment and one account, created on first use
+   * from the descriptor and the account, with the node's defaults for the
+   * rest of the world (or the seed given at that first use).
    */
-  chainFor(
+  nodeFor(
     descriptor: DeploymentDescriptor,
     account: Address,
-    seed: Omit<ChainSeed, 'descriptor' | 'account'> = {}
-  ): ScriptedChain {
+    seed: Omit<ScriptedNodeSeed, 'descriptor' | 'account'> = {}
+  ): ScriptedNode {
     const key = keyOf(descriptor, account)
-    let chain = chains.get(key)
-    if (!chain) {
-      chain = new ScriptedChain({ ...seed, descriptor, account })
-      chains.set(key, chain)
+    let node = nodes.get(key)
+    if (!node) {
+      node = new ScriptedNode({ ...seed, descriptor, account })
+      nodes.set(key, node)
     }
-    return chain
+    return node
   },
 
-  /** An `IProvider` answered from a scripted chain, for a test or a development run with no node. */
-  providerFor(chain: ScriptedChain): IProvider {
-    return new ProviderDouble(chain)
+  /** The `IProvider` a fake node answers as. */
+  providerFor(node: ScriptedNode): IProvider {
+    return node
   },
 
-  /** Forgets every scripted chain record. */
+  /** Forgets every fake node. */
   reset(): void {
-    chains.clear()
+    nodes.clear()
   }
 }

@@ -38,16 +38,6 @@ const PathBody = ({ reads, context, networkName }: PathBodyProps) => {
           onRetry={reads.retryPath}
         />
       )
-    case 'update-the-wallet':
-      return (
-        <Alert
-          testID="overview-path-update-the-wallet"
-          type="error"
-          size="sm"
-          title={t('socialRecovery.client.updateTheWalletTitle')}
-          text={t('socialRecovery.client.updateTheWalletHow')}
-        />
-      )
     case 'no-details':
       return (
         <Alert

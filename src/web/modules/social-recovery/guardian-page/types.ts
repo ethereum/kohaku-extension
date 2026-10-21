@@ -6,7 +6,7 @@ import type {
   IMethodsOrchestrator,
   RequestDescription,
   Verdict
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type { PollFacts } from '@web/modules/social-recovery/recovery/checklist'
 import type { Action } from '@web/extension-services/background/actions'
 import type {

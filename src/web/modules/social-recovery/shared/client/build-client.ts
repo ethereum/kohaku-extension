@@ -1,63 +1,60 @@
 /**
  * `buildRecoveryClient`: the one recovery kit client the extension builds for
- * an account, with the digest-version check inside it.
+ * an account, through the SDK's builder.
  *
- * What the client is built over follows the chain's deployment record. With
- * the stand-in, the client is built through the SDK's builder, today the
- * builder double over the stand-in's scripted chain. The builder receives the
- * provider adapter, the descriptor, the account and the client configuration,
- * and nothing else of the extension: no signer and no storage. With a
- * deployed kit, the client reads the deployed contracts through the provider
- * adapter and the code and transaction reads beside it.
+ * What the client reads follows the chain's deployment record: with a
+ * deployed kit, the extension's provider adapter; with none, the fake node
+ * the stand-in keeps for the account, which answers as the deployed
+ * contracts would. Either way the builder receives the provider, the
+ * descriptor, the account and the client configuration, the policy manager,
+ * the action codec and the two shipped methods this build constructs, the
+ * event manager's chunk width from the wallet's configuration and the signer
+ * recovery its removed-key inference reads, and nothing else of the
+ * extension: no signer and no storage.
  *
- * The SDK's construction checks run before anything is built, in the SDK's
- * order: the provider's chain id, the manager domain's chain id and verifying
- * contract, its `fields` bitmap, then its digest version. A refused digest
- * version throws a `DigestVersionRefusal` before any client exists, so no
- * prepare can run; the account step draws it as the update-the-wallet state.
- * The builder runs the same checks again at construction, and its
- * digest-version refusal is surfaced as the same `DigestVersionRefusal`. A
- * deployed kit is checked further: its manager and action answer as such,
- * and the action is bound to the deployment's manager, the served
- * implementation and the kit slot and binding this build derives, or the
- * build refuses with a `DeploymentRefusal`.
+ * The SDK's construction checks run at the first build, in the SDK's order:
+ * the provider's chain id, the manager domain's chain id and verifying
+ * contract, its `fields` bitmap, its digest version and its name. A refused
+ * digest version or domain name throws a `DigestVersionRefusal`, so no
+ * prepare can run; the account step draws it as the update-the-wallet state. A deployment is
+ * checked further: its manager answers at its address, and the action is
+ * bound to the deployment's manager, the served implementation and the kit
+ * slot and binding this build derives, or the build refuses with a
+ * `DeploymentRefusal`.
  */
-import { PROXY_AMBIRE_ACCOUNT } from '@ambire-common/consts/deploy'
-import type { ConstructionRefusal } from '@web/modules/social-recovery/sdk-doubles'
 import {
-  constructionRefusal,
-  MANAGER_DOMAIN_FIELDS,
-  PolicyManagerDouble,
-  RecoveryKitBuilderDouble,
-  shippedMethodDoubles,
-  WalletReadsDouble
-} from '@web/modules/social-recovery/sdk-doubles'
+  AmbireActionCodec,
+  BUILDER_DIGEST_VERSION_MESSAGE,
+  BUILDER_DOMAIN_NAME_MESSAGE,
+  FORMATS_DIGEST_DOMAIN_NAME,
+  KitRefusalError,
+  passkeyMethod,
+  PolicyManager,
+  SocialRecoveryBuilder,
+  walletMethod
+} from '@kohaku-eth/social-recovery'
 import type {
-  ClientConfiguration,
   DeploymentDescriptor,
-  Domain,
   IProvider,
-  IRecoveryMethod
-} from '@web/modules/social-recovery/sdk-interfaces'
+  IRecoveryMethod,
+  ISignerRecovery
+} from '@kohaku-eth/social-recovery'
 
-import { sameAddress } from './addresses'
+import { PROXY_AMBIRE_ACCOUNT } from '@ambire-common/consts/deploy'
+
 import { clientConfigurationOf } from './configuration'
+import { checkActionConstants, createActionViews, readManagerDomain } from './deployment-checks'
 import { deploymentOf } from './deployments'
 import { descriptorOf } from './descriptors'
-import { buildKitClient, checkActionConstants, readManagerDomain } from './kit/builder'
-import { createActionReads, createManagerReads } from './kit/reads'
+import { createRecoverySetupClient } from './setup-client'
 import { sdkStandIn } from './stand-in'
 import type {
-  DeploymentFacts,
   DigestVersionRefusal,
   DomainVersion,
   RecoveryClientConfiguration,
-  RecoveryKitClient,
-  WalletReads
+  RecoveryKitClient
 } from './types'
-
-/** The name every kit manager's domain carries. */
-export const MANAGER_DOMAIN_NAME = 'PolicyManager'
+import { createWalletReads } from './wallet-reads'
 
 export const digestVersionRefusal = (
   carried: DomainVersion,
@@ -80,96 +77,108 @@ export const digestVersionRefusal = (
 export const isDigestVersionRefusal = (value: unknown): value is DigestVersionRefusal =>
   value instanceof Error && value.name === 'DigestVersionRefusal'
 
-/** The domain name and version this build derives under for a descriptor. */
-export const carriedDomainVersion = (descriptor: DeploymentDescriptor): DomainVersion => ({
-  name: MANAGER_DOMAIN_NAME,
-  version: descriptor.digestVersion
-})
-
-/**
- * The digest-version check over the domain the manager published: its version
- * must be the descriptor's digest version and its name `PolicyManager`.
- * Throws a `DigestVersionRefusal` otherwise.
- */
-export const checkDigestVersion = (domain: Domain, descriptor: DeploymentDescriptor): void => {
-  const carried = carriedDomainVersion(descriptor)
-  if (domain.version !== carried.version || domain.name !== carried.name) {
-    throw digestVersionRefusal(carried, { name: domain.name, version: domain.version })
-  }
+/** The key that sent an account's own transaction: the account's keys send it themselves. */
+const SIGNER_RECOVERY: ISignerRecovery = {
+  recoverSigner: async (transaction) => transaction.from
 }
 
-const isConstructionRefusal = (value: unknown): value is ConstructionRefusal =>
-  value instanceof Error && value.name === 'ConstructionRefusal'
-
-/**
- * The SDK's construction checks over the provider and the manager's domain, in
- * the SDK's order: the provider's chain (`chain-id`), the domain's chain and
- * address (`domain`), its members (`domain-fields`), then its digest version.
- */
-const checkChainAndDomain = async (
-  provider: IProvider,
-  readDomain: () => Promise<Domain>,
-  descriptor: DeploymentDescriptor
-): Promise<void> => {
-  // The provider's chain.
-  const chainId = await provider.chainId()
-  if (chainId !== descriptor.chainId) {
-    throw constructionRefusal(
-      'chain-id',
-      `The provider answers chain ${chainId}, the descriptor ${descriptor.chainId}.`
-    )
-  }
-  // The domain's chain and address, then its members.
-  const domain = await readDomain()
-  if (
-    domain.chainId !== BigInt(descriptor.chainId) ||
-    !sameAddress(domain.verifyingContract, descriptor.manager)
-  ) {
-    throw constructionRefusal('domain', 'The manager domain disagrees with the descriptor.')
-  }
-  if (domain.fields.toLowerCase() !== MANAGER_DOMAIN_FIELDS) {
-    throw constructionRefusal(
-      'domain-fields',
-      'The manager domain carries members this build does not derive under.'
-    )
-  }
-  // The digest version, before anything is built or prepared.
-  checkDigestVersion(domain, descriptor)
-}
-
-/**
- * The client of a deployed kit: the construction checks against the deployed
- * manager and action, then the kit's client over the chain's reads.
- */
-const buildDeployedClient = async (
+/** The provider a chain's client reads: the extension's for a deployment, the fake node's otherwise. */
+const providerOf = (
   config: RecoveryClientConfiguration,
-  facts: DeploymentFacts,
-  descriptor: DeploymentDescriptor,
-  clientConfiguration: ClientConfiguration
-): Promise<RecoveryKitClient> => {
-  const { provider, codeRead, transactionRead } = config
-  const manager = createManagerReads(provider, descriptor.manager)
-  await checkChainAndDomain(
-    provider,
-    () => readManagerDomain(manager, descriptor.manager, codeRead),
-    descriptor
+  descriptor: DeploymentDescriptor
+): IProvider => {
+  if (deploymentOf(config.chain).kind === 'deployed') {
+    return config.provider
+  }
+  return sdkStandIn.providerFor(
+    sdkStandIn.nodeFor(descriptor, config.account, { authorities: config.candidateKeys ?? [] })
   )
-  const action = createActionReads({ provider, codeRead }, descriptor.action)
-  await checkActionConstants({ action, codeRead, descriptor })
-  return buildKitClient({
-    chain: config.chain,
-    account: config.account,
-    descriptor,
-    facts,
-    addressBook: config.addressBook,
-    config: clientConfiguration,
+}
+
+/** The refusal of a digest version, with the version the manager publishes where it answers one. */
+const refusedDigestVersion = async (
+  policyManager: PolicyManager,
+  descriptor: DeploymentDescriptor
+): Promise<DigestVersionRefusal> => {
+  const carried = { name: FORMATS_DIGEST_DOMAIN_NAME, version: descriptor.digestVersion }
+  const domain = await policyManager.eip712Domain().catch(() => undefined)
+  return digestVersionRefusal(
+    carried,
+    domain ? { name: domain.name, version: domain.version } : undefined
+  )
+}
+
+/**
+ * Builds the recovery kit client for one account from one configuration.
+ *
+ * Throws the SDK's `KitRefusalError` where a construction check refuses, a
+ * `DigestVersionRefusal` where the manager publishes another digest version
+ * or domain name, and a `DeploymentRefusal` where the deployment's manager or
+ * action disagrees with it, all before any client is handed out. Every other
+ * failure propagates as it was thrown.
+ */
+export const buildRecoveryClient = async (
+  config: RecoveryClientConfiguration
+): Promise<RecoveryKitClient> => {
+  const descriptor = descriptorOf(config.chain, config.addressBook)
+  // The fit check judges the implementation the account library deploys behind
+  // its proxy unless the configuration names another.
+  const accountImplementation = config.accountImplementation ?? PROXY_AMBIRE_ACCOUNT
+  const configuration = clientConfigurationOf({ ...config, accountImplementation })
+  const { account } = config
+  const provider = providerOf(config, descriptor)
+  const policyManager = new PolicyManager(
     provider,
-    codeRead,
-    transactionRead,
-    manager,
-    action,
-    privilegeAccount: {
-      addr: config.account,
+    descriptor,
+    account,
+    descriptor.action,
+    configuration.blockTags
+  )
+  const codec = new AmbireActionCodec([descriptor.action])
+  const methods: IRecoveryMethod[] = [walletMethod(), passkeyMethod()]
+  const builder = SocialRecoveryBuilder.from({ provider, account, descriptor, configuration })
+    .withPolicyManager(policyManager)
+    .withCodec(codec)
+    .withEventManager({ logChunkSize: configuration.logChunkSize })
+    .withSignerRecovery(SIGNER_RECOVERY)
+  methods.forEach((method) => builder.withMethod(method))
+
+  await readManagerDomain(policyManager, descriptor.manager, provider)
+  const kit = await (async () => {
+    try {
+      return {
+        setup: await builder.buildSetupClient(),
+        recovery: await builder.buildRecoveryClient(),
+        action: await builder.recoveryAction(),
+        moduleReads: await builder.methodModuleReads(),
+        approving: builder.buildMethodsOrchestrator()
+      }
+    } catch (thrown) {
+      if (
+        thrown instanceof KitRefusalError &&
+        (thrown.message === BUILDER_DIGEST_VERSION_MESSAGE ||
+          thrown.message === BUILDER_DOMAIN_NAME_MESSAGE)
+      ) {
+        throw await refusedDigestVersion(policyManager, descriptor)
+      }
+      throw thrown
+    }
+  })()
+  const actionViews = createActionViews(provider, descriptor.action)
+  await checkActionConstants({ action: actionViews, provider, descriptor })
+
+  // Each slug of the address book to the method serving its module.
+  const methodsBySlug = new Map(
+    Object.entries(config.addressBook.methods).flatMap(([slug, module]) => {
+      const served = methods.find((method) =>
+        method.modules(descriptor).some((address) => address.toLowerCase() === module.toLowerCase())
+      )
+      return served ? [[slug, served] as const] : []
+    })
+  )
+  const walletReads = createWalletReads({
+    account: {
+      addr: account,
       associatedKeys: [...(config.candidateKeys ?? [])],
       initialPrivileges: [...(config.initialPrivileges ?? [])],
       creation: config.creation
@@ -179,97 +188,38 @@ const buildDeployedClient = async (
             salt: config.creation.salt
           }
         : null
-    }
+    },
+    accountImplementation,
+    provider,
+    descriptor,
+    blockTags: configuration.blockTags,
+    logChunkSize: configuration.logChunkSize,
+    policyManager,
+    action: kit.action,
+    actionViews,
+    events: kit.setup.events,
+    codec
   })
-}
-
-/**
- * Builds the recovery kit client for one account from one configuration.
- *
- * Throws a `ConstructionRefusal` where the provider answers another chain
- * (`chain-id`), the manager's domain names another chain or address
- * (`domain`) or carries other members (`domain-fields`), and a
- * `DigestVersionRefusal` where it publishes another digest version, all
- * before any client is built. A deployed kit also throws a
- * `DeploymentRefusal` where its manager or action disagrees with the
- * deployment. Every other failure propagates as it was thrown: a read that
- * failed, or a later construction refusal of the builder.
- */
-export const buildRecoveryClient = async (
-  config: RecoveryClientConfiguration
-): Promise<RecoveryKitClient> => {
-  const descriptor = descriptorOf(config.chain, config.addressBook)
-  // The fit check judges the implementation the account library deploys behind
-  // its proxy unless the configuration names another.
-  const clientConfiguration = clientConfigurationOf({
-    ...config,
-    accountImplementation: config.accountImplementation ?? PROXY_AMBIRE_ACCOUNT
+  const setup = createRecoverySetupClient({
+    setup: kit.setup,
+    policyManager,
+    action: kit.action,
+    provider,
+    account,
+    descriptor,
+    blockTags: configuration.blockTags,
+    logChunkSize: configuration.logChunkSize
   })
-  const deployment = deploymentOf(config.chain)
-  if (deployment.kind === 'deployed') {
-    return buildDeployedClient(config, deployment.facts, descriptor, clientConfiguration)
-  }
-  const chain = sdkStandIn.chainFor(descriptor, config.account)
-  const manager = new PolicyManagerDouble(chain)
-
-  // Until the SDK lands the domain comes from the stand-in's manager part, the
-  // instance the builder is handed; the SDK's own construction check reads it
-  // through the provider.
-  await checkChainAndDomain(config.provider, () => manager.eip712Domain(), descriptor)
-
-  const builder = new RecoveryKitBuilderDouble(chain)
-  builder
-    .provider(config.provider)
-    .descriptor(descriptor)
-    .account(config.account)
-    .config(clientConfiguration)
-    .policyManager(manager)
-  // The builder's method registry: the four shipped methods.
-  const methods: IRecoveryMethod[] = shippedMethodDoubles(chain)
-  methods.forEach((method) => builder.method(method))
-  // The registered methods by module, keyed as the orchestrator's registry keys
-  // them: where two claim one module, the later registration serves it, so a
-  // slug hands out the method the orchestrator runs.
-  const methodsByModule = new Map<string, IRecoveryMethod>()
-  methods.forEach((method) =>
-    method
-      .modules(descriptor)
-      .forEach((address) => methodsByModule.set(address.toLowerCase(), method))
-  )
-  // Each slug of the address book to the method serving its module.
-  const methodsBySlug = new Map(
-    Object.entries(config.addressBook.methods).flatMap(([slug, module]) => {
-      const served = methodsByModule.get(module.toLowerCase())
-      return served ? [[slug, served] as const] : []
-    })
-  )
-
-  try {
-    const setup = await builder.buildSetupClient()
-    const recovery = await builder.buildRecoveryClient()
-    const action = await builder.recoveryAction()
-    const moduleReads = await builder.methodModuleReads()
-    const approving = builder.buildMethodsOrchestrator()
-    const walletReads: WalletReads = new WalletReadsDouble(chain, {
-      creation: clientConfiguration.creation,
-      accountImplementation: clientConfiguration.accountImplementation
-    })
-    return Object.freeze({
-      chain: config.chain,
-      account: config.account,
-      descriptor,
-      setup,
-      recovery,
-      action,
-      moduleReads,
-      approving,
-      methodFor: (slug: string) => methodsBySlug.get(slug),
-      walletReads
-    })
-  } catch (thrown) {
-    if (isConstructionRefusal(thrown) && thrown.check === 'digest-version') {
-      throw digestVersionRefusal(carriedDomainVersion(descriptor))
-    }
-    throw thrown
-  }
+  return Object.freeze({
+    chain: config.chain,
+    account,
+    descriptor,
+    setup,
+    recovery: kit.recovery,
+    action: kit.action,
+    moduleReads: kit.moduleReads,
+    approving: kit.approving,
+    methodFor: (slug: string) => methodsBySlug.get(slug),
+    walletReads
+  })
 }

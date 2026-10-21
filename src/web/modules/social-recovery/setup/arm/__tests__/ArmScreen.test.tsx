@@ -25,11 +25,7 @@ import { TextDecoder, TextEncoder } from 'util'
 import type { Account } from '@ambire-common/interfaces/account'
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
-import type {
-  Clause,
-  SetupConfirmation,
-  SetupDraft
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { SetupConfirmation, SetupDraft } from '@kohaku-eth/social-recovery'
 import type {
   KeyHandle,
   SendPort,
@@ -1340,50 +1336,52 @@ describe("the deposit step's Continue", () => {
 })
 
 describe('the blocks on arrival', () => {
-  const BLOCKED: [string, string, (draft: { clauses: Clause[] }) => void][] = [
+  const BLOCKED: [string, string, (draft: SetupDraft) => SetupDraft][] = [
     [
       'a trust read that did not answer',
       'unavailable',
-      () => {
+      (draft) => {
         chain.paused = { answered: false }
+        return draft
       }
     ],
     [
       'a removed key the wallet cannot read',
       'removed-key-unreadable',
-      () => {
+      (draft) => {
         chain.removedKey = { kind: 'unavailable', cause: 'no-source' }
+        return draft
       }
     ],
     [
       'an action that does not fit the account',
       'cannot-recover',
-      () => {
+      (draft) => {
         chain.fitCheck = { basis: 'deployed-code', fits: false }
+        return draft
       }
     ],
     [
       'an account that already has a setup',
       'already-set-up',
-      () => {
+      (draft) => {
         chain.setupState = setupStateOf(true)
+        return draft
       }
     ],
     [
       'a path with an empty slot',
       'empty-slot',
-      (draft) => {
-        // eslint-disable-next-line no-param-reassign
-        draft.clauses = [{ threshold: 1, credentials: [emptySlot('passkey')] }]
-      }
+      (draft) => ({
+        ...draft,
+        clauses: [{ threshold: 1, credentials: [emptySlot('passkey')] }]
+      })
     ]
   ]
 
   BLOCKED.forEach(([named, kind, arrange]) =>
     it(`blocks on ${named} with the review blocker, and prepares and sends nothing`, async () => {
-      const draft = draftOf('encrypted')
-      arrange(draft)
-      await writeRecords(draft)
+      await writeRecords(arrange(draftOf('encrypted')))
       wireClient('ready')
       await openByPush()
 

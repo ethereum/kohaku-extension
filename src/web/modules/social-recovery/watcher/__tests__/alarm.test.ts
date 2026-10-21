@@ -1,7 +1,7 @@
 import type { Account } from '@ambire-common/interfaces/account'
 import type { Network } from '@ambire-common/interfaces/network'
 import { providerKeyOf } from '@web/modules/social-recovery/shared/client/extension-provider'
-import type { DeploymentDescriptor } from '@web/modules/social-recovery/sdk-interfaces'
+import type { DeploymentDescriptor } from '@kohaku-eth/social-recovery'
 import {
   readWatcherRecord,
   registerRecoveryWatcherAlarm,
@@ -12,6 +12,7 @@ import {
 import {
   ACCOUNT,
   BASIC_ACCOUNT,
+  DEPLOYMENT as SCRIPTED_DEPLOYMENT,
   fakeAlarms,
   listed,
   memoryStorage,
@@ -28,7 +29,7 @@ const NETWORK = {
   selectedRpcUrl: 'https://sepolia.example'
 } as unknown as Network
 
-const DEPLOYMENT = { deployedAt: 0 } as DeploymentDescriptor
+const DEPLOYMENT = { deployedAt: 0, ...SCRIPTED_DEPLOYMENT } as DeploymentDescriptor
 
 const setUp = ({
   accounts = (): readonly Account[] => [listed(ACCOUNT)],

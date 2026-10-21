@@ -6,7 +6,7 @@
  * nothing-to-run line with Back alone for any other search or slot. Back leads
  * to the editor that opened the enrollment.
  */
-import type { Credential } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Credential } from '@kohaku-eth/social-recovery'
 
 import type { Mounted } from '@web/modules/social-recovery/setup/enroll/__tests__/harness'
 import {

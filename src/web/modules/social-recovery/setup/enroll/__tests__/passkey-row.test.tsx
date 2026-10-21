@@ -6,7 +6,7 @@
  * the backup kind the ceremony read. The access test runs through the same tab
  * and never holds the save.
  */
-import type { Address, Clause, Credential, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Clause, Credential, Hex } from '@kohaku-eth/social-recovery'
 import type { CeremonyOutcome, PasskeyFacts } from '@web/modules/social-recovery/shared/ceremony'
 import type {
   CeremonyRequestRecord,

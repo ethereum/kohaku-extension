@@ -10,7 +10,7 @@ import { TextDecoder, TextEncoder } from 'util'
 
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
-import type { Address, Clause } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Clause } from '@kohaku-eth/social-recovery'
 import type { FitCheckReading, RemovedKeyReading } from '@web/modules/social-recovery/shared/client'
 import type { Enrollment, RecordStorage } from '@web/modules/social-recovery/shared/records'
 
@@ -200,7 +200,7 @@ const press = async (id: string) => {
 const mount = async ({
   clauses = [group(2, ALICE, BOB, PASSKEY)],
   enrollments = [],
-  wait = 172800n,
+  wait = 172800,
   backup = 'encrypted',
   publicMetadata = '0x',
   passwordSet = true,
@@ -813,7 +813,7 @@ describe('the lead', () => {
   })
 
   it('names the waiting period by its chip and carries the spare-key comparison', async () => {
-    await mount({ wait: 604800n })
+    await mount({ wait: 604800 })
 
     expect(textOf('review-wait')).toBe(t('socialRecovery.privacy.waitingPeriod.chips.days7'))
     expect(textOf('review-spare-key')).toBe(t('socialRecovery.review.spareKey'))
@@ -824,7 +824,7 @@ describe('the lead', () => {
   })
 
   it("names a wait under one hour in minutes, and the floor in a release build's words", async () => {
-    await mount({ wait: 300n })
+    await mount({ wait: 300 })
 
     expect(textOf('review-wait')).toBe('5 minutes')
     expect(textOf('review-wait-minimum')).toBe("This wallet's minimum is 24 hours.")
@@ -868,7 +868,7 @@ describe('the lead', () => {
       mount({
         clauses,
         enrollments: [enrolled(PASSKEY)],
-        publicMetadata: shapeNoteOf({ clauses, wait: 172800n, ignoresPause: true }),
+        publicMetadata: shapeNoteOf({ clauses, wait: 172800, ignoresPause: true }),
         passwordSet
       })
 
@@ -894,7 +894,7 @@ describe('the lead', () => {
       const memberless: Clause[] = [{ threshold: 1, credentials: [] }]
       await mount({
         clauses: memberless,
-        publicMetadata: shapeNoteOf({ clauses: memberless, wait: 172800n, ignoresPause: true }),
+        publicMetadata: shapeNoteOf({ clauses: memberless, wait: 172800, ignoresPause: true }),
         passwordSet: true
       })
 
@@ -1426,8 +1426,8 @@ describe('an account this release cannot recover', () => {
     await mount({
       describeSetup: async () =>
         descriptionOf([
-          { address: REMOVED_KEY, isAuthority: true },
-          { address: OTHER_KEY, isAuthority: true }
+          { key: REMOVED_KEY, isAuthority: true },
+          { key: OTHER_KEY, isAuthority: true }
         ])
     })
 
@@ -1442,15 +1442,15 @@ describe('an account this release cannot recover', () => {
 describe("the wallet's reading of the account's keys", () => {
   const BLOCKED = 'socialRecovery.review.blocked'
   const TWO_AUTHORITIES = [
-    { address: REMOVED_KEY, isAuthority: true },
-    { address: OTHER_KEY, isAuthority: true }
+    { key: REMOVED_KEY, isAuthority: true },
+    { key: OTHER_KEY, isAuthority: true }
   ]
   const blockers = () => container.querySelectorAll('[data-testid^="review-blocked"]')
 
   it('lets Save run with no block where the wallet names a key and one key holds authority', async () => {
     await mount({
       removedKey: async () => ({ kind: 'named', key: REMOVED_KEY }),
-      describeSetup: async () => descriptionOf([{ address: REMOVED_KEY, isAuthority: true }])
+      describeSetup: async () => descriptionOf([{ key: REMOVED_KEY, isAuthority: true }])
     })
 
     expect(blockers()).toHaveLength(0)
@@ -1682,8 +1682,8 @@ describe('the block beside Save', () => {
       {
         describeSetup: async () =>
           descriptionOf([
-            { address: REMOVED_KEY, isAuthority: true },
-            { address: OTHER_KEY, isAuthority: true }
+            { key: REMOVED_KEY, isAuthority: true },
+            { key: OTHER_KEY, isAuthority: true }
           ])
       },
       [

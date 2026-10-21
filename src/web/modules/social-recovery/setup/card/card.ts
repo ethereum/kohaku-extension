@@ -5,7 +5,7 @@
  * method, no guardian, no threshold and no waiting period, so a photograph of
  * the card alone names nothing to phish.
  */
-import type { BackupForm } from '@web/modules/social-recovery/sdk-interfaces'
+import type { BackupChoice } from '@kohaku-eth/social-recovery'
 import {
   renderFullAddress,
   renderPasswordName,
@@ -29,7 +29,7 @@ export const CARD_LINE_KEYS = [
  * The level of a stored backup: an encrypted backup needs the recovery
  * password, a clear or an empty one sets none.
  */
-export const levelOfBackup = (backup: BackupForm): CardLevel =>
+export const levelOfBackup = (backup: BackupChoice): CardLevel =>
   backup === 'encrypted' ? 'hidden' : 'public'
 
 /** The search key that names the screen the card was opened from, and its one value, the overview. */

@@ -5,7 +5,9 @@
  * value the page cannot read renders as such, and the lead is then not
  * rendered, so the sign action stays disabled. Pure.
  */
-import type { Address, RequestDescription } from '@web/modules/social-recovery/sdk-interfaces'
+import { zeroAddress } from 'viem'
+
+import type { Address, RequestDescription } from '@kohaku-eth/social-recovery'
 import {
   renderDeadline,
   renderFullAddress,
@@ -29,11 +31,21 @@ export const fullAddressOf = (address: Address): string | null => {
  * The payment line: the words no payment where the request carries no order
  * or an order of zero. An order with an amount needs its token's symbol and
  * decimals, which nothing here reads, so it renders as not readable rather
- * than as an amount the guardian cannot check.
+ * than as an amount the guardian cannot check. An open payee is the zero
+ * address the order names it with.
  */
 const paymentOf = (description: RequestDescription, t: Translate): string | null => {
+  const { order } = description
   try {
-    return renderPaymentOrder(description.order, null, t)
+    return renderPaymentOrder(
+      order && {
+        token: order.token,
+        amount: order.amount,
+        payee: order.payee === 'open' ? zeroAddress : order.payee
+      },
+      null,
+      t
+    )
   } catch {
     return null
   }
@@ -41,7 +53,7 @@ const paymentOf = (description: RequestDescription, t: Translate): string | null
 
 /** The lead's four values, in the order the guardian reads them. */
 export const approvalValuesOf = (description: RequestDescription, t: Translate): ApprovalValues => {
-  const handover = description.handover?.decoded ? description.handover.value : null
+  const handover = description.handover?.decoded ? description.handover : null
   const lines: ApprovalValueLine[] = [
     {
       name: 'accountBeingRecovered',

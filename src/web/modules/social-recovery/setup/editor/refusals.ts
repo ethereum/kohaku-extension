@@ -6,7 +6,7 @@
  * refused as a member still to enroll, a required row with one as a method
  * still to enroll, and a clause with no enrolled member at all as empty.
  */
-import type { Clause, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Clause, SetupDraft } from '@kohaku-eth/social-recovery'
 import { isEmptySlot } from '@web/modules/social-recovery/shared/records'
 
 import { methodCountOf, roleOf, rolesOf } from './operations'
@@ -19,9 +19,7 @@ export const THRESHOLD_FIELD_MAX = 255
 export const MEMBER_CEILING = 255
 
 /** The waiting period's field is 48 bits wide, so a wait of 2^48 seconds no longer fits. */
-// A shift, since the build compiles `**` to `Math.pow`, which throws on a bigint.
-// eslint-disable-next-line no-bitwise
-export const WAIT_FIELD_LIMIT = 1n << 48n
+export const WAIT_FIELD_LIMIT = 2 ** 48
 
 /**
  * The longest waiting period the setup's picker offers, in hours: thirty days,
@@ -30,7 +28,7 @@ export const WAIT_FIELD_LIMIT = 1n << 48n
  */
 export const PICKER_CEILING_HOURS = 30 * 24
 
-export const PICKER_CEILING_SECONDS = BigInt(PICKER_CEILING_HOURS * 60 * 60)
+export const PICKER_CEILING_SECONDS = PICKER_CEILING_HOURS * 60 * 60
 
 /**
  * A threshold below one: the chain refuses only a rule whose every clause is
@@ -77,8 +75,8 @@ const clauseRefusals = (
  * A wait past the field's width refuses with the width's sentence alone; the
  * picker's ceiling refuses every longer wait that still fits the field.
  */
-const waitRefusals = (wait: bigint): Refusal[] => {
-  if (wait < 0n || wait >= WAIT_FIELD_LIMIT) {
+const waitRefusals = (wait: number): Refusal[] => {
+  if (!Number.isSafeInteger(wait) || wait < 0 || wait >= WAIT_FIELD_LIMIT) {
     return [{ key: 'waitFieldWidth' }]
   }
   if (wait > PICKER_CEILING_SECONDS) {

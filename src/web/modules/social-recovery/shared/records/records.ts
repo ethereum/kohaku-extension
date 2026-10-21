@@ -17,9 +17,21 @@ import isEqual from 'react-fast-compare'
 import { bytesToHex, isAddress, isAddressEqual, isHex, keccak256 } from 'viem'
 
 import { parse, stringify } from '@ambire-common/libs/richJson/richJson'
-import type { Address, Gathering, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type {
+  Address,
+  ApproverRequest,
+  Gathering,
+  GatheringPlace,
+  Hex
+} from '@kohaku-eth/social-recovery'
 
 import { RECOVERY_ROUTES, ROW_NOTES } from './constants'
+import {
+  isOfDeployment,
+  recordDeploymentFrom,
+  recordDeploymentOf,
+  isSessionOfDeployment
+} from './deployment'
 import { isDecimalString, isStoredAddress } from './guards'
 import { wipeRecoveryPassword } from './recoveryPassword'
 import { ABSENT, SETUP_RECORD_NAMES } from './types'
@@ -59,10 +71,12 @@ import type {
   SetupRecordName,
   SetupRecords,
   StoredCountdown,
+  StoredWait,
   StoredRecord,
   StoredSession,
   SubmissionInFlightClaim,
   SubmissionInFlightRecord,
+  WaitingPeriodRecord,
   WalletRecords,
   WalletRecordsOptions
 } from './types'
@@ -175,6 +189,12 @@ const isStoredSession = (stored: unknown): stored is StoredSession => {
   return typeof revision === 'string' && revision !== ''
 }
 
+/** An entry as a read hands it out: deployment fields that are not two addresses read as none. */
+const entryAsRead = ({ deployment, ...entry }: RecoveryEntryRecord): RecoveryEntryRecord => {
+  const read = recordDeploymentFrom(deployment)
+  return { ...entry, ...(read ? { deployment: read } : {}) }
+}
+
 /**
  * Whether a stored value is a recovery entry: the account, one of the two
  * routes and the receiving account.
@@ -191,10 +211,13 @@ const isRecoveryEntry = (value: unknown): value is RecoveryEntryRecord => {
   )
 }
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
 /**
  * Whether a stored value is a ceremony request: its account, chain and method,
- * and what its call needs, an enrollment's method address or a test's or a
- * claim's request.
+ * and what its call needs, an enrollment's method address and params or a
+ * test's or a claim's request, with the method's params where it has them.
  */
 const isCeremonyRequest = (value: unknown): value is CeremonyRequestRecord => {
   if (typeof value !== 'object' || value === null) {
@@ -210,10 +233,14 @@ const isCeremonyRequest = (value: unknown): value is CeremonyRequestRecord => {
   }
   switch (record.call) {
     case 'enroll':
-      return isStoredAddress(record.methodAddress)
+      return isStoredAddress(record.methodAddress) && isPlainObject(record.params)
     case 'testAccess':
     case 'createClaim':
-      return typeof record.request === 'object' && record.request !== null
+      return (
+        typeof record.request === 'object' &&
+        record.request !== null &&
+        (record.params === undefined || isPlainObject(record.params))
+      )
     case 'healthCheck':
       return true
     default:
@@ -274,6 +301,47 @@ const isSubmissionInFlight = (value: unknown): value is SubmissionInFlightRecord
 const isExecutionInFlight = (value: unknown): value is ExecutionInFlightRecord =>
   isSubmissionInFlight(value)
 
+/** A stored wait as the number of seconds the SDK takes. */
+const waitAsRead = (wait: StoredWait): number => (typeof wait === 'bigint' ? Number(wait) : wait)
+
+/** A stored record that carries a wait, with the wait as a number. */
+const withWaitAsRead = <T extends { wait: StoredWait }>(value: T): T & { wait: number } => ({
+  ...value,
+  wait: waitAsRead(value.wait)
+})
+
+/**
+ * Whether a stored credential holds code, read from a value the storage
+ * holds: a record stored before the status was kept reads as a credential with
+ * no code, the answer for every credential whose code was not read.
+ */
+const holdsCodeAsRead = (value: { credentialHoldsCode?: unknown }): boolean =>
+  value.credentialHoldsCode === true
+
+/** A stored place with its credential's code status. */
+const placeAsRead = (place: GatheringPlace): GatheringPlace => ({
+  ...place,
+  credentialHoldsCode: holdsCodeAsRead(place)
+})
+
+/** A stored gathering whose places are a list, each with its credential's code status. */
+const gatheringAsRead = (gathering: Gathering): Gathering => ({
+  ...gathering,
+  places: gathering.places.map(placeAsRead)
+})
+
+/** A stored request with its credential's code status. */
+const requestAsRead = (request: ApproverRequest): ApproverRequest => ({
+  ...request,
+  credentialHoldsCode: holdsCodeAsRead(request)
+})
+
+/** A stored ceremony request, its access test's or claim's request with its code status. */
+const ceremonyRequestAsRead = (value: CeremonyRequestRecord): CeremonyRequestRecord =>
+  value.call === 'testAccess' || value.call === 'createClaim'
+    ? { ...value, request: requestAsRead(value.request) }
+    : value
+
 /**
  * Deep equality of a stored request and the request a write names, as the
  * storage keeps them: both pass through the rich JSON the storage writes, so a
@@ -327,14 +395,16 @@ const landedSession = ({
   attemptId,
   setupNonce,
   payloadHash,
-  execution
+  execution,
+  deployment
 }: CountdownRecord): LandedRecoverySession => ({
   state: 'landed',
   account,
   ...(attemptId === undefined ? {} : { attemptId }),
   ...(setupNonce === undefined ? {} : { setupNonce }),
   ...(payloadHash === undefined ? {} : { payloadHash }),
-  ...(execution === undefined ? {} : { execution })
+  ...(execution === undefined ? {} : { execution }),
+  ...(deployment === undefined ? {} : { deployment })
 })
 
 /** The countdown a landed session holds: everything but its state. */
@@ -358,7 +428,8 @@ const landedAsRead = (value: LandedRecoverySession): LandedRecoverySession =>
     attemptId: isDecimalString(value.attemptId) ? value.attemptId : undefined,
     setupNonce: isDecimalString(value.setupNonce) ? value.setupNonce : undefined,
     payloadHash: typeof value.payloadHash === 'string' ? value.payloadHash : undefined,
-    execution: isExecutionInFlight(value.execution) ? value.execution : undefined
+    execution: isExecutionInFlight(value.execution) ? value.execution : undefined,
+    deployment: recordDeploymentFrom(value.deployment)
   })
 
 /**
@@ -372,7 +443,9 @@ const landedFrom = (request: Gathering['request']): LandedRecoverySession =>
     account: request.account,
     attemptId: request.attemptId,
     setupNonce: request.setupNonce,
-    payloadHash: isHex(request.payload) ? keccak256(request.payload) : undefined
+    payloadHash:
+      'payload' in request && isHex(request.payload) ? keccak256(request.payload) : undefined,
+    deployment: recordDeploymentFrom(request)
   })
 
 /**
@@ -387,13 +460,17 @@ const sessionAsRead = (value: RecoverySessionRecord): RecoverySessionRecord => {
     return landedAsRead(value)
   }
   if (value.state !== 'live') {
-    return value
+    const { deployment, ...wiped } = value
+    const read = recordDeploymentFrom(deployment)
+    return { ...wiped, ...(read ? { deployment: read } : {}) }
   }
   const { gathering } = value
   const submission = isSubmissionInFlight(value.submission) ? value.submission : undefined
-  return Array.isArray(gathering.places) && Array.isArray(gathering.replies)
-    ? liveSession(gathering, notesKept(value.notes, gathering), submission)
-    : liveSession(gathering, undefined, submission)
+  if (!Array.isArray(gathering.places) || !Array.isArray(gathering.replies)) {
+    return liveSession(gathering, undefined, submission)
+  }
+  const read = gatheringAsRead(gathering)
+  return liveSession(read, notesKept(value.notes, read), submission)
 }
 
 const newRevision = (): SessionRevision =>
@@ -528,12 +605,21 @@ export const createWalletRecords = ({
       await storage.remove(key)
     })
 
-  const accessor = <T>(key: string): RecordAccessor<T> => ({
-    read: () => readKey<T>(key),
-    write: (value: T) => inQueue(key, () => writeKey<T>(key, value)),
-    wipe: () => removeKey(key),
-    age: async (at?: number) => recordAge(await readKey<T>(key), at ?? now())
-  })
+  const accessor = <T>(
+    key: string,
+    asRead: (value: T) => T = (value) => value
+  ): RecordAccessor<T> => {
+    const read = async (): Promise<RecordRead<T>> => {
+      const stored = await readKey<T>(key)
+      return stored.status === 'present' ? { ...stored, value: asRead(stored.value) } : stored
+    }
+    return {
+      read,
+      write: (value: T) => inQueue(key, () => writeKey<T>(key, value)),
+      wipe: () => removeKey(key),
+      age: async (at?: number) => recordAge(await read(), at ?? now())
+    }
+  }
 
   /**
    * The save in flight stored under a key. A stored value that is not a save in
@@ -544,7 +630,11 @@ export const createWalletRecords = ({
     if (!isStoredRecord(stored) || !isSaveInFlight(stored.value)) {
       return ABSENT
     }
-    return { status: 'present', value: stored.value, savedAt: stored.savedAt }
+    return {
+      status: 'present',
+      value: { ...stored.value, draft: withWaitAsRead(stored.value.draft) },
+      savedAt: stored.savedAt
+    }
   }
 
   // --- the six setup records -----------------------------------------------
@@ -557,11 +647,14 @@ export const createWalletRecords = ({
     const draftKey = recordKeys.setup('setupDraft', chainId, account)
     const pathKey = recordKeys.setup('path', chainId, account)
     return {
-      setupDraft: accessor(draftKey),
+      setupDraft: accessor<SetupDraftRecord>(draftKey, withWaitAsRead),
       inventory: accessor(recordKeys.setup('inventory', chainId, account)),
       path: accessor(pathKey),
       enrollments: accessor(recordKeys.setup('enrollments', chainId, account)),
-      waitingPeriod: accessor(recordKeys.setup('waitingPeriod', chainId, account)),
+      waitingPeriod: accessor<WaitingPeriodRecord>(
+        recordKeys.setup('waitingPeriod', chainId, account),
+        waitAsRead
+      ),
       passwordSet: accessor(recordKeys.setup('passwordSet', chainId, account)),
       writeDraftAndPath: (draft: SetupDraftRecord) =>
         inQueues([draftKey, pathKey], async () => {
@@ -720,18 +813,21 @@ export const createWalletRecords = ({
           throw new Error(`The gathering names chain ${request.chainId}, not ${chainPart(chainId)}`)
         }
         return updateSession(chainId, account, expectedRevision, async (current) => {
-          if (current.status === 'present' && current.value.state === 'landed') {
+          // A session of another deployment, or one that names none, holds
+          // nothing of this request: the write replaces it.
+          const held =
+            current.status === 'present' && isSessionOfDeployment(current.value, request)
+              ? current.value
+              : undefined
+          if (held?.state === 'landed') {
             throw new Error(
               'A landed session holds the countdown: end it once its attempt ends, then gather again'
             )
           }
-          const live =
-            current.status === 'present' && current.value.state === 'live'
-              ? current.value
-              : undefined
+          const live = held?.state === 'live' ? held : undefined
           const notes = live ? notesKept(live.notes, gathering) : undefined
-          if (current.status === 'present' && current.value.state === 'live') {
-            const stored = current.value.gathering
+          if (live) {
+            const stored = live.gathering
             // A new request would replace the gathering: that takes a wipe first.
             if (!sameStoredValue(stored.request, request)) {
               throw new Error(
@@ -875,7 +971,7 @@ export const createWalletRecords = ({
     if (!isStoredRecord(stored) || !isRecoveryEntry(stored.value)) {
       return ABSENT
     }
-    return { status: 'present', value: stored.value, savedAt: stored.savedAt }
+    return { status: 'present', value: entryAsRead(stored.value), savedAt: stored.savedAt }
   }
 
   /**
@@ -895,7 +991,8 @@ export const createWalletRecords = ({
         const entry: RecoveryEntryRecord = {
           account: value.account,
           route: value.route,
-          receivingAccount: value.receivingAccount
+          receivingAccount: value.receivingAccount,
+          ...(value.deployment ? { deployment: recordDeploymentOf(value.deployment) } : {})
         }
         return inQueue(key, () => writeKey<RecoveryEntryRecord>(key, entry))
       },
@@ -919,7 +1016,7 @@ export const createWalletRecords = ({
           ? [
               {
                 account: stored.value.account,
-                record: { value: stored.value, savedAt: stored.savedAt }
+                record: { value: entryAsRead(stored.value), savedAt: stored.savedAt }
               }
             ]
           : []
@@ -966,11 +1063,13 @@ export const createWalletRecords = ({
         return false
       }
       const { request } = current.value.gathering
+      const deployment = recordDeploymentFrom(request)
       await writeSessionAt(key, {
         state: 'wiped',
         reason: event,
         account: request.account,
-        ...(event === 'deadline-passed' ? { deadline: request.validUntil } : {})
+        ...(event === 'deadline-passed' ? { deadline: request.validUntil } : {}),
+        ...(deployment ? { deployment } : {})
       })
       // The session is written first, so an interruption between the two calls
       // leaves the state every other wipe leaves, never a live session without
@@ -1165,12 +1264,14 @@ export const createWalletRecords = ({
    * reads it, so a recoverer whose own session is gone follows the attempt
    * the chain holds. It holds the session's key and then the recovery entry's,
    * the order the recoverer's abandon takes them. A live session is kept and
-   * so is the entry beside it; a landed session with an execution in flight,
-   * of the same attempt (its id, its setup nonce and its payload's hash), or
-   * of a newer attempt (a greater id), is kept, and only the same attempt's
-   * gets the entry. No session, a wiped one or the countdown of an older
-   * attempt is replaced by the chain's, saved
-   * at the attempt's opening, and the entry is written after it.
+   * so is the entry beside it. A landed session of the same deployment is
+   * kept where it holds an execution in flight, where it is of the same
+   * attempt (its id, its setup nonce and its payload's hash) or where it is of
+   * a newer attempt (a greater id), and only the same attempt's gets the
+   * entry. No session, a wiped one, the countdown of an older attempt or a
+   * countdown of another deployment, with an execution in flight or not, is
+   * replaced by the chain's, saved at the attempt's opening, and the entry is
+   * written after it.
    */
   const restoreCountdown = (
     chainId: ChainId,
@@ -1185,18 +1286,26 @@ export const createWalletRecords = ({
         await writeKey<RecoveryEntryRecord>(entryKey, {
           account,
           route: entry.route,
-          receivingAccount: entry.receivingAccount
+          receivingAccount: entry.receivingAccount,
+          deployment: recordDeploymentOf(restored.deployment)
         })
       }
     }
     return inQueues([key, entryKey], async (): Promise<CountdownRestore> => {
       const current = await readSessionAt(key)
-      if (current.status === 'present' && current.value.state === 'live') {
+      if (
+        current.status === 'present' &&
+        current.value.state === 'live' &&
+        isSessionOfDeployment(current.value, restored.deployment)
+      ) {
         return { outcome: 'kept', countdown: ABSENT }
       }
       if (current.status === 'present' && current.value.state === 'landed') {
         const session = current.value
+        // A countdown of another deployment, or one that names none, says nothing of this attempt.
+        const ours = isOfDeployment(session.deployment, restored.deployment)
         const same =
+          ours &&
           session.attemptId === restored.attemptId.toString() &&
           session.setupNonce === restored.setupNonce.toString() &&
           session.payloadHash !== undefined &&
@@ -1204,8 +1313,8 @@ export const createWalletRecords = ({
         // The registry's attempt counter only grows, so a stored attempt with
         // a greater id is the newer one.
         const newer =
-          session.attemptId !== undefined && BigInt(session.attemptId) > restored.attemptId
-        if (same || newer || session.execution) {
+          ours && session.attemptId !== undefined && BigInt(session.attemptId) > restored.attemptId
+        if (same || newer || (ours && session.execution)) {
           if (same) {
             await writeEntry()
           }
@@ -1218,7 +1327,8 @@ export const createWalletRecords = ({
           account,
           attemptId: restored.attemptId.toString(),
           setupNonce: restored.setupNonce.toString(),
-          payloadHash: restored.payloadHash
+          payloadHash: restored.payloadHash,
+          deployment: recordDeploymentOf(restored.deployment)
         }),
         restored.openedAtMs
       )
@@ -1248,14 +1358,25 @@ export const createWalletRecords = ({
 
   /**
    * This device's cache of the setup the recovery password unlocked, with the
-   * setup nonce it was read under. It stays after the recovery executes; no
-   * wipe of these records touches it.
+   * setup nonce and the deployment it was read under. It stays after the
+   * recovery executes; no wipe of these records touches it. Deployment fields
+   * that are not two addresses read as none.
    */
   const decryptedSetupCache = (
     chainId: ChainId,
     account: Address
   ): RecordAccessor<DecryptedSetupCacheRecord> =>
-    accessor<DecryptedSetupCacheRecord>(recordKeys.decryptedSetupCache(chainId, account))
+    accessor<DecryptedSetupCacheRecord>(
+      recordKeys.decryptedSetupCache(chainId, account),
+      ({ deployment, ...value }) => {
+        const read = recordDeploymentFrom(deployment)
+        return {
+          ...value,
+          configuration: withWaitAsRead(value.configuration),
+          ...(read ? { deployment: read } : {})
+        }
+      }
+    )
 
   // --- the ceremony request ------------------------------------------------
 
@@ -1270,7 +1391,11 @@ export const createWalletRecords = ({
       if (!isStoredRecord(stored) || !isCeremonyRequest(stored.value)) {
         return ABSENT
       }
-      return { status: 'present', value: stored.value, savedAt: stored.savedAt }
+      return {
+        status: 'present',
+        value: ceremonyRequestAsRead(stored.value),
+        savedAt: stored.savedAt
+      }
     }
     return {
       read,

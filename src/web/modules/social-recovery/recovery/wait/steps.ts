@@ -17,7 +17,7 @@
  * meanwhile, the update is tried again over a fresh read while the countdown
  * is there; a refused record is never tried again.
  */
-import type { Address, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Hex } from '@kohaku-eth/social-recovery'
 import {
   accountBatchTransactionOf,
   listedBasicAccountOf,

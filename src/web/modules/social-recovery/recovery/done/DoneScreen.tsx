@@ -43,22 +43,19 @@ import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
-import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
-import type { Address, Configuration } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Configuration } from '@kohaku-eth/social-recovery'
 import RecoveryChrome from '@web/modules/social-recovery/shared/chrome/RecoveryChrome'
 import {
   addressBookOf,
   CHAIN_IDS,
-  createProviderAdapter,
-  extensionProviderFor,
-  networkOf,
   WALLET_RECOVERY_CHAIN,
   within
 } from '@web/modules/social-recovery/shared/client'
 import { useRecoveryClient } from '@web/modules/social-recovery/shared/client/useRecoveryClient'
 import { renderShortAddress } from '@web/modules/social-recovery/shared/display'
 import {
+  countdownOfDeployment,
   createWalletRecords,
   extensionRecordStorage,
   readRecoveryPassword,
@@ -98,7 +95,6 @@ const DoneBody = ({ records, account, entry }: DoneBodyProps) => {
   const { navigate } = useNavigation()
   const { dispatch } = useBackgroundService()
   const { accounts } = useAccountsControllerState()
-  const { networks } = useNetworksControllerState()
   const { account: selected } = useSelectedAccountControllerState()
   const clientState = useRecoveryClient(account)
   const timeZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
@@ -107,28 +103,11 @@ const DoneBody = ({ records, account, entry }: DoneBodyProps) => {
 
   const kit = clientState.status === 'ready' ? clientState.client : null
 
-  // A block's time by its number, on the extension's own provider for the recovery chain.
-  const network = networkOf(networks, WALLET_RECOVERY_CHAIN)
-  const networkRef = useRef(network)
-  networkRef.current = network
-  const hasNetwork = !!network
-  const blockTime = useMemo<BlockTimeRead | null>(() => {
-    if (!hasNetwork) {
-      return null
-    }
-    return async (blockNumber: number) => {
-      const current = networkRef.current
-      if (!current) {
-        throw new Error('The extension holds no network for the recovery chain.')
-      }
-      const provider = extensionProviderFor(current)
-      try {
-        return (await createProviderAdapter(provider).block(blockNumber)).timestamp
-      } finally {
-        provider.destroy()
-      }
-    }
-  }, [hasNetwork])
+  // A block's time by its number, on the provider the client reads.
+  const blockTime = useMemo<BlockTimeRead | null>(
+    () => (kit ? (blockNumber: number) => kit.walletReads.blockTime(blockNumber) : null),
+    [kit]
+  )
 
   // The attempt this device landed, read before the last act ends the countdown.
   const [localAttempt, setLocalAttempt] = useState(0)
@@ -141,7 +120,8 @@ const DoneBody = ({ records, account, entry }: DoneBodyProps) => {
       .read()
       .then((read) => {
         if (live) {
-          const match = consumeMatchOf(read)
+          // A countdown of another deployment is no recovery of this build.
+          const match = consumeMatchOf(countdownOfDeployment(read, addressBook))
           setLandedRead(match ? { status: 'answered', value: match } : { status: 'failed' })
         }
       })
@@ -153,7 +133,7 @@ const DoneBody = ({ records, account, entry }: DoneBodyProps) => {
     return () => {
       live = false
     }
-  }, [records, account, localAttempt])
+  }, [records, account, addressBook, localAttempt])
   const match = landedRead.status === 'answered' ? landedRead.value : null
 
   const { read: consumeRead, retry: retryRead } = useConsumeRead({ kit, match, blockTime })

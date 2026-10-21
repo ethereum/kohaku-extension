@@ -64,7 +64,13 @@ export const RemoveStageView = ({
 }: EditStageProps) => {
   const { t } = useTranslation()
   const clientState = useRecoveryClient(account)
-  const reads = useOverviewReads({ client: clientState, records, chainId, account })
+  const reads = useOverviewReads({
+    client: clientState,
+    records,
+    watcherStorage: extensionRecordStorage,
+    chainId,
+    account
+  })
   const kit = clientState.status === 'ready' ? clientState.client : null
   // The attempt as the removal last read it before the send; a new read of the overview's facts replaces it.
   const [attemptRead, setAttemptRead] = useState<AttemptRead | null>(null)

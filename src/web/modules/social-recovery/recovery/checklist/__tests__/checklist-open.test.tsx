@@ -7,7 +7,7 @@
  * renders its reason and gathers again; and the holder sent to the readout
  * where this device cannot open the setup.
  */
-import type { Configuration } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Configuration } from '@kohaku-eth/social-recovery'
 
 import type {
   Mounted,
@@ -48,7 +48,13 @@ const {
 const {
   NO_PAYMENT_ORDER
 }: typeof import('@web/modules/social-recovery/recovery/checklist') = require('@web/modules/social-recovery/recovery/checklist')
+const {
+  recordKeys
+}: typeof import('@web/modules/social-recovery/shared/records') = require('@web/modules/social-recovery/shared/records')
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
+
+// A manager this build no longer reads.
+const RETIRED_MANAGER = '0x00000000000000000000000000000000000Dead1' as const
 
 describe('opening the checklist', () => {
   let view: Mounted | undefined
@@ -190,6 +196,36 @@ describe('opening the checklist', () => {
 
     expect(view.lastPath()).toBe(`/${WEB_ROUTES.socialRecoveryRecoveryWait}?account=${ACCOUNT}`)
     expect(kit.initRecoveryGathering).not.toHaveBeenCalled()
+  })
+
+  it('opens a new gathering over a submission that landed on a retired manager, never the wait', async () => {
+    await seedCache(world.records, MIXED_PATH)
+    const old = gatheringOf(MIXED_PATH, 4)
+    const retired = { ...old, request: { ...old.request, manager: RETIRED_MANAGER } }
+    const seeded = await seedSession(world.records, retired)
+    await world.records.landSubmission(CHAIN_ID, ACCOUNT, seeded.revision)
+    const kit = fakeKit(MIXED_PATH)
+    view = await mountChecklist({ records: world.records, client: kit.state, deps: depsOf() })
+
+    expect(view.lastPath()).not.toBe(`/${WEB_ROUTES.socialRecoveryRecoveryWait}?account=${ACCOUNT}`)
+    expect(kit.initRecoveryGathering).toHaveBeenCalledTimes(1)
+    expect((await storedSession(world.records))?.value.state).toBe('live')
+    expect(view.byTestId('checklist-row-0')).not.toBeNull()
+  })
+
+  it('opens a new gathering over a landed session an earlier build wrote with no deployment', async () => {
+    await seedCache(world.records, MIXED_PATH)
+    await world.storage.set(recordKeys.recoverySession(CHAIN_ID, ACCOUNT), {
+      value: { state: 'landed', account: ACCOUNT, attemptId: '4', setupNonce: '1' },
+      savedAt: 1,
+      revision: 'd'.repeat(24)
+    })
+    const kit = fakeKit(MIXED_PATH)
+    view = await mountChecklist({ records: world.records, client: kit.state, deps: depsOf() })
+
+    expect(view.lastPath()).not.toBe(`/${WEB_ROUTES.socialRecoveryRecoveryWait}?account=${ACCOUNT}`)
+    expect(kit.initRecoveryGathering).toHaveBeenCalledTimes(1)
+    expect((await storedSession(world.records))?.value.state).toBe('live')
   })
 
   it('opens nothing until the destination key is read, and fails with a retry where it cannot be', async () => {

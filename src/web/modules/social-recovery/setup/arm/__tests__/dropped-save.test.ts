@@ -10,7 +10,7 @@
  * and the check both read.
  */
 import type { Account } from '@ambire-common/interfaces/account'
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 import { recordKeys } from '@web/modules/social-recovery/shared/records'
 import type { SaveInFlightRecord } from '@web/modules/social-recovery/shared/records'
 

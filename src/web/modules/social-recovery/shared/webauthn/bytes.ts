@@ -1,4 +1,4 @@
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 import { hexToBytes } from 'viem'
 
 import type { BytesLike } from './types'

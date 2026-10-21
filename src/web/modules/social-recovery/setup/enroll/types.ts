@@ -1,11 +1,6 @@
 import type { ReactNode } from 'react'
 
-import type {
-  Address,
-  ApproverRequest,
-  Credential,
-  Hex
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, ApproverRequest, Credential, Hex } from '@kohaku-eth/social-recovery'
 import type {
   CeremonyOutcome,
   CeremonyReport,

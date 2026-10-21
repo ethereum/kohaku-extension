@@ -10,10 +10,11 @@
  * outcome and no undelivered claim of the dead request reaches the next
  * gathering.
  */
-import type { Configuration, Gathering, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Configuration, Gathering, Hex } from '@kohaku-eth/social-recovery'
 import type { RecoverySessionAccessor } from '@web/modules/social-recovery/shared/records'
 
 import type {
+  ApprovalGathering,
   FakeDeps,
   FakeKit,
   Mounted,
@@ -21,6 +22,7 @@ import type {
 } from '@web/modules/social-recovery/recovery/checklist/__tests__/harness'
 import {
   ACCOUNT,
+  BOOK,
   CHAIN_ID,
   configurationOf,
   DAY_SECONDS,
@@ -68,6 +70,9 @@ const {
   CHECKLIST_POLL_MS,
   POLL_LIMIT_MS
 }: typeof import('@web/modules/social-recovery/recovery/checklist/constants') = require('@web/modules/social-recovery/recovery/checklist/constants')
+const {
+  behindRequest
+}: typeof import('@web/modules/social-recovery/recovery/checklist/poll') = require('@web/modules/social-recovery/recovery/checklist/poll')
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
 
 const DEATHS = 'socialRecovery.checklist.deaths'
@@ -80,6 +85,8 @@ const TWO_ROWS: Configuration = configurationOf([
 
 /** Past the deadline of every gathering the harness opens at the fixed clock. */
 const PAST_DEADLINE = NOW + (DAY_SECONDS + 1) * 1000
+// A manager this build no longer reads.
+const RETIRED_MANAGER = '0x00000000000000000000000000000000000Dead1' as const
 
 describe('the request dies', () => {
   let view: Mounted | undefined
@@ -230,7 +237,7 @@ describe('the request dies', () => {
       let land: jest.SpyInstance
 
       /** The gathering with the payload its submission carries. */
-      const submitted = (gathering: Gathering): Gathering => ({
+      const submitted = (gathering: ApprovalGathering): Gathering => ({
         ...gathering,
         request: { ...gathering.request, payload: PAYLOAD }
       })
@@ -534,6 +541,61 @@ describe('the request dies', () => {
       expect(view?.lastPath()).toBe(
         `/${WEB_ROUTES.socialRecoveryRecoveryReadout}?account=${ACCOUNT}`
       )
+    })
+
+    const behind: [string, ReturnType<typeof recoveryStateOf>][] = [
+      [
+        'a setup nonce below the request',
+        recoveryStateOf({ setupNonce: BigInt(0), nextAttemptId: BigInt(3) })
+      ],
+      ['an attempt counter below the request', recoveryStateOf({ nextAttemptId: BigInt(2) })]
+    ]
+    behind.forEach(([name, state]) => {
+      it(`reads ${name} as a failed poll and wipes nothing`, async () => {
+        await open(MIXED_PATH, withReplies(gatheringOf(MIXED_PATH, 3), [1]))
+        kit.recoveryState.mockResolvedValue(state)
+
+        await settle(CHECKLIST_POLL_MS)
+
+        expect(wipe).not.toHaveBeenCalled()
+        expect((await storedSession(world.records))?.value.state).toBe('live')
+        expect(view?.byTestId('checklist-poll-failed')).not.toBeNull()
+      })
+    })
+
+    it('opens a new gathering over a live request of another manager, never a failed poll over it', async () => {
+      const gathering = gatheringOf(MIXED_PATH, 3)
+      const retired = {
+        ...gathering,
+        request: { ...gathering.request, manager: RETIRED_MANAGER }
+      }
+      await open(MIXED_PATH, withReplies(retired, [1]))
+
+      await settle(CHECKLIST_POLL_MS)
+
+      expect(kit.initRecoveryGathering).toHaveBeenCalledTimes(1)
+      const stored = (await storedSession(world.records))?.value
+      expect(stored?.state === 'live' && stored.gathering.request.manager).toBe(BOOK.manager)
+      expect(wipe).not.toHaveBeenCalled()
+      expect(view?.byTestId('checklist-poll-failed')).toBeNull()
+    })
+
+    it('reads an answer below the request as behind only on the manager and action the request names', () => {
+      const gathering = gatheringOf(MIXED_PATH, 3)
+      // The check reads the counters alone.
+      const facts = {
+        ...recoveryStateOf({ setupNonce: BigInt(0), nextAttemptId: BigInt(3) }),
+        authorized: true
+      } as unknown as Parameters<typeof behindRequest>[1]
+      expect(behindRequest(gathering, facts, { manager: BOOK.manager, action: BOOK.action })).toBe(
+        true
+      )
+      expect(
+        behindRequest(gathering, facts, { manager: RETIRED_MANAGER, action: BOOK.action })
+      ).toBe(false)
+      expect(
+        behindRequest(gathering, facts, { manager: BOOK.manager, action: RETIRED_MANAGER })
+      ).toBe(false)
     })
   })
 
@@ -892,6 +954,8 @@ describe('the request dies', () => {
           validUntil: String(Math.floor(PAST_DEADLINE / 1000) + DAY_SECONDS)
         }
       })
+      // The chain's counter names the attempt the new request predicts.
+      kit.recoveryState.mockResolvedValue(recoveryStateOf({ nextAttemptId: BigInt(2) }))
       await view?.press('checklist-gather-again')
       await settle()
       expect(view?.byTestId('checklist-row-0')).not.toBeNull()

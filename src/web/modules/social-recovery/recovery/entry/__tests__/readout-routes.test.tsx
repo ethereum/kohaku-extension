@@ -9,6 +9,7 @@
 import type { Mounted } from '@web/modules/social-recovery/recovery/entry/__tests__/harness'
 import {
   BASIC,
+  gatheringFor,
   CARD_PASSWORD,
   CHAIN_ID,
   commitLostSetup,
@@ -29,13 +30,15 @@ import {
   storeLiveRecovery,
   t
 } from '@web/modules/social-recovery/recovery/entry/__tests__/harness'
-import type { SetupState } from '@web/modules/social-recovery/sdk-interfaces'
+import type { SetupState } from '@kohaku-eth/social-recovery'
 import type { HiddenLevel } from '@web/modules/social-recovery/recovery/entry/types'
 import { wipeRecoveryPassword } from '@web/modules/social-recovery/shared/records'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 
 const ACCOUNT_STEP = '/social-recovery/recovery/account'
 const CHECKLIST = `/social-recovery/recovery/checklist?account=${LOST}`
+// A manager this build no longer reads.
+const RETIRED_MANAGER = '0x00000000000000000000000000000000000Dead1' as const
 const GAS_STEP = `/social-recovery/fast-track/gas?account=${LOST}`
 
 let screen: Mounted | null = null
@@ -173,6 +176,20 @@ describe('continue', () => {
 })
 
 describe('a live session', () => {
+  it('resumes no live session of a retired manager: it reads the setup, and Continue goes to the checklist', async () => {
+    await storeEntry('logged-in')
+    const world = await commitLostSetup('public')
+    const old = gatheringFor(LOST)
+    await records()
+      .recoverySession(CHAIN_ID, LOST)
+      .write({ ...old, request: { ...old.request, manager: RETIRED_MANAGER } } as typeof old, null)
+    await storeCache(await world.client.setup.setupState())
+    const page = await open()
+    expect(navigatedTo()).toEqual([])
+    await page.press('readout-continue')
+    expect(navigatedTo()).toEqual([CHECKLIST])
+  })
+
   it('sends the holder to the checklist with no chain read when this device keeps the opened setup', async () => {
     const world = await commitLostSetup('private')
     await storeLiveRecovery(LOST, { route: 'fresh-install', receivingAccount: SMART })

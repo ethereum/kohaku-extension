@@ -7,7 +7,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import type { SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { SetupDraft } from '@kohaku-eth/social-recovery'
 
 import { ACCOUNT_READ_NAMES } from './constants'
 import type {

@@ -18,8 +18,8 @@ import { Wallet } from 'ethers'
 import { SigningStatus } from '@ambire-common/controllers/signAccountOp/signAccountOp'
 import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
 import eventBus from '@web/extension-services/event/eventBus'
-import { addressOf } from '@web/modules/social-recovery/sdk-doubles'
-import type { Address, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import { addressOf } from '@web/modules/social-recovery/shared/client/__fixtures__/addresses'
+import type { Address, Hex } from '@kohaku-eth/social-recovery'
 
 import {
   ABSENCE_GRACE_MS,

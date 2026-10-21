@@ -2,7 +2,7 @@ import { isAddress } from 'viem'
 
 import { DERIVATION_OPTIONS } from '@ambire-common/consts/derivation'
 import { KeyIterator } from '@ambire-common/libs/keyIterator/keyIterator'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 import { SLOT_INDEX } from './constants'
 import type { TempSeed } from './types'

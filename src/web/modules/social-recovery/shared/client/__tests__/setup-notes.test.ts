@@ -1,16 +1,12 @@
 /**
  * The public note a shape-visible setup writes, and the privacy level a draft's
- * two fields read as. The note is read back through the doubles' reader, the
- * one the chain side uses, so what a setup writes is what a reader later sees.
+ * two fields read as. The note is read back as a reader of the note's own
+ * layout reads it, so what a setup writes is what a reader later sees.
  */
-import { readPublicNote } from '@web/modules/social-recovery/sdk-doubles'
-import type { PublicNoteReading } from '@web/modules/social-recovery/sdk-doubles'
-import type {
-  BackupForm,
-  Configuration,
-  Hex,
-  PrivacyLevel
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { BackupChoice, Configuration, Hex } from '@kohaku-eth/social-recovery'
+import { hexToString } from 'viem'
+
+import type { PrivacyLevel } from '@web/modules/social-recovery/shared/client/types'
 import { privacyLevelOf, shapeNoteOf } from '@web/modules/social-recovery/shared/client'
 
 const PASSKEY = '0x1000000000000000000000000000000000000001' as Hex
@@ -23,8 +19,18 @@ const GUARDIAN_CONFIG = `0x${'c3'.repeat(32)}` as Hex
 const GUARDIAN_SALT = `0x${'d4'.repeat(32)}` as Hex
 const SECOND_GUARDIAN_CONFIG = `0x${'e5'.repeat(32)}` as Hex
 
+const SHAPE_MARK = 'kohaku-double:shape:'
+
+// The note's layout: the mark, then the shape as JSON with its wait a tagged decimal string.
+const readPublicNote = (note: Hex) => ({
+  kind: 'shape',
+  shape: JSON.parse(hexToString(note).slice(SHAPE_MARK.length), (_key, v) =>
+    v && typeof v === 'object' && typeof v.$bigint === 'string' ? BigInt(v.$bigint) : v
+  )
+})
+
 const CONFIGURATION: Configuration = {
-  wait: 604800n,
+  wait: 604800,
   ignoresPause: true,
   clauses: [
     {
@@ -42,7 +48,7 @@ const CONFIGURATION: Configuration = {
   ]
 }
 
-const textOf = (value: PublicNoteReading): string =>
+const textOf = (value: ReturnType<typeof readPublicNote>): string =>
   JSON.stringify(value, (_, v: unknown) => (typeof v === 'bigint' ? v.toString() : v))
 
 describe('shapeNoteOf', () => {
@@ -100,20 +106,21 @@ describe('shapeNoteOf', () => {
 
 describe('privacyLevelOf', () => {
   const NOTE = shapeNoteOf(CONFIGURATION)
-  const cases: { note: string; publicMetadata: Hex; backup: BackupForm; level: PrivacyLevel }[] = [
-    { note: 'no public note', publicMetadata: '0x', backup: 'encrypted', level: 'private' },
-    { note: 'no public note', publicMetadata: '0x', backup: 'empty', level: 'private' },
-    { note: 'no public note', publicMetadata: '0x', backup: 'clear', level: 'public' },
-    { note: 'the shape note', publicMetadata: NOTE, backup: 'encrypted', level: 'shape-visible' },
-    { note: 'the shape note', publicMetadata: NOTE, backup: 'empty', level: 'shape-visible' },
-    { note: 'the shape note', publicMetadata: NOTE, backup: 'clear', level: 'public' },
-    {
-      note: 'one byte of note',
-      publicMetadata: '0x01',
-      backup: 'encrypted',
-      level: 'shape-visible'
-    }
-  ]
+  const cases: { note: string; publicMetadata: Hex; backup: BackupChoice; level: PrivacyLevel }[] =
+    [
+      { note: 'no public note', publicMetadata: '0x', backup: 'encrypted', level: 'private' },
+      { note: 'no public note', publicMetadata: '0x', backup: 'empty', level: 'private' },
+      { note: 'no public note', publicMetadata: '0x', backup: 'clear', level: 'public' },
+      { note: 'the shape note', publicMetadata: NOTE, backup: 'encrypted', level: 'shape-visible' },
+      { note: 'the shape note', publicMetadata: NOTE, backup: 'empty', level: 'shape-visible' },
+      { note: 'the shape note', publicMetadata: NOTE, backup: 'clear', level: 'public' },
+      {
+        note: 'one byte of note',
+        publicMetadata: '0x01',
+        backup: 'encrypted',
+        level: 'shape-visible'
+      }
+    ]
 
   cases.forEach(({ note, publicMetadata, backup, level }) => {
     it(`${note} beside a backup of form ${backup} reads ${level}`, () => {

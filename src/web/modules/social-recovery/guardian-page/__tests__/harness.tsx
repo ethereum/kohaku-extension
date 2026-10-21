@@ -24,15 +24,15 @@ import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
 import type {
   Address,
-  ApproverReply,
   ApproverRequest,
   Attempt,
   Hex,
   RecoveryState,
+  Reply,
   ReplyFailure,
   RequestDescription,
   Verdict
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type {
   KeyHandle,
   RecoveryAttemptState,
@@ -63,7 +63,7 @@ export interface KitScript {
   removedKey: jest.Mock<Promise<RemovedKeyReading>, []>
   isAuthorized: jest.Mock<Promise<boolean>, []>
   signingInput: jest.Mock<unknown, [ApproverRequest]>
-  replyFrom: jest.Mock<Promise<ApproverReply | ReplyFailure>, [ApproverRequest, unknown, unknown]>
+  replyFrom: jest.Mock<Promise<Reply | ReplyFailure>, [ApproverRequest, unknown, unknown]>
   verify: jest.Mock<Promise<Verdict>, [ApproverRequest, number, Hex]>
 }
 
@@ -251,6 +251,12 @@ const {
   zeroAddress
 }: typeof import('viem') = require('viem')
 const {
+  approvalDigest,
+  approvalTypedData,
+  cancellationDigest,
+  cancellationTypedData
+}: typeof import('@kohaku-eth/social-recovery') = require('@kohaku-eth/social-recovery')
+const {
   generatePrivateKey,
   privateKeyToAccount
 }: typeof import('viem/accounts') = require('viem/accounts')
@@ -270,11 +276,6 @@ const {
   signerNotWired,
   WALLET_RECOVERY_CHAIN
 }: typeof import('@web/modules/social-recovery/shared/client') = require('@web/modules/social-recovery/shared/client')
-const {
-  digestOfRequest,
-  membersOfRequest,
-  typedDataOf
-}: typeof import('@web/modules/social-recovery/sdk-doubles/encoding') = require('@web/modules/social-recovery/sdk-doubles/encoding')
 const {
   approvalLinkOf,
   replyOfLine
@@ -316,8 +317,11 @@ export const PAYLOAD: Hex = '0xabcdef'
 export const ATTEMPT_ID = '3'
 export const SETUP_NONCE = '2'
 
+/** The approval branch of a request, the one a link to the page carries. */
+export type ApprovalRequest = Extract<ApproverRequest, { purpose: 'approval' }>
+
 /** The approval request one place's link carries. */
-export const requestOf = (overrides: Partial<ApproverRequest> = {}): ApproverRequest => ({
+export const requestOf = (overrides: Partial<ApprovalRequest> = {}): ApprovalRequest => ({
   kind: 'recovery-proof-request',
   version: 1,
   purpose: 'approval',
@@ -330,11 +334,13 @@ export const requestOf = (overrides: Partial<ApproverRequest> = {}): ApproverReq
   setupNonce: SETUP_NONCE,
   setupBodyHash: `0x${'5e'.repeat(32)}`,
   payload: PAYLOAD,
+  order: { token: zeroAddress, amount: '0', payee: zeroAddress },
   validUntil: String(VALID_UNTIL),
   place: 1,
   method: DESCRIPTOR.methodEcdsa,
   config: configOf(GUARDIAN),
   salt: '0x02',
+  credentialHoldsCode: false,
   ...overrides
 })
 
@@ -353,20 +359,17 @@ export const descriptionOf = (
   overrides: Partial<RequestDescription> = {}
 ): RequestDescription => ({
   account: request.account,
-  chainId: BigInt(request.chainId),
+  chainId: Number(request.chainId),
   manager: request.manager,
   action: request.action,
   attemptId: BigInt(request.attemptId),
   setupNonce: BigInt(request.setupNonce),
   purpose: 'approval',
-  handover: {
-    decoded: true,
-    value: { newAuthority: NEW_KEY, removedAuthority: REMOVED_KEY }
-  },
+  handover: { decoded: true, newAuthority: NEW_KEY, removedAuthority: REMOVED_KEY },
   validUntil: Number(request.validUntil),
   place: request.place,
-  identityPublic: undefined,
-  device: undefined,
+  identityPublic: { method: request.method, config: request.config, saltPublished: true },
+  device: 'no-implementation',
   ...overrides
 })
 
@@ -407,9 +410,37 @@ export const attemptStateOf = (
   ...overrides
 })
 
+/** The members a request's digest closes over, its decimal strings read back as numbers. */
+const membersOf = (request: ApproverRequest) => ({
+  chainId: Number(request.chainId),
+  manager: request.manager,
+  account: request.account,
+  action: request.action,
+  attemptId: BigInt(request.attemptId),
+  setupNonce: BigInt(request.setupNonce),
+  setupBodyHash: request.setupBodyHash,
+  validUntil: Number(request.validUntil),
+  digestVersion: request.digestVersion
+})
+
+/** The approval members of an approval request: its payload and its order beside the common ones. */
+const approvalMembersOf = (request: Extract<ApproverRequest, { purpose: 'approval' }>) => ({
+  ...membersOf(request),
+  payload: request.payload,
+  order: { ...request.order, amount: BigInt(request.order.amount) }
+})
+
 /** The typed data the wallet method hands over for a request. */
 export const typedDataFor = (request: ApproverRequest): TypedDataToSign =>
-  typedDataOf(membersOfRequest(request)) as unknown as TypedDataToSign
+  (request.purpose === 'approval'
+    ? approvalTypedData(approvalMembersOf(request), request.place)
+    : cancellationTypedData(membersOf(request), request.place)) as unknown as TypedDataToSign
+
+/** The digest a request's typed data hashes to. */
+const digestFor = (request: ApproverRequest): Hex =>
+  request.purpose === 'approval'
+    ? approvalDigest(approvalMembersOf(request), request.place)
+    : cancellationDigest(membersOf(request), request.place)
 
 type SigningAccount = typeof GUARDIAN_ACCOUNT
 
@@ -418,7 +449,7 @@ export const signatureBy = (account: SigningAccount, typedData: TypedDataToSign)
   account.signTypedData(typedData as unknown as Parameters<SigningAccount['signTypedData']>[0])
 
 /** The reply the wallet method packages from a signature: the signature is the proof. */
-export const replyOf = (request: ApproverRequest, proof: Hex): ApproverReply => ({
+export const replyOf = (request: ApproverRequest, proof: Hex): Reply => ({
   kind: 'recovery-proof-reply',
   version: 1,
   chainId: request.chainId,
@@ -431,7 +462,7 @@ export const replyOf = (request: ApproverRequest, proof: Hex): ApproverReply => 
   method: request.method,
   config: request.config,
   salt: request.salt,
-  digest: digestOfRequest(request),
+  digest: digestFor(request),
   proof
 })
 
@@ -439,7 +470,7 @@ export const replyOf = (request: ApproverRequest, proof: Hex): ApproverReply => 
  * The line the guardian sends back for a reply, written out here: the reply's
  * record as plain JSON on one line, its keys in the record's order.
  */
-export const lineOf = (reply: ApproverReply): string =>
+export const lineOf = (reply: Reply): string =>
   JSON.stringify({
     kind: reply.kind,
     version: reply.version,
@@ -458,7 +489,7 @@ export const lineOf = (reply: ApproverReply): string =>
   })
 
 /** The approval the recoverer's paste reads from a line. */
-export const pastedReplyOf = (line: string): ApproverReply | null => replyOfLine(line)
+export const pastedReplyOf = (line: string): Reply | null => replyOfLine(line)
 
 /** The EIP-712 digest of typed data. */
 export const hashOf = (typedData: TypedDataToSign): Hex =>
@@ -511,14 +542,19 @@ const walletVerdict = async (request: ApproverRequest, proof: Hex): Promise<Verd
   }
 }
 
-/** The wallet method the client's registry hands out under its slug. */
+/**
+ * The wallet method the client's registry hands out under its slug, decoding
+ * a config with the SDK's own wallet codec. The SDK builds a TextEncoder when
+ * it loads, so it loads at the first decode, after the globals are installed.
+ */
 const walletMethod = {
   modules: () => [DESCRIPTOR.methodEcdsa],
   codec: {
-    decodeConfig: (config: Hex) => {
-      const [address] = decodeAbiParameters([{ type: 'address' }], config)
-      return { address }
-    }
+    decodeConfig: (config: Hex) =>
+      // eslint-disable-next-line global-require, @typescript-eslint/no-var-requires
+      (require('@kohaku-eth/social-recovery') as typeof import('@kohaku-eth/social-recovery'))
+        .walletMethod()
+        .codec.decodeConfig(config)
   }
 }
 

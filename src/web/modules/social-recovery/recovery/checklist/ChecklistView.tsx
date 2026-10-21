@@ -16,7 +16,7 @@ import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
-import type { ApproverRequest } from '@web/modules/social-recovery/sdk-interfaces'
+import type { ApproverRequest } from '@kohaku-eth/social-recovery'
 import { failed } from '@web/modules/social-recovery/shared/ceremony'
 import {
   ActionsRow,

@@ -1,7 +1,7 @@
 /**
- * The client layer: the one place the extension reaches the SDK, today its
- * doubles. Screens import this module and never `sdk-doubles/`, so the swap to
- * the real SDK touches this folder alone.
+ * The client layer: the one place the extension reaches the SDK's runtime.
+ * Screens import the SDK's types from the package and its runtime through
+ * this module, never from the package.
  *
  * The React hooks live in their own files, `useRecoveryClient` and
  * `useAccountFacts`, imported by path, so this module loads in a Node test
@@ -36,15 +36,10 @@ export {
 } from './provider-adapter'
 export { createChainReads, gasCallOf } from './chain-reads'
 export { networkOf, extensionProviderFor, providerKeyOf } from './extension-provider'
-export {
-  MANAGER_DOMAIN_NAME,
-  buildRecoveryClient,
-  checkDigestVersion,
-  carriedDomainVersion,
-  digestVersionRefusal,
-  isDigestVersionRefusal
-} from './build-client'
-export { REMOVED_KEY_UNAVAILABLE_CAUSES, createPrivilegeReads } from './wallet-reads'
+export { buildRecoveryClient, digestVersionRefusal, isDigestVersionRefusal } from './build-client'
+export { createPrivilegeReads } from './wallet-reads'
+export { PRIVACY_LEVELS, KIT_ERROR_NAMES } from './lists'
+export { CANCELLED_BY, RESTORE_CAUSE_CODES, SETUP_ERROR_CODES } from '@kohaku-eth/social-recovery'
 export { createCeremonyResolver, extensionClientFor } from './ceremony-resolver'
 export {
   SIGNER_MEMBERS,
@@ -96,7 +91,6 @@ export {
   sameFactsReading,
   seedBasicAccountOf
 } from './account-facts'
-export { passkeyConfigFieldsOf } from './kit/formats'
 export { watchedDeploymentOf, createWatcherReads, watcherConnectionFor } from './watcher-reads'
 export type {
   RecoveryChain,
@@ -120,6 +114,12 @@ export type {
   GasEstimateCall,
   ExtensionProvider,
   RecoveryKitClient,
+  RecoverySetupClient,
+  CodedRefusal,
+  LandingRevert,
+  PrivacyLevel,
+  KitErrorName,
+  AttemptLog,
   ApprovingClient,
   CeremonyClientFor,
   CeremonyResolverOptions,
@@ -127,7 +127,6 @@ export type {
   DigestVersionRefusal,
   DeploymentCheck,
   DeploymentRefusal,
-  NotServedRefusal,
   WalletReads,
   RecoveryAttemptState,
   FitCheckReading,
@@ -200,4 +199,4 @@ export type {
   WatcherConnection
 } from './types'
 // `sdkStandIn` stays out of this module: tests and development code import
-// `shared/client/stand-in` by path, so no screen reaches the scripted chain.
+// `shared/client/stand-in` by path, so no screen reaches the fake node.

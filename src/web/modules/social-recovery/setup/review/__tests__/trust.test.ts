@@ -1,6 +1,6 @@
 import { getAddress } from 'viem'
 
-import type { Clause } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Clause } from '@kohaku-eth/social-recovery'
 import { emptySlot } from '@web/modules/social-recovery/shared/records/slots'
 import type { Enrollment } from '@web/modules/social-recovery/shared/records'
 

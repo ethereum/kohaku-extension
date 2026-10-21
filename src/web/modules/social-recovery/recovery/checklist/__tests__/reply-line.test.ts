@@ -3,10 +3,10 @@
  * one line, keys in the record's order; the paste reads any JSON whitespace
  * and refuses the earlier base64url form.
  */
-import type { ApproverReply } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Reply } from '@kohaku-eth/social-recovery'
 import { replyLineOf, replyOfLine } from '@web/modules/social-recovery/recovery/checklist/paste'
 
-const REPLY: ApproverReply = {
+const REPLY: Reply = {
   kind: 'recovery-proof-reply',
   version: 1,
   chainId: '11155111',
@@ -38,12 +38,12 @@ describe('the approval line', () => {
   })
 
   it('keeps the record’s order whatever order the reply object was built in', () => {
-    const shuffled = Object.fromEntries(Object.entries(REPLY).reverse()) as ApproverReply
+    const shuffled = Object.fromEntries(Object.entries(REPLY).reverse()) as Reply
     expect(replyLineOf(shuffled)).toBe(EXPECTED_LINE)
   })
 
   it('carries only the record’s fields', () => {
-    const extended = { ...REPLY, note: 'hello' } as ApproverReply
+    const extended = { ...REPLY, note: 'hello' } as Reply
     expect(replyLineOf(extended)).toBe(EXPECTED_LINE)
   })
 

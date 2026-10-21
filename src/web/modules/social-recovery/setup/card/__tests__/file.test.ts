@@ -5,7 +5,7 @@
  * draws, over one page or several.
  */
 import i18n from '@common/config/localization'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import { renderPasswordName } from '@web/modules/social-recovery/shared/display'
 import {
   pdfDrawnValues,

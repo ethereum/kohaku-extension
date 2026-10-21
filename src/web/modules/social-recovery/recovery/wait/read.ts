@@ -8,7 +8,7 @@
 import { isAddress, isAddressEqual, keccak256 } from 'viem'
 
 import { destinationKeyOf } from '@web/modules/social-recovery/recovery/checklist'
-import type { Address, Attempt } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Attempt } from '@kohaku-eth/social-recovery'
 import { within } from '@web/modules/social-recovery/shared/client'
 import type { ListedAccountFacts } from '@web/modules/social-recovery/shared/client'
 import type { CountdownRecord } from '@web/modules/social-recovery/shared/records'

@@ -85,6 +85,7 @@
     "@kohaku-eth/privacy-pools": "0.0.2-alpha.4",
     "@kohaku-eth/provider": "0.1.0-alpha.5",
     "@kohaku-eth/railgun": "0.0.1-alpha.8",
+    "@kohaku-eth/social-recovery": "0.0.1",
     "@ledgerhq/context-module": "1.4.0",
     "@ledgerhq/device-management-kit": "0.7.0",
     "@ledgerhq/device-signer-kit-ethereum": "1.5.0",
@@ -241,7 +242,7 @@
     "util": "~0.10.3",
     "uuid": "9.0.0",
     "validator": "^13.7.0",
-    "viem": "2.33.3",
+    "viem": "2.54.1",
     "vm-browserify": "0.0.4",
     "webextension-polyfill": "^0.10.0"
   },

@@ -12,7 +12,7 @@
  */
 import { isAddress, isAddressEqual, zeroAddress } from 'viem'
 
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 import { SEPOLIA_DEPLOYMENT_VARIABLE, sepoliaDeploymentVariable } from './deployment-env'
 import type {

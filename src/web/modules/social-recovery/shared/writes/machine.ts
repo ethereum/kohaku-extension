@@ -26,7 +26,7 @@
  *
  * An event a state does not take leaves the state as it was (the same object).
  */
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 import { isProviderReadFailure, isSendRefusal } from '@web/modules/social-recovery/shared/client'
 
 import { classifyFailure, revertCauseOf, settleReceipt, writeFailureOf } from './classify'

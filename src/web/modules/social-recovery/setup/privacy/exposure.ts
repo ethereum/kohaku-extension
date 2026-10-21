@@ -1,4 +1,4 @@
-import type { Address, Clause, Credential } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Clause, Credential } from '@kohaku-eth/social-recovery'
 import { sameAddress } from '@web/modules/social-recovery/shared/client'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import type { Translate } from '@web/modules/social-recovery/shared/display'
@@ -76,7 +76,7 @@ const joinItems = ([lead, ...rest]: string[], t: Translate): string => {
  * the clear.
  */
 export const exposureLinesOf = (
-  clauses: Clause[],
+  clauses: readonly Clause[],
   level: OfferedLevel,
   book: AddressBook,
   t: Translate

@@ -6,7 +6,7 @@ import type {
   Hex,
   PreparedCall,
   RecoveryState
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type {
   AddGate,
   ChainReads,
@@ -53,7 +53,7 @@ import type { ALREADY_RUNNING_CAUSES, ALREADY_RUNNING_FINDINGS } from './constan
 
 export type SubmitKitClient = Pick<
   RecoveryKitClient,
-  'recovery' | 'setup' | 'walletReads' | 'action'
+  'recovery' | 'setup' | 'walletReads' | 'action' | 'descriptor'
 >
 
 /** The recovery client of the account being recovered, as the screen reads it. */

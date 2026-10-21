@@ -11,11 +11,11 @@ import type {
   Address,
   Configuration,
   LogPosition,
-  PrivacyLevel,
   SetupDraft,
   SetupState
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type {
+  PrivacyLevel,
   AccountFactsResult,
   ChainReads,
   KeyHandle,
@@ -34,7 +34,7 @@ import type {
 } from '@web/modules/social-recovery/shared/writes'
 import type { ArmRun, SaveWriteKeys } from '@web/modules/social-recovery/setup/arm'
 import type { TrustRow } from '@web/modules/social-recovery/setup/review'
-import type { AttemptEnding } from '@web/modules/social-recovery/watcher'
+import type { AttemptEnding, WatcherStorage } from '@web/modules/social-recovery/watcher'
 
 // ---------------------------------------------------------------------------
 // The chain's reading of the account
@@ -78,7 +78,6 @@ export type PathStep =
   | { kind: 'none' }
   | { kind: 'reading' }
   | { kind: 'read-failed' }
-  | { kind: 'update-the-wallet' }
   | { kind: 'no-details' }
   | { kind: 'mismatch' }
   /** This device cannot read the path until the recovery password opens it. */
@@ -111,9 +110,21 @@ export interface EndedNotice {
 // The reads hook
 // ---------------------------------------------------------------------------
 
+/**
+ * What this device has seen of the account's setup at the client's
+ * deployment: the highest setup nonce, and the block of the watcher's last
+ * reading where it found a setup.
+ */
+export interface KnownFloor {
+  setupNonce?: bigint
+  setupBlock?: number
+}
+
 export interface OverviewReadsInput {
   client: RecoveryClientState & { retry: () => void }
   records: Pick<WalletRecords, 'decryptedSetupCache'>
+  /** The storage the watcher keeps its record of each account in; with none, only the cache sets the floor. */
+  watcherStorage?: WatcherStorage
   chainId: ChainId
   account: Address
 }

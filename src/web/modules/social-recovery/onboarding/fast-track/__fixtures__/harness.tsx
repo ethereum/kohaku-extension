@@ -17,7 +17,7 @@ import type { Key } from '@ambire-common/interfaces/keystore'
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
 import type { BackgroundServiceContextReturnType } from '@web/contexts/backgroundServiceContext/types'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 import mockSlot from './slot.json'
 

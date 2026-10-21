@@ -17,7 +17,8 @@
  */
 import i18n from '@common/config/localization'
 import en from '@common/config/localization/translations/en.json'
-import { KIT_ERROR_NAMES, type KitErrorName } from '@web/modules/social-recovery/sdk-interfaces'
+import { KIT_ERROR_NAMES } from '@web/modules/social-recovery/shared/client'
+import type { KitErrorName } from '@web/modules/social-recovery/shared/client'
 import { renderFullAddress } from '@web/modules/social-recovery/shared/display'
 
 import {

@@ -6,7 +6,7 @@
  */
 import { mainnet, sepolia } from 'viem/chains'
 
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 import { sepoliaDeploymentVariable } from '@web/modules/social-recovery/shared/client/deployment-env'
 import { explorerTransactionUrlOf } from '@web/modules/social-recovery/setup/arm'
 

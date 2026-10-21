@@ -9,11 +9,7 @@
  * The batch is the prepared calls in order and nothing else: for an account
  * with no code the account library deploys it in the same transaction.
  */
-import type {
-  PreparedBatch,
-  PreparedCall,
-  SetupDraft
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { PreparedBatch, PreparedCall, SetupDraft } from '@kohaku-eth/social-recovery'
 import {
   accountBatchTransactionOf,
   newSendRequestId,

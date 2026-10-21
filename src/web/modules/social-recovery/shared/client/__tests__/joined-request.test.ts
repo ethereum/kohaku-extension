@@ -10,7 +10,7 @@ import { Wallet } from 'ethers'
 import { EstimationStatus } from '@ambire-common/controllers/estimation/types'
 import { SigningStatus } from '@ambire-common/controllers/signAccountOp/signAccountOp'
 import type { SignUserRequest } from '@ambire-common/interfaces/userRequest'
-import type { Address, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Hex } from '@kohaku-eth/social-recovery'
 import {
   activityListing,
   addedRequest,

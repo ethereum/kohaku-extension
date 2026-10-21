@@ -14,6 +14,7 @@ import type {
 } from '@web/modules/social-recovery/recovery/checklist/__tests__/harness'
 import {
   ACCOUNT,
+  BOOK,
   CHAIN_ID,
   depsOf,
   each,
@@ -161,7 +162,8 @@ describe('the guardian row notes', () => {
       expect((await storedSession(world.records))?.value).toEqual({
         state: 'wiped',
         reason: 'recoverer-abandoned',
-        account: ACCOUNT
+        account: ACCOUNT,
+        deployment: { manager: BOOK.manager, action: BOOK.action }
       })
       expect((await world.records.recoveryEntry(CHAIN_ID, ACCOUNT).read()).status).toBe('absent')
       expect(mounted.navigate).toHaveBeenLastCalledWith(path, { replace: true })

@@ -6,7 +6,7 @@ import type {
   PreparedCall,
   SetupConfirmation,
   SetupDraft
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type {
   AccountFactsReading,
   AddGate,

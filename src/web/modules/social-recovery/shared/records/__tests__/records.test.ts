@@ -10,19 +10,21 @@
  * default when the stored string is falsy and parses it otherwise. So a field
  * holding `undefined` loses its key and a `bigint` survives, as in the extension.
  */
+import { keccak256 } from 'viem'
+
 import { parse } from '@ambire-common/libs/richJson/richJson'
 import en from '@common/config/localization/translations/en.json'
 import type {
   Address,
-  ApproverReply,
   ApproverRequest,
   Configuration,
   Gathering,
   Hex,
   PreparedBatch,
   PreparedCall,
+  Reply,
   SetupDraft
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import { parseCeremonySearch } from '@web/modules/social-recovery/shared/ceremony'
 import {
   ABSENT,
@@ -65,6 +67,8 @@ import {
 } from '@web/modules/social-recovery/shared/records'
 import { makeStorage } from '@web/modules/social-recovery/shared/records/__fixtures__/storage'
 import type {
+  ApprovalRequest,
+  RequestMembers,
   RichJsonStorageDouble,
   SessionUpdate
 } from '@web/modules/social-recovery/shared/records/__fixtures__/types'
@@ -111,7 +115,7 @@ const T0 = 1_700_000_000_000
 const HOUR = 60 * 60 * 1000
 
 const SETUP_DRAFT: SetupDraft = {
-  wait: 86400n,
+  wait: 86400,
   clauses: [{ threshold: 1, credentials: [{ method: METHOD, config: '0xabcd' }] }],
   ignoresPause: false,
   privacy: { publicMetadata: '0x', backup: 'encrypted' }
@@ -128,7 +132,7 @@ const SETUP_SAMPLES: SetupRecordValues = {
   inventory: ['another-device', 'guardian-wallets'],
   path: SETUP_DRAFT.clauses,
   enrollments: [ENROLLMENT],
-  waitingPeriod: 86400n,
+  waitingPeriod: 86400,
   passwordSet: 'password-set'
 }
 
@@ -165,8 +169,9 @@ const PREDICTED_ATTEMPT_ID = 7n
 const VALID_UNTIL = '1700086400'
 const PROOF_A = '0xdeadbeefdeadbeef'
 const PROOF_B = '0xfeedfacefeedface'
+const PAYLOAD: Hex = '0x00'
 
-const reply = (place: number, proof: Hex, account: Address = ACCOUNT): ApproverReply => ({
+const reply = (place: number, proof: Hex, account: Address = ACCOUNT): Reply => ({
   kind: 'recovery-proof-reply',
   version: 1,
   chainId: CHAIN_ID.toString(),
@@ -183,28 +188,34 @@ const reply = (place: number, proof: Hex, account: Address = ACCOUNT): ApproverR
   proof
 })
 
-const APPROVALS: ApproverReply[] = [reply(0, PROOF_A), reply(1, PROOF_B)]
+const APPROVALS: Reply[] = [reply(0, PROOF_A), reply(1, PROOF_B)]
+
+const requestMembersOf = (account: Address): RequestMembers => ({
+  chainId: CHAIN_ID.toString(),
+  manager: MANAGER,
+  digestVersion: '1',
+  account,
+  action: ACTION,
+  attemptId: PREDICTED_ATTEMPT_ID.toString(),
+  setupNonce: '3',
+  setupBody: '0x00',
+  validUntil: VALID_UNTIL,
+  block: { number: 1, timestamp: '1700000000', hash: '0x01' }
+})
 
 // The SDK's gathering record, the body of a live session.
 const gathering = (
   account: Address = ACCOUNT,
-  replies: ApproverReply[] = APPROVALS,
-  request: Partial<Gathering['request']> = {}
+  replies: Reply[] = APPROVALS,
+  request: Partial<ApprovalRequest> = {}
 ): Gathering => ({
   kind: 'gathering',
   version: 1,
   purpose: 'approval',
   request: {
-    chainId: CHAIN_ID.toString(),
-    manager: MANAGER,
-    digestVersion: '1',
-    account,
-    action: ACTION,
-    attemptId: PREDICTED_ATTEMPT_ID.toString(),
-    setupNonce: '3',
-    setupBody: '0x00',
-    validUntil: VALID_UNTIL,
-    block: { number: 1, timestamp: '1700000000', hash: '0x01' },
+    ...requestMembersOf(account),
+    payload: PAYLOAD,
+    order: { token: METHOD, amount: '0', payee: account },
     ...request
   },
   places: [0, 1].map((place) => ({
@@ -213,12 +224,22 @@ const gathering = (
     config: '0xabcd',
     salt: '0x01',
     standing: 'not-stopped',
-    stoppable: false
+    stoppable: false,
+    credentialHoldsCode: false
   })),
   replies
 })
 
 const GATHERING = gathering()
+
+const CANCELLATION: Gathering = {
+  kind: 'gathering',
+  version: 1,
+  purpose: 'cancellation',
+  request: { ...requestMembersOf(ACCOUNT), consumableAfter: '1700172800' },
+  places: GATHERING.places,
+  replies: []
+}
 
 const FIVE_EVENTS: RecoveryWipeEvent[] = [
   'submission-landed',
@@ -301,8 +322,16 @@ const writeAllSetup = async (records: WalletRecords, account: Address = ACCOUNT)
   await six.passwordSet.write(SETUP_SAMPLES.passwordSet)
 }
 
+// The deployment the request of `GATHERING` names, which its wiped and landed sessions keep.
+const DEPLOYMENT = { manager: MANAGER, action: ACTION }
+
 // The attempt the landed session keeps from the request of `GATHERING`.
-const LANDED_ATTEMPT = { attemptId: PREDICTED_ATTEMPT_ID.toString(), setupNonce: '3' }
+const LANDED_ATTEMPT = {
+  attemptId: PREDICTED_ATTEMPT_ID.toString(),
+  setupNonce: '3',
+  payloadHash: keccak256(PAYLOAD),
+  deployment: DEPLOYMENT
+}
 
 // The one line a wipe keeps for an event: the reason, the account and, for an
 // expired request, its deadline. The submission landing keeps the landed state,
@@ -314,7 +343,8 @@ const wipedLine = (event: RecoveryWipeEvent): RecoverySessionRecord =>
         state: 'wiped',
         reason: event,
         account: ACCOUNT,
-        ...(event === 'deadline-passed' ? { deadline: VALID_UNTIL } : {})
+        ...(event === 'deadline-passed' ? { deadline: VALID_UNTIL } : {}),
+        deployment: DEPLOYMENT
       }
 
 const wipeFor = async (records: WalletRecords, event: RecoveryWipeEvent) => {
@@ -538,18 +568,18 @@ describe('the empty slots of a path', () => {
 describe('the default setup draft', () => {
   it('waits 48 hours, holds no clause, opts out of the pause and keeps an encrypted private backup', () => {
     const draft = defaultSetupDraft()
-    expect(draft.wait).toBe(BigInt(48 * 60 * 60))
+    expect(draft.wait).toBe(48 * 60 * 60)
     expect(draft.clauses).toEqual([])
     expect(draft.ignoresPause).toBe(true)
     expect(draft.privacy).toEqual({ publicMetadata: '0x', backup: 'encrypted' })
   })
 
-  it('round-trips through storage with its wait still a bigint', async () => {
+  it('round-trips through storage with its wait still a number', async () => {
     const { records } = setup()
     await records.setup(CHAIN_ID, ACCOUNT).setupDraft.write(defaultSetupDraft())
     const { value } = present(await records.setup(CHAIN_ID, ACCOUNT).setupDraft.read())
     expect(value).toEqual(defaultSetupDraft())
-    expect(typeof value.wait).toBe('bigint')
+    expect(typeof value.wait).toBe('number')
   })
 
   it('each call returns a fresh draft with a fresh clause list', () => {
@@ -563,16 +593,15 @@ describe('the default setup draft', () => {
 
   it('a caller that changes the draft it got, clauses and privacy included, leaves the next call as it was', async () => {
     const draft = defaultSetupDraft()
-    draft.clauses.push({ threshold: 1, credentials: [emptySlot('passkey')] })
-    draft.privacy.backup = 'clear'
-    draft.wait = 86400n
-    draft.ignoresPause = false
+    Array.prototype.push.call(draft.clauses, { threshold: 1, credentials: [emptySlot('passkey')] })
+    Object.assign(draft.privacy, { backup: 'clear' })
+    Object.assign(draft, { wait: 86400, ignoresPause: false })
     const { records } = setup()
     await records.setup(CHAIN_ID, ACCOUNT).writeDraftAndPath(draft)
     const next = defaultSetupDraft()
     expect(next.clauses).toEqual([])
     expect(next.privacy.backup).toBe('encrypted')
-    expect(next.wait).toBe(BigInt(48 * 60 * 60))
+    expect(next.wait).toBe(48 * 60 * 60)
     expect(next.ignoresPause).toBe(true)
   })
 })
@@ -837,17 +866,20 @@ describe('no record is a bare boolean or zero', () => {
 
   it('a waiting period of zero still reads as a stored fact, not as absent', async () => {
     const { records } = setup()
-    await records.setup(CHAIN_ID, ACCOUNT).waitingPeriod.write(0n)
-    expect(present(await records.setup(CHAIN_ID, ACCOUNT).waitingPeriod.read()).value).toBe(0n)
+    await records.setup(CHAIN_ID, ACCOUNT).waitingPeriod.write(0)
+    expect(present(await records.setup(CHAIN_ID, ACCOUNT).waitingPeriod.read()).value).toBe(0)
   })
 
-  it('a bigint survives the rich JSON the helper stores', async () => {
+  it('a wait an earlier build stored as a bigint reads as the same number of seconds', async () => {
     const { storage, records } = setup()
-    await records.setup(CHAIN_ID, ACCOUNT).setupDraft.write(SETUP_DRAFT)
+    const draftKey = recordKeys.setup('setupDraft', CHAIN_ID, ACCOUNT)
+    const periodKey = recordKeys.setup('waitingPeriod', CHAIN_ID, ACCOUNT)
+    await storage.set(draftKey, { value: { ...SETUP_DRAFT, wait: 86400n }, savedAt: T0 })
+    await storage.set(periodKey, { value: 86400n, savedAt: T0 })
     expect(dump(storage)).toContain('$bigint')
-    const { value } = present(await records.setup(CHAIN_ID, ACCOUNT).setupDraft.read())
-    expect(typeof value.wait).toBe('bigint')
-    expect(value.wait).toBe(86400n)
+    const setupRecords = records.setup(CHAIN_ID, ACCOUNT)
+    expect(present(await setupRecords.setupDraft.read()).value).toEqual(SETUP_DRAFT)
+    expect(present(await setupRecords.waitingPeriod.read()).value).toBe(86400)
   })
 
   it('a record whose value is undefined loses its value key and reads as absent, never as present', async () => {
@@ -881,7 +913,7 @@ describe('no record is a bare boolean or zero', () => {
   it('every value the records write is a truthy object', async () => {
     const { storage, records } = setup()
     await writeAllSetup(records)
-    await records.setup(CHAIN_ID, OTHER_ACCOUNT).waitingPeriod.write(0n)
+    await records.setup(CHAIN_ID, OTHER_ACCOUNT).waitingPeriod.write(0)
     await writeSession(records, GATHERING)
     await landSession(records)
     await records.decryptedSetupCache(CHAIN_ID, ACCOUNT).write(CACHE)
@@ -944,7 +976,7 @@ describe('the recovery session', () => {
     await expect(
       writeSession(records, gathering(ACCOUNT, APPROVALS, { chainId: '1' }))
     ).rejects.toThrow(/names chain/)
-    await expect(writeSession(records, { ...GATHERING, purpose: 'cancellation' })).rejects.toThrow(
+    await expect(writeSession(records, CANCELLATION)).rejects.toThrow(
       /approval gathering, not cancellation/
     )
     expect(storage.raw.size).toBe(0)
@@ -1214,7 +1246,7 @@ describe('the decrypted setup cache after execution', () => {
     expect(await records.decryptedSetupCache(CHAIN_ID, ACCOUNT).read()).toBe(ABSENT)
   })
 
-  it('holds the decrypted setup and its nonce as bigints, readable without the password after a worker restart', async () => {
+  it('holds the decrypted setup and its nonce as a bigint, readable without the password after a worker restart', async () => {
     const { storage, records, clock } = setup()
     await records.decryptedSetupCache(CHAIN_ID, ACCOUNT).write(CACHE)
     // The stored string carries the configuration, not a pointer to it.
@@ -1223,7 +1255,7 @@ describe('the decrypted setup cache after execution', () => {
     const restarted = createWalletRecords({ storage, now: () => clock.t })
     const cache = present(await restarted.decryptedSetupCache(CHAIN_ID, ACCOUNT).read())
     expect(cache.value).toEqual(CACHE)
-    expect(typeof cache.value.configuration.wait).toBe('bigint')
+    expect(typeof cache.value.configuration.wait).toBe('number')
     expect(cache.value.setupNonce).toBe(3n)
     expect(await restarted.decryptedSetupCache(CHAIN_ID, ACCOUNT).age()).toBe(2 * HOUR)
   })
@@ -1235,12 +1267,38 @@ describe('the decrypted setup cache after execution', () => {
     expect(await records.decryptedSetupCache(1n, ACCOUNT).read()).toBe(ABSENT)
   })
 
+  it('reads back the deployment the setup was read from, and reads a cache that names none', async () => {
+    const { storage, records } = setup()
+    const deployment = { manager: METHOD, action: OTHER_ACCOUNT }
+    await records.decryptedSetupCache(CHAIN_ID, ACCOUNT).write({ ...CACHE, deployment })
+    const restarted = createWalletRecords({ storage })
+    const cache = present(await restarted.decryptedSetupCache(CHAIN_ID, ACCOUNT).read())
+    expect(cache.value).toEqual({ ...CACHE, deployment })
+
+    await records.decryptedSetupCache(CHAIN_ID, ACCOUNT).write(CACHE)
+    const earlier = present(await restarted.decryptedSetupCache(CHAIN_ID, ACCOUNT).read())
+    expect(earlier.value).toEqual(CACHE)
+    expect('deployment' in earlier.value).toBe(false)
+  })
+
+  it('reads deployment fields that are not two addresses as none, keeping the setup', async () => {
+    const { records } = setup()
+    const malformed = [{ manager: METHOD }, { manager: 'nope', action: 'nope' }, 'x']
+    await malformed.reduce(async (before, deployment) => {
+      await before
+      const cache = records.decryptedSetupCache(CHAIN_ID, ACCOUNT)
+      await cache.write({ ...CACHE, deployment: deployment as never })
+      const read = present(await cache.read())
+      expect(read.value).toEqual(CACHE)
+    }, Promise.resolve())
+  })
+
   it('a re-import from the chain replaces the cache and restamps its age', async () => {
     const { records, clock } = setup()
     await records.decryptedSetupCache(CHAIN_ID, ACCOUNT).write(CACHE)
     clock.t = T0 + HOUR
     const reimported: DecryptedSetupCacheRecord = {
-      configuration: { ...CONFIGURATION, wait: 172800n },
+      configuration: { ...CONFIGURATION, wait: 172800 },
       setupNonce: 4n
     }
     await records.decryptedSetupCache(CHAIN_ID, ACCOUNT).write(reimported)
@@ -1408,7 +1466,7 @@ describe('the session survives the submission as the countdown record, with no i
 })
 
 describe('a live request is compared whole, and its replies only grow', () => {
-  const REQUEST_VARIANTS: [string, Partial<Gathering['request']>][] = [
+  const REQUEST_VARIANTS: [string, Partial<ApprovalRequest>][] = [
     ['setupBody', { setupBody: '0x01' }],
     ['digestVersion', { digestVersion: '2' }],
     ['payload', { payload: '0x1234' }],
@@ -1428,9 +1486,15 @@ describe('a live request is compared whole, and its replies only grow', () => {
   )
 
   const blockWithUndefined = { ...GATHERING.request.block, note: undefined }
-  const UNDEFINED_KEYS: [string, Partial<Gathering['request']>][] = [
-    ['an optional key', { payload: undefined }],
-    ['every optional key', { payload: undefined, order: undefined, consumableAfter: undefined }],
+  // The approval request holds no optional key, so a key it does not hold goes in through a cast.
+  const withKeys = (keys: Record<string, null | undefined>) =>
+    keys as unknown as Partial<ApprovalRequest>
+  const UNDEFINED_KEYS: [string, Partial<ApprovalRequest>][] = [
+    ['a key the request does not hold', withKeys({ consumableAfter: undefined })],
+    [
+      'several keys the request does not hold',
+      withKeys({ consumableAfter: undefined, note: undefined })
+    ],
     ['a key inside the block', { block: blockWithUndefined }]
   ]
 
@@ -1451,7 +1515,7 @@ describe('a live request is compared whole, and its replies only grow', () => {
     await writeSession(records, gathering(ACCOUNT, [APPROVALS[0]]))
     const before = dump(storage)
     await expect(
-      writeSession(records, gathering(ACCOUNT, APPROVALS, { payload: null as unknown as Hex }))
+      writeSession(records, gathering(ACCOUNT, APPROVALS, withKeys({ consumableAfter: null })))
     ).rejects.toThrow(/holds another request/)
     expect(dump(storage)).toBe(before)
   })
@@ -1459,7 +1523,7 @@ describe('a live request is compared whole, and its replies only grow', () => {
   it('inside an array, undefined and null count as the same entry, since the storage keeps both as null', async () => {
     const { storage, records } = setup()
     // The request type holds no array, so the list goes in through a cast.
-    const withList = (list: unknown[]) => ({ list } as unknown as Partial<Gathering['request']>)
+    const withList = (list: unknown[]) => ({ list } as unknown as Partial<ApprovalRequest>)
     await writeSession(records, gathering(ACCOUNT, [], withList(['0x01', undefined])))
     await writeSession(records, gathering(ACCOUNT, [APPROVALS[0]], withList(['0x01', undefined])))
     await writeSession(records, gathering(ACCOUNT, APPROVALS, withList(['0x01', null])))
@@ -2258,7 +2322,10 @@ describe('the ceremony request under its request id', () => {
     place: 0,
     method: METHOD,
     config: '0xabcd',
-    salt: '0x01'
+    salt: '0x01',
+    credentialHoldsCode: false,
+    payload: '0x',
+    order: { token: METHOD, amount: '0', payee: ACCOUNT }
   }
   const PARAMS = { relyingPartyId: 'chrome-extension://abc', userName: 'holder' }
   const target = { account: ACCOUNT, chainId: CHAIN_ID, method: 'passkey' }
@@ -2503,10 +2570,10 @@ describe('the ceremony request under its request id', () => {
 
 describe('the setup save in flight', () => {
   const KEY = recordKeys.saveInFlight(CHAIN_ID, ACCOUNT)
-  // A committed draft whose wait is beyond a safe integer, so only a bigint keeps it.
+  // A committed draft with a wait of its own.
   const SECOND_DRAFT: SetupDraft = {
     ...SETUP_DRAFT,
-    wait: 18_446_744_073_709_551_616n + 1n,
+    wait: 7 * 24 * 60 * 60 + 1,
     clauses: [
       {
         threshold: 2,
@@ -2593,13 +2660,13 @@ describe('the setup save in flight', () => {
     expect(batch.kind === 'batch' && batch.calls[1].value).toBe(1_180_591_620_717_411_303_424n)
   })
 
-  it('a claim stores the committed draft, and another page reads the same draft back with its bigint wait', async () => {
+  it('a claim stores the committed draft, and another page reads the same draft back with its wait', async () => {
     const { storage, records } = setup()
     await records.saveInFlight(CHAIN_ID, ACCOUNT).claim(SECOND_CLAIM)
     const tab = createWalletRecords({ storage, now: () => T0 })
     const { draft } = present(await tab.saveInFlight(CHAIN_ID, ACCOUNT).read()).value
     expect(draft).toEqual(SECOND_DRAFT)
-    expect(draft.wait).toBe(18_446_744_073_709_551_616n + 1n)
+    expect(draft.wait).toBe(7 * 24 * 60 * 60 + 1)
   })
 
   it('keeps the draft it was claimed with when the setup draft record changes after the claim', async () => {
@@ -2640,7 +2707,7 @@ describe('the setup save in flight', () => {
     expect((await saving.claim(SECOND_CLAIM)).record.value).toEqual(sent)
   })
 
-  it('marking it sent keeps the draft of the claim, its bigint wait included', async () => {
+  it('marking it sent keeps the draft of the claim, its wait included', async () => {
     const { storage, records } = setup()
     const saving = records.saveInFlight(CHAIN_ID, ACCOUNT)
     await saving.claim(SECOND_CLAIM)
@@ -2648,7 +2715,7 @@ describe('the setup save in flight', () => {
     const tab = createWalletRecords({ storage, now: () => T0 })
     const { draft } = present(await tab.saveInFlight(CHAIN_ID, ACCOUNT).read()).value
     expect(draft).toEqual(SECOND_DRAFT)
-    expect(draft.wait).toBe(18_446_744_073_709_551_616n + 1n)
+    expect(draft.wait).toBe(7 * 24 * 60 * 60 + 1)
   })
 
   const CLAIM_BLOCK = 7_000_100

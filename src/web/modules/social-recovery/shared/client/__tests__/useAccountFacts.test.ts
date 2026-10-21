@@ -10,7 +10,7 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import useProvidersControllerState from '@web/hooks/useProvidersControllerState'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import type { AccountFactsResult } from '@web/modules/social-recovery/shared/client/types'
 import { useAccountFacts } from '@web/modules/social-recovery/shared/client/useAccountFacts'
 

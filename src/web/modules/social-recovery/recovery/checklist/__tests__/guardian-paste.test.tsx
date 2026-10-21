@@ -37,21 +37,13 @@ import {
   TIME_ZONE,
   testRecords
 } from '@web/modules/social-recovery/recovery/checklist/__tests__/harness'
-import type {
-  AddRefusalReason,
-  ApproverReply,
-  Configuration,
-  Gathering
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { AddRefusalCause, Configuration, Gathering, Reply } from '@kohaku-eth/social-recovery'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const {
   renderDateTimeInZone
 }: typeof import('@web/modules/social-recovery/shared/display') = require('@web/modules/social-recovery/shared/display')
-const {
-  notServedRefusal
-}: typeof import('@web/modules/social-recovery/shared/client/kit/setup-client') = require('@web/modules/social-recovery/shared/client/kit/setup-client')
 const {
   CHECKLIST_POLL_MS
 }: typeof import('@web/modules/social-recovery/recovery/checklist/constants') = require('@web/modules/social-recovery/recovery/checklist/constants')
@@ -97,7 +89,7 @@ describe('the guardian paste', () => {
     await seedEntry(world.records)
     await seedCache(world.records, configuration)
     await seedSession(world.records, gathering)
-    kit = fakeKit(configuration, { served: true })
+    kit = fakeKit(configuration)
     view?.unmount()
     view = await mountChecklist({
       records: world.records,
@@ -174,8 +166,8 @@ describe('the guardian paste', () => {
 
     await paste(1, lineOf(reply))
 
-    expect(kit.verifyReply).toHaveBeenCalledTimes(1)
-    expect(kit.verifyReply).toHaveBeenCalledWith(servedRequestOf(gathering, 1), reply)
+    expect(kit.verify).toHaveBeenCalledTimes(1)
+    expect(kit.verify).toHaveBeenCalledWith(servedRequestOf(gathering, 1), 1, reply.proof)
   })
 
   it('takes a line with whitespace around it', async () => {
@@ -238,7 +230,7 @@ describe('the guardian paste', () => {
         t(`${PASTE}.notAnApprovalRepair`)
       ])
       expect(sessionWrites()).toBe(before)
-      expect(kit.verifyReply).not.toHaveBeenCalled()
+      expect(kit.verify).not.toHaveBeenCalled()
       expectSettled(1, text, 'error')
     })
   )
@@ -253,7 +245,7 @@ describe('the guardian paste', () => {
 
     expect(errorLines(1)).toEqual([t(`${PASTE}.notAnApproval`), t(`${PASTE}.notAnApprovalRepair`)])
     expect(sessionWrites()).toBe(before)
-    expect(kit.verifyReply).not.toHaveBeenCalled()
+    expect(kit.verify).not.toHaveBeenCalled()
     expectSettled(1, line, 'error')
 
     await paste(1, lineOf(reply))
@@ -264,8 +256,8 @@ describe('the guardian paste', () => {
 
   it('reads a reply missing its signature as not an approval', async () => {
     await open()
-    const reply: Partial<ApproverReply> = { ...replyOf(gathering, 1) }
-    delete reply.proof
+    const { proof, ...reply } = replyOf(gathering, 1)
+    expect(proof).toBeDefined()
     const line = lineOf(reply)
 
     await paste(1, line)
@@ -277,8 +269,9 @@ describe('the guardian paste', () => {
   it('reads a reply of a version the client cannot read as not an approval, and writes nothing', async () => {
     await open()
     kit.addApproverReply.mockImplementation((held: Gathering) => ({
+      outcome: 'refused',
       gathering: held,
-      reason: { kind: 'add-refusal', cause: 'version-unread' }
+      reason: { kind: 'add-refusal', cause: 'kind-or-version-unread' }
     }))
     const before = sessionWrites()
     const line = lineOf({ ...replyOf(gathering, 1), version: 9 })
@@ -300,7 +293,7 @@ describe('the guardian paste', () => {
 
     expect(errorLines(1)).toEqual([t(`${PASTE}.expired`), t(`${PASTE}.expiredDetail`)])
     expect(sessionWrites()).toBe(before)
-    expect(kit.verifyReply).not.toHaveBeenCalled()
+    expect(kit.verify).not.toHaveBeenCalled()
     expectSettled(1, line, 'error')
   })
 
@@ -324,7 +317,7 @@ describe('the guardian paste', () => {
 
   it('reads a reply the verify rejects as matching no method, with its three causes, and writes nothing', async () => {
     await open()
-    kit.verifyReply.mockResolvedValue('rejected')
+    kit.verify.mockResolvedValue('rejected')
     const before = sessionWrites()
     const line = lineOf(replyOf(gathering, 1))
 
@@ -338,7 +331,7 @@ describe('the guardian paste', () => {
 
   it('reads a verify that throws as a failed check, keeps the paste and adds on the retry', async () => {
     await open()
-    kit.verifyReply.mockRejectedValueOnce(new Error('rpc down'))
+    kit.verify.mockRejectedValueOnce(new Error('rpc down'))
     const reply = replyOf(gathering, 1)
     const line = lineOf(reply)
     const before = sessionWrites()
@@ -355,21 +348,12 @@ describe('the guardian paste', () => {
     expectSettled(1, '', 'added')
   })
 
-  it('reads a verify that judges nothing as a failed check, keeps the paste and adds on the retry', async () => {
+  it('adds a reply the local verify cannot judge, leaving the verdict to the chain', async () => {
     await open()
-    kit.verifyReply.mockResolvedValueOnce('not-judged')
+    kit.verify.mockResolvedValueOnce('not-judged')
     const reply = replyOf(gathering, 1)
-    const line = lineOf(reply)
-    const before = sessionWrites()
 
-    await paste(1, line)
-
-    expect(errorLines(1)).toEqual([t(`${PASTE}.checkFailed`)])
-    expect(sessionWrites()).toBe(before)
-    expect(await repliesHeld()).toEqual([])
-    expectSettled(1, line, 'error')
-
-    await view?.press(id(1, 'paste-add'))
+    await paste(1, lineOf(reply))
 
     expect(await repliesHeld()).toEqual([reply])
     expectSettled(1, '', 'added')
@@ -377,7 +361,7 @@ describe('the guardian paste', () => {
 
   it('reads a refusal of the verify by the client as a failed check and writes nothing', async () => {
     await open()
-    kit.verifyReply.mockRejectedValue(notServedRefusal('walletReads.verifyReply'))
+    kit.verify.mockRejectedValue(new Error('The approving side refused the request.'))
     const before = sessionWrites()
     const line = lineOf(replyOf(gathering, 1))
 
@@ -396,7 +380,7 @@ describe('the guardian paste', () => {
     await paste(1, lineOf(reply))
 
     expect(await repliesHeld()).toEqual([reply])
-    expect(kit.verifyReply).toHaveBeenCalledWith(servedRequestOf(gathering, 2), reply)
+    expect(kit.verify).toHaveBeenCalledWith(servedRequestOf(gathering, 2), 2, reply.proof)
     expect(view?.byTestId(id(2, 'verified'))).not.toBeNull()
     expect(view?.byTestId(id(2, 'added'))).not.toBeNull()
     expect(view?.byTestId(id(1, 'verified'))).toBeNull()
@@ -405,7 +389,7 @@ describe('the guardian paste', () => {
     expect(view?.valueOf(id(1, 'paste-input'))).toBe('')
   })
 
-  const addRefusals: AddRefusalReason[] = [
+  const addRefusals: AddRefusalCause[] = [
     'place-unknown',
     'credential-mismatch',
     'binding-mismatch',
@@ -416,6 +400,7 @@ describe('the guardian paste', () => {
     it(`reads the add's ${cause} as matching no method, and writes nothing`, async () => {
       await open()
       kit.addApproverReply.mockImplementation((held: Gathering) => ({
+        outcome: 'refused',
         gathering: held,
         reason: { kind: 'add-refusal', cause }
       }))
@@ -432,10 +417,14 @@ describe('the guardian paste', () => {
 
   it('reads a reply for a place the path does not hold as matching no method', async () => {
     await open()
-    kit.addApproverReply.mockImplementation((held: Gathering, reply: ApproverReply) =>
+    kit.addApproverReply.mockImplementation((held: Gathering, reply: Reply) =>
       held.places.some((place) => place.place === reply.place)
-        ? { gathering: { ...held, replies: [...held.replies, reply] } }
-        : { gathering: held, reason: { kind: 'add-refusal', cause: 'place-unknown' } }
+        ? { outcome: 'filed', gathering: { ...held, replies: [...held.replies, reply] } }
+        : {
+            outcome: 'refused',
+            gathering: held,
+            reason: { kind: 'add-refusal', cause: 'place-unknown' }
+          }
     )
     const line = lineOf({ ...replyOf(gathering, 1), place: 9 })
 
@@ -514,7 +503,7 @@ describe('the guardian paste', () => {
 
     const startPaste = async (line: string) => {
       const verdict = deferred<'satisfied' | 'rejected'>()
-      kit.verifyReply.mockImplementation(() => verdict.promise)
+      kit.verify.mockImplementation(() => verdict.promise)
       const mounted = view as Mounted
       await mounted.type(id(1, 'paste-input'), line)
       await mounted.press(id(1, 'paste-add'))
@@ -530,7 +519,7 @@ describe('the guardian paste', () => {
       expect(view?.isDisabled(id(1, 'paste-add'))).toBe(true)
       expect(view?.valueOf(id(1, 'paste-input'))).toBe(line)
       await view?.press(id(1, 'paste-add'))
-      expect(kit.verifyReply).toHaveBeenCalledTimes(1)
+      expect(kit.verify).toHaveBeenCalledTimes(1)
 
       verdict.resolve('satisfied')
       await outside(() => verdict.promise)
@@ -581,7 +570,7 @@ describe('the guardian paste', () => {
       jest.setSystemTime(NOW)
       await open()
       const verdict = deferred<'satisfied'>()
-      kit.verifyReply.mockImplementation(() => verdict.promise)
+      kit.verify.mockImplementation(() => verdict.promise)
       const line = lineOf(replyOf(gathering, 1))
       const before = sessionWrites()
       await view?.type(id(1, 'paste-input'), line)
@@ -623,7 +612,7 @@ describe('the guardian paste', () => {
 
       await paste(1, late)
       expect(errorLines(1)).toEqual([t(`${PASTE}.expired`), t(`${PASTE}.expiredDetail`)])
-      expect(kit.verifyReply).not.toHaveBeenCalled()
+      expect(kit.verify).not.toHaveBeenCalled()
 
       clock = deadlineMs() - 1000
       await paste(1, late)
@@ -634,7 +623,7 @@ describe('the guardian paste', () => {
     it('reads the clock once, before the check: a check that ends past the deadline still adds', async () => {
       await open()
       const verdict = deferred<'satisfied'>()
-      kit.verifyReply.mockImplementation(() => verdict.promise)
+      kit.verify.mockImplementation(() => verdict.promise)
       const pastedAt = deadlineMs() - 60 * 1000
       clock = pastedAt
       await view?.type(id(1, 'paste-input'), lineOf(replyOf(gathering, 1)))

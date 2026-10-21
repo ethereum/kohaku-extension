@@ -8,7 +8,7 @@
  */
 import { keccak256 } from 'viem'
 
-import type { Address, Gathering, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Gathering, Hex } from '@kohaku-eth/social-recovery'
 import {
   ChainCountdown,
   createWalletRecords,
@@ -48,6 +48,7 @@ const gathering = (): Gathering => ({
     setupNonce: '9',
     setupBody: '0x00',
     payload: PAYLOAD,
+    order: { token: ACCOUNT, amount: '0', payee: ACCOUNT },
     validUntil: '1700086400',
     block: { number: 1, timestamp: '1700000000', hash: '0x01' }
   },
@@ -55,18 +56,23 @@ const gathering = (): Gathering => ({
   replies: []
 })
 
+// The deployment `gathering()` names and the chain's attempts are read from.
+const DEPLOYMENT = { manager: MANAGER, action: ACTION }
+
 // The attempt the landing of `gathering()` keeps, as the chain describes it.
 const SAME_ATTEMPT: ChainCountdown = {
   attemptId: 42n,
   setupNonce: 9n,
   payloadHash: keccak256(PAYLOAD),
-  openedAtMs: OPENED_AT_MS
+  openedAtMs: OPENED_AT_MS,
+  deployment: DEPLOYMENT
 }
 const ANOTHER_ATTEMPT: ChainCountdown = {
   attemptId: 43n,
   setupNonce: 9n,
   payloadHash: `0x${'bb'.repeat(32)}`,
-  openedAtMs: OPENED_AT_MS
+  openedAtMs: OPENED_AT_MS,
+  deployment: DEPLOYMENT
 }
 const ENTRY: Omit<RecoveryEntryRecord, 'account'> = {
   route: 'logged-in',
@@ -82,7 +88,8 @@ const ANOTHER_COUNTDOWN = {
   account: ACCOUNT,
   attemptId: '43',
   setupNonce: '9',
-  payloadHash: ANOTHER_ATTEMPT.payloadHash
+  payloadHash: ANOTHER_ATTEMPT.payloadHash,
+  deployment: DEPLOYMENT
 }
 
 const setup = () => {
@@ -126,7 +133,7 @@ describe('the countdown restored from the chain', () => {
     expect(countdown.status === 'present' && countdown.value).toEqual(ANOTHER_COUNTDOWN)
     expect(countdown.status === 'present' && countdown.savedAt).toBe(OPENED_AT_MS)
     expect(storage.calls.set).toEqual([SESSION_KEY, ENTRY_KEY])
-    expect(await entryOf(records)).toEqual({ account: ACCOUNT, ...ENTRY })
+    expect(await entryOf(records)).toEqual({ account: ACCOUNT, ...ENTRY, deployment: DEPLOYMENT })
   })
 
   it('writes no entry where none is given', async () => {
@@ -145,7 +152,7 @@ describe('the countdown restored from the chain', () => {
     const result = await restore(records, SAME_ATTEMPT)
     expect(result).toEqual({ outcome: 'kept', countdown: before })
     expect(writesSince(storage, earlier)).toEqual([ENTRY_KEY])
-    expect(await entryOf(records)).toEqual({ account: ACCOUNT, ...ENTRY })
+    expect(await entryOf(records)).toEqual({ account: ACCOUNT, ...ENTRY, deployment: DEPLOYMENT })
   })
 
   it('reads the same attempt whatever the case of its payload hash', async () => {
@@ -174,6 +181,46 @@ describe('the countdown restored from the chain', () => {
     expect(await entryOf(records)).toEqual(EARLIER_ENTRY)
   })
 
+  it('replaces a countdown of a retired manager with an execution in flight, and writes the entry', async () => {
+    const { storage, records } = setup()
+    await storage.set(SESSION_KEY, {
+      value: {
+        state: 'landed',
+        account: ACCOUNT,
+        attemptId: '42',
+        setupNonce: '9',
+        payloadHash: ANOTHER_ATTEMPT.payloadHash,
+        deployment: { ...DEPLOYMENT, manager: EARLIER_RECEIVING },
+        execution: {
+          requestId: 'social-recovery-execute:first',
+          startBlock: 7_000_000,
+          claimedAt: T0
+        }
+      },
+      savedAt: T0,
+      revision: 'c'.repeat(24)
+    })
+    await records.recoveryEntry(CHAIN_ID, ACCOUNT).write(EARLIER_ENTRY)
+    const result = await restore(records, ANOTHER_ATTEMPT)
+    expect(result.outcome).toBe('written')
+    const countdown = await countdownOf(records)
+    expect(countdown.status === 'present' && countdown.value).toEqual(ANOTHER_COUNTDOWN)
+    expect(await entryOf(records)).toEqual({ account: ACCOUNT, ...ENTRY, deployment: DEPLOYMENT })
+  })
+
+  it('replaces a live session of a retired manager with the countdown, and writes the entry', async () => {
+    const { records } = setup()
+    const old = gathering()
+    await records
+      .recoverySession(CHAIN_ID, ACCOUNT)
+      .write({ ...old, request: { ...old.request, manager: EARLIER_RECEIVING } } as Gathering, null)
+    const result = await restore(records, ANOTHER_ATTEMPT)
+    expect(result.outcome).toBe('written')
+    const countdown = await countdownOf(records)
+    expect(countdown.status === 'present' && countdown.value).toEqual(ANOTHER_COUNTDOWN)
+    expect(await entryOf(records)).toEqual({ account: ACCOUNT, ...ENTRY, deployment: DEPLOYMENT })
+  })
+
   it('keeps a live session and leaves the entry untouched', async () => {
     const { storage, records } = setup()
     await live(records)
@@ -195,7 +242,7 @@ describe('the countdown restored from the chain', () => {
     expect(result.outcome).toBe('written')
     const countdown = await countdownOf(records)
     expect(countdown.status === 'present' && countdown.value).toEqual(ANOTHER_COUNTDOWN)
-    expect(await entryOf(records)).toEqual({ account: ACCOUNT, ...ENTRY })
+    expect(await entryOf(records)).toEqual({ account: ACCOUNT, ...ENTRY, deployment: DEPLOYMENT })
   })
 
   it('replaces the countdown of another attempt with no execution in flight, and writes the entry', async () => {
@@ -207,7 +254,38 @@ describe('the countdown restored from the chain', () => {
     const countdown = await countdownOf(records)
     expect(countdown.status === 'present' && countdown.value).toEqual(ANOTHER_COUNTDOWN)
     expect(countdown.status === 'present' && countdown.savedAt).toBe(OPENED_AT_MS)
-    expect(await entryOf(records)).toEqual({ account: ACCOUNT, ...ENTRY })
+    expect(await entryOf(records)).toEqual({ account: ACCOUNT, ...ENTRY, deployment: DEPLOYMENT })
+  })
+
+  it('replaces the countdown of a greater attempt id on another manager, and one that names no deployment', async () => {
+    const retired = { ...DEPLOYMENT, manager: EARLIER_RECEIVING }
+    const cases = [{ deployment: retired }, {}]
+    await cases.reduce(async (before, fields) => {
+      await before
+      const { storage, records } = setup()
+      await storage.set(SESSION_KEY, {
+        value: {
+          state: 'landed',
+          account: ACCOUNT,
+          attemptId: '44',
+          setupNonce: '9',
+          payloadHash: ANOTHER_ATTEMPT.payloadHash,
+          ...fields
+        },
+        savedAt: T0,
+        revision: 'c'.repeat(24)
+      })
+      const result = await restore(records, ANOTHER_ATTEMPT)
+      expect(result.outcome).toBe('written')
+      const countdown = await countdownOf(records)
+      expect(countdown.status === 'present' && countdown.value).toEqual(ANOTHER_COUNTDOWN)
+    }, Promise.resolve())
+  })
+
+  it('reads an entry an earlier build wrote with no deployment', async () => {
+    const { records } = setup()
+    await records.recoveryEntry(CHAIN_ID, ACCOUNT).write(EARLIER_ENTRY)
+    expect(await entryOf(records)).toEqual(EARLIER_ENTRY)
   })
 
   it('keeps the countdown of a newer attempt and its entry when an older attempt is restored after it', async () => {
@@ -225,7 +303,7 @@ describe('the countdown restored from the chain', () => {
     expect(writesSince(storage, earlier)).toEqual([])
     const countdown = await countdownOf(records)
     expect(countdown.status === 'present' && countdown.value).toEqual(ANOTHER_COUNTDOWN)
-    expect(await entryOf(records)).toEqual({ account: ACCOUNT, ...ENTRY })
+    expect(await entryOf(records)).toEqual({ account: ACCOUNT, ...ENTRY, deployment: DEPLOYMENT })
   })
 
   it('runs after an update of the session that started before it, and reads what that update wrote', async () => {

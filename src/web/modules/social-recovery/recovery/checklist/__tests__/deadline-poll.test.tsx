@@ -14,7 +14,7 @@
  * from nothing returned. An account that no longer authorizes the action
  * reads as dormant and keeps every approval.
  */
-import type { Configuration } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Configuration } from '@kohaku-eth/social-recovery'
 
 import type {
   FakeKit,

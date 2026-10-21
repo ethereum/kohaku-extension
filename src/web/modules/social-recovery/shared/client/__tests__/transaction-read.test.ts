@@ -4,7 +4,7 @@
  * sender that is not an address, or a read the provider could not make,
  * rejects as a failed transaction read.
  */
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 import {
   createTransactionRead,
   isProviderReadFailure

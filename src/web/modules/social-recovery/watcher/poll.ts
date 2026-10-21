@@ -24,7 +24,7 @@ import type {
   BlockHeader,
   BlockRange,
   Hex
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import { readWithin, within } from '@web/modules/social-recovery/shared/client/limits'
 import { isProviderReadFailure } from '@web/modules/social-recovery/shared/client/provider-adapter'
 import type {
@@ -32,6 +32,7 @@ import type {
   AttemptScan,
   WatcherReads
 } from '@web/modules/social-recovery/shared/client/types'
+import { isOfDeployment } from '@web/modules/social-recovery/shared/records/deployment'
 import { sameHash } from '@web/modules/social-recovery/shared/writes/hashes'
 
 import { RESCAN_MARGIN_BLOCKS } from './constants'
@@ -489,10 +490,13 @@ const olderBlockMessage = (block: number, stored: number): string =>
  * account reads as failed. Every write names when the poll started, so a
  * write of a poll that outlived its tick never covers a newer poll's. A
  * reading of a block below the stored reading's is written as a failed poll
- * beside the stored reading. Answers the number of accounts the badge counts.
+ * beside the stored reading. Each reading names the deployment it was read
+ * from, and only a stored reading of the same deployment lends its scan hints
+ * and its settled ending. Answers the number of accounts the badge counts.
  */
 export const pollAccounts = async ({
   reads,
+  deployment,
   accounts,
   chainId,
   storage,
@@ -510,7 +514,9 @@ export const pollAccounts = async ({
   const records = await Promise.all(
     accounts.map(async (account) => {
       try {
-        const previous = (await readWatcherRecord(storage, chainId, account))?.reading
+        // A reading of another deployment, or one that names none, holds no hint for this one.
+        const held = (await readWatcherRecord(storage, chainId, account))?.reading
+        const previous = isOfDeployment(held?.deployment, deployment) ? held : undefined
         const reading = await pollAccount(reads, account, latestBlock, previous, {
           stateMs: Math.max(deadline - now(), 0),
           scanMs: scanLimitMs
@@ -520,13 +526,16 @@ export const pollAccounts = async ({
           chainId,
           account,
           (current) => {
-            const dismissed = current?.dismissed ?? []
+            // A new manager numbers its attempts afresh: no dismissal of another deployment holds.
+            const dismissed = isOfDeployment(current?.reading?.deployment, deployment)
+              ? current?.dismissed ?? []
+              : []
             const stored = current?.reading?.block.number
             if (stored !== undefined && reading.block.number < stored) {
               const failed = { at: now(), message: olderBlockMessage(reading.block.number, stored) }
               return { ...current, failed, dismissed }
             }
-            return { reading, dismissed }
+            return { reading: { ...reading, deployment }, dismissed }
           },
           { now, polledAt }
         )

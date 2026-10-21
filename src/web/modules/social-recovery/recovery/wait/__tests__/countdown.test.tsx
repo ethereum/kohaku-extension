@@ -29,7 +29,7 @@ import {
   waiting
 } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
 import type { Mounted } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
-import type { Configuration } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Configuration } from '@kohaku-eth/social-recovery'
 import { renderShortAddress } from '@web/modules/social-recovery/shared/display'
 import { explorerTransactionUrlOf } from '@web/modules/social-recovery/setup/arm'
 import { ruleLinesOf } from '@web/modules/social-recovery/setup/review'

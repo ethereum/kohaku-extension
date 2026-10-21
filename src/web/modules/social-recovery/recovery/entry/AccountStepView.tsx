@@ -25,8 +25,13 @@ import {
   routeEntryPathOf
 } from '@web/modules/social-recovery/recovery/checklist/search'
 import { SectionCard, SectionLabel, TwoColumn } from '@web/modules/social-recovery/shared/chrome'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import { renderFullAddress } from '@web/modules/social-recovery/shared/display'
+import {
+  isOfDeployment,
+  recordDeploymentOf,
+  isSessionOfDeployment
+} from '@web/modules/social-recovery/shared/records'
 
 import ConfirmAccount from './ConfirmAccount'
 import ConfirmedReadsView from './ConfirmedReadsView'
@@ -129,13 +134,22 @@ const AccountStepView = ({
     setWriting(true)
     setWriteFailed(false)
     const entry = records.recoveryEntry(chainId, address)
+    // An entry or a session of another deployment, or one that names none, is not resumed.
     const resumes = async (): Promise<boolean> => {
       const held = await entry.read()
-      if (held.status !== 'present') {
+      if (
+        !ready ||
+        held.status !== 'present' ||
+        !isOfDeployment(held.value.deployment, ready.descriptor)
+      ) {
         return false
       }
       const session = await records.recoverySession(chainId, address).read()
-      return session.status === 'present' && session.value.state === 'live'
+      return (
+        session.status === 'present' &&
+        session.value.state === 'live' &&
+        isSessionOfDeployment(session.value, ready.descriptor)
+      )
     }
     resumes()
       .then(async (resume) => {
@@ -145,7 +159,8 @@ const AccountStepView = ({
         await entry.write({
           account: address,
           route: search.route,
-          receivingAccount: search.receivingAccount
+          receivingAccount: search.receivingAccount,
+          ...(ready ? { deployment: recordDeploymentOf(ready.descriptor) } : {})
         })
         return 'written' as const
       })
@@ -163,7 +178,7 @@ const AccountStepView = ({
           setWriteFailed(true)
         }
       )
-  }, [target, writing, records, chainId, search, navigate])
+  }, [target, writing, ready, records, chainId, search, navigate])
 
   if (!target) {
     return (
@@ -237,12 +252,13 @@ const AccountStepView = ({
             {networkName}
           </Text>
         </SectionCard>
-        {bandActive && (
+        {bandActive && ready && (
           <RunningAttemptBand
             state={running}
             claim={claim}
             account={target.address}
             chainId={chainId}
+            deployment={recordDeploymentOf(ready.descriptor)}
             records={records}
             navigate={navigate}
           />
