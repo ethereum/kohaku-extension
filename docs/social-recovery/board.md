@@ -1,5 +1,43 @@
 # Social recovery board
 
+The state of the work after the SDK adoption (FU-U, outside the milestones), 2026-10-21; it started from `dev/wonderland` c483d0d223 (M-11 round 1 and its board). This task's log is `briefs/sdk-adoption/LOG.md` beside its briefs in the coordinator's worktree (`.claude/worktrees/social-recovery-sdk-adoption-297429`); the M-11 log stays in the M-11 coordinator's worktree under `briefs/m11/LOG.md`. The next milestone is M-12 (zkPassport and Aadhaar, PT-069 and PT-070), on the owner's word; this task gets no freeze or upstream draft of its own and rides M-12's.
+
+## The board (the SDK adoption)
+
+| Column | What is in it |
+| --- | --- |
+| Ready | M-12 on the owner's word; the alpha swap (FU-AN) once `@kohaku-eth/social-recovery` is on npm; the follow-ups recorded below. |
+| Running | Nothing. |
+| Awaiting review | This board's docs PR (`docs/social-recovery-sdk-adoption`). |
+| Blocked | The owner's cancel, the clear and the removal on Sepolia: the deployed `cancelByOwner` and `clearSetup` take an attempt id and the SDK at 479252c still encodes the address alone, so the three writes revert until the SDK changes (FU-AO). |
+| Walked | Part A twice on the headless build over the fake node (the passkey enrollment, the approval page's key and the fake node's attempt wait found and fixed; the per-page node and the watcher's need of a deployment recorded) and part B on Sepolia on the 2026-10-20 deployment (the setup, the waiting-period edit, the attempt's start from a second wallet with the guardian's reply verified locally, the 10-minute wait, the execution and the done screen; the holder's notice, band and watcher banner; four transactions signed by the owner; two High findings fixed in round 9, B3 built as FU-AM). Part C on the fake node for FU-AM (the terminal state with and without the watcher's ending, the editor gates, the transaction link, the moved-keys notice; one Medium fixed in round 4). |
+| Merged | #130 the SDK adoption on `dev/wonderland` at 226dcf1437 (2026-10-21, one train after the owner's approval): the extension imports `@kohaku-eth/social-recovery` (the builder, the policy manager, the action, the event manager, the setup and recovery clients, the methods orchestrator, the backup, the revert decoder) and deletes `sdk-interfaces/`, `sdk-doubles/` and `shared/client/kit/`; the host adapters, the records and the screens stay; a fake node implementing the SDK's provider interface serves the build with no deployment and the unit tests; viem 2.54.1; ten rounds, three independent-review passes (ten threads, all fixed or ruled), the CodeRabbit review waived (542 files over its limit). #131 FU-AM on `dev/wonderland` at daddc48eeb (2026-10-21, one train after #130): the overview's terminal state after an executed recovery, the editor gated behind it, the consume transaction's hash on the watcher's ending; five rounds, verified, gated, walked on the fake node (part C); CodeRabbit approved; the independent review's one Medium (the open overview did not re-read on the watcher's ending or a tab return) fixed in round 5. |
+
+## Rulings of the SDK adoption (2026-10-20 and 2026-10-21)
+
+- The dependency: the real package over a scripted provider and a scripted signer; no SDK class is doubled (a very simple mock of the methods one test needs is allowed); the alpha publish asked of the SDK team for later, the placeholder version 0.0.1 and a README note on the local build until then.
+- The fake node lives in production code (`shared/client/scripted`) behind the absent deployment and serves the unit tests; it implements the provider interface only.
+- The backup format is the SDK's (2,501 bytes, no salt) with no reader for the extension's earlier format; every setup saved before sits on the retired deployment.
+- No kohaku-commons change: the library's kit slot and binding formulas equal the SDK's, so the sign screen's exemptions match the SDK's batches.
+- The viem bump and the Jest shape for the ESM-only package ride the one PR (the lockfile entries by hand).
+- The walk on the memory file's wallets; the keyed gateway kept; no split of the PR.
+- The review passes: a module verify that reverts stays a rejection, as the contract reads it; the wait, done and submit harnesses keep their bare method mocks; a lowered setup nonce or attempt counter is a failed poll with a record floor; records a device wrote under one deployment are never read as another deployment's (the floors, the resumes and the readers scope by the manager and the action); a thrown storage read fails a read, never reads as absence.
+- B3 of the Sepolia walk (the former holder's overview after an executed recovery) built as FU-AM with three rulings: control reads as moved only where the last attempt is consumed and no key this wallet's keystore holds is an authority; the banner's "It is me" dismissal stays as built; the "See the transaction" link ships with the consume hash on the watcher's ending.
+
+## Open with others
+
+| Question | Owner | What the code does meanwhile |
+| --- | --- | --- |
+| The attempt-id ABI of `cancelByOwner` and `clearSetup` and its schedule (asked 2026-10-20) | sdk owner | The owner's cancel, the clear and the removal revert on Sepolia; the screens show the reverted state |
+| The npm alpha publish with a `default` export condition, the viem range note | sdk owner | The placeholder 0.0.1 and the local build (the module's README) |
+| The pin move's schedule, the parameter order of `PolicyManager_ActionDoesNotServeAccount`, `logChunkSize`'s default | sdk owner | The SDK's values at 479252c |
+
+## Recorded, not started
+
+The follow-ups of the walks and the review passes, as rows FU-AN to FU-AS of the tasks README. Lows recorded in #130: the sign window names only the arming call beside a commit; "Submitting" shows while the sign window waits; the wallet opens its transaction tab after a send (upstream); the cancel screen's Go back lands on the dashboard; the entry's Continue gives no hint while no account is picked; a foreign watcher reading with a failed mark reads as not polled on the banner until the next good poll; two docblocks. Lows recorded in #131: the gated screens draw their title and lead for one read before the gate sends the reader back; the link carries no arrow glyph; the ended notice in the terminal state was not staged.
+
+---
+
 The state of the work at the end of milestone M-11 round 1 (the management overview and the management editor), 2026-10-20; M-11 started from `dev/wonderland` 3d9f1b7477 (M-10 round 1, the board, the design-text edits, the M-10 follow-ups). This milestone's log is `briefs/m11/LOG.md` beside its briefs in the coordinator's worktree (`.claude/worktrees/social-recovery-m11-overview-7dcee1`); the M-10 log stays in the M-10 coordinator's worktree under `briefs/m10/LOG.md`.
 
 ## The board (M-11 round 1)
