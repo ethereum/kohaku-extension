@@ -7,6 +7,9 @@ import type { ElsewhereLink } from './types'
 
 export const OVERVIEW = 'socialRecovery.management.overview'
 
+/** The keys of the overview once a recovery moved control away from this device. */
+export const CONTROL_MOVED = `${OVERVIEW}.controlMoved`
+
 /** The Recovery Card opened from the overview: no setup stage, and its done leads back here. */
 export const CARD_LINK = `${WEB_ROUTES.socialRecoverySetupCard}?${CARD_FROM_KEY}=${CARD_FROM_MANAGE}`
 

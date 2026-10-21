@@ -1,4 +1,5 @@
 import type { OverviewIntent } from '@web/modules/social-recovery/management/overview/types'
+import type { Address } from '@kohaku-eth/social-recovery'
 import type {
   ReceiptReads,
   RecoveryKitClient,
@@ -24,6 +25,8 @@ export interface ReadsProbeProps {
   records: WalletRecords
   watcherStorage?: WatcherStorage
   chainId: ChainId
+  /** The account's keys the wallet holds, where the test names them. */
+  heldKeys?: readonly Address[]
   onOpen: (intent: OverviewIntent) => void
 }
 

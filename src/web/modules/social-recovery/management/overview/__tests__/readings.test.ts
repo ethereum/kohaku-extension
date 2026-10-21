@@ -7,10 +7,12 @@ import { zeroAddress } from 'viem'
 
 import {
   attemptOpenOf,
+  controlMovedNoticeOf,
   endedNoticeOf,
   goalStands,
   isBelowFloor,
   knownFloorOf,
+  movedByOf,
   movedInPath,
   noticesOf,
   overviewKindOf,
@@ -145,6 +147,42 @@ describe('the overview readings', () => {
     expect(endedNoticeOf({ ...owner, at: undefined }, [3n])).toBeNull()
     expect(endedNoticeOf({ attemptId: 3n, road: 'executed', at: 1_500 }, [3n])).toBeNull()
     expect(endedNoticeOf(undefined, [3n])).toBeNull()
+  })
+
+  it('reads control as moved only where the last attempt executed and no held key signs', () => {
+    expect(movedByOf(attemptOf('Consumed'), false)).toBe(3n)
+    // A recovery into this same wallet leaves one of its keys an authority.
+    expect(movedByOf(attemptOf('Consumed'), true)).toBeUndefined()
+    expect(movedByOf(attemptOf('Waiting'), false)).toBeUndefined()
+    expect(movedByOf(attemptOf('Cancelled'), false)).toBeUndefined()
+    expect(overviewKindOf(setupOf({}), 3n)).toBe('control-moved')
+    expect(overviewKindOf(setupOf({ isAuthorized: false }), 3n)).toBe('control-moved')
+    expect(overviewKindOf(setupOf({}), undefined)).toBe('set-up')
+  })
+
+  it("names the moved control's time, key and transaction from the execution of the same attempt", () => {
+    const controller: Address = '0x00000000000000000000000000000000000000c1'
+    const executed: AttemptEnding = {
+      attemptId: 3n,
+      road: 'executed',
+      controller,
+      at: 1_700,
+      transactionHash: HASH
+    }
+    expect(controlMovedNoticeOf(3n, executed)).toEqual({
+      at: 1_700,
+      controller,
+      transactionHash: HASH
+    })
+    // A reading an earlier build wrote kept no hash: no link.
+    expect(controlMovedNoticeOf(3n, { ...executed, transactionHash: undefined })).toEqual({
+      at: 1_700,
+      controller
+    })
+    expect(controlMovedNoticeOf(3n, { attemptId: 3n, road: 'executed' })).toEqual({})
+    expect(controlMovedNoticeOf(4n, executed)).toEqual({})
+    expect(controlMovedNoticeOf(3n, { attemptId: 3n, road: 'cancelled', at: 1_700 })).toEqual({})
+    expect(controlMovedNoticeOf(3n, undefined)).toEqual({})
   })
 
   it('rebuilds the re-authorize draft from the configuration at its committed level', () => {

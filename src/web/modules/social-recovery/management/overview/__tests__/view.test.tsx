@@ -300,6 +300,114 @@ describe('the overview', () => {
     expect(props.reads.retryNotices).toHaveBeenCalled()
   })
 
+  it('reads that the account is no longer controlled from this device, with no action on it', async () => {
+    const controller = '0x00000000000000000000000000000000000000C1' as const
+    const props = viewPropsOf({
+      reads: readsOf({
+        facts: {
+          status: 'answered',
+          value: { setup: setupStateOf({}), attemptOpen: false, movedBy: 3n }
+        },
+        path: { kind: 'readable', configuration: CONFIGURATION }
+      }),
+      ending: { attemptId: 3n, road: 'executed', controller, at: 1_700, transactionHash: HASH }
+    })
+    view = await render(props)
+    expect(view.textOf('overview-title')).toBe(t(`${O}.controlMoved.title`))
+    expect(view.text()).toContain(
+      t(`${O}.controlMoved.lead`, { date: display.renderDateTimeInZone(1_700_000, 'UTC').date })
+    )
+    expect(view.text()).toContain(t('socialRecovery.display.values.account'))
+    expect(view.textOf('overview-control-moved-account')).toBe(
+      display.renderFullAddress(harness.ACCOUNT)
+    )
+    const accountRow = view.byTestId('overview-control-moved-account')
+    const controllerRow = view.byTestId('overview-control-moved-controller')
+    expect(
+      accountRow &&
+        controllerRow &&
+        // eslint-disable-next-line no-bitwise
+        accountRow.compareDocumentPosition(controllerRow) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(view.text()).toContain(t(`${O}.controlMoved.controller`))
+    expect(view.textOf('overview-control-moved-controller')).toBe(
+      display.renderFullAddress(controller)
+    )
+    expect(view.textOf('overview-control-moved-path')).toBe(t(`${O}.controlMoved.path`))
+    expect(view.text()).not.toContain(t(`${O}.lead.setUp`))
+    expect(view.byTestId('readout-path')).not.toBeNull()
+    expect(view.byTestId('overview-edit-path')).toBeNull()
+    expect(view.byTestId('overview-remove-recovery')).toBeNull()
+    expect(view.byTestId('banner-slot')).toBeNull()
+    expect(view.byTestId('overview-card-open')).not.toBeNull()
+    expect(view.byTestId('overview-recover')).not.toBeNull()
+    await view.press('overview-control-moved-transaction')
+    expect(props.onTransaction).toHaveBeenCalledWith(HASH)
+  })
+
+  it('keeps the text of a notice and draws none of its actions once control moved away', async () => {
+    const method = ADDRESS_BOOK.methods.ecdsa
+    const id = method.toLowerCase()
+    view = await render(
+      viewPropsOf({
+        reads: readsOf({
+          facts: {
+            status: 'answered',
+            value: { setup: setupStateOf({}), attemptOpen: false, movedBy: 3n }
+          },
+          path: { kind: 'readable', configuration: CONFIGURATION },
+          notices: {
+            status: 'answered',
+            value: {
+              moved: [
+                {
+                  method,
+                  at: {
+                    blockNumber: 150,
+                    blockHash: HASH,
+                    logIndex: 0,
+                    transactionHash: HASH,
+                    removed: false
+                  }
+                }
+              ],
+              cancelledAttempts: []
+            }
+          }
+        }),
+        adminOf: () => ADMIN
+      })
+    )
+    expect(view.textOf(`overview-moved-${id}-title`)).toBe(
+      t(`${O}.movedKeys.title`, { method: 'Guardian' })
+    )
+    expect(view.textOf(`overview-moved-${id}-caveat`)).toBe(t(`${O}.movedKeys.caveat`))
+    expect(view.byTestId(`overview-moved-${id}-edit`)).toBeNull()
+    expect(view.byTestId('overview-reauthorize')).toBeNull()
+  })
+
+  it('reads the moved control with no time, key or link where the watcher read none', async () => {
+    view = await render(
+      viewPropsOf({
+        reads: readsOf({
+          facts: {
+            status: 'answered',
+            value: { setup: setupStateOf({ isAuthorized: false }), attemptOpen: false, movedBy: 3n }
+          }
+        }),
+        ending: { attemptId: 2n, road: 'executed', at: 1_700, transactionHash: HASH }
+      })
+    )
+    expect(view.text()).toContain(t(`${O}.controlMoved.noTime`))
+    expect(view.byTestId('overview-control-moved-controller')).toBeNull()
+    expect(view.byTestId('overview-control-moved-transaction')).toBeNull()
+    // A dormant setup offers no repair once this device no longer controls the account.
+    expect(view.byTestId('overview-dormant')).toBeNull()
+    expect(view.textOf('overview-chip-not-active')).toBe(
+      t('socialRecovery.status.recovery.notActive')
+    )
+  })
+
   it('draws the open write step in place of the overview', async () => {
     view = await render(
       viewPropsOf({

@@ -2,7 +2,8 @@
  * The notices from the logs since the commit: each method of the path whose
  * trusted keys moved, with its admin where its read answered, and the notice
  * after an attempt a cancel or a setup write ended. The read that runs or
- * failed shows its own state.
+ * failed shows its own state. Where nothing here may act on the account, the
+ * notices keep their text and draw no action.
  */
 import React from 'react'
 import { ActivityIndicator } from 'react-native'
@@ -30,7 +31,8 @@ const NoticesBlock = ({
   ending,
   methodNameOf,
   adminOf,
-  navigate
+  navigate,
+  actionable
 }: NoticesBlockProps) => {
   const { t } = useTranslation()
   const { notices, path } = reads
@@ -90,17 +92,19 @@ const NoticesBlock = ({
             >
               {t(`${OVERVIEW}.movedKeys.caveat`)}
             </Text>
-            <ActionsRow
-              primary={
-                <Button
-                  testID={`overview-moved-${id}-edit`}
-                  type="secondary"
-                  text={t(`${OVERVIEW}.movedKeys.edit`)}
-                  onPress={() => navigate(WEB_ROUTES.socialRecoveryManageEdit)}
-                  hasBottomSpacing={false}
-                />
-              }
-            />
+            {actionable && (
+              <ActionsRow
+                primary={
+                  <Button
+                    testID={`overview-moved-${id}-edit`}
+                    type="secondary"
+                    text={t(`${OVERVIEW}.movedKeys.edit`)}
+                    onPress={() => navigate(WEB_ROUTES.socialRecoveryManageEdit)}
+                    hasBottomSpacing={false}
+                  />
+                }
+              />
+            )}
           </SectionCard>
         )
       })}
@@ -114,17 +118,19 @@ const NoticesBlock = ({
               { date: renderDateTimeInZone(ended.at * 1000, timeZone).date }
             )}
           </Text>
-          <ActionsRow
-            primary={
-              <Button
-                testID="overview-ended-replace"
-                type="secondary"
-                text={t(`${OVERVIEW}.ended.replace`)}
-                onPress={() => navigate(WEB_ROUTES.socialRecoveryManageEdit)}
-                hasBottomSpacing={false}
-              />
-            }
-          />
+          {actionable && (
+            <ActionsRow
+              primary={
+                <Button
+                  testID="overview-ended-replace"
+                  type="secondary"
+                  text={t(`${OVERVIEW}.ended.replace`)}
+                  onPress={() => navigate(WEB_ROUTES.socialRecoveryManageEdit)}
+                  hasBottomSpacing={false}
+                />
+              }
+            />
+          )}
         </SectionCard>
       )}
     </>

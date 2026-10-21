@@ -27,6 +27,7 @@ import useNavigation from '@common/hooks/useNavigation'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
 import { OVERVIEW } from '@web/modules/social-recovery/management/overview/constants'
+import { useHeldKeys } from '@web/modules/social-recovery/management/overview/useHeldKeys'
 import { useOverviewReads } from '@web/modules/social-recovery/management/overview/useOverviewReads'
 import { PageTitle } from '@web/modules/social-recovery/shared/chrome'
 import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
@@ -64,12 +65,14 @@ export const RemoveStageView = ({
 }: EditStageProps) => {
   const { t } = useTranslation()
   const clientState = useRecoveryClient(account)
+  const heldKeys = useHeldKeys()
   const reads = useOverviewReads({
     client: clientState,
     records,
     watcherStorage: extensionRecordStorage,
     chainId,
-    account
+    account,
+    heldKeys
   })
   const kit = clientState.status === 'ready' ? clientState.client : null
   // The attempt as the removal last read it before the send; a new read of the overview's facts replaces it.
@@ -206,7 +209,12 @@ export const RemoveStageView = ({
         style={spacings.mbSm}
         text={t(`${REMOVE}.warning`)}
       />
-      <ReadsGate reads={reads} needsPath={false} testID="manage-remove-reads">
+      <ReadsGate
+        reads={reads}
+        needsPath={false}
+        onControlMoved={arrives && held.status === 'none' ? toOverview : undefined}
+        testID="manage-remove-reads"
+      >
         {screen === 'disagreed' && check.status === 'failed' && (
           <ReadFailedBlock
             testID="manage-remove-check-failed"

@@ -28,6 +28,7 @@ import { methodsOf } from '@web/modules/social-recovery/setup/review'
 import type { AttemptEnding, WatcherRecord } from '@web/modules/social-recovery/watcher'
 
 import type {
+  ControlMovedNotice,
   EndedNotice,
   KnownFloor,
   MovedKeys,
@@ -37,8 +38,15 @@ import type {
   PathStep
 } from './types'
 
-/** What the overview draws from the setup and the account's authorization of the action. */
-export const overviewKindOf = (setup: SetupState): OverviewKind => {
+/**
+ * What the overview draws from the setup and the account's authorization of
+ * the action, or the moved control where a recovery left no key this wallet
+ * holds an authority of the account.
+ */
+export const overviewKindOf = (setup: SetupState, movedBy?: bigint): OverviewKind => {
+  if (movedBy !== undefined) {
+    return 'control-moved'
+  }
   if (setup.hasSetup) {
     return setup.isAuthorized ? 'set-up' : 'dormant'
   }
@@ -52,6 +60,38 @@ export const overviewKindOf = (setup: SetupState): OverviewKind => {
  */
 export const attemptOpenOf = (setup: SetupState, attempt: RecoveryAttemptState): boolean =>
   setup.attemptActive || attempt.attempt.state === 'Waiting'
+
+/**
+ * The executed attempt that moved control away from this wallet: the last
+ * attempt the manager holds was consumed and no key this wallet's keystore
+ * holds is an authority of the account. A consume whose handover left one of
+ * these keys signing, as a recovery into any key of this same wallet does,
+ * moved nothing away.
+ */
+export const movedByOf = (
+  attempt: RecoveryAttemptState,
+  heldAuthority: boolean
+): bigint | undefined =>
+  attempt.attempt.state === 'Consumed' && !heldAuthority ? attempt.attempt.attemptId : undefined
+
+/**
+ * What the watcher read of the execution that moved control, from its last
+ * ending where that ending is the execution of the same attempt; an ending
+ * of another attempt or road names nothing of it.
+ */
+export const controlMovedNoticeOf = (
+  movedBy: bigint,
+  ending: AttemptEnding | undefined
+): ControlMovedNotice => {
+  if (!ending || ending.road !== 'executed' || ending.attemptId !== movedBy) {
+    return {}
+  }
+  return {
+    ...(ending.at !== undefined ? { at: ending.at } : {}),
+    ...(ending.controller ? { controller: ending.controller } : {}),
+    ...(ending.transactionHash ? { transactionHash: ending.transactionHash } : {})
+  }
+}
 
 /**
  * Whether a setup held on this device was read under the setup the chain

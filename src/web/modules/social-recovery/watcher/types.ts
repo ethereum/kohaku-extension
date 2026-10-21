@@ -83,6 +83,8 @@ export type AttemptEnding =
       controller?: Address
       /** The time of the block of the consume log, in seconds. */
       at?: number
+      /** The transaction of the consume log; absent on a reading an earlier build wrote. */
+      transactionHash?: Hex
       /** Why a field is missing although the logs were read. */
       endingGap?: EndingGap
       /** The pinned block of the first scan that found a log of the ending missing. */

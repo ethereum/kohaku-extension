@@ -42,6 +42,8 @@ import {
 
 const NOW = 1_800_000_123_000
 const KIT_ACCOUNT = addressOf('kit-account')
+// The transaction of the consume log the scripted chain answers.
+const CONSUME_HASH = consumedEvent(4n).at.transactionHash
 
 const setUp = (accounts = [ACCOUNT]) => {
   const chain = scriptedChain()
@@ -323,7 +325,8 @@ describe('a poll of the watched accounts', () => {
       attemptId: 4n,
       road: 'executed',
       controller: NEW_KEY,
-      at: ENDED_TIME
+      at: ENDED_TIME,
+      transactionHash: CONSUME_HASH
     })
   })
 
@@ -487,7 +490,8 @@ describe('a poll of the watched accounts', () => {
       attemptId: 4n,
       road: 'executed',
       controller: NEW_KEY,
-      at: ENDED_TIME
+      at: ENDED_TIME,
+      transactionHash: CONSUME_HASH
     })
   })
 
@@ -551,6 +555,7 @@ describe('a poll of the watched accounts', () => {
       attemptId: 4n,
       road: 'executed',
       at: ENDED_TIME,
+      transactionHash: CONSUME_HASH,
       notFoundAt: HEAD
     })
 
@@ -561,7 +566,8 @@ describe('a poll of the watched accounts', () => {
       attemptId: 4n,
       road: 'executed',
       controller: NEW_KEY,
-      at: ENDED_TIME
+      at: ENDED_TIME,
+      transactionHash: CONSUME_HASH
     })
   })
 
@@ -754,6 +760,7 @@ describe('a poll of the watched accounts', () => {
       attemptId: 4n,
       road: 'executed',
       at: ENDED_TIME,
+      transactionHash: CONSUME_HASH,
       endingGap: 'undecodable'
     })
   })

@@ -185,6 +185,7 @@ export const readsOf = (fields: Partial<OverviewReads> = {}): OverviewReads => (
 /** The view's props over given reads, each callback a mock. */
 export const viewPropsOf = (fields: Partial<OverviewViewProps> = {}): OverviewViewProps => ({
   reads: readsOf(),
+  account: ACCOUNT,
   context: CONTEXT,
   networkName: 'Sepolia',
   timeZone: 'UTC',
@@ -195,6 +196,7 @@ export const viewPropsOf = (fields: Partial<OverviewViewProps> = {}): OverviewVi
   step: null,
   held: null,
   onOpen: jest.fn(),
+  onTransaction: jest.fn(),
   navigate: jest.fn(),
   ...fields
 })
@@ -320,8 +322,16 @@ export const ReadsProbe = ({
   records,
   watcherStorage,
   chainId,
+  heldKeys,
   onOpen
 }: ReadsProbeProps) => {
-  const reads = useOverviewReads({ client, records, watcherStorage, chainId, account: ACCOUNT })
+  const reads = useOverviewReads({
+    client,
+    records,
+    watcherStorage,
+    chainId,
+    account: ACCOUNT,
+    heldKeys
+  })
   return React.createElement(OverviewView, viewPropsOf({ reads, onOpen }))
 }

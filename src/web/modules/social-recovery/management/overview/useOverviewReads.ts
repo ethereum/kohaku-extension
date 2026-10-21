@@ -15,7 +15,10 @@
  * or one of no setup from a block before the watcher's last reading that
  * found one, so a node that lags or lost its state never shows a setup as
  * gone. A stored record that cannot be read fails the facts with retry; a
- * record that is absent sets no floor.
+ * record that is absent sets no floor. Where the last attempt executed, the
+ * facts also ask whether any key this wallet's keystore holds is an
+ * authority of the account, and wait for the keystore's keys to ask about; a
+ * failed answer fails the facts.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -23,6 +26,7 @@ import {
   readSetupReading,
   unlockFailureOf
 } from '@web/modules/social-recovery/recovery/entry/readout'
+import { holdsAuthority } from '@web/modules/social-recovery/recovery/entry/running'
 import type { EntryRead, UnlockState } from '@web/modules/social-recovery/recovery/entry/types'
 import type { Configuration, SetupState } from '@kohaku-eth/social-recovery'
 import {
@@ -39,6 +43,7 @@ import {
   isCacheCurrent,
   isSameSetup,
   knownFloorOf,
+  movedByOf,
   noticesOf
 } from './readings'
 import type {
@@ -58,7 +63,8 @@ export const useOverviewReads = ({
   records,
   watcherStorage,
   chainId,
-  account
+  account,
+  heldKeys
 }: OverviewReadsInput): OverviewReads => {
   const kit = client.status === 'ready' ? client.client : null
   const [facts, setFacts] = useState<OverviewFactsRead>(PENDING)
@@ -105,11 +111,27 @@ export const useOverviewReads = ({
         .then((cached) => (cached.status === 'present' ? cached.value : undefined)),
       watcherStorage ? readWatcherRecord(watcherStorage, chainId, account) : undefined
     ]).then(([cached, watched]) => knownFloorOf(cached, watched, kit.descriptor))
-    Promise.all([kit.setup.setupState(), kit.walletReads.attemptState(), known]).then(
-      ([state, attempt, seen]) => {
-        if (!live) {
+    const read = async () => {
+      const [state, attempt, seen] = await Promise.all([
+        kit.setup.setupState(),
+        kit.walletReads.attemptState(),
+        known
+      ])
+      if (attempt.attempt.state !== 'Consumed') {
+        return { state, attempt, seen, heldAuthority: false }
+      }
+      if (!heldKeys) {
+        return null
+      }
+      const heldAuthority = await holdsAuthority((key) => kit.action.isAuthority(key), heldKeys)
+      return { state, attempt, seen, heldAuthority }
+    }
+    read().then(
+      (answer) => {
+        if (!live || !answer) {
           return
         }
+        const { state, attempt, seen, heldAuthority } = answer
         if (
           (floor.current !== undefined && state.block.number < floor.current) ||
           isBelowFloor(state, seen)
@@ -118,9 +140,14 @@ export const useOverviewReads = ({
           return
         }
         floor.current = state.block.number
+        const movedBy = movedByOf(attempt, heldAuthority)
         setFacts({
           status: 'answered',
-          value: { setup: state, attemptOpen: attemptOpenOf(state, attempt) }
+          value: {
+            setup: state,
+            attemptOpen: attemptOpenOf(state, attempt),
+            ...(movedBy !== undefined ? { movedBy } : {})
+          }
         })
       },
       () => {
@@ -132,7 +159,7 @@ export const useOverviewReads = ({
     return () => {
       live = false
     }
-  }, [client.status, kit, records, watcherStorage, chainId, account, factsRound])
+  }, [client.status, kit, records, watcherStorage, chainId, account, heldKeys, factsRound])
 
   /**
    * Keeps the opened setup on this device where it is the setup the facts read,

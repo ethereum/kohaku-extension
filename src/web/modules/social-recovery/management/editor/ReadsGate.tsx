@@ -6,9 +6,11 @@
  * holds none, since the save seals the backup under it. A screen that needs
  * no path renders once the setup read answered. Otherwise the screen renders
  * once every read answered; a read that failed or has not returned never
- * renders as an answer.
+ * renders as an answer. Where a recovery moved control away from every key
+ * this wallet holds for the account, a screen that asks to leave does, and
+ * nothing of it renders.
  */
-import React from 'react'
+import React, { useEffect } from 'react'
 import { View } from 'react-native'
 
 import Text from '@common/components/Text'
@@ -30,12 +32,20 @@ const ReadsGate = ({
   onRetryLevel,
   passwordHeld = false,
   needsPath = true,
+  onControlMoved,
   testID,
   children
 }: ReadsGateProps) => {
   const { t } = useTranslation()
 
   const { facts, path } = reads
+  const leaves =
+    !!onControlMoved && facts.status === 'answered' && facts.value.movedBy !== undefined
+  useEffect(() => {
+    if (leaves) {
+      onControlMoved?.()
+    }
+  }, [leaves, onControlMoved])
   const reading = <ReadsLoading testID={`${testID}-reading`} />
   const updateTheWallet = <ReadsUpdateTheWallet testID={`${testID}-update-the-wallet`} />
   if (facts.status === 'pending') {
@@ -46,6 +56,9 @@ const ReadsGate = ({
   }
   if (facts.status === 'update-the-wallet') {
     return updateTheWallet
+  }
+  if (leaves) {
+    return reading
   }
   if (!facts.value.setup.hasSetup) {
     return (

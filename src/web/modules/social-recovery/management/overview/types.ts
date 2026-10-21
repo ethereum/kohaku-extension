@@ -10,6 +10,7 @@ import type {
 import type {
   Address,
   Configuration,
+  Hex,
   LogPosition,
   SetupDraft,
   SetupState
@@ -56,11 +57,23 @@ export type OverviewKind =
    * clear alone leaves it. Repaired by removing the authorization.
    */
   | 'mirror'
+  /**
+   * A recovery executed and no key this wallet's keystore holds is an
+   * authority of the account any longer: the account is no longer controlled
+   * from this device, and nothing here acts on it.
+   */
+  | 'control-moved'
 
 /** The setup state and whether an attempt is open on the account, pending or ready. */
 export interface OverviewFacts {
   setup: SetupState
   attemptOpen: boolean
+  /**
+   * The executed attempt that left no key this wallet's keystore holds an
+   * authority of the account; absent where the last attempt did not execute,
+   * or a key this wallet holds still signs for the account.
+   */
+  movedBy?: bigint
 }
 
 /** The chain read of the overview, with the client's own state where it cannot read. */
@@ -100,6 +113,13 @@ export interface OverviewNotices {
   cancelledAttempts: bigint[]
 }
 
+/** What the watcher read of the execution that moved control: when, in seconds, to which key, and in which transaction. */
+export interface ControlMovedNotice {
+  at?: number
+  controller?: Address
+  transactionHash?: Hex
+}
+
 /** The notice after an ended attempt: the road that ended it and when, in seconds. */
 export interface EndedNotice {
   road: 'ownerCancel' | 'setupWrite'
@@ -127,6 +147,13 @@ export interface OverviewReadsInput {
   watcherStorage?: WatcherStorage
   chainId: ChainId
   account: Address
+  /**
+   * Every key this wallet's keystore holds, whichever account it was made
+   * for, asked whether it signs for the account where its last attempt
+   * executed; undefined while the keystore is not read, which holds the facts
+   * as read until it is.
+   */
+  heldKeys?: readonly Address[]
 }
 
 export interface OverviewReads {
@@ -216,6 +243,8 @@ export interface PathLockedBodyProps {
 
 export interface OverviewViewProps {
   reads: OverviewReads
+  /** The account the overview reads. */
+  account: Address
   context: ReadoutRowContext
   /** The recovery chain's name, as the wallet lists its network. */
   networkName: string
@@ -236,6 +265,8 @@ export interface OverviewViewProps {
    */
   held: ReactNode
   onOpen: (intent: OverviewIntent) => void
+  /** Opens the explorer page of a transaction on the recovery chain. */
+  onTransaction: (transactionHash: Hex) => void
   navigate: (to: string) => void
 }
 
@@ -278,6 +309,19 @@ export interface OverviewNavigateProps {
   navigate: (to: string) => void
 }
 
+export interface ControlMovedBlockProps {
+  notice: ControlMovedNotice
+  /** The account the overview reads. */
+  account: Address
+}
+
+export interface ControlMovedTitleProps {
+  notice: ControlMovedNotice
+  timeZone: string
+  /** Opens the explorer page of the transaction that moved control. */
+  onTransaction: (transactionHash: Hex) => void
+}
+
 export interface OverviewChipsProps {
   kind: OverviewKind
   path: PathStep
@@ -296,7 +340,10 @@ export interface MirrorBlockProps {
 export type NoticesBlockProps = Pick<
   OverviewViewProps,
   'reads' | 'context' | 'timeZone' | 'ending' | 'methodNameOf' | 'adminOf' | 'navigate'
->
+> & {
+  /** Whether each notice carries its action; without, only its text is drawn. */
+  actionable: boolean
+}
 
 export type PathBodyProps = Pick<OverviewViewProps, 'reads' | 'context' | 'networkName'>
 

@@ -8,7 +8,7 @@
  */
 import { isHex } from 'viem'
 
-import type { Address, CancelledBy } from '@kohaku-eth/social-recovery'
+import type { Address, CancelledBy, Hex } from '@kohaku-eth/social-recovery'
 import { CANCELLED_BY } from '@web/modules/social-recovery/shared/client'
 import { extensionRecordStorage } from '@web/modules/social-recovery/shared/records/extensionStorage'
 import { recordDeploymentFrom } from '@web/modules/social-recovery/shared/records/deployment'
@@ -131,12 +131,18 @@ const endingFrom = (value: unknown): AttemptEnding | undefined => {
     ...(endingGap ? { endingGap } : {}),
     ...(notFoundAt !== undefined ? { notFoundAt } : {})
   }
-  if (value.road === 'executed' && optional(value.controller, isStoredAddress)) {
+  if (
+    value.road === 'executed' &&
+    optional(value.controller, isStoredAddress) &&
+    optional(value.transactionHash, isHex)
+  ) {
+    const transactionHash = value.transactionHash as Hex | undefined
     return {
       attemptId,
       road: 'executed',
       controller: value.controller as Address | undefined,
       at,
+      ...(transactionHash ? { transactionHash } : {}),
       ...gap
     }
   }

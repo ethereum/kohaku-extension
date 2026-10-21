@@ -1551,6 +1551,14 @@
           "title": "Re-authorize this setup",
           "lead": "This wallet saves your whole setup again and authorizes the recovery module on the account, in one transaction your key signs.",
           "action": "Re-authorize"
+        },
+        "controlMoved": {
+          "title": "This account is no longer controlled from this device",
+          "lead": "Control moved to a new key on {{date}}.",
+          "noTime": "Control moved to a new key.",
+          "controller": "Now controlled by",
+          "path": "Your recovery path no longer covers a key this device holds.",
+          "transaction": "See the transaction"
         }
       },
       "editor": {

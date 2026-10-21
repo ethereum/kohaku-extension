@@ -325,6 +325,9 @@ const notFoundEndingOf = (
 const unreadEndingOf = (ending: AttemptEnding, held: AttemptEnding | undefined): AttemptEnding => ({
   ...ending,
   ...(held?.at !== undefined ? { at: held.at } : {}),
+  ...(held?.road === 'executed' && held.transactionHash
+    ? { transactionHash: held.transactionHash }
+    : {}),
   ...(held?.notFoundAt !== undefined ? { notFoundAt: held.notFoundAt } : {})
 })
 
@@ -360,11 +363,22 @@ const executedOf = async (
       endingScanOf(state, block, held?.notFoundAt, known ? 'ending' : 'opening')
     )
     const at = consumed ? await reads.blockTime(consumed.at.blockNumber) : held?.at
+    const transactionHash = consumed
+      ? consumed.at.transactionHash
+      : held?.road === 'executed'
+      ? held.transactionHash
+      : undefined
     const opening =
       started && samePayload(started.payload, attempt.payloadHash) ? started : undefined
     const controller =
       known ?? (opening ? reads.handoverOf(opening.payload)?.newAuthority : undefined)
-    const ending: AttemptEnding = { attemptId, road: 'executed', controller, at }
+    const ending: AttemptEnding = {
+      attemptId,
+      road: 'executed',
+      controller,
+      at,
+      ...(transactionHash ? { transactionHash } : {})
+    }
     if (at === undefined || (!known && !opening)) {
       return notFoundEndingOf(ending, held?.notFoundAt, block)
     }

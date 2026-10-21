@@ -22,6 +22,10 @@ jest.mock('@web/modules/social-recovery/shared/client/useRecoveryClient', () => 
   useRecoveryClient: () => mockStore.client
 }))
 jest.mock('@common/utils/clipboard', () => ({ setStringAsync: async () => true }))
+jest.mock('@web/modules/social-recovery/management/overview/useHeldKeys', () => {
+  const held: string[] = []
+  return { useHeldKeys: () => held }
+})
 jest.mock('@common/hooks/useNavigation', () => ({
   __esModule: true,
   default: () => ({ navigate: jest.fn() })

@@ -515,4 +515,68 @@ describe('the overview reads', () => {
     view = await renderOver(world)
     expect(view.byTestId('overview-empty')).not.toBeNull()
   })
+
+  describe('after a recovery executed', () => {
+    const HELD = '0x00000000000000000000000000000000000000e1' as const
+    const NEW_KEY = '0x00000000000000000000000000000000000000e2' as const
+    const OTHER = '0x00000000000000000000000000000000000000e3' as const
+    const NO_PRIVILEGE = `0x${'00'.repeat(32)}` as const
+
+    const renderHolding = async (world: World, heldKeys?: readonly `0x${string}`[]) => {
+      const mounted = await mount(
+        <ReadsProbe
+          client={readyOver(world.client)}
+          records={world.records}
+          chainId={CHAIN_ID}
+          heldKeys={heldKeys}
+          onOpen={jest.fn()}
+        />
+      )
+      await harness.settleReads()
+      return mounted
+    }
+
+    it('reads the account as no longer controlled from here once no held key signs', async () => {
+      const world = await worldAt('public')
+      world.chain.setAuthorities([HELD])
+      world.chain.openAttempt({ handover: { newAuthority: NEW_KEY, removedAuthority: OTHER } })
+      world.chain.consume()
+      world.chain.setPrivilege(HELD, NO_PRIVILEGE)
+      view = await renderHolding(world, [HELD])
+      expect(view.textOf('overview-title')).toBe(t(`${O}.controlMoved.title`))
+      expect(view.text()).toContain(t(`${O}.controlMoved.noTime`))
+      expect(view.byTestId('readout-path')).not.toBeNull()
+      expect(view.byTestId('overview-edit-path')).toBeNull()
+      expect(view.byTestId('overview-remove-recovery')).toBeNull()
+    })
+
+    it('stays set up where the recovery handed control to a key this wallet holds', async () => {
+      const world = await worldAt('public')
+      world.chain.setAuthorities([HELD])
+      world.chain.openAttempt({ handover: { newAuthority: NEW_KEY, removedAuthority: HELD } })
+      world.chain.consume()
+      view = await renderHolding(world, [HELD, NEW_KEY])
+      expect(view.byTestId('overview-chip-set-up')).not.toBeNull()
+      expect(view.byTestId('overview-control-moved-notice')).toBeNull()
+      expect(view.byTestId('overview-edit-path')).not.toBeNull()
+    })
+
+    it('reads nothing as an answer until the wallet named its keys', async () => {
+      const world = await worldAt('public')
+      world.chain.openAttempt({ handover: { newAuthority: NEW_KEY, removedAuthority: HELD } })
+      world.chain.consume()
+      view = await mount(
+        <ReadsProbe
+          client={readyOver(world.client)}
+          records={world.records}
+          chainId={CHAIN_ID}
+          onOpen={jest.fn()}
+        />
+      )
+      await harness.settle()
+      expect(view.byTestId('overview-reading')).not.toBeNull()
+      expect(view.byTestId('overview-chip-set-up')).toBeNull()
+      expect(view.byTestId('overview-control-moved-notice')).toBeNull()
+    })
+  })
 })

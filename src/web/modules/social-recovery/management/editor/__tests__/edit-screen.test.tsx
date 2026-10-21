@@ -25,6 +25,10 @@ jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
 const mockWorld: Pick<ScreensWorld, 'client' | 'reads'> = { client: null, reads: null }
 
 jest.mock('@common/utils/clipboard', () => ({ setStringAsync: async () => true }))
+jest.mock('@web/modules/social-recovery/management/overview/useHeldKeys', () => {
+  const held: string[] = []
+  return { useHeldKeys: () => held }
+})
 jest.mock('@common/hooks/useNavigation', () => ({
   __esModule: true,
   default: () => ({ navigate: jest.fn() })
@@ -94,7 +98,8 @@ const COMMITTED: Configuration = {
 
 const editPage = async (
   records: ReturnType<typeof createWalletRecords> = createWalletRecords({ storage: makeStorage() }),
-  navigate: (to: string) => void = jest.fn()
+  navigate: (to: string) => void = jest.fn(),
+  movedBy: bigint | undefined = undefined
 ) => {
   const storage = makeStorage()
   const session = editSessionOf(storage, CHAIN_ID, ACCOUNT)
@@ -114,7 +119,11 @@ const editPage = async (
     reads: {
       facts: {
         status: 'answered',
-        value: { setup: { ...review.setupStateOf(true), setupNonce: 2n }, attemptOpen: false }
+        value: {
+          setup: { ...review.setupStateOf(true), setupNonce: 2n },
+          attemptOpen: false,
+          ...(movedBy !== undefined ? { movedBy } : {})
+        }
       },
       path: { kind: 'readable', configuration: COMMITTED },
       ask: { status: 'idle' },
@@ -147,6 +156,16 @@ const before = (first: HTMLElement | null, second: HTMLElement | null): boolean 
 }
 
 describe('the edit page', () => {
+  it('sends an edit opened by its address to the overview once a recovery moved control away from this wallet', async () => {
+    const navigate = jest.fn()
+    const { view } = await editPage(undefined, navigate, 3n)
+
+    expect(navigate).toHaveBeenCalledWith('social-recovery/manage')
+    expect(view.byTestId('manage-edit-reads')).toBeNull()
+    expect(view.byTestId('editor-continue')).toBeNull()
+    view.unmount()
+  })
+
   it('shows one title, the values above the review action, and that action in its words', async () => {
     const { view } = await editPage()
 

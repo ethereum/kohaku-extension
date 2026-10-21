@@ -46,6 +46,43 @@ describe('the watcher record', () => {
     )
   })
 
+  it("reads back the consume's transaction of an executed ending, reads an ending stored without one, and refuses one that is not a hash", async () => {
+    const storage = memoryStorage()
+    const hash = `0x${'2a'.repeat(32)}` as const
+    const executed = {
+      attemptId: 2n,
+      road: 'executed' as const,
+      controller: NEW_KEY,
+      at: HEAD_TIME
+    }
+    const withEnding = (ended: unknown): WatcherRecord =>
+      ({ ...RECORD, reading: RECORD.reading && { ...RECORD.reading, ended } } as WatcherRecord)
+
+    await updateWatcherRecord(storage, SEPOLIA, ACCOUNT, () =>
+      withEnding({ ...executed, transactionHash: hash })
+    )
+    expect((await readWatcherRecord(storage, SEPOLIA, ACCOUNT))?.reading?.ended).toEqual({
+      ...executed,
+      transactionHash: hash
+    })
+
+    await updateWatcherRecord(storage, SEPOLIA, ACCOUNT, () => withEnding(executed))
+    const earlier = (await readWatcherRecord(storage, SEPOLIA, ACCOUNT))?.reading?.ended
+    expect(earlier).toEqual(executed)
+    expect(earlier && 'transactionHash' in earlier).toBe(false)
+
+    const stored = storedWatcherRecordOf(withEnding({ ...executed, transactionHash: hash }))
+    const garbled = {
+      ...stored,
+      reading: stored.reading && {
+        ...stored.reading,
+        ended: { ...stored.reading.ended, transactionHash: 'not a hash' }
+      }
+    }
+    expect(watcherRecordFrom({ savedAt: 1, value: stored })).toBeDefined()
+    expect(watcherRecordFrom({ savedAt: 1, value: garbled })).toBeUndefined()
+  })
+
   it('reads back the deployment a reading was read from, and reads a reading that names none', async () => {
     const storage = memoryStorage()
     const reading = RECORD.reading && { ...RECORD.reading, deployment: DEPLOYMENT }

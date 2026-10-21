@@ -247,6 +247,11 @@ export interface ReadsGateProps {
   passwordHeld?: boolean
   /** Whether the screen needs the path read, or the setup read alone. */
   needsPath?: boolean
+  /**
+   * Leaves the screen where a recovery moved control away from every key
+   * this wallet holds for the account; with none the screen renders as read.
+   */
+  onControlMoved?: () => void
   testID: string
   children: ReactNode
 }
