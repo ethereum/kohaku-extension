@@ -38,6 +38,8 @@ import type { Mounted } from '@web/modules/social-recovery/recovery/done/__tests
 import type { Configuration, Credential } from '@kohaku-eth/social-recovery'
 import { renderChip, renderFullAddress } from '@web/modules/social-recovery/shared/display'
 import { kindNameOf } from '@web/modules/social-recovery/setup/review'
+import { rowsOfPath } from '@web/modules/social-recovery/recovery/done/summary'
+import { zeroAddress } from 'viem'
 import { setRecoveryPassword } from '@web/modules/social-recovery/shared/records'
 
 useDoneClock()
@@ -573,5 +575,21 @@ describe('a device that holds the entry record but no countdown', () => {
     expectSyncedRepairOnly(screen)
     expect(dispatchedOf(ADD_ACTION)).toHaveLength(0)
     screen.unmount()
+  })
+})
+
+describe('the rows of the path', () => {
+  it('give a credential at the zero address no kind where the deployment omits a method', () => {
+    const methods = { ...BOOK.methods, aadhaar: zeroAddress }
+    const rows = rowsOfPath(
+      configurationOf([
+        {
+          threshold: 1,
+          credentials: [{ method: zeroAddress, config: '0x01' }, passkeyCredential('Laptop')]
+        }
+      ]),
+      methods
+    )
+    expect(rows.map(({ kind }) => kind)).toEqual([undefined, 'passkey'])
   })
 })

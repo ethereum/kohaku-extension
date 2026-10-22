@@ -37,6 +37,9 @@ const {
 }: typeof import('@web/modules/social-recovery/shared/records') = require('@web/modules/social-recovery/shared/records')
 const PrivacyView: typeof import('@web/modules/social-recovery/setup/privacy/PrivacyView').default =
   require('@web/modules/social-recovery/setup/privacy/PrivacyView').default
+const {
+  kindOfMethodIn
+}: typeof import('@web/modules/social-recovery/setup/privacy/exposure') = require('@web/modules/social-recovery/setup/privacy/exposure')
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
 
 const L = en.socialRecovery.privacy.level
@@ -912,5 +915,17 @@ describe('the privacy step', () => {
       expect(await flagOf(records)).toBeUndefined()
       expect(readRecoveryPassword(CHAIN_ID, ACCOUNT)).toBeUndefined()
     })
+  })
+})
+
+describe('the kind a method address serves', () => {
+  it('gives the zero address no kind where the deployment omits a method', () => {
+    const book = addressBookOf(WALLET_RECOVERY_CHAIN)
+    const omitted = {
+      ...book,
+      methods: { ...book.methods, zkpassport: '0x0000000000000000000000000000000000000000' }
+    } as const
+    expect(kindOfMethodIn(omitted)('0x0000000000000000000000000000000000000000')).toBeUndefined()
+    expect(kindOfMethodIn(omitted)(book.methods.passkey)).toBe('passkey')
   })
 })

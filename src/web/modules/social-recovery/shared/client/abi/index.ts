@@ -1,7 +1,7 @@
 /**
  * The ABI fragments the SDK does not carry: the recovery action's immutables
  * the deployment checks read, the Ambire account's `privileges` view the
- * removed-key read asks, and the three errors the SDK's tables leave out.
+ * removed-key read asks, and the one error the SDK's tables leave out.
  * Data only.
  */
 export const ACTION_IMMUTABLES_ABI = [
@@ -52,21 +52,8 @@ export const ACCOUNT_PRIVILEGES_ABI = [
   }
 ] as const
 
-/** The errors the SDK's `decodeRevert` does not know, each named as deployed. */
+/** The error the SDK's `decodeRevert` does not know, named as deployed. */
 export const UNTABLED_ERRORS_ABI = [
-  {
-    type: 'error',
-    name: 'PolicyManager_ActionDoesNotServeAccount',
-    inputs: [
-      { name: '_action', type: 'address' },
-      { name: '_account', type: 'address' }
-    ]
-  },
-  {
-    type: 'error',
-    name: 'RecoveryAction_AccountNotServed',
-    inputs: [{ name: '_account', type: 'address' }]
-  },
   {
     type: 'error',
     name: 'SafeCastOverflowedUintDowncast',

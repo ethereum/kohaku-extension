@@ -38,6 +38,7 @@ import {
   kindOf,
   makeItAGroup,
   makeRequired,
+  methodKindOf,
   moveToGroup,
   placeAt,
   readThreshold,
@@ -103,6 +104,16 @@ describe('the empty slot', () => {
     expect(kindOf(PASSPORT, BOOK)).toBe('zkpassport')
     expect(kindOf(AADHAAR, BOOK)).toBe('aadhaar')
     expect(kindOf({ ...ALICE, method: BOOK.manager }, BOOK)).toBeUndefined()
+  })
+
+  it('gives the zero address no kind where the deployment omits a method, and keeps the empty slot of that kind', () => {
+    const omitted = { ...BOOK, methods: { ...BOOK.methods, aadhaar: zeroAddress } }
+    expect(methodKindOf(zeroAddress, omitted)).toBeUndefined()
+    expect(
+      kindOf({ method: zeroAddress, config: '0x01', label: 'aadhaar' }, omitted)
+    ).toBeUndefined()
+    expect(kindOf(emptySlotOf('aadhaar'), omitted)).toBe('aadhaar')
+    expect(kindOf(PASSKEY, omitted)).toBe('passkey')
   })
 })
 

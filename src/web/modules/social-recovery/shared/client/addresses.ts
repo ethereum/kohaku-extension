@@ -11,7 +11,7 @@
  * Sepolia, `02` mainnet) and one byte for the field, behind seventeen zero
  * bytes, so nobody mistakes one for a deployment.
  */
-import { isAddress, isAddressEqual } from 'viem'
+import { isAddress, isAddressEqual, zeroAddress } from 'viem'
 
 import { PROXY_AMBIRE_ACCOUNT } from '@ambire-common/consts/deploy'
 
@@ -57,8 +57,9 @@ export const PLACEHOLDER_ADDRESSES = {
 /**
  * The addresses of what a chain runs, as a fresh record: the placeholders for
  * the stand-in, or the deployment's own. An identity method the deployment
- * does not serve keeps its placeholder, never the zero address, which marks an
- * empty slot. The served implementation is the account library's either way.
+ * does not serve is the zero address: the SDK serves no module there, where a
+ * placeholder would be served as a live one. The served implementation is the
+ * account library's either way.
  */
 export const deploymentAddressesOf = (chain: RecoveryChain): DeploymentAddresses => {
   const placeholders = PLACEHOLDER_ADDRESSES[chain]
@@ -71,8 +72,8 @@ export const deploymentAddressesOf = (chain: RecoveryChain): DeploymentAddresses
     manager: facts.manager,
     methodEcdsa: facts.methodEcdsa,
     methodPasskey: facts.methodPasskey,
-    methodAadhaar: facts.methodAadhaar ?? placeholders.methodAadhaar,
-    methodZkpassport: facts.methodZkpassport ?? placeholders.methodZkpassport,
+    methodAadhaar: facts.methodAadhaar ?? zeroAddress,
+    methodZkpassport: facts.methodZkpassport ?? zeroAddress,
     action: facts.action,
     servedImplementation: placeholders.servedImplementation
   }

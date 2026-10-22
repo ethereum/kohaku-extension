@@ -246,6 +246,7 @@
     "ceremony": {
       "passedNote": "check {{hash}} · passed just now",
       "cancelledNote": "Cancelled · you cancelled the prompt, the row is unchanged",
+      "stoppedNote": "Stopped · you stopped this step, the row is unchanged",
       "refusedNote": "Refused · the device refused the request",
       "failedNote": "Failed · Try again",
       "unreachableNote": "Unreachable · the phone never connected · Try again",
@@ -393,6 +394,7 @@
         "passportIdentifier": "the identifier your passport produces",
         "pair": "{{first}} and {{second}}",
         "aadhaar": "your Aadhaar identity",
+        "aadhaarIdentifier": "the identifier your Aadhaar produces",
         "triple": "{{first}}, {{second}} and {{third}}"
       },
       "itemsLead": {
@@ -400,7 +402,8 @@
         "passkeys": "Your passkeys",
         "passport": "Your passport",
         "passportIdentifier": "The identifier your passport produces",
-        "aadhaar": "Your Aadhaar identity"
+        "aadhaar": "Your Aadhaar identity",
+        "aadhaarIdentifier": "The identifier your Aadhaar produces"
       }
     },
     "costLines": {
@@ -560,7 +563,7 @@
         "uploadAction": "Choose the QR image",
         "uploadLine": "A PNG or JPEG that shows the whole QR code.",
         "takesTime": "The check takes about a minute and downloads its files once, about 300 MB. Keep the tab open.",
-        "sameQr": "At recovery you present the same QR code again.",
+        "sameQr": "At recovery you make a fresh QR code in the Aadhaar app. It must come from the same Aadhaar identity.",
         "enrolledLine": "Your Aadhaar identity is enrolled. The wallet stores the identifier, never the QR code.",
         "testLead": "Run the check once now. Upload the QR image again and the chain confirms the result.",
         "testPassed": "The chain confirmed the identifier your Aadhaar produces."
@@ -1133,9 +1136,9 @@
         "borrowedPhone": "If you borrow a phone, its owner learns the account and the new key."
       },
       "aadhaar": {
-        "lead": "Upload the same QR code you enrolled with. The check runs here and takes about a minute.",
+        "lead": "Make a fresh QR code in the Aadhaar app and upload it here. The check runs here and takes about a minute.",
         "uploadAction": "Choose the QR image",
-        "sameQr": "It must be the same QR code as at setup. A new QR code from a renewed card may not match."
+        "sameQr": "A QR code older than a day is refused. It must come from the same Aadhaar identity as at setup."
       }
     },
     "inProgress": {

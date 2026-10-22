@@ -227,13 +227,13 @@ describe('a build with a Sepolia deployment variable', () => {
     expect(deploymentOf('sepolia')).toEqual({ kind: 'deployed', facts: FACTS })
   })
 
-  it('names the deployed addresses and keeps the placeholder of each identity method it lacks', () => {
+  it('names the deployed addresses and the zero address for each identity method it lacks', () => {
     expect(deploymentAddressesOf('sepolia')).toEqual({
       manager: MANAGER,
       methodEcdsa: METHOD_ECDSA,
       methodPasskey: METHOD_PASSKEY,
-      methodAadhaar: SEPOLIA_PLACEHOLDERS.methodAadhaar,
-      methodZkpassport: SEPOLIA_PLACEHOLDERS.methodZkpassport,
+      methodAadhaar: zeroAddress,
+      methodZkpassport: zeroAddress,
       action: ACTION,
       servedImplementation: PROXY_AMBIRE_ACCOUNT
     })
@@ -242,8 +242,8 @@ describe('a build with a Sepolia deployment variable', () => {
       methods: {
         ecdsa: METHOD_ECDSA,
         passkey: METHOD_PASSKEY,
-        aadhaar: SEPOLIA_PLACEHOLDERS.methodAadhaar,
-        zkpassport: SEPOLIA_PLACEHOLDERS.methodZkpassport
+        aadhaar: zeroAddress,
+        zkpassport: zeroAddress
       },
       action: ACTION
     })
@@ -255,9 +255,13 @@ describe('a build with a Sepolia deployment variable', () => {
       ecdsa: METHOD_ECDSA,
       passkey: METHOD_PASSKEY,
       aadhaar: METHOD_AADHAAR,
-      zkpassport: SEPOLIA_PLACEHOLDERS.methodZkpassport
+      zkpassport: zeroAddress
     })
-    expect(deploymentDescriptor('sepolia').methodAadhaar).toBe(METHOD_AADHAAR)
+    expect(deploymentDescriptor('sepolia')).toMatchObject({
+      methodAadhaar: METHOD_AADHAAR,
+      methodZkpassport: zeroAddress,
+      shippedMethods: [METHOD_ECDSA, METHOD_PASSKEY, METHOD_AADHAAR]
+    })
   })
 
   it('describes Sepolia with the deployed addresses and facts', () => {
@@ -266,19 +270,14 @@ describe('a build with a Sepolia deployment variable', () => {
       manager: MANAGER,
       methodEcdsa: METHOD_ECDSA,
       methodPasskey: METHOD_PASSKEY,
-      methodAadhaar: SEPOLIA_PLACEHOLDERS.methodAadhaar,
-      methodZkpassport: SEPOLIA_PLACEHOLDERS.methodZkpassport,
+      methodAadhaar: zeroAddress,
+      methodZkpassport: zeroAddress,
       action: ACTION,
       servedImplementation: PROXY_AMBIRE_ACCOUNT,
       deployedAt: 4242,
       digestVersion: '2',
       managerVersion: '1.4.0',
-      shippedMethods: [
-        METHOD_ECDSA,
-        METHOD_PASSKEY,
-        SEPOLIA_PLACEHOLDERS.methodAadhaar,
-        SEPOLIA_PLACEHOLDERS.methodZkpassport
-      ],
+      shippedMethods: [METHOD_ECDSA, METHOD_PASSKEY],
       auditedActions: [ACTION, SECOND_ACTION]
     })
   })

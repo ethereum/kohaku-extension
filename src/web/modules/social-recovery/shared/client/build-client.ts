@@ -208,7 +208,8 @@ export const buildRecoveryClient = async (
     account,
     descriptor,
     blockTags: configuration.blockTags,
-    logChunkSize: configuration.logChunkSize
+    logChunkSize: configuration.logChunkSize,
+    fitCheck: () => walletReads.fitCheck()
   })
   return Object.freeze({
     chain: config.chain,

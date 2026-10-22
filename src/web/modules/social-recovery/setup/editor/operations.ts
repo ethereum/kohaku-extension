@@ -8,7 +8,7 @@
  * whose method is the zero address, whose config is empty and whose label is
  * its kind; it stands for a method the holder has yet to enroll.
  */
-import { decodeAbiParameters, isAddressEqual } from 'viem'
+import { decodeAbiParameters, isAddressEqual, zeroAddress } from 'viem'
 
 import type {
   Address,
@@ -45,9 +45,17 @@ const DUPLICATE: EditResult = { status: 'refused', reason: 'duplicate' }
 
 export { emptySlot as emptySlotOf, isEmptySlot } from '@web/modules/social-recovery/shared/records'
 
-/** The kind of method a method module address serves; a module the address book does not hold has none. */
+/**
+ * The kind of method a method module address serves; a module the address
+ * book does not hold has none, and the zero address a deployment leaves for a
+ * method it omits is no module.
+ */
 export const methodKindOf = (method: Address, addressBook: AddressBook): SlotKind | undefined =>
-  SLOT_KINDS.find((kind) => isAddressEqual(addressBook.methods[kind], method))
+  SLOT_KINDS.find(
+    (kind) =>
+      !isAddressEqual(addressBook.methods[kind], zeroAddress) &&
+      isAddressEqual(addressBook.methods[kind], method)
+  )
 
 /**
  * The kind of a credential: the kind an empty slot waits for, or the address

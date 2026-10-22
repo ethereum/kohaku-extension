@@ -1,3 +1,5 @@
+import { zeroAddress } from 'viem'
+
 import i18n from '@common/config/localization'
 import type { Clause, SetupDraft } from '@kohaku-eth/social-recovery'
 import { shapeNoteOf } from '@web/modules/social-recovery/shared/client'
@@ -6,6 +8,7 @@ import { emptySlot } from '@web/modules/social-recovery/shared/records/slots'
 import type { Enrollment } from '@web/modules/social-recovery/shared/records'
 
 import {
+  kindOf,
   needsHostileMinorityLine,
   passkeyLinesOf,
   pathRowOf,
@@ -309,6 +312,14 @@ describe('a row of the path', () => {
 
   it('shows no chip for a credential the records hold no verdict for', () => {
     expect(pathRowOf(ALICE, [], BOOK, t).chip).toBeNull()
+  })
+
+  it('gives a credential at the zero address no kind where the deployment omits a method', () => {
+    const omitted = { ...BOOK, methods: { ...BOOK.methods, aadhaar: zeroAddress } }
+    const atZero = { method: zeroAddress, config: '0x01' } as const
+    expect(kindOf(atZero, omitted)).toBeUndefined()
+    expect(pathRowOf(atZero, [], omitted, t).name).toBe(renderFullAddress(zeroAddress))
+    expect(kindOf(emptySlot('aadhaar'), omitted)).toBe('aadhaar')
   })
 })
 

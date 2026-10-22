@@ -4,7 +4,7 @@
  * the waiting period, the publication sentence and the privacy line. Strings
  * come from `t`.
  */
-import { decodeAbiParameters } from 'viem'
+import { decodeAbiParameters, isAddressEqual, zeroAddress } from 'viem'
 
 import type { Address, Clause, Credential, SetupDraft } from '@kohaku-eth/social-recovery'
 import { privacyLevelOf, sameAddress } from '@web/modules/social-recovery/shared/client'
@@ -54,10 +54,16 @@ const PUBLICATION = 'socialRecovery.review.publication'
 const ITEMS = 'socialRecovery.disclosures.items'
 const ITEMS_LEAD = 'socialRecovery.disclosures.itemsLead'
 
-/** The address book's kind of a method module; a module it does not hold has none. */
+/**
+ * The address book's kind of a method module; a module it does not hold has
+ * none, and the zero address a deployment leaves for a method it omits is no
+ * module.
+ */
 const methodKindOf = (method: Address, addressBook: AddressBook): MethodKind | undefined =>
-  (Object.keys(addressBook.methods) as MethodKind[]).find((kind) =>
-    sameAddress(addressBook.methods[kind], method)
+  (Object.keys(addressBook.methods) as MethodKind[]).find(
+    (kind) =>
+      !isAddressEqual(addressBook.methods[kind], zeroAddress) &&
+      sameAddress(addressBook.methods[kind], method)
   )
 
 /**

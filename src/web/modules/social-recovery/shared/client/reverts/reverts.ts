@@ -1,8 +1,8 @@
 /**
  * A contract's revert met by a read or a landing, named as the kit's error:
  * the SDK's `decodeRevert` over the manager's, the action's and the
- * language's errors, and the three errors its tables leave out, decoded here
- * under their deployed names. Any other data is the unknown result with its
+ * language's errors, and the one error its tables leave out, decoded here
+ * under its deployed name. Any other data is the unknown result with its
  * selector and raw bytes.
  */
 import { decodeRevert, isProviderRevert } from '@kohaku-eth/social-recovery'

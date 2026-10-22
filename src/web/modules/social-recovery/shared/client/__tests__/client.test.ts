@@ -15,6 +15,7 @@ import {
   walletMethod
 } from '@kohaku-eth/social-recovery'
 import type {
+  Clause,
   Configuration,
   DeploymentDescriptor,
   Hex,
@@ -223,24 +224,25 @@ describe("the manager domain's members", () => {
 })
 
 describe('the fit check the built client runs against the account implementation', () => {
-  const fitFindings = async (world: ReturnType<typeof createWorld>) => {
+  const draftOf = (world: ReturnType<typeof createWorld>, extraClauses: Clause[] = []) => ({
+    wait: 432_000,
+    clauses: [
+      {
+        threshold: 1,
+        credentials: [{ method: world.descriptor.methodEcdsa, config: guardianConfig() }]
+      },
+      ...extraClauses
+    ],
+    ignoresPause: false,
+    privacy: { publicMetadata: '0x', backup: 'encrypted' } as const
+  })
+
+  const fitFindings = async (world: ReturnType<typeof createWorld>, hasCode = false) => {
     const client = await buildRecoveryClient(world.config)
-    world.chain.setHasCode(false)
-    const result = await client.setup.validateSetup({
-      wait: 432_000,
-      clauses: [
-        {
-          threshold: 1,
-          credentials: [{ method: world.descriptor.methodEcdsa, config: guardianConfig() }]
-        }
-      ],
-      ignoresPause: false,
-      privacy: { publicMetadata: '0x', backup: 'encrypted' }
-    })
+    world.chain.setHasCode(hasCode)
+    const result = await client.setup.validateSetup(draftOf(world))
     const codes = (findings: readonly { code: string }[]) =>
-      findings
-        .map((finding) => finding.code)
-        .filter((code) => code === 'action.unsupported' || code === 'action.fit-unchecked')
+      findings.map((finding) => finding.code).filter((code) => code.startsWith('action.'))
     return { errors: codes(result.errors), warnings: codes(result.warnings) }
   }
 
@@ -251,6 +253,39 @@ describe('the fit check the built client runs against the account implementation
   it('refuses an account implementation the action does not serve', async () => {
     const world = createWorld({ accountImplementation: addressOf('other-implementation') })
     await expect(fitFindings(world)).resolves.toEqual({
+      errors: ['action.unsupported'],
+      warnings: []
+    })
+  })
+
+  it('rejects the validation, with no result, where the fit check cannot read the implementation the action serves', async () => {
+    const world = createWorld()
+    const client = await buildRecoveryClient(world.config)
+    world.chain.setHasCode(false)
+    world.chain.failRead('AMBIRE_IMPLEMENTATION')
+    expect(await thrownBy(client.setup.validateSetup(draftOf(world)))).toBeInstanceOf(Error)
+
+    world.chain.restoreRead('AMBIRE_IMPLEMENTATION')
+    const result = await client.setup.validateSetup(draftOf(world))
+    expect(result.errors.map(({ code }) => code)).not.toContain('action.unsupported')
+  })
+
+  it('keeps every other error of the draft while it drops the unsupported account of an account with no code yet', async () => {
+    const world = createWorld()
+    const client = await buildRecoveryClient(world.config)
+    world.chain.setHasCode(false)
+    const result = await client.setup.validateSetup(
+      draftOf(world, [{ threshold: 1, credentials: [] }])
+    )
+    const codes = result.errors.map(({ code }) => code)
+    expect(codes).toContain('clause.empty')
+    expect(codes).not.toContain('action.unsupported')
+  })
+
+  it('refuses a deployed account the action answers it does not serve, whatever the implementation named', async () => {
+    const world = createWorld()
+    world.chain.supportsAccount = false
+    await expect(fitFindings(world, true)).resolves.toEqual({
       errors: ['action.unsupported'],
       warnings: []
     })

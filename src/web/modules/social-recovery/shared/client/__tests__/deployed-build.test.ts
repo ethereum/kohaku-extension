@@ -10,7 +10,7 @@
  */
 import { BUILDER_CHAIN_MISMATCH_MESSAGE } from '@kohaku-eth/social-recovery'
 import type { Address, Hex } from '@kohaku-eth/social-recovery'
-import { toFunctionSelector, zeroHash } from 'viem'
+import { toFunctionSelector, zeroAddress, zeroHash } from 'viem'
 
 import {
   addressOf,
@@ -76,6 +76,21 @@ describe('a chain whose deployment record names a deployed kit', () => {
     ])
     expect(client.descriptor.manager).toBe(DEPLOYED_FACTS.manager)
     expect(client.descriptor.action).toBe(DEPLOYED_FACTS.action)
+  })
+
+  it('serves no identity method the deployment omits: its address is zero and nothing answers there', async () => {
+    const world = createDeployedWorld()
+    const client = await buildRecoveryClient(world.config)
+    expect(client.descriptor.methodAadhaar).toBe(zeroAddress)
+    expect(client.descriptor.methodZkpassport).toBe(zeroAddress)
+    expect(client.descriptor.shippedMethods).toEqual([
+      DEPLOYED_FACTS.methodEcdsa,
+      DEPLOYED_FACTS.methodPasskey
+    ])
+    expect(client.methodFor('aadhaar')).toBeUndefined()
+    expect(client.methodFor('zkpassport')).toBeUndefined()
+    expect(client.methodFor('ecdsa')).toBeDefined()
+    await expect(world.chain.code(zeroAddress, 'latest')).resolves.toBe('0x')
   })
 
   const REFUSALS: [string, (world: World) => void, string][] = [

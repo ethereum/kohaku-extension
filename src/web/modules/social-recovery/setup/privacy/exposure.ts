@@ -1,3 +1,5 @@
+import { isAddressEqual, zeroAddress } from 'viem'
+
 import type { Address, Clause, Credential } from '@kohaku-eth/social-recovery'
 import { sameAddress } from '@web/modules/social-recovery/shared/client'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
@@ -10,12 +12,18 @@ const EXPOSURE = 'socialRecovery.privacy.level.exposure'
 const ITEMS = 'socialRecovery.disclosures.items'
 const ITEMS_LEAD = 'socialRecovery.disclosures.itemsLead'
 
-/** The kind of method a method module address serves in the address book, if any. */
+/**
+ * The kind of method a method module address serves in the address book, if
+ * any; the zero address a deployment leaves for a method it omits serves none.
+ */
 export const kindOfMethodIn =
   (book: AddressBook) =>
   (method: Address): MethodKind | undefined => {
     const kinds = Object.keys(book.methods) as MethodKind[]
-    return kinds.find((kind) => sameAddress(method, book.methods[kind]))
+    return kinds.find(
+      (kind) =>
+        !isAddressEqual(book.methods[kind], zeroAddress) && sameAddress(method, book.methods[kind])
+    )
   }
 
 /**

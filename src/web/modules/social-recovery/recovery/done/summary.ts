@@ -11,7 +11,7 @@
  * record names, against the path. Where this device holds no path, the used
  * methods' kinds stand alone and only a used passkey gets a cleanup block.
  */
-import { isAddressEqual } from 'viem'
+import { isAddressEqual, zeroAddress } from 'viem'
 
 import type { Address, Configuration } from '@kohaku-eth/social-recovery'
 import { SLOT_KINDS } from '@web/modules/social-recovery/shared/records/types'
@@ -20,8 +20,11 @@ import type { SlotKind } from '@web/modules/social-recovery/shared/records/types
 import { IDENTITY_KINDS } from './constants'
 import type { CleanupBlock, PathRow, RecoverySummary, RemovalExit, SummaryInput } from './types'
 
+// The zero address a deployment leaves for a method it omits is no module.
 const kindOfMethod = (method: Address, methods: Record<SlotKind, Address>): SlotKind | undefined =>
-  SLOT_KINDS.find((kind) => isAddressEqual(methods[kind], method))
+  SLOT_KINDS.find(
+    (kind) => !isAddressEqual(methods[kind], zeroAddress) && isAddressEqual(methods[kind], method)
+  )
 
 const isIdentity = (kind: SlotKind | undefined): boolean =>
   IDENTITY_KINDS.some((identity) => identity === kind)

@@ -1,4 +1,4 @@
-import { getAddress } from 'viem'
+import { getAddress, zeroAddress } from 'viem'
 
 import type { Clause } from '@kohaku-eth/social-recovery'
 import { emptySlot } from '@web/modules/social-recovery/shared/records/slots'
@@ -59,6 +59,19 @@ const EVERY_METHOD_ANSWERED = readsOf([
 ])
 
 describe('the trust rows', () => {
+  it('hold no row for an empty slot whose method the deployment omits', () => {
+    const omitted = { ...BOOK, methods: { ...BOOK.methods, aadhaar: zeroAddress } }
+    const rows = trustRowsOf({
+      clauses: [required(PASSKEY), required(emptySlot('aadhaar'))],
+      enrollments: [],
+      reads: EVERY_METHOD_ANSWERED,
+      shippedMethods: SHIPPED,
+      addressBook: omitted
+    })
+
+    expect(rows.map(({ method }) => method)).toEqual([BOOK.methods.passkey])
+  })
+
   it('hold one row per method, however many rows of the path use it, in the order the path first names it', () => {
     const rows = rowsOf(
       [required(PASSKEY), group(2, ALICE, BOB, CAROL), group(1, PHONE_PASSKEY, PASSPORT)],

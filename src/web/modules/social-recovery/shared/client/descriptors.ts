@@ -11,9 +11,12 @@
  * publishes another one.
  *
  * The two audited sets are the kit's claim, not the address fields read back:
- * `shippedMethods` are the four shipped modules and `auditedActions` come from
- * the one audited-actions table (audited-actions.ts).
+ * `shippedMethods` are the shipped modules the chain serves, an identity
+ * method its deployment omits left out, and `auditedActions` come from the one
+ * audited-actions table (audited-actions.ts).
  */
+import { isAddressEqual, zeroAddress } from 'viem'
+
 import type { DeploymentDescriptor } from '@kohaku-eth/social-recovery'
 
 import { deploymentAddressesOf } from './addresses'
@@ -62,7 +65,9 @@ export const deploymentDescriptor = (chain: RecoveryChain): DeploymentDescriptor
     deployedAt: facts.deployedAt,
     digestVersion: facts.digestVersion,
     managerVersion: facts.managerVersion,
-    shippedMethods: [a.methodEcdsa, a.methodPasskey, a.methodAadhaar, a.methodZkpassport],
+    shippedMethods: [a.methodEcdsa, a.methodPasskey, a.methodAadhaar, a.methodZkpassport].filter(
+      (method) => !isAddressEqual(method, zeroAddress)
+    ),
     auditedActions: auditedActionsOn(chain).map((row) => row.action)
   }
 }

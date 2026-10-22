@@ -4,7 +4,7 @@
  * leave out by their deployed names, any other data as unknown with its
  * selector where it has one.
  */
-import { encodeErrorResult, parseAbi } from 'viem'
+import { encodeErrorResult, getAddress, parseAbi } from 'viem'
 
 import {
   providerReadFailure,
@@ -14,8 +14,10 @@ import { kitErrorOf, withNamedRevert } from '@web/modules/social-recovery/shared
 
 const MANAGER_ABI = parseAbi([
   'error PolicyManager_WrongSetupNonce(uint64 supplied, uint64 expected)',
-  'error PolicyManager_ActionDoesNotServeAccount(address _action, address _account)'
+  'error PolicyManager_ActionDoesNotServeAccount(address _account, address _action)'
 ])
+const ACTION_ABI = parseAbi(['error RecoveryAction_AccountNotServed(address _account)'])
+const LANGUAGE_ABI = parseAbi(['error SafeCastOverflowedUintDowncast(uint8 bits, uint256 value)'])
 const OTHER_ERRORS = parseAbi(['error SomethingElse(uint256 value)'])
 
 const reverting = (data: `0x${string}` = '0x') => revertedCall('call', data)
@@ -43,19 +45,45 @@ describe('kitErrorOf', () => {
     })
   })
 
-  it('names an error the SDK does not know under its deployed name', () => {
-    const data = encodeErrorResult({
+  it("names the manager's and the action's refusals of an account the action does not serve, account first", () => {
+    const account = '0x00000000000000000000000000000000000000A1'
+    const action = '0x00000000000000000000000000000000000000a2'
+    const managerData = encodeErrorResult({
       abi: MANAGER_ABI,
       errorName: 'PolicyManager_ActionDoesNotServeAccount',
-      args: [
-        '0x00000000000000000000000000000000000000a1',
-        '0x00000000000000000000000000000000000000a2'
-      ]
+      args: [account, action]
     })
-    expect(kitErrorOf(data)).toMatchObject({
+    expect(kitErrorOf(managerData)).toMatchObject({
       known: true,
       source: 'manager',
-      name: 'PolicyManager_ActionDoesNotServeAccount'
+      name: 'PolicyManager_ActionDoesNotServeAccount',
+      args: { account: getAddress(account), action: getAddress(action) }
+    })
+    const actionData = encodeErrorResult({
+      abi: ACTION_ABI,
+      errorName: 'RecoveryAction_AccountNotServed',
+      args: [account]
+    })
+    expect(kitErrorOf(actionData)).toMatchObject({
+      known: true,
+      source: 'action',
+      name: 'RecoveryAction_AccountNotServed',
+      args: { account: getAddress(account) }
+    })
+  })
+
+  it('names an error the SDK does not know under its deployed name', () => {
+    const data = encodeErrorResult({
+      abi: LANGUAGE_ABI,
+      errorName: 'SafeCastOverflowedUintDowncast',
+      args: [64, BigInt(2 ** 70)]
+    })
+    expect(kitErrorOf(data)).toEqual({
+      known: true,
+      source: 'language',
+      name: 'SafeCastOverflowedUintDowncast',
+      selector: data.slice(0, 10),
+      args: { bits: 64, value: BigInt(2 ** 70) }
     })
   })
 

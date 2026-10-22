@@ -544,6 +544,8 @@ export interface SetupClientInput {
   descriptor: Pick<DeploymentDescriptor, 'action'>
   blockTags: BlockTags
   logChunkSize: number
+  /** The wallet's fit check, which judges an account with no code yet by the implementation it deploys. */
+  fitCheck: () => Promise<FitCheckReading>
 }
 
 /**

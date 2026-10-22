@@ -1,8 +1,13 @@
 /**
  * The setup client the screens use, over the SDK's: every member the SDK
- * serves as the screens need it passes through, and four keep the
+ * serves as the screens need it passes through, and five keep the
  * extension's rules.
  *
+ * - `validateSetup` judges an account with no code yet by the implementation
+ *   it deploys behind its proxy. The action answers `supportsAccount` only
+ *   for code that exists, so the `action.unsupported` the SDK raises for such
+ *   an account is dropped where the wallet's fit check finds the
+ *   implementation to be is the one the action serves, and kept otherwise.
  * - The clear splits into three writes. `prepareClearSetup` is the
  *   manager's clear alone, `prepareRemoveSetup` the clear with the revoke of
  *   the action's authorization where the account still grants it, and both
@@ -17,8 +22,8 @@
  * - `getSetup` under a password opens a clear backup too, which the SDK
  *   opens only from the configuration itself.
  *
- * A contract's revert met by any of the four is rethrown as the kit's named
- * error.
+ * A contract's revert met by the clear, the confirmation or the restore is
+ * rethrown as the kit's named error.
  */
 import {
   KitRefusalError,
@@ -34,7 +39,9 @@ import type {
   PreparedCall,
   PrepareOptions,
   SetupConfirmation,
-  SetupDraft
+  SetupDraft,
+  ValidationError,
+  ValidationResult
 } from '@kohaku-eth/social-recovery'
 import { isAddressEqual, size } from 'viem'
 
@@ -53,7 +60,8 @@ export const createRecoverySetupClient = ({
   account,
   descriptor,
   blockTags,
-  logChunkSize
+  logChunkSize,
+  fitCheck
 }: SetupClientInput): RecoverySetupClient => {
   const pin = async (): Promise<PinnedBlock> =>
     (await pinBlockHeader(provider, blockTags.read)).block
@@ -100,7 +108,18 @@ export const createRecoverySetupClient = ({
 
   return {
     events: setup.events,
-    validateSetup: (draft: SetupDraft) => setup.validateSetup(draft),
+    async validateSetup(draft: SetupDraft): Promise<ValidationResult> {
+      const result = await setup.validateSetup(draft)
+      const unsupported = ({ code }: ValidationError) => code === 'action.unsupported'
+      if (!result.errors.some(unsupported)) {
+        return result
+      }
+      const fit = await fitCheck()
+      if (fit.basis !== 'code-to-be' || !fit.fits) {
+        return result
+      }
+      return { ...result, errors: result.errors.filter((error) => !unsupported(error)) }
+    },
     describeSetup: (draft: SetupDraft) => setup.describeSetup(draft),
     prepareCommitSetup: (draft: SetupDraft, password?: string, options?: PrepareOptions) =>
       setup.prepareCommitSetup(draft, password, options),

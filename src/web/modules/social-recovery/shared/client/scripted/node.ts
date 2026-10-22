@@ -13,7 +13,8 @@
  * `call` decodes the calldata with the SDK's ABIs and answers the manager's
  * views, the action's views and immutables, each method module's views and
  * the account's `privileges`; a write answers empty, so a simulation passes,
- * and a start the manager would refuse reverts as it would.
+ * and a start, an owner's clear or an owner's cancel the manager would refuse
+ * reverts as it would.
  * A read `failRead` names fails as a transport failure or reverts with the
  * bytes given, until `restoreRead`. The latest block follows the node's
  * clock, so a window measured from it stays current. A deployment that
@@ -236,14 +237,11 @@ export class ScriptedNode implements IProvider {
     this.codec = new AmbireActionCodec([seed.descriptor.action])
     this.mineAt(seed.firstBlock ?? 1000, this.clock())
     const d = seed.descriptor
-    ;[
-      d.manager,
-      d.action,
-      d.methodEcdsa,
-      d.methodPasskey,
-      d.methodAadhaar,
-      d.methodZkpassport
-    ].forEach((address) => this.codes.set(lower(address), CONTRACT_CODE))
+    // A method the descriptor omits is the zero address, where no contract lives.
+    const deployed = (address: Address) => !isAddressEqual(address, zeroAddress)
+    ;[d.manager, d.action, d.methodEcdsa, d.methodPasskey, d.methodAadhaar, d.methodZkpassport]
+      .filter(deployed)
+      .forEach((address) => this.codes.set(lower(address), CONTRACT_CODE))
     this.setHasCode(seed.hasCode ?? true)
     ;(seed.authorities ?? []).forEach((key) => this.privileges.set(lower(key), KEY_VALUE))
     const parties = {
@@ -260,9 +258,11 @@ export class ScriptedNode implements IProvider {
         [d.methodAadhaar, 'method-aadhaar'],
         [d.methodZkpassport, 'method-zkpassport']
       ] as const
-    ).forEach(([address, name]) =>
-      this.methods.set(lower(address), { name, version: '1', paused: false, parties })
     )
+      .filter(([address]) => deployed(address))
+      .forEach(([address, name]) =>
+        this.methods.set(lower(address), { name, version: '1', paused: false, parties })
+      )
   }
 
   // -------------------------------------------------------------------------
@@ -620,34 +620,90 @@ export class ScriptedNode implements IProvider {
   }
 
   /**
-   * The revert the manager answers a write with, if any: a start whose setup
-   * body does not recompute to the stored commitment, or does not decode, is
-   * refused, and nothing of the call lands.
+   * The revert the manager answers a write with, if any, and nothing of the
+   * call lands. A start whose setup body does not recompute to the stored
+   * commitment, or does not decode, is refused. The owner's clear names the
+   * standing setup's nonce and is refused where no setup stands or the nonce
+   * is another; the owner's cancel names the waiting attempt's id and is
+   * refused where no attempt waits or the id is another.
    */
   private refusalOf(data: Hex) {
     const write = this.decodeWrite(data)
-    if (write?.functionName !== 'startAttempt') {
-      return undefined
+    switch (write?.functionName) {
+      case 'startAttempt': {
+        const [{ account, action, setupNonce, setupBody }] = write.args
+        const recomputed = setupCommitment(account, action, setupNonce, setupBody)
+        const committed = this.manager.setupCommitment
+        if (recomputed.toLowerCase() !== committed.toLowerCase()) {
+          return revertedCall(
+            'call',
+            encodeErrorResult({
+              abi: ERRORS_MANAGER_ABI,
+              errorName: 'PolicyManager_SetupCommitmentMismatch',
+              args: [recomputed, committed]
+            })
+          )
+        }
+        try {
+          decodeSetupBody(setupBody)
+        } catch {
+          return revertedCall('call', '0x')
+        }
+        return undefined
+      }
+      case 'clearSetup': {
+        const [, nonce] = write.args
+        const expected = this.manager.setupNonce
+        if (this.manager.setupCommitment === zeroHash) {
+          return revertedCall(
+            'call',
+            encodeErrorResult({
+              abi: ERRORS_MANAGER_ABI,
+              errorName: 'PolicyManager_NoSetup',
+              args: [this.account, this.descriptor.action]
+            })
+          )
+        }
+        if (nonce !== expected) {
+          return revertedCall(
+            'call',
+            encodeErrorResult({
+              abi: ERRORS_MANAGER_ABI,
+              errorName: 'PolicyManager_WrongSetupNonce',
+              args: [nonce, expected]
+            })
+          )
+        }
+        return undefined
+      }
+      case 'cancelByOwner': {
+        const [, attemptId] = write.args
+        const { attempt } = this.manager
+        if (attempt.state !== 'Waiting') {
+          return revertedCall(
+            'call',
+            encodeErrorResult({
+              abi: ERRORS_MANAGER_ABI,
+              errorName: 'PolicyManager_NoActiveAttempt',
+              args: [this.account, this.descriptor.action]
+            })
+          )
+        }
+        if (attemptId !== attempt.attemptId) {
+          return revertedCall(
+            'call',
+            encodeErrorResult({
+              abi: ERRORS_MANAGER_ABI,
+              errorName: 'PolicyManager_WrongAttemptId',
+              args: [attemptId, attempt.attemptId]
+            })
+          )
+        }
+        return undefined
+      }
+      default:
+        return undefined
     }
-    const [{ account, action, setupNonce, setupBody }] = write.args
-    const recomputed = setupCommitment(account, action, setupNonce, setupBody)
-    const committed = this.manager.setupCommitment
-    if (recomputed.toLowerCase() !== committed.toLowerCase()) {
-      return revertedCall(
-        'call',
-        encodeErrorResult({
-          abi: ERRORS_MANAGER_ABI,
-          errorName: 'PolicyManager_SetupCommitmentMismatch',
-          args: [recomputed, committed]
-        })
-      )
-    }
-    try {
-      decodeSetupBody(setupBody)
-    } catch {
-      return revertedCall('call', '0x')
-    }
-    return undefined
   }
 
   private decodeWrite(data: Hex) {

@@ -15,7 +15,9 @@ import {
   encodeSetupBody,
   ERRORS_MANAGER_ABI,
   FORMATS_START_ATTEMPT_ABI,
+  KitRefusalError,
   METHOD_ECDSA_CONFIG_ABI,
+  POLICY_MANAGER_WRITES_ABI,
   setupCommitment as commitmentOf
 } from '@kohaku-eth/social-recovery'
 import type {
@@ -104,6 +106,28 @@ const startOf = (node: ScriptedNode, setupBody: Hex): PreparedCall =>
       ]
     })
   } as unknown as PreparedCall)
+
+const ownerWriteOf = (functionName: 'clearSetup' | 'cancelByOwner', word: bigint): PreparedCall =>
+  ({
+    kind: 'call',
+    target: DESCRIPTOR.manager,
+    value: 0n,
+    sender: 'account',
+    data: encodeFunctionData({
+      abi: POLICY_MANAGER_WRITES_ABI,
+      functionName,
+      args: [DESCRIPTOR.action, word]
+    })
+  } as unknown as PreparedCall)
+
+const refusalOf = (node: ScriptedNode, call: PreparedCall) => {
+  try {
+    node.land(call)
+    return undefined
+  } catch (error: unknown) {
+    return decodeErrorResult({ abi: ERRORS_MANAGER_ABI, data: (error as { data: Hex }).data })
+  }
+}
 
 describe('the fake node under the SDK', () => {
   it('reads a seeded setup back through the setup client and restores it from its backup', async () => {
@@ -208,6 +232,55 @@ describe('the fake node under the SDK', () => {
 
     expect(node.manager.attempt).toEqual(attempt)
     expect(node.head.number).toBe(head)
+  })
+
+  it("lands the owner's clear the SDK prepares, and refuses another nonce or no setup", async () => {
+    const node = nodeOf()
+    const { setupClient } = await clientsOver(node)
+    expect(refusalOf(node, ownerWriteOf('clearSetup', 0n))).toMatchObject({
+      errorName: 'PolicyManager_NoSetup',
+      args: [getAddress(ACCOUNT), getAddress(DESCRIPTOR.action)]
+    })
+    const { nonce } = await node.commitSetup(CONFIGURATION, {
+      publicMetadata: '0x',
+      backup: 'clear'
+    })
+    const head = node.head.number
+    expect(refusalOf(node, ownerWriteOf('clearSetup', nonce + 1n))).toMatchObject({
+      errorName: 'PolicyManager_WrongSetupNonce',
+      args: [nonce + 1n, nonce]
+    })
+    expect(node.head.number).toBe(head)
+
+    node.land(await setupClient.prepareClearSetup())
+
+    expect(node.manager.setupCommitment).toBe(zeroHash)
+  })
+
+  it("lands the owner's cancel the SDK prepares, and refuses another attempt id or no waiting attempt", async () => {
+    const node = nodeOf()
+    const { recoveryClient } = await clientsOver(node)
+    await node.commitSetup(CONFIGURATION, { publicMetadata: '0x', backup: 'clear' })
+    expect(refusalOf(node, ownerWriteOf('cancelByOwner', 1n))).toMatchObject({
+      errorName: 'PolicyManager_NoActiveAttempt',
+      args: [getAddress(ACCOUNT), getAddress(DESCRIPTOR.action)]
+    })
+    await expect(recoveryClient.prepareCancelByOwner()).rejects.toBeInstanceOf(KitRefusalError)
+    await expect(recoveryClient.prepareCancelByOwner()).rejects.toMatchObject({
+      findings: { errors: [{ code: 'request.no-active-attempt' }] }
+    })
+
+    node.openAttempt()
+    const { attemptId } = node.manager.attempt
+    expect(refusalOf(node, ownerWriteOf('cancelByOwner', attemptId + 1n))).toMatchObject({
+      errorName: 'PolicyManager_WrongAttemptId',
+      args: [attemptId + 1n, attemptId]
+    })
+    expect(node.manager.attempt.state).toBe('Waiting')
+
+    node.land(await recoveryClient.prepareCancelByOwner())
+
+    expect(node.manager.attempt.state).toBe('Cancelled')
   })
 
   it('answers a deployment that disagrees with the build as it was seeded, through the SDK', async () => {
