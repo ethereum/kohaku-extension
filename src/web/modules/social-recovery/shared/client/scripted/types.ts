@@ -8,8 +8,10 @@ import type {
   Parties,
   PaymentOrder,
   ProviderRevert,
-  Verdict
+  Verdict,
+  ZkPassportStack
 } from '@kohaku-eth/social-recovery'
+import type { AnonAadhaarStack } from '@kohaku-eth/social-recovery/recovery-methods'
 
 /** What one fake node's world starts from; every member but the two first has a default. */
 export interface ScriptedNodeSeed {
@@ -93,4 +95,61 @@ export type ScriptedFailure = { kind: 'unavailable' } | ({ kind: 'revert' } & Pr
 export interface ScriptedBlock {
   header: BlockHeader
   transactions: Hex[]
+}
+
+/**
+ * How the scripted zkPassport phone answers a request: with the result, by
+ * declining, with an error, or never.
+ */
+export type ScriptedPhoneAnswer = 'result' | 'reject' | 'error' | 'silent'
+
+/** What the scripted zkPassport stack answers until the next script; each member has a default. */
+export interface ScriptedZkPassportScript {
+  /** The phone's answer; the result by default. */
+  answer?: ScriptedPhoneAnswer
+  /** The message an error answer carries. */
+  error?: string
+  /** The unique identifier the phone's proof carries; 123 by default. */
+  identifier?: bigint
+}
+
+/** What the scripted zkPassport stack is built with. */
+export interface ScriptedZkPassportOptions {
+  /** The milliseconds between two of the phone's callbacks; 400 by default. */
+  stepMs?: number
+  /** The unique identifier the phone's proof carries unless scripted; 123 by default. */
+  identifier?: bigint
+}
+
+/** A double of the zkPassport app library and the phone that answers its requests. */
+export type ScriptedZkPassportStack = ZkPassportStack & {
+  /** Sets how every request from now on is answered; an empty script restores the defaults. */
+  script(next: ScriptedZkPassportScript): void
+}
+
+/** How the scripted Aadhaar prover answers: with a proof, by failing, or not until aborted. */
+export type ScriptedProverAnswer = 'proof' | 'fail' | 'hang'
+
+/** What the scripted Aadhaar stack answers until the next script; each member has a default. */
+export interface ScriptedAadhaarScript {
+  /** The prover's answer; a proof by default. */
+  prove?: ScriptedProverAnswer
+  /** The nullifier the proof carries; 22 by default. */
+  nullifier?: bigint
+  /** Stamps the proof with a QR code older than a day instead of the device clock; false by default. */
+  stale?: boolean
+  /** The local verifier's answer, or a throw; true by default. */
+  verify?: boolean | 'throw'
+}
+
+/** What the scripted Aadhaar stack is built with. */
+export interface ScriptedAadhaarOptions {
+  /** The milliseconds between two of the prover's progress states; 400 by default. */
+  stepMs?: number
+}
+
+/** A double of the Aadhaar proving library. */
+export type ScriptedAadhaarStack = AnonAadhaarStack & {
+  /** Sets how every call from now on is answered; an empty script restores the defaults. */
+  script(next: ScriptedAadhaarScript): void
 }

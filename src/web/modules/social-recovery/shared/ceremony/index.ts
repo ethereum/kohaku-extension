@@ -12,6 +12,8 @@ export * from './kindLine'
 export * from './visibility'
 export * from './device'
 export * from './passkeyDevice'
+export * from './externalAppDevice'
+export * from './inBrowserProverDevice'
 export * from './hosts'
 export * from './request'
 export * from './channel'
@@ -20,6 +22,8 @@ export type {
   AuthenticatorData,
   AuthenticatorFlags,
   AuthenticatorPlace,
+  CeremonyAnswer,
+  CeremonyAsk,
   CeremonyCall,
   CeremonyCause,
   CeremonyDevice,
@@ -31,6 +35,8 @@ export type {
   CeremonyStep,
   CeremonyStop,
   CeremonyVerdict,
+  CeremonyView,
+  ChainVerdict,
   ClaimValue,
   CredentialsLike,
   DeviceCallContext,
@@ -66,5 +72,6 @@ export type {
   UnavailableOutcome,
   VisibilityGate,
   VisibilitySource,
-  WebAuthnCall
+  WebAuthnCall,
+  ZkPassportRequestWithResult
 } from './types'

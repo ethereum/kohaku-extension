@@ -88,7 +88,7 @@ describe('buildRecoveryClient', () => {
     expect(inputs.account).toBe(world.account)
   })
 
-  it("hands the builder the SDK's own parts: its policy manager, the action codec and the two shipped methods", async () => {
+  it("hands the builder the SDK's own parts: its policy manager, the action codec and the four methods", async () => {
     const spies = spyOnBuilder()
     const world = createWorld()
     await buildRecoveryClient(world.config)
@@ -97,7 +97,7 @@ describe('buildRecoveryClient', () => {
     expect(lastArg(spies.withPolicyManager)).toBeInstanceOf(PolicyManager)
     expect(spies.withCodec).toHaveBeenCalledTimes(1)
     expect(lastArg(spies.withCodec)).toBeInstanceOf(AmbireActionCodec)
-    expect(spies.withMethod).toHaveBeenCalledTimes(2)
+    expect(spies.withMethod).toHaveBeenCalledTimes(4)
     expect(spies.withEventManager).toHaveBeenCalledWith({
       logChunkSize: clientConfigurationOf(world.config).logChunkSize
     })
@@ -409,4 +409,26 @@ describe('an address book naming another action', () => {
     )
     expect(descriptor.auditedActions).not.toContain(other)
   })
+})
+
+describe('an address book naming one module for two methods', () => {
+  const PAIRS = [
+    ['passkey', 'aadhaar'],
+    ['zkpassport', 'aadhaar'],
+    ['ecdsa', 'zkpassport']
+  ] as const
+  PAIRS.forEach(([kept, moved]) =>
+    it(`refuses to build where ${moved} names the ${kept} module, since no module serves two methods`, async () => {
+      const { addressBook } = createWorld().config
+      const shared = addressBook.methods[kept]
+      const world = createWorld({
+        addressBook: { ...addressBook, methods: { ...addressBook.methods, [moved]: shared } }
+      })
+      const caught = await thrownBy(buildRecoveryClient(world.config))
+      expect(caught).toBeInstanceOf(TypeError)
+      expect(caught).toMatchObject({
+        message: expect.stringMatching(/two registered method implementations claim the module/)
+      })
+    })
+  )
 })

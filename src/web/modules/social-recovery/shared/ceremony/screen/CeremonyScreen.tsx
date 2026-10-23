@@ -8,6 +8,10 @@
  * A report that storage refuses stays in memory: the tab shows the delivery
  * failure and offers a retry that writes the report again and runs no second
  * ceremony.
+ *
+ * Each binding runs the page's own device: the passkey through the browser,
+ * the zkPassport request through the code the holder's phone scans, and the
+ * Aadhaar proof over the QR image the holder uploads.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View } from 'react-native'
@@ -28,52 +32,42 @@ import {
 } from '@web/components/TabLayoutWrapper/TabLayoutWrapper'
 import type { DeviceBinding } from '@kohaku-eth/social-recovery'
 import { TwoColumn } from '@web/modules/social-recovery/shared/chrome'
-import { renderChip, renderHash } from '@web/modules/social-recovery/shared/display'
+import { renderChip } from '@web/modules/social-recovery/shared/display'
 import { getUiType } from '@web/utils/uiType'
 
 import { sendCeremonyReport, sweepCeremonyReports } from '../channel'
-import { lossLineKeyOf, renderKindLine } from '../kindLine'
+import { externalAppDevice } from '../externalAppDevice'
+import { inBrowserProverDevice } from '../inBrowserProverDevice'
+import { qrDataOfImage } from '../qrImage'
 import { parseCeremonySearch } from '../request'
 import { ceremonyMayRun, runCeremony } from '../run'
 import type {
+  CeremonyAnswer,
+  CeremonyAsk,
   CeremonyOutcome,
   CeremonyParams,
   CeremonyRefusal,
   CeremonyStep,
   CeremonyValue,
+  CeremonyView,
   ReportStore,
   ResolvedCeremony,
   VisibilityGate
 } from '../types'
-import {
-  browserErrorNameOf,
-  chipOfOutcome,
-  dismissed,
-  lineKeyOfOutcome,
-  notSupported,
-  noteKeyOfOutcome,
-  unavailable
-} from '../verdicts'
+import { dismissed, notSupported, unavailable } from '../verdicts'
 import { createVisibilityGate, whenVisible } from '../visibility'
-import {
-  browserPasskeyDevice,
-  browserReportKeys,
-  browserReportStore,
-  pagePasskeysServed,
-  pagePlatform
-} from './browserDefaults'
+import { browserPasskeyDevice, browserReportKeys, browserReportStore } from './browserDefaults'
 import { useCeremonySource } from './CeremonySource'
+import OutcomeBlock from './OutcomeBlock'
+import ProverBlock from './ProverBlock'
+import ScanBlock from './ScanBlock'
 import type { Phase } from './types'
+import UploadBlock from './UploadBlock'
 
-const hashOfValue = (value: CeremonyValue): string | null => {
-  if ('proof' in value) {
-    return renderHash(value.proof)
-  }
-  if ('reply' in value) {
-    return renderHash(value.reply.proof)
-  }
-  return null
-}
+/** The steps of the in-page prover that show a progress line. */
+const PROVER_STEPS: readonly CeremonyStep[] = ['fetchingFiles', 'proving', 'checking']
+
+const QR_IMAGE_TYPES = 'image/png,image/jpeg'
 
 const CeremonyScreen = () => {
   const { t } = useTranslation()
@@ -90,11 +84,18 @@ const CeremonyScreen = () => {
   const [binding, setBinding] = useState<DeviceBinding | null>(null)
   const [outcome, setOutcome] = useState<CeremonyOutcome<CeremonyValue> | null>(null)
   const [reportHeld, setReportHeld] = useState(false)
+  const [view, setView] = useState<CeremonyView | null>(null)
+  const [asking, setAsking] = useState<CeremonyAsk | null>(null)
+  const [noQrFound, setNoQrFound] = useState(false)
 
   const mounted = useRef(true)
   const started = useRef(false)
   const abort = useRef<AbortController | null>(null)
   const gate = useRef<VisibilityGate | null>(null)
+  // The answer a device's pending ask waits for.
+  const answerAsk = useRef<((answer: CeremonyAnswer) => void) | null>(null)
+  // The count of images picked; only the latest pick's decode answers the ask.
+  const imagePicks = useRef(0)
   // The store the gate serves, read each time a report is handed to the gate,
   // so a run that began before a new store arrived writes to the new one.
   const reportStore = useRef<ReportStore>(source.store ?? browserReportStore)
@@ -126,8 +127,55 @@ const CeremonyScreen = () => {
       mounted.current = false
       started.current = false
       abort.current?.abort()
+      answerAsk.current?.({ kind: 'cancelled' })
     }
   }, [])
+
+  const answer = useCallback((given: CeremonyAnswer) => {
+    const resolve = answerAsk.current
+    answerAsk.current = null
+    setAsking(null)
+    setNoQrFound(false)
+    resolve?.(given)
+  }, [])
+
+  // The holder's Cancel or Stop: aborts the run and ends an upload that waits.
+  const cancelRun = useCallback(() => {
+    abort.current?.abort()
+    answer({ kind: 'cancelled' })
+  }, [answer])
+
+  const chooseImage = useCallback(() => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = QR_IMAGE_TYPES
+    input.addEventListener('change', () => {
+      const file = input.files?.[0]
+      if (!file) {
+        return
+      }
+      imagePicks.current += 1
+      const pick = imagePicks.current
+      const current = () => mounted.current && pick === imagePicks.current
+      qrDataOfImage(file)
+        .then((qrData) => {
+          if (!current() || !answerAsk.current) {
+            return
+          }
+          if (qrData === undefined) {
+            setNoQrFound(true)
+            return
+          }
+          answer({ kind: 'qrData', qrData })
+        })
+        .catch(() => {
+          if (current()) {
+            setNoQrFound(true)
+          }
+        })
+    })
+    input.click()
+  }, [answer])
 
   /**
    * Writes the report of `result` and returns to `returnTo`. A write that
@@ -187,6 +235,8 @@ const CeremonyScreen = () => {
     setOutcome(null)
     setStep('preparing')
     setPhase('resolving')
+    setView(null)
+    answer({ kind: 'cancelled' })
 
     // A hidden tab dispatches nothing: not the resolve, not the prompt, which
     // the browser refuses without focus anyway.
@@ -232,13 +282,32 @@ const CeremonyScreen = () => {
         }
         setPhase('running')
         result = await runCeremony(params, resolved, {
-          devices: { 'browser-authenticator': browserPasskeyDevice() },
+          devices: {
+            'browser-authenticator': browserPasskeyDevice(),
+            'external-app': externalAppDevice(),
+            'in-browser-prover': inBrowserProverDevice()
+          },
           signal: controller.signal,
           onStep: (next) => {
             if (live()) {
               setStep(next)
             }
-          }
+          },
+          show: (shown) => {
+            if (live()) {
+              setView(shown)
+            }
+          },
+          ask: (asked) =>
+            new Promise<CeremonyAnswer>((resolve) => {
+              if (!live() || controller.signal.aborted) {
+                resolve({ kind: 'cancelled' })
+                return
+              }
+              answerAsk.current = resolve
+              setNoQrFound(false)
+              setAsking(asked)
+            })
         })
       }
     }
@@ -247,7 +316,7 @@ const CeremonyScreen = () => {
     }
     setOutcome(result)
     await deliver(params, result)
-  }, [parsed, mayRun, source, visibility, deliver])
+  }, [parsed, mayRun, source, visibility, deliver, answer])
 
   useEffect(() => {
     if (started.current) {
@@ -258,140 +327,31 @@ const CeremonyScreen = () => {
     start()
   }, [start])
 
-  const renderRunning = () => (
-    <View style={[flexbox.alignCenter]}>
-      {step === 'waitingForPhone' ? (
-        <>
-          <Text weight="semiBold" fontSize={18} style={spacings.mbSm}>
-            {t('socialRecovery.ceremony.continueOnPhone')}
-          </Text>
-          <Text appearance="secondaryText" style={[spacings.mbLg, { textAlign: 'center' }]}>
-            {t('socialRecovery.ceremony.scanCode')}
-          </Text>
-          <Spinner style={spacings.mbSm} />
-          <Text style={spacings.mbSm}>{t('socialRecovery.ceremony.waitingForPhone')}</Text>
-          <Text appearance="secondaryText" style={{ textAlign: 'center' }}>
-            {t('socialRecovery.ceremony.keepTabOpen')}
-          </Text>
-          {binding === 'external-app' && parsed.ok && parsed.params.call === 'createClaim' && (
-            <Text appearance="secondaryText" style={[spacings.mtSm, { textAlign: 'center' }]}>
-              {t('socialRecovery.ceremony.phoneReads')}
-            </Text>
-          )}
-        </>
-      ) : (
-        <>
-          <Spinner style={spacings.mbSm} />
-          <Text>{renderChip('method', 'inProgress', t)}</Text>
-        </>
-      )}
-      <Button
-        type="secondary"
-        text={t('socialRecovery.ceremony.cancelAction')}
-        onPress={() => abort.current?.abort()}
-        style={spacings.mtLg}
-      />
-    </View>
-  )
-
-  const renderOutcome = (shown: CeremonyOutcome<CeremonyValue>) => {
-    if (!parsed.ok) {
-      return null
+  const renderRunning = () => {
+    if (asking?.kind === 'qrImage') {
+      return <UploadBlock noQrFound={noQrFound} onChoose={chooseImage} onCancel={cancelRun} />
     }
-    const { params } = parsed
-    const { call, returnTo } = params
-    const chip = chipOfOutcome(shown, call)
-    const noteKey = noteKeyOfOutcome(shown, call)
-    const lineKey = lineKeyOfOutcome(shown, call)
-    const passedEnroll = shown.kind === 'verdict' && shown.verdict === 'passed' && call === 'enroll'
-    const facts = passedEnroll ? shown.value.facts : undefined
-    const hash =
-      shown.kind === 'verdict' && shown.verdict === 'passed' ? hashOfValue(shown.value) : null
-    // The one raw cause text a screen shows: the browser's own error name.
-    const errorName = browserErrorNameOf(shown)
-    const mayRetry = shown.kind === 'dismissed' || shown.retry
-    const chromeOnly = binding === 'browser-authenticator' && !pagePasskeysServed()
+    const phoneReads =
+      binding === 'external-app' && parsed.ok && parsed.params.call === 'createClaim'
+    if (binding === 'external-app' && view?.kind === 'scanCode') {
+      return <ScanBlock url={view.url} step={step} phoneReads={phoneReads} onCancel={cancelRun} />
+    }
+    if (binding === 'in-browser-prover' && PROVER_STEPS.includes(step)) {
+      return <ProverBlock step={step} onStop={cancelRun} />
+    }
+    if (step === 'waitingForPhone') {
+      return <ScanBlock step={step} phoneReads={phoneReads} onCancel={cancelRun} />
+    }
     return (
-      <View>
-        {chip && (
-          <Text weight="semiBold" style={spacings.mbSm}>
-            {chip.set === 'method'
-              ? renderChip('method', chip.chip, t)
-              : renderChip('collection', chip.chip, t)}
-          </Text>
-        )}
-        {chromeOnly ? (
-          <Text style={spacings.mbSm}>{t('socialRecovery.ceremony.chromeOnly')}</Text>
-        ) : (
-          noteKey && <Text style={spacings.mbSm}>{t(noteKey, { hash })}</Text>
-        )}
-        {errorName && (
-          <Text appearance="secondaryText" fontSize={12} style={spacings.mbSm}>
-            {errorName}
-          </Text>
-        )}
-        {lineKey && !chromeOnly && (
-          <Text appearance="secondaryText" style={spacings.mbSm}>
-            {t(lineKey)}
-          </Text>
-        )}
-        {facts && (
-          <>
-            <Text weight="medium" style={spacings.mbSm}>
-              {renderKindLine(facts, pagePlatform(), t)}
-            </Text>
-            <Text appearance="secondaryText" style={spacings.mbSm}>
-              {t(lossLineKeyOf(facts))}
-            </Text>
-          </>
-        )}
-        {passedEnroll && binding === 'browser-authenticator' && (
-          <Text appearance="secondaryText" style={spacings.mbSm}>
-            {t('socialRecovery.ceremony.passkeyOrigin')}
-          </Text>
-        )}
-        {reportHeld && (
-          <Text appearance="secondaryText" style={spacings.mbSm}>
-            {t('socialRecovery.ceremony.keepTabOpen')}
-          </Text>
-        )}
-        {phase === 'undelivered' && (
-          <>
-            <Text style={spacings.mbSm}>{t('socialRecovery.ceremony.undeliveredNote')}</Text>
-            <View style={[flexbox.directionRow, spacings.mtLg]}>
-              <Button
-                type="secondary"
-                text={t('socialRecovery.ceremony.backAction')}
-                onPress={() => navigate(-1)}
-              />
-              <Button
-                type="primary"
-                text={t('socialRecovery.ceremony.tryAgainAction')}
-                // eslint-disable-next-line @typescript-eslint/no-misused-promises
-                onPress={() => deliver(params, shown)}
-                style={spacings.mlSm}
-              />
-            </View>
-          </>
-        )}
-        {phase === 'done' && !returnTo && (
-          <View style={[flexbox.directionRow, spacings.mtLg]}>
-            <Button
-              type="secondary"
-              text={t('socialRecovery.ceremony.backAction')}
-              onPress={() => navigate(-1)}
-            />
-            {mayRetry && (
-              <Button
-                type="primary"
-                text={t('socialRecovery.ceremony.tryAgainAction')}
-                // eslint-disable-next-line @typescript-eslint/no-misused-promises
-                onPress={start}
-                style={spacings.mlSm}
-              />
-            )}
-          </View>
-        )}
+      <View style={[flexbox.alignCenter]}>
+        <Spinner style={spacings.mbSm} />
+        <Text>{renderChip('method', 'inProgress', t)}</Text>
+        <Button
+          type="secondary"
+          text={t('socialRecovery.ceremony.cancelAction')}
+          onPress={cancelRun}
+          style={spacings.mtLg}
+        />
       </View>
     )
   }
@@ -413,7 +373,21 @@ const CeremonyScreen = () => {
       )
     }
     if (outcome) {
-      return renderOutcome(outcome)
+      const { params } = parsed
+      return (
+        <OutcomeBlock
+          outcome={outcome}
+          params={params}
+          binding={binding}
+          phase={phase}
+          reportHeld={reportHeld}
+          onBack={() => navigate(-1)}
+          // eslint-disable-next-line @typescript-eslint/no-misused-promises
+          onDeliverAgain={() => deliver(params, outcome)}
+          // eslint-disable-next-line @typescript-eslint/no-misused-promises
+          onTryAgain={start}
+        />
+      )
     }
     return renderRunning()
   }

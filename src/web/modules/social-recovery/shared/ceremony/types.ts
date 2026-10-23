@@ -11,7 +11,9 @@ import type {
   Material,
   Params,
   Reply,
-  ReplyFailureCause
+  ReplyFailureCause,
+  Verdict,
+  ZkPassportRequest
 } from '@kohaku-eth/social-recovery'
 import type { CollectionChip, MethodChip } from '@web/modules/social-recovery/shared/display'
 
@@ -174,6 +176,15 @@ export type Held = { run: () => void; drop: (reason: Error) => void }
 
 export type CeremonyStep = typeof CEREMONY_STEPS[number]
 
+/** What a device asks the screen to draw: the request link the holder's phone scans. */
+export type CeremonyView = { kind: 'scanCode'; url: string }
+
+/** What a device asks the holder for: the image of an Aadhaar secure QR code. */
+export type CeremonyAsk = { kind: 'qrImage' }
+
+/** The holder's answer to an ask: the decoded QR data, or the Cancel. */
+export type CeremonyAnswer = { kind: 'qrData'; qrData: string } | { kind: 'cancelled' }
+
 export interface DeviceCallContext {
   /** Aborts the device call; an aborted call is the cancelled note. */
   signal?: AbortSignal
@@ -182,7 +193,26 @@ export interface DeviceCallContext {
   /** The lifecycle call the device serves; a test and a claim read a dismissal apart. */
   call?: CeremonyCall
   onStep?: (step: CeremonyStep) => void
+  /** Draws what the holder acts on outside the page, the phone's request link. */
+  show?: (view: CeremonyView) => void
+  /** Asks the holder for an input and resolves with the answer. */
+  ask?: (ask: CeremonyAsk) => Promise<CeremonyAnswer>
 }
+
+/**
+ * A zkPassport request as the installed app library delivers it: the SDK's
+ * request, the result callback the library still fires, which carries the
+ * verified flag and the unique identifier an enrollment needs, and the
+ * callbacks of the bridge that connects the phone.
+ */
+export type ZkPassportRequestWithResult = ZkPassportRequest & {
+  onResult?: (callback: (response: unknown) => void) => void
+  onBridgeConnect?: (callback: () => void) => void
+  onBridgeConnectionLost?: (callback: () => void) => void
+}
+
+/** The chain's verdict over a reply: the `verify` view of the reply's method module. */
+export type ChainVerdict = (request: ApproverRequest, reply: Reply) => Promise<Verdict>
 
 export type DeviceResult =
   | {
@@ -327,6 +357,13 @@ export interface HostContext {
   handOff?: boolean
   signal?: AbortSignal
   onStep?: (step: CeremonyStep) => void
+  show?: (view: CeremonyView) => void
+  ask?: (ask: CeremonyAsk) => Promise<CeremonyAnswer>
+  /**
+   * The chain's verdict, read at an access test where the method's own check
+   * answers not judged.
+   */
+  chainVerdict?: ChainVerdict
 }
 
 /**
@@ -432,6 +469,8 @@ export interface ResolvedCeremony {
   params?: Params
   request?: ApproverRequest
   device?: CeremonyDevice
+  /** The chain's verdict an access test reads where the method's own check cannot judge. */
+  chainVerdict?: ChainVerdict
 }
 
 /**
@@ -454,4 +493,6 @@ export interface RunDeps {
   devices?: PageDevices
   signal?: AbortSignal
   onStep?: (step: CeremonyStep) => void
+  show?: (view: CeremonyView) => void
+  ask?: (ask: CeremonyAsk) => Promise<CeremonyAnswer>
 }

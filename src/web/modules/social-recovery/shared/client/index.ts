@@ -12,7 +12,9 @@ export { PUBLISHERS, DEPLOYMENTS, deploymentOf, deploymentFactsFrom } from './de
 export {
   PLACEHOLDER_ADDRESSES,
   addressBookOf,
+  credentialKindIn,
   deploymentAddressesOf,
+  methodKindIn,
   sameAddress
 } from './addresses'
 export {

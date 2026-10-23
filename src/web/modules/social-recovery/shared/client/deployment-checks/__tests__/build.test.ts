@@ -129,7 +129,7 @@ afterEach(() => {
 })
 
 describe('methodFor', () => {
-  it('serves the two primary methods at the deployment addresses, and no identity method', async () => {
+  it('serves the two primary methods at the deployment addresses, and no identity method the deployment omits', async () => {
     const world = createDeployedWorld()
     const client = await clientOver(world)
     const modulesOf = (slug: string): Address[] =>
@@ -139,6 +139,21 @@ describe('methodFor', () => {
     expect(client.methodFor('aadhaar')).toBeUndefined()
     expect(client.methodFor('zkpassport')).toBeUndefined()
     expect(client.methodFor('unknown')).toBeUndefined()
+  })
+
+  it('serves both identity methods at the addresses the deployment names', async () => {
+    const methodAadhaar = addressOf('deployed-method-aadhaar')
+    const methodZkpassport = addressOf('deployed-method-zkpassport')
+    ;(sepoliaDeploymentVariable as jest.Mock).mockReturnValue(
+      JSON.stringify({ ...DEPLOYED_FACTS, methodAadhaar, methodZkpassport })
+    )
+    const client = await clientOver(createDeployedWorld())
+    const modulesOf = (slug: string): Address[] =>
+      (client.methodFor(slug)?.modules(client.descriptor) ?? []).map((m) => getAddress(m))
+    expect(client.methodFor('aadhaar')?.deviceBinding).toBe('in-browser-prover')
+    expect(modulesOf('aadhaar')).toEqual([getAddress(methodAadhaar)])
+    expect(client.methodFor('zkpassport')?.deviceBinding).toBe('external-app')
+    expect(modulesOf('zkpassport')).toEqual([getAddress(methodZkpassport)])
   })
 
   it("judges a guardian's real signature by the config's key as satisfied, on the method and the approving side", async () => {

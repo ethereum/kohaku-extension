@@ -4,6 +4,8 @@
  * batch changes what the manager answers, and a failed read rejects as the
  * provider would, a revert in the SDK's revert shape. A deployment that
  * disagrees with the build, and a privilege write, answer as they were seeded.
+ * An Aadhaar module judges a proof by the bindings, the window and the age of
+ * the QR code the deployed verifier checks; the zero address judges nothing.
  */
 import {
   BUILDER_CHAIN_MISMATCH_MESSAGE,
@@ -18,7 +20,9 @@ import {
   KitRefusalError,
   METHOD_ECDSA_CONFIG_ABI,
   POLICY_MANAGER_WRITES_ABI,
-  setupCommitment as commitmentOf
+  POLICY_METHOD_VERIFY_ABI,
+  setupCommitment as commitmentOf,
+  VERDICT_MAGIC_VALUE
 } from '@kohaku-eth/social-recovery'
 import type {
   Address,
@@ -27,18 +31,23 @@ import type {
   Hex,
   PreparedCall
 } from '@kohaku-eth/social-recovery'
+import { anonAadhaarMethod } from '@kohaku-eth/social-recovery/recovery-methods'
 import {
   decodeErrorResult,
   decodeFunctionResult,
   encodeAbiParameters,
   encodeFunctionData,
   getAddress,
+  keccak256,
   zeroAddress,
   zeroHash
 } from 'viem'
 
 import { ACTION_IMMUTABLES_ABI } from '@web/modules/social-recovery/shared/client/abi'
-import { ScriptedNode } from '@web/modules/social-recovery/shared/client/scripted'
+import {
+  createScriptedAadhaarStack,
+  ScriptedNode
+} from '@web/modules/social-recovery/shared/client/scripted'
 
 const at = (n: number): Address => `0x${n.toString(16).padStart(40, '0')}` as Address
 
@@ -342,5 +351,139 @@ describe('the fake node under the SDK', () => {
 
     node.restoreRead()
     expect((await setupClient.setupState()).setupCommitment).toBe(zeroHash)
+  })
+})
+
+describe("the Aadhaar module's verdict on the fake node", () => {
+  const NOW = 1_790_000_000
+  const DAY = 24 * 3600
+  const DIGEST: Hex = `0x${'ab'.repeat(32)}`
+  const { codec } = anonAadhaarMethod({ stack: createScriptedAadhaarStack() })
+  const NULLIFIER = 22n
+  const SEED = 1n
+  const TIMESTAMP_INPUT = 2
+  const DISCLOSURE_INPUTS = [3, 4, 5, 6]
+
+  const configOf = (freshnessWindow = BigInt(DAY)): Hex =>
+    codec.encodeConfig({ nullifier: NULLIFIER, nullifierSeed: SEED, freshnessWindow })
+
+  /** A proof that binds the config and the digest, signed a minute before the latest block, with one input changed. */
+  const proofOf = (index?: number, value?: bigint): Hex => {
+    const inputs = [
+      99n,
+      NULLIFIER,
+      BigInt(NOW - 60),
+      0n,
+      0n,
+      0n,
+      0n,
+      SEED,
+      BigInt(keccak256(DIGEST)) / 8n
+    ]
+    if (index !== undefined && value !== undefined) {
+      inputs[index] = value
+    }
+    return codec.encodeProof({
+      a: [1n, 2n],
+      b: [
+        [3n, 4n],
+        [5n, 6n]
+      ],
+      c: [7n, 8n],
+      inputs
+    })
+  }
+
+  const verdictOf = async (
+    node: ScriptedNode,
+    module: Address,
+    config: Hex,
+    proof: Hex
+  ): Promise<string> => {
+    const answer = await node.call(
+      module,
+      encodeFunctionData({
+        abi: POLICY_METHOD_VERIFY_ABI,
+        functionName: 'verify',
+        args: [config, DIGEST, proof]
+      }),
+      ACCOUNT,
+      'latest'
+    )
+    return answer === VERDICT_MAGIC_VALUE ? 'satisfied' : 'rejected'
+  }
+
+  const nodeAt = (descriptor: DeploymentDescriptor = DESCRIPTOR) =>
+    new ScriptedNode({ descriptor, account: ACCOUNT, clock: () => NOW })
+
+  it('satisfies a proof that binds the config and the digest, discloses nothing and was signed within the window', async () => {
+    await expect(
+      verdictOf(nodeAt(), DESCRIPTOR.methodAadhaar, configOf(), proofOf())
+    ).resolves.toBe('satisfied')
+  })
+
+  const WINDOWS: [bigint, string][] = [
+    [3599n, 'rejected'],
+    [3600n, 'satisfied'],
+    [0n, 'rejected']
+  ]
+  WINDOWS.forEach(([window, verdict]) =>
+    it(`answers ${verdict} for a config whose window is ${window} seconds`, async () => {
+      await expect(
+        verdictOf(nodeAt(), DESCRIPTOR.methodAadhaar, configOf(window), proofOf())
+      ).resolves.toBe(verdict)
+    })
+  )
+
+  DISCLOSURE_INPUTS.forEach((index) =>
+    it(`rejects a proof that discloses its input ${index}`, async () => {
+      await expect(
+        verdictOf(nodeAt(), DESCRIPTOR.methodAadhaar, configOf(), proofOf(index, 1n))
+      ).resolves.toBe('rejected')
+    })
+  )
+
+  const AGES: [string, number, string][] = [
+    ['exactly the window', DAY, 'satisfied'],
+    ['one second past the window', DAY + 1, 'rejected'],
+    ['two days', 2 * DAY, 'rejected'],
+    ['a time after the latest block', -600, 'satisfied']
+  ]
+  AGES.forEach(([what, age, verdict]) =>
+    it(`answers ${verdict} for a QR code signed ${what} before the latest block`, async () => {
+      await expect(
+        verdictOf(
+          nodeAt(),
+          DESCRIPTOR.methodAadhaar,
+          configOf(),
+          proofOf(TIMESTAMP_INPUT, BigInt(NOW - age))
+        )
+      ).resolves.toBe(verdict)
+    })
+  )
+
+  it('measures the age against the latest block, which follows the clock', async () => {
+    let now = NOW
+    const node = new ScriptedNode({ descriptor: DESCRIPTOR, account: ACCOUNT, clock: () => now })
+    const proof = proofOf()
+    await expect(verdictOf(node, DESCRIPTOR.methodAadhaar, configOf(), proof)).resolves.toBe(
+      'satisfied'
+    )
+    now += DAY
+    await expect(verdictOf(node, DESCRIPTOR.methodAadhaar, configOf(), proof)).resolves.toBe(
+      'rejected'
+    )
+  })
+
+  it('judges nothing at the zero address a deployment gives a method it omits, a seeded verdict included', async () => {
+    const node = nodeAt({
+      ...DESCRIPTOR,
+      methodAadhaar: zeroAddress,
+      methodZkpassport: zeroAddress
+    })
+    const config = configOf()
+    await expect(verdictOf(node, zeroAddress, config, proofOf())).resolves.toBe('rejected')
+    node.setVerdict(config, 'satisfied')
+    await expect(verdictOf(node, zeroAddress, config, proofOf())).resolves.toBe('rejected')
   })
 })

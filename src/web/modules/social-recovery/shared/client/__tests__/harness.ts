@@ -41,7 +41,7 @@ import {
   SetupClient,
   SocialRecoveryBuilder
 } from '@kohaku-eth/social-recovery'
-import type { VisibilitySource } from '@web/modules/social-recovery/shared/ceremony'
+import type { CeremonyCall, VisibilitySource } from '@web/modules/social-recovery/shared/ceremony'
 import type {
   Address,
   BlockTag,
@@ -51,6 +51,7 @@ import type {
   Hex,
   IProvider,
   IRecoveryMethod,
+  Params,
   PreparedCall
 } from '@kohaku-eth/social-recovery'
 import {
@@ -1233,6 +1234,7 @@ export const recordsInMemory = (clock: { t: number } = { t: Date.now() }) => {
 
 export interface FakeApprovingClient extends ApprovingClient {
   methodFor: jest.Mock<IRecoveryMethod | undefined, [string]>
+  methodParamsFor: jest.Mock<Params | undefined, [string, CeremonyCall]>
 }
 
 /**
@@ -1248,6 +1250,7 @@ export const fakeApprovingClient = (
   return {
     approving: new MethodsOrchestrator(new Map(), new Map(), []),
     methodFor: jest.fn((slug: string) => methods.get(slug)),
+    methodParamsFor: jest.fn<Params | undefined, [string, CeremonyCall]>(() => undefined),
     descriptor
   }
 }

@@ -1,7 +1,15 @@
-/** The fake node and the scripted signer the build with no deployment and the unit tests run the SDK over. */
+/**
+ * The fake node, the scripted signer and the scripted identity stacks the
+ * build with no deployment and the unit tests run the SDK over.
+ */
 export { ScriptedNode } from './node'
 export { createScriptedSigner } from './signer'
+export { createScriptedZkPassportStack } from './zkpassport-stack'
+export { createScriptedAadhaarStack } from './aadhaar-stack'
 export type {
+  ScriptedAadhaarOptions,
+  ScriptedAadhaarScript,
+  ScriptedAadhaarStack,
   ScriptedAttemptOptions,
   ScriptedConstants,
   ScriptedDomain,
@@ -9,5 +17,10 @@ export type {
   ScriptedManagerState,
   ScriptedMethod,
   ScriptedNodeSeed,
-  ScriptedVerdict
+  ScriptedPhoneAnswer,
+  ScriptedProverAnswer,
+  ScriptedVerdict,
+  ScriptedZkPassportOptions,
+  ScriptedZkPassportScript,
+  ScriptedZkPassportStack
 } from './types'

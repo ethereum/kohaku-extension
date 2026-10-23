@@ -7,10 +7,12 @@
  * the stand-in keeps for the account, which answers as the deployed
  * contracts would. Either way the builder receives the provider, the
  * descriptor, the account and the client configuration, the policy manager,
- * the action codec and the two shipped methods this build constructs, the
+ * the action codec and the four methods this build constructs, the
  * event manager's chunk width from the wallet's configuration and the signer
  * recovery its removed-key inference reads, and nothing else of the
- * extension: no signer and no storage.
+ * extension: no signer and no storage. The two identity methods run over the
+ * installed proving libraries on a deployed chain, and over the stand-in's
+ * scripted stacks otherwise.
  *
  * The SDK's construction checks run at the first build, in the SDK's order:
  * the provider's chain id, the manager domain's chain id and verifying
@@ -39,13 +41,17 @@ import type {
   IRecoveryMethod,
   ISignerRecovery
 } from '@kohaku-eth/social-recovery'
+import { anonAadhaarMethod, zkPassportMethod } from '@kohaku-eth/social-recovery/recovery-methods'
 
 import { PROXY_AMBIRE_ACCOUNT } from '@ambire-common/consts/deploy'
+import type { CeremonyCall } from '@web/modules/social-recovery/shared/ceremony'
 
 import { clientConfigurationOf } from './configuration'
 import { checkActionConstants, createActionViews, readManagerDomain } from './deployment-checks'
 import { deploymentOf } from './deployments'
 import { descriptorOf } from './descriptors'
+import { AADHAAR_ARTIFACTS } from './identity-artifacts'
+import { identityParamsOf, methodParamsOf } from './identity-params'
 import { createRecoverySetupClient } from './setup-client'
 import { sdkStandIn } from './stand-in'
 import type {
@@ -55,6 +61,7 @@ import type {
   RecoveryKitClient
 } from './types'
 import { createWalletReads } from './wallet-reads'
+import { zkPassportStackFor } from './zkpassport-stack'
 
 export const digestVersionRefusal = (
   carried: DomainVersion,
@@ -93,6 +100,29 @@ const providerOf = (
   return sdkStandIn.providerFor(
     sdkStandIn.nodeFor(descriptor, config.account, { authorities: config.candidateKeys ?? [] })
   )
+}
+
+/**
+ * The two identity methods of a chain: over the installed proving libraries
+ * where the chain is deployed, the zkPassport request opened against the test
+ * certificate tree where its parameters ask for it; over the stand-in's
+ * scripted stacks otherwise.
+ */
+const identityMethodsOf = (
+  config: RecoveryClientConfiguration,
+  descriptor: DeploymentDescriptor
+): IRecoveryMethod[] => {
+  if (deploymentOf(config.chain).kind === 'deployed') {
+    const testnetTree = identityParamsOf(config.chain).zkPassport?.testnetTree ?? false
+    return [
+      zkPassportMethod(zkPassportStackFor({ testnetTree })),
+      anonAadhaarMethod({ artifacts: AADHAAR_ARTIFACTS })
+    ]
+  }
+  return [
+    zkPassportMethod(sdkStandIn.zkPassportStackFor(descriptor)),
+    anonAadhaarMethod({ stack: sdkStandIn.aadhaarStackFor(descriptor) })
+  ]
 }
 
 /** The refusal of a digest version, with the version the manager publishes where it answers one. */
@@ -135,7 +165,12 @@ export const buildRecoveryClient = async (
     configuration.blockTags
   )
   const codec = new AmbireActionCodec([descriptor.action])
-  const methods: IRecoveryMethod[] = [walletMethod(), passkeyMethod()]
+  const methods: IRecoveryMethod[] = [
+    walletMethod(),
+    passkeyMethod(),
+    ...identityMethodsOf(config, descriptor)
+  ]
+  const identityParams = identityParamsOf(config.chain)
   const builder = SocialRecoveryBuilder.from({ provider, account, descriptor, configuration })
     .withPolicyManager(policyManager)
     .withCodec(codec)
@@ -221,6 +256,8 @@ export const buildRecoveryClient = async (
     moduleReads: kit.moduleReads,
     approving: kit.approving,
     methodFor: (slug: string) => methodsBySlug.get(slug),
+    methodParamsFor: (slug: string, call: CeremonyCall) =>
+      methodParamsOf(identityParams, slug, call),
     walletReads
   })
 }

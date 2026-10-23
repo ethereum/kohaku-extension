@@ -1,10 +1,7 @@
-import { isAddressEqual, zeroAddress } from 'viem'
-
-import type { Address, Clause, Credential } from '@kohaku-eth/social-recovery'
-import { sameAddress } from '@web/modules/social-recovery/shared/client'
+import type { Address, Clause } from '@kohaku-eth/social-recovery'
+import { credentialKindIn, methodKindIn } from '@web/modules/social-recovery/shared/client'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import type { Translate } from '@web/modules/social-recovery/shared/display'
-import { isEmptySlot, slotKindOf } from '@web/modules/social-recovery/shared/records'
 
 import type { ExposureLines, MethodKind, OfferedLevel } from './types'
 
@@ -18,20 +15,8 @@ const ITEMS_LEAD = 'socialRecovery.disclosures.itemsLead'
  */
 export const kindOfMethodIn =
   (book: AddressBook) =>
-  (method: Address): MethodKind | undefined => {
-    const kinds = Object.keys(book.methods) as MethodKind[]
-    return kinds.find(
-      (kind) =>
-        !isAddressEqual(book.methods[kind], zeroAddress) && sameAddress(method, book.methods[kind])
-    )
-  }
-
-/**
- * The kind a row of the path holds: the kind an empty slot waits for, or the
- * kind whose method address an enrolled credential names.
- */
-const methodKindOf = (credential: Credential, book: AddressBook): MethodKind | undefined =>
-  isEmptySlot(credential) ? slotKindOf(credential) : kindOfMethodIn(book)(credential.method)
+  (method: Address): MethodKind | undefined =>
+    methodKindIn(book.methods, method)
 
 /**
  * The items of the unguessable line, each an item slug under the disclosures:
@@ -91,7 +76,7 @@ export const exposureLinesOf = (
 ): ExposureLines => {
   const kinds = clauses
     .flatMap(({ credentials }) => credentials)
-    .map((credential) => methodKindOf(credential, book))
+    .map((credential) => credentialKindIn(credential, book.methods))
     .filter((kind): kind is MethodKind => kind !== undefined)
   if (level === 'public' || !kinds.includes('ecdsa')) {
     return {}

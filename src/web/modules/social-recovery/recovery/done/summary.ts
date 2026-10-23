@@ -11,20 +11,14 @@
  * record names, against the path. Where this device holds no path, the used
  * methods' kinds stand alone and only a used passkey gets a cleanup block.
  */
-import { isAddressEqual, zeroAddress } from 'viem'
+import { isAddressEqual } from 'viem'
 
 import type { Address, Configuration } from '@kohaku-eth/social-recovery'
-import { SLOT_KINDS } from '@web/modules/social-recovery/shared/records/types'
+import { methodKindIn } from '@web/modules/social-recovery/shared/client'
 import type { SlotKind } from '@web/modules/social-recovery/shared/records/types'
 
 import { IDENTITY_KINDS } from './constants'
 import type { CleanupBlock, PathRow, RecoverySummary, RemovalExit, SummaryInput } from './types'
-
-// The zero address a deployment leaves for a method it omits is no module.
-const kindOfMethod = (method: Address, methods: Record<SlotKind, Address>): SlotKind | undefined =>
-  SLOT_KINDS.find(
-    (kind) => !isAddressEqual(methods[kind], zeroAddress) && isAddressEqual(methods[kind], method)
-  )
 
 const isIdentity = (kind: SlotKind | undefined): boolean =>
   IDENTITY_KINDS.some((identity) => identity === kind)
@@ -42,7 +36,7 @@ export const rowsOfPath = (
       place,
       clause,
       credential,
-      kind: kindOfMethod(credential.method, methods)
+      kind: methodKindIn(methods, credential.method)
     }))
 
 /**
@@ -63,7 +57,7 @@ export const removalExitOf = (rows: PathRow[], place: number): RemovalExit => {
 export const summaryOf = ({ configuration, addressBook, event }: SummaryInput): RecoverySummary => {
   const { methods } = addressBook
   const usedMethodKinds = event.usedMethods
-    .map((method) => kindOfMethod(method, methods))
+    .map((method) => methodKindIn(methods, method))
     .filter((kind): kind is SlotKind => kind !== undefined)
 
   if (!configuration) {

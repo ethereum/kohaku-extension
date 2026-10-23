@@ -4,10 +4,14 @@
  * the waiting period, the publication sentence and the privacy line. Strings
  * come from `t`.
  */
-import { decodeAbiParameters, isAddressEqual, zeroAddress } from 'viem'
+import { decodeAbiParameters } from 'viem'
 
 import type { Address, Clause, Credential, SetupDraft } from '@kohaku-eth/social-recovery'
-import { privacyLevelOf, sameAddress } from '@web/modules/social-recovery/shared/client'
+import {
+  credentialKindIn,
+  methodKindIn,
+  privacyLevelOf
+} from '@web/modules/social-recovery/shared/client'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import {
   renderChip,
@@ -15,11 +19,7 @@ import {
   renderWaitLength
 } from '@web/modules/social-recovery/shared/display'
 import type { MethodChip, Translate } from '@web/modules/social-recovery/shared/display'
-import {
-  enrollmentOf,
-  isEmptySlot,
-  slotKindOf
-} from '@web/modules/social-recovery/shared/records/slots'
+import { enrollmentOf, isEmptySlot } from '@web/modules/social-recovery/shared/records/slots'
 import type {
   Enrollment,
   EnrollmentTestVerdict
@@ -55,24 +55,12 @@ const ITEMS = 'socialRecovery.disclosures.items'
 const ITEMS_LEAD = 'socialRecovery.disclosures.itemsLead'
 
 /**
- * The address book's kind of a method module; a module it does not hold has
- * none, and the zero address a deployment leaves for a method it omits is no
- * module.
- */
-const methodKindOf = (method: Address, addressBook: AddressBook): MethodKind | undefined =>
-  (Object.keys(addressBook.methods) as MethodKind[]).find(
-    (kind) =>
-      !isAddressEqual(addressBook.methods[kind], zeroAddress) &&
-      sameAddress(addressBook.methods[kind], method)
-  )
-
-/**
  * The kind of method a credential holds: the kind an empty slot waits for, or
  * the address book's kind of an enrolled credential's method. A method the
  * address book does not hold has no kind.
  */
 export const kindOf = (credential: Credential, addressBook: AddressBook): MethodKind | undefined =>
-  isEmptySlot(credential) ? slotKindOf(credential) : methodKindOf(credential.method, addressBook)
+  credentialKindIn(credential, addressBook.methods)
 
 /** The kind's name, the word a row and a contract row name a method by. */
 export const kindNameOf = (kind: MethodKind, t: Translate): string => t(KIND_NAME_KEYS[kind])
@@ -209,7 +197,7 @@ export const ruleLinesOf = (
   addressBook: AddressBook,
   t: Translate
 ): string[] => {
-  const kindOfMethod = (method: Address) => methodKindOf(method, addressBook)
+  const kindOfMethod = (method: Address) => methodKindIn(addressBook.methods, method)
   return renderRuleLines(getRuleLines(draft, { kindOfMethod }), (key, params) =>
     t(key, { ...params })
   )
@@ -324,7 +312,7 @@ export const privacyLinesOf = (
     ]
   }
   if (level === 'shape-visible') {
-    const kindOfMethod = (method: Address) => methodKindOf(method, addressBook)
+    const kindOfMethod = (method: Address) => methodKindIn(addressBook.methods, method)
     const shape = renderShapeSentence(
       draft.clauses,
       { skipMemberlessClauses: true, kindOfMethod },

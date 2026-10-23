@@ -8,7 +8,7 @@
  * whose method is the zero address, whose config is empty and whose label is
  * its kind; it stands for a method the holder has yet to enroll.
  */
-import { decodeAbiParameters, isAddressEqual, zeroAddress } from 'viem'
+import { decodeAbiParameters } from 'viem'
 
 import type {
   Address,
@@ -18,14 +18,10 @@ import type {
   SetupDraft,
   ValidationResult
 } from '@kohaku-eth/social-recovery'
+import { credentialKindIn, methodKindIn } from '@web/modules/social-recovery/shared/client'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import type { SlotKind } from '@web/modules/social-recovery/shared/records'
-import {
-  isEmptySlot,
-  pathHolds,
-  SLOT_KINDS,
-  slotKindOf
-} from '@web/modules/social-recovery/shared/records'
+import { isEmptySlot, pathHolds } from '@web/modules/social-recovery/shared/records'
 
 import type { AddTarget, ClauseRole, EditorFill, EditResult, SlotPosition } from './types'
 
@@ -51,11 +47,7 @@ export { emptySlot as emptySlotOf, isEmptySlot } from '@web/modules/social-recov
  * method it omits is no module.
  */
 export const methodKindOf = (method: Address, addressBook: AddressBook): SlotKind | undefined =>
-  SLOT_KINDS.find(
-    (kind) =>
-      !isAddressEqual(addressBook.methods[kind], zeroAddress) &&
-      isAddressEqual(addressBook.methods[kind], method)
-  )
+  methodKindIn(addressBook.methods, method)
 
 /**
  * The kind of a credential: the kind an empty slot waits for, or the address
@@ -63,7 +55,7 @@ export const methodKindOf = (method: Address, addressBook: AddressBook): SlotKin
  * does not hold has no kind.
  */
 export const kindOf = (credential: Credential, addressBook: AddressBook): SlotKind | undefined =>
-  isEmptySlot(credential) ? slotKindOf(credential) : methodKindOf(credential.method, addressBook)
+  credentialKindIn(credential, addressBook.methods)
 
 /** The address a guardian's config holds, ABI-encoded in one word. */
 export const guardianAddressOf = (credential: Credential): Address | undefined => {

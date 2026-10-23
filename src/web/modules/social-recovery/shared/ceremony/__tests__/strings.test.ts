@@ -79,9 +79,11 @@ describe('the ceremony tab strings', () => {
   })
 
   it('translates the screen through literal keys or the module key functions alone', () => {
-    const screen = SOURCES.find((s) => s.file === path.join('screen', 'CeremonyScreen.tsx'))
+    const screen = SOURCES.filter((s) => s.file.startsWith('screen') && s.file.endsWith('.tsx'))
     // The first argument of each t(...) call, up to its first comma or paren.
-    const calls = [...(screen?.text ?? '').matchAll(/\bt\(\s*([^,)]+)/g)].map((m) => m[1].trim())
+    const calls = screen.flatMap(({ text }) =>
+      [...text.matchAll(/\bt\(\s*([^,)]+)/g)].map((m) => m[1].trim())
+    )
     expect(calls.length).toBeGreaterThan(10)
     const allowed = /^('socialRecovery\.[A-Za-z0-9_.]+'$|noteKey$|lossLineKeyOf\(|lineKey$)/
     calls.forEach((arg) =>

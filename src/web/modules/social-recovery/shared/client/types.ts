@@ -19,7 +19,11 @@ import type { AccountOp } from '@ambire-common/libs/accountOp/accountOp'
 import type { Call } from '@ambire-common/libs/accountOp/types'
 import type { TokenResult } from '@ambire-common/libs/portfolio'
 import type { Action } from '@web/extension-services/background/actions'
-import type { VisibilitySource } from '@web/modules/social-recovery/shared/ceremony'
+import type {
+  CeremonyCall,
+  ChainVerdict,
+  VisibilitySource
+} from '@web/modules/social-recovery/shared/ceremony'
 import type {
   ActionState,
   Address,
@@ -42,6 +46,7 @@ import type {
   ISetupClient,
   KitError,
   KitNotification,
+  Params,
   PreparedBatch,
   PreparedCall,
   PrepareOptions,
@@ -155,6 +160,21 @@ export interface ParsedDeploymentVariable {
 
 /** What a chain runs: the scripted stand-in, or a deployed kit and its facts. */
 export type Deployment = { kind: 'stand-in' } | { kind: 'deployed'; facts: DeploymentFacts }
+
+/**
+ * The parameters each identity method takes at enrollment and at every claim,
+ * identical on every device for the life of a credential: the zkPassport
+ * domain and scope the identifier is derived under, and whether the phone
+ * proves against the test certificate tree; the Aadhaar nullifier seed and the
+ * issuer certificate the QR code's signature is checked against.
+ */
+export interface IdentityParams {
+  zkPassport: { domain: string; scope: string; testnetTree: boolean }
+  aadhaar: { nullifierSeed: bigint; issuerCertificate: string }
+}
+
+/** The identity parameters a chain carries: a method its deployment names none for is absent. */
+export type IdentityParamsReading = Partial<IdentityParams>
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -572,15 +592,34 @@ export interface RecoveryKitClient {
    * `zkpassport`): the one serving that module. Undefined for any other slug.
    */
   methodFor(slug: string): IRecoveryMethod | undefined
+  /**
+   * The params an identity method's `enrollInput` or `signingInput` takes on
+   * this chain for one call, with the name and purpose the zkPassport app shows
+   * on the phone. Undefined for a slug that is no identity method, and for one
+   * whose parameters the chain's deployment names none of.
+   */
+  methodParamsFor(slug: string, call: CeremonyCall): Params | undefined
   /** The wallet's own reads the SDK does not offer (wallet-reads.ts). */
   walletReads: WalletReads
 }
 
 /**
- * The part of a client a ceremony runs on: the approving side, its methods and
- * the descriptor their modules are read from. No part reads a chain.
+ * The part of a client a ceremony runs on: the approving side, its methods,
+ * the identity methods' parameters, the descriptor their modules are read
+ * from, and the chain's verdict.
  */
-export type ApprovingClient = Pick<RecoveryKitClient, 'approving' | 'methodFor' | 'descriptor'>
+export type ApprovingClient = Pick<
+  RecoveryKitClient,
+  'approving' | 'methodFor' | 'methodParamsFor' | 'descriptor'
+> & {
+  /**
+   * The chain's verdict over a reply: the `verify` view of the reply's method
+   * module, the static call the manager makes at submission. The one read a
+   * ceremony makes, for the access test of a method whose own check needs the
+   * contract's word.
+   */
+  chainVerdict?: ChainVerdict
+}
 
 /** Builds the client for an account on a chain; rejects where it cannot. */
 export type CeremonyClientFor = (account: Address, chainId: ChainId) => Promise<ApprovingClient>

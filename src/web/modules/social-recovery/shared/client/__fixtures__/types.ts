@@ -7,6 +7,9 @@ import type {
   IProvider,
   RawLog
 } from '@kohaku-eth/social-recovery'
+import type { CeremonyStep, CeremonyView } from '@web/modules/social-recovery/shared/ceremony'
+import type { World } from '@web/modules/social-recovery/shared/client/__tests__/harness'
+import type { RecoveryKitClient } from '@web/modules/social-recovery/shared/client/types'
 
 /** An approver request for an approval, the one purpose the module's verify judges a reply for. */
 export type ApprovalRequest = Extract<ApproverRequest, { purpose: 'approval' }>
@@ -67,4 +70,26 @@ export interface CommittedFields {
   setupCommitment: Hex
   publicMetadata?: Hex
   privateMetadata?: Hex
+}
+
+/** The steps and the views a device reported while a test followed it. */
+export interface Followed {
+  steps: CeremonyStep[]
+  views: CeremonyView[]
+}
+
+/** A client over the stand-in's world and the modules of its two identity methods. */
+export interface IdentityWorld {
+  world: World
+  client: RecoveryKitClient
+  zkModule: Address
+  aadhaarModule: Address
+}
+
+/** What a test heard of one scripted phone request: its events in order, and their payloads. */
+export interface Heard {
+  events: string[]
+  proofs: unknown[]
+  results: unknown[]
+  errors: string[]
 }

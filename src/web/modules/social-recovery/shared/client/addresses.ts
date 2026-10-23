@@ -13,7 +13,11 @@
  */
 import { isAddress, isAddressEqual, zeroAddress } from 'viem'
 
+import type { Credential } from '@kohaku-eth/social-recovery'
 import { PROXY_AMBIRE_ACCOUNT } from '@ambire-common/consts/deploy'
+import { isEmptySlot, slotKindOf } from '@web/modules/social-recovery/shared/records/slots'
+import { SLOT_KINDS } from '@web/modules/social-recovery/shared/records/types'
+import type { SlotKind } from '@web/modules/social-recovery/shared/records/types'
 
 import { deploymentOf } from './deployments'
 import type { AddressBook, DeploymentAddresses, RecoveryChain } from './types'
@@ -104,3 +108,27 @@ export const sameAddress = (a: string | undefined, b: string | undefined): boole
   isAddress(a, { strict: false }) &&
   isAddress(b, { strict: false }) &&
   isAddressEqual(a, b)
+
+/**
+ * The kind of method a module address serves among a deployment's method
+ * modules, matched whatever its case; a value that is not an address, or a
+ * module the deployment does not hold, has none. The zero address a
+ * deployment leaves for a method it omits is no module, so it matches nothing.
+ */
+export const methodKindIn = (
+  methods: AddressBook['methods'],
+  module: string
+): SlotKind | undefined =>
+  SLOT_KINDS.find(
+    (kind) => !sameAddress(methods[kind], zeroAddress) && sameAddress(methods[kind], module)
+  )
+
+/**
+ * The kind of method a credential holds: the kind an empty slot waits for, or
+ * the kind of an enrolled credential's method module.
+ */
+export const credentialKindIn = (
+  credential: Credential,
+  methods: AddressBook['methods']
+): SlotKind | undefined =>
+  isEmptySlot(credential) ? slotKindOf(credential) : methodKindIn(methods, credential.method)

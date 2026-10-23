@@ -86,6 +86,7 @@ import type {
   RawTransaction,
   Verdict
 } from '@kohaku-eth/social-recovery'
+import { anonAadhaarMethod, zkPassportMethod } from '@kohaku-eth/social-recovery/recovery-methods'
 import {
   bytesToHex,
   concat,
@@ -106,6 +107,7 @@ import {
 
 import { ACCOUNT_PRIVILEGES_ABI, ACTION_IMMUTABLES_ABI } from '../abi'
 import { providerReadFailure, revertedCall } from '../provider-adapter'
+import { createScriptedAadhaarStack } from './aadhaar-stack'
 import type {
   ScriptedAttemptOptions,
   ScriptedBlock,
@@ -118,6 +120,7 @@ import type {
   ScriptedOpening,
   ScriptedVerdict
 } from './types'
+import { createScriptedZkPassportStack } from './zkpassport-stack'
 
 const BLOCK_TIME = 12
 const DAY = 24 * 3600
@@ -127,6 +130,28 @@ const MANAGER_INTERFACE_ID: Hex = '0x675e6a4a'
 const PROVIDER_READ_NAMES = ['chainId', 'call', 'logs', 'block', 'code', 'transaction'] as const
 // Any non-empty code: the node answers the views itself.
 const CONTRACT_CODE: Hex = '0x6080604052'
+
+/** Where the zkPassport outer proof's nullifier type and scoped nullifier sit, from the end of its public inputs. */
+const NULLIFIER_TYPE_FROM_END = 3
+const SCOPED_NULLIFIER_FROM_END = 2
+
+/** Where the Aadhaar proof's nullifier, timestamp, disclosures, seed and signal hash sit among its nine public inputs. */
+const AADHAAR_NULLIFIER_INPUT = 1
+const AADHAAR_TIMESTAMP_INPUT = 2
+const AADHAAR_DISCLOSURE_INPUTS = [3, 4, 5, 6] as const
+const AADHAAR_SEED_INPUT = 7
+const AADHAAR_SIGNAL_HASH_INPUT = 8
+/** The shortest freshness window an Aadhaar config may carry, in seconds. */
+const AADHAAR_MIN_FRESHNESS_WINDOW = 3600n
+
+const isFieldRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+/** A list's word `fromEnd` places from its end as a number, or undefined. */
+const wordFromEnd = (list: readonly unknown[], fromEnd: number): bigint | undefined => {
+  const value = list[list.length - fromEnd]
+  return typeof value === 'string' || typeof value === 'bigint' ? BigInt(value) : undefined
+}
 
 const NO_ATTEMPT = {
   attemptId: 0n,
@@ -226,6 +251,10 @@ export class ScriptedNode implements IProvider {
   private readonly absent = new Set<string>()
 
   private readonly passkeyCodec = passkeyMethod().codec
+
+  private readonly zkPassportCodec = zkPassportMethod(createScriptedZkPassportStack()).codec
+
+  private readonly aadhaarCodec = anonAadhaarMethod({ stack: createScriptedAadhaarStack() }).codec
 
   private readonly codec: AmbireActionCodec
 
@@ -479,7 +508,10 @@ export class ScriptedNode implements IProvider {
     }
   }
 
-  /** Seeds the passkey module's verdict over every proof for one credential's config. */
+  /**
+   * Seeds the verdict of the passkey or an identity module over every proof for
+   * one credential's config.
+   */
   setVerdict(config: Hex, verdict: ScriptedVerdict): void {
     this.verdicts.set(config.toLowerCase(), verdict)
   }
@@ -588,10 +620,17 @@ export class ScriptedNode implements IProvider {
 
   /**
    * A method module's verdict over one proof: the ECDSA module's is the signer
-   * the digest and the 65-byte proof recover against the config's address; the
-   * passkey module's is the one `setVerdict` seeded for the config, else a
-   * proof the passkey codec decodes satisfies, since the node runs no WebAuthn.
-   * Any other module rejects.
+   * the digest and the 65-byte proof recover against the config's address. The
+   * passkey and the identity modules answer the verdict `setVerdict` seeded for
+   * the config where one was; otherwise a passkey proof the passkey codec
+   * decodes satisfies, since the node runs no WebAuthn; a zkPassport proof
+   * satisfies where it decodes, its nullifier type is the non-salted one and
+   * its scoped nullifier is the config's identifier; an Aadhaar proof
+   * satisfies where it decodes, the config's window is at least an hour, the
+   * proof carries the config's nullifier and seed, discloses nothing, carries
+   * the digest's signal hash and was signed within the window of the latest
+   * block's time. The node checks no proof's cryptography. Any other module,
+   * and the zero address a deployment gives a method it omits, rejects.
    */
   private async verdictOf(module: Address, config: Hex, digest: Hex, proof: Hex): Promise<Verdict> {
     const d = this.descriptor
@@ -604,19 +643,65 @@ export class ScriptedNode implements IProvider {
         return 'rejected'
       }
     }
-    if (isAddressEqual(module, d.methodPasskey)) {
-      const seeded = this.verdicts.get(config.toLowerCase())
-      if (seeded) {
-        return seeded
-      }
-      try {
+    const judged = [d.methodPasskey, d.methodZkpassport, d.methodAadhaar].some(
+      (address) => !isAddressEqual(address, zeroAddress) && isAddressEqual(module, address)
+    )
+    if (!judged) {
+      return 'rejected'
+    }
+    const seeded = this.verdicts.get(config.toLowerCase())
+    if (seeded) {
+      return seeded
+    }
+    try {
+      if (isAddressEqual(module, d.methodPasskey)) {
         this.passkeyCodec.decodeProof(proof)
         return 'satisfied'
-      } catch {
-        return 'rejected'
       }
+      if (isAddressEqual(module, d.methodZkpassport)) {
+        return this.zkPassportVerdict(config, proof)
+      }
+      return this.aadhaarVerdict(config, digest, proof)
+    } catch {
+      return 'rejected'
     }
-    return 'rejected'
+  }
+
+  private zkPassportVerdict(config: Hex, proof: Hex): Verdict {
+    const { uniqueIdentifier } = this.zkPassportCodec.decodeConfig(config)
+    const { proofVerificationData } = this.zkPassportCodec.decodeProof(proof)
+    const inputs = isFieldRecord(proofVerificationData)
+      ? proofVerificationData.publicInputs
+      : undefined
+    if (typeof uniqueIdentifier !== 'string' || !Array.isArray(inputs)) {
+      return 'rejected'
+    }
+    const identifier = BigInt(uniqueIdentifier)
+    return identifier !== 0n &&
+      wordFromEnd(inputs, NULLIFIER_TYPE_FROM_END) === 0n &&
+      wordFromEnd(inputs, SCOPED_NULLIFIER_FROM_END) === identifier
+      ? 'satisfied'
+      : 'rejected'
+  }
+
+  private aadhaarVerdict(config: Hex, digest: Hex, proof: Hex): Verdict {
+    const { nullifier, nullifierSeed, freshnessWindow } = this.aadhaarCodec.decodeConfig(config)
+    const { inputs } = this.aadhaarCodec.decodeProof(proof)
+    if (!Array.isArray(inputs) || typeof freshnessWindow !== 'bigint') {
+      return 'rejected'
+    }
+    const signedAt = inputs[AADHAAR_TIMESTAMP_INPUT]
+    const now = BigInt(this.head.timestamp)
+    const fresh =
+      typeof signedAt === 'bigint' && !(signedAt < now && now - signedAt > freshnessWindow)
+    return freshnessWindow >= AADHAAR_MIN_FRESHNESS_WINDOW &&
+      inputs[AADHAAR_NULLIFIER_INPUT] === nullifier &&
+      inputs[AADHAAR_SEED_INPUT] === nullifierSeed &&
+      AADHAAR_DISCLOSURE_INPUTS.every((index) => inputs[index] === 0n) &&
+      inputs[AADHAAR_SIGNAL_HASH_INPUT] === BigInt(keccak256(digest)) / 8n &&
+      fresh
+      ? 'satisfied'
+      : 'rejected'
   }
 
   /**

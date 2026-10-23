@@ -3,14 +3,31 @@
  * per deployment and account for the life of the page, so a setup client and
  * a recovery client built for one account read the same world, and a reload
  * starts it afresh. Tests and the development build seed that world through
- * `nodeFor`.
+ * `nodeFor`. The identity methods run over scripted stacks kept the same way,
+ * one per deployment, which tests and the development build script through
+ * `zkPassportStackFor` and `aadhaarStackFor`.
  */
 import type { Address, DeploymentDescriptor, IProvider } from '@kohaku-eth/social-recovery'
 
-import { ScriptedNode } from './scripted'
-import type { ScriptedNodeSeed } from './scripted'
+import { createScriptedAadhaarStack, createScriptedZkPassportStack, ScriptedNode } from './scripted'
+import type { ScriptedAadhaarStack, ScriptedNodeSeed, ScriptedZkPassportStack } from './scripted'
 
 const nodes = new Map<string, ScriptedNode>()
+const zkPassportStacks = new Map<string, ScriptedZkPassportStack>()
+const aadhaarStacks = new Map<string, ScriptedAadhaarStack>()
+
+const deploymentKeyOf = (descriptor: DeploymentDescriptor): string =>
+  [descriptor.chainId, descriptor.manager, descriptor.action].join(':').toLowerCase()
+
+const kept = <T>(map: Map<string, T>, key: string, create: () => T): T => {
+  const found = map.get(key)
+  if (found) {
+    return found
+  }
+  const created = create()
+  map.set(key, created)
+  return created
+}
 
 const keyOf = (descriptor: DeploymentDescriptor, account: Address): string =>
   [descriptor.chainId, descriptor.manager, descriptor.action, account].join(':').toLowerCase()
@@ -40,8 +57,22 @@ export const sdkStandIn = {
     return node
   },
 
-  /** Forgets every fake node. */
+  /** The scripted zkPassport stack of one deployment, created on first use. */
+  zkPassportStackFor(descriptor: DeploymentDescriptor): ScriptedZkPassportStack {
+    return kept(zkPassportStacks, deploymentKeyOf(descriptor), () =>
+      createScriptedZkPassportStack()
+    )
+  },
+
+  /** The scripted Aadhaar stack of one deployment, created on first use. */
+  aadhaarStackFor(descriptor: DeploymentDescriptor): ScriptedAadhaarStack {
+    return kept(aadhaarStacks, deploymentKeyOf(descriptor), () => createScriptedAadhaarStack())
+  },
+
+  /** Forgets every fake node and every scripted stack. */
   reset(): void {
     nodes.clear()
+    zkPassportStacks.clear()
+    aadhaarStacks.clear()
   }
 }
