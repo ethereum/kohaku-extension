@@ -1,7 +1,7 @@
 /**
- * An identity row, a passport or an Aadhaar identity, or a method this wallet
- * does not know: this release asks it nothing, so it shows its kind name, or
- * the method's address, and its chip, and offers no action.
+ * A row the checklist asks nothing: a method this wallet does not know, or a
+ * passport or an Aadhaar identity the client cannot claim here. It shows its
+ * kind name, or the method's address, and its chip, and offers no action.
  */
 import React from 'react'
 

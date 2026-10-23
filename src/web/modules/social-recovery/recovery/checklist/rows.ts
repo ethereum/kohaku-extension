@@ -17,6 +17,7 @@ import type {
   ChecklistKitClient,
   ChecklistLayout,
   ChecklistRow,
+  IdentityClaimSlug,
   RowState,
   RowStateExtras,
   UnlockLineKey,
@@ -122,11 +123,33 @@ export const headlineOfAssessment = (assessment: Assessment): ChecklistHeadline 
 }
 
 /**
- * This release asks a passkey and a guardian; an identity row, or a method it
- * does not know, it asks nothing.
+ * The checklist asks a passkey and a guardian, and a passport or an Aadhaar
+ * identity where the client runs that method's claim here; a method it does
+ * not know, or an identity method the client cannot serve, it asks nothing.
  */
-export const isAsked = (row: ChecklistRow): boolean =>
-  row.kind === 'passkey' || row.kind === 'ecdsa'
+export const isAsked = (
+  row: ChecklistRow,
+  served: ReadonlySet<IdentityClaimSlug> = new Set()
+): boolean => {
+  if (row.kind === 'passkey' || row.kind === 'ecdsa') {
+    return true
+  }
+  return (row.kind === 'zkpassport' || row.kind === 'aadhaar') && served.has(row.kind)
+}
+
+/**
+ * The identity methods the client runs a claim for: the registry holds the
+ * method and the chain names the params its claim takes.
+ */
+export const servedIdentitiesOf = (
+  kit: Pick<ChecklistKitClient, 'methodFor' | 'methodParamsFor'>,
+  slugs: readonly IdentityClaimSlug[]
+): ReadonlySet<IdentityClaimSlug> =>
+  new Set(
+    slugs.filter(
+      (slug) => !!kit.methodFor(slug) && kit.methodParamsFor(slug, 'createClaim') !== undefined
+    )
+  )
 
 /**
  * One row's state. A reply completes it, unless the rule is satisfied and the
@@ -152,7 +175,7 @@ export const rowStateOf = (
   if (assessment.ruleSatisfied || clauseComplete(assessment, row.clause)) {
     return { chip: 'notNeeded', replied }
   }
-  if (!isAsked(row)) {
+  if (!isAsked(row, extras.served)) {
     return { chip: 'notAsked', replied }
   }
   if (extras.didNotAnswer?.has(row.place)) {
@@ -208,7 +231,8 @@ export const chosenPlacesOf = (
 /**
  * Whether a claim's outcome says its method did not answer this time: the
  * device or the hand-off could not be reached, or the ceremony failed. A reply
- * the client refused is an answer, not a silence.
+ * the client refused, or a proof that did not match, is an answer, not a
+ * silence.
  */
 export const methodDidNotAnswer = (outcome: CeremonyOutcome<unknown>): boolean => {
   if (outcome.kind !== 'verdict') {
@@ -217,7 +241,11 @@ export const methodDidNotAnswer = (outcome: CeremonyOutcome<unknown>): boolean =
   if (outcome.verdict === 'unavailable') {
     return true
   }
-  return outcome.verdict === 'failed' && outcome.cause !== 'check-rejected'
+  return (
+    outcome.verdict === 'failed' &&
+    outcome.cause !== 'check-rejected' &&
+    outcome.cause !== 'material-rejected'
+  )
 }
 
 /**
@@ -229,7 +257,8 @@ export const methodDidNotAnswer = (outcome: CeremonyOutcome<unknown>): boolean =
 export const unsatisfiedOf = (
   layout: ChecklistLayout,
   assessment: Assessment,
-  states: ReadonlyMap<number, RowState>
+  states: ReadonlyMap<number, RowState>,
+  served?: ReadonlySet<IdentityClaimSlug>
 ): UnsatisfiedReading | null => {
   if (assessment.ruleSatisfied) {
     return null
@@ -247,7 +276,7 @@ export const unsatisfiedOf = (
       }
       const reachable = group.rows.filter((row) => {
         const state = states.get(row.place)
-        return !!state && (state.replied || (!state.note && isAsked(row)))
+        return !!state && (state.replied || (!state.note && isAsked(row, served)))
       }).length
       return reachable < group.threshold
     })

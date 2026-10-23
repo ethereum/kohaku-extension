@@ -1,8 +1,11 @@
 /**
- * The passkey rows' claim ceremony. A claim stores its request before the
- * tab leaves for the ceremony tab, and the return path carries the request's
- * id back. The report is read and left in place, so a passed claim survives a
- * reload until its reply is added. A report that lands after the mount
+ * The rows' claim ceremony, for every method the checklist claims through the
+ * ceremony tab: a passkey, a passport and an Aadhaar identity. A claim stores
+ * its request, with its method's slug and params, before the tab leaves for
+ * the ceremony tab, and the return path carries the request's id back; the
+ * stored request names the method whose report the return reads. The report
+ * is read and left in place, so a passed claim survives a reload until its
+ * reply is added. A report that lands after the mount
  * arrives through the subscription. A claim that did not pass loses its
  * request, its report and its id at once; a passed claim waits as `pending`,
  * its request, report and id kept, until the checklist adds its reply to the
@@ -11,7 +14,9 @@
  * that lands after the wipe included, and so does every claim of the account
  * stored for the request that died, one this tab never saw included. No
  * outcome and no undelivered claim outlives the wipe. A landed session leaves
- * no claim behind in the same way.
+ * no claim behind in the same way. One launch writes one request: a press
+ * while a launch or a retry runs does nothing, and a retry of an undelivered
+ * claim writes its one replacement only after the stale request is gone.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -19,6 +24,7 @@ import type { ApproverRequest } from '@kohaku-eth/social-recovery'
 import {
   ceremonyPath,
   ceremonyResultKey,
+  failed,
   isCeremonyReport,
   isReportFor,
   readCeremonyReport
@@ -36,25 +42,25 @@ import {
   claimReplyOf,
   claimRequestRecordOf
 } from './claim'
-import { PASSKEY_SLUG } from './constants'
 import { checklistPathOf } from './search'
 import type {
+  CeremonyClaim,
+  CeremonyClaimInput,
   ClaimAsked,
+  ClaimLaunch,
   ClaimOutcome,
   ClaimReply,
-  DeadRequest,
-  PasskeyClaim,
-  PasskeyClaimInput
+  DeadRequest
 } from './types'
 
-const usePasskeyClaim = ({
+const useCeremonyClaim = ({
   records,
   chainId,
   account,
   search,
   navigate,
   deps
-}: PasskeyClaimInput): PasskeyClaim => {
+}: CeremonyClaimInput): CeremonyClaim => {
   const [outcomes, setOutcomes] = useState<Partial<Record<number, ClaimOutcome>>>({})
   const [pending, setPending] = useState<ClaimReply | null>(null)
   const [undelivered, setUndelivered] = useState<ClaimAsked | null>(null)
@@ -68,8 +74,12 @@ const usePasskeyClaim = ({
   // later is removed in turn and changes nothing on the checklist.
   const forgotten = useRef(new Set<string>())
 
-  const launch = useCallback(
-    async (request: ApproverRequest, handOff: boolean) => {
+  // Set from the first press until the write fails or the tab leaves for the
+  // ceremony, so a second press in between writes nothing.
+  const inFlight = useRef(false)
+
+  const start = useCallback(
+    async (request: ApproverRequest, { method, params, handOff }: ClaimLaunch) => {
       const id = deps.newRequestId()
       setBusy(true)
       setLaunchFailed(false)
@@ -77,8 +87,9 @@ const usePasskeyClaim = ({
       try {
         await records
           .ceremonyRequest(id)
-          .write(claimRequestRecordOf({ account, chainId, request, handOff }))
+          .write(claimRequestRecordOf(method, { account, chainId, request }, params))
       } catch {
+        inFlight.current = false
         setLaunchFailed(true)
         setLaunching(null)
         setBusy(false)
@@ -87,7 +98,7 @@ const usePasskeyClaim = ({
       navigate(
         ceremonyPath({
           call: 'createClaim',
-          method: PASSKEY_SLUG,
+          method,
           id,
           handOff,
           returnTo: checklistPathOf(account, id)
@@ -95,6 +106,17 @@ const usePasskeyClaim = ({
       )
     },
     [deps, records, account, chainId, navigate]
+  )
+
+  const launch = useCallback(
+    async (request: ApproverRequest, how: ClaimLaunch) => {
+      if (inFlight.current) {
+        return
+      }
+      inFlight.current = true
+      await start(request, how)
+    },
+    [start]
   )
 
   /**
@@ -126,13 +148,15 @@ const usePasskeyClaim = ({
       }
       setUndelivered(null)
       const { outcome } = report
-      setOutcomes((held) => ({ ...held, [asked.place]: { outcome, handOff: asked.handOff } }))
-      if (outcome.kind === 'verdict' && outcome.verdict === 'passed') {
-        const passed = claimReplyOf(outcome.value)
-        if (passed) {
-          setPending({ place: asked.place, id: ceremonyId, ...passed })
-          return
-        }
+      const isPassed = outcome.kind === 'verdict' && outcome.verdict === 'passed'
+      const passed = isPassed ? claimReplyOf(outcome.value, asked.request) : null
+      // A passed report that carries no answer to the stored request fills
+      // nothing and reads as refused, so the row stays open with its retry.
+      const held = isPassed && !passed ? failed('check-rejected') : outcome
+      setOutcomes((all) => ({ ...all, [asked.place]: { outcome: held, handOff: asked.handOff } }))
+      if (passed) {
+        setPending({ place: asked.place, id: ceremonyId, ...passed })
+        return
       }
       forget(ceremonyId)
     }
@@ -152,7 +176,7 @@ const usePasskeyClaim = ({
         navigate(checklistPathOf(account), { replace: true })
         return
       }
-      const identity: ReportIdentity = { id: ceremonyId, call: 'createClaim', method: PASSKEY_SLUG }
+      const identity: ReportIdentity = { id: ceremonyId, call: 'createClaim', method: asked.method }
       const report = await readCeremonyReport(identity, deps.reportStore, deps.now())
       if (!live) {
         return
@@ -206,9 +230,11 @@ const usePasskeyClaim = ({
   // A report that never came back: the stale request goes, the search drops
   // its id, and the same claim runs again under a new one.
   const retryUndelivered = useCallback(async () => {
-    if (!undelivered || !ceremonyId) {
+    if (!undelivered || !ceremonyId || inFlight.current) {
       return
     }
+    inFlight.current = true
+    setBusy(true)
     stopListening.current?.()
     stopListening.current = undefined
     await records
@@ -217,8 +243,8 @@ const usePasskeyClaim = ({
       .catch(() => undefined)
     const asked = undelivered
     setUndelivered(null)
-    await launch(asked.request, asked.handOff)
-  }, [undelivered, ceremonyId, records, launch])
+    await start(asked.request, asked)
+  }, [undelivered, ceremonyId, records, start])
 
   // An abandoned session takes its waiting claim with it, and a claim whose
   // report has not come back stops listening and loses its request and any
@@ -304,4 +330,4 @@ const usePasskeyClaim = ({
   }
 }
 
-export default usePasskeyClaim
+export default useCeremonyClaim

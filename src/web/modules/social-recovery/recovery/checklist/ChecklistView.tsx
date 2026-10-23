@@ -26,12 +26,15 @@ import {
 } from '@web/modules/social-recovery/shared/chrome'
 import { addressBookOf, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
 
+import AadhaarRow from './AadhaarRow'
 import AbandonBlock from './AbandonBlock'
 import ChecklistRows from './ChecklistRows'
+import { IDENTITY_CLAIM_SLUGS, PASSKEY_SLUG } from './constants'
 import DeadlineBlock from './DeadlineBlock'
 import GuardianRow from './GuardianRow'
 import IdentityRow from './IdentityRow'
 import PasskeyRow from './PasskeyRow'
+import PassportRow from './PassportRow'
 import PollAlert from './PollAlert'
 import { attemptLive, deadlinePassed } from './poll'
 import {
@@ -40,6 +43,7 @@ import {
   layoutOf,
   methodDidNotAnswer,
   rowStatesOf,
+  servedIdentitiesOf,
   unlockLineKeyOf,
   unsatisfiedOf
 } from './rows'
@@ -52,13 +56,14 @@ import type {
   ChecklistRow,
   ChecklistViewProps,
   DeadRequest,
+  IdentityClaimSlug,
   Navigate,
   SlotReading
 } from './types'
 import UnsatisfiedBlock from './UnsatisfiedBlock'
+import useCeremonyClaim from './useCeremonyClaim'
 import useChecklist from './useChecklist'
 import useGuardianSupport from './useGuardianSupport'
-import usePasskeyClaim from './usePasskeyClaim'
 import WipedBlock from './WipedBlock'
 
 const CHECKLIST = 'socialRecovery.checklist'
@@ -95,7 +100,7 @@ const ChecklistView = ({
 }: ChecklistViewProps) => {
   const { t } = useTranslation()
   const book = useMemo(() => addressBookOf(WALLET_RECOVERY_CHAIN), [])
-  const claim = usePasskeyClaim({ records, chainId, account, search, navigate, deps })
+  const claim = useCeremonyClaim({ records, chainId, account, search, navigate, deps })
   // A landed request keeps no claim either: the tab leaves for the wait only
   // once the claims of the request that landed lose their requests and reports.
   const lastRequest = useRef<DeadRequest | null>(null)
@@ -132,6 +137,10 @@ const ChecklistView = ({
     }
   }, [live])
   const pollClock = poll.status === 'answered' ? poll.clock : null
+  const served = useMemo(
+    () => (kit ? servedIdentitiesOf(kit, IDENTITY_CLAIM_SLUGS) : new Set<IdentityClaimSlug>()),
+    [kit]
+  )
 
   const layout = useMemo(
     () => (live ? layoutOf(live.configuration, live.session.gathering, book) : null),
@@ -175,10 +184,11 @@ const ChecklistView = ({
       layout && assessment
         ? rowStatesOf(layout, assessment, live?.session.notes, claim.asked, {
             chosen,
-            didNotAnswer
+            didNotAnswer,
+            served
           })
         : null,
-    [layout, assessment, live, claim.asked, chosen, didNotAnswer]
+    [layout, assessment, live, claim.asked, chosen, didNotAnswer, served]
   )
   const guardianSupport = useGuardianSupport({
     kit,
@@ -274,7 +284,7 @@ const ChecklistView = ({
   )
   const title = titleOf(false)
 
-  const retryButton = (onPress: () => void, testID: string) => (
+  const retryButton = (onPress: () => void, testID: string, disabled = false) => (
     <View style={spacings.mtTy}>
       <Button
         testID={testID}
@@ -282,6 +292,7 @@ const ChecklistView = ({
         size="small"
         text={t('socialRecovery.writes.tryAgain')}
         onPress={onPress}
+        disabled={disabled}
         hasBottomSpacing={false}
         style={flexbox.alignSelfStart}
       />
@@ -410,7 +421,7 @@ const ChecklistView = ({
   const busy = checklist.busy || claim.busy || held
   const satisfied = assessment.ruleSatisfied
   const everyRowComplete = [...states.values()].every((state) => state.chip === 'complete')
-  const unsatisfied = unsatisfiedOf(layout, assessment, states)
+  const unsatisfied = unsatisfiedOf(layout, assessment, states, served)
 
   const renderRow = (row: ChecklistRow) => {
     const state = states.get(row.place)
@@ -432,7 +443,28 @@ const ChecklistView = ({
           timeZone={deps.timeZone}
           route={entry.route}
           launch={(asked, handOff) => {
-            claim.launch(asked, handOff).catch(() => undefined)
+            claim
+              .launch(asked, { method: PASSKEY_SLUG, params: { handOff }, handOff })
+              .catch(() => undefined)
+          }}
+        />
+      )
+    }
+    if ((row.kind === 'zkpassport' || row.kind === 'aadhaar') && kit && served.has(row.kind)) {
+      const slug = row.kind
+      const IdentityClaimRow = slug === 'zkpassport' ? PassportRow : AadhaarRow
+      return (
+        <IdentityClaimRow
+          row={row}
+          state={state}
+          request={request}
+          outcome={claim.outcomes[row.place]}
+          busy={busy}
+          launch={(asked) => {
+            const params = kit.methodParamsFor(slug, 'createClaim')
+            if (params) {
+              claim.launch(asked, { method: slug, params, handOff: false }).catch(() => undefined)
+            }
           }}
         />
       )
@@ -525,9 +557,13 @@ const ChecklistView = ({
             style={spacings.mbSm}
             text={t('socialRecovery.ceremony.undeliveredNote')}
           >
-            {retryButton(() => {
-              claim.retryUndelivered().catch(() => undefined)
-            }, 'checklist-undelivered-retry')}
+            {retryButton(
+              () => {
+                claim.retryUndelivered().catch(() => undefined)
+              },
+              'checklist-undelivered-retry',
+              busy
+            )}
           </Alert>
         )}
         {(claim.launchFailed || checklist.noteFailed || pendingFailed) && (

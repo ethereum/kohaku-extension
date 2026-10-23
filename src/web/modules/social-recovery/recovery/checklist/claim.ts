@@ -1,41 +1,51 @@
 /**
- * The passkey row's claim: the ceremony request it stores before the tab
- * leaves for the ceremony, and what it reads back from that request and from
- * the tab's report. A stored request and a report are read from storage, so
+ * A row's claim, a passkey's or an identity method's: the ceremony request it
+ * stores before the tab leaves for the ceremony, and what it reads back from
+ * that request and from the tab's report. A stored request and a report are read from storage, so
  * their values are checked here before the row uses them.
  */
-import type { Reply } from '@kohaku-eth/social-recovery'
+import type { ApproverRequest, Params, Reply } from '@kohaku-eth/social-recovery'
 import { AUTHENTICATOR_PLACES } from '@web/modules/social-recovery/shared/ceremony'
 import { sameAddress } from '@web/modules/social-recovery/shared/client'
 import { recordKeys } from '@web/modules/social-recovery/shared/records'
 import type { CeremonyRequestRecord } from '@web/modules/social-recovery/shared/records'
 
-import { PASSKEY_SLUG } from './constants'
+import { CLAIM_SLUGS } from './constants'
 import type { ClaimAsked, ClaimRequestInput, ClaimTarget, DeadRequest, PassedClaim } from './types'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
-/** The claim's ceremony request: the place's request, and whether the holder chose the phone. */
-export const claimRequestRecordOf = (input: ClaimRequestInput): CeremonyRequestRecord => ({
+/**
+ * The claim's ceremony request: the method's slug, the place's request, and
+ * the params the method receives; a passkey's say whether the holder chose
+ * the phone.
+ */
+export const claimRequestRecordOf = (
+  method: string,
+  input: ClaimRequestInput,
+  params: Params
+): CeremonyRequestRecord => ({
   call: 'createClaim',
-  method: PASSKEY_SLUG,
+  method,
   account: input.account,
   chainId: input.chainId,
   request: input.request,
-  params: { handOff: input.handOff }
+  params
 })
 
 /**
  * What a stored request asked for, or null for any other request: the
  * requests live under one key for every account, so a request another
- * account, chain or call stored is not this checklist's to take.
+ * account, chain, call or method stored is not this checklist's to take. The
+ * slugs default to every method the checklist claims.
  */
 export const claimAskedOf = (
   record: CeremonyRequestRecord,
-  target: ClaimTarget
+  target: ClaimTarget,
+  slugs: readonly string[] = CLAIM_SLUGS
 ): ClaimAsked | null => {
-  if (record.call !== 'createClaim' || record.method !== PASSKEY_SLUG) {
+  if (record.call !== 'createClaim' || !slugs.includes(record.method)) {
     return null
   }
   if (!sameAddress(record.account, target.account)) {
@@ -47,8 +57,14 @@ export const claimAskedOf = (
   if (!sameAddress(record.request.account, target.account)) {
     return null
   }
-  const handOff = isRecord(record.params) && record.params.handOff === true
-  return { place: record.request.place, request: record.request, handOff }
+  const params = isRecord(record.params) ? record.params : {}
+  return {
+    place: record.request.place,
+    request: record.request,
+    method: record.method,
+    params,
+    handOff: params.handOff === true
+  }
 }
 
 /**
@@ -84,17 +100,32 @@ export const claimOfDeadRequest = (
 }
 
 /**
- * A passed claim's reply as the report carries it, with where the
- * authenticator sat, or null where the value carries no reply. The client's
- * add judges the reply itself; this check only keeps a value that is not one
- * away from it.
+ * Whether a reply answers the stored request: the same place, method,
+ * configuration, attempt, account and chain. A reply for any other place
+ * would fill that place while the asked one read answered.
  */
-export const claimReplyOf = (value: unknown): PassedClaim | null => {
+const answersRequest = (reply: Record<string, unknown>, request: ApproverRequest): boolean =>
+  reply.place === request.place &&
+  typeof reply.method === 'string' &&
+  sameAddress(reply.method, request.method) &&
+  reply.config === request.config &&
+  reply.attemptId === request.attemptId &&
+  typeof reply.account === 'string' &&
+  sameAddress(reply.account, request.account) &&
+  reply.chainId === request.chainId
+
+/**
+ * A passed claim's reply as the report carries it, with where the
+ * authenticator sat, or null where the value carries no reply or a reply to
+ * any request but the stored one. The client's add judges the reply itself;
+ * this check only keeps a value that is not this claim's answer away from it.
+ */
+export const claimReplyOf = (value: unknown, request: ApproverRequest): PassedClaim | null => {
   if (!isRecord(value) || !isRecord(value.reply)) {
     return null
   }
   const { reply, facts } = value
-  if (reply.kind !== 'recovery-proof-reply' || typeof reply.place !== 'number') {
+  if (reply.kind !== 'recovery-proof-reply' || !answersRequest(reply, request)) {
     return null
   }
   const place = isRecord(facts)

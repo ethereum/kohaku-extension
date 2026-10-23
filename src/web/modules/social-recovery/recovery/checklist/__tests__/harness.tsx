@@ -28,6 +28,7 @@ import type {
   Credential,
   Gathering,
   Hex,
+  Params,
   Reply,
   SerializedPaymentOrder
 } from '@kohaku-eth/social-recovery'
@@ -196,6 +197,8 @@ export interface TestStorage extends RecordStorage {
   hold: (name: string) => () => void
   /** Every write of a key that holds one of these names fails while listed. */
   refuse: string[]
+  /** Holds every removal until the returned release runs. */
+  holdRemovals: () => () => void
   /** Every stored value by key, as the extension's storage holds it. */
   getAll: NonNullable<RecordStorage['getAll']>
 }
@@ -215,6 +218,7 @@ afterEach(() => {
 export const makeStorage = (): TestStorage => {
   const raw = new Map<string, string>()
   const held = new Map<string, Promise<void>>()
+  let removals: Promise<void> = Promise.resolve()
   const sets: string[] = []
   const refuse: string[] = []
   const refuses = (key: string) => refuse.some((name) => key.includes(name))
@@ -243,6 +247,17 @@ export const makeStorage = (): TestStorage => {
       )
       return () => release()
     },
+    holdRemovals: () => {
+      let release = () => {}
+      removals = new Promise<void>((resolve) => {
+        release = () => {
+          openHolds.delete(release)
+          resolve()
+        }
+        openHolds.add(release)
+      })
+      return () => release()
+    },
     get: async (key, defaultValue) => {
       const stored = key && raw.get(key)
       return stored ? parse(stored) : defaultValue
@@ -265,10 +280,12 @@ export const makeStorage = (): TestStorage => {
       Object.entries(entries).forEach(([key, value]) => put(key, value))
     },
     remove: async (key) => {
+      await removals
       raw.delete(key)
       return null
     },
     removeKeys: async (keys) => {
+      await removals
       keys.forEach((key) => raw.delete(key))
     }
   }
@@ -314,6 +331,12 @@ export const guardianCredential = (address: Address, label?: string): Credential
 export const passportCredential = (): Credential => ({
   method: BOOK.methods.zkpassport,
   config: word(9)
+})
+
+export const aadhaarCredential = (label?: string): Credential => ({
+  method: BOOK.methods.aadhaar,
+  config: word(10),
+  ...(label ? { label } : {})
 })
 
 export const configurationOf = (clauses: Clause[]): Configuration => ({
@@ -493,8 +516,21 @@ export const assessmentOf = (configuration: Configuration, gathering: Gathering)
 // The client
 // ---------------------------------------------------------------------------
 
+/**
+ * The identity methods the client serves, by slug: the params each call of
+ * the method takes. A slug listed here is held by the registry; a call it
+ * names no params for has none.
+ */
+export type ServedMethods = Partial<Record<string, Partial<Record<CeremonyCall, Params>>>>
+
 export interface FakeKit {
   state: ChecklistClient
+  /**
+   * The identity methods the client serves. The checklist reads them once per
+   * client, so a test sets them before it mounts.
+   */
+  served: ServedMethods
+  methodParamsFor: jest.Mock
   initRecoveryGathering: jest.Mock
   getApproverRequests: jest.Mock
   addApproverReply: jest.Mock
@@ -513,8 +549,10 @@ export interface FakeKit {
  * under the next attempt number; a reply the gathering does not name is
  * refused as the SDK refuses it.
  */
-export const fakeKit = (configuration: Configuration): FakeKit => {
+export const fakeKit = (configuration: Configuration, served: ServedMethods = {}): FakeKit => {
   let inits = 0
+  const methodFor = jest.fn((slug: string) => (served[slug] ? { slug } : undefined))
+  const methodParamsFor = jest.fn((slug: string, call: CeremonyCall) => served[slug]?.[call])
   const initRecoveryGathering = jest.fn(async () => {
     inits += 1
     return gatheringOf(configuration, inits)
@@ -565,10 +603,14 @@ export const fakeKit = (configuration: Configuration): FakeKit => {
     walletReads: { removedKey },
     action: { isAuthorized },
     approving: { verify },
-    descriptor: { manager: BOOK.manager, action: BOOK.action }
+    descriptor: { manager: BOOK.manager, action: BOOK.action },
+    methodFor,
+    methodParamsFor
   } as unknown as ChecklistKitClient
   return {
     state: { status: 'ready', client },
+    served,
+    methodParamsFor,
     initRecoveryGathering,
     getApproverRequests,
     addApproverReply,
@@ -675,14 +717,16 @@ export interface ReportChannel {
   store: ReportStore
   subscribe: ReportSubscribe
   /**
-   * Writes the report the tab writes for the ceremony `id` at `at` (ms, the
-   * fixed clock by default), and tells the listeners.
+   * Writes the report the tab writes for the ceremony `id` of the method
+   * `method` (a passkey by default) at `at` (ms, the fixed clock by default),
+   * and tells the listeners.
    */
   report: (
     id: string,
     call: CeremonyCall,
     outcome: CeremonyOutcome<unknown>,
-    at?: number
+    at?: number,
+    method?: string
   ) => Promise<void>
 }
 
@@ -709,9 +753,9 @@ export const reportChannel = (): ReportChannel => {
   return {
     store,
     subscribe,
-    report: async (id, call, outcome, at = NOW) => {
+    report: async (id, call, outcome, at = NOW, method = 'passkey') => {
       const key = ceremonyResultKey(id)
-      const value = ceremonyReport({ id, call, method: 'passkey' }, outcome, at)
+      const value = ceremonyReport({ id, call, method }, outcome, at)
       values.set(key, value)
       listeners.get(key)?.forEach((listener) => listener(value))
     }

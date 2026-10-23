@@ -10,6 +10,7 @@ import type {
   Gathering,
   GatheringPlace,
   Hex,
+  Params,
   Reply,
   Verdict
 } from '@kohaku-eth/social-recovery'
@@ -106,6 +107,8 @@ export interface RowStateExtras {
   chosen?: ReadonlySet<number>
   /** The places whose method did not answer this time. */
   didNotAnswer?: ReadonlySet<number>
+  /** The identity methods the client can run a claim for here. */
+  served?: ReadonlySet<IdentityClaimSlug>
 }
 
 /** Why the path cannot be satisfied yet, read from the rows' own states, in the order the checklist names them. */
@@ -121,7 +124,14 @@ export type UnsatisfiedReading =
 
 export type ChecklistKitClient = Pick<
   RecoveryKitClient,
-  'recovery' | 'setup' | 'walletReads' | 'action' | 'approving' | 'descriptor'
+  | 'recovery'
+  | 'setup'
+  | 'walletReads'
+  | 'action'
+  | 'approving'
+  | 'descriptor'
+  | 'methodFor'
+  | 'methodParamsFor'
 >
 
 export type ChecklistClient =
@@ -372,21 +382,29 @@ export interface PollHook {
 }
 
 // ---------------------------------------------------------------------------
-// The passkey claim
+// The claim
 // ---------------------------------------------------------------------------
 
+/** The identity methods a checklist row claims through the ceremony tab. */
+export type IdentityClaimSlug = 'zkpassport' | 'aadhaar'
+
+/** What a claim runs: the method's slug, the params it receives, and whether the holder chose the phone. */
+export interface ClaimLaunch {
+  method: string
+  params: Params
+  handOff: boolean
+}
+
 /** What a stored claim request asked for, read back when its ceremony returns. */
-export interface ClaimAsked {
+export interface ClaimAsked extends ClaimLaunch {
   place: number
   request: ApproverRequest
-  handOff: boolean
 }
 
 export interface ClaimRequestInput {
   account: Address
   chainId: ChainId
   request: ApproverRequest
-  handOff: boolean
 }
 
 /** The account and chain a claim request must name to be this checklist's. */
@@ -420,7 +438,7 @@ export interface ClaimOutcome {
   handOff: boolean
 }
 
-export interface PasskeyClaimInput {
+export interface CeremonyClaimInput {
   records: WalletRecords
   chainId: ChainId
   account: Address
@@ -432,9 +450,9 @@ export interface PasskeyClaimInput {
   >
 }
 
-export interface PasskeyClaim {
+export interface CeremonyClaim {
   /** Stores the claim's request and opens the ceremony tab. */
-  launch: (request: ApproverRequest, handOff: boolean) => Promise<void>
+  launch: (request: ApproverRequest, claim: ClaimLaunch) => Promise<void>
   /** The last outcome each place's ceremony reported, a passed one included. */
   outcomes: Partial<Record<number, ClaimOutcome>>
   /** A passed claim the checklist has not added yet. */
@@ -643,6 +661,30 @@ export interface PasteFieldProps {
 export interface IdentityRowProps {
   row: ChecklistRow
   state: RowState
+}
+
+/** What an identity row reads of its claim's last outcome: the note, the cause line, and the retry. */
+export interface IdentityNotes {
+  note: string | null
+  cause: string | null
+  retry: boolean
+}
+
+export interface IdentityNotesBlockProps {
+  place: number
+  notes: IdentityNotes
+  busy: boolean
+  onRetry: () => void
+}
+
+/** A passport or an Aadhaar row: the place's request, its last outcome, and the launch of its claim. */
+export interface IdentityClaimRowProps {
+  row: ChecklistRow
+  state: RowState
+  request: ApproverRequest | undefined
+  outcome: ClaimOutcome | undefined
+  busy: boolean
+  launch: (request: ApproverRequest) => void
 }
 
 export interface ChecklistRowsProps {
