@@ -20,6 +20,18 @@ import type {
 } from '@web/modules/social-recovery/setup/review/__fixtures__/review'
 import type { ReviewClient, ReviewKitClient } from '@web/modules/social-recovery/setup/review/types'
 
+// The spinner's animation needs a native module jsdom lacks; a plain view stands in.
+jest.mock('@common/components/Spinner', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires, global-require */
+  const mockReact: typeof import('react') = require('react')
+  const { View: MockView }: typeof import('react-native') = require('react-native')
+  /* eslint-enable @typescript-eslint/no-var-requires, global-require */
+  return {
+    __esModule: true,
+    default: () => mockReact.createElement(MockView, { testID: 'spinner' })
+  }
+})
+
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 // React only runs effects and state updates inside act() when this flag is set.
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -213,7 +225,8 @@ const mount = async ({
   setupState = async () => setupStateOf(false),
   describeSetup = async () => descriptionOf(),
   accountLabel,
-  storageRefuses = false
+  storageRefuses = false,
+  storageHeld
 }: MountOptions = {}) => {
   const storage = makeStorage(false)
   const records = createWalletRecords({ storage })
@@ -230,7 +243,18 @@ const mount = async ({
   if (passwordSet) {
     await setup.passwordSet.write('password-set')
   }
-  const shown = storageRefuses ? createWalletRecords({ storage: makeStorage(true) }) : records
+  let shown = storageRefuses ? createWalletRecords({ storage: makeStorage(true) }) : records
+  if (storageHeld) {
+    shown = createWalletRecords({
+      storage: {
+        ...storage,
+        get: async (key, defaultValue) => {
+          await storageHeld
+          return storage.get(key, defaultValue)
+        }
+      }
+    })
+  }
 
   const reads = {
     trustedParties: jest.fn(trustedParties),
@@ -451,10 +475,31 @@ describe('the titled sections of the details', () => {
 })
 
 describe('save and the trust list reads', () => {
-  it('stays disabled while a read has not come back', async () => {
+  it('stays disabled while a read has not come back, with the line that checks the setup beside it', async () => {
     await mount({ moduleInfo: () => new Promise(() => {}) })
 
     expect(isDisabled('review-save')).toBe(true)
+    expect(textOf('review-save-checking')).toBe(t('socialRecovery.loading.saveChecks'))
+  })
+
+  it("shows the line that reads the methods on a method's row while its read has not come back", async () => {
+    await mount({ clauses: [required(PASSKEY)], moduleInfo: () => new Promise(() => {}) })
+    await press('review-verify-details')
+
+    const pending = byTestId('review-trust-0-pending')
+    expect(pending?.textContent).toBe(t('socialRecovery.loading.trust'))
+    expect(pending?.querySelector('[data-testid="loading-row"]')).not.toBeNull()
+  })
+
+  it('shows no line beside Save once every read answered', async () => {
+    await mount()
+    expect(byTestId('review-save-checking')).toBeNull()
+  })
+
+  it('shows no line beside a Save a block holds', async () => {
+    await mount({ setupState: async () => setupStateOf(true) })
+    expect(isDisabled('review-save')).toBe(true)
+    expect(byTestId('review-save-checking')).toBeNull()
   })
 
   it('stays disabled while a read did not answer, then enables once the retry answers it', async () => {
@@ -1292,10 +1337,45 @@ describe('what the review cannot read', () => {
     expect(isDisabled('review-save')).toBe(true)
   })
 
-  it('keeps Save disabled while the client loads', async () => {
+  it('keeps Save disabled while the client loads, with the line that checks the setup beside it', async () => {
     await mount({ client: 'loading' })
 
     expect(isDisabled('review-save')).toBe(true)
+    expect(textOf('review-save-checking')).toBe(t('socialRecovery.loading.saveChecks'))
+    expect(
+      byTestId('review-save-checking')?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
+  })
+
+  it('shows the block that reads the methods in the details while the client loads', async () => {
+    await mount({ client: 'loading' })
+    await press('review-verify-details')
+
+    const block = byTestId('review-trust-loading')?.querySelector('[data-testid="loading-block"]')
+    expect(block?.textContent).toBe(t('socialRecovery.loading.trust'))
+  })
+
+  it('shows the waiting block that opens the draft under the title until the draft is read', async () => {
+    let release: () => void = () => {}
+    const storageHeld = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    await mount({ storageHeld })
+
+    expect(textOf('review-title')).toBe(t('socialRecovery.review.title'))
+    expect(textOf('loading-screen')).toBe(t('socialRecovery.loading.draft'))
+    expect(byTestId('review-save')).toBeNull()
+    // The columns and the view under the title grow, so the wait centres below the title.
+    const growing = ['review-columns', 'review-columns-main', 'review']
+    growing.forEach((id) => {
+      expect(getComputedStyle(byTestId(id) as HTMLElement).flexGrow).toBe('1')
+    })
+
+    await act(async () => {
+      release()
+    })
+    expect(byTestId('loading-screen')).toBeNull()
+    expect(byTestId('review-save')).not.toBeNull()
   })
 })
 

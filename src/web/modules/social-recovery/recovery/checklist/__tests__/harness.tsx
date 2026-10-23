@@ -57,6 +57,18 @@ import type {
   SessionHeadlineHook
 } from '@web/modules/social-recovery/recovery/checklist/types'
 
+// The spinner's animation needs a native module jsdom lacks; a plain view stands in.
+jest.mock('@common/components/Spinner', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires, global-require */
+  const mockReact: typeof import('react') = require('react')
+  const { View: MockView }: typeof import('react-native') = require('react-native')
+  /* eslint-enable @typescript-eslint/no-var-requires, global-require */
+  return {
+    __esModule: true,
+    default: () => mockReact.createElement(MockView, { testID: 'spinner' })
+  }
+})
+
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 if (!globalThis.crypto?.getRandomValues) {
   Object.assign(globalThis, { crypto: webcrypto })
@@ -630,6 +642,7 @@ export interface ScriptedRecoveryState {
   nextAttemptId?: bigint
   setupNonce?: bigint
   payloadHash?: Hex
+  consumableAfter?: number
 }
 
 /**
@@ -641,9 +654,10 @@ export const recoveryStateOf = ({
   attemptId = BigInt(0),
   nextAttemptId = BigInt(1),
   setupNonce = BigInt(1),
-  payloadHash = zeroHash
+  payloadHash = zeroHash,
+  consumableAfter = 0
 }: ScriptedRecoveryState = {}) => ({
-  attempt: { state, attemptId, setupNonce, payloadHash },
+  attempt: { state, attemptId, setupNonce, payloadHash, consumableAfter },
   nextAttemptId,
   setupNonce
 })

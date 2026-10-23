@@ -166,6 +166,18 @@ describe('the acknowledgment the holder brings from the recovery door', () => {
 })
 
 describe('the owner stage', () => {
+  it("says it reads the wallet's accounts, with no choice and no continue, until the wallet lists them", async () => {
+    setWallet({ accounts: undefined })
+    const screen = await mountEntry()
+    expect(screen.textOf('entry-owner-loading')).toBe(t('socialRecovery.loading.accounts'))
+    expect(
+      screen.byTestId('entry-owner-loading')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
+    expect(screen.has(choice(BASIC))).toBe(false)
+    expect(screen.has(CONTINUE)).toBe(false)
+    screen.unmount()
+  })
+
   it('lists the accounts the wallet holds a key for, each with the key it installs', async () => {
     const screen = await mountEntry()
     expect(screen.textOf(`${choice(BASIC)}-name`)).toBe('Daily')

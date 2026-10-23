@@ -114,4 +114,15 @@ describe('the plain chrome', () => {
     expect(container.firstElementChild).toBe(chrome)
     expect(chrome?.contains(byTestId('view'))).toBe(true)
   })
+
+  it("lets the view it holds grow to the panel's height, so a wait can centre in it", () => {
+    mount(
+      <PlainChrome testID="chrome" title={TITLE}>
+        <View testID="view" />
+      </PlainChrome>
+    )
+    const column = byTestId('view')?.parentElement as HTMLElement
+    expect(getComputedStyle(column).flexGrow).toBe('1')
+    expect(getComputedStyle(column.parentElement as HTMLElement).flexGrow).toBe('1')
+  })
 })

@@ -59,6 +59,24 @@ describe('the two columns', () => {
     expect(byTestId('columns-aside')).toBeNull()
   })
 
+  it('grows the columns and the main one only when told to', () => {
+    mount(
+      <TwoColumn testID="columns">
+        <Text>The view</Text>
+      </TwoColumn>
+    )
+    expect(getComputedStyle(byTestId('columns') as HTMLElement).flexGrow).not.toBe('1')
+    expect(getComputedStyle(byTestId('columns-main') as HTMLElement).flexGrow).not.toBe('1')
+
+    mount(
+      <TwoColumn testID="columns" grow>
+        <Text>The view</Text>
+      </TwoColumn>
+    )
+    expect(getComputedStyle(byTestId('columns') as HTMLElement).flexGrow).toBe('1')
+    expect(getComputedStyle(byTestId('columns-main') as HTMLElement).flexGrow).toBe('1')
+  })
+
   it('puts its test id on its outermost element', () => {
     mount(
       <TwoColumn testID="columns" aside={<Text>A note</Text>}>

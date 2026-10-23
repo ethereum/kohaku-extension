@@ -12,7 +12,7 @@
  * the edit: the setup records, the session and a new password.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import { useTranslation } from '@common/config/localization'
 import useNavigation from '@common/hooks/useNavigation'
@@ -22,6 +22,7 @@ import { useHeldKeys } from '@web/modules/social-recovery/management/overview/us
 import { useOverviewReads } from '@web/modules/social-recovery/management/overview/useOverviewReads'
 import type { SetupDraft } from '@kohaku-eth/social-recovery'
 import { PageTitle } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import SetupChrome from '@web/modules/social-recovery/shared/chrome/SetupChrome'
 import useSetupAccount from '@web/modules/social-recovery/shared/chrome/useSetupAccount'
 import {
@@ -286,7 +287,11 @@ export const EditStageView = ({ records, session, chainId, account, navigate }: 
       >
         <View style={spacings.mtSm}>
           {openFailed && <EditOpenFailed onRetry={retryOpen} />}
-          {!openFailed && !openDraft && <ActivityIndicator testID="manage-edit-opening" />}
+          {!openFailed && !openDraft && (
+            <View testID="manage-edit-opening">
+              <LoadingBlock variant="block" message={t('socialRecovery.loading.draft')} />
+            </View>
+          )}
           {!!openDraft && stage === 'wait' && (
             <WaitingPeriodView
               records={observed}

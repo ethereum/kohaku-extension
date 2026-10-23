@@ -1,7 +1,8 @@
 /**
  * The owner's cancel's route, in a full tab: the account from the search (a
  * missing or malformed one goes back to the dashboard), a fresh read of the
- * attempt through the watcher's poll, whose open attempt is the one offered,
+ * attempt through the watcher's poll, whose open attempt is the one offered
+ * and beside which the watcher's last reading shows while it runs,
  * the reads after a landing, the recovery client of the account, its facts and key, and
  * the send port over the request queue. "Done" and "Go back" return to the
  * dashboard; moving funds selects the account and opens the transfer screen.
@@ -33,9 +34,12 @@ import type {
 import { useAccountFacts } from '@web/modules/social-recovery/shared/client/useAccountFacts'
 import { useRecoveryClient } from '@web/modules/social-recovery/shared/client/useRecoveryClient'
 import { watcherConnectionFor } from '@web/modules/social-recovery/shared/client/watcher-reads'
-import { recordDeploymentOf } from '@web/modules/social-recovery/shared/records/deployment'
+import {
+  isOfDeployment,
+  recordDeploymentOf
+} from '@web/modules/social-recovery/shared/records/deployment'
 import { extensionRecordStorage } from '@web/modules/social-recovery/shared/records/extensionStorage'
-import { watchedNetworkOf } from '@web/modules/social-recovery/watcher'
+import { readWatcherRecord, watchedNetworkOf } from '@web/modules/social-recovery/watcher'
 
 import CancelView from './CancelView'
 import { attemptReaderOf, cancelDeploymentOf, landingReaderOf } from './reads'
@@ -47,7 +51,8 @@ import type {
   CancelBodyProps,
   CancelReadiness,
   CancelSteps,
-  LandingReader
+  LandingReader,
+  LastReadingReader
 } from './types'
 import { useAttemptRead } from './useAttemptRead'
 import { useCancelWrite } from './useCancelWrite'
@@ -108,7 +113,20 @@ const CancelBody = ({ account }: CancelBodyProps) => {
     () => (readAttempt ? async () => ({ reading: await readAttempt() }) : null),
     [readAttempt]
   )
-  const { read, retry: retryRead } = useAttemptRead(readArrival)
+  // The watcher's last reading at the deployment this page reads, shown while the fresh read runs.
+  const readLast = useMemo<LastReadingReader | null>(
+    () =>
+      descriptor
+        ? async () => {
+            const record = await readWatcherRecord(storage, CHAIN_ID, account)
+            return record?.reading && isOfDeployment(record.reading.deployment, descriptor)
+              ? record.reading
+              : undefined
+          }
+        : null,
+    [descriptor, storage, account]
+  )
+  const { read, last, retry: retryRead } = useAttemptRead(readArrival, readLast)
   const readLanding = useMemo<LandingReader | null>(
     () =>
       connection && readAttempt
@@ -192,6 +210,7 @@ const CancelBody = ({ account }: CancelBodyProps) => {
   return (
     <CancelView
       read={read}
+      last={last}
       run={run.state}
       readiness={readiness}
       timeZone={timeZone}

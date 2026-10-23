@@ -57,6 +57,7 @@ import { sdkStandIn } from './stand-in'
 import type {
   DigestVersionRefusal,
   DomainVersion,
+  RecoveryChain,
   RecoveryClientConfiguration,
   RecoveryKitClient
 } from './types'
@@ -109,11 +110,11 @@ const providerOf = (
  * scripted stacks otherwise.
  */
 const identityMethodsOf = (
-  config: RecoveryClientConfiguration,
+  chain: RecoveryChain,
   descriptor: DeploymentDescriptor
 ): IRecoveryMethod[] => {
-  if (deploymentOf(config.chain).kind === 'deployed') {
-    const testnetTree = identityParamsOf(config.chain).zkPassport?.testnetTree ?? false
+  if (deploymentOf(chain).kind === 'deployed') {
+    const testnetTree = identityParamsOf(chain).zkPassport?.testnetTree ?? false
     return [
       zkPassportMethod(zkPassportStackFor({ testnetTree })),
       anonAadhaarMethod({ artifacts: AADHAAR_ARTIFACTS })
@@ -124,6 +125,12 @@ const identityMethodsOf = (
     anonAadhaarMethod({ stack: sdkStandIn.aadhaarStackFor(descriptor) })
   ]
 }
+
+/** The four methods this build constructs for a chain. */
+export const methodsOf = (
+  chain: RecoveryChain,
+  descriptor: DeploymentDescriptor
+): IRecoveryMethod[] => [walletMethod(), passkeyMethod(), ...identityMethodsOf(chain, descriptor)]
 
 /** The refusal of a digest version, with the version the manager publishes where it answers one. */
 const refusedDigestVersion = async (
@@ -165,11 +172,7 @@ export const buildRecoveryClient = async (
     configuration.blockTags
   )
   const codec = new AmbireActionCodec([descriptor.action])
-  const methods: IRecoveryMethod[] = [
-    walletMethod(),
-    passkeyMethod(),
-    ...identityMethodsOf(config, descriptor)
-  ]
+  const methods = methodsOf(config.chain, descriptor)
   const identityParams = identityParamsOf(config.chain)
   const builder = SocialRecoveryBuilder.from({ provider, account, descriptor, configuration })
     .withPolicyManager(policyManager)

@@ -680,15 +680,15 @@ describe('a submission on its way to the chain', () => {
       let raced = 0
       const racing = {
         ...records,
-        landSubmission: (async (chainId, account, revision) => {
+        landSubmission: (async (chainId, account, revision, executableAt) => {
           if (raced === 0) {
             raced += 1
             const read = await other.recoverySession(CHAIN_ID, account).read()
             if (read.status === 'present') {
-              await other.landSubmission(chainId, account, read.revision)
+              await other.landSubmission(chainId, account, read.revision, executableAt)
             }
           }
-          return records.landSubmission(chainId, account, revision)
+          return records.landSubmission(chainId, account, revision, executableAt)
         }) as typeof records.landSubmission
       }
       const steps = stepsOf({

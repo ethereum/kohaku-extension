@@ -37,3 +37,8 @@ export interface ScreensWorld {
   trust: unknown
   accountReads: unknown
 }
+
+/** The client seam as the edit tests reach into it, with the setup check a test drives. */
+export interface ValidatingClientSeam {
+  client: { setup: { validateSetup: jest.Mock } }
+}

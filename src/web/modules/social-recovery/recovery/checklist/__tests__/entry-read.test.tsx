@@ -108,13 +108,18 @@ describe('the checklist route’s entry record read', () => {
     return storage
   }
 
-  it('shows a spinner and no checklist while the entry record read has not answered', async () => {
+  it('says it opens the recovery, with no checklist, while the entry record read has not answered', async () => {
     const storage = await seeded()
     mockStorage.current = { ...storage, get: () => new Promise<never>(() => {}) }
 
     view = await mountChecklistScreen()
 
-    expect(view.byTestId('checklist-entry-loading')).not.toBeNull()
+    expect(view.byTestId('checklist-entry-loading')?.textContent).toBe(
+      t('socialRecovery.loading.session')
+    )
+    expect(
+      view.byTestId('checklist-entry-loading')?.querySelector('[data-testid="loading-screen"]')
+    ).not.toBeNull()
     expect(view.byTestId('checklist-entry-failed')).toBeNull()
     expect(view.byTestId('checklist-view')).toBeNull()
     expect(mockNavigate).not.toHaveBeenCalled()

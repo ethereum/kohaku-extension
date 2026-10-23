@@ -1,17 +1,20 @@
 /**
- * The path of the committed setup as this device reads it: reading, failed
- * with retry, a wallet that must update, no details, details that do not
- * match, the recovery password ask of a locked path, or the path itself.
+ * The path of the committed setup as this device reads it: reading, with the
+ * path this device last opened beside a refreshing line where it holds one,
+ * failed with retry, a wallet that must update, no details, details that do
+ * not match, the recovery password ask of a locked path, or the path itself.
  */
 import React, { useMemo } from 'react'
-import { ActivityIndicator } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import { readablePathOf } from '@web/modules/social-recovery/recovery/entry/readout'
 import ReadoutPathBlock from '@web/modules/social-recovery/recovery/entry/ReadoutPathBlock'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
+import RefreshingLine from '@web/modules/social-recovery/shared/chrome/RefreshingLine'
 
 import { OVERVIEW } from './constants'
 import PathLockedAsk from './PathLockedAsk'
@@ -21,14 +24,30 @@ const PathBody = ({ reads, context, networkName }: PathBodyProps) => {
   const { t } = useTranslation()
   const { path } = reads
 
+  // While the path is read, the one this device last opened stands in its place.
+  const shown =
+    (path.kind === 'readable' && path.configuration) ||
+    (path.kind === 'reading' && reads.cached) ||
+    null
   const readablePath = useMemo(
-    () => (path.kind === 'readable' ? readablePathOf(path.configuration, context, t) : null),
-    [path, context, t]
+    () => (shown ? readablePathOf(shown, context, t) : null),
+    [shown, context, t]
   )
 
   switch (path.kind) {
     case 'reading':
-      return <ActivityIndicator testID="overview-path-reading" style={spacings.mbSm} />
+      return readablePath ? (
+        <>
+          <View testID="overview-path-refreshing" style={spacings.mbSm}>
+            <RefreshingLine messageKey="socialRecovery.loading.refreshingSetup" />
+          </View>
+          <ReadoutPathBlock path={readablePath} />
+        </>
+      ) : (
+        <View testID="overview-path-reading">
+          <LoadingBlock variant="block" message={t('socialRecovery.loading.lookup')} />
+        </View>
+      )
     case 'read-failed':
       return (
         <ReadFailedBlock

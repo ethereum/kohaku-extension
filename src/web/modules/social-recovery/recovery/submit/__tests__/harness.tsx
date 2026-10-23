@@ -283,8 +283,9 @@ export const submitGathering = (
 
 /**
  * The session as the records keep it once this gathering's submission landed:
- * the account, the request's attempt id, setup nonce and payload hash, and
- * the manager and action it names.
+ * the account, the request's attempt id, setup nonce and payload hash, when
+ * the attempt becomes executable as `attemptOf` reads it, and the manager and
+ * action it names.
  */
 export const landedSession = (account: Address, gathering: Gathering) => ({
   state: 'landed' as const,
@@ -292,6 +293,7 @@ export const landedSession = (account: Address, gathering: Gathering) => ({
   attemptId: gathering.request.attemptId,
   setupNonce: gathering.request.setupNonce,
   payloadHash: keccak256('payload' in gathering.request ? gathering.request.payload : '0x'),
+  executableAt: 0,
   deployment: { manager: gathering.request.manager, action: gathering.request.action }
 })
 

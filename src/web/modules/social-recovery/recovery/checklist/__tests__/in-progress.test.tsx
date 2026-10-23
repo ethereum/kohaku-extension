@@ -109,6 +109,22 @@ describe('the recovery in progress', () => {
     )
   })
 
+  it('says it reads the recoveries, with the title and no row, while the list has not been read', async () => {
+    await seedThree()
+    jest
+      .spyOn(world.records, 'listRecoverySessions')
+      .mockImplementation(() => new Promise<never>(() => {}))
+    view = await mountInProgress({ records: world.records })
+
+    expect(view.byTestId('in-progress-loading')?.textContent).toBe(
+      t('socialRecovery.loading.entries')
+    )
+    expect(
+      view.byTestId('in-progress-loading')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
+    expect(view.byTestId(`in-progress-${idOf(ACCOUNT)}`)).toBeNull()
+  })
+
   it('shows no count for a session whose headline cannot be read', async () => {
     await seedThree()
     view = await mountInProgress({ records: world.records, headline: null })

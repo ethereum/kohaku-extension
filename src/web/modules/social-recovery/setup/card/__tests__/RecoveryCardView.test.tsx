@@ -25,6 +25,18 @@ import type {
 } from '@web/modules/social-recovery/setup/card/types'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 
+// The spinner's animation needs a native module jsdom lacks; a plain view stands in.
+jest.mock('@common/components/Spinner', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires, global-require */
+  const mockReact: typeof import('react') = require('react')
+  const { View: MockView }: typeof import('react-native') = require('react-native')
+  /* eslint-enable @typescript-eslint/no-var-requires, global-require */
+  return {
+    __esModule: true,
+    default: () => mockReact.createElement(MockView, { testID: 'spinner' })
+  }
+})
+
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 // React only runs effects and state updates inside act() when this flag is set.
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -621,11 +633,14 @@ describe('the recovery card view', () => {
     }
     const askWith = (check: jest.Mock): MissingPasswordRow => ({ kind: 'ask', check })
 
-    it('holds the label alone while the setup is read, with every carrier off', async () => {
+    it('holds the label with the line that looks up the setup while it is read, with every carrier off', async () => {
       await mount({ password: null, missingPassword: { kind: 'reading' } })
       expect(allByTestId('card-password')).toEqual([
-        t('socialRecovery.display.passwords.recoveryPassword')
+        t('socialRecovery.display.passwords.recoveryPassword') + t('socialRecovery.loading.lookup')
       ])
+      expect(
+        byTestId('card-password-reading')?.querySelector('[data-testid="loading-row"]')
+      ).not.toBeNull()
       expect(byTestId('card-password-gone')).toBeNull()
       expect(byTestId('card-recovery-password-ask')).toBeNull()
       expect(container.querySelector('input')).toBeNull()
@@ -714,7 +729,7 @@ describe('the recovery card view', () => {
       expect(check).toHaveBeenCalledTimes(2)
     })
 
-    it('clears the earlier line on a new check and keeps the button off while it runs', async () => {
+    it('clears the earlier line on a new check and keeps the button off, with the line that unlocks the setup, while it runs', async () => {
       const second = deferred<RecoveryPasswordCheck>()
       const check = jest
         .fn<Promise<RecoveryPasswordCheck>, [string]>()
@@ -729,6 +744,9 @@ describe('the recovery card view', () => {
       await press('card-recovery-password-check')
       expect(byTestId('card-recovery-password-wrong')).toBeNull()
       expect(isDisabled('card-recovery-password-check')).toBe(true)
+      expect(byTestId('card-recovery-password-checking')?.textContent).toBe(
+        t('socialRecovery.loading.unlocking')
+      )
       await press('card-recovery-password-check')
       expect(check).toHaveBeenCalledTimes(2)
 
@@ -737,6 +755,7 @@ describe('the recovery card view', () => {
       })
       expect(byTestId('card-recovery-password-wrong')).toBeNull()
       expect(byTestId('card-recovery-password-unchecked')).toBeNull()
+      expect(byTestId('card-recovery-password-checking')).toBeNull()
       expect(isDisabled('card-recovery-password-check')).toBe(false)
     })
   })

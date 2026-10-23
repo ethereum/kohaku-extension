@@ -13,6 +13,7 @@ import {
   outside,
   resetEdges,
   searchOf,
+  t,
   useLiveFakeClock
 } from '@web/modules/social-recovery/recovery/entry/__tests__/harness'
 import type { Mounted } from '@web/modules/social-recovery/recovery/entry/__tests__/harness'
@@ -88,7 +89,12 @@ describe('the reads after the confirmation have a time limit', () => {
     useLiveFakeClock()
     screen = await mountAccountStep(searchOf('logged-in', BASIC))
     await confirmLost(screen)
-    expect(screen.has('entry-reads-fit-loading')).toBe(true)
+    expect(screen.textOf('entry-reads-fit-loading')).toBe(
+      t('socialRecovery.entry.confirm.readingFit')
+    )
+    expect(
+      screen.byTestId('entry-reads-fit-loading')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
 
     await waitAnHour()
 

@@ -168,4 +168,6 @@ export interface MountOptions {
   describeSetup?: () => Promise<SetupDescription>
   accountLabel?: string
   storageRefuses?: boolean
+  /** Every read of the stored draft waits for this promise. */
+  storageHeld?: Promise<void>
 }

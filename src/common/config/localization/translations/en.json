@@ -351,6 +351,36 @@
         "switchAction": "Set up recovery for the selected account instead"
       }
     },
+    "loading": {
+      "refreshing": "Refreshing…",
+      "refreshingSetup": "Refreshing the setup from the chain…",
+      "refreshingAttempt": "Refreshing the state of the recovery from the chain…",
+      "draft": "Opening your draft…",
+      "client": "Connecting to the recovery contracts on {{network}}…",
+      "checks": "Checking the path against the chain…",
+      "saveChecks": "Checking the setup before you save…",
+      "trust": "Reading the methods on the chain…",
+      "fee": "Checking the fee…",
+      "landed": "Landed. Reading the result…",
+      "key": "Reading the key…",
+      "accounts": "Reading your accounts…",
+      "entries": "Reading your recoveries…",
+      "session": "Opening this recovery…",
+      "attempt": "Reading the recovery in progress…",
+      "signature": "Checking the approval…",
+      "countdown": "Reading the waiting period…",
+      "finishing": "Finishing the recovery…",
+      "addingAccount": "Adding the account to this wallet…",
+      "unlocking": "Unlocking the recovery setup…",
+      "level": "Reading the committed level…",
+      "request": "Opening the request…",
+      "slot": "Reading this method's slot…",
+      "balance": "Reading the balance and the fee…",
+      "lookup": "Looking up the recovery setup…",
+      "unfinishedSave": "Checking for an unfinished save…",
+      "notices": "Reading the changes since the setup…",
+      "address": "Checking this address…"
+    },
     "methodNames": {
       "passkey": "Passkey",
       "passkeyOnThisDevice": "Passkey on this device",
@@ -893,7 +923,6 @@
         "lead": "Check the address before you continue.",
         "thisIsMine": "This is my account",
         "notMine": "Not mine",
-        "readingSetup": "Reading the recovery setup…",
         "readingAuthorization": "Reading whether the account still authorizes the recovery module…",
         "readingFit": "Checking whether this release can recover this account…",
         "readingDestination": "Checking the key that receives control…",
@@ -1551,7 +1580,6 @@
           "action": "Open the Recovery Card"
         },
         "reads": {
-          "loading": "Reading this account's recovery setup.",
           "failedTitle": "This wallet could not read the setup",
           "failedBody": "The read did not return. The setup on the chain is unchanged. Try again.",
           "noticesFailedTitle": "This wallet could not read the notices",

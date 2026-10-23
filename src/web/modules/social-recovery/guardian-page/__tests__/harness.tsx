@@ -106,6 +106,8 @@ export interface WalletScript {
 export interface Mounted {
   unmount: () => void
   has: (id: string) => boolean
+  /** Whether the element under a test id holds one under another. */
+  hasWithin: (id: string, inner: string) => boolean
   textOf: (id: string) => string
   text: () => string
   press: (id: string) => Promise<void>
@@ -144,6 +146,17 @@ const mockWallet: WalletScript = {
   qr: []
 }
 
+// The spinner's animation needs a native module jsdom lacks; a plain view stands in.
+jest.mock('@common/components/Spinner', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires, global-require */
+  const mockReact: typeof import('react') = require('react')
+  const { View: MockView }: typeof import('react-native') = require('react-native')
+  /* eslint-enable @typescript-eslint/no-var-requires, global-require */
+  return {
+    __esModule: true,
+    default: () => mockReact.createElement(MockView, { testID: 'spinner' })
+  }
+})
 jest.mock('@web/modules/social-recovery/shared/client/useRecoveryClient', () => ({
   useRecoveryClient: (account: string | undefined) => {
     mockClient.accounts.push(account)
@@ -762,6 +775,7 @@ export const mountPage = async (search: string): Promise<Mounted> => {
   return {
     unmount,
     has: (id) => byTestId(id) !== null,
+    hasWithin: (id, inner) => !!byTestId(id)?.querySelector(`[data-testid="${inner}"]`),
     textOf: (id) => byTestId(id)?.textContent ?? '',
     text: () => container.textContent ?? '',
     press: async (id) => {

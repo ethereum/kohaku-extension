@@ -276,6 +276,18 @@ export type SendCase = 'sent' | SendRefusalReason
 /** What the setup read at the start of a run answers: no setup, a setup, or a throw. */
 export type SetupCase = typeof SETUP_CASES[number]
 
+/**
+ * A save held at one stage across a remount: the stage's name, the block it
+ * shows, whether Save shows held beside it or not at all, and the hold, which
+ * answers the release of that stage.
+ */
+export interface RemountedSaveCase {
+  named: string
+  shown: string
+  save: 'held' | 'absent'
+  hold: () => () => void
+}
+
 /** How each edge of one save answers. */
 export interface SaveScript {
   /** Whether the account already authorized the action, so the client prepares the commit alone. */

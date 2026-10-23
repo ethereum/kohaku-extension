@@ -4,12 +4,13 @@
  */
 import React, { useMemo } from 'react'
 
-import Spinner from '@common/components/Spinner'
+import { useTranslation } from '@common/config/localization'
 import useNavigation from '@common/hooks/useNavigation'
 import {
   SETUP_STAGE_COUNTER_KEY,
   SETUP_STAGES
 } from '@web/modules/social-recovery/shared/chrome/constants'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import SetupChrome from '@web/modules/social-recovery/shared/chrome/SetupChrome'
 import useSetupAccount from '@web/modules/social-recovery/shared/chrome/useSetupAccount'
 import {
@@ -27,6 +28,7 @@ import EditorView from './EditorView'
 import type { EditorClient } from './types'
 
 const EditorScreen = () => {
+  const { t } = useTranslation()
   const { account } = useSetupAccount()
   const { navigate } = useNavigation()
   const clientState = useRecoveryClient(account)
@@ -76,7 +78,7 @@ const EditorScreen = () => {
           navigate={navigate}
         />
       ) : (
-        <Spinner />
+        <LoadingBlock variant="screen" message={t('socialRecovery.loading.draft')} />
       )}
     </SetupChrome>
   )

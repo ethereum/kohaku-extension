@@ -405,7 +405,8 @@ const releaseWhereEnded = async (store: SubmitStore, steps: SubmitSteps): Promis
 
 /**
  * After a landing: the attempt read must name this request's attempt, under
- * its setup number; then the session lands as the countdown's record. A read
+ * its setup number; then the session lands as the countdown's record, with
+ * the time the attempt becomes executable from that read. A read
  * that fails, that disagrees, or a landing that fails reads unread, with the
  * read again on offer, never landed.
  */
@@ -419,19 +420,20 @@ const settle = async (store: SubmitStore, steps: SubmitSteps, run: number): Prom
   if (store.state() === before) {
     return
   }
-  let agreed = false
+  let executableAt: number | null = null
   try {
-    agreed = steps.attemptOf(await readWithin(() => steps.attemptRead(), READ_LIMIT_MS)) === 'ours'
+    const read = await readWithin(() => steps.attemptRead(), READ_LIMIT_MS)
+    executableAt = steps.attemptOf(read) === 'ours' ? read.attempt.consumableAfter : null
   } catch {
-    agreed = false
+    executableAt = null
   }
-  if (!agreed) {
+  if (executableAt === null) {
     store.dispatch({ type: 'unread', run })
     return
   }
   let landing
   try {
-    landing = await steps.land()
+    landing = await steps.land(executableAt)
   } catch {
     store.dispatch({ type: 'unread', run })
     return

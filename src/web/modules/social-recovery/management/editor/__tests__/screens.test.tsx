@@ -20,6 +20,18 @@ import type { ScreensWorld } from '@web/modules/social-recovery/management/edito
 import type { EditSession } from '@web/modules/social-recovery/management/editor/types'
 import type { Clause } from '@kohaku-eth/social-recovery'
 
+// The spinner's animation needs a native module jsdom lacks; a plain view stands in.
+jest.mock('@common/components/Spinner', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires, global-require */
+  const mockReact: typeof import('react') = require('react')
+  const { View: MockView }: typeof import('react-native') = require('react-native')
+  /* eslint-enable @typescript-eslint/no-var-requires, global-require */
+  return {
+    __esModule: true,
+    default: () => mockReact.createElement(MockView, { testID: 'spinner' })
+  }
+})
+
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 
 jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
@@ -138,6 +150,7 @@ const readsOf = (attemptOpen: boolean, authorized = true) => ({
   path: { kind: 'none' },
   ask: { status: 'idle' },
   notices: { status: 'pending' },
+  cached: null,
   retry: jest.fn(),
   retryPath: jest.fn(),
   retryNotices: jest.fn(),
@@ -309,6 +322,7 @@ describe('the save of an edit that adds no row', () => {
     const view = await reviewOver({ ...noTrust, clauses: COMMITTED })
     expect(view.textOf('manage-review-unchanged')).toBe(t(`${REVIEW}.unchanged`))
     expect(view.isDisabled('manage-review-save')).toBe(true)
+    expect(view.byTestId('manage-review-save-checking')).toBeNull()
     view.unmount()
   })
 
@@ -320,6 +334,30 @@ describe('the save of an edit that adds no row', () => {
 })
 
 describe('the review of changes', () => {
+  it('says it opens the draft in a waiting block, with no save, while the stored edit is read', async () => {
+    const { records, session } = await given({
+      clauses: COMMITTED,
+      trustAnswered: true,
+      attemptOpen: false
+    })
+    jest.spyOn(session, 'read').mockImplementation(() => new Promise(() => {}))
+    const view = await mount(
+      React.createElement(ReviewStageView, {
+        records,
+        session,
+        chainId: CHAIN_ID,
+        account: ACCOUNT,
+        navigate: jest.fn()
+      })
+    )
+    expect(view.textOf('manage-review-loading')).toBe(t('socialRecovery.loading.draft'))
+    expect(
+      view.byTestId('manage-review-loading')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
+    expect(view.byTestId('manage-review-save')).toBeNull()
+    view.unmount()
+  })
+
   it('holds the save until the trust rows of the added rows answered', async () => {
     const view = await reviewOver({
       clauses: [review.group(1, ALICE, BOB)],
@@ -328,6 +366,10 @@ describe('the review of changes', () => {
     })
     expect(view.byTestId('manage-change-members')).not.toBeNull()
     expect(view.isDisabled('manage-review-save')).toBe(true)
+    expect(view.textOf('manage-review-save-checking')).toBe(t('socialRecovery.loading.saveChecks'))
+    expect(
+      view.byTestId('manage-review-save-checking')?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
     view.unmount()
 
     const answered = await reviewOver({
@@ -724,6 +766,160 @@ describe('the removal around the refusals and other writes', () => {
   })
 })
 
+describe('the waits of the review and the removal', () => {
+  const HASH = `0x${'ab'.repeat(32)}` as const
+  const runAt = (state: Record<string, unknown>) => {
+    mockWorld.run = { ...idleRun(), state: { ...idleRun().state, ...state } }
+  }
+  const mountReview = async (state: Record<string, unknown>) => {
+    const { records, session } = await given({
+      clauses: COMMITTED,
+      trustAnswered: true,
+      attemptOpen: false,
+      wait: 259_200
+    })
+    runAt(state)
+    return mount(
+      React.createElement(ReviewStageView, {
+        records,
+        session,
+        chainId: CHAIN_ID,
+        account: ACCOUNT,
+        navigate: jest.fn()
+      })
+    )
+  }
+  const mountRemoval = async (state: Record<string, unknown>) => {
+    const { records, session } = await given({
+      clauses: COMMITTED,
+      trustAnswered: true,
+      attemptOpen: false
+    })
+    runAt(state)
+    return mount(
+      React.createElement(RemoveStageView, {
+        records,
+        session,
+        chainId: CHAIN_ID,
+        account: ACCOUNT,
+        navigate: jest.fn()
+      })
+    )
+  }
+  const CHECKING_GAS = { write: { status: 'checkingGas', write: 'ownerWrite' } }
+  const CONFIRMING = {
+    write: {
+      status: 'landed',
+      write: 'ownerWrite',
+      transactionHash: HASH,
+      receipt: { transactionHash: HASH, status: 1 }
+    },
+    after: { stage: 'confirming' }
+  }
+
+  it('says it looks up the setup in place of the save while the stored write is read', async () => {
+    const view = await mountReview({ lookup: 'reading' })
+    expect(view.textOf('manage-review-lookup')).toBe(t('socialRecovery.loading.unfinishedSave'))
+    expect(
+      view.byTestId('manage-review-lookup')?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
+    expect(view.byTestId('manage-review-save')).toBeNull()
+    view.unmount()
+  })
+
+  it('keeps the save on screen, held, beside the line that says the fee is checked while the gas check runs', async () => {
+    const view = await mountReview(CHECKING_GAS)
+    expect(view.byTestId('manage-review-arrival')).not.toBeNull()
+    expect(view.byTestId('manage-review-account')).not.toBeNull()
+    expect(view.byTestId('manage-review-rule-line-0')).not.toBeNull()
+    expect(view.textOf('manage-review-run-checkingGas')).toContain(t('socialRecovery.loading.fee'))
+    expect(
+      view.byTestId('manage-review-run-checkingGas')?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
+    expect(view.isDisabled('manage-review-save')).toBe(true)
+    await view.press('manage-review-save')
+    expect(mockWorld.run.start).not.toHaveBeenCalled()
+    view.unmount()
+  })
+
+  it('keeps the landed hash beside the line that says the result is read after the save lands', async () => {
+    const view = await mountReview(CONFIRMING)
+    expect(view.textOf('manage-review-confirming')).toContain(t('socialRecovery.loading.landed'))
+    expect(
+      view.byTestId('manage-review-confirming')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
+    expect(view.byTestId('manage-review-confirming-hash')).not.toBeNull()
+    view.unmount()
+  })
+
+  it('keeps the reviewed changes on screen, with the landed line in place of the save, while the result is read', async () => {
+    const view = await mountReview(CONFIRMING)
+    expect(view.byTestId('manage-review-arrival')).not.toBeNull()
+    expect(view.byTestId('manage-review-account')).not.toBeNull()
+    expect(view.byTestId('manage-review-rule-line-0')).not.toBeNull()
+    expect(
+      view
+        .byTestId('manage-review-arrival')
+        ?.querySelector('[data-testid="manage-review-confirming"]')
+    ).not.toBeNull()
+    expect(view.textOf('manage-review-confirming')).toContain(t('socialRecovery.loading.landed'))
+    expect(view.byTestId('manage-review-save')).toBeNull()
+    view.unmount()
+  })
+
+  it('says it looks up the setup in place of the removal while the stored write is read', async () => {
+    const view = await mountRemoval({ lookup: 'reading' })
+    expect(view.textOf('manage-remove-lookup')).toBe(t('socialRecovery.loading.unfinishedSave'))
+    expect(
+      view.byTestId('manage-remove-lookup')?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
+    expect(view.byTestId('manage-remove-action')).toBeNull()
+    view.unmount()
+  })
+
+  it('keeps the removal on screen, held, beside the line that says the fee is checked while the gas check runs', async () => {
+    const view = await mountRemoval(CHECKING_GAS)
+    expect(view.textOf('manage-remove-body')).toBe(t(`${REMOVE}.body`))
+    const field = view.byTestId('manage-remove-word')
+    const input = field instanceof HTMLInputElement ? field : field?.querySelector('input')
+    expect(input?.readOnly || input?.disabled).toBe(true)
+    expect(view.textOf('manage-remove-run-checkingGas')).toContain(t('socialRecovery.loading.fee'))
+    expect(
+      view.byTestId('manage-remove-run-checkingGas')?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
+    expect(view.isDisabled('manage-remove-action')).toBe(true)
+    await view.press('manage-remove-action')
+    expect(mockWorld.run.start).not.toHaveBeenCalled()
+    view.unmount()
+  })
+
+  it('keeps the landed hash beside the line that says the result is read after the removal lands', async () => {
+    const view = await mountRemoval(CONFIRMING)
+    expect(view.textOf('manage-remove-confirming')).toContain(t('socialRecovery.loading.landed'))
+    expect(
+      view.byTestId('manage-remove-confirming')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
+    expect(view.byTestId('manage-remove-confirming-hash')).not.toBeNull()
+    view.unmount()
+  })
+
+  it('keeps the removal on screen, its word read-only, with the landed line in place of the action, while the result is read', async () => {
+    const view = await mountRemoval(CONFIRMING)
+    expect(view.textOf('manage-remove-body')).toBe(t(`${REMOVE}.body`))
+    const field = view.byTestId('manage-remove-word')
+    const input = field instanceof HTMLInputElement ? field : field?.querySelector('input')
+    expect(input?.readOnly || input?.disabled).toBe(true)
+    expect(
+      view
+        .byTestId('manage-remove-arrival')
+        ?.querySelector('[data-testid="manage-remove-confirming"]')
+    ).not.toBeNull()
+    expect(view.textOf('manage-remove-confirming')).toContain(t('socialRecovery.loading.landed'))
+    expect(view.byTestId('manage-remove-action')).toBeNull()
+    view.unmount()
+  })
+})
+
 describe('the review and the removal once a recovery moved control away from this wallet', () => {
   /** The overview's facts read that an executed attempt left no key this wallet holds signing. */
   const moveControl = () => {
@@ -784,6 +980,7 @@ describe('the review and the removal once a recovery moved control away from thi
     const { view, navigate } = await followingOwnWrite(RemoveStageView, 'manageRemove')
     expect(navigate).not.toHaveBeenCalledWith('social-recovery/manage')
     expect(view.byTestId('manage-remove-run-submitting')).not.toBeNull()
+    expect(view.textOf('manage-remove-body')).toBe(t(`${REMOVE}.body`))
     view.unmount()
   })
 
@@ -791,6 +988,7 @@ describe('the review and the removal once a recovery moved control away from thi
     const { view, navigate } = await followingOwnWrite(ReviewStageView, 'manageEdit')
     expect(navigate).not.toHaveBeenCalledWith('social-recovery/manage')
     expect(view.byTestId('manage-review-run-submitting')).not.toBeNull()
+    expect(view.byTestId('manage-review-account')).not.toBeNull()
     view.unmount()
   })
 

@@ -38,6 +38,18 @@ Object.assign(globalThis, { TextEncoder, TextDecoder })
 // The fake node seals a backup with WebCrypto, which jsdom does not carry.
 Object.defineProperty(globalThis, 'crypto', { value: webcrypto, configurable: true })
 
+// The spinner's animation needs a native module jsdom lacks; a plain view stands in.
+jest.mock('@common/components/Spinner', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires, global-require */
+  const mockReact: typeof import('react') = require('react')
+  const { View: MockView }: typeof import('react-native') = require('react-native')
+  /* eslint-enable @typescript-eslint/no-var-requires, global-require */
+  return {
+    __esModule: true,
+    default: () => mockReact.createElement(MockView, { testID: 'spinner' })
+  }
+})
+
 // The stand-in's chain answers the overview's client; no deployment variable
 // from a developer's environment turns it into the deployed kit.
 jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
@@ -174,6 +186,7 @@ export const readsOf = (fields: Partial<OverviewReads> = {}): OverviewReads => (
   path: { kind: 'none' },
   ask: { status: 'idle' },
   notices: { status: 'answered', value: { moved: [], cancelledAttempts: [] } },
+  cached: null,
   retry: jest.fn(),
   retryPath: jest.fn(),
   retryNotices: jest.fn(),

@@ -31,7 +31,7 @@
  * wallet reports it selected.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 import { useLocation } from 'react-router-dom'
 import { isAddressEqual } from 'viem'
 
@@ -41,10 +41,12 @@ import { useTranslation } from '@common/config/localization'
 import useNavigation from '@common/hooks/useNavigation'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
+import flexbox from '@common/styles/utils/flexbox'
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import type { Address, Configuration } from '@kohaku-eth/social-recovery'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import RecoveryChrome from '@web/modules/social-recovery/shared/chrome/RecoveryChrome'
 import {
   addressBookOf,
@@ -430,7 +432,9 @@ const DoneScreen = () => {
           </View>
         </Alert>
       ) : (
-        <ActivityIndicator testID="done-entry-loading" />
+        <View testID="done-entry-loading" style={flexbox.flex1}>
+          <LoadingBlock variant="screen" message={t('socialRecovery.loading.session')} />
+        </View>
       )}
     </RecoveryChrome>
   )

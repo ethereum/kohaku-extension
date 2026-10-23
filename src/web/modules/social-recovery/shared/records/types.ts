@@ -340,6 +340,12 @@ export interface LandedRecoverySession {
   attemptId?: string
   setupNonce?: string
   payloadHash?: Hex
+  /**
+   * When the attempt becomes executable, in seconds since epoch, as the
+   * attempt read at the landing gave it; absent on a session an earlier build
+   * wrote, or one landed with no such read.
+   */
+  executableAt?: number
   execution?: ExecutionInFlightRecord
   /** The manager and the action the attempt was opened on; absent on a session an earlier build wrote. */
   readonly deployment?: RecordDeployment
@@ -399,6 +405,8 @@ export interface ChainCountdown {
   setupNonce: bigint
   payloadHash: Hex
   openedAtMs: number
+  /** When the attempt becomes executable, in seconds since epoch. */
+  executableAt: number
   /** The manager and the action the attempt was read from. */
   deployment: RecordDeployment
 }
@@ -761,7 +769,9 @@ export interface WalletRecords {
   landSubmission(
     chainId: ChainId,
     account: Address,
-    expectedRevision: ExpectedRevision
+    expectedRevision: ExpectedRevision,
+    /** When the landed attempt becomes executable, in seconds since epoch, from the landing's attempt read. */
+    executableAt?: number
   ): Promise<StoredCountdown>
   clearWipedSession(
     chainId: ChainId,

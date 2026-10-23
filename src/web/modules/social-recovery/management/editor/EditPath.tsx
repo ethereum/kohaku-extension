@@ -1,8 +1,10 @@
 /**
  * The edit's path: the setup's own editor over the setup records, with the
  * committed values above its review action, and the cancel of the edit.
+ * While the path is checked, the values' changes hold, as the editor's own
+ * edits do; the cancel stays, as the editor's own back does.
  */
-import React from 'react'
+import React, { useState } from 'react'
 import { View } from 'react-native'
 
 import Button from '@common/components/Button'
@@ -28,6 +30,7 @@ const EditPath = ({
   onCancel
 }: EditPathProps) => {
   const { t } = useTranslation()
+  const [checking, setChecking] = useState(false)
   return (
     <View testID="manage-edit-path">
       <EditorView
@@ -39,12 +42,14 @@ const EditPath = ({
         plainRemoval
         heading={heading}
         continueLabel={t(`${EDITOR}.review`)}
+        onCheckingChange={setChecking}
         beforeActions={
           <ValuesBlock
             draft={draft}
             addressBook={addressBook}
             passwordChanged={rows.some(({ kind }) => kind === 'password')}
             stale={makesCardStale(rows)}
+            disabled={checking}
             onStage={onStage}
           />
         }

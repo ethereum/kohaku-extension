@@ -33,7 +33,7 @@ import {
   recordDeploymentOf,
   isSessionOfDeployment
 } from './deployment'
-import { isDecimalString, isStoredAddress } from './guards'
+import { isDecimalString, isStoredAddress, isStoredSeconds } from './guards'
 import { wipeRecoveryPassword } from './recoveryPassword'
 import { ABSENT, SETUP_RECORD_NAMES } from './types'
 import type {
@@ -414,6 +414,7 @@ const landedSession = ({
   attemptId,
   setupNonce,
   payloadHash,
+  executableAt,
   execution,
   deployment
 }: CountdownRecord): LandedRecoverySession => ({
@@ -422,6 +423,7 @@ const landedSession = ({
   ...(attemptId === undefined ? {} : { attemptId }),
   ...(setupNonce === undefined ? {} : { setupNonce }),
   ...(payloadHash === undefined ? {} : { payloadHash }),
+  ...(executableAt === undefined ? {} : { executableAt }),
   ...(execution === undefined ? {} : { execution }),
   ...(deployment === undefined ? {} : { deployment })
 })
@@ -447,6 +449,7 @@ const landedAsRead = (value: LandedRecoverySession): LandedRecoverySession =>
     attemptId: isDecimalString(value.attemptId) ? value.attemptId : undefined,
     setupNonce: isDecimalString(value.setupNonce) ? value.setupNonce : undefined,
     payloadHash: typeof value.payloadHash === 'string' ? value.payloadHash : undefined,
+    executableAt: isStoredSeconds(value.executableAt) ? value.executableAt : undefined,
     execution: isExecutionInFlight(value.execution) ? value.execution : undefined,
     deployment: recordDeploymentFrom(value.deployment)
   })
@@ -454,9 +457,13 @@ const landedAsRead = (value: LandedRecoverySession): LandedRecoverySession =>
 /**
  * The landed session a live session's request leaves: the account, its
  * attempt id and setup nonce, and the keccak256 of its payload, each where
- * the stored request holds it well formed.
+ * the stored request holds it well formed, and when the attempt becomes
+ * executable where the landing read it.
  */
-const landedFrom = (request: Gathering['request']): LandedRecoverySession =>
+const landedFrom = (
+  request: Gathering['request'],
+  executableAt: number | undefined
+): LandedRecoverySession =>
   landedAsRead({
     state: 'landed',
     account: request.account,
@@ -464,6 +471,7 @@ const landedFrom = (request: Gathering['request']): LandedRecoverySession =>
     setupNonce: request.setupNonce,
     payloadHash:
       'payload' in request && isHex(request.payload) ? keccak256(request.payload) : undefined,
+    executableAt,
     deployment: recordDeploymentFrom(request)
   })
 
@@ -1117,7 +1125,7 @@ export const createWalletRecords = ({
   /**
    * The submission landed: the live session survives as the countdown's record,
    * the account with the landed request's attempt id, setup nonce and payload
-   * hash, written in one set in place of the live session, so the gathering,
+   * hash, and when the attempt becomes executable, written in one set in place of the live session, so the gathering,
    * its replies and its submission in flight are gone in the same write.
    * Refuses when no live session exists, and throws `SessionRevisionConflict`
    * when the session changed after the caller read `expectedRevision`.
@@ -1125,13 +1133,14 @@ export const createWalletRecords = ({
   const landSubmission = async (
     chainId: ChainId,
     account: Address,
-    expectedRevision: ExpectedRevision
+    expectedRevision: ExpectedRevision,
+    executableAt?: number
   ) =>
     updateSession(chainId, account, expectedRevision, async (current, key) => {
       if (current.status !== 'present' || current.value.state !== 'live') {
         throw new Error(`No live recovery session for ${account} on chain ${chainPart(chainId)}`)
       }
-      return writeLandedAt(key, landedFrom(current.value.gathering.request))
+      return writeLandedAt(key, landedFrom(current.value.gathering.request, executableAt))
     })
 
   // A session in another state, or no session, returns false with no revision
@@ -1347,6 +1356,7 @@ export const createWalletRecords = ({
           attemptId: restored.attemptId.toString(),
           setupNonce: restored.setupNonce.toString(),
           payloadHash: restored.payloadHash,
+          executableAt: restored.executableAt,
           deployment: recordDeploymentOf(restored.deployment)
         }),
         restored.openedAtMs

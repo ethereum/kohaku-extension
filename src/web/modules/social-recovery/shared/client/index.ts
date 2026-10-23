@@ -39,6 +39,7 @@ export {
 export { createChainReads, gasCallOf } from './chain-reads'
 export { networkOf, extensionProviderFor, providerKeyOf } from './extension-provider'
 export { buildRecoveryClient, digestVersionRefusal, isDigestVersionRefusal } from './build-client'
+export { describeRequestOffline } from './request-description'
 export { createPrivilegeReads } from './wallet-reads'
 export { PRIVACY_LEVELS, KIT_ERROR_NAMES } from './lists'
 export { CANCELLED_BY, RESTORE_CAUSE_CODES, SETUP_ERROR_CODES } from '@kohaku-eth/social-recovery'

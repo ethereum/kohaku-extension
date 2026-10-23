@@ -517,6 +517,12 @@ describe('the guardian paste', () => {
 
       expect(input(1)?.readOnly).toBe(true)
       expect(view?.isDisabled(id(1, 'paste-add'))).toBe(true)
+      expect(view?.byTestId(id(1, 'paste-checking'))?.textContent).toBe(
+        t('socialRecovery.loading.signature')
+      )
+      expect(
+        view?.byTestId(id(1, 'paste-checking'))?.querySelector('[data-testid="loading-row"]')
+      ).not.toBeNull()
       expect(view?.valueOf(id(1, 'paste-input'))).toBe(line)
       await view?.press(id(1, 'paste-add'))
       expect(kit.verify).toHaveBeenCalledTimes(1)
@@ -526,6 +532,7 @@ describe('the guardian paste', () => {
 
       expect(await repliesHeld()).toEqual([replyOf(gathering, 1)])
       expectSettled(1, '', 'added')
+      expect(view?.byTestId(id(1, 'paste-checking'))).toBeNull()
     })
 
     it('is editable again after a failure, with the paste kept under its error', async () => {

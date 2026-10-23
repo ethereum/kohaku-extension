@@ -9,7 +9,9 @@
  * clear carries the sentence that it ends the recovery in progress. The
  * mirror shows its one action. The path, the moved-keys notices, the notice
  * after an ended attempt, the recover-an-account entry and the Recovery Card
- * follow. A read that runs or failed shows its own state, never an answer.
+ * follow. A read that runs or failed shows its own state, never an answer;
+ * while the setup state is read, the path this device last opened shows
+ * beside a refreshing line with every action held, where it holds one.
  * A write another screen stored as in flight keeps the title, and the status
  * line where the facts are read, above its pointer, with no path or action.
  * Once a recovery moved control away from every key this wallet holds, the
@@ -18,16 +20,18 @@
  * them, and the path with no action; no banner, repair or edit is offered.
  */
 import React from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
-import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import { TwoColumn } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
+import RefreshingLine from '@web/modules/social-recovery/shared/chrome/RefreshingLine'
 
 import CardEntry from './CardEntry'
+import CachedPathBlock from './CachedPathBlock'
 import { OVERVIEW } from './constants'
 import ControlMovedBlock from './ControlMovedBlock'
 import ControlMovedTitle from './ControlMovedTitle'
@@ -93,12 +97,17 @@ const OverviewView = ({
       <TwoColumn testID="overview-columns">
         <View testID="overview">
           <OverviewTitle />
-          {facts.status === 'pending' && (
+          {facts.status === 'pending' && !!reads.cached && (
+            <>
+              <View testID="overview-refreshing" style={spacings.mbSm}>
+                <RefreshingLine messageKey="socialRecovery.loading.refreshingSetup" />
+              </View>
+              <CachedPathBlock configuration={reads.cached} context={context} navigate={navigate} />
+            </>
+          )}
+          {facts.status === 'pending' && !reads.cached && (
             <View testID="overview-reading">
-              <ActivityIndicator style={spacings.mbSm} />
-              <Text fontSize={14} appearance="secondaryText">
-                {t(`${OVERVIEW}.reads.loading`)}
-              </Text>
+              <LoadingBlock variant="block" message={t('socialRecovery.loading.lookup')} />
             </View>
           )}
           {facts.status === 'failed' && (

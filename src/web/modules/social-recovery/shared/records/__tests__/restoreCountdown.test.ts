@@ -29,6 +29,7 @@ const ACTION: Address = '0x5555555555555555555555555555555555555555'
 const CHAIN_ID = 11155111n
 const T0 = 1_700_000_000_000
 const OPENED_AT_MS = 1_699_990_000_000
+const EXECUTABLE_AT = 1_700_076_400
 const SESSION_KEY = recordKeys.recoverySession(CHAIN_ID, ACCOUNT)
 const ENTRY_KEY = recordKeys.recoveryEntry(CHAIN_ID, ACCOUNT)
 
@@ -65,6 +66,7 @@ const SAME_ATTEMPT: ChainCountdown = {
   setupNonce: 9n,
   payloadHash: keccak256(PAYLOAD),
   openedAtMs: OPENED_AT_MS,
+  executableAt: EXECUTABLE_AT,
   deployment: DEPLOYMENT
 }
 const ANOTHER_ATTEMPT: ChainCountdown = {
@@ -72,6 +74,7 @@ const ANOTHER_ATTEMPT: ChainCountdown = {
   setupNonce: 9n,
   payloadHash: `0x${'bb'.repeat(32)}`,
   openedAtMs: OPENED_AT_MS,
+  executableAt: EXECUTABLE_AT,
   deployment: DEPLOYMENT
 }
 const ENTRY: Omit<RecoveryEntryRecord, 'account'> = {
@@ -89,6 +92,7 @@ const ANOTHER_COUNTDOWN = {
   attemptId: '43',
   setupNonce: '9',
   payloadHash: ANOTHER_ATTEMPT.payloadHash,
+  executableAt: EXECUTABLE_AT,
   deployment: DEPLOYMENT
 }
 

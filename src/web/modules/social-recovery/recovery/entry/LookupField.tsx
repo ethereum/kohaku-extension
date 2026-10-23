@@ -6,7 +6,7 @@
  * that failed.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 import { isAddress } from 'viem'
 
 import Button from '@common/components/Button'
@@ -20,6 +20,7 @@ import {
   SectionCard,
   TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
 
 import { lookupInputOf, nameLookupFailureOf } from './lookup'
@@ -208,7 +209,12 @@ const LookupField = ({
                 hasBottomSpacing={false}
               />
               {resolving && (
-                <ActivityIndicator testID="entry-account-resolving" style={spacings.mlSm} />
+                <View testID="entry-account-resolving" style={spacings.mlSm}>
+                  <LoadingBlock
+                    variant="row"
+                    message={t(`${ACCOUNT}.lookingUp`, { network: networkName })}
+                  />
+                </View>
               )}
             </>
           }

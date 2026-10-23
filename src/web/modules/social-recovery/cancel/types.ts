@@ -231,6 +231,12 @@ export interface Arrival {
 
 export type ArrivalReader = () => Promise<Arrival>
 
+/** What the confirm waits on with its send held: the fresh read of the attempt, or the gas check. */
+export type ConfirmWait = 'refreshing' | 'fee' | null
+
+/** The watcher's last reading of the account this device stored, where one stands for the deployment read. */
+export type LastReadingReader = () => Promise<WatcherReading | undefined>
+
 /** The arrival's read as the hook last stored it, with the reader and the round it belongs to. */
 export interface StoredAttemptRead {
   reader: ArrivalReader | null
@@ -238,8 +244,16 @@ export interface StoredAttemptRead {
   read: AttemptRead
 }
 
+/** The watcher's last reading as the hook last stored it, with the reader it belongs to. */
+export interface StoredLastReading {
+  reader: LastReadingReader | null
+  reading: WatcherReading | null
+}
+
 export interface AttemptReadResult {
   read: AttemptRead
+  /** The watcher's last reading, shown while the fresh read runs; null where this device holds none. */
+  last: WatcherReading | null
   retry: () => void
 }
 
@@ -436,6 +450,11 @@ export interface CancelBodyProps {
 
 export interface CancelViewProps {
   read: AttemptRead
+  /**
+   * The watcher's last reading, shown with the send held while the fresh read
+   * runs; absent or null where this device holds none.
+   */
+  last?: WatcherReading | null
   run: CancelState
   readiness: CancelReadiness
   timeZone: string

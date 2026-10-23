@@ -409,13 +409,19 @@ describe('the submission confirmation', () => {
       expect(mounted.isDisabled('submit-action')).toBe(false)
     })
 
-    it('stays locked while the key being removed is not read yet', async () => {
+    it('stays locked while the key being removed is not read yet, its label kept beside the line that reads it', async () => {
       const world = await openWorld()
       const removed = deferred<{ kind: 'named'; key: string }>()
       world.kit.removedKey.mockImplementation(() => removed.promise)
       const mounted = await open(world)
       await openDetails(mounted)
-      expect(mounted.byTestId('submit-removed-key-loading')).not.toBeNull()
+      expect(mounted.textOf('submit-removed-key-loading')).toBe(t('socialRecovery.loading.key'))
+      expect(
+        mounted.byTestId('submit-removed-key-loading')?.querySelector('[data-testid="loading-row"]')
+      ).not.toBeNull()
+      expect(mounted.textOf('submit-removed-key-block')).toContain(
+        t('socialRecovery.display.values.keyBeingRemoved')
+      )
       expect(mounted.isDisabled('submit-action')).toBe(true)
       removed.resolve({ kind: 'named', key: REMOVED })
       await settle()

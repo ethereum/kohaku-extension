@@ -210,6 +210,107 @@ describe('the overview reads', () => {
     expect(view.byTestId('overview-chip-path-locked')).toBeNull()
   })
 
+  it('shows the kept setup beside the refreshing line, its actions held, while the setup state has not answered', async () => {
+    const world = await worldAt('public')
+    view = await renderOver(world)
+    expect(view.byTestId('readout-path')).not.toBeNull()
+    view.unmount()
+
+    jest.spyOn(world.client.setup, 'setupState').mockImplementation(() => new Promise(() => {}))
+    view = await renderOver(world)
+    expect(view.textOf('overview-refreshing')).toBe(t('socialRecovery.loading.refreshingSetup'))
+    expect(view.byTestId('readout-path')).not.toBeNull()
+    expect(view.isDisabled('overview-edit-path')).toBe(true)
+    expect(view.byTestId('overview-chip-set-up')).toBeNull()
+  })
+
+  it('shows the kept setup beside the refreshing line, its actions held, before the client is built', async () => {
+    const world = await worldAt('public')
+    view = await renderOver(world)
+    expect(view.byTestId('readout-path')).not.toBeNull()
+    view.unmount()
+
+    view = await mount(
+      <ReadsProbe
+        client={{ status: 'loading', retry: () => {} }}
+        records={world.records}
+        chainId={CHAIN_ID}
+        onOpen={jest.fn()}
+      />
+    )
+    await harness.settleReads()
+    expect(view.textOf('overview-refreshing')).toBe(t('socialRecovery.loading.refreshingSetup'))
+    expect(view.byTestId('readout-path')).not.toBeNull()
+    expect(view.isDisabled('overview-edit-path')).toBe(true)
+    expect(view.isDisabled('overview-remove-recovery')).toBe(true)
+    expect(view.byTestId('overview-chip-set-up')).toBeNull()
+  })
+
+  it('says it reads the setup, with no path, while the setup state has not answered and nothing is kept', async () => {
+    const world = await worldAt('public')
+    jest.spyOn(world.client.setup, 'setupState').mockImplementation(() => new Promise(() => {}))
+    view = await renderOver(world)
+    expect(view.textOf('overview-reading')).toBe(t('socialRecovery.loading.lookup'))
+    expect(view.byTestId('readout-path')).toBeNull()
+  })
+
+  it('shows no kept setup of another deployment, nor one an earlier build wrote with none, while the setup state has not answered', async () => {
+    const world = await worldAt('public')
+    const { setupNonce, setupCommitment } = await world.client.setup.setupState()
+    const cache = world.records.decryptedSetupCache(CHAIN_ID, ACCOUNT)
+    jest.spyOn(world.client.setup, 'setupState').mockImplementation(() => new Promise(() => {}))
+    const kept = [
+      { configuration: CONFIGURATION, setupNonce, setupCommitment, deployment: RETIRED },
+      { configuration: CONFIGURATION, setupNonce, setupCommitment }
+    ]
+    const renderBeside = async (record: typeof kept[number]) => {
+      await cache.write(record)
+      view = await renderOver(world)
+      expect(view.textOf('overview-reading')).toBe(t('socialRecovery.loading.lookup'))
+      expect(view.byTestId('overview-refreshing')).toBeNull()
+      expect(view.byTestId('readout-path')).toBeNull()
+      view.unmount()
+      view = undefined
+    }
+    for (let index = 0; index < kept.length; index += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await renderBeside(kept[index])
+    }
+  })
+
+  it('shows the kept setup beside the refreshing line while the path reads only where it was committed under the nonce the setup state answered', async () => {
+    const world = await worldAt('public')
+    const { setupNonce } = await world.client.setup.setupState()
+    const cache = world.records.decryptedSetupCache(CHAIN_ID, ACCOUNT)
+    // A commitment the chain does not hold, so the path is read again rather than taken from the cache.
+    const otherCommitment = `0x${'22'.repeat(32)}` as const
+    jest.spyOn(world.client.setup, 'getSetup').mockImplementation(() => new Promise(() => {}))
+
+    await cache.write({
+      configuration: CONFIGURATION,
+      setupNonce,
+      setupCommitment: otherCommitment,
+      deployment: DEPLOYMENT
+    })
+    view = await renderOver(world)
+    expect(view.textOf('overview-path-refreshing')).toBe(
+      t('socialRecovery.loading.refreshingSetup')
+    )
+    expect(view.byTestId('readout-path')).not.toBeNull()
+    view.unmount()
+
+    await cache.write({
+      configuration: CONFIGURATION,
+      setupNonce: setupNonce - 1n,
+      setupCommitment: otherCommitment,
+      deployment: DEPLOYMENT
+    })
+    view = await renderOver(world)
+    expect(view.textOf('overview-path-reading')).toBe(t('socialRecovery.loading.lookup'))
+    expect(view.byTestId('overview-path-refreshing')).toBeNull()
+    expect(view.byTestId('readout-path')).toBeNull()
+  })
+
   it('shows a public path with no password', async () => {
     const world = await worldAt('public')
     view = await renderOver(world)

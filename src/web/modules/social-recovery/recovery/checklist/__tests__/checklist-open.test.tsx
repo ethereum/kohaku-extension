@@ -88,6 +88,25 @@ describe('opening the checklist', () => {
     expect(view.byTestId('checklist-rows')).not.toBeNull()
   })
 
+  it("draws its first wait as the entry read's wait: the full column, no title, the same message", async () => {
+    await seedCache(world.records, MIXED_PATH)
+    const kit = fakeKit(MIXED_PATH)
+    const release = world.storage.hold('recoverySession')
+    view = await mountChecklist({ records: world.records, client: kit.state, deps: depsOf() })
+    await settle()
+
+    expect(view.byTestId('checklist-loading')?.textContent).toBe(
+      t('socialRecovery.loading.session')
+    )
+    expect(
+      view.byTestId('checklist-loading')?.querySelector('[data-testid="loading-screen"]')
+    ).not.toBeNull()
+    expect(view.byTestId('checklist-title')).toBeNull()
+    expect(view.byTestId('checklist-columns')).toBeNull()
+    await outside(async () => release())
+    await settle()
+  })
+
   it('renders no row until the live session is written', async () => {
     await seedCache(world.records, MIXED_PATH)
     const kit = fakeKit(MIXED_PATH)

@@ -1,9 +1,10 @@
 /**
- * The running recovery as the last poll read it: its chip, the day it started
+ * The running recovery as the last poll read it, or as the countdown's record
+ * holds it until a poll answers: its chip, the day it started
  * (on chain, the attempt's end less the setup's waiting period, where this
  * device holds the setup; else the day the submission landed here), the
  * countdown against the pinned block's time while the wait runs, the end in
- * the reader's zone from the attempt the manager reports (in the past tense
+ * the reader's zone from the attempt's executable time (in the past tense
  * once execution is due), the account on one line and the new key, and the
  * recovery path where this device holds the setup (one line by its shape,
  * else its rule lines, less the advice on the setup the owner alone can take).
@@ -43,7 +44,8 @@ const SETUP_ADVICE = [
 ]
 
 const CountdownBlock = ({
-  round,
+  executableAt,
+  due,
   account,
   networkName,
   newKey,
@@ -54,7 +56,6 @@ const CountdownBlock = ({
 }: CountdownBlockProps) => {
   const { t } = useTranslation()
   const { theme } = useTheme()
-  const { phase } = round
   const book = useMemo(() => addressBookOf(WALLET_RECOVERY_CHAIN), [])
   const pathLines = useMemo(() => {
     if (!configuration) {
@@ -68,14 +69,8 @@ const CountdownBlock = ({
     return ruleLinesOf(configuration, book, t).filter((ruleLine) => !advice.includes(ruleLine))
   }, [configuration, book, t])
 
-  if (phase.kind !== 'waiting' && phase.kind !== 'executionDue') {
-    return null
-  }
-  const startedMs = configuration
-    ? (phase.attempt.consumableAfter - configuration.wait) * 1000
-    : startedAt
+  const startedMs = configuration ? (executableAt - configuration.wait) * 1000 : startedAt
 
-  const due = phase.kind === 'executionDue'
   const chip = renderChip('attempt', due ? 'executionDue' : 'recoveryInProgress', t)
   const tone = due ? 'success' : 'default'
 
@@ -111,7 +106,7 @@ const CountdownBlock = ({
       )}
       <Text fontSize={14} style={spacings.mbSm} testID="wait-finishes">
         {t(due ? `${WAIT}.ended` : `${WAIT}.finishes`, {
-          date: dateOf(phase.attempt.consumableAfter * 1000, timeZone)
+          date: dateOf(executableAt * 1000, timeZone)
         })}
       </Text>
       <AccountLine account={account} networkName={networkName} testID="wait-account" />

@@ -1,13 +1,15 @@
 /**
  * The save on its way: the refusal of a setup the account no longer
  * authorizes while an attempt is open, the line that saving cancels the
- * attempt in progress, the write in the shared states, and the way back to
- * the editor wherever nothing is on its way to the chain.
+ * attempt in progress, the write in the shared states with the save held
+ * while the gas check runs, and the way back to the editor wherever nothing
+ * is on its way to the chain.
  */
 import React from 'react'
 import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
+import Button from '@common/components/Button'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
@@ -40,6 +42,15 @@ const ReviewRun = ({ run, attemptOpen, dormantRefused, backToEditor }: ReviewRun
         run={run}
         write="edit"
         droppedLine="socialRecovery.arm.dropped"
+        action={
+          <Button
+            testID="manage-review-save"
+            type="primary"
+            text={t(`${REVIEW}.save`)}
+            disabled
+            hasBottomSpacing={false}
+          />
+        }
         testID="manage-review-run"
       />
       {nothingOnItsWay(run.state) && (

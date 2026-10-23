@@ -3,13 +3,17 @@
  * sessions, at the collection's stage, under the plain header where every one
  * came by the fast track and the settings chrome otherwise, with this device's
  * hold on each account's unlocked path, the decrypted setup cache or the
- * recovery password held in memory. The chrome waits for the first read of the list, so the
- * view mounts once, under the chrome it keeps.
+ * recovery password held in memory. Until the first read of the list answers,
+ * the settings chrome holds a waiting block; the view then mounts once, under
+ * the chrome it keeps.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
+import { useTranslation } from '@common/config/localization'
 import useNavigation from '@common/hooks/useNavigation'
+import flexbox from '@common/styles/utils/flexbox'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import RecoveryChrome from '@web/modules/social-recovery/shared/chrome/RecoveryChrome'
 import { CHAIN_IDS, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
 import type { Address } from '@kohaku-eth/social-recovery'
@@ -28,6 +32,7 @@ import useSessionHeadline from './useSessionHeadline'
 const CHAIN_ID = CHAIN_IDS[WALLET_RECOVERY_CHAIN]
 
 const InProgressScreen = () => {
+  const { t } = useTranslation()
   const { navigate } = useNavigation()
   const [route, setRoute] = useState<RecoveryRoute | undefined>()
   const records = useMemo(() => createWalletRecords({ storage: extensionRecordStorage }), [])
@@ -64,9 +69,16 @@ const InProgressScreen = () => {
 
   if (!route) {
     return (
-      <View style={{ flex: 1 }} testID="in-progress-screen">
-        <ActivityIndicator testID="in-progress-route-loading" />
-      </View>
+      <RecoveryChrome
+        route={null}
+        titleKey="socialRecovery.routes.recovery"
+        stage={{ step: CHECKLIST_STAGE, testID: 'recovery-stage' }}
+        testID="in-progress-screen"
+      >
+        <View testID="in-progress-route-loading" style={flexbox.flex1}>
+          <LoadingBlock variant="screen" message={t('socialRecovery.loading.entries')} />
+        </View>
+      </RecoveryChrome>
     )
   }
 

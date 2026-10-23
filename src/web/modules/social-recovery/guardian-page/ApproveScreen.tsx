@@ -3,7 +3,10 @@
  * keystore and no listed account: it reads the request its link carries,
  * refuses one aimed at another deployment before any read, builds the
  * recovery client for the request's account, describes the request through
- * the client's approving side and reads the chain through the client. It
+ * the client's approving side and reads the chain through the client. Until
+ * the client stands, the request is described without one, so its values
+ * show beside the reading with the sign held; a link this build cannot
+ * describe shows a waiting block until the client answers. It
  * holds nothing of the recoverer's. Once described, the request's lead stays
  * on the page while the client is built again or a read runs or fails. The
  * signature is made in the wallet's own sign window through the request
@@ -17,10 +20,12 @@
  * death the page reads the chain no more.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { View } from 'react-native'
 import { useLocation } from 'react-router-dom'
 
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
+import flexbox from '@common/styles/utils/flexbox'
 import useNavigation from '@common/hooks/useNavigation'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
@@ -29,11 +34,13 @@ import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import { CHAIN_NAMES } from '@web/modules/social-recovery/recovery/entry'
 import { TwoColumn } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import PlainChrome from '@web/modules/social-recovery/shared/chrome/PlainChrome'
 import {
   addressBookOf,
   CHAIN_IDS,
   createSignerFacade,
+  describeRequestOffline,
   descriptorOf,
   networkOf,
   signRequestPort,
@@ -103,6 +110,11 @@ const ApproveScreen = () => {
     () => (kit ? describedRequestOf(request, (r) => kit.approving.describeRequest(r)) : undefined),
     [kit, request]
   )
+  // The link's own description, drawn until the client stands.
+  const offline = useMemo(
+    () => (readable ? describedRequestOf(request, (r) => describeRequestOffline(r)) : null),
+    [readable, request]
+  )
 
   const accountsRef = useRef<readonly ListedAccount[] | undefined>(accounts)
   accountsRef.current = accounts
@@ -151,10 +163,11 @@ const ApproveScreen = () => {
       setKept(fresh)
     }
   }, [fresh])
-  const described = fresh !== undefined ? fresh : kept?.request === request ? kept : null
+  const keptForRequest = kept?.request === request ? kept : null
+  const described = fresh !== undefined ? fresh : keptForRequest ?? (kit ? null : offline)
   // A death is final on chain: once a read found one, no round runs after it.
   const [diedFor, setDiedFor] = useState<ApproverRequest | null>(null)
-  const { reads, retry } = useApprovalReads({
+  const { reads, refreshing, retry } = useApprovalReads({
     client: kit,
     link: location.search,
     enabled: readable && !declined && !signing.approval,
@@ -232,6 +245,13 @@ const ApproveScreen = () => {
         : null
       return <DeclinedBlock account={request.account} newKey={newKey} onClose={closePage} />
     }
+    if (!described && reading.kind === 'reading') {
+      return (
+        <View testID="guardian-request-loading" style={flexbox.flex1}>
+          <LoadingBlock variant="screen" message={t('socialRecovery.loading.request')} />
+        </View>
+      )
+    }
     if (!described || reading.kind === 'other-deployment') {
       return (
         <TwoColumn testID="guardian-status-columns">
@@ -255,6 +275,7 @@ const ApproveScreen = () => {
         onClose={closePage}
         onDecline={onDecline}
         onRetry={onRetry}
+        refreshing={refreshing || !kit}
       />
     )
   }

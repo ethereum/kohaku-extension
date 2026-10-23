@@ -280,7 +280,7 @@ export const submitStepsOf = (input: SubmitStepsInput): SubmitSteps => {
         dispatch({ type: 'error', run, error, transactionHash })
       }
     },
-    land: () =>
+    land: (executableAt) =>
       // A session another page landed meanwhile for this request, on any try,
       // is this landing done; one of another request is not this run's to land.
       withFreshRevision(async (revision, read): Promise<LandOutcome> => {
@@ -290,7 +290,7 @@ export const submitStepsOf = (input: SubmitStepsInput): SubmitSteps => {
         if (read.value.state === 'live' && !ownsSession(read.value)) {
           return 'other-request'
         }
-        await records.landSubmission(chainId, account, revision)
+        await records.landSubmission(chainId, account, revision, executableAt)
         return 'landed'
       })
   }

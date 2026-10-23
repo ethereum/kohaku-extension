@@ -1,8 +1,11 @@
 /**
  * The owner's cancel, by state. Before any send: the fresh read of the
- * attempt (loading, failed with a retry, or no attempt open), then the confirm
- * for the attempt the newest read finds open, with its facts and whether the
- * page can send it. Then the shared write states: the gas check, the deposit
+ * attempt (failed with a retry, or no attempt open), then the confirm for the
+ * attempt the newest read finds open, with its facts and whether the page can
+ * send it. While the fresh read runs, the watcher's last reading shows its
+ * confirm with the send held beside a refreshing line, or a waiting block
+ * where it names no open attempt. Then the shared write states: the gas check
+ * with the confirm kept and its send held beside the fee line, the deposit
  * step naming the account's key with both routes, the cancel in progress (with
  * the attempt's ending where a followed request's attempt ended meanwhile), the
  * two readings of the failed state with the move-funds action where the state
@@ -10,7 +13,7 @@
  * ended, then the cancelled terminal.
  */
 import React from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
@@ -19,6 +22,8 @@ import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { isSendRefusal } from '@web/modules/social-recovery/shared/client'
 import { SectionCard } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
+import RefreshingLine from '@web/modules/social-recovery/shared/chrome/RefreshingLine'
 import {
   mayStillLand,
   offersMoveFunds,
@@ -29,9 +34,10 @@ import {
 import type { WriteMachineState } from '@web/modules/social-recovery/shared/writes'
 import DepositStepView from '@web/modules/social-recovery/shared/writes/components/DepositStepView'
 import WriteStateView from '@web/modules/social-recovery/shared/writes/components/WriteStateView'
+import type { WatchedAttempt, WatcherReading } from '@web/modules/social-recovery/watcher'
 
 import { AttemptFacts, CancelledBlock, EndedBlock } from './CancelBlocks'
-import type { CancelViewProps } from './types'
+import type { CancelViewProps, ConfirmWait } from './types'
 
 const BANNER = 'socialRecovery.watcher.banner'
 const CANCEL = 'socialRecovery.cancel'
@@ -51,6 +57,7 @@ const ownNotSentBody = (write: WriteMachineState): boolean =>
 
 const CancelView = ({
   read,
+  last,
   run,
   readiness,
   timeZone,
@@ -102,6 +109,70 @@ const CancelView = ({
     />
   )
 
+  // The confirm for an open attempt; while it waits on a read, its send is held.
+  const confirmBlock = (reading: WatcherReading, open: WatchedAttempt, wait: ConfirmWait) => (
+    <SectionCard testID="cancel-confirm">
+      <Text fontSize={20} weight="medium" style={spacings.mbSm} testID="cancel-confirm-title">
+        {t(`${CANCEL}.confirm.title`)}
+      </Text>
+      <Text fontSize={14} style={spacings.mbTy} testID="cancel-confirm-lead">
+        {t(`${CANCEL}.confirm.lead`)}
+      </Text>
+      <Text fontSize={14} style={spacings.mbSm} testID="cancel-confirm-one-transaction">
+        {t(`${CANCEL}.confirm.oneTransaction`)}
+      </Text>
+      {wait === 'refreshing' && (
+        <View testID="cancel-refreshing" style={spacings.mbSm}>
+          <RefreshingLine messageKey="socialRecovery.loading.refreshingAttempt" />
+        </View>
+      )}
+      <AttemptFacts attempt={open} dormant={reading.dormant} timeZone={timeZone} />
+      <Text
+        fontSize={14}
+        appearance="secondaryText"
+        style={spacings.mbSm}
+        testID="cancel-only-own-key"
+      >
+        {t(`${BANNER}.onlyOwnKey`)}
+      </Text>
+      {wait === 'fee' && <WriteStateView state={write} testID="cancel-checkingGas" />}
+      <View style={[flexbox.directionRow, flexbox.wrap, flexbox.alignCenter]}>
+        <Button
+          testID="cancel-send"
+          type="primary"
+          size="small"
+          text={t(`${CANCEL}.confirm.send`)}
+          onPress={() => onSend(open.attemptId)}
+          disabled={readiness !== 'ready' || wait !== null}
+          hasBottomSpacing={false}
+          style={[spacings.mrSm, spacings.mtTy]}
+        />
+        {backButton}
+      </View>
+      {readiness === 'noKey' && (
+        <Text fontSize={14} style={spacings.mtSm} testID="cancel-view-only">
+          {t(`${CANCEL}.confirm.viewOnly`)}
+        </Text>
+      )}
+      {readiness === 'failed' && (
+        <View style={spacings.mtSm} testID="cancel-ready-failed">
+          <Text fontSize={14} style={spacings.mbTy} testID="cancel-ready-failed-line">
+            {t(`${CANCEL}.confirm.clientFailed`)}
+          </Text>
+          <Button
+            testID="cancel-ready-retry"
+            type="secondary"
+            size="small"
+            text={t(WRITES_KEYS.tryAgain)}
+            onPress={onRetryReady}
+            hasBottomSpacing={false}
+            style={flexbox.alignSelfStart}
+          />
+        </View>
+      )}
+    </SectionCard>
+  )
+
   if (after.stage === 'cancelled' || after.stage === 'otherRoad') {
     return (
       <CancelledBlock
@@ -113,9 +184,18 @@ const CancelView = ({
     )
   }
 
+  // The newest reading: the one in which the run found its attempt no longer open, else the arrival's.
+  const newest = run.gone ?? (read.status === 'read' ? read.arrival.reading : undefined)
+
   switch (write.status) {
     case 'checkingGas':
-      return <ActivityIndicator testID="cancel-spinner" />
+      return newest?.attempt ? (
+        confirmBlock(newest, newest.attempt, 'fee')
+      ) : (
+        <SectionCard testID="cancel-loading">
+          <LoadingBlock variant="block" message={t('socialRecovery.loading.fee')} />
+        </SectionCard>
+      )
     case 'needsDeposit': {
       const rendered = renderDepositStep(write.step, {}, t)
       return (
@@ -197,7 +277,9 @@ const CancelView = ({
               {checkAgainButton(`${CANCEL}.landed.checkAgain`)}
             </>
           ) : (
-            <ActivityIndicator testID="cancel-landed-reading" style={flexbox.alignSelfStart} />
+            <View testID="cancel-landed-reading">
+              <RefreshingLine messageKey="socialRecovery.loading.refreshingAttempt" />
+            </View>
           )}
         </SectionCard>
       )
@@ -242,11 +324,17 @@ const CancelView = ({
       break
   }
 
-  // The newest reading: the one in which the run found its attempt no longer open, else the arrival's.
   let reading = run.gone
   if (!reading) {
     if (read.status === 'loading') {
-      return <ActivityIndicator testID="cancel-spinner" />
+      // The watcher's last reading shows until the fresh read answers; nothing is sent on it.
+      return last?.attempt ? (
+        confirmBlock(last, last.attempt, 'refreshing')
+      ) : (
+        <SectionCard testID="cancel-loading">
+          <LoadingBlock variant="block" message={t('socialRecovery.loading.attempt')} />
+        </SectionCard>
+      )
     }
     if (read.status === 'failed') {
       return (
@@ -281,62 +369,7 @@ const CancelView = ({
     )
   }
 
-  return (
-    <SectionCard testID="cancel-confirm">
-      <Text fontSize={20} weight="medium" style={spacings.mbSm} testID="cancel-confirm-title">
-        {t(`${CANCEL}.confirm.title`)}
-      </Text>
-      <Text fontSize={14} style={spacings.mbTy} testID="cancel-confirm-lead">
-        {t(`${CANCEL}.confirm.lead`)}
-      </Text>
-      <Text fontSize={14} style={spacings.mbSm} testID="cancel-confirm-one-transaction">
-        {t(`${CANCEL}.confirm.oneTransaction`)}
-      </Text>
-      <AttemptFacts attempt={open} dormant={reading.dormant} timeZone={timeZone} />
-      <Text
-        fontSize={14}
-        appearance="secondaryText"
-        style={spacings.mbSm}
-        testID="cancel-only-own-key"
-      >
-        {t(`${BANNER}.onlyOwnKey`)}
-      </Text>
-      <View style={[flexbox.directionRow, flexbox.wrap, flexbox.alignCenter]}>
-        <Button
-          testID="cancel-send"
-          type="primary"
-          size="small"
-          text={t(`${CANCEL}.confirm.send`)}
-          onPress={() => onSend(open.attemptId)}
-          disabled={readiness !== 'ready'}
-          hasBottomSpacing={false}
-          style={[spacings.mrSm, spacings.mtTy]}
-        />
-        {backButton}
-      </View>
-      {readiness === 'noKey' && (
-        <Text fontSize={14} style={spacings.mtSm} testID="cancel-view-only">
-          {t(`${CANCEL}.confirm.viewOnly`)}
-        </Text>
-      )}
-      {readiness === 'failed' && (
-        <View style={spacings.mtSm} testID="cancel-ready-failed">
-          <Text fontSize={14} style={spacings.mbTy} testID="cancel-ready-failed-line">
-            {t(`${CANCEL}.confirm.clientFailed`)}
-          </Text>
-          <Button
-            testID="cancel-ready-retry"
-            type="secondary"
-            size="small"
-            text={t(WRITES_KEYS.tryAgain)}
-            onPress={onRetryReady}
-            hasBottomSpacing={false}
-            style={flexbox.alignSelfStart}
-          />
-        </View>
-      )}
-    </SectionCard>
-  )
+  return confirmBlock(reading, open, null)
 }
 
 export default React.memo(CancelView)

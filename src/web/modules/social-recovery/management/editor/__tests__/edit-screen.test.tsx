@@ -12,8 +12,23 @@
  */
 import { TextDecoder, TextEncoder } from 'util'
 
-import type { ScreensWorld } from '@web/modules/social-recovery/management/editor/__fixtures__/types'
+import type {
+  ScreensWorld,
+  ValidatingClientSeam
+} from '@web/modules/social-recovery/management/editor/__fixtures__/types'
 import type { Configuration } from '@kohaku-eth/social-recovery'
+
+// The spinner's animation needs a native module jsdom lacks; a plain view stands in.
+jest.mock('@common/components/Spinner', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires, global-require */
+  const mockReact: typeof import('react') = require('react')
+  const { View: MockView }: typeof import('react-native') = require('react-native')
+  /* eslint-enable @typescript-eslint/no-var-requires, global-require */
+  return {
+    __esModule: true,
+    default: () => mockReact.createElement(MockView, { testID: 'spinner' })
+  }
+})
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 
@@ -129,6 +144,7 @@ const editPage = async (
       path: { kind: 'readable', configuration: COMMITTED },
       ask: { status: 'idle' },
       notices: { status: 'pending' },
+      cached: null,
       retry: jest.fn(),
       retryPath: jest.fn(),
       retryNotices: jest.fn(),
@@ -178,6 +194,30 @@ describe('the edit page', () => {
     view.unmount()
   })
 
+  it('says it reads the setup in a waiting block, with no editor, while the setup state has not answered', async () => {
+    const first = await editPage()
+    first.view.unmount()
+    Object.assign(mockWorld, {
+      reads: { ...(mockWorld.reads as object), facts: { status: 'pending' } }
+    })
+    const view = await mount(
+      React.createElement(EditStageView, {
+        records: first.records,
+        session: editSessionOf(makeStorage(), CHAIN_ID, ACCOUNT),
+        chainId: CHAIN_ID,
+        account: ACCOUNT,
+        navigate: jest.fn()
+      })
+    )
+
+    expect(view.textOf('manage-edit-reads-reading')).toBe(t('socialRecovery.loading.lookup'))
+    expect(
+      view.byTestId('manage-edit-reads-reading')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
+    expect(view.byTestId('editor-continue')).toBeNull()
+    view.unmount()
+  })
+
   it('shows one title, the values above the review action, and that action in its words', async () => {
     const { view } = await editPage()
 
@@ -189,6 +229,33 @@ describe('the edit page', () => {
     expect(view.byTestId('manage-values')).not.toBeNull()
     expect(before(view.byTestId('manage-values'), view.byTestId('editor-continue'))).toBe(true)
     expect(view.textOf('manage-value-wait-change')).toBe(t(`${EDITOR}.values.change`))
+    view.unmount()
+  })
+
+  it('holds the changes of the values while the path is checked, as the editor holds its own edits, and keeps the cancel', async () => {
+    const { view } = await editPage()
+    const { validateSetup } = (mockWorld.client as unknown as ValidatingClientSeam).client.setup
+    let fail: (reason: Error) => void = () => {}
+    validateSetup.mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          fail = reject
+        })
+    )
+    const held = ['manage-value-wait-change', 'manage-value-privacy-change']
+    held.forEach((id) => expect(view.isDisabled(id)).toBe(false))
+
+    await view.press('editor-continue')
+    expect(validateSetup).toHaveBeenCalledTimes(1)
+    expect(view.byTestId('editor-waiting')).not.toBeNull()
+    expect(view.isDisabled('editor-continue')).toBe(true)
+    held.forEach((id) => expect(view.isDisabled(id)).toBe(true))
+    expect(view.isDisabled('manage-edit-cancel')).toBe(false)
+
+    await act(async () => fail(new Error('node unavailable')))
+    await settle()
+    expect(view.byTestId('editor-waiting')).toBeNull()
+    held.forEach((id) => expect(view.isDisabled(id)).toBe(false))
     view.unmount()
   })
 
@@ -260,6 +327,10 @@ describe('the edit page', () => {
     })
     const navigate = jest.fn()
     const { view } = await editPage(records, navigate)
+    expect(view.textOf('manage-edit-opening')).toBe(t('socialRecovery.loading.draft'))
+    expect(
+      view.byTestId('manage-edit-opening')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
 
     view.unmount()
     answer({
@@ -287,6 +358,7 @@ describe('the edit page', () => {
           addressBook: review.BOOK,
           passwordChanged,
           stale: passwordChanged,
+          disabled: false,
           onStage
         })
       )

@@ -113,6 +113,8 @@ export interface EditorViewProps {
   continueLabel?: string
   /** What sits between the path and its actions. */
   beforeActions?: ReactNode
+  /** Told when the check before Continue starts and when it ends. */
+  onCheckingChange?: (checking: boolean) => void
 }
 
 export interface CredentialRowProps {

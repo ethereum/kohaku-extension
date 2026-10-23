@@ -2,14 +2,15 @@
  * The save over given props: the account the save writes to with the key a
  * recovery would remove, the module that will hold the account's authority,
  * the costs beside them, and below them the save as it stands: the arrival's block or
- * the Save button, the gas blocker naming the shortfall and the controlling
+ * the Save button, held beside the fee line while the gas check runs, the gas
+ * blocker naming the shortfall and the controlling
  * key, the shared submitting and failed states in the save's own words, a
  * save the network dropped with the one way to save again, a setup the run
  * found already there, the check after the landing, then the
  * saved screen or the disagreed one.
  */
 import React from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
@@ -26,9 +27,12 @@ import {
   SectionLabel,
   TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
+import RefreshingLine from '@web/modules/social-recovery/shared/chrome/RefreshingLine'
 import { publisherKeyOf } from '@web/modules/social-recovery/shared/client'
 import {
   renderFullAddress,
+  renderHash,
   renderNoun,
   renderResolvedName
 } from '@web/modules/social-recovery/shared/display'
@@ -161,6 +165,27 @@ const ArmView = ({
     />
   )
 
+  // While the arrival's reads run, the path and the module stay on screen with
+  // a line that says what runs, and no Save shows until they answer.
+  const checking = (
+    <View testID="arm-checking">
+      <RefreshingLine messageKey="socialRecovery.loading.saveChecks" />
+    </View>
+  )
+
+  const saveButton = (held: boolean) => (
+    <View style={flexbox.directionRow}>
+      <Button
+        testID="arm-save"
+        type="primary"
+        text={t(`${REVIEW}.save`)}
+        disabled={held}
+        onPress={onSave}
+        hasBottomSpacing={false}
+      />
+    </View>
+  )
+
   const arrivalBlock = () => {
     switch (arrival.kind) {
       case 'unavailable':
@@ -190,21 +215,9 @@ const ArmView = ({
       case 'blocked':
         return blocker(arrival.block)
       case 'ready':
-        return onSave ? (
-          <View style={flexbox.directionRow}>
-            <Button
-              testID="arm-save"
-              type="primary"
-              text={t(`${REVIEW}.save`)}
-              onPress={onSave}
-              hasBottomSpacing={false}
-            />
-          </View>
-        ) : (
-          <ActivityIndicator testID="arm-spinner" />
-        )
+        return onSave ? saveButton(false) : checking
       default:
-        return <ActivityIndicator testID="arm-spinner" />
+        return checking
     }
   }
 
@@ -279,6 +292,7 @@ const ArmView = ({
         onRetry={onRetry}
         testID={`arm-write-${write.status}`}
       >
+        {write.status === 'checkingGas' && saveButton(true)}
         {checksAgain && (
           <Button
             testID="arm-check-again"
@@ -401,7 +415,22 @@ const ArmView = ({
           {screen === 'arrival' && arrivalBlock()}
           {screen === 'run' && runBlock()}
           {screen === 'already-set-up' && blocker({ kind: 'already-set-up' })}
-          {screen === 'confirming' && <ActivityIndicator testID="arm-confirming" />}
+          {screen === 'confirming' && (
+            <SectionCard testID="arm-confirming">
+              {!!transactionHash && (
+                <Text
+                  fontSize={14}
+                  weight="number_medium"
+                  selectable
+                  style={spacings.mbTy}
+                  testID="arm-confirming-hash"
+                >
+                  {renderHash(transactionHash)}
+                </Text>
+              )}
+              <LoadingBlock variant="block" message={t('socialRecovery.loading.landed')} />
+            </SectionCard>
+          )}
         </View>
 
         {(screen === 'arrival' && arrival.kind !== 'ready' && arrival.kind !== 'loading') ||

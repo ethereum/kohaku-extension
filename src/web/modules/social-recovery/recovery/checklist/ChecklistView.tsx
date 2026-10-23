@@ -2,13 +2,15 @@
  * The checklist: the live session of the account being recovered, one row
  * per place of the gathering under the path's clauses, the headline that
  * counts a group as one unit, the request's deadline, and continue once the
- * assessment finds the rule satisfied. Nothing renders before the stored
- * session is read and the account's recovery state has answered once; a
- * failed read never renders as an empty path, and a failed poll holds every
- * row until a poll succeeds.
+ * assessment finds the rule satisfied. Until the session opens a waiting block
+ * says so. Once it is open its rows show at once, every row and continue held
+ * beside a line that says the account's recovery state is read, until that
+ * read answers once; a later poll keeps the rows with the same line while it
+ * reads. A failed read never renders as an empty path, and a failed poll holds
+ * every row until a poll succeeds.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
@@ -24,6 +26,8 @@ import {
   SectionCard,
   TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
+import RefreshingLine from '@web/modules/social-recovery/shared/chrome/RefreshingLine'
 import { addressBookOf, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
 
 import AadhaarRow from './AadhaarRow'
@@ -235,20 +239,41 @@ const ChecklistView = ({
   }, [pending, assessment, addReply, settle, deps])
   const isLive = load.phase === 'live'
   // The view's own clock, read when the deadline line reports the pass. Past
-  // the request's deadline the chain read that lands or wipes it still runs.
+  // the request's deadline one chain read lands or wipes the request. A first
+  // read that began past the deadline is that read, so no second one is
+  // asked; one that began before it judges by its own earlier clock, so the
+  // round asked here runs on its return.
   const { retryPoll } = checklist
   const { now } = deps
   const [passedAt, setPassedAt] = useState<number | null>(null)
+  const firstReadFrom = useRef<number | null>(null)
+  if (poll.status !== 'pending') {
+    firstReadFrom.current = null
+  } else if (firstReadFrom.current === null) {
+    firstReadFrom.current = now()
+  }
+  const gathering = live?.session.gathering
   const onDeadlinePassed = useCallback(() => {
     setPassedAt(now())
-    retryPoll()
-  }, [now, retryPoll])
+    const from = firstReadFrom.current
+    if (from === null || !gathering || !deadlinePassed(gathering, from)) {
+      retryPoll()
+    }
+  }, [now, retryPoll, gathering])
   const pastDeadline =
     !!live && passedAt !== null && deadlinePassed(live.session.gathering, passedAt)
-  // A failed poll, a death being written, or one the records could not wipe,
-  // holds every add, launch and continue until a poll succeeds; a request past
-  // its deadline holds them for good.
-  const held = poll.status === 'failed' || checklist.deathFailed || checklist.dying || pastDeadline
+  // A poll that has not answered yet, a later poll still reading, a failed
+  // poll, a death being written, or one the records could not wipe, holds
+  // every add, launch and continue until a poll succeeds; a request past its
+  // deadline holds them for good.
+  const refreshing = poll.status === 'pending'
+  const held =
+    refreshing ||
+    checklist.polling ||
+    poll.status === 'failed' ||
+    checklist.deathFailed ||
+    checklist.dying ||
+    pastDeadline
   // A paste whose check was in flight when the hold began is refused at its
   // add, read at that moment, so it never writes while the rows may be stale.
   const heldRef = useRef(held)
@@ -393,15 +418,13 @@ const ChecklistView = ({
     )
   }
 
-  // The rows never render before the account's recovery state answered once.
-  if (!live || poll.status === 'pending') {
+  // Until the session is open, or while a first read runs with no client to
+  // draw the rows, nothing is known to show.
+  if (!live || (refreshing && (!layout || !assessment || !states))) {
     return (
-      <TwoColumn testID="checklist-columns">
-        <View testID="checklist">
-          {title}
-          <ActivityIndicator testID="checklist-loading" />
-        </View>
-      </TwoColumn>
+      <View testID="checklist-loading" style={flexbox.flex1}>
+        <LoadingBlock variant="screen" message={t('socialRecovery.loading.session')} />
+      </View>
     )
   }
 
@@ -526,6 +549,11 @@ const ChecklistView = ({
           timeZone={deps.timeZone}
           onPassed={onDeadlinePassed}
         />
+        {(refreshing || checklist.polling) && (
+          <View testID="checklist-refreshing" style={spacings.mbSm}>
+            <RefreshingLine messageKey="socialRecovery.loading.refreshingAttempt" />
+          </View>
+        )}
         {poll.status === 'failed' && <PollAlert withRows onRetry={checklist.retryPoll} />}
         {checklist.deathFailed && (
           <Alert

@@ -162,11 +162,15 @@ describe('a read that found no consume, failed or has not answered', () => {
     screen.unmount()
   })
 
-  it('renders loading while the read has not answered, then failed with retry at its limit', async () => {
+  it('says the recovery finishes while the read has not answered, then failed with retry at its limit', async () => {
     const world = await openWorld({ route: 'logged-in', walletAdds: true })
     world.kit.chain.hanging = true
     const screen = await mountDone(world.account)
-    expect(screen.has('done-loading')).toBe(true)
+    expect(screen.textOf('done-loading')).toBe(t('socialRecovery.loading.finishing'))
+    expect(
+      screen.byTestId('done-loading')?.querySelector('[data-testid="loading-screen"]')
+    ).not.toBeNull()
+    expect(screen.has('done-columns')).toBe(false)
     expect(screen.has('done')).toBe(false)
     await tick(POLL_LIMIT_MS + 1)
     expect(screen.has('done-read-failed')).toBe(true)
@@ -260,7 +264,10 @@ describe('the route search and the entry record', () => {
     const world = await openWorld({ route: 'logged-in', walletAdds: true })
     mockWallet.accounts = undefined
     const screen = await mountDone(world.account)
-    expect(screen.has('done-entry-loading')).toBe(true)
+    expect(screen.textOf('done-entry-loading')).toBe(t('socialRecovery.loading.session'))
+    expect(
+      screen.byTestId('done-entry-loading')?.querySelector('[data-testid="loading-screen"]')
+    ).not.toBeNull()
     expect(world.kit.recoveryState).not.toHaveBeenCalled()
     screen.unmount()
   })

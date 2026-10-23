@@ -7,7 +7,7 @@
  * chosen; a wallet with none says so and offers no continue.
  */
 import React, { useCallback, useEffect, useState } from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
@@ -21,6 +21,7 @@ import {
   SectionLabel,
   TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import {
   renderFullAddress,
   renderShortAddress,
@@ -76,7 +77,11 @@ const OwnerStageView = ({
 
   let body: React.ReactNode
   if (!loaded) {
-    body = <ActivityIndicator testID="entry-owner-loading" />
+    body = (
+      <View testID="entry-owner-loading">
+        <LoadingBlock variant="block" message={t('socialRecovery.loading.accounts')} />
+      </View>
+    )
   } else if (choices.length === 0) {
     body = (
       <>

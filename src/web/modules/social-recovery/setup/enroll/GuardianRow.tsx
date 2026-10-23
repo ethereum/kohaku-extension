@@ -18,6 +18,7 @@ import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { noteKeyOfOutcome } from '@web/modules/social-recovery/shared/ceremony'
 import { PageTitle, SectionCard, TwoColumn } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 
 import GuardianAddressField from './GuardianAddressField'
 import GuardianChecksBlock from './GuardianChecksBlock'
@@ -87,6 +88,12 @@ const GuardianRow = (props: RowProps) => {
           )}
 
           {row.checkLines.length > 0 && <GuardianChecksBlock lines={row.checkLines} />}
+
+          {!enrollment && row.busy && (
+            <View testID="guardian-adding">
+              <LoadingBlock variant="block" message={t('socialRecovery.loading.address')} />
+            </View>
+          )}
 
           {!enrollment && (
             <View style={flexbox.alignStart}>

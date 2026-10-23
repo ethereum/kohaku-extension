@@ -8,7 +8,7 @@
  * in this component alone and is emptied once a check starts.
  */
 import React, { useCallback, useState } from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Button from '@common/components/Button'
 import InputPassword from '@common/components/InputPassword'
@@ -16,6 +16,7 @@ import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import { ActionsRow, SectionCard } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
 import { renderPasswordName } from '@web/modules/social-recovery/shared/display'
 
@@ -63,12 +64,14 @@ const ReadoutPasswordAsk = ({
   if (unlock.status === 'checking') {
     return (
       <View testID="readout-unlock-checking">
-        <ActivityIndicator style={spacings.mbSm} />
-        <Text fontSize={14} appearance="secondaryText" style={spacings.mbTy}>
-          {level === 'private'
-            ? t(`${READOUT}.reading`, { network: networkName })
-            : t(`${READOUT}.readingDetails`)}
-        </Text>
+        <LoadingBlock
+          variant="block"
+          message={
+            level === 'private'
+              ? t(`${READOUT}.reading`, { network: networkName })
+              : t(`${READOUT}.readingDetails`)
+          }
+        />
         {configured}
       </View>
     )

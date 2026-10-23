@@ -138,4 +138,15 @@ describe('the setup chrome', () => {
     mount(<SetupChrome testID="chrome">{false}</SetupChrome>)
     expect(byTestId('chrome')?.textContent).toBe(BREADCRUMB)
   })
+
+  it("lets the view it holds grow to the panel's height, so a wait can centre in it", () => {
+    mount(
+      <SetupChrome testID="chrome" skipAccountLatch>
+        <View testID="view" />
+      </SetupChrome>
+    )
+    const column = byTestId('view')?.parentElement as HTMLElement
+    expect(getComputedStyle(column).flexGrow).toBe('1')
+    expect(getComputedStyle(column.parentElement as HTMLElement).flexGrow).toBe('1')
+  })
 })

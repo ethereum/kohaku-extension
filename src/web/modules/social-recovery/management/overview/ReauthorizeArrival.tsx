@@ -5,11 +5,12 @@
  * the setup where this tab holds no password, then the trust list.
  */
 import React from 'react'
-import { ActivityIndicator } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
 import TrustList from '@web/modules/social-recovery/setup/review/TrustList'
 
@@ -74,7 +75,11 @@ const ReauthorizeArrival = ({
     )
   }
   if (path.kind !== 'readable' || level.status === 'pending') {
-    return <ActivityIndicator testID="overview-step-reading" style={spacings.mbSm} />
+    return (
+      <View testID="overview-step-reading">
+        <LoadingBlock variant="block" message={t('socialRecovery.loading.level')} />
+      </View>
+    )
   }
   if (passwordMissing) {
     return (

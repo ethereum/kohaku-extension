@@ -299,8 +299,11 @@ export interface SubmitSteps {
     dispatch: (event: WriteEvent) => void,
     run: number
   ): Promise<void>
-  /** The session landed as the countdown's record, read again after another tab moved it. */
-  land(): Promise<LandOutcome>
+  /**
+   * The session landed as the countdown's record, read again after another tab
+   * moved it, with when the attempt becomes executable, in seconds since epoch.
+   */
+  land(executableAt: number): Promise<LandOutcome>
 }
 
 export interface SubmitStepsInput {

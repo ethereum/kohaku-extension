@@ -39,6 +39,7 @@ import {
 } from '@web/modules/social-recovery/recovery/entry/__tests__/harness'
 import type {
   FakeAttemptReads,
+  HeldDecisionCase,
   Mounted
 } from '@web/modules/social-recovery/recovery/entry/__tests__/harness'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
@@ -367,6 +368,18 @@ describe('the running attempt band', () => {
     page.unmount()
   })
 
+  it('says it reads the recovery in progress while the registry read has not answered, with no lead and no continue', async () => {
+    mockReads.stateOf.mockImplementation(() => new Promise<never>(() => {}))
+    const page = await openRunning()
+    expect(page.textOf('entry-running-loading')).toBe(t('socialRecovery.loading.attempt'))
+    expect(
+      page.byTestId('entry-running-loading')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
+    expect(page.has('entry-running-lead')).toBe(false)
+    expect(page.has('entry-continue')).toBe(false)
+    page.unmount()
+  })
+
   it('draws a failed registry read with retry, never as no attempt', async () => {
     mockReads.stateOf.mockRejectedValueOnce(new Error('rpc down'))
     const page = await openRunning()
@@ -404,6 +417,7 @@ describe('the running attempt band', () => {
       attemptId: ATTEMPT_ID.toString(),
       setupNonce: SETUP_NONCE.toString(),
       payloadHash: keccak256(PAYLOAD),
+      executableAt: CONSUMABLE_AFTER,
       deployment: DEPLOYMENT
     })
     expect(countdown.status === 'present' && countdown.savedAt).toBe(OPENED_AT * 1000)
@@ -652,6 +666,77 @@ describe('the running attempt band while it stands', () => {
     page.unmount()
   })
 
+  it('keeps the attempt last read beside a line that says it is read again while a later read runs', async () => {
+    useLiveFakeClock()
+    const page = await openRunning()
+    expect(page.has('entry-running-refreshing')).toBe(false)
+    mockReads.stateOf.mockImplementationOnce(() => new Promise<never>(() => {}))
+    await advanceClock(POLL_MS)
+    expect(page.textOf('entry-running-refreshing')).toBe(
+      t('socialRecovery.loading.refreshingAttempt')
+    )
+    expect(
+      page.byTestId('entry-running-refreshing')?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
+    expect(page.textOf('entry-running-lead')).toBe(finishes())
+    expect(page.textOf('entry-running-key')).toContain(STRANGER)
+    await advanceClock(LIMIT_MS)
+    expect(page.has('entry-running-refreshing')).toBe(false)
+    expect(page.has('entry-running-refresh-failed')).toBe(true)
+    page.unmount()
+  })
+
+  const decisions: HeldDecisionCase[] = [
+    [
+      'cancel',
+      'entry-running-cancel',
+      () => {
+        setWallet({
+          accounts: [DAILY, VAULT, smartAccount(LOST, LOST_KEY, 'Lost')],
+          keys: [keyOf(BASIC), keyOf(SMART_KEY), keyOf(LOST_KEY)]
+        })
+      },
+      cancelPathOf(LOST)
+    ],
+    [
+      'continue',
+      'entry-running-continue',
+      () => {
+        attemptTo(SMART_KEY)
+      },
+      waitPathOf(LOST)
+    ]
+  ]
+  decisions.forEach(([name, button, arrange, path]) => {
+    it(`holds the ${name} while a later read runs, and takes it again once that read answers`, async () => {
+      useLiveFakeClock()
+      arrange()
+      const page = await openRunning()
+      expect(page.isDisabled(button)).toBe(false)
+      const held = deferred<ActionState>()
+      mockReads.stateOf.mockImplementationOnce(() => held.promise)
+      await advanceClock(POLL_MS)
+      expect(page.textOf('entry-running-refreshing')).toBe(
+        t('socialRecovery.loading.refreshingAttempt')
+      )
+      expect(page.isDisabled(button)).toBe(true)
+      const navigations = navigate.mock.calls.length
+      const writes = storage.set.mock.calls.length
+      await page.press(button)
+      await page.press(button)
+      expect(navigate.mock.calls.length).toBe(navigations)
+      expect(storage.set.mock.calls.length).toBe(writes)
+      expect((await records().countdown(CHAIN_ID, LOST).read()).status).toBe('absent')
+      await outside(() => held.resolve(waitingState()))
+      expect(page.has('entry-running-refreshing')).toBe(false)
+      expect(page.isDisabled(button)).toBe(false)
+      expect(navigate).not.toHaveBeenCalledWith(path)
+      await page.press(button)
+      expect(navigate).toHaveBeenCalledWith(path)
+      page.unmount()
+    })
+  })
+
   it('reads a later read from an older block with no attempt as failed, never as the end; a newer block with none ends it', async () => {
     useLiveFakeClock()
     const page = await openRunning()
@@ -750,7 +835,7 @@ describe('the running attempt band while it stands', () => {
     page.unmount()
   })
 
-  it('keeps no countdown where a read already running when continue is pressed finds another attempt in place of the shown one', async () => {
+  it('takes no continue while a later read runs, and keeps no countdown once that read finds another attempt in place of the shown one', async () => {
     useLiveFakeClock()
     attemptTo(SMART_KEY)
     const page = await openRunning()
@@ -759,6 +844,7 @@ describe('the running attempt band while it stands', () => {
     const held = deferred<ActionState>()
     mockReads.stateOf.mockImplementationOnce(() => held.promise)
     await advanceClock(POLL_MS)
+    expect(page.isDisabled('entry-running-continue')).toBe(true)
     await page.press('entry-running-continue')
     await outside(() => held.resolve(nextState))
     expect(mockReads.attemptEventsOf).toHaveBeenLastCalledWith(
@@ -846,7 +932,10 @@ describe('whose recovery the running attempt is', () => {
       return getAll()
     })
     const page = await openRunning(FRESH_INSTALL)
-    expect(page.has('entry-running-entries-loading')).toBe(true)
+    expect(page.textOf('entry-running-entries-loading')).toBe(t('socialRecovery.loading.entries'))
+    expect(
+      page.byTestId('entry-running-entries-loading')?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
     expect(page.has('entry-running-yours')).toBe(false)
     expect(page.has('entry-running-continue')).toBe(false)
     expect(page.has('entry-running-not-yours')).toBe(false)

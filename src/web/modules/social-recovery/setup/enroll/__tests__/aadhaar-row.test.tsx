@@ -8,6 +8,18 @@
  */
 import { describeIdentityRow } from '@web/modules/social-recovery/setup/enroll/__fixtures__/identity-row'
 
+// The spinner's animation needs a native module jsdom lacks; a plain view stands in.
+jest.mock('@common/components/Spinner', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires, global-require */
+  const mockReact: typeof import('react') = require('react')
+  const { View: MockView }: typeof import('react-native') = require('react-native')
+  /* eslint-enable @typescript-eslint/no-var-requires, global-require */
+  return {
+    __esModule: true,
+    default: () => mockReact.createElement(MockView, { testID: 'spinner' })
+  }
+})
+
 const AADHAAR = 'socialRecovery.enroll.aadhaar'
 
 describeIdentityRow({

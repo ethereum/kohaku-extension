@@ -288,6 +288,86 @@ describe("the overview's write step", () => {
     expect(port.sendAccountBatch).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps the landed hash beside the line that says the result is read while the check after the receipt runs', async () => {
+    const world = await worldAt('public', address)
+    world.chain.setAuthorized(false)
+    const port = sendPortOver(() => {
+      world.chain.clearSetup()
+      jest.spyOn(world.client.setup, 'setupState').mockImplementation(() => new Promise(() => {}))
+    })
+    mockWallet.port = port
+    const onFinished = jest.fn()
+    view = await mount(
+      stepOf(world, await factsOver(world), { receipts: receiptsOver(), onFinished })
+    )
+
+    await view.press('overview-step-start')
+    expect(view.textOf('overview-step-confirming')).toContain(t('socialRecovery.loading.landed'))
+    expect(
+      view.byTestId('overview-step-confirming')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
+    expect(view.byTestId('overview-step-confirming-hash')).not.toBeNull()
+    expect(onFinished).not.toHaveBeenCalled()
+  })
+
+  it('keeps the start on screen, held, beside the line that says the fee is checked while the gas check runs', async () => {
+    const world = await worldAt('public', address)
+    world.chain.setAuthorized(false)
+    const port = sendPortOver(() => world.chain.clearSetup())
+    mockWallet.port = port
+    const balance = deferred<bigint>()
+    const chainReads = { ...GAS_READS, nativeBalance: () => balance.promise } as typeof GAS_READS
+    view = await mount(
+      stepOf(world, await factsOver(world), { receipts: receiptsOver(), chainReads })
+    )
+
+    await view.press('overview-step-start')
+    expect(view.textOf('overview-step-checkingGas')).toContain(t('socialRecovery.loading.fee'))
+    expect(
+      view.byTestId('overview-step-checkingGas')?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
+    expect(view.isDisabled('overview-step-start')).toBe(true)
+    await view.press('overview-step-start')
+    expect(port.sendAccountBatch).not.toHaveBeenCalled()
+
+    await act(async () => {
+      balance.resolve(1_000_000_000_000_000_000n)
+    })
+    await harness.settle()
+    expect(port.sendAccountBatch).toHaveBeenCalledTimes(1)
+  })
+
+  it('says it checks for an unfinished save in place of the start while the wallet reads the account', async () => {
+    const world = await worldAt('public', address)
+    mockWallet.port = sendPortOver()
+    mockWallet.facts = { status: 'loading' }
+    view = await mount(stepOf(world, await factsOver(world), { receipts: receiptsOver() }))
+    expect(view.textOf('overview-step-lookup')).toBe(t('socialRecovery.loading.unfinishedSave'))
+    expect(
+      view.byTestId('overview-step-lookup')?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
+    expect(view.byTestId('overview-step-start')).toBeNull()
+  })
+
+  it('says it reads the committed level while the re-authorize has not read it', async () => {
+    const world = await worldAt('public', address)
+    world.chain.setAuthorized(false)
+    mockWallet.port = sendPortOver()
+    view = await mount(
+      stepOf(world, await factsOver(world), {
+        intent: 'reauthorize',
+        receipts: receiptsOver(),
+        reads: READABLE({ path: { kind: 'reading' } })
+      })
+    )
+    expect(view.textOf('overview-step-reading')).toBe(t('socialRecovery.loading.level'))
+    expect(
+      view.byTestId('overview-step-reading')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
+    expect(view.byTestId('overview-step-start')).not.toBeNull()
+    expect(view.isDisabled('overview-step-start')).toBe(true)
+  })
+
   it("reads a clear whose transaction reverted with the setup write's revert line, never the save's", async () => {
     const world = await worldAt('public', address)
     world.chain.setAuthorized(false)

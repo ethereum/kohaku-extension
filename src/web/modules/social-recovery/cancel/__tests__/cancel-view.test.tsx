@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import type { CancelState, CancelViewProps } from '@web/modules/social-recovery/cancel'
+import type { LastReadingCase } from '@web/modules/social-recovery/cancel/__fixtures__/mount'
 import type { WatcherReading } from '@web/modules/social-recovery/watcher'
 
 jest.mock('viem', () => {
@@ -325,6 +326,91 @@ describe('the cancel screen', () => {
     expect(props.onRetryRead).toHaveBeenCalled()
   })
 
+  it("shows the watcher's last open attempt beside the refreshing line, the send held, while the fresh read runs", async () => {
+    view = await render({ read: { status: 'loading' }, last: OPEN })
+
+    expect(view.textOf('cancel-refreshing')).toBe(t('socialRecovery.loading.refreshingAttempt'))
+    expect(
+      view.byTestId('cancel-refreshing')?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
+    expect(view.textOf('cancel-new-key')).toBe(display.renderFullAddress(NEW_KEY))
+    expect(view.isDisabled('cancel-send')).toBe(true)
+    await view.press('cancel-send')
+    expect(props.onSend).not.toHaveBeenCalled()
+  })
+
+  const UNKNOWN: LastReadingCase[] = [
+    { name: 'this device holds no reading', last: null },
+    {
+      name: 'the last reading names no open attempt',
+      last: endedBy({ attemptId: 4n, road: 'cancelled' })
+    }
+  ]
+  UNKNOWN.forEach(({ name, last }) =>
+    it(`says it reads the recovery in a waiting block while the fresh read runs where ${name}`, async () => {
+      view = await render({ read: { status: 'loading' }, last })
+      expect(view.textOf('cancel-loading')).toBe(t('socialRecovery.loading.attempt'))
+      expect(
+        view.byTestId('cancel-loading')?.querySelector('[data-testid="loading-block"]')
+      ).not.toBeNull()
+      expect(view.byTestId('cancel-send')).toBeNull()
+      expect(view.byTestId('cancel-confirm')).toBeNull()
+      expect(view.byTestId('cancel-ended')).toBeNull()
+    })
+  )
+
+  it("replaces the watcher's last open attempt with the ended block once the fresh read finds none, the send never open", async () => {
+    view = await render({ read: { status: 'loading' }, last: OPEN })
+    expect(view.textOf('cancel-new-key')).toBe(display.renderFullAddress(NEW_KEY))
+    expect(view.isDisabled('cancel-send')).toBe(true)
+
+    const { attempt, ...none } = OPEN
+    await view.render(
+      <CancelView {...props} read={{ status: 'read', arrival: { reading: none } }} last={OPEN} />
+    )
+
+    expect(view.byTestId('cancel-ended')).not.toBeNull()
+    expect(view.textOf('cancel-ended-line')).toBe(t('socialRecovery.cancel.confirm.ended'))
+    expect(view.byTestId('cancel-refreshing')).toBeNull()
+    expect(view.byTestId('cancel-new-key')).toBeNull()
+    expect(view.byTestId('cancel-send')).toBeNull()
+    expect(props.onSend).not.toHaveBeenCalled()
+  })
+
+  it('opens the send once the fresh read answers, over the last reading', async () => {
+    view = await render({ last: OPEN })
+
+    expect(view.byTestId('cancel-refreshing')).toBeNull()
+    expect(view.isDisabled('cancel-send')).toBe(false)
+  })
+
+  it('keeps the confirm on screen, its send held, beside the line that says the fee is checked', async () => {
+    view = await render({ run: withWrite({ status: 'checkingGas', write: 'cancel', run: 1 }) })
+
+    expect(view.textOf('cancel-checkingGas')).toBe(t('socialRecovery.loading.fee'))
+    expect(
+      view.byTestId('cancel-checkingGas')?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
+    expect(view.textOf('cancel-new-key')).toBe(display.renderFullAddress(NEW_KEY))
+    expect(view.isDisabled('cancel-send')).toBe(true)
+    await view.press('cancel-send')
+    expect(props.onSend).not.toHaveBeenCalled()
+  })
+
+  it('says it checks the fee in a waiting block where no open attempt is read to confirm beside it', async () => {
+    view = await render({
+      read: { status: 'loading' },
+      last: null,
+      run: withWrite({ status: 'checkingGas', write: 'cancel', run: 1 })
+    })
+
+    expect(view.textOf('cancel-loading')).toBe(t('socialRecovery.loading.fee'))
+    expect(
+      view.byTestId('cancel-loading')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
+    expect(view.byTestId('cancel-send')).toBeNull()
+  })
+
   it('shows the deposit step for the account key with both routes, and checks again on continue', async () => {
     view = await render({
       run: withWrite({
@@ -360,6 +446,10 @@ describe('the cancel screen', () => {
     expect(view.textOf('cancel-landed-body')).toBe(t('socialRecovery.cancel.landed.body'))
     expect(view.byTestId('cancel-landed-unread')).toBeNull()
     expect(view.byTestId('cancel-cancelled')).toBeNull()
+    expect(view.textOf('cancel-landed-reading')).toBe(t('socialRecovery.loading.refreshingAttempt'))
+    expect(
+      view.byTestId('cancel-landed-reading')?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
   })
 
   it('reads landed but unconfirmed, with check again, once the reads did not confirm', async () => {

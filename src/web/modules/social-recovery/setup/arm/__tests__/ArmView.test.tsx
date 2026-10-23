@@ -17,6 +17,18 @@ import type { SaveBlock } from '@web/modules/social-recovery/setup/review'
 
 import type { ArmState, ArmViewProps, Arrival } from '@web/modules/social-recovery/setup/arm/types'
 
+// The spinner's animation needs a native module jsdom lacks; a plain view stands in.
+jest.mock('@common/components/Spinner', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires, global-require */
+  const mockReact: typeof import('react') = require('react')
+  const { View: MockView }: typeof import('react-native') = require('react-native')
+  /* eslint-enable @typescript-eslint/no-var-requires, global-require */
+  return {
+    __esModule: true,
+    default: () => mockReact.createElement(MockView, { testID: 'spinner' })
+  }
+})
+
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 // Jest's config does not transform the clipboard package's ES modules, which the gas blocker loads.
 jest.mock('@common/utils/clipboard', () => ({ setStringAsync: async () => true }))
@@ -397,9 +409,13 @@ describe('the arrival blocks', () => {
     expect(onRetryArrival).toHaveBeenCalledTimes(1)
   })
 
-  it('shows a spinner while the arrival loads, with no block and no back', () => {
-    mount({ arrival: { kind: 'loading' } })
-    expect(byTestId('arm-spinner')).not.toBeNull()
+  it('keeps the account and the module on screen while the arrival loads, with the line that says what runs, no Save, no block and no back', () => {
+    mount({ arrival: { kind: 'loading' }, onSave: jest.fn() })
+    expect(textOf('arm-checking')).toBe(t('socialRecovery.loading.saveChecks'))
+    expect(byTestId('arm-checking')?.querySelector('[data-testid="loading-row"]')).not.toBeNull()
+    expect(textOf('arm-removed-key-address')).toBe(renderFullAddress(REMOVED_KEY))
+    expect(byTestId('arm-module')).not.toBeNull()
+    expect(byTestId('arm-save')).toBeNull()
     expect(byTestId('arm-back')).toBeNull()
   })
 })
@@ -410,7 +426,7 @@ describe('the Save button on a ready arrival', () => {
     mount({ onSave })
 
     expect(textOf('arm-save')).toBe(t('socialRecovery.review.save'))
-    expect(byTestId('arm-spinner')).toBeNull()
+    expect(byTestId('arm-checking')).toBeNull()
     expect(textOf('arm-removed-key-address')).toBe(renderFullAddress(REMOVED_KEY))
     expect(byTestId('arm-module')).not.toBeNull()
     expect(textOf('arm-cost-line')).toBe(t('socialRecovery.costLines.save'))
@@ -418,10 +434,10 @@ describe('the Save button on a ready arrival', () => {
     expect(onSave).toHaveBeenCalledTimes(1)
   })
 
-  it('shows a spinner and no button where the save starts by itself', () => {
+  it('shows the line that says what runs and no button where the save starts by itself', () => {
     mount()
     expect(byTestId('arm-save')).toBeNull()
-    expect(byTestId('arm-spinner')).not.toBeNull()
+    expect(textOf('arm-checking')).toBe(t('socialRecovery.loading.saveChecks'))
   })
 
   it('shows no Save button on an arrival that is not ready, nor once a run started', () => {
@@ -462,7 +478,7 @@ describe('a run that found a setup on the account', () => {
   it('shows the block whatever the arrival reads after the run', () => {
     mount({ state: STOPPED, arrival: { kind: 'ready' } })
     expect(byTestId('review-blocked-already-set-up')).not.toBeNull()
-    expect(byTestId('arm-spinner')).toBeNull()
+    expect(byTestId('arm-checking')).toBeNull()
   })
 })
 
@@ -823,9 +839,11 @@ describe('the write states in the save words', () => {
     expect(hasButton(t('socialRecovery.writes.tryAgain'))).toBe(true)
   })
 
-  it('shows only a spinner while the check after the landing runs, and nothing saved', () => {
+  it('shows the landed hash with the line that says the result is read while the check after the landing runs, and nothing saved', () => {
     mount({ state: withWrite(LANDED, { stage: 'confirming' }) })
-    expect(byTestId('arm-confirming')).not.toBeNull()
+    expect(textOf('arm-confirming-hash')).toBe(renderHash(TX_HASH))
+    const block = byTestId('arm-confirming')?.querySelector('[data-testid="loading-block"]')
+    expect(block?.textContent).toBe(t('socialRecovery.loading.landed'))
     SAVED_LINES.forEach((key) => expect(pageText()).not.toContain(t(key)))
     mount({ state: withWrite(LANDED, { stage: 'saving' }) })
     expect(byTestId('arm-confirming')).not.toBeNull()

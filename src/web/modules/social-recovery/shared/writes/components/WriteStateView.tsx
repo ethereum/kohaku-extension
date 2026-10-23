@@ -1,6 +1,7 @@
 /**
  * The shared submitting and failed states, rendered from a write's state,
- * with a spinner while the gas check runs and its own line with the retry
+ * with the write's title, its actions and a line that says the fee is checked
+ * while the gas check runs, and its own line with the retry
  * where a read of the check could not run. Every social recovery write renders
  * this view and none draws its own: the copy comes from `renderWriteState` and
  * the rules from the machine, so this component only lays them out.
@@ -17,11 +18,11 @@ import React from 'react'
 import { View } from 'react-native'
 
 import Button from '@common/components/Button'
-import Spinner from '@common/components/Spinner'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 
 import { renderWriteState } from '../copy'
 import type { WriteStateViewProps } from './types'
@@ -40,7 +41,15 @@ const WriteStateView = ({
   if (state.status === 'checkingGas') {
     return (
       <View testID={testID}>
-        <Spinner />
+        {!!title && (
+          <Text fontSize={16} weight="medium" style={spacings.mbTy}>
+            {title}
+          </Text>
+        )}
+        <View testID="write-checking-fee" style={spacings.mbTy}>
+          <LoadingBlock variant="row" message={t('socialRecovery.loading.fee')} />
+        </View>
+        {children}
       </View>
     )
   }

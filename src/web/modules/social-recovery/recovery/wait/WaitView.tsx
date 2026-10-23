@@ -1,16 +1,20 @@
 /**
- * The wait over given props. Until a poll answers, and whenever one fails,
- * it renders the loading or the failed read with retry and no number; a
- * failed poll also offers Back to the route's entry. An answered poll renders
+ * The wait over given props. Until a poll answers, the countdown shows from
+ * the countdown's record with a line that says the chain is read, and Execute
+ * held; a record without the executable time shows a waiting block. A failed
+ * read renders with retry and no number; a failed poll also offers Back to
+ * the route's entry. An answered poll stays on screen while a later round
+ * reads, with the same line, and renders
  * its phase: the countdown, with the transaction that started it, where its
  * end comes from and the notes that the page can close, that the account's
  * own key can still cancel and who finishes it beside it; execution due under
  * its own title, with execute now; the recovery that can no longer execute with its cause alone,
  * no countdown beside it; the cancelled terminal by its canceller. A consumed
- * attempt renders nothing of its own: the screen goes on to the done screen.
+ * attempt says the recovery finishes while the screen goes on to the done
+ * screen.
  */
 import React from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
@@ -19,6 +23,8 @@ import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { PageTitle, SectionCard, TwoColumn } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
+import RefreshingLine from '@web/modules/social-recovery/shared/chrome/RefreshingLine'
 import { renderHash } from '@web/modules/social-recovery/shared/display'
 
 import CancelledBlock from './CancelledBlock'
@@ -37,7 +43,9 @@ const WaitView = ({
   client,
   keys,
   poll,
+  polling,
   remainingMs,
+  executableAt,
   startedAt,
   timeZone,
   configuration,
@@ -118,9 +126,41 @@ const WaitView = ({
     )
   }
   if (client.status === 'loading' || keys.status === 'loading' || poll.status === 'pending') {
+    if (executableAt === null) {
+      return (
+        <View testID="wait-loading" style={flexbox.flex1}>
+          <LoadingBlock variant="screen" message={t('socialRecovery.loading.countdown')} />
+        </View>
+      )
+    }
+    // The record's reading stays on screen, every decision held, until the chain answers.
+    const dueByRecord = remainingMs !== null && remainingMs <= 0
     return (
       <TwoColumn testID="wait-columns">
-        <ActivityIndicator testID="wait-loading" />
+        <View testID="wait">
+          <PageTitle
+            title={t(dueByRecord ? `${WAIT}.dueTitle` : `${WAIT}.title`)}
+            lead={t(dueByRecord ? `${WAIT}.dueLead` : `${WAIT}.lead`)}
+            titleTestID="wait-title"
+          />
+          <View testID="wait-refreshing" style={spacings.mbSm}>
+            <RefreshingLine messageKey="socialRecovery.loading.refreshingAttempt" />
+          </View>
+          <CountdownBlock
+            executableAt={executableAt}
+            due={dueByRecord}
+            account={account}
+            networkName={networkName}
+            newKey={keys.status === 'ready' ? keys.keys.newKey : undefined}
+            remainingMs={remainingMs}
+            startedAt={startedAt}
+            timeZone={timeZone}
+            configuration={configuration}
+          />
+          {dueByRecord && (
+            <ExecuteBlock execute={execute} sending={sending} ready={false} onExecute={onExecute} />
+          )}
+        </View>
       </TwoColumn>
     )
   }
@@ -128,9 +168,9 @@ const WaitView = ({
   const { phase } = poll
   if (phase.kind === 'consumed') {
     return (
-      <TwoColumn testID="wait-columns">
-        <ActivityIndicator testID="wait-consumed" />
-      </TwoColumn>
+      <View testID="wait-consumed" style={flexbox.flex1}>
+        <LoadingBlock variant="screen" message={t('socialRecovery.loading.finishing')} />
+      </View>
     )
   }
   if (phase.kind === 'cancelled') {
@@ -207,16 +247,24 @@ const WaitView = ({
           lead={t(due ? `${WAIT}.dueLead` : `${WAIT}.lead`)}
           titleTestID="wait-title"
         />
-        <CountdownBlock
-          round={poll}
-          account={account}
-          networkName={networkName}
-          newKey={keys.keys.newKey}
-          remainingMs={remainingMs}
-          startedAt={startedAt}
-          timeZone={timeZone}
-          configuration={configuration}
-        />
+        {polling && (
+          <View testID="wait-refreshing" style={spacings.mbSm}>
+            <RefreshingLine messageKey="socialRecovery.loading.refreshingAttempt" />
+          </View>
+        )}
+        {(phase.kind === 'waiting' || phase.kind === 'executionDue') && (
+          <CountdownBlock
+            executableAt={phase.attempt.consumableAfter}
+            due={due}
+            account={account}
+            networkName={networkName}
+            newKey={keys.keys.newKey}
+            remainingMs={remainingMs}
+            startedAt={startedAt}
+            timeZone={timeZone}
+            configuration={configuration}
+          />
+        )}
         {phase.kind === 'cannotExecute' && (
           <CannotExecuteBlock
             cause={phase.cause}
@@ -228,7 +276,7 @@ const WaitView = ({
           <ExecuteBlock
             execute={execute}
             sending={sending}
-            ready={due && !!poll.story.started}
+            ready={due && !!poll.story.started && !polling}
             onExecute={onExecute}
           />
         )}

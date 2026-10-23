@@ -19,6 +19,7 @@ import type {
   WalletRecords
 } from '@web/modules/social-recovery/shared/records'
 
+import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 import type { MethodChip } from '@web/modules/social-recovery/shared/display'
 
 import type { EnrollSearch, GuardianChain } from '@web/modules/social-recovery/setup/enroll/types'
@@ -47,6 +48,18 @@ import {
   storedEnrollments,
   t
 } from '@web/modules/social-recovery/setup/enroll/__tests__/harness'
+
+// The spinner's animation needs a native module jsdom lacks; a plain view stands in.
+jest.mock('@common/components/Spinner', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires, global-require */
+  const mockReact: typeof import('react') = require('react')
+  const { View: MockView }: typeof import('react-native') = require('react-native')
+  /* eslint-enable @typescript-eslint/no-var-requires, global-require */
+  return {
+    __esModule: true,
+    default: () => mockReact.createElement(MockView, { testID: 'spinner' })
+  }
+})
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const {
@@ -401,6 +414,30 @@ describe('the guardian row', () => {
       expect(clauses[0]).toEqual(PATH[0])
       expect(clauses[1].credentials[0]).toEqual(emptySlot('ecdsa'))
       expect(await storedEnrollments(records)).toEqual([{ credential, test: 'not-tested' }])
+    })
+
+    it('shows the block that checks the path in the card and holds Add until the guardian is placed', async () => {
+      const gate = deferred<void>()
+      const { set, setEntries } = storage
+      storage.set = async (key, value) => {
+        await gate.promise
+        return set(key, value)
+      }
+      storage.setEntries = async (entries) => {
+        await gate.promise
+        return setEntries(entries)
+      }
+      await addGuardian()
+      const adding = view!.byTestId('guardian-adding')
+      expect(adding?.querySelector('[data-testid="loading-block"]')?.textContent).toBe(
+        t('socialRecovery.loading.address')
+      )
+      expect(view!.isDisabled('guardian-add')).toBe(true)
+
+      gate.resolve()
+      await settle()
+      expect(view!.byTestId('guardian-adding')).toBeNull()
+      expect(await storedEnrollments(records)).toHaveLength(1)
     })
 
     it('stores no name for a guardian added by a resolved name', async () => {

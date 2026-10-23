@@ -4,18 +4,24 @@
  * edit changes, the new path with its rule lines, what a recovery publishes,
  * the trust list of the rows the edit adds under its expander, the account
  * the save writes to, what holds the save, the line that saving cancels the
- * attempt in progress, and the save with the way back to the editor.
+ * attempt in progress, and the save with the way back to the editor; while
+ * the reads the save waits on run, a line beside the held save says so. Once
+ * the save is on its way, the same content stays and the run takes the place
+ * of everything below it.
  */
 import React from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
+import flexbox from '@common/styles/utils/flexbox'
 import { ActionsRow, SectionCard } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
+import RefreshingLine from '@web/modules/social-recovery/shared/chrome/RefreshingLine'
 import { renderFullAddress } from '@web/modules/social-recovery/shared/display'
 import { sameCredential } from '@web/modules/social-recovery/shared/records'
 import {
@@ -63,11 +69,15 @@ const ReviewArrival = ({
   onLookAgain,
   onEditor,
   onOverview,
-  backToEditor
+  backToEditor,
+  run
 }: ReviewArrivalProps) => {
   const { t } = useTranslation()
 
-  if (held.status === 'failed' || load.status === 'failed') {
+  if (run && load.status !== 'loaded') {
+    return <View testID="manage-review-arrival">{run}</View>
+  }
+  if (!run && (held.status === 'failed' || load.status === 'failed')) {
     return (
       <ReadFailedBlock
         testID="manage-review-load-failed"
@@ -86,8 +96,12 @@ const ReviewArrival = ({
       </View>
     )
   }
-  if (load.status !== 'loaded' || held.status === 'pending') {
-    return <ActivityIndicator testID="manage-review-loading" />
+  if (load.status !== 'loaded' || (!run && held.status === 'pending')) {
+    return (
+      <View testID="manage-review-loading">
+        <LoadingBlock variant="block" message={t('socialRecovery.loading.draft')} />
+      </View>
+    )
   }
   const { draft, enrollments, baseline } = load
   const { clauses } = draft
@@ -118,8 +132,94 @@ const ReviewArrival = ({
       .forEach(({ method }) => trust.retry(method))
     accountReads.retry(accountReadsToRetry(accountReads))
   }
+  // Save waits on the client and on reads that have not answered; no block
+  // shows until they settle, so a line beside the held Save says what runs.
+  const checking = rows.length > 0 && (!client || (!gate.canSave && gate.blocked === null))
   const publication = publicationSentenceOf(clauses, addressBook, t)
   const ruleLines = ruleLinesOf(draft, addressBook, t)
+
+  // What holds the save, the lines beside it, and the save with the way back.
+  const actions = () => (
+    <>
+      {dormantRefused && (
+        <Alert
+          testID="manage-review-dormant-refused"
+          type="error"
+          size="sm"
+          style={spacings.mbSm}
+          text={t(`${REVIEW}.dormantRefused`)}
+        />
+      )}
+      {!dormantRefused && !!gate.blocked && (
+        <SaveBlocker
+          blocked={gate.blocked}
+          onRetry={retryUnanswered}
+          onOpen={onOverview}
+          onEditor={onEditor}
+          onPrivacy={onEditor}
+        />
+      )}
+      {facts && !facts.key && (
+        <Alert
+          testID="manage-review-view-only"
+          type="error"
+          size="sm"
+          style={spacings.mbSm}
+          text={t('socialRecovery.arm.viewOnly')}
+        />
+      )}
+      {gate.notTested && (
+        <NotTestedBlock
+          untested={gate.notTested}
+          enrollments={enrollments}
+          addressBook={addressBook}
+        />
+      )}
+      {rows.length === 0 && (
+        <Text fontSize={14} style={spacings.mbSm} testID="manage-review-unchanged">
+          {t(`${REVIEW}.unchanged`)}
+        </Text>
+      )}
+      {attemptOpen && !dormantRefused && (
+        <Text fontSize={14} weight="medium" style={spacings.mbSm} testID="manage-review-cancels">
+          {t(`${REVIEW}.cancelsLine`)}
+        </Text>
+      )}
+      {lookingUp ? (
+        <View testID="manage-review-lookup">
+          <LoadingBlock variant="row" message={t('socialRecovery.loading.unfinishedSave')} />
+        </View>
+      ) : (
+        <ActionsRow
+          primary={
+            <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap]}>
+              <Button
+                testID="manage-review-save"
+                type="primary"
+                text={t(`${REVIEW}.save`)}
+                disabled={!gate.canSave || dormantRefused || !runReady}
+                onPress={onSave}
+                hasBottomSpacing={false}
+              />
+              {checking && (
+                <View testID="manage-review-save-checking" style={spacings.mlSm}>
+                  <RefreshingLine messageKey="socialRecovery.loading.saveChecks" />
+                </View>
+              )}
+            </View>
+          }
+          secondary={backToEditor}
+        />
+      )}
+      {lookupFailed && (
+        <ReadFailedBlock
+          testID="manage-review-lookup-failed"
+          title={t('socialRecovery.records.loadFailed')}
+          onRetry={onLookAgain}
+        />
+      )}
+    </>
+  )
 
   return (
     <View testID="manage-review-arrival">
@@ -176,74 +276,7 @@ const ReviewArrival = ({
         </Text>
       </SectionCard>
 
-      {dormantRefused && (
-        <Alert
-          testID="manage-review-dormant-refused"
-          type="error"
-          size="sm"
-          style={spacings.mbSm}
-          text={t(`${REVIEW}.dormantRefused`)}
-        />
-      )}
-      {!dormantRefused && !!gate.blocked && (
-        <SaveBlocker
-          blocked={gate.blocked}
-          onRetry={retryUnanswered}
-          onOpen={onOverview}
-          onEditor={onEditor}
-          onPrivacy={onEditor}
-        />
-      )}
-      {facts && !facts.key && (
-        <Alert
-          testID="manage-review-view-only"
-          type="error"
-          size="sm"
-          style={spacings.mbSm}
-          text={t('socialRecovery.arm.viewOnly')}
-        />
-      )}
-      {gate.notTested && (
-        <NotTestedBlock
-          untested={gate.notTested}
-          enrollments={enrollments}
-          addressBook={addressBook}
-        />
-      )}
-      {rows.length === 0 && (
-        <Text fontSize={14} style={spacings.mbSm} testID="manage-review-unchanged">
-          {t(`${REVIEW}.unchanged`)}
-        </Text>
-      )}
-      {attemptOpen && !dormantRefused && (
-        <Text fontSize={14} weight="medium" style={spacings.mbSm} testID="manage-review-cancels">
-          {t(`${REVIEW}.cancelsLine`)}
-        </Text>
-      )}
-      {lookingUp ? (
-        <ActivityIndicator testID="manage-review-lookup" />
-      ) : (
-        <ActionsRow
-          primary={
-            <Button
-              testID="manage-review-save"
-              type="primary"
-              text={t(`${REVIEW}.save`)}
-              disabled={!gate.canSave || dormantRefused || !runReady}
-              onPress={onSave}
-              hasBottomSpacing={false}
-            />
-          }
-          secondary={backToEditor}
-        />
-      )}
-      {lookupFailed && (
-        <ReadFailedBlock
-          testID="manage-review-lookup-failed"
-          title={t('socialRecovery.records.loadFailed')}
-          onRetry={onLookAgain}
-        />
-      )}
+      {run ?? actions()}
     </View>
   )
 }

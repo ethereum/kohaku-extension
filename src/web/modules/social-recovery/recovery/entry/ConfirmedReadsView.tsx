@@ -6,7 +6,7 @@
  * readout once every read answered, nothing refused and no attempt runs.
  */
 import React from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
@@ -14,6 +14,7 @@ import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { ActionsRow, SectionCard, StatusChip } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
 import { chipKey } from '@web/modules/social-recovery/shared/display'
 
@@ -38,6 +39,13 @@ const REFUSAL_REASONS: Record<RecoverRefusal, string> = {
 const DESTINATION_REFUSALS: Record<DestinationRefusal, string> = {
   'already-a-key': `${ENTRY}.destination.alreadyAKey`,
   'holds-privilege': `${ENTRY}.destination.holdsPrivilege`
+}
+
+/** The line of a read that runs, by its stage. */
+const READING_COPY: Record<ConfirmedStage, string> = {
+  authorization: `${ENTRY}.confirm.readingAuthorization`,
+  fit: `${ENTRY}.confirm.readingFit`,
+  destination: `${ENTRY}.confirm.readingDestination`
 }
 
 /** The title and the line of a read that failed, by its stage. */
@@ -91,14 +99,8 @@ const ConfirmedReadsView = ({
 
   if (step.kind === 'reading') {
     return (
-      <View
-        testID={`entry-reads-${step.stage}-loading`}
-        style={[flexbox.directionRow, flexbox.alignCenter]}
-      >
-        <ActivityIndicator style={spacings.mrSm} />
-        <Text fontSize={14} appearance="secondaryText">
-          {t(`${ENTRY}.confirm.readingSetup`)}
-        </Text>
+      <View testID={`entry-reads-${step.stage}-loading`}>
+        <LoadingBlock variant="block" message={t(READING_COPY[step.stage])} />
       </View>
     )
   }

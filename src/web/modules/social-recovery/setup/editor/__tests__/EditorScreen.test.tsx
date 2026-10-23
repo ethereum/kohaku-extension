@@ -196,24 +196,25 @@ describe('the editor screen', () => {
 
   const byTestId = (id: string) => container.querySelector<HTMLElement>(`[data-testid="${id}"]`)
 
-  it('shows the breadcrumb and a spinner, and no editor, until an account is selected', async () => {
+  it('shows the breadcrumb and the waiting block that opens the draft, and no editor, until an account is selected', async () => {
     await showAccount(null)
     expect(container.textContent).toContain(BREADCRUMB)
-    expect(byTestId('screen-spinner')).not.toBeNull()
+    expect(byTestId('loading-screen')?.textContent).toBe(en.socialRecovery.loading.draft)
+    expect(
+      byTestId('loading-screen')?.querySelector('[data-testid="screen-spinner"]')
+    ).not.toBeNull()
     expect(byTestId('editor')).toBeNull()
-    expect(byTestId('editor-spinner')).toBeNull()
   })
 
-  it("shows the editor's spinner while the account's records load", async () => {
+  it("shows the waiting block that opens the draft while the account's records load", async () => {
     let release: () => void = () => {}
     mockHeld.current = new Promise<void>((resolve) => {
       release = resolve
     })
     await showAccount(ACCOUNT)
     expect(container.textContent).toContain(BREADCRUMB)
-    expect(byTestId('editor-spinner')).not.toBeNull()
+    expect(byTestId('loading-screen')?.textContent).toBe(en.socialRecovery.loading.draft)
     expect(byTestId('editor')).toBeNull()
-    expect(byTestId('screen-spinner')).toBeNull()
     release()
     await settle()
     expect(byTestId('editor')).not.toBeNull()
@@ -229,7 +230,7 @@ describe('the editor screen', () => {
     await showAccount(ACCOUNT)
     const editor = byTestId('editor')
     expect(editor).not.toBeNull()
-    expect(byTestId('screen-spinner')).toBeNull()
+    expect(byTestId('loading-screen')).toBeNull()
     expect(byTestId('editor-title')).not.toBeNull()
     expect(container.textContent?.indexOf(BREADCRUMB)).toBe(0)
   })

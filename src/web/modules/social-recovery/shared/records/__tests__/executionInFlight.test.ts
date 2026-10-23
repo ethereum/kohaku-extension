@@ -274,6 +274,64 @@ describe('the landed session keeps the attempt of the landed request', () => {
   )
 })
 
+describe('the landed session keeps when its attempt becomes executable', () => {
+  const EXECUTABLE_AT = 1_700_086_400
+
+  const landAt = async (records: WalletRecords, executableAt: number) =>
+    records.landSubmission(CHAIN_ID, ACCOUNT, await fresh(records), executableAt)
+
+  it('a landing given the time reads it back after a reload, by the countdown and its list', async () => {
+    const { storage, records } = setup()
+    await writeGathering(records, gathering(PAYLOAD))
+    const written = await landAt(records, EXECUTABLE_AT)
+    expect(written.value).toEqual({ account: ACCOUNT, ...ATTEMPT, executableAt: EXECUTABLE_AT })
+    const reopened = createWalletRecords({ storage, now: () => T0 })
+    expect(presentOf(await countdown(reopened).read()).value.executableAt).toBe(EXECUTABLE_AT)
+    const listed = await reopened.listCountdowns(CHAIN_ID)
+    expect(listed[0].record.value.executableAt).toBe(EXECUTABLE_AT)
+  })
+
+  it('a landing given no time reads as before, with the attempt and no time', async () => {
+    const { storage } = await landed()
+    const reopened = createWalletRecords({ storage, now: () => T0 })
+    expect(presentOf(await countdown(reopened).read()).value).toEqual({
+      account: ACCOUNT,
+      ...ATTEMPT
+    })
+    expect(storedSession(storage)).not.toContain('executableAt')
+  })
+
+  it('a claim, a hash and a release of the execution keep the time', async () => {
+    const { records } = setup()
+    await writeGathering(records, gathering(PAYLOAD))
+    await landAt(records, EXECUTABLE_AT)
+    await claim(records)
+    expect(presentOf(await countdown(records).read()).value.executableAt).toBe(EXECUTABLE_AT)
+    await setHash(records, CLAIM.requestId, HASH_A)
+    expect(presentOf(await countdown(records).read()).value.executableAt).toBe(EXECUTABLE_AT)
+    await release(records, CLAIM.requestId)
+    expect(presentOf(await countdown(records).read()).value.executableAt).toBe(EXECUTABLE_AT)
+  })
+
+  const DAMAGED_TIMES: [string, unknown][] = [
+    ['a string', '1700086400'],
+    ['a negative number', -1],
+    ['a fraction', 1_700_086_400.5],
+    ['a number past the safe range', Number.MAX_SAFE_INTEGER + 2],
+    ['null', null]
+  ]
+
+  DAMAGED_TIMES.forEach(([label, executableAt]) =>
+    it(`a stored time that is ${label} reads as no time and keeps the attempt`, async () => {
+      const { storage, records } = setup()
+      await storeLanded(storage, { ...ATTEMPT, executableAt })
+      const read = presentOf(await countdown(records).read())
+      expect(read.value).toEqual({ account: ACCOUNT, ...ATTEMPT })
+      expect('executableAt' in read.value).toBe(false)
+    })
+  )
+})
+
 describe('the claim of an execution in flight', () => {
   it('a claim on a landed session is read back by a new set of records on the same storage, beside the attempt', async () => {
     const { storage, records } = await landed()

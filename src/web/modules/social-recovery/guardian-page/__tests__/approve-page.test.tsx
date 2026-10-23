@@ -39,6 +39,8 @@ import {
 } from '@web/modules/social-recovery/guardian-page/__tests__/harness'
 
 const PAGE = 'socialRecovery.guardianPage'
+// A salt of the length the SDK reads, so the link can be described before the client stands.
+const DESCRIBABLE_SALT = `0x${'02'.repeat(32)}` as const
 const MINUTE = 60_000
 const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 const dateOf = (ms: number) =>
@@ -202,6 +204,29 @@ describe('the sign action', () => {
     await advance(MINUTE)
     expect(page.has('guardian-read-failed')).toBe(true)
     expect(page.isDisabled('guardian-sign')).toBe(true)
+    page.unmount()
+  })
+
+  it('keeps the last reading beside the refreshing line, sign held, while a later read runs, and opens once it answers', async () => {
+    const page = await mountLive()
+    await page.press('guardian-acknowledge')
+    expect(page.has('guardian-refreshing')).toBe(false)
+    let answer: () => void = () => undefined
+    kit.attemptState.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          answer = () => resolve(attemptStateOf())
+        })
+    )
+    await advance(MINUTE)
+    expect(page.textOf('guardian-refreshing')).toBe(t('socialRecovery.loading.refreshingAttempt'))
+    expect(page.hasWithin('guardian-refreshing', 'loading-row')).toBe(true)
+    expect(page.textOf('guardian-value-newKey')).toBe(NEW_KEY)
+    expect(page.isDisabled('guardian-sign')).toBe(true)
+    answer()
+    await advance(0)
+    expect(page.has('guardian-refreshing')).toBe(false)
+    expect(page.isDisabled('guardian-sign')).toBe(false)
     page.unmount()
   })
 
@@ -405,6 +430,43 @@ describe('the states in place of the sign action', () => {
     page.unmount()
   })
 
+  it("draws the link's values beside the reading, sign held, while the client is first built", async () => {
+    setClient({ status: 'loading', retry: () => {} })
+    const page = await mountLive(requestOf({ salt: DESCRIBABLE_SALT }))
+    expect(page.has('guardian-lead')).toBe(true)
+    expect(page.textOf('guardian-value-accountBeingRecovered')).toBe(ACCOUNT)
+    expect(page.has('guardian-details')).toBe(true)
+    expect(page.has('guardian-reading')).toBe(true)
+    expect(page.isDisabled('guardian-sign')).toBe(true)
+    expect(page.has('guardian-request-loading')).toBe(false)
+
+    setClient(readyClient())
+    expect(page.textOf('guardian-value-newKey')).toBe(NEW_KEY)
+    expect(page.isDisabled('guardian-sign')).toBe(true)
+    page.unmount()
+  })
+
+  it('draws a centred waiting block that opens the request where the link cannot be described before the client stands', async () => {
+    const clientLayer = jest.requireMock<
+      typeof import('@web/modules/social-recovery/shared/client')
+    >('@web/modules/social-recovery/shared/client')
+    const describe = jest.spyOn(clientLayer, 'describeRequestOffline').mockImplementation(() => {
+      throw new Error('unknown version')
+    })
+    setClient({ status: 'loading', retry: () => {} })
+    const page = await mountLive()
+    expect(page.textOf('guardian-request-loading')).toBe(t('socialRecovery.loading.request'))
+    expect(page.hasWithin('guardian-request-loading', 'loading-screen')).toBe(true)
+    expect(page.has('guardian-status-columns')).toBe(false)
+    expect(page.has('guardian-lead')).toBe(false)
+
+    setClient(readyClient())
+    expect(page.has('guardian-request-loading')).toBe(false)
+    expect(page.textOf('guardian-value-newKey')).toBe(NEW_KEY)
+    describe.mockRestore()
+    page.unmount()
+  })
+
   it('keeps the link values while the client is built again', async () => {
     const page = await mountLive()
     setClient({ status: 'loading', retry: () => {} })
@@ -462,6 +524,34 @@ describe('the states in place of the sign action', () => {
     expect(page.has('guardian-read-retry')).toBe(false)
     expect(page.has('guardian-lead')).toBe(false)
     expect(page.isDisabled('guardian-sign')).toBe(true)
+    page.unmount()
+  })
+
+  it("draws the link's values above the failed read, sign held, where the client failed before it stood", async () => {
+    const retry = jest.fn()
+    setClient({ status: 'failed', error: new Error('rpc down'), retry })
+    const page = await mountLive(requestOf({ salt: DESCRIBABLE_SALT }))
+    expect(page.has('guardian-lead')).toBe(true)
+    expect(page.textOf('guardian-value-accountBeingRecovered')).toBe(ACCOUNT)
+    expect(page.has('guardian-details')).toBe(true)
+    expect(page.textOf('guardian-read-failed')).toContain(t(`${PAGE}.readFailed`))
+    expect(page.has('guardian-acknowledge')).toBe(false)
+    expect(page.isDisabled('guardian-sign')).toBe(true)
+    expect(page.has('guardian-request-loading')).toBe(false)
+    await page.press('guardian-read-retry')
+    expect(retry).toHaveBeenCalledTimes(1)
+    page.unmount()
+  })
+
+  it('draws a refused client as another deployment, with no values and sign held, even where the link can be described', async () => {
+    setClient({ status: 'update-the-wallet', refusal: {} as never, retry: () => {} })
+    const page = await mountLive(requestOf({ salt: DESCRIBABLE_SALT }))
+    expect(page.textOf('guardian-other-deployment')).toContain(t(`${PAGE}.otherDeployment`))
+    expect(page.has('guardian-lead')).toBe(false)
+    expect(page.has('guardian-value-accountBeingRecovered')).toBe(false)
+    expect(page.has('guardian-read-retry')).toBe(false)
+    expect(page.isDisabled('guardian-sign')).toBe(true)
+    expect(page.has('guardian-request-loading')).toBe(false)
     page.unmount()
   })
 

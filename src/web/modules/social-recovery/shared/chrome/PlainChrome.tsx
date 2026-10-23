@@ -18,7 +18,8 @@ import PlainHeader from './PlainHeader'
 import StepCounter from './StepCounter'
 import type { PlainChromeProps } from './types'
 
-const COLUMN = { width: '100%' } as const
+const GROW = { flexGrow: 1 } as const
+const COLUMN = { width: '100%', flexGrow: 1 } as const
 
 const PlainChrome = ({ title, counter, children, testID }: PlainChromeProps) => {
   const { styles } = useTheme(getStyles)
@@ -37,7 +38,7 @@ const PlainChrome = ({ title, counter, children, testID }: PlainChromeProps) => 
             { ...spacings.ph0, ...spacings.pv0 }
           ]}
         >
-          <ScrollView contentContainerStyle={getPanelPaddings(maxWidthSize, 'large')}>
+          <ScrollView contentContainerStyle={[getPanelPaddings(maxWidthSize, 'large'), GROW]}>
             <View style={COLUMN}>
               {!!counter && <StepCounter {...counter} />}
               {children}

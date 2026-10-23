@@ -3,8 +3,9 @@
  * every period and whenever the tab returns to view. Rounds never overlap. A
  * round reads the attempt and the account's four checks, and the manager's
  * events where the wait does not yet know the attempt's opening or the
- * attempt ended. A round that fails or runs past its limit reads failed,
- * never the last good reading.
+ * attempt ended. A round in flight leaves the last answer standing, marked as
+ * reading. A round that fails or runs past its limit reads failed, never the
+ * last good reading.
  *
  * The events are read for the attempt the countdown's record names alone, so
  * a later attempt somebody else opens is never read as this one; once they
@@ -28,6 +29,7 @@ const NO_STORY: AttemptStory = { consumed: false, rival: false }
 
 const useWaitPoll = ({ kit, keys, landed, visibility }: WaitPollInput): WaitPollHook => {
   const [poll, setPoll] = useState<WaitPoll>(PENDING)
+  const [polling, setPolling] = useState(false)
 
   const kitRef = useRef(kit)
   kitRef.current = kit
@@ -49,11 +51,13 @@ const useWaitPoll = ({ kit, keys, landed, visibility }: WaitPollInput): WaitPoll
       return
     }
     inFlight.current = id
+    setPolling(true)
     const settle = (next: WaitPoll) => {
       if (inFlight.current === id) {
         inFlight.current = null
       }
       if (id === generation.current) {
+        setPolling(false)
         setPoll(next)
       }
     }
@@ -90,6 +94,7 @@ const useWaitPoll = ({ kit, keys, landed, visibility }: WaitPollInput): WaitPoll
     generation.current += 1
     inFlight.current = null
     setPoll(PENDING)
+    setPolling(false)
     if (!ready) {
       return undefined
     }
@@ -114,7 +119,7 @@ const useWaitPoll = ({ kit, keys, landed, visibility }: WaitPollInput): WaitPoll
     run().catch(() => undefined)
   }, [run])
 
-  return { poll, retry }
+  return { poll, polling, retry }
 }
 
 export default useWaitPoll

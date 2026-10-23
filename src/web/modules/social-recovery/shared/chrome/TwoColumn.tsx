@@ -9,18 +9,19 @@ import type { TwoColumnProps } from './types'
 
 const MAIN = { maxWidth: 600, width: '100%' } as const
 const ASIDE_WIDTH = 280
+const GROW = { flexGrow: 1 } as const
 
-const TwoColumn = ({ children, aside, testID }: TwoColumnProps) => {
+const TwoColumn = ({ children, aside, grow = false, testID }: TwoColumnProps) => {
   const { maxWidthSize } = useWindowSize()
   const sideBySide = !!aside && maxWidthSize('l')
 
   return (
     <View
       testID={testID}
-      style={sideBySide ? [flexbox.directionRow, flexbox.alignStart] : undefined}
+      style={[sideBySide && [flexbox.directionRow, flexbox.alignStart], grow && GROW]}
     >
       <View
-        style={sideBySide ? [MAIN, flexbox.flex1] : MAIN}
+        style={[MAIN, (sideBySide || grow) && flexbox.flex1]}
         testID={testID ? `${testID}-main` : undefined}
       >
         {children}

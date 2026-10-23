@@ -316,6 +316,8 @@ export interface ChecklistState {
   readSetupAgain: () => Promise<void>
   /** The last poll of the account's recovery state. */
   poll: PollState
+  /** A round is reading; the last answer stays on screen meanwhile. */
+  polling: boolean
   retryPoll: () => void
   /** A death the poll read could not be wiped; the next poll tries again. */
   deathFailed: boolean
@@ -378,6 +380,8 @@ export interface PollInput {
 
 export interface PollHook {
   poll: PollState
+  /** A round is reading; the last answer stays on screen meanwhile. */
+  polling: boolean
   retry: () => void
 }
 

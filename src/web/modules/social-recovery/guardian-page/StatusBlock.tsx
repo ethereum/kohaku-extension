@@ -5,14 +5,14 @@
  * disabled.
  */
 import React from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
-import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 
 import type { StatusBlockProps } from './types'
 
@@ -38,8 +38,7 @@ const StatusBlock = ({ reading, onRetry }: StatusBlockProps) => {
           testID="guardian-reading"
           style={[flexbox.directionRow, flexbox.alignCenter, spacings.mbSm]}
         >
-          <ActivityIndicator style={spacings.mrTy} />
-          <Text fontSize={14}>{t(`${PAGE}.reading`)}</Text>
+          <LoadingBlock variant="row" message={t(`${PAGE}.reading`)} />
         </View>
         {disabledSign}
       </View>

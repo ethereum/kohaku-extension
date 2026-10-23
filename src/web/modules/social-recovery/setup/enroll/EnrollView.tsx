@@ -6,7 +6,7 @@
  * shows until a test has run.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
@@ -14,12 +14,14 @@ import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
+import flexbox from '@common/styles/utils/flexbox'
 import {
   addressBookOf,
   recoveryChainOf,
   WALLET_RECOVERY_CHAIN
 } from '@web/modules/social-recovery/shared/client'
 import { ActionsRow, TwoColumn } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import type { Enrollment } from '@web/modules/social-recovery/shared/records'
 
 import ClientStateLine from './ClientStateLine'
@@ -110,9 +112,9 @@ const EnrollView = ({
 
   if (load.status === 'loading') {
     return (
-      <TwoColumn testID="enroll-columns">
-        <ActivityIndicator testID="enroll-loading" />
-      </TwoColumn>
+      <View testID="enroll-loading" style={flexbox.flex1}>
+        <LoadingBlock variant="screen" message={t('socialRecovery.loading.slot')} />
+      </View>
     )
   }
 

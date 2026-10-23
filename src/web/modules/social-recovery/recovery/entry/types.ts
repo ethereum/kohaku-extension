@@ -358,6 +358,8 @@ export interface RunningAttemptState {
    * attempt shown is then the last good read's, drawn as failed with retry.
    */
   refreshFailed: boolean
+  /** A read of the registry after the first answer is running; the attempt last read stays drawn. */
+  refreshing: boolean
   /** Reads again every read that failed. */
   retry: () => void
   /** Reads the registry once more, after any read already running. */
@@ -403,6 +405,8 @@ export interface RunningAttemptBandViewProps {
   attempt: RunningAttemptRead
   /** Whether the last read of the registry failed after an earlier one answered. */
   refreshFailed: boolean
+  /** A read of the registry after the first answer is running. */
+  refreshing: boolean
   opening: EntryRead<RunningOpening>
   /** The listing of the recovery entries, from which the fast track's keys come. */
   entries: EntryRead<ListedEntries>

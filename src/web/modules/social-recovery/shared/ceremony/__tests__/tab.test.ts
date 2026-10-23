@@ -513,11 +513,19 @@ describe('the ceremony tab with no provider above it', () => {
     expect(await storedReports()).toEqual([])
   })
 
-  it('reads no record and builds no provider while the tab is hidden, and runs once it is shown', async () => {
+  it('reads no record and builds no provider while the tab is hidden, saying it opens the request, and runs once it is shown', async () => {
     await callerRecords().ceremonyRequest(ID).write(recorded.enroll())
     storageGet.mockClear()
     setVisibility('hidden', false)
-    await render(ENROLL)
+    const page = await render(ENROLL)
+    expect(page.querySelector('[data-testid="ceremony-waiting"]')?.textContent).toContain(
+      en.socialRecovery.loading.request
+    )
+    expect(
+      page.querySelector('[data-testid="ceremony-waiting"] [data-testid="loading-screen"]')
+        ?.textContent
+    ).toBe(en.socialRecovery.loading.request)
+    expect(page.querySelector('[data-testid="ceremony-columns"]')).toBeNull()
     expect(storageGet).not.toHaveBeenCalled()
     expect(networksState).toHaveBeenCalled()
     expect(buildProvider).not.toHaveBeenCalled()
@@ -820,6 +828,9 @@ describe('the ceremony tab for the identity bindings', () => {
     expect(page.textContent).toContain(STRINGS.keepTabOpen)
     expect(page.textContent).toContain(STRINGS.waitingForPhone)
     expect(page.textContent).not.toContain(STRINGS.phoneReads)
+    expect(page.querySelector('[data-testid="loading-block"]')?.textContent).toBe(
+      STRINGS.waitingForPhone
+    )
     expect(await storedReports()).toEqual([])
 
     await phone.fire('received')
@@ -1066,6 +1077,9 @@ describe('the ceremony tab for the identity bindings', () => {
     await pick(new Blob(['qr'], { type: 'image/png' }))
 
     expect(page.textContent).toContain(STRINGS.fetchingFiles)
+    expect(page.querySelector('[data-testid="loading-block"]')?.textContent).toBe(
+      STRINGS.fetchingFiles
+    )
     const material = served.configFrom.mock.calls[0][1] as { onProgress: (state: string) => void }
     await act(async () => {
       material.onProgress('proving')

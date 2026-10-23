@@ -5,11 +5,10 @@ import React from 'react'
 import { View } from 'react-native'
 
 import Button from '@common/components/Button'
-import Spinner from '@common/components/Spinner'
-import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 
 import type { ProverBlockProps } from './types'
 
@@ -29,8 +28,7 @@ const ProverBlock = ({ step, onStop }: ProverBlockProps) => {
 
   return (
     <View style={[flexbox.alignCenter]}>
-      <Spinner style={spacings.mbSm} />
-      <Text style={{ textAlign: 'center' }}>{stepLine()}</Text>
+      <LoadingBlock variant="block" message={stepLine()} />
       <Button
         type="secondary"
         text={t('socialRecovery.ceremony.stopAction')}

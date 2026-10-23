@@ -42,6 +42,18 @@ import type { RecordStorage } from '@web/modules/social-recovery/shared/records'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 import type { Deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/types'
 
+// The spinner's animation needs a native module jsdom lacks; a plain view stands in.
+jest.mock('@common/components/Spinner', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires, global-require */
+  const mockReact: typeof import('react') = require('react')
+  const { View: MockView }: typeof import('react-native') = require('react-native')
+  /* eslint-enable @typescript-eslint/no-var-requires, global-require */
+  return {
+    __esModule: true,
+    default: () => mockReact.createElement(MockView, { testID: 'spinner' })
+  }
+})
+
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 // The fake node seals a backup with WebCrypto, which jsdom does not carry. Its
 // work runs off the event loop on the real clock, so the harness counts each
@@ -153,6 +165,9 @@ export interface CommittedWorld {
   chain: ReturnType<typeof StandIn.nodeFor>
   client: RecoveryKitClient
 }
+
+/** A decision of the running attempt held during a later read: its name, its button, how the test arranges it, and the path it opens. */
+export type HeldDecisionCase = [name: string, button: string, arrange: () => void, path: string]
 
 /** The parts of Jest's modern fake clock the installed typings do not declare. */
 interface LiveFakeTimers {

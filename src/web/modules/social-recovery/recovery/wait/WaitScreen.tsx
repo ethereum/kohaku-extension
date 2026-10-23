@@ -13,7 +13,7 @@
  * and the countdown's record is read again.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, Linking, View } from 'react-native'
+import { Linking, View } from 'react-native'
 import { useLocation } from 'react-router-dom'
 
 import Alert from '@common/components/Alert'
@@ -22,6 +22,7 @@ import { useTranslation } from '@common/config/localization'
 import useNavigation from '@common/hooks/useNavigation'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
+import flexbox from '@common/styles/utils/flexbox'
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
@@ -29,6 +30,7 @@ import useRequestsControllerState from '@web/hooks/useRequestsControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
 import type { Configuration, Hex } from '@kohaku-eth/social-recovery'
 import EntryReadFallback from '@web/modules/social-recovery/shared/chrome/EntryReadFallback'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import RecoveryChrome from '@web/modules/social-recovery/shared/chrome/RecoveryChrome'
 import useRecoveryEntryRead from '@web/modules/social-recovery/shared/chrome/useRecoveryEntryRead'
 import {
@@ -63,11 +65,12 @@ import { loggedInPlanOf } from '@web/modules/social-recovery/recovery/submit'
 import type { SendingReading } from '@web/modules/social-recovery/recovery/submit'
 import { explorerTransactionUrlOf } from '@web/modules/social-recovery/setup/arm'
 
-import { WAIT_STAGE } from './constants'
+import { RECORD_ROUND, WAIT_STAGE } from './constants'
 import { anchorOf, donePathOf } from './phase'
 import { isCountdownOf, landedAttemptOf, waitNewKeyOf } from './read'
 import { executeStepsOf } from './steps'
 import type {
+  CountdownAnchor,
   CountdownReading,
   ExecuteSteps,
   HandoverKeysReading,
@@ -90,6 +93,7 @@ const WaitBody = ({
   entry,
   savedAt,
   landed,
+  executableAt,
   onCountdownReplaced
 }: WaitBodyProps) => {
   const { navigate } = useNavigation()
@@ -193,14 +197,30 @@ const WaitBody = ({
     }
   }, [kit, records, account])
 
-  const { poll, retry: retryPoll } = useWaitPoll({
+  const {
+    poll,
+    polling,
+    retry: retryPoll
+  } = useWaitPoll({
     kit,
     keys: handover,
     landed,
     visibility: document
   })
   const answered = poll.status === 'answered' ? poll : null
-  const anchor = useMemo(() => (answered ? anchorOf(answered) : null), [answered])
+  // Until a poll answers, the record's executable time stands against this
+  // device's clock, read once; it decides nothing, and the first poll replaces it.
+  const recordAnchor = useMemo<CountdownAnchor | null>(
+    () =>
+      executableAt === null
+        ? null
+        : { endMs: executableAt * 1000, blockMs: Date.now(), round: RECORD_ROUND },
+    [executableAt]
+  )
+  const anchor = useMemo(
+    () => (answered ? anchorOf(answered) : recordAnchor),
+    [answered, recordAnchor]
+  )
   const remainingMs = useCountdownClock(anchor)
 
   // The countdown that reaches its end asks the chain at once, so execution due needs no wait for the period.
@@ -409,7 +429,9 @@ const WaitBody = ({
       client={client}
       keys={keys}
       poll={poll}
+      polling={polling}
       remainingMs={remainingMs}
+      executableAt={executableAt}
       startedAt={savedAt}
       timeZone={timeZone}
       configuration={configuration}
@@ -454,7 +476,8 @@ const WaitGate = ({ records, account, entry }: WaitGateProps) => {
         setReading({
           status: 'present',
           savedAt: countdown.savedAt,
-          landed: landedAttemptOf(countdown.value)
+          landed: landedAttemptOf(countdown.value),
+          executableAt: countdown.value.executableAt ?? null
         })
         return
       }
@@ -487,6 +510,7 @@ const WaitGate = ({ records, account, entry }: WaitGateProps) => {
         entry={entry}
         savedAt={reading.savedAt}
         landed={reading.landed}
+        executableAt={reading.executableAt}
         onCountdownReplaced={readAgain}
       />
     )
@@ -513,7 +537,11 @@ const WaitGate = ({ records, account, entry }: WaitGateProps) => {
       </Alert>
     )
   }
-  return <ActivityIndicator testID="wait-countdown-loading" />
+  return (
+    <View testID="wait-countdown-loading" style={flexbox.flex1}>
+      <LoadingBlock variant="screen" message={t('socialRecovery.loading.countdown')} />
+    </View>
+  )
 }
 
 const WaitScreen = () => {
@@ -572,6 +600,7 @@ const WaitScreen = () => {
       testPrefix="wait"
       titleKey="socialRecovery.wait.readFailedTitle"
       bodyKey="socialRecovery.wait.readFailedBody"
+      loadingKey="socialRecovery.loading.session"
       failed={reading.status === 'failed'}
       onRetry={retry}
     />

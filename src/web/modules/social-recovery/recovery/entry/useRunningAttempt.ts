@@ -11,9 +11,10 @@
  * its place is drawn with its own opening, and a read that fails, does not
  * answer in time or pins a block older than one already read keeps the last
  * answer only beside a failed mark with retry; such a read never ends the
- * attempt. The listing of the recovery entries has the same limit. The
- * registry's reads are released when the band goes, or once the registry
- * answers that no attempt waits.
+ * attempt. While a later read runs, the attempt last read stays drawn and
+ * marked as reading. The listing of the recovery entries has the same limit.
+ * The registry's reads are released when the band goes, or once the
+ * registry answers that no attempt waits.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -56,6 +57,7 @@ export const useRunningAttempt = ({
   const [authority, setAuthority] = useState<EntryRead<boolean>>(PENDING)
   const [entries, setEntries] = useState<EntryRead<ListedEntries>>(PENDING)
   const [refreshFailed, setRefreshFailed] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const [attemptRound, setAttemptRound] = useState(0)
   const [authorityRound, setAuthorityRound] = useState(0)
   const [entriesRound, setEntriesRound] = useState(0)
@@ -92,6 +94,7 @@ export const useRunningAttempt = ({
     setAttempt(PENDING)
     setOpening(PENDING)
     setRefreshFailed(false)
+    setRefreshing(false)
     recheckRef.current = NO_RECHECK
     if (!active || opened.status === 'loading') {
       return undefined
@@ -139,6 +142,9 @@ export const useRunningAttempt = ({
       if (!live || ended) {
         return ended ? { status: 'ended' } : { status: 'failed' }
       }
+      if (held) {
+        setRefreshing(true)
+      }
       const reading = await readWithin(
         () => readRunningAttempt(reads, account),
         CONFIRMED_READ_LIMIT_MS_STAND_IN
@@ -146,6 +152,7 @@ export const useRunningAttempt = ({
       if (!live) {
         return { status: 'failed' }
       }
+      setRefreshing(false)
       if (reading === undefined || reading.block < highBlockRef.current) {
         if (held) {
           setRefreshFailed(true)
@@ -279,5 +286,5 @@ export const useRunningAttempt = ({
 
   const recheck = useCallback(() => recheckRef.current(), [])
 
-  return { attempt, opening, authority, entries, refreshFailed, retry, recheck }
+  return { attempt, opening, authority, entries, refreshFailed, refreshing, retry, recheck }
 }

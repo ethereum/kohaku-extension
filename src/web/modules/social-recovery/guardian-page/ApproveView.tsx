@@ -8,7 +8,8 @@
  * ticked, then the signature; the offline block stands at the signature. A live request the account no longer authorizes reads as
  * dormant beside its values, and its sign action stays disabled. The lead's
  * values are the link's, never a chain read, so they stay while a read runs
- * or fails, and so does the tick. The offline block takes the place of the
+ * or fails, and so does the tick. While a later read runs, the last answer
+ * stays beside a refreshing line with the sign held until it answers. The offline block takes the place of the
  * whole page until the guardian goes back; the acknowledgment carries across
  * both.
  */
@@ -19,6 +20,7 @@ import Alert from '@common/components/Alert'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import { TwoColumn } from '@web/modules/social-recovery/shared/chrome'
+import RefreshingLine from '@web/modules/social-recovery/shared/chrome/RefreshingLine'
 
 import ApprovingAside from './ApprovingAside'
 import BrandLine from './BrandLine'
@@ -48,7 +50,8 @@ const ApproveView = ({
   onSign,
   onClose,
   onDecline,
-  onRetry
+  onRetry,
+  refreshing
 }: ApproveViewProps) => {
   const { t } = useTranslation()
   const [acknowledged, setAcknowledged] = useState(false)
@@ -59,7 +62,9 @@ const ApproveView = ({
   const deadline = deadlineViewOf(description.validUntil, now, timeZone, t)
   // Every gate but the key: the values, the deadline, a live reading the
   // account authorizes, the tick, and typed data to sign.
-  const gatesHold = signEnabled({ values, deadline, reading, acknowledged }) && typedData !== null
+  // A round that reads the chain again holds the sign until it answers.
+  const gatesHold =
+    signEnabled({ values, deadline, reading, acknowledged }) && typedData !== null && !refreshing
   const enabled = gatesHold && keyAllowsSign(keyReading)
 
   const sign = useCallback(() => {
@@ -109,6 +114,11 @@ const ApproveView = ({
     if (reading.kind === 'live') {
       return (
         <>
+          {refreshing && (
+            <View testID="guardian-refreshing" style={spacings.mbSm}>
+              <RefreshingLine messageKey="socialRecovery.loading.refreshingAttempt" />
+            </View>
+          )}
           {!reading.authorized && (
             <Alert
               testID="guardian-dormant"

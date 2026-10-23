@@ -1,5 +1,5 @@
 import React from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
@@ -7,6 +7,7 @@ import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { SectionCard, StatusChip } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import { auditedActionOf, publisherKeyOf } from '@web/modules/social-recovery/shared/client'
 import { renderFullAddress, renderNoun } from '@web/modules/social-recovery/shared/display'
 import { isEmptySlot } from '@web/modules/social-recovery/shared/records/slots'
@@ -91,7 +92,11 @@ const TrustList = ({ rows, client, onRetry }: TrustListProps) => {
   const renderContract = (row: TrustRow, testID: string) => {
     const { contract } = row
     if (contract.status === 'pending') {
-      return <ActivityIndicator testID={`${testID}-pending`} style={spacings.mbTy} />
+      return (
+        <View testID={`${testID}-pending`} style={spacings.mbTy}>
+          <LoadingBlock variant="row" message={t('socialRecovery.loading.trust')} />
+        </View>
+      )
     }
     if (contract.status === 'unavailable') {
       return (

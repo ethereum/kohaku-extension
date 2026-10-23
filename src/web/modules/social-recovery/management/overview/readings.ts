@@ -215,20 +215,12 @@ export const pathMethodsOf = (path: PathStep, addressBook: AddressBook): Address
   methodsOf(clausesOfPath(path), addressBook)
 
 /**
- * The notice after an ended attempt, from the watcher's last ending: after
- * the owner's cancel or after a setup write, while the current setup was
- * committed no later than that ending, which holds where the cancel's log
- * sits in the blocks from the commit on. Any other road, an ending whose time
- * is not read yet, or an ending before the commit draws none.
+ * The notice the watcher's last ending reads as on its own, before the logs
+ * since the commit place it: after the owner's cancel or after a setup write.
+ * Any other road, or an ending whose time is not read yet, draws none.
  */
-export const endedNoticeOf = (
-  ending: AttemptEnding | undefined,
-  cancelledSinceCommit: readonly bigint[]
-): EndedNotice | null => {
+export const watchedEndedNoticeOf = (ending: AttemptEnding | undefined): EndedNotice | null => {
   if (!ending || ending.road !== 'cancelled' || ending.at === undefined) {
-    return null
-  }
-  if (!cancelledSinceCommit.includes(ending.attemptId)) {
     return null
   }
   if (ending.cancelledBy === 'cancelByOwner') {
@@ -239,6 +231,19 @@ export const endedNoticeOf = (
   }
   return null
 }
+
+/**
+ * The notice after an ended attempt, from the watcher's last ending: after
+ * the owner's cancel or after a setup write, while the current setup was
+ * committed no later than that ending, which holds where the cancel's log
+ * sits in the blocks from the commit on. Any other road, an ending whose time
+ * is not read yet, or an ending before the commit draws none.
+ */
+export const endedNoticeOf = (
+  ending: AttemptEnding | undefined,
+  cancelledSinceCommit: readonly bigint[]
+): EndedNotice | null =>
+  ending && cancelledSinceCommit.includes(ending.attemptId) ? watchedEndedNoticeOf(ending) : null
 
 /** The privacy level a setup read before the password answers, or null where it names none. */
 export const levelOfReading = (reading: SetupReading): PrivacyLevel | null => {

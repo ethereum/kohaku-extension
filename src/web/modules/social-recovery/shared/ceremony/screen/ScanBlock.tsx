@@ -8,11 +8,11 @@ import { View } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
 
 import Button from '@common/components/Button'
-import Spinner from '@common/components/Spinner'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 
 import type { ScanBlockProps } from './types'
 
@@ -49,8 +49,7 @@ const ScanBlock = ({ url, step, phoneReads, onCancel }: ScanBlockProps) => {
           <QRCode value={url} size={200} quietZone={10} />
         </View>
       )}
-      <Spinner style={spacings.mbSm} />
-      <Text style={spacings.mbSm}>{stepLine()}</Text>
+      <LoadingBlock variant="block" message={stepLine()} />
       <Text appearance="secondaryText" style={{ textAlign: 'center' }}>
         {t('socialRecovery.ceremony.keepTabOpen')}
       </Text>

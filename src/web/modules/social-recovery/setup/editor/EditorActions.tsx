@@ -1,12 +1,16 @@
 import React, { ReactNode } from 'react'
-import { ActivityIndicator } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
+import { CHAIN_NAMES } from '@web/modules/social-recovery/recovery/entry/constants'
 import { ActionsRow } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
+import RefreshingLine from '@web/modules/social-recovery/shared/chrome/RefreshingLine'
+import { WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
 
 import { renderClientRefusal, renderFinding } from './copy'
 import RefusalList from './RefusalList'
@@ -16,9 +20,10 @@ import type { EditorActionsProps } from './types'
  * A failed write with its retry, the wallet's own refusals of the path, the
  * path check's findings, the lines of a client that cannot run the path
  * check, and the actions:
- * Back, and Continue or what stands in its place while the client loads, is
- * refused, or the check runs or fails. Continue holds while a threshold field
- * holds text that is not a whole number.
+ * Back, and Continue or what stands in its place while the client is refused
+ * or the check fails. While the client loads or the check runs, Continue
+ * stays on screen, held, with a line that says what runs. Continue holds
+ * while a threshold field holds text that is not a whole number.
  */
 const EditorActions = ({
   client,
@@ -39,9 +44,36 @@ const EditorActions = ({
   const { t } = useTranslation()
   const refusalLines = clientRefusal ? renderClientRefusal(clientRefusal, t) : null
 
+  const continueButton = (disabled: boolean) => (
+    <Button
+      testID="editor-continue"
+      type="primary"
+      text={continueLabel ?? t('socialRecovery.actions.continue')}
+      disabled={disabled}
+      onPress={onContinue}
+      hasBottomSpacing={false}
+    />
+  )
+
   let primary: ReactNode = null
   if (client.status === 'loading' || (client.status === 'ready' && checking)) {
-    primary = <ActivityIndicator testID="editor-spinner" />
+    primary = (
+      <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap]}>
+        {continueButton(true)}
+        <View testID="editor-waiting" style={spacings.mlSm}>
+          {client.status === 'loading' ? (
+            <LoadingBlock
+              variant="row"
+              message={t('socialRecovery.loading.client', {
+                network: CHAIN_NAMES[WALLET_RECOVERY_CHAIN]
+              })}
+            />
+          ) : (
+            <RefreshingLine messageKey="socialRecovery.loading.checks" />
+          )}
+        </View>
+      </View>
+    )
   } else if (client.status === 'update-the-wallet' || client.status === 'failed') {
     primary = (
       <Button
@@ -64,16 +96,7 @@ const EditorActions = ({
       />
     )
   } else if (client.status === 'ready') {
-    primary = (
-      <Button
-        testID="editor-continue"
-        type="primary"
-        text={continueLabel ?? t('socialRecovery.actions.continue')}
-        disabled={methodCount === 0 || writeFailed || thresholdHeld}
-        onPress={onContinue}
-        hasBottomSpacing={false}
-      />
-    )
+    primary = continueButton(methodCount === 0 || writeFailed || thresholdHeld)
   }
 
   return (

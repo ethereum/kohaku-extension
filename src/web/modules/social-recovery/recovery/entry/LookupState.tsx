@@ -8,7 +8,7 @@
  */
 import React from 'react'
 import type { ReactNode } from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
@@ -21,6 +21,7 @@ import {
   SectionLabel,
   TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
 import { renderFullAddress } from '@web/modules/social-recovery/shared/display'
 
@@ -92,10 +93,10 @@ const LookupState = ({
   if (client.status === 'loading' || setupState.status === 'pending') {
     return columns(
       <View testID="entry-lookup-loading">
-        <ActivityIndicator style={spacings.mbSm} />
-        <Text fontSize={14} appearance="secondaryText">
-          {t(`${ACCOUNT}.lookingUp`, { network: networkName })}
-        </Text>
+        <LoadingBlock
+          variant="block"
+          message={t(`${ACCOUNT}.lookingUp`, { network: networkName })}
+        />
       </View>
     )
   }

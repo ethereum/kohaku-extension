@@ -75,10 +75,12 @@ const WAIT_PATH = `/${WEB_ROUTES.socialRecoveryRecoveryWait}?account=${ACCOUNT}`
  * the records keep it: the attempt id and the setup nonce as the request
  * carries them, and the hash of its payload. Nothing else of the gathering.
  */
+const EXECUTABLE_AT = 1_700_086_400
 const LANDED_REQUEST = {
   attemptId: '1',
   setupNonce: '1',
   payloadHash: keccak256(PAYLOAD),
+  executableAt: EXECUTABLE_AT,
   deployment: { manager: BOOK.manager, action: BOOK.action }
 }
 
@@ -148,12 +150,13 @@ describe('the request lands on the chain', () => {
         state,
         attemptId: BigInt(1),
         nextAttemptId: BigInt(2),
-        payloadHash: keccak256(PAYLOAD)
+        payloadHash: keccak256(PAYLOAD),
+        consumableAfter: EXECUTABLE_AT
       })
       await settle(CHECKLIST_POLL_MS)
 
       expect(land).toHaveBeenCalledTimes(1)
-      expect(land).toHaveBeenCalledWith(CHAIN_ID, ACCOUNT, seeded.revision)
+      expect(land).toHaveBeenCalledWith(CHAIN_ID, ACCOUNT, seeded.revision, EXECUTABLE_AT)
       expect(wipe).not.toHaveBeenCalled()
       const landed = (await storedSession(world.records))?.value
       const kept = Object.fromEntries(

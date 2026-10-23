@@ -38,6 +38,7 @@ import type { Mounted, World } from '@web/modules/social-recovery/recovery/wait/
 import type { KitNotification } from '@kohaku-eth/social-recovery'
 import type { ProviderTransactionReceipt } from '@web/modules/social-recovery/shared/client'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
+import { renderHash } from '@web/modules/social-recovery/shared/display'
 
 // The harness sets up the text codecs viem needs before viem loads.
 // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
@@ -201,7 +202,11 @@ describe('execute now', () => {
     await tick(0)
     // The landed receipt asks the chain at once; the attempt still waits there.
     expect(world.kit.recoveryState.mock.calls.length).toBe(calls + 1)
-    expect(view.byTestId('wait-execute-confirming')).not.toBeNull()
+    expect(view.textOf('wait-execute-confirming')).toContain(t('socialRecovery.loading.landed'))
+    expect(
+      view.byTestId('wait-execute-confirming')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
+    expect(view.textOf('wait-execute-confirming-hash')).toBe(renderHash(TX_HASH))
     expect(view.paths()).toEqual([])
 
     consume(world.kit, world.account)
@@ -701,7 +706,11 @@ describe("the execution's gas check and block read", () => {
     view = await mountWait(world.account)
 
     await view.press('wait-execute')
-    expect(view.byTestId('wait-execute-checkingGas')).not.toBeNull()
+    expect(view.textOf('wait-execute-checkingGas')).toBe(t('socialRecovery.loading.fee'))
+    expect(
+      view.byTestId('wait-execute-checkingGas')?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
+    expect(view.isDisabled('wait-execute')).toBe(true)
     expect(world.kit.receipts.blockNumber).toHaveBeenCalledTimes(1)
     await tick(READ_LIMIT_MS)
     await expectGasReadFailed(world)

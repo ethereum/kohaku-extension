@@ -45,9 +45,85 @@ describe('the overview', () => {
 
   it('shows the read running, never not set up, while the setup is read', async () => {
     view = await render(viewPropsOf())
-    expect(view.text()).toContain(t(`${O}.reads.loading`))
+    expect(view.text()).toContain(t('socialRecovery.loading.lookup'))
     expect(view.byTestId('overview-chip-not-set-up')).toBeNull()
     expect(view.byTestId('overview-empty')).toBeNull()
+  })
+
+  it('says it reads the setup in a waiting block where this device holds no opened setup', async () => {
+    view = await render(viewPropsOf())
+    expect(view.textOf('overview-reading')).toBe(t('socialRecovery.loading.lookup'))
+    expect(view.byTestId('overview-refreshing')).toBeNull()
+    expect(
+      view.byTestId('overview-reading')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
+    expect(view.byTestId('readout-path')).toBeNull()
+    expect(view.byTestId('overview-edit-path')).toBeNull()
+  })
+
+  it('shows the path this device last opened beside the refreshing line, every action held, while the setup is read', async () => {
+    const props = viewPropsOf({ reads: readsOf({ cached: CONFIGURATION }) })
+    view = await render(props)
+    expect(view.textOf('overview-refreshing')).toBe(t('socialRecovery.loading.refreshingSetup'))
+    expect(
+      view.byTestId('overview-refreshing')?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
+    expect(view.byTestId('overview-reading')).toBeNull()
+    expect(view.byTestId('readout-path')).not.toBeNull()
+    expect(view.byTestId('readout-wait-value')).not.toBeNull()
+    expect(view.isDisabled('overview-edit-path')).toBe(true)
+    expect(view.isDisabled('overview-remove-recovery')).toBe(true)
+    expect(view.byTestId('overview-dormant')).toBeNull()
+    expect(view.byTestId('overview-chip-not-set-up')).toBeNull()
+    await view.press('overview-edit-path')
+    await view.press('overview-remove-recovery')
+    expect(props.navigate).not.toHaveBeenCalled()
+  })
+
+  it('shows the path this device last opened beside the refreshing line, edit and remove held, while the path is read again', async () => {
+    const props = viewPropsOf({
+      reads: readsOf({ facts: answered({}), path: { kind: 'reading' }, cached: CONFIGURATION })
+    })
+    view = await render(props)
+    expect(view.textOf('overview-path-refreshing')).toBe(
+      t('socialRecovery.loading.refreshingSetup')
+    )
+    expect(
+      view.byTestId('overview-path-refreshing')?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
+    expect(view.byTestId('readout-path')).not.toBeNull()
+    expect(view.isDisabled('overview-edit-path')).toBe(true)
+    expect(view.isDisabled('overview-remove-recovery')).toBe(true)
+  })
+
+  it('says it reads the setup in the path card where the path is read and this device holds none', async () => {
+    view = await render(
+      viewPropsOf({ reads: readsOf({ facts: answered({}), path: { kind: 'reading' } }) })
+    )
+    expect(view.textOf('overview-path-reading')).toBe(t('socialRecovery.loading.lookup'))
+    expect(
+      view.byTestId('overview-path-reading')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
+    expect(view.byTestId('readout-path')).toBeNull()
+    expect(view.isDisabled('overview-edit-path')).toBe(true)
+  })
+
+  it('says it unlocks the setup in a waiting block, with no field to submit, while the recovery password is checked', async () => {
+    view = await render(
+      viewPropsOf({
+        reads: readsOf({
+          facts: answered({}),
+          path: { kind: 'locked', level: 'private' },
+          ask: { status: 'checking' }
+        })
+      })
+    )
+    expect(view.textOf('overview-locked-checking')).toBe(t('socialRecovery.loading.unlocking'))
+    expect(
+      view.byTestId('overview-locked-checking')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
+    expect(view.byTestId('overview-locked-field')).toBeNull()
+    expect(view.byTestId('overview-locked-unlock')).toBeNull()
   })
 
   it('shows a failed read with its retry, never not set up', async () => {
@@ -269,6 +345,67 @@ describe('the overview', () => {
     )
     await view.press('overview-ended-replace')
     expect(props.navigate).toHaveBeenCalledWith(WEB_ROUTES.socialRecoveryManageEdit)
+  })
+
+  it("shows the watcher's ended notice beside the refreshing line, its replace held, while the notices are read", async () => {
+    const props = viewPropsOf({
+      reads: readsOf({
+        facts: answered({}),
+        path: { kind: 'readable', configuration: CONFIGURATION },
+        notices: { status: 'pending' }
+      }),
+      ending: { attemptId: 3n, road: 'cancelled', cancelledBy: 'cancelByOwner', at: 1_700_000_000 }
+    })
+    view = await render(props)
+    expect(view.textOf('overview-notices-reading')).toBe(t('socialRecovery.loading.notices'))
+    expect(
+      view.byTestId('overview-notices-reading')?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
+    expect(view.isDisabled('overview-edit-path')).toBe(true)
+    expect(view.isDisabled('overview-remove-recovery')).toBe(true)
+    expect(view.textOf('overview-ended-line')).toBe(
+      t(`${O}.ended.ownerCancel`, {
+        date: display.renderDateTimeInZone(1_700_000_000_000, 'UTC').date
+      })
+    )
+    expect(view.isDisabled('overview-ended-replace')).toBe(true)
+    await view.press('overview-ended-replace')
+    expect(props.navigate).not.toHaveBeenCalled()
+  })
+
+  it('shows a waiting block that names the notices read where the watcher read no ending, the path actions held', async () => {
+    const props = viewPropsOf({
+      reads: readsOf({
+        facts: answered({}),
+        path: { kind: 'readable', configuration: CONFIGURATION },
+        notices: { status: 'pending' }
+      })
+    })
+    view = await render(props)
+    expect(view.textOf('overview-notices-reading')).toBe(t('socialRecovery.loading.notices'))
+    expect(
+      view.byTestId('overview-notices-reading')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
+    expect(view.byTestId('overview-ended')).toBeNull()
+    expect(view.isDisabled('overview-edit-path')).toBe(true)
+    expect(view.isDisabled('overview-remove-recovery')).toBe(true)
+    await view.press('overview-edit-path')
+    expect(props.navigate).not.toHaveBeenCalled()
+  })
+
+  it('gives the path actions back once the notices answer', async () => {
+    view = await render(
+      viewPropsOf({
+        reads: readsOf({
+          facts: answered({}),
+          path: { kind: 'readable', configuration: CONFIGURATION },
+          notices: { status: 'answered', value: { moved: [], cancelledAttempts: [] } }
+        })
+      })
+    )
+    expect(view.byTestId('overview-notices-reading')).toBeNull()
+    expect(view.isDisabled('overview-edit-path')).toBe(false)
+    expect(view.isDisabled('overview-remove-recovery')).toBe(false)
   })
 
   it('draws no ended notice where the setup was committed after the ending', async () => {

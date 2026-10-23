@@ -119,6 +119,8 @@ export interface LinkedApprovalReads {
 
 export interface ApprovalReadsHook {
   reads: ApprovalReads
+  /** A round runs after an answer; the answer stays on screen, its sign held, until the round answers. */
+  refreshing: boolean
   retry: () => void
 }
 
@@ -138,6 +140,8 @@ export interface ApproveViewProps {
   onClose: () => void
   onDecline: () => void
   onRetry: () => void
+  /** A later round of the reads runs; the last answer shows with its sign held. */
+  refreshing: boolean
 }
 
 export interface LeadBlockProps {

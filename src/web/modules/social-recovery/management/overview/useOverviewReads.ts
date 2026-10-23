@@ -18,7 +18,11 @@
  * record that is absent sets no floor. Where the last attempt executed, the
  * facts also ask whether any key this wallet's keystore holds is an
  * authority of the account, and wait for the keystore's keys to ask about; a
- * failed answer fails the facts.
+ * failed answer fails the facts. The configuration this device last opened
+ * at the client's deployment, or at this build's own before the client
+ * stands, is read beside them, for the screen to show while they run, and
+ * while the path reads only where it was committed under the setup nonce
+ * they answered; it decides nothing.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -30,6 +34,12 @@ import { holdsAuthority } from '@web/modules/social-recovery/recovery/entry/runn
 import type { EntryRead, UnlockState } from '@web/modules/social-recovery/recovery/entry/types'
 import type { Configuration, SetupState } from '@kohaku-eth/social-recovery'
 import {
+  addressBookOf,
+  descriptorOf,
+  WALLET_RECOVERY_CHAIN
+} from '@web/modules/social-recovery/shared/client'
+import {
+  isOfDeployment,
   readRecoveryPassword,
   recordDeploymentOf,
   setRecoveryPassword
@@ -47,6 +57,7 @@ import {
   noticesOf
 } from './readings'
 import type {
+  OpenedSetup,
   OverviewFactsRead,
   OverviewNotices,
   OverviewReads,
@@ -55,6 +66,7 @@ import type {
 } from './types'
 
 const PENDING = { status: 'pending' } as const
+const BUILD_DESCRIPTOR = descriptorOf(WALLET_RECOVERY_CHAIN, addressBookOf(WALLET_RECOVERY_CHAIN))
 const IDLE: UnlockState = { status: 'idle' }
 const NONE: PathStep = { kind: 'none' }
 
@@ -71,6 +83,7 @@ export const useOverviewReads = ({
   const [path, setPath] = useState<PathStep>(NONE)
   const [ask, setAsk] = useState<UnlockState>(IDLE)
   const [notices, setNotices] = useState<EntryRead<OverviewNotices>>(PENDING)
+  const [lastOpened, setLastOpened] = useState<OpenedSetup | null>(null)
   const [factsRound, setFactsRound] = useState(0)
   const [pathRound, setPathRound] = useState(0)
   const [noticesRound, setNoticesRound] = useState(0)
@@ -84,11 +97,52 @@ export const useOverviewReads = ({
   const disagreements = useRef(0)
 
   const setup: SetupState | null = facts.status === 'answered' ? facts.value.setup : null
+  // The setup the path is read under, for the path read now to keep its nonce.
+  const pathSetup = useRef<SetupState | null>(setup)
+  pathSetup.current = setup
 
   useEffect(() => {
     floor.current = undefined
     disagreements.current = 0
   }, [kit])
+
+  // The cache is read before the client stands, under this build's deployment until the client names its own.
+  const { manager, action } = kit?.descriptor ?? BUILD_DESCRIPTOR
+  useEffect(() => {
+    setLastOpened(null)
+    let live = true
+    records
+      .decryptedSetupCache(chainId, account)
+      .read()
+      .then(
+        (read) => {
+          if (
+            live &&
+            read.status === 'present' &&
+            isOfDeployment(read.value.deployment, { manager, action })
+          ) {
+            setLastOpened({
+              configuration: read.value.configuration,
+              setupNonce: read.value.setupNonce
+            })
+          }
+        },
+        () => undefined
+      )
+    return () => {
+      live = false
+    }
+  }, [manager, action, records, chainId, account])
+
+  // A path read now is the one to show while a later read runs.
+  useEffect(() => {
+    if (path.kind === 'readable' && pathSetup.current) {
+      setLastOpened({
+        configuration: path.configuration,
+        setupNonce: pathSetup.current.setupNonce
+      })
+    }
+  }, [path])
 
   useEffect(() => {
     if (client.status === 'update-the-wallet') {
@@ -386,5 +440,21 @@ export const useOverviewReads = ({
 
   const retryNotices = useCallback(() => setNoticesRound((round) => round + 1), [])
 
-  return { facts, path, ask, notices, retry, retryPath, retryNotices, unlock, askAgain }
+  const cached =
+    lastOpened && (!setup || lastOpened.setupNonce === setup.setupNonce)
+      ? lastOpened.configuration
+      : null
+
+  return {
+    facts,
+    path,
+    ask,
+    notices,
+    cached,
+    retry,
+    retryPath,
+    retryNotices,
+    unlock,
+    askAgain
+  }
 }

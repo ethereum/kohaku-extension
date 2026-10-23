@@ -1,14 +1,14 @@
 /**
  * The gas step of the fast track: the deposit step for the key that sends the
  * recovery while it holds too little, under the account being recovered, with
- * the second-funding note beside it; a failed read with retry; or the wait
- * while the check reads. Continue stays disabled: the
+ * the second-funding note beside it; a failed read with retry; or a waiting
+ * block that says the balance and the fee are read. Continue stays disabled: the
  * step moves on by itself once the funds arrive. Back returns to the readout;
  * where no key in this wallet can send the recovery, nothing can be retried
  * here and Back returns to the account step.
  */
 import React from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
@@ -17,6 +17,7 @@ import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import AccountLine from '@web/modules/social-recovery/recovery/entry/AccountLine'
 import { ActionsRow, TwoColumn } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import {
   DepositStepAside,
   DepositStepView
@@ -79,7 +80,11 @@ const GasStepView = ({
   }
 
   if (state.kind !== 'deposit') {
-    return columns(<ActivityIndicator testID="fast-track-gas-spinner" />)
+    return (
+      <View testID="fast-track-gas-waiting" style={flexbox.flex1}>
+        <LoadingBlock variant="screen" message={t('socialRecovery.loading.balance')} />
+      </View>
+    )
   }
 
   return columns(

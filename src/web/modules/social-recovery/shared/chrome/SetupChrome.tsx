@@ -26,7 +26,8 @@ import SetupAccountNotice from './SetupAccountNotice'
 import StepCounter from './StepCounter'
 import type { SetupChromeProps } from './types'
 
-const COLUMN = { width: '100%' } as const
+const GROW = { flexGrow: 1 } as const
+const COLUMN = { width: '100%', flexGrow: 1 } as const
 
 const SetupChrome = ({
   children,
@@ -57,7 +58,7 @@ const SetupChrome = ({
               { ...spacings.ph0, ...spacings.pv0 }
             ]}
           >
-            <ScrollView contentContainerStyle={getPanelPaddings(maxWidthSize, 'large')}>
+            <ScrollView contentContainerStyle={[getPanelPaddings(maxWidthSize, 'large'), GROW]}>
               <Text fontSize={12} appearance="secondaryText" style={spacings.mbSm}>
                 {t('socialRecovery.chrome.breadcrumb')}
                 {breadcrumbTail ? ` › ${breadcrumbTail}` : null}

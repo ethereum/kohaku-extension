@@ -403,9 +403,9 @@ const useChecklist = ({
     [end, records, chainId, account, apply, retry]
   )
   const land = useCallback(
-    () =>
+    (executableAt: number) =>
       end(async (current) => {
-        await records.landSubmission(chainId, account, current.revision)
+        await records.landSubmission(chainId, account, current.revision, executableAt)
         // No live session is left to poll or to change.
         loadRef.current = LOADING
         setLoad(LOADING)
@@ -429,7 +429,9 @@ const useChecklist = ({
       const { gathering } = current.session
       const outcome = facts ? outcomeOf(gathering, facts) : null
       if (outcome === 'landed') {
-        land().catch(() => undefined)
+        if (facts) {
+          land(facts.attempt.consumableAfter).catch(() => undefined)
+        }
       } else if (deadlinePassed(gathering, clock)) {
         die('deadline-passed').catch(() => undefined)
       } else if (outcome) {
@@ -439,7 +441,11 @@ const useChecklist = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [die, land]
   )
-  const { poll, retry: retryPoll } = usePoll({
+  const {
+    poll,
+    polling,
+    retry: retryPoll
+  } = usePoll({
     kit,
     target,
     deps,
@@ -503,6 +509,7 @@ const useChecklist = ({
     gatherFailed,
     readSetupAgain,
     poll,
+    polling,
     retryPoll,
     deathFailed,
     dying,

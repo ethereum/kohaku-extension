@@ -274,7 +274,7 @@ describe('the request dies', () => {
 
         expect(kit.recoveryState).toHaveBeenCalledTimes(1)
         expect(land).toHaveBeenCalledTimes(1)
-        expect(land).toHaveBeenCalledWith(CHAIN_ID, ACCOUNT, seeded.revision)
+        expect(land).toHaveBeenCalledWith(CHAIN_ID, ACCOUNT, seeded.revision, 0)
         expect(wipe).not.toHaveBeenCalled()
         expect((await storedSession(world.records))?.value.state).toBe('landed')
         expect(view?.navigate).toHaveBeenLastCalledWith(WAIT_PATH, { replace: true })
@@ -321,7 +321,7 @@ describe('the request dies', () => {
 
         await settle(POLL_LIMIT_MS - 1)
         expect(wipe).not.toHaveBeenCalled()
-        expect(view?.byTestId('checklist-loading')).not.toBeNull()
+        expect(view?.byTestId('checklist-refreshing')).not.toBeNull()
 
         await settle(1)
         expect(wipe).toHaveBeenCalledTimes(1)

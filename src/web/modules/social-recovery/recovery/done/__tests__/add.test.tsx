@@ -62,6 +62,10 @@ describe('the fast track adds the recovered account', () => {
     expect(added.addr).toBe(world.account)
     expect(added.associatedKeys).toEqual([NEW_KEY])
     expect(screen.has('done-adding')).toBe(true)
+    expect(screen.textOf('done-add-loading')).toBe(t('socialRecovery.loading.addingAccount'))
+    expect(
+      screen.byTestId('done-add-loading')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
     expectNoDoneText(screen)
 
     await setWallet({ statuses: { addAccounts: 'LOADING' } })

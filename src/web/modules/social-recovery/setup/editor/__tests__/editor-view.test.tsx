@@ -29,6 +29,18 @@ import type {
   Validate
 } from '@web/modules/social-recovery/setup/editor/__tests__/harness'
 
+// The spinner's animation needs a native module jsdom lacks; a plain view stands in.
+jest.mock('@common/components/Spinner', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires, global-require */
+  const mockReact: typeof import('react') = require('react')
+  const { View: MockView }: typeof import('react-native') = require('react-native')
+  /* eslint-enable @typescript-eslint/no-var-requires, global-require */
+  return {
+    __esModule: true,
+    default: () => mockReact.createElement(MockView, { testID: 'spinner' })
+  }
+})
+
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 
 // React only runs effects and state updates inside act() when this flag is set.
@@ -58,6 +70,12 @@ const { renderShortAddress } = jest.requireActual<
 const { ThemeContext } = jest.requireActual<typeof import('@common/contexts/themeContext')>(
   '@common/contexts/themeContext'
 )
+const { CHAIN_NAMES } = jest.requireActual<
+  typeof import('@web/modules/social-recovery/recovery/entry/constants')
+>('@web/modules/social-recovery/recovery/entry/constants')
+const { WALLET_RECOVERY_CHAIN } = jest.requireActual<
+  typeof import('@web/modules/social-recovery/shared/client')
+>('@web/modules/social-recovery/shared/client')
 const EditorView = jest.requireActual<
   typeof import('@web/modules/social-recovery/setup/editor/EditorView')
 >('@web/modules/social-recovery/setup/editor/EditorView').default
@@ -581,10 +599,15 @@ describe('continue', () => {
     expect(allByTestId('editor-finding')).toEqual([])
   })
 
-  it('shows a spinner and no continue while the client loads', async () => {
+  it('keeps the path and a held continue while the client loads, with the line naming the network', async () => {
     await mount({ clauses: presetPath(), client: 'loading' })
-    expect(byTestId('editor-continue')).toBeNull()
-    expect(byTestId('editor-spinner')).not.toBeNull()
+    expect(isHeld('editor-continue')).toBe(true)
+    expect(byTestId('editor')).not.toBeNull()
+    const waiting = byTestId('editor-waiting')
+    expect(waiting?.querySelector('[data-testid="loading-row"]')).not.toBeNull()
+    expect(waiting?.textContent).toBe(
+      t('socialRecovery.loading.client', { network: CHAIN_NAMES[WALLET_RECOVERY_CHAIN] })
+    )
   })
 
   it('offers a retry and no continue when the client is refused', async () => {
@@ -771,7 +794,9 @@ describe('edits while the path check runs', () => {
     await press('editor-group-1-add')
     await press('editor-continue')
     expect(validateSetup).toHaveBeenCalledTimes(1)
-    expect(byTestId('editor-spinner')).not.toBeNull()
+    expect(byTestId('editor-waiting')?.textContent).toBe(t('socialRecovery.loading.checks'))
+    expect(byTestId('editor-waiting')?.querySelector('[data-testid="loading-row"]')).not.toBeNull()
+    expect(isHeld('editor-continue')).toBe(true)
 
     expect(controls.filter((id) => !isHeld(id))).toEqual([])
     await buttons.reduce((previous, id) => previous.then(() => press(id)), Promise.resolve())

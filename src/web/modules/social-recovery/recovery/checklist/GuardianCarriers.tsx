@@ -2,9 +2,10 @@
  * A guardian row's one artifact, the link to the approval page, and what
  * carries it: the four values first, how the guardian answers, then open the
  * approval page, copy the link, copy a message with the link and show the QR
- * code, all four locked until every value rendered. The row tells the
- * recoverer to ask for the call rather than place it, and to send the message
- * over a channel they already use. The paste field takes the line the guardian
+ * code, all four locked until every value rendered, and held like every other
+ * row action while the row is busy, as before the first chain read answers.
+ * The row tells the recoverer to ask for the call rather than place it, and to
+ * send the message over a channel they already use. The paste field takes the line the guardian
  * sends back. A complete row shows when this tab added its approval.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
@@ -77,7 +78,7 @@ const GuardianCarriers = ({
       type="secondary"
       size="small"
       text={t(key)}
-      disabled={!unlocked}
+      disabled={!unlocked || busy}
       onPress={onPress}
       hasBottomSpacing={false}
       style={[spacings.mrSm, spacings.mbTy]}
