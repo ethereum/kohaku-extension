@@ -61,14 +61,19 @@ export const DISMISSAL_NOTES = ['cancelled', 'refused'] as const
 
 /**
  * The causes a verdict other than passed names: the method's own five and the
- * host's own nine.
+ * host's own eleven.
  *
  * - `thrown`: the method threw a refusal (enrollInput and signingInput throw).
  * - `check-rejected`: the local check answered rejected.
+ * - `check-reverted`: the method module's `verify` view on chain reverted
+ *   instead of judging the proof, as a module that does not accept the
+ *   proof's version does.
  * - `relying-party-mismatch`: the credential or the assertion was minted under a
  *   relying party other than the extension's own origin. At enrollment this is
  *   the provider that refused Kohaku (the 1Password case).
  * - `unreachable`: a phone hand-off that never connected.
+ * - `phone-unanswered`: a phone that took the request and then stopped
+ *   answering.
  * - `service-unanswered`: a node or a service did not answer.
  * - `not-judged`: the local check needs a contract's own word.
  * - `no-implementation`: this build holds no implementation for the method, or
@@ -82,8 +87,10 @@ export const DISMISSAL_NOTES = ['cancelled', 'refused'] as const
 export const HOST_CAUSES = [
   'thrown',
   'check-rejected',
+  'check-reverted',
   'relying-party-mismatch',
   'unreachable',
+  'phone-unanswered',
   'service-unanswered',
   'not-judged',
   'no-implementation',
@@ -184,10 +191,11 @@ export const chipOfOutcome = (
  * - Passed: a test or a claim reads the passed note with its hash; a passed
  *   enrollment reads no note, the kind line takes its place.
  * - Not supported: the not-supported note.
- * - Unavailable: a hand-off that never connected reads unreachable; any other
- *   cause reads the test-unavailable line at a test, once (`lineKeyOfOutcome`
- *   adds none), and the unavailable note at an enrollment or a claim, which
- *   never shows a test line.
+ * - Unavailable: a hand-off that never connected reads unreachable, and a
+ *   phone that stopped answering reads its own note; any other cause reads
+ *   the test-unavailable line at a test, once (`lineKeyOfOutcome` adds none),
+ *   and the unavailable note at an enrollment or a claim, which never shows a
+ *   test line.
  * - Failed: an error the holder's phone reported reads the phone's note at
  *   every call; a relying-party mismatch reads the provider's refusal at
  *   enrollment and the mismatch note at a test or a claim; a failed test reads
@@ -214,6 +222,9 @@ export const noteKeyOfOutcome = (
       if (outcome.cause === 'unreachable') {
         return 'socialRecovery.ceremony.unreachableNote'
       }
+      if (outcome.cause === 'phone-unanswered') {
+        return 'socialRecovery.ceremony.phoneUnansweredNote'
+      }
       return call === 'testAccess'
         ? 'socialRecovery.ceremony.testUnavailableLine'
         : 'socialRecovery.ceremony.unavailableNote'
@@ -232,9 +243,25 @@ export const noteKeyOfOutcome = (
 }
 
 /**
+ * The line under a failed test, from its cause as an outcome carries it or as
+ * a record stores it with its detail after the cause: a check that did not
+ * match reads the no-match line, a check the module on chain refused to judge
+ * reads the reverted line, and any other failure reads that the method may
+ * never work.
+ */
+export const failedTestLineKeyOf = (cause: string | undefined): string => {
+  if (cause?.startsWith('check-rejected')) {
+    return 'socialRecovery.ceremony.testFailedNoMatch'
+  }
+  return cause?.startsWith('check-reverted')
+    ? 'socialRecovery.ceremony.testFailedReverted'
+    : 'socialRecovery.ceremony.testFailedLine'
+}
+
+/**
  * The line a TEST ACCESS verdict carries under its chip: a failed test reads
- * test failed with its line and never the not-tested line.
- * Every other call carries no test line. An unavailable test carries none
+ * test failed with its line (`failedTestLineKeyOf`) and never the not-tested
+ * line. Every other call carries no test line. An unavailable test carries none
  * either, since its note already reads the test-unavailable line.
  */
 export const lineKeyOfOutcome = (
@@ -246,9 +273,7 @@ export const lineKeyOfOutcome = (
   }
   switch (outcome.verdict) {
     case 'failed':
-      return outcome.cause === 'check-rejected'
-        ? 'socialRecovery.ceremony.testFailedNoMatch'
-        : 'socialRecovery.ceremony.testFailedLine'
+      return failedTestLineKeyOf(outcome.cause)
     case 'notSupported':
       return 'socialRecovery.ceremony.notSupportedLine'
     case 'unavailable':

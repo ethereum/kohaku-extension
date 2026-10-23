@@ -1,6 +1,7 @@
 import { decodeAbiParameters } from 'viem'
 
 import type { Clause } from '@kohaku-eth/social-recovery'
+import { failedTestLineKeyOf } from '@web/modules/social-recovery/shared/ceremony'
 import { methodKindIn } from '@web/modules/social-recovery/shared/client'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import {
@@ -29,8 +30,6 @@ const METHOD_NAME_KEYS: Partial<Record<SlotKind, string>> = {
   aadhaar: 'socialRecovery.methodNames.aadhaar'
 }
 
-const CEREMONY = 'socialRecovery.ceremony'
-
 const kindOf = (enrollment: Enrollment, book: AddressBook): SlotKind | undefined =>
   methodKindIn(book.methods, enrollment.credential.method)
 
@@ -56,17 +55,6 @@ const guardianAddressOf = (enrollment: Enrollment): string | undefined => {
   }
 }
 
-/**
- * The one line under a failed test: the no-match line when the check rejected
- * the answer, else the line that the method may never work.
- */
-const failedLineOf = (cause: string | undefined, t: Translate): string =>
-  t(
-    cause?.startsWith('check-rejected')
-      ? `${CEREMONY}.testFailedNoMatch`
-      : `${CEREMONY}.testFailedLine`
-  )
-
 const rowOf = (
   enrollment: Enrollment,
   kind: SlotKind | undefined,
@@ -77,7 +65,7 @@ const rowOf = (
   name: nameOf(enrollment, kind, t),
   chip: renderChip('method', VERDICT_CHIPS[enrollment.test], t),
   ...(kind === 'ecdsa' ? { detail: guardianAddressOf(enrollment) } : {}),
-  ...(enrollment.test === 'failed' ? { note: failedLineOf(enrollment.cause, t) } : {})
+  ...(enrollment.test === 'failed' ? { note: t(failedTestLineKeyOf(enrollment.cause)) } : {})
 })
 
 /**

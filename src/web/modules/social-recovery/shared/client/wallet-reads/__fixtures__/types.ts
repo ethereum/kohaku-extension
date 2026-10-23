@@ -30,3 +30,10 @@ export interface AccountWorldOptions {
   /** The action's `supportsAccount` answer; true by default. */
   supportsAccount?: boolean
 }
+
+/**
+ * One answer of a method module's `verify` view and what the ceremony's check
+ * reads for it: the case's name, the node's answer or the error the call
+ * rejects with, and the check's answer.
+ */
+export type ReplyCheckCase = [string, () => Hex | Error, 'reverted' | 'rejected']

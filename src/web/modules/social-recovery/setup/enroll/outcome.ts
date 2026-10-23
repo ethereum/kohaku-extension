@@ -3,7 +3,7 @@
  * and the row's lasting line; the outcome that just arrived adds its note,
  * which a reload drops. A dismissal leaves the stored verdict as it was.
  */
-import { noteKeyOfOutcome } from '@web/modules/social-recovery/shared/ceremony'
+import { failedTestLineKeyOf, noteKeyOfOutcome } from '@web/modules/social-recovery/shared/ceremony'
 import type { CeremonyCall, CeremonyOutcome } from '@web/modules/social-recovery/shared/ceremony'
 import type { Enrollment, EnrollmentTestVerdict } from '@web/modules/social-recovery/shared/records'
 
@@ -52,7 +52,8 @@ export const causeOf = (outcome: CeremonyOutcome<unknown>): string | undefined =
 
 /**
  * The line a stored verdict reads under the chip: the passed line the row
- * names, a failed check that did not match, any other failure, the check that
+ * names, a failed check that did not match or that the chain refused to
+ * judge, any other failure, the check that
  * could not run, the method that cannot serve, and for a skipped test the
  * line that an untested method may fail on the day.
  */
@@ -65,9 +66,7 @@ export const testLineKeyOf = (
     case 'passed':
       return passedKey
     case 'failed':
-      return enrollment.cause?.startsWith('check-rejected')
-        ? `${CEREMONY}.testFailedNoMatch`
-        : `${CEREMONY}.testFailedLine`
+      return failedTestLineKeyOf(enrollment.cause)
     case 'unavailable':
       return `${CEREMONY}.testUnavailableLine`
     case 'not-supported':

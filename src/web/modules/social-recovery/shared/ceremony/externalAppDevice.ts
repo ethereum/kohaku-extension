@@ -14,8 +14,19 @@
  * library offers no result callback at an enrollment, is a device that did not
  * answer. A connection to the phone lost before any proof arrived is a phone
  * that never connected; lost after, it changes nothing. A page that cannot
- * draw the code runs no request. The device keeps no timer of its own: the
- * tab's expiry rules hold. After an abort no callback is honoured.
+ * draw the code runs no request. After an abort no callback is honoured.
+ * However the wait ends, the device closes the request once, a task later,
+ * so the phone's connection does not outlive it; a request it drops without
+ * following, opened after an abort or offering no result at an enrollment,
+ * it closes at once.
+ *
+ * Once the phone took the request, the device waits `phoneIdleMs` for its
+ * next answer, by default `CEREMONY_TIMEOUT_MS`, the span a passkey hand-off
+ * waits: the limit starts when the phone takes the request and starts again
+ * at each answer that is not the last. A phone that stays silent past it, as
+ * one whose second scan of the code was refused, is a phone that stopped
+ * answering, with retry. Before the phone takes the request no limit runs:
+ * the holder may need time to fetch the phone, and Cancel ends the wait.
  */
 import type { Input, Material, ZkPassportStackProof } from '@kohaku-eth/social-recovery'
 
@@ -24,9 +35,11 @@ import type {
   CeremonyStop,
   DeviceCallContext,
   DeviceResult,
+  ExternalAppDeviceOptions,
   ZkPassportRequestWithResult
 } from './types'
 import { dismissed, failed, notSupported, unavailable } from './verdicts'
+import { CEREMONY_TIMEOUT_MS } from './webauthn'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -40,14 +53,14 @@ const REQUEST_CALLBACKS = [
   'onError'
 ] as const
 
-const OPTIONAL_CALLBACKS = ['onResult', 'onBridgeConnect', 'onBridgeConnectionLost'] as const
+const OPTIONAL_MEMBERS = ['onResult', 'onBridgeConnect', 'onBridgeConnectionLost', 'close'] as const
 
 /** Whether the app library's answer is a request this device can follow. */
 const isRequest = (value: unknown): value is ZkPassportRequestWithResult =>
   isRecord(value) &&
   typeof value.url === 'string' &&
   REQUEST_CALLBACKS.every((name) => typeof value[name] === 'function') &&
-  OPTIONAL_CALLBACKS.every((name) => value[name] === undefined || typeof value[name] === 'function')
+  OPTIONAL_MEMBERS.every((name) => value[name] === undefined || typeof value[name] === 'function')
 
 /** The opener the method's input carries, or undefined where it carries none. */
 const openerOf = (input: Input): (() => Promise<unknown>) | undefined => {
@@ -65,8 +78,8 @@ const stopped = (stop: CeremonyStop): DeviceResult => ({ ok: false, stop })
 /**
  * The opener's answer, or undefined as soon as the signal aborts, so a Cancel
  * while the request is still opening answers at once. A request that opens
- * after the abort is dropped, and a rejection that lands after it is
- * consumed.
+ * after the abort is closed and dropped, and a rejection that lands after it
+ * is consumed.
  */
 const untilAborted = (opening: Promise<unknown>, signal: AbortSignal | undefined) =>
   signal
@@ -76,6 +89,9 @@ const untilAborted = (opening: Promise<unknown>, signal: AbortSignal | undefined
         opening.then(
           (value) => {
             signal.removeEventListener('abort', onAbort)
+            if (signal.aborted && isRequest(value)) {
+              value.close?.()
+            }
             resolve(value)
           },
           (error: unknown) => {
@@ -87,25 +103,41 @@ const untilAborted = (opening: Promise<unknown>, signal: AbortSignal | undefined
     : opening
 
 /**
- * Follows one opened request until the phone answers, refuses or errs, or the
- * signal aborts. `listen` registers the callback whose answer is the material.
+ * Follows one opened request until the phone answers, refuses, errs or stops
+ * answering, or the signal aborts. `listen` registers the callback whose
+ * answer is the material.
  */
 const follow = (
   request: ZkPassportRequestWithResult,
   context: DeviceCallContext,
+  phoneIdleMs: number,
   listen: (settle: (result: DeviceResult) => void, proofs: ZkPassportStackProof[]) => void
 ): Promise<DeviceResult> =>
   new Promise((resolve) => {
     const { signal } = context
     let settled = false
     let onAbort = () => {}
+    let idle: ReturnType<typeof setTimeout> | undefined
+    const stopIdle = () => {
+      if (idle !== undefined) {
+        clearTimeout(idle)
+        idle = undefined
+      }
+    }
     const settle = (result: DeviceResult) => {
       if (settled) {
         return
       }
       settled = true
+      stopIdle()
       signal?.removeEventListener('abort', onAbort)
       resolve(result)
+      // The library still reads the request after its last callback returns.
+      setTimeout(() => request.close?.(), 0)
+    }
+    const restartIdle = () => {
+      stopIdle()
+      idle = setTimeout(() => settle(stopped(unavailable('phone-unanswered'))), phoneIdleMs)
     }
     onAbort = () => settle(cancelled())
     const whileOpen =
@@ -122,10 +154,21 @@ const follow = (
     signal?.addEventListener('abort', onAbort, { once: true })
 
     const generated: ZkPassportStackProof[] = []
-    request.onRequestReceived(whileOpen(() => context.onStep?.('requestReceived')))
-    request.onGeneratingProof(whileOpen(() => context.onStep?.('generating')))
+    request.onRequestReceived(
+      whileOpen(() => {
+        restartIdle()
+        context.onStep?.('requestReceived')
+      })
+    )
+    request.onGeneratingProof(
+      whileOpen(() => {
+        restartIdle()
+        context.onStep?.('generating')
+      })
+    )
     request.onProofGenerated(
       whileOpen((proof: ZkPassportStackProof) => {
+        restartIdle()
         generated.push(proof)
         context.onStep?.('resultReceived')
       })
@@ -165,6 +208,9 @@ const open = async (
     return context.signal?.aborted ? cancelled() : stopped(unavailable('device-unavailable'))
   }
   if (context.signal?.aborted) {
+    if (isRequest(request)) {
+      request.close?.()
+    }
     return cancelled()
   }
   return isRequest(request) ? request : stopped(unavailable('device-unavailable'))
@@ -201,7 +247,9 @@ const listenForProofs =
   }
 
 /** The device of the `external-app` binding, the zkPassport app on the holder's phone. */
-export const externalAppDevice = (): CeremonyDevice => ({
+export const externalAppDevice = ({
+  phoneIdleMs = CEREMONY_TIMEOUT_MS
+}: ExternalAppDeviceOptions = {}): CeremonyDevice => ({
   enroll: async (input, context) => {
     if (context.signal?.aborted) {
       return cancelled()
@@ -214,9 +262,10 @@ export const externalAppDevice = (): CeremonyDevice => ({
       return request
     }
     if (!request.onResult) {
+      request.close?.()
       return stopped(unavailable('device-unavailable'))
     }
-    return follow(request, context, listenForResult(request.onResult))
+    return follow(request, context, phoneIdleMs, listenForResult(request.onResult))
   },
   sign: async (input, context) => {
     if (context.signal?.aborted) {
@@ -229,6 +278,6 @@ export const externalAppDevice = (): CeremonyDevice => ({
     if (isDeviceResult(request)) {
       return request
     }
-    return follow(request, context, listenForProofs(request))
+    return follow(request, context, phoneIdleMs, listenForProofs(request))
   }
 })

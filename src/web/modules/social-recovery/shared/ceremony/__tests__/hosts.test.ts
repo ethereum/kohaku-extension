@@ -83,8 +83,8 @@ const run = async (call: CeremonyCall, setup: HostSetup = {}) => {
   return { outcome, orchestrator, method, request, phone }
 }
 
-const chainVerdictOf = (answer: Verdict | Error) =>
-  jest.fn<Promise<Verdict>, Parameters<ChainVerdict>>(async () => {
+const chainVerdictOf = (answer: Verdict | 'reverted' | Error) =>
+  jest.fn<ReturnType<ChainVerdict>, Parameters<ChainVerdict>>(async () => {
     if (answer instanceof Error) {
       throw answer
     }
@@ -114,6 +114,16 @@ describe('the access test of a method that cannot judge its own proof', () => {
       verdict: 'failed',
       retry: true,
       cause: 'check-rejected'
+    })
+  })
+
+  it("fails as a reverted check, with retry, where the module's view reverted instead of judging", async () => {
+    const { outcome } = await run('testAccess', { chainVerdict: chainVerdictOf('reverted') })
+    expect(outcome).toEqual({
+      kind: 'verdict',
+      verdict: 'failed',
+      retry: true,
+      cause: 'check-reverted'
     })
   })
 

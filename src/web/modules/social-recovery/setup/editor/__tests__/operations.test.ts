@@ -538,6 +538,12 @@ describe('the line of a failed access test', () => {
     )
   })
 
+  it('gives the reverted sentence for a check the chain refused to judge', () => {
+    expect(renderFailedTestLine(failed('check-reverted'), t)).toBe(
+      en.socialRecovery.ceremony.testFailedReverted
+    )
+  })
+
   it('gives only the may-never-work line for any other cause or none', () => {
     ;[
       undefined,

@@ -20,6 +20,7 @@ import {
   concat,
   decodeFunctionData,
   encodeAbiParameters,
+  encodeErrorResult,
   keccak256,
   pad,
   slice,
@@ -47,7 +48,11 @@ import type {
   ScriptedProvider
 } from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 import { providerReadFailure } from '@web/modules/social-recovery/shared/client/provider-adapter'
-import { createReplyVerify } from '@web/modules/social-recovery/shared/client/wallet-reads'
+import type { ReplyCheckCase } from '@web/modules/social-recovery/shared/client/wallet-reads/__fixtures__/types'
+import {
+  createReplyCheck,
+  createReplyVerify
+} from '@web/modules/social-recovery/shared/client/wallet-reads'
 
 const OTHER_WORD: Hex = '0xffffffff'
 const VERIFY_SELECTOR = toFunctionSelector('verify(bytes,bytes32,bytes)')
@@ -149,7 +154,11 @@ const worldOf = (verdicts: { ecdsa?: () => Hex | Error; passkey?: () => Hex | Er
   if (verdicts.passkey) {
     node.answerWith(METHOD_PASSKEY, VERIFY_SELECTOR, verdicts.passkey)
   }
-  return { node, verify: createReplyVerify(node.provider) }
+  return {
+    node,
+    verify: createReplyVerify(node.provider),
+    check: createReplyCheck(node.provider)
+  }
 }
 
 describe("the module's judgement", () => {
@@ -231,6 +240,48 @@ describe("the module's judgement", () => {
     await verify(GUARDIAN_REQUEST, reply)
 
     expect(verifyCallsOf(node)).toHaveLength(2)
+  })
+})
+
+const VERIFIER_NOT_FOUND = encodeErrorResult({
+  abi: [{ type: 'error', name: 'Error', inputs: [{ name: 'message', type: 'string' }] }],
+  errorName: 'Error',
+  args: ['Verifier not found']
+})
+
+describe('the check a ceremony reads, which keeps a revert apart from a refusal', () => {
+  const CASES: ReplyCheckCase[] = [
+    ['a revert with a reason', () => reverting(VERIFIER_NOT_FOUND), 'reverted'],
+    ['a revert that carries no data', () => reverting('0x'), 'reverted'],
+    ['an answer other than the verdict word', answersWord(OTHER_WORD), 'rejected']
+  ]
+  CASES.forEach(([name, answer, expected]) => {
+    it(`reads ${expected} for ${name}, where the pasted-reply verify reads rejected`, async () => {
+      const { check, verify } = worldOf({ ecdsa: answer })
+      const reply = approverReplyTo(GUARDIAN_REQUEST)
+
+      expect(await check(GUARDIAN_REQUEST, reply)).toBe(expected)
+      expect(await verify(GUARDIAN_REQUEST, reply)).toBe('rejected')
+    })
+  })
+
+  it('reads satisfied for the verdict word', async () => {
+    const { check } = worldOf({ ecdsa: answersWord(VERDICT_MAGIC_VALUE) })
+
+    expect(await check(GUARDIAN_REQUEST, approverReplyTo(GUARDIAN_REQUEST))).toBe('satisfied')
+  })
+
+  it('still rejects with the read failure where the module answers no bytes or the node is down', async () => {
+    const failure = providerReadFailure('call', new Error('node down'))
+    const empty = worldOf({ ecdsa: answersWord('0x') })
+    const down = worldOf({ ecdsa: () => failure })
+
+    expect(
+      await thrownBy(empty.check(GUARDIAN_REQUEST, approverReplyTo(GUARDIAN_REQUEST)))
+    ).toMatchObject({ name: 'ProviderReadFailure', read: 'call' })
+    expect(await thrownBy(down.check(GUARDIAN_REQUEST, approverReplyTo(GUARDIAN_REQUEST)))).toBe(
+      failure
+    )
   })
 })
 

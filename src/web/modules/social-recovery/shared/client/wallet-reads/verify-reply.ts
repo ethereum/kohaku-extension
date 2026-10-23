@@ -7,11 +7,14 @@
  * A reply or a request this build does not read, a reply whose place, method
  * or config differ from the request's, or whose digest is not the request's,
  * answers `rejected` with no read. An answer of exactly the module's verdict
- * word is `satisfied`, as the manager reads it; any other answer, or a revert
- * of the call, is `rejected`, since the manager refuses the proof. An empty
- * answer, as an address with no code gives, and a read the provider could not
- * make, reject with the provider's read failure, so the caller reads a failed
- * check and tries again. One read per verify; nothing is cached.
+ * word is `satisfied`, as the manager reads it; any other answer is
+ * `rejected`, since the manager refuses the proof. A revert of the call is
+ * `reverted` in the check, so a ceremony can tell a module that refused to
+ * judge the proof from one that judged it wrong; the verify of a pasted reply
+ * folds it into `rejected`. An empty answer, as an address with no code
+ * gives, and a read the provider could not make, reject with the provider's
+ * read failure, so the caller reads a failed check and tries again. One read
+ * per verify; nothing is cached.
  */
 import {
   approvalDigest,
@@ -27,6 +30,8 @@ import {
 } from '@kohaku-eth/social-recovery'
 import type { ApproverRequest, Hex, Reply, Verdict } from '@kohaku-eth/social-recovery'
 import { encodeFunctionData, size } from 'viem'
+
+import type { ChainVerdict } from '@web/modules/social-recovery/shared/ceremony'
 
 import { sameAddress } from '../addresses'
 import { providerReadFailure } from '../provider-adapter'
@@ -65,9 +70,9 @@ const digestOf = (request: ApproverRequest): Hex | null => {
   }
 }
 
-export const createReplyVerify =
-  (provider: ReplyVerifyProvider): WalletReads['verifyReply'] =>
-  async (request: ApproverRequest, reply: Reply): Promise<Verdict> => {
+export const createReplyCheck =
+  (provider: ReplyVerifyProvider): ChainVerdict =>
+  async (request: ApproverRequest, reply: Reply) => {
     if (
       reply.kind !== GATHERING_REPLY_KIND ||
       reply.version !== GATHERING_REPLY_VERSION ||
@@ -104,8 +109,16 @@ export const createReplyVerify =
       return sameBytes(answer, VERDICT_MAGIC_VALUE) ? 'satisfied' : 'rejected'
     } catch (thrown: unknown) {
       if (isProviderRevert(thrown)) {
-        return 'rejected'
+        return 'reverted'
       }
       throw thrown
     }
   }
+
+export const createReplyVerify = (provider: ReplyVerifyProvider): WalletReads['verifyReply'] => {
+  const check = createReplyCheck(provider)
+  return async (request: ApproverRequest, reply: Reply): Promise<Verdict> => {
+    const answer = await check(request, reply)
+    return answer === 'reverted' ? 'rejected' : answer
+  }
+}

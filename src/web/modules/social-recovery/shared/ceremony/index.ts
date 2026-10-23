@@ -44,6 +44,7 @@ export type {
   DismissalNote,
   DismissedOutcome,
   EnrollValue,
+  ExternalAppDeviceOptions,
   FailedOutcome,
   HostCause,
   HostContext,

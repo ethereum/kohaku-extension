@@ -69,12 +69,24 @@ export const identityParamsOf = (
   return reading
 }
 
+const purposeKeyOf = (call: CeremonyCall): string => {
+  switch (call) {
+    case 'createClaim':
+      return 'socialRecovery.ceremony.phoneRequestPurposeClaim'
+    case 'testAccess':
+      return 'socialRecovery.ceremony.phoneRequestPurposeTest'
+    default:
+      return 'socialRecovery.ceremony.phoneRequestPurposeEnroll'
+  }
+}
+
 /**
  * The params an identity method takes for one call: the zkPassport domain and
- * scope with the name and the purpose the app shows on the phone, a claim's
- * purpose at a claim and the enrollment's at an enrollment and its access
- * test; the Aadhaar seed and certificate. Undefined for any other slug, and
- * for a method the reading holds no parameters of.
+ * scope with the name and the purpose the app shows on the phone, one purpose
+ * per call so the holder reads on the phone whether the request recovers an
+ * account, tests that the passport can, or enrolls it; the Aadhaar seed and
+ * certificate. Undefined for any other slug, and for a method the reading
+ * holds no parameters of.
  */
 export const methodParamsOf = (
   reading: IdentityParamsReading,
@@ -87,10 +99,7 @@ export const methodParamsOf = (
       domain,
       scope,
       name: i18n.t('socialRecovery.ceremony.phoneRequestName'),
-      purpose:
-        call === 'createClaim'
-          ? i18n.t('socialRecovery.ceremony.phoneRequestPurposeClaim')
-          : i18n.t('socialRecovery.ceremony.phoneRequestPurposeEnroll')
+      purpose: i18n.t(purposeKeyOf(call))
     }
   }
   if (slug === 'aadhaar' && reading.aadhaar) {

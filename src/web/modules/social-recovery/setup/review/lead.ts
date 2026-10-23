@@ -7,6 +7,7 @@
 import { decodeAbiParameters } from 'viem'
 
 import type { Address, Clause, Credential, SetupDraft } from '@kohaku-eth/social-recovery'
+import { failedTestLineKeyOf } from '@web/modules/social-recovery/shared/ceremony'
 import {
   credentialKindIn,
   methodKindIn,
@@ -77,17 +78,12 @@ export const guardianAddressOf = (credential: Credential): Address | undefined =
 
 /**
  * The lines a test verdict carries under its chip. A failed test reads one
- * line: that the check did not match where its stored cause says so, else that
- * the method may never work.
+ * line, the one its stored cause selects.
  */
 const verdictLinesOf = (enrollment: Enrollment, t: Translate): string[] => {
   switch (enrollment.test) {
     case 'failed':
-      return [
-        enrollment.cause?.startsWith('check-rejected')
-          ? t(`${CEREMONY}.testFailedNoMatch`)
-          : t(`${CEREMONY}.testFailedLine`)
-      ]
+      return [t(failedTestLineKeyOf(enrollment.cause))]
     case 'unavailable':
       return [t(`${CEREMONY}.testUnavailableLine`)]
     case 'not-supported':

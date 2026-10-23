@@ -125,6 +125,8 @@ export interface ScriptedZkPassportOptions {
 export type ScriptedZkPassportStack = ZkPassportStack & {
   /** Sets how every request from now on is answered; an empty script restores the defaults. */
   script(next: ScriptedZkPassportScript): void
+  /** How many times a request of this stack was closed. */
+  closes(): number
 }
 
 /** How the scripted Aadhaar prover answers: with a proof, by failing, or not until aborted. */

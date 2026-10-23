@@ -601,6 +601,7 @@ describe('the path rows', () => {
   const FAILED_LINES: [Enrollment['credential'], string | undefined, string][] = [
     [ALICE, 'check-rejected', `${CEREMONY}.testFailedNoMatch`],
     [ALICE, 'check-rejected: signer mismatch', `${CEREMONY}.testFailedNoMatch`],
+    [ALICE, 'check-reverted', `${CEREMONY}.testFailedReverted`],
     [PASSKEY, 'browser-error: NotAllowedError', `${CEREMONY}.testFailedLine`],
     [PASSKEY, 'relying-party-mismatch: SecurityError', `${CEREMONY}.testFailedLine`],
     [ALICE, 'service-unanswered', `${CEREMONY}.testFailedLine`],

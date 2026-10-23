@@ -9,7 +9,7 @@ export { readAttemptState } from './attempt-state'
 export { historyRefused } from './history-refusal'
 export { confirmationAgainstState } from './landed'
 export { createPrivilegeReads, distinctKeys, holdsPrivilege } from './privilege-reads'
-export { createReplyVerify } from './verify-reply'
+export { createReplyCheck, createReplyVerify } from './verify-reply'
 export type {
   AttemptStateReadInput,
   BoundedRemovedKeyReading,

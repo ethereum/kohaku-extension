@@ -16,7 +16,7 @@ import { extensionProviderFor, networkOf } from './extension-provider'
 import { IDENTITY_SLUGS } from './identity-params'
 import { createProviderAdapter } from './provider-adapter'
 import type { CeremonyClientFor, CeremonyResolverOptions, RecoveryKitClient } from './types'
-import { createReplyVerify } from './wallet-reads/verify-reply'
+import { createReplyCheck } from './wallet-reads/verify-reply'
 
 /**
  * Resolves a ceremony from the request stored under its id.
@@ -145,7 +145,7 @@ export const extensionClientFor =
         ? async (request, reply) => {
             const reading = extensionProviderFor(network)
             try {
-              return await createReplyVerify(createProviderAdapter(reading))(request, reply)
+              return await createReplyCheck(createProviderAdapter(reading))(request, reply)
             } finally {
               reading.destroy()
             }

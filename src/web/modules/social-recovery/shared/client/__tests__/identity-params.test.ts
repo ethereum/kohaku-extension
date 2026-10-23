@@ -139,10 +139,12 @@ describe('the identity parameters of a chain', () => {
 describe('the params an identity method takes for one call', () => {
   CALLS.forEach((call) =>
     it(`hands the zkPassport method the domain, the scope, the name and the purpose of ${call}`, () => {
-      const purpose =
-        call === 'createClaim'
-          ? STRINGS.phoneRequestPurposeClaim
-          : STRINGS.phoneRequestPurposeEnroll
+      const purpose = {
+        enroll: STRINGS.phoneRequestPurposeEnroll,
+        testAccess: STRINGS.phoneRequestPurposeTest,
+        createClaim: STRINGS.phoneRequestPurposeClaim,
+        healthCheck: STRINGS.phoneRequestPurposeEnroll
+      }[call]
       expect(methodParamsOf(STAND_IN, 'zkpassport', call)).toEqual({
         domain: 'kohaku.stand-in',
         scope: 'kohaku-recovery',
@@ -151,6 +153,13 @@ describe('the params an identity method takes for one call', () => {
       })
     })
   )
+
+  it('shows the phone a different purpose at an enrollment, an access test and a claim', () => {
+    const purposes = (['enroll', 'testAccess', 'createClaim'] as const).map(
+      (call) => methodParamsOf(STAND_IN, 'zkpassport', call)?.purpose
+    )
+    expect(new Set(purposes).size).toBe(3)
+  })
 
   CALLS.forEach((call) =>
     it(`hands the Aadhaar method the seed and the issuer certificate at ${call}`, () => {

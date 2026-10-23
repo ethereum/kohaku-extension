@@ -202,17 +202,22 @@ export interface DeviceCallContext {
 /**
  * A zkPassport request as the installed app library delivers it: the SDK's
  * request, the result callback the library still fires, which carries the
- * verified flag and the unique identifier an enrollment needs, and the
- * callbacks of the bridge that connects the phone.
+ * verified flag and the unique identifier an enrollment needs, the
+ * callbacks of the bridge that connects the phone, and the close of that
+ * bridge, which the extension's stack adds.
  */
 export type ZkPassportRequestWithResult = ZkPassportRequest & {
   onResult?: (callback: (response: unknown) => void) => void
   onBridgeConnect?: (callback: () => void) => void
   onBridgeConnectionLost?: (callback: () => void) => void
+  close?: () => void
 }
 
-/** The chain's verdict over a reply: the `verify` view of the reply's method module. */
-export type ChainVerdict = (request: ApproverRequest, reply: Reply) => Promise<Verdict>
+/**
+ * The chain's verdict over a reply: the `verify` view of the reply's method
+ * module, or `reverted` where the module refused to judge the proof.
+ */
+export type ChainVerdict = (request: ApproverRequest, reply: Reply) => Promise<Verdict | 'reverted'>
 
 export type DeviceResult =
   | {
@@ -249,6 +254,14 @@ export interface PasskeyCeremonyDevice extends CeremonyDevice {
 export interface CredentialsLike {
   create(options: CredentialCreationOptions): Promise<Credential | null>
   get(options: CredentialRequestOptions): Promise<Credential | null>
+}
+
+export interface ExternalAppDeviceOptions {
+  /**
+   * How long the device waits for the next answer of a phone that took the
+   * request, in milliseconds.
+   */
+  phoneIdleMs?: number
 }
 
 export interface PasskeyDeviceOptions {

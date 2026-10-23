@@ -1,6 +1,7 @@
 /**
- * The phone's part of a ceremony: the code the holder's app scans, the line
- * of the phone's latest answer, and the cancel. Before the method shows its
+ * The phone's part of a ceremony: the code the holder's app scans, with the
+ * line that one scan is all it takes, the line of the phone's latest answer,
+ * and the cancel. Before the method shows its
  * code, the block waits for the phone with no code drawn.
  */
 import React from 'react'
@@ -48,6 +49,11 @@ const ScanBlock = ({ url, step, phoneReads, onCancel }: ScanBlockProps) => {
         <View style={spacings.mbLg} testID="ceremony-scan-code">
           <QRCode value={url} size={200} quietZone={10} />
         </View>
+      )}
+      {!!url && (
+        <Text appearance="secondaryText" style={[spacings.mbLg, { textAlign: 'center' }]}>
+          {t('socialRecovery.ceremony.scanOnce')}
+        </Text>
       )}
       <LoadingBlock variant="block" message={stepLine()} />
       <Text appearance="secondaryText" style={{ textAlign: 'center' }}>

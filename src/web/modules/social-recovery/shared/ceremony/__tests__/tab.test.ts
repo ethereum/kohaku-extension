@@ -556,6 +556,9 @@ describe('the ceremony tab with no provider above it', () => {
       .write(recorded.withRequest('testAccess', fixtureRequest()))
     const page = await render(`?call=testAccess&method=passkey&id=${ID}&handOff=phone`)
     expect(page.textContent).toContain(CONTINUE_ON_PHONE)
+    // The browser draws its own code here, so the tab asks for no single scan.
+    expect(page.textContent).toContain(en.socialRecovery.ceremony.scanCode)
+    expect(page.textContent).not.toContain(en.socialRecovery.ceremony.scanOnce)
     const asked = creds.get.mock.calls[0][0] as { publicKey?: { hints?: string[] } }
     expect(asked.publicKey?.hints).toEqual(['hybrid'])
     expect(await storedReports()).toEqual([])
@@ -825,6 +828,7 @@ describe('the ceremony tab for the identity bindings', () => {
 
     expect(page.querySelector('[data-qr]')?.getAttribute('data-qr')).toBe(PHONE_URL)
     expect(page.textContent).toContain(STRINGS.scanWithApp)
+    expect(page.textContent).toContain(STRINGS.scanOnce)
     expect(page.textContent).toContain(STRINGS.keepTabOpen)
     expect(page.textContent).toContain(STRINGS.waitingForPhone)
     expect(page.textContent).not.toContain(STRINGS.phoneReads)

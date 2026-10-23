@@ -18,7 +18,8 @@ import { getRpcProvider } from '@ambire-common/services/provider/getRpcProvider'
 import type {
   CeremonyStep,
   CeremonyView,
-  DeviceResult
+  DeviceResult,
+  ZkPassportRequestWithResult
 } from '@web/modules/social-recovery/shared/ceremony'
 import { externalAppDevice } from '@web/modules/social-recovery/shared/ceremony/externalAppDevice'
 import { inBrowserProverDevice } from '@web/modules/social-recovery/shared/ceremony/inBrowserProverDevice'
@@ -285,6 +286,19 @@ describe('a zkPassport credential from enrollment to a claim the node accepts', 
     expect(followed.views).toEqual([
       { kind: 'scanCode', url: expect.stringMatching(/^https:\/\/zkpassport\.stand-in\/r\?/) }
     ])
+  })
+
+  it('closes the request once after the enrollment and once after the claim', async () => {
+    const identity = await identityWorld()
+    const stack = sdkStandIn.zkPassportStackFor(identity.world.descriptor)
+    const before = stack.closes()
+    const config = asConfig(await enrollPassport(identity, { steps: [], views: [] }))
+    await advanceTimers(1)
+    expect(stack.closes()).toBe(before + 1)
+    const request = requestFor(identity.client, identity.zkModule, config)
+    await claimPassport(identity, request, { steps: [], views: [] })
+    await advanceTimers(1)
+    expect(stack.closes()).toBe(before + 2)
   })
 
   it('claims with a reply the fake node satisfies, which the method itself does not judge', async () => {
@@ -589,6 +603,17 @@ describe('the scripted zkPassport stack', () => {
     expect(other.heard.results).toEqual([expect.objectContaining({ uniqueIdentifier: '456' })])
     expect(again.heard.results).toEqual([expect.objectContaining({ uniqueIdentifier: '456' })])
     expect(restored.heard.results).toEqual([expect.objectContaining({ uniqueIdentifier: '123' })])
+  })
+
+  it('stops the answers still to come once a request is closed, and counts each close', async () => {
+    const stack = createScriptedZkPassportStack({ stepMs: 20 })
+    const { request, heard } = await listen(stack)
+    expect(stack.closes()).toBe(0)
+    await waitFor(30)
+    ;(request as ZkPassportRequestWithResult).close?.()
+    await waitFor(100)
+    expect(heard.events).toEqual(['received'])
+    expect(stack.closes()).toBe(1)
   })
 
   it('keeps the script a request was opened under, whatever is scripted after', async () => {

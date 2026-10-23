@@ -45,6 +45,7 @@ import type {
 } from './types'
 import {
   dismissed,
+  failed,
   isMethodFailure,
   notSupported,
   outcomeOfCheck,
@@ -240,15 +241,15 @@ const signForRequest = async (
 
 /**
  * The chain's verdict where the method's own check answered not judged and the
- * context reads one; the method's verdict otherwise. A chain read that throws
- * is a read the node did not answer. An abort ends the wait at once, and the
- * caller reads the cancel.
+ * context reads one; the method's verdict otherwise. A module that reverted
+ * reads `reverted`; a chain read that throws is a read the node did not
+ * answer. An abort ends the wait at once, and the caller reads the cancel.
  */
 const judgedVerdict = async (
   context: HostContext & { request: ApproverRequest },
   local: Verdict,
   reply: Reply
-): Promise<Verdict | 'unanswered'> => {
+): Promise<Verdict | 'reverted' | 'unanswered'> => {
   if (local !== 'not-judged' || !context.chainVerdict) {
     return local
   }
@@ -283,8 +284,8 @@ const judgedVerdict = async (
  * orchestrator's own verdict member, so no page holds a ctx. Where that member
  * cannot judge the proof, as for a proof only the deployed verifier checks,
  * the module's own `verify` view on chain judges it, when the context reads
- * one: satisfied passes, rejected fails, and a read that did not answer is
- * unavailable with retry.
+ * one: satisfied passes, rejected fails, a revert of the view fails with its
+ * own cause, and a read that did not answer is unavailable with retry.
  */
 export const testAccessHost = async (
   context: HostContext & { request: ApproverRequest; params?: Params }
@@ -311,6 +312,9 @@ export const testAccessHost = async (
     }
     if (verdict === 'unanswered') {
       return unavailable('service-unanswered')
+    }
+    if (verdict === 'reverted') {
+      return failed('check-reverted')
     }
     return outcomeOfCheck(verdict, {
       proof: signed.reply.proof,

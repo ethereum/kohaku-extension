@@ -10,6 +10,8 @@
  * unique identifier the proof was generated with, so an enrollment and a
  * claim of one identifier agree and a claim of another does not. `script`
  * makes the phone decline, err, never answer, or prove another identifier.
+ * Closing a request stops the phone's answers still to come, as the library
+ * drops a cancelled request's callbacks, and counts the close.
  */
 import type {
   ZkPassportClient,
@@ -59,6 +61,7 @@ export const createScriptedZkPassportStack = (
   const defaultIdentifier = options.identifier ?? DEFAULT_IDENTIFIER
   let current: ScriptedZkPassportScript = {}
   let requests = 0
+  let closes = 0
   // The identifier each proof this stack generated carries, read back by the verifier parameters.
   const identifiers = new WeakMap<ZkPassportStackProof, bigint>()
 
@@ -105,7 +108,7 @@ export const createScriptedZkPassportStack = (
           ]
       }
     }
-    answered().forEach((answer, index) => setTimeout(answer, stepMs * (index + 1)))
+    const pending = answered().map((answer, index) => setTimeout(answer, stepMs * (index + 1)))
 
     const query = new URLSearchParams({ id: requestId, scope: args.scope })
     const request = {
@@ -133,6 +136,10 @@ export const createScriptedZkPassportStack = (
       },
       onResult: (callback: (response: unknown) => void) => {
         callbacks.result.push(callback)
+      },
+      close: () => {
+        closes += 1
+        pending.forEach(clearTimeout)
       }
     }
     return request
@@ -163,6 +170,7 @@ export const createScriptedZkPassportStack = (
   return Object.assign(async () => client, {
     script: (next: ScriptedZkPassportScript) => {
       current = { ...next }
-    }
+    },
+    closes: () => closes
   })
 }

@@ -6,6 +6,7 @@
  * renders its code.
  */
 import type { Credential, Finding } from '@kohaku-eth/social-recovery'
+import { failedTestLineKeyOf } from '@web/modules/social-recovery/shared/ceremony'
 import { renderChip } from '@web/modules/social-recovery/shared/display'
 import type { StatusChipTone } from '@web/modules/social-recovery/shared/chrome'
 import type { MethodChip, Translate } from '@web/modules/social-recovery/shared/display'
@@ -131,17 +132,14 @@ export const rowChipTone = (
 }
 
 /**
- * The line a failed access test carries beside its chip: that the check did
- * not match where the stored cause says so, else that the method may never
- * work.
+ * The line a failed access test carries beside its chip, the one its stored
+ * cause selects.
  */
 export const renderFailedTestLine = (enrollment: Enrollment, t: Translate): string | null => {
   if (enrollment.test !== 'failed') {
     return null
   }
-  return enrollment.cause?.startsWith('check-rejected')
-    ? t('socialRecovery.ceremony.testFailedNoMatch')
-    : t('socialRecovery.ceremony.testFailedLine')
+  return t(failedTestLineKeyOf(enrollment.cause))
 }
 
 /** The line under a threshold field whose text is not a whole number. */

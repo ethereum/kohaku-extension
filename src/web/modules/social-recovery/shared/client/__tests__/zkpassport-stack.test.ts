@@ -9,15 +9,26 @@
 import type { ZkPassportRequestArgs } from '@kohaku-eth/social-recovery'
 import { __importStar } from 'tslib'
 
+import type { ZkPassportRequestWithResult } from '@web/modules/social-recovery/shared/ceremony'
 import { zkPassportStackFor } from '@web/modules/social-recovery/shared/client/zkpassport-stack'
 
 const mockLibrary = {
   constructed: [] as string[],
   requests: [] as unknown[],
   parameters: [] as unknown[],
-  builder: { done: () => 'request' },
+  cancelled: [] as unknown[],
+  bound: [] as [string, string][],
   answer: { version: 'v' }
 }
+
+/** The library's own builder: each `done` hands out a fresh request. */
+const mockBuilder = (requestId: string) => ({
+  bind: (key: string, value: string) => {
+    mockLibrary.bound.push([key, value])
+    return mockBuilder(requestId)
+  },
+  done: () => ({ url: `https://zkpassport.example/r?id=${requestId}`, requestId })
+})
 
 jest.mock(
   '@zkpassport/sdk',
@@ -33,7 +44,11 @@ jest.mock(
       // Both members read `this`, as the library's own do.
       async request(args: unknown) {
         mockLibrary.requests.push({ domain: this.domain, args })
-        return mockLibrary.builder
+        return mockBuilder(`request-${mockLibrary.requests.length}`)
+      }
+
+      cancelRequest(requestId: string) {
+        mockLibrary.cancelled.push({ domain: this.domain, requestId })
       }
 
       getSolidityVerifierParameters(args: unknown) {
@@ -53,6 +68,8 @@ beforeEach(() => {
   mockLibrary.constructed = []
   mockLibrary.requests = []
   mockLibrary.parameters = []
+  mockLibrary.cancelled = []
+  mockLibrary.bound = []
 })
 
 const ARGS: ZkPassportRequestArgs = {
@@ -87,9 +104,26 @@ describe('the installed zkPassport stack', () => {
     })
   )
 
-  it("hands back the library's own request builder", async () => {
+  it("hands back the library's own request, whose close cancels that request in the library", async () => {
     const client = await zkPassportStackFor({ testnetTree: true })('kohaku.example')
-    await expect(client.request(ARGS)).resolves.toBe(mockLibrary.builder)
+    const request: ZkPassportRequestWithResult = (await client.request(ARGS)).done()
+    expect(request).toMatchObject({
+      url: 'https://zkpassport.example/r?id=request-1',
+      requestId: 'request-1'
+    })
+    expect(mockLibrary.cancelled).toEqual([])
+    request.close?.()
+    expect(mockLibrary.cancelled).toEqual([{ domain: 'kohaku.example', requestId: 'request-1' }])
+  })
+
+  it('keeps the close on a request built after a bind, and passes the bind through', async () => {
+    const client = await zkPassportStackFor({ testnetTree: true })('kohaku.example')
+    const request: ZkPassportRequestWithResult = (await client.request(ARGS))
+      .bind('custom_data', '0xabc')
+      .done()
+    expect(mockLibrary.bound).toEqual([['custom_data', '0xabc']])
+    request.close?.()
+    expect(mockLibrary.cancelled).toEqual([{ domain: 'kohaku.example', requestId: 'request-1' }])
   })
   ;[true, false].forEach((testnetTree) =>
     it(`passes the verifier parameters through unchanged with the switch ${testnetTree}`, async () => {

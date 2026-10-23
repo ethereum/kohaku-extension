@@ -356,6 +356,17 @@ describe('the resume rows', () => {
       ])
     })
 
+    it('shows the reverted line alone when the chain refused to judge the answer', () => {
+      const rows = resumeRowsOf([failedPasskey('check-reverted')], BOOK, t)
+      expect(rows.map(({ name, chip, note }) => ({ name, chip, note }))).toEqual([
+        {
+          name: S.methodNames.passkey,
+          chip: S.status.method.testFailed,
+          note: S.ceremony.testFailedReverted
+        }
+      ])
+    })
+
     it('says the method may never work, and nothing else, for any other cause or none', () => {
       const causes = [
         undefined,

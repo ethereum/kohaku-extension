@@ -427,7 +427,8 @@ export const describeIdentityRow = (kind: IdentityRowCase) => {
         ['a refused ceremony', dismissed('refused'), 'refusedNote'],
         ['a failure', failed('thrown'), 'failedNote'],
         ['a service that did not answer', unavailable('service-unanswered'), 'unavailableNote'],
-        ['a phone that never connected', unavailable('unreachable'), 'unreachableNote']
+        ['a phone that never connected', unavailable('unreachable'), 'unreachableNote'],
+        ['a phone that stopped answering', unavailable('phone-unanswered'), 'phoneUnansweredNote']
       ] as const)('offers to try again after %s, with its note', async ([, outcome, noteKey]) => {
         const request = await createAndReturn(outcome)
         expect(view!.byTestId(id('enroll-note'))?.textContent).toBe(t(noteOf(noteKey)))
@@ -593,6 +594,7 @@ export const describeIdentityRow = (kind: IdentityRowCase) => {
 
       each([
         ['a mismatch on chain', failed('check-rejected'), 'testFailedNoMatch'],
+        ['a check the chain refused to judge', failed('check-reverted'), 'testFailedReverted'],
         ['any other failure', failed('thrown'), 'testFailedLine']
       ] as const)('reads %s with its line and no cause line', async ([, outcome, lineKey]) => {
         await testAndReturn(outcome)

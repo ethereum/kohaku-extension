@@ -200,6 +200,18 @@ afterEach(() => restore())
 
 const NOTE = (key: string) => `socialRecovery.ceremony.${key}`
 
+/** The note an unavailable verdict reads on every call for the causes that name their own. */
+const UNAVAILABLE_NOTES: Record<string, string> = {
+  unreachable: NOTE('unreachableNote'),
+  'phone-unanswered': NOTE('phoneUnansweredNote')
+}
+
+/** The line a failed test reads for the causes that name their own. */
+const FAILED_TEST_LINES: Record<string, string> = {
+  'check-rejected': NOTE('testFailedNoMatch'),
+  'check-reverted': NOTE('testFailedReverted')
+}
+
 /** The chip, note and line a row renders for one verdict of `call`. */
 const expectRow = (outcome: Outcome & { type: 'verdict' }, call: Call) => {
   const chip = rowChipOf(outcome, call)
@@ -212,18 +224,16 @@ const expectRow = (outcome: Outcome & { type: 'verdict' }, call: Call) => {
   }
   // A test that could not run reads the test-unavailable line; an enrollment or
   // a claim is not a test and reads the unavailable note.
-  const unavailableNote = /unreachable/.test(outcome.cause ?? '')
-    ? NOTE('unreachableNote')
-    : NOTE(call === 'testAccess' ? 'testUnavailableLine' : 'unavailableNote')
+  const unavailableNote =
+    UNAVAILABLE_NOTES[outcome.cause ?? ''] ??
+    NOTE(call === 'testAccess' ? 'testUnavailableLine' : 'unavailableNote')
   if (call === 'testAccess') {
     const expected = {
       passed: ['method:tested', NOTE('passedNote'), null],
       failed: [
         'method:testFailed',
         null,
-        /check-rejected/.test(outcome.cause ?? '')
-          ? NOTE('testFailedNoMatch')
-          : NOTE('testFailedLine')
+        FAILED_TEST_LINES[outcome.cause ?? ''] ?? NOTE('testFailedLine')
       ],
       unavailable: ['method:testUnavailable', unavailableNote, null],
       'not-supported': ['method:notSupported', NOTE('notSupportedNote'), NOTE('notSupportedLine')]
@@ -391,6 +401,11 @@ describe('what a row renders, by call', () => {
       null
     ])
     expect(row(unavailable('unreachable'), 'enroll')).toEqual([null, NOTE('unreachableNote'), null])
+    expect(row(unavailable('phone-unanswered'), 'enroll')).toEqual([
+      null,
+      NOTE('phoneUnansweredNote'),
+      null
+    ])
     expect(row(notSupported('method-unsupported'), 'enroll')).toEqual([
       null,
       NOTE('notSupportedNote'),
@@ -422,6 +437,11 @@ describe('what a row renders, by call', () => {
       null,
       NOTE('testFailedNoMatch')
     ])
+    expect(row(failed('check-reverted'), 'testAccess')).toEqual([
+      'method:testFailed',
+      null,
+      NOTE('testFailedReverted')
+    ])
     expect(row(failed('relying-party-mismatch'), 'testAccess')).toEqual([
       'method:testFailed',
       NOTE('relyingPartyMismatch'),
@@ -442,6 +462,11 @@ describe('what a row renders, by call', () => {
     expect(row(unavailable('unreachable'), 'testAccess')).toEqual([
       'method:testUnavailable',
       NOTE('unreachableNote'),
+      null
+    ])
+    expect(row(unavailable('phone-unanswered'), 'testAccess')).toEqual([
+      'method:testUnavailable',
+      NOTE('phoneUnansweredNote'),
       null
     ])
     expect(row(notSupported('method-unsupported'), 'testAccess')).toEqual([
@@ -488,6 +513,11 @@ describe('what a row renders, by call', () => {
     expect(row(unavailable('unreachable'), 'createClaim')).toEqual([
       null,
       NOTE('unreachableNote'),
+      null
+    ])
+    expect(row(unavailable('phone-unanswered'), 'createClaim')).toEqual([
+      null,
+      NOTE('phoneUnansweredNote'),
       null
     ])
     expect(row(notSupported('request-unsupported'), 'createClaim')).toEqual([
