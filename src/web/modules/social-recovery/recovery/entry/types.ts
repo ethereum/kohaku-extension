@@ -163,6 +163,8 @@ export type ConfirmedStep =
 // ---------------------------------------------------------------------------
 
 export interface OwnerStageViewProps {
+  /** Whether the holder acknowledged the warning on the screen before; the stage then starts ticked. */
+  initiallyAcknowledged: boolean
   choices: readonly ReceivingChoice[]
   /** False while the wallet has not pushed its accounts and keys yet. */
   loaded: boolean

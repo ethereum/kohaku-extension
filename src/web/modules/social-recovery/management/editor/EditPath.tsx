@@ -36,6 +36,7 @@ const EditPath = ({
         addressBook={addressBook}
         navigate={navigate}
         stillNeeded={stillNeeded}
+        plainRemoval
         heading={heading}
         continueLabel={t(`${EDITOR}.review`)}
         beforeActions={

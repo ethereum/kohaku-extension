@@ -320,7 +320,8 @@
       "setupChangedBody": "Every approval you collected was given under the old setup.",
       "wipedNote": "Nothing was submitted and nothing left the account. Every approval was wiped from this device. Only this reason is kept.",
       "draftAge": "Your setup is unfinished. Draft from {{date}}. Nothing is saved on chain until you confirm.",
-      "startOverNote": "Start over discards the draft. Your created passkey is not deleted.",
+      "startOverNote": "Start over discards the draft.",
+      "startOverPasskeyNote": "Your created passkey is not deleted.",
       "startOverWhileSaving": "A save is on its way. Wait until it ends, then start over.",
       "writeFailed": "This device could not save your draft. Nothing changed. Try again.",
       "loadFailed": "This device could not read your draft."

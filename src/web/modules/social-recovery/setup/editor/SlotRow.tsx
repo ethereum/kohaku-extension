@@ -24,6 +24,7 @@ const SlotRow = ({
   <KindMenuAnchor
     open={menu?.place === 'slot' && menu.clause === clause && menu.member === member}
     kinds={ADD_KINDS}
+    addressBook={addressBook}
     onPick={onPickKind}
     onClose={onCloseMenu}
     disabled={checking}

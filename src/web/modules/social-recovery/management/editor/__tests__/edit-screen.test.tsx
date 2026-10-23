@@ -57,6 +57,7 @@ jest.mock('@web/modules/social-recovery/management/editor/useCommittedLevel', ()
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const React: typeof import('react') = require('react')
 const {
+  act,
   mount,
   settle,
   t
@@ -147,6 +148,17 @@ const editPage = async (
   return { view, records }
 }
 
+// Types into a threshold field the way a key press does, through the input's own value setter.
+const typeThreshold = async (field: HTMLElement | null, value: string) => {
+  const input = field as HTMLInputElement
+  const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+  act(() => {
+    setValue?.call(input, value)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await settle()
+}
+
 const before = (first: HTMLElement | null, second: HTMLElement | null): boolean => {
   if (!first || !second) {
     return false
@@ -216,6 +228,22 @@ describe('the edit page', () => {
     expect(view.byTestId('editor-member-0-0-still-needed')).toBeNull()
     expect(view.byTestId('editor-member-0-0-lower-and-remove')).toBeNull()
     expect(view.byTestId('editor-member-0-0-remove')).not.toBeNull()
+    view.unmount()
+  })
+
+  it('keeps a typed threshold above the members when a member is removed, and the refusal stays', async () => {
+    const { view, records } = await editPage()
+
+    await typeThreshold(view.byTestId('editor-group-0-threshold'), '3')
+    expect(view.byTestId('editor-group-0-above-members')).not.toBeNull()
+    await view.press('editor-member-0-0-remove')
+    await settle()
+    const edited = await records.setup(CHAIN_ID, ACCOUNT).setupDraft.read()
+    expect(edited.status === 'present' && edited.value.clauses[0]).toEqual({
+      threshold: 3,
+      credentials: [COMMITTED.clauses[0].credentials[1]]
+    })
+    expect(view.byTestId('editor-group-0-above-members')).not.toBeNull()
     view.unmount()
   })
 

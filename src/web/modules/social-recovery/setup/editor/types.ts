@@ -103,6 +103,12 @@ export interface EditorViewProps {
   navigate: (to: string) => void
   /** Members the path cannot lose: each reads still needed and cannot be removed. */
   stillNeeded?: ReadonlySet<MemberKey>
+  /**
+   * The holder's Remove keeps the group's threshold as typed, and the editor's
+   * refusal judges it. Without it, a Remove brings a threshold above the
+   * remaining members down to fit them.
+   */
+  plainRemoval?: boolean
   heading?: EditorHeading
   continueLabel?: string
   /** What sits between the path and its actions. */
@@ -127,6 +133,8 @@ export type KindMenuAnchorNode = View & Pick<HTMLElement, 'contains'>
 
 export interface KindMenuProps {
   kinds: readonly SlotKind[]
+  /** The network's methods: a kind whose method the deployment omits is listed, but cannot be picked. */
+  addressBook: AddressBook
   onPick: (kind: SlotKind) => void
   disabled?: boolean
   /** The menu's own test id; each kind's entry adds `-<kind>` to it. */
@@ -135,6 +143,8 @@ export interface KindMenuProps {
 
 export interface KindMenuEntryProps {
   label: string
+  /** The line under the label, where the entry says why it cannot be picked. */
+  note?: string
   onPress: () => void
   disabled?: boolean
   testID: string
@@ -145,6 +155,7 @@ export interface KindMenuAnchorProps {
   children: ReactNode
   open: boolean
   kinds: readonly SlotKind[]
+  addressBook: AddressBook
   onPick: (kind: SlotKind) => void
   onClose: () => void
   disabled?: boolean
@@ -156,6 +167,7 @@ export interface KindMenuButtonProps {
   text: string
   open: boolean
   kinds: readonly SlotKind[]
+  addressBook: AddressBook
   onToggle: () => void
   onPick: (kind: SlotKind) => void
   onClose: () => void

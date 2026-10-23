@@ -47,6 +47,7 @@ import {
   readThreshold,
   removeClause,
   removeMember,
+  removeMemberToFit,
   rolesOf,
   sameAddTarget,
   setThreshold,
@@ -79,6 +80,7 @@ const EditorView = ({
   addressBook,
   navigate,
   stillNeeded,
+  plainRemoval,
   heading,
   continueLabel,
   beforeActions
@@ -418,7 +420,8 @@ const EditorView = ({
           }}
           onRemoveMember={(index, member) => {
             if (!stillNeeded?.has(`${index}:${member}`)) {
-              commit(removeMember(current(), index, member), currentRoles())
+              const remove = plainRemoval ? removeMember : removeMemberToFit
+              commit(remove(current(), index, member), currentRoles())
             }
           }}
           onLowerAndRemove={(index, member) => {

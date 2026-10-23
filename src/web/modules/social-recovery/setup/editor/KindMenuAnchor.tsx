@@ -18,6 +18,7 @@ const KindMenuAnchor = ({
   children,
   open,
   kinds,
+  addressBook,
   onPick,
   onClose,
   disabled,
@@ -32,7 +33,13 @@ const KindMenuAnchor = ({
       {children}
       {open && (
         <View style={MENU_SLOT}>
-          <KindMenu kinds={kinds} onPick={onPick} disabled={disabled} testID={menuTestID} />
+          <KindMenu
+            kinds={kinds}
+            addressBook={addressBook}
+            onPick={onPick}
+            disabled={disabled}
+            testID={menuTestID}
+          />
         </View>
       )}
     </View>

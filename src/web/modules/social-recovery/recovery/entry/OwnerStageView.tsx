@@ -2,7 +2,8 @@
  * The logged-in entry's first stage: the condensed warning, then which of the
  * wallet's accounts receives control, with the key each installs. Every
  * choice and continue stay disabled until the holder ticks the warning's
- * acknowledgment. A wallet with one account that can receive control shows it
+ * acknowledgment, or the holder arrives having acknowledged the full warning
+ * on the screen before, where the warning shows ticked. A wallet with one account that can receive control shows it
  * chosen; a wallet with none says so and offers no continue.
  */
 import React, { useCallback, useEffect, useState } from 'react'
@@ -33,12 +34,19 @@ import type { OwnerStageViewProps } from './types'
 
 const OWNER = 'socialRecovery.entry.owner'
 
-const OwnerStageView = ({ choices, loaded, onContinue, onCancel }: OwnerStageViewProps) => {
+const OwnerStageView = ({
+  initiallyAcknowledged,
+  choices,
+  loaded,
+  onContinue,
+  onCancel
+}: OwnerStageViewProps) => {
   const { t } = useTranslation()
   // The warning reports its acknowledgment but not its unmount; the flag lives
   // beside it in this component, so a new warning never meets a stale tick.
-  const [acknowledged, setAcknowledged] = useState(false)
-  useEffect(() => setAcknowledged(false), [])
+  // Each mount starts from the acknowledgment the holder arrived with, if any.
+  const [acknowledged, setAcknowledged] = useState(initiallyAcknowledged)
+  useEffect(() => setAcknowledged(initiallyAcknowledged), [initiallyAcknowledged])
   const [picked, setPicked] = useState<Address | null>(null)
 
   const only = choices.length === 1 ? choices[0] : undefined
@@ -143,7 +151,11 @@ const OwnerStageView = ({ choices, loaded, onContinue, onCancel }: OwnerStageVie
           lead={t(`${OWNER}.lead`)}
           titleTestID="entry-owner-title"
         />
-        <WarningGate form="condensed" onAcknowledgedChange={setAcknowledged} />
+        <WarningGate
+          form="condensed"
+          initiallyAcknowledged={initiallyAcknowledged}
+          onAcknowledgedChange={setAcknowledged}
+        />
         <View style={spacings.mtLg}>{body}</View>
       </View>
     </TwoColumn>

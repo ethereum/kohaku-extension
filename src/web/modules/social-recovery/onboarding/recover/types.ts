@@ -54,6 +54,11 @@ export interface CondensedWarningProps extends WarningGateBase {
    * continue and its inputs disabled until it reads true.
    */
   onAcknowledgedChange: (acknowledged: boolean) => void
+  /**
+   * Starts the acknowledgment ticked, where the holder already gave it on the
+   * screen before; the host reports the same value as its own start.
+   */
+  initiallyAcknowledged?: boolean
 }
 
 export type WarningGateProps = RecoverWarningProps | ResetWarningProps | CondensedWarningProps

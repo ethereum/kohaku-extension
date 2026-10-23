@@ -693,7 +693,8 @@ describe('a group while the holder edits it', () => {
       )
     })
     await press('editor-member-0-1-remove')
-    await expectPathMatchesDraft(stored, [{ threshold: 2, credentials: [PASSKEY] }])
+    await expectPathMatchesDraft(stored, [{ threshold: 1, credentials: [PASSKEY] }])
+    expectGroupCard(0)
   })
 
   it('stays a group when a new group takes one member and a threshold of one', async () => {

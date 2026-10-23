@@ -9,9 +9,13 @@ import {
   BASIC,
   basicAccount,
   DAILY,
+  historyEntry,
   keyOf,
+  type Mounted,
   mountEntry,
   navigate,
+  navigationsAway,
+  reloadEntry,
   resetEdges,
   setWallet,
   SMART,
@@ -27,6 +31,8 @@ const ACK = 'recovery-warning-acknowledge'
 const CONTINUE = 'entry-owner-continue'
 const CANCEL = 'entry-owner-cancel'
 const choice = (address: string) => `entry-owner-choice-${address.toLowerCase()}`
+/** Whether the warning's box draws its tick. */
+const ticked = (screen: Mounted) => !!screen.byTestId(ACK)?.querySelector('svg')
 
 beforeEach(resetEdges)
 
@@ -79,6 +85,83 @@ describe('the condensed warning on the logged-in entry', () => {
     await second.press(CONTINUE)
     expect(navigate).not.toHaveBeenCalled()
     second.unmount()
+  })
+})
+
+describe('the acknowledgment the holder brings from the recovery door', () => {
+  it('shows the condensed warning ticked, with every choice and continue enabled', async () => {
+    const screen = await mountEntry(ACKNOWLEDGED)
+    expect(screen.has('recovery-warning')).toBe(true)
+    expect(ticked(screen)).toBe(true)
+    expect(screen.isDisabled(choice(BASIC))).toBe(false)
+    expect(screen.isDisabled(choice(SMART))).toBe(false)
+    await screen.press(choice(SMART))
+    expect(screen.isDisabled(CONTINUE)).toBe(false)
+    await screen.press(CONTINUE)
+    expect(navigationsAway()).toEqual([
+      [
+        `/social-recovery/recovery/account?route=logged-in&to=${VAULT.addr}`,
+        { state: ACKNOWLEDGED }
+      ]
+    ])
+    screen.unmount()
+  })
+
+  it('lets the holder untick the acknowledgment they arrived with, which disables continue again', async () => {
+    const screen = await mountEntry(ACKNOWLEDGED)
+    await screen.press(choice(BASIC))
+    expect(screen.isDisabled(CONTINUE)).toBe(false)
+    await screen.press(ACK)
+    expect(ticked(screen)).toBe(false)
+    expect(screen.isDisabled(choice(BASIC))).toBe(true)
+    expect(screen.isDisabled(CONTINUE)).toBe(true)
+    screen.unmount()
+  })
+
+  it('asks the tick where the entry is reached with no acknowledgment', async () => {
+    const screen = await mountEntry()
+    expect(ticked(screen)).toBe(false)
+    expect(screen.isDisabled(choice(BASIC))).toBe(true)
+    expect(screen.isDisabled(CONTINUE)).toBe(true)
+    expect(navigate).not.toHaveBeenCalled()
+    expect(historyEntry().state).toBeNull()
+    screen.unmount()
+  })
+
+  it('asks the tick for a navigation state that does not say acknowledged', async () => {
+    const screen = await mountEntry({ acknowledged: 'true' })
+    expect(ticked(screen)).toBe(false)
+    expect(screen.isDisabled(choice(BASIC))).toBe(true)
+    screen.unmount()
+  })
+
+  it('keeps the acknowledgment in this mount and drops it from the history entry', async () => {
+    const screen = await mountEntry(ACKNOWLEDGED)
+    expect(historyEntry()).toEqual({
+      pathname: '/social-recovery/recovery',
+      search: '',
+      hash: '',
+      state: { prevRoute: expect.objectContaining({ state: ACKNOWLEDGED }) }
+    })
+    expect(ticked(screen)).toBe(true)
+    expect(screen.isDisabled(choice(BASIC))).toBe(false)
+    screen.unmount()
+  })
+
+  it('asks the tick again on a reload after the acknowledged arrival', async () => {
+    const first = await mountEntry(ACKNOWLEDGED)
+    expect(ticked(first)).toBe(true)
+    first.unmount()
+
+    const reloaded = await reloadEntry()
+    expect(reloaded.has('recovery-warning')).toBe(true)
+    expect(ticked(reloaded)).toBe(false)
+    expect(reloaded.isDisabled(choice(BASIC))).toBe(true)
+    await reloaded.press(choice(BASIC))
+    expect(reloaded.isDisabled(CONTINUE)).toBe(true)
+    await reloaded.press(CONTINUE)
+    expect(navigationsAway()).toEqual([])
+    reloaded.unmount()
   })
 })
 

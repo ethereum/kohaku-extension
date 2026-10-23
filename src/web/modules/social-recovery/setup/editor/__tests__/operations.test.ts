@@ -44,9 +44,11 @@ import {
   readThreshold,
   removeClause,
   removeMember,
+  removeMemberToFit,
   setThreshold,
   withClauses
 } from '@web/modules/social-recovery/setup/editor/operations'
+import { refusalsOf } from '@web/modules/social-recovery/setup/editor/refusals'
 import { pathHolds, sameCredential } from '@web/modules/social-recovery/shared/records'
 import {
   AADHAAR,
@@ -64,6 +66,13 @@ import {
 } from '@web/modules/social-recovery/setup/editor/__tests__/harness'
 
 const t = i18n.t
+
+const DRAFT: SetupDraft = {
+  wait: 259200,
+  clauses: [],
+  ignoresPause: false,
+  privacy: { publicMetadata: '0x', backup: 'encrypted' }
+}
 
 /** Freezes the clauses and their credential lists, so an operation that mutates its input throws. */
 const frozen = (clauses: Clause[]): Clause[] =>
@@ -218,6 +227,31 @@ describe('a group', () => {
   it('stays as an empty group when it loses its last member', () => {
     const clauses = [{ threshold: 2, credentials: [ALICE] }]
     expect(removeMember(clauses, 0, 0)).toEqual([{ threshold: 2, credentials: [] }])
+  })
+
+  it("on the holder's Remove, leaves an emptied group at a threshold of one", () => {
+    const clauses = [{ threshold: 2, credentials: [ALICE] }]
+    expect(removeMemberToFit(clauses, 0, 0)).toEqual([{ threshold: 1, credentials: [] }])
+  })
+
+  it("on the holder's Remove, brings a threshold left above the members down to their count", () => {
+    const clauses = frozen([{ threshold: 2, credentials: [ALICE, BOB] }])
+    expect(removeMemberToFit(clauses, 0, 1)).toEqual([{ threshold: 1, credentials: [ALICE] }])
+    expect(clauses).toEqual([{ threshold: 2, credentials: [ALICE, BOB] }])
+  })
+
+  it("on the holder's Remove, keeps a threshold left within the members", () => {
+    const clauses = frozen([{ threshold: 1, credentials: [ALICE, BOB, CAROL] }])
+    expect(removeMemberToFit(clauses, 0, 2)).toEqual([{ threshold: 1, credentials: [ALICE, BOB] }])
+  })
+
+  it('leaves a threshold set by hand above the members to the refusals', () => {
+    const removed = removeMemberToFit([{ threshold: 2, credentials: [ALICE, BOB, CAROL] }], 0, 2)
+    const raised = setThreshold(removed, 0, 3)
+    expect(raised).toEqual([{ threshold: 3, credentials: [ALICE, BOB] }])
+    expect(refusalsOf(withClauses(DRAFT, raised)).map(({ key }) => key)).toContain(
+      'thresholdAboveMembers'
+    )
   })
 
   it('takes any whole threshold, bounds left to the refusals', () => {

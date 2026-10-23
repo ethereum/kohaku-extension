@@ -183,6 +183,7 @@ const GroupCard = ({
           text={t('socialRecovery.editor.addMember')}
           open={menu?.place === 'member' && menu.clause === index}
           kinds={ADD_KINDS}
+          addressBook={addressBook}
           onToggle={() => onToggleMenu({ place: 'member', clause: index })}
           onPick={onPickKind}
           onClose={onCloseMenu}

@@ -123,6 +123,10 @@ export const notYetActiveOf = (
   }
 }
 
+/** Whether the enrollments hold a passkey, which start over leaves on its device. */
+export const holdsPasskeyOf = (enrollments: readonly Enrollment[], book: AddressBook): boolean =>
+  enrollments.some((enrollment) => kindOf(enrollment, book) === 'passkey')
+
 const NOT_STARTED_NAME_KEYS: Record<SlotKind, string> = {
   passkey: 'socialRecovery.methodNames.passkey',
   zkpassport: 'socialRecovery.methodNames.passport',

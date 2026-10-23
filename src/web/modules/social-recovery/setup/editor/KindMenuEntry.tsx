@@ -8,7 +8,7 @@ import spacings from '@common/styles/spacings'
 import type { KindMenuEntryProps } from './types'
 
 /** One kind in a kind menu, its row lit while the pointer is over it. */
-const KindMenuEntry = ({ label, onPress, disabled, testID }: KindMenuEntryProps) => {
+const KindMenuEntry = ({ label, note, onPress, disabled, testID }: KindMenuEntryProps) => {
   const { theme } = useTheme()
   const [hovered, setHovered] = useState(false)
 
@@ -26,7 +26,14 @@ const KindMenuEntry = ({ label, onPress, disabled, testID }: KindMenuEntryProps)
         hovered && !disabled ? { backgroundColor: theme.secondaryBackground } : undefined
       ]}
     >
-      <Text fontSize={14}>{label}</Text>
+      <Text fontSize={14} appearance={disabled ? 'secondaryText' : undefined}>
+        {label}
+      </Text>
+      {!!note && (
+        <Text fontSize={12} appearance="secondaryText" testID={`${testID}-note`}>
+          {note}
+        </Text>
+      )}
     </Pressable>
   )
 }

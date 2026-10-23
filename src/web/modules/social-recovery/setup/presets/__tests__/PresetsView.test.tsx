@@ -408,6 +408,21 @@ describe('the presets view', () => {
       expect(text()).toContain(S.records.startOverNote)
     })
 
+    it('says the created passkey is not deleted where the draft holds a passkey', async () => {
+      await storeDraft(ENROLLMENTS)
+      await mount()
+      expect(text()).toContain(`${S.records.startOverNote} ${S.records.startOverPasskeyNote}`)
+    })
+
+    it('says only that start over discards the draft where the draft holds no passkey', async () => {
+      await storeDraft(
+        ENROLLMENTS.filter(({ credential }) => credential.method !== BOOK.methods.passkey)
+      )
+      await mount()
+      expect(text()).toContain(S.records.startOverNote)
+      expect(text()).not.toContain(S.records.startOverPasskeyNote)
+    })
+
     it('shows each enrolled row with its chip, each guardian on its own row, and the count once', async () => {
       await storeDraft(ENROLLMENTS)
       await mount()
@@ -537,6 +552,9 @@ describe('the presets view', () => {
       await setup().passwordSet.write('password-set')
       await mount()
       expect(byTestId('presets-load-failed')?.textContent).toContain(S.records.startOverNote)
+      expect(byTestId('presets-load-failed')?.textContent).not.toContain(
+        S.records.startOverPasskeyNote
+      )
       await press('start-over')
       expect(await storedStatuses()).toEqual(SETUP_RECORD_NAMES.map(() => 'absent'))
       expect(byTestId('presets-load-failed')).toBeNull()

@@ -51,6 +51,8 @@ export interface PresetsLoad {
   rows: ResumeRow[]
   notYetActive: ResumeNote | null
   notStarted: ResumeRow[]
+  /** Whether the draft's enrollments hold a passkey. */
+  holdsPasskey: boolean
 }
 
 /**

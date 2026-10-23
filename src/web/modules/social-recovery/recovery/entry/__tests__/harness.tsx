@@ -849,8 +849,17 @@ const mount = async (element: React.ReactElement): Promise<Mounted> => {
   }
 }
 
-/** The logged-in entry's route. */
-export const mountEntry = () => mount(<EntryScreen />)
+const ENTRY_PATH = '/social-recovery/recovery'
+
+/** The logged-in entry's route, with the navigation state the screen before passed; by default none. */
+export const mountEntry = (state: unknown = null) => {
+  setMockLocation({ pathname: ENTRY_PATH })
+  setWallet({ search: '', state })
+  return mount(<EntryScreen />)
+}
+
+/** Mounts the logged-in entry again on the history entry the browser holds now, as a reload does. */
+export const reloadEntry = () => mount(<EntryScreen />)
 
 const ACCOUNT_STEP_PATH = '/social-recovery/recovery/account'
 
