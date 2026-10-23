@@ -2,7 +2,7 @@
 import { useCallback, useRef, useState } from 'react'
 
 import { useTranslation } from '@common/config/localization'
-import type { Hex } from '@kohaku-eth/social-recovery'
+import type { Credential, Hex } from '@kohaku-eth/social-recovery'
 import { failed } from '@web/modules/social-recovery/shared/ceremony'
 import type { CeremonyOutcome, CeremonyReport } from '@web/modules/social-recovery/shared/ceremony'
 
@@ -64,7 +64,7 @@ const usePasskeyRow = ({
       const created = passkeyEnrollmentOf(placing.value, book.methods.passkey, placing.userName)
       setBusy(true)
       try {
-        const placed = await placeEnrollment(setup, search, book, created, placing.replaced)
+        const placed = await placeEnrollment(setup, search, book, created, placing.replaces)
         if (placed.status !== 'placed') {
           setPending(null)
           setDuplicate(placed.status === 'duplicate')
@@ -92,7 +92,12 @@ const usePasskeyRow = ({
   )
 
   const applyEnroll = useCallback(
-    async (outcome: CeremonyOutcome<unknown>, userName: string, handOff: boolean) => {
+    async (
+      outcome: CeremonyOutcome<unknown>,
+      userName: string,
+      handOff: boolean,
+      launched: Credential | null | undefined
+    ) => {
       setName(userName)
       if (outcome.kind !== 'verdict' || outcome.verdict !== 'passed') {
         setEnrollOutcome(outcome)
@@ -103,8 +108,9 @@ const usePasskeyRow = ({
         setEnrollOutcome(failed('material-rejected'))
         return
       }
-      const replaced = enrollmentRef.current?.credential
-      await place({ value, userName, handOff, ...(replaced ? { replaced } : {}) })
+      // The slot as the ceremony found it; a request stored without it reads the slot now.
+      const replaces = launched !== undefined ? launched : enrollmentRef.current?.credential
+      await place({ value, userName, handOff, ...(replaces !== undefined ? { replaces } : {}) })
     },
     [place]
   )
@@ -160,7 +166,12 @@ const usePasskeyRow = ({
   const applyReport = useCallback(
     (report: CeremonyReport, asked: PasskeyCeremonyRequest) =>
       asked.call === 'enroll'
-        ? applyEnroll(report.outcome, asked.userName ?? defaultName, asked.handOff ?? false)
+        ? applyEnroll(
+            report.outcome,
+            asked.userName ?? defaultName,
+            asked.handOff ?? false,
+            asked.replaces
+          )
         : applyTest(report.outcome, asked),
     [applyEnroll, applyTest, defaultName]
   )

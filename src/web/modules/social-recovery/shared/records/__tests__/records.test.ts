@@ -18,6 +18,7 @@ import type {
   Address,
   ApproverRequest,
   Configuration,
+  Credential,
   Gathering,
   Hex,
   PreparedBatch,
@@ -2354,6 +2355,24 @@ describe('the ceremony request under its request id', () => {
     })
   )
 
+  const REPLACED: Credential = { method: METHOD, config: '0xabcd', label: 'Laptop', salt: '0x01' }
+  const REPLACES: [string, CeremonyRequestRecord][] = [
+    ['with no slot as launched', ENROLL],
+    ['for an empty slot', { ...ENROLL, replaces: null }],
+    ['for a slot that held a credential', { ...ENROLL, replaces: REPLACED }],
+    [
+      'for a slot that held a credential with no label or salt',
+      { ...ENROLL, replaces: { method: METHOD, config: '0xabcd' } }
+    ]
+  ]
+  REPLACES.forEach(([label, request]) =>
+    it(`reads an enrollment ${label} as it was written`, async () => {
+      const { records } = setup()
+      await records.ceremonyRequest(ID).write(request)
+      expect(present(await records.ceremonyRequest(ID).read()).value).toEqual(request)
+    })
+  )
+
   it('keeps a bigint chain id a bigint and a number chain id a number', async () => {
     const { records } = setup()
     await records.ceremonyRequest('as-bigint').write(ENROLL)
@@ -2430,6 +2449,23 @@ describe('the ceremony request under its request id', () => {
     [
       'an enrollment whose method address is no address',
       stored({ ...ENROLL, methodAddress: '0x12' })
+    ],
+    ['an enrollment whose replaced credential is a string', stored({ ...ENROLL, replaces: 'x' })],
+    [
+      'an enrollment whose replaced credential has no config',
+      stored({ ...ENROLL, replaces: { method: METHOD } })
+    ],
+    [
+      'an enrollment whose replaced credential has a method that is no address',
+      stored({ ...ENROLL, replaces: { method: '0x12', config: '0xabcd' } })
+    ],
+    [
+      'an enrollment whose replaced credential has a config that is no hex',
+      stored({ ...ENROLL, replaces: { method: METHOD, config: 'abcd' } })
+    ],
+    [
+      'an enrollment whose replaced credential has a salt that is no hex',
+      stored({ ...ENROLL, replaces: { method: METHOD, config: '0xabcd', salt: 1 } })
     ],
     ['a test access with no request', stored({ ...target, call: 'testAccess' })],
     ['a claim whose request is null', stored({ ...target, call: 'createClaim', request: null })],

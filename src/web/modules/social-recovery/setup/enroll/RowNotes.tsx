@@ -1,5 +1,5 @@
 /**
- * The passkey row's closing notes: a report that never came back, a passkey
+ * A ceremony row's closing notes: a report that never came back, a credential
  * the path already holds, and a write the records refused, each with its
  * retry where one exists.
  */
@@ -13,19 +13,19 @@ import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 
-import type { PasskeyRowNotesProps } from './types'
+import type { RowNotesProps } from './types'
 
-const PasskeyRowNotes = ({
+const RowNotes = ({
+  row,
   undelivered,
-  stale,
+  staleWaiting,
   canRetryUndelivered,
   retryUndelivered,
   duplicate,
   writeFailed,
-  pending,
-  busy,
-  place
-}: PasskeyRowNotesProps) => {
+  retryPlace,
+  busy
+}: RowNotesProps) => {
   const { t } = useTranslation()
 
   return (
@@ -33,16 +33,16 @@ const PasskeyRowNotes = ({
       {undelivered && (
         <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap, spacings.mbSm]}>
           <Text
-            testID="passkey-undelivered"
+            testID={`${row}-undelivered`}
             fontSize={14}
             appearance="errorText"
             style={spacings.mrSm}
           >
             {t('socialRecovery.ceremony.undeliveredNote')}
           </Text>
-          {!!stale && (
+          {staleWaiting && (
             <Button
-              testID="passkey-undelivered-retry"
+              testID={`${row}-undelivered-retry`}
               type="secondary"
               size="small"
               text={t('socialRecovery.ceremony.tryAgainAction')}
@@ -59,7 +59,7 @@ const PasskeyRowNotes = ({
           size="sm"
           style={spacings.mbSm}
           text={
-            <Alert.Text size="sm" type="error" testID="passkey-duplicate">
+            <Alert.Text size="sm" type="error" testID={`${row}-duplicate`}>
               {t('socialRecovery.editor.duplicate')}
             </Alert.Text>
           }
@@ -76,14 +76,14 @@ const PasskeyRowNotes = ({
             </Alert.Text>
           }
         >
-          {!!pending && (
+          {!!retryPlace && (
             <Button
-              testID="passkey-place-retry"
+              testID={`${row}-place-retry`}
               type="secondary"
               size="small"
               text={t('socialRecovery.writes.tryAgain')}
               disabled={busy}
-              onPress={() => place(pending)}
+              onPress={retryPlace}
               hasBottomSpacing={false}
               style={[flexbox.alignSelfStart, spacings.mtTy]}
             />
@@ -94,4 +94,4 @@ const PasskeyRowNotes = ({
   )
 }
 
-export default React.memo(PasskeyRowNotes)
+export default React.memo(RowNotes)

@@ -40,7 +40,8 @@ const usePasskeyLaunch = ({
             chainId,
             methodAddress: book.methods.passkey,
             userName,
-            handOff
+            handOff,
+            replaces: enrollment?.credential ?? null
           })
         )
       } catch {
@@ -61,6 +62,7 @@ const usePasskeyLaunch = ({
     [
       name,
       defaultName,
+      enrollment,
       deps,
       records,
       account,

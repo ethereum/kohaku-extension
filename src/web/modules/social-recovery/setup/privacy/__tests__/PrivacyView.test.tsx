@@ -306,9 +306,9 @@ describe('the privacy step', () => {
     const PUBLICATION =
       'A recovery publishes the rule with its waiting period and every method in it, so every method of your path is exposed, the ones it used and the ones it did not.'
     const UNGUESSABLE =
-      'Your passkey and your passport cannot be guessed at all and lose nothing before a recovery.'
+      'Your passkey and the identifier your passport produces cannot be guessed at all and lose nothing before a recovery.'
 
-    it('a path with guardian slots carries the guardian half and names the passkey and the passport', async () => {
+    it('a path with guardian slots carries the guardian half and names the passkey and the identifier of the passport', async () => {
       await h.mount(await withDraft({ clauses: GUARDIAN_SLOTS_BESIDE_PASSKEY_AND_PASSPORT }))
       expect(h.byTestId('exposure-guardians')?.textContent).toBe(GUARDIANS)
       expect(h.byTestId('exposure-unguessable')?.textContent).toBe(UNGUESSABLE)
@@ -324,13 +324,13 @@ describe('the privacy step', () => {
       expect(h.byTestId('exposure-unguessable')?.textContent).toBe(UNGUESSABLE)
     })
 
-    it('a guardian beside an Aadhaar identity names the Aadhaar identity alone', async () => {
+    it('a guardian beside an Aadhaar identity names its identifier alone', async () => {
       await h.mount(
         await withDraft({ clauses: [{ threshold: 2, credentials: [guardian, aadhaar] }] })
       )
       expect(h.byTestId('exposure-guardians')?.textContent).toBe(GUARDIANS)
       expect(h.byTestId('exposure-unguessable')?.textContent).toBe(
-        fill(L.exposure.unguessableOne, { items: S.disclosures.itemsLead.aadhaar })
+        fill(L.exposure.unguessableOne, { items: S.disclosures.itemsLead.aadhaarIdentifier })
       )
     })
 
@@ -343,13 +343,13 @@ describe('the privacy step', () => {
       )
     })
 
-    it('a passkey and a passport beside a guardian take the plural line and name both', async () => {
+    it('a passkey and a passport beside a guardian take the plural line and name the passkey and the identifier of the passport', async () => {
       await h.mount(await withDraft({ clauses: PASSKEY_PASSPORT_AND_GUARDIAN }))
       expect(h.byTestId('exposure-unguessable')?.textContent).toBe(
         fill(L.exposure.unguessable, {
           items: fill(S.disclosures.items.pair, {
             first: S.disclosures.itemsLead.passkey,
-            second: S.disclosures.items.passport
+            second: S.disclosures.items.passportIdentifier
           })
         })
       )
@@ -378,7 +378,7 @@ describe('the privacy step', () => {
         })
       )
       expect(h.byTestId('exposure-unguessable')?.textContent).toBe(
-        'Your passkey, your passport and your Aadhaar identity cannot be guessed at all and lose nothing before a recovery.'
+        'Your passkey, the identifier your passport produces and the identifier your Aadhaar produces cannot be guessed at all and lose nothing before a recovery.'
       )
     })
 

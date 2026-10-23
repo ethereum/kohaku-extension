@@ -18,8 +18,8 @@ import { PageTitle, SectionCard, TwoColumn } from '@web/modules/social-recovery/
 import { kindNameKeyOf } from './passkey'
 import PasskeyCreateBlock from './PasskeyCreateBlock'
 import PasskeyEnrolledSummary from './PasskeyEnrolledSummary'
-import PasskeyRowNotes from './PasskeyRowNotes'
 import PasskeyTestBlock from './PasskeyTestBlock'
+import RowNotes from './RowNotes'
 import type { RowProps } from './types'
 import usePasskeyRow from './usePasskeyRow'
 
@@ -28,6 +28,7 @@ const PasskeyRow = (props: RowProps) => {
   const { t } = useTranslation()
   const row = usePasskeyRow(props)
   const facts = enrollment?.facts
+  const { pending } = row
 
   // The explainer the learn-more control opens is the only text here that
   // informs without asking anything, so it alone draws beside the row.
@@ -116,16 +117,16 @@ const PasskeyRow = (props: RowProps) => {
           )}
         </SectionCard>
 
-        <PasskeyRowNotes
+        <RowNotes
+          row="passkey"
           undelivered={row.undelivered}
-          stale={row.stale}
+          staleWaiting={!!row.stale}
           canRetryUndelivered={row.canRetryUndelivered}
           retryUndelivered={row.retryUndelivered}
           duplicate={row.duplicate}
           writeFailed={row.writeFailed}
-          pending={row.pending}
+          retryPlace={pending ? () => row.place(pending) : null}
           busy={row.busy}
-          place={row.place}
         />
         {actions}
       </View>

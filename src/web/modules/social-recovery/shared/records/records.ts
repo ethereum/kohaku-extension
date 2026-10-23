@@ -20,6 +20,7 @@ import { parse, stringify } from '@ambire-common/libs/richJson/richJson'
 import type {
   Address,
   ApproverRequest,
+  Credential,
   Gathering,
   GatheringPlace,
   Hex
@@ -215,9 +216,21 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
 /**
+ * Whether a stored value is a credential: its method address, its config and,
+ * where present, its label and salt.
+ */
+const isStoredCredential = (value: unknown): value is Credential =>
+  isPlainObject(value) &&
+  isStoredAddress(value.method) &&
+  isHex(value.config) &&
+  (value.label === undefined || typeof value.label === 'string') &&
+  (value.salt === undefined || isHex(value.salt))
+
+/**
  * Whether a stored value is a ceremony request: its account, chain and method,
- * and what its call needs, an enrollment's method address and params or a
- * test's or a claim's request, with the method's params where it has them.
+ * and what its call needs, an enrollment's method address and params, with the
+ * credential it replaces or null where it has one, or a test's or a claim's
+ * request, with the method's params where it has them.
  */
 const isCeremonyRequest = (value: unknown): value is CeremonyRequestRecord => {
   if (typeof value !== 'object' || value === null) {
@@ -233,7 +246,13 @@ const isCeremonyRequest = (value: unknown): value is CeremonyRequestRecord => {
   }
   switch (record.call) {
     case 'enroll':
-      return isStoredAddress(record.methodAddress) && isPlainObject(record.params)
+      return (
+        isStoredAddress(record.methodAddress) &&
+        isPlainObject(record.params) &&
+        (record.replaces === undefined ||
+          record.replaces === null ||
+          isStoredCredential(record.replaces))
+      )
     case 'testAccess':
     case 'createClaim':
       return (

@@ -141,6 +141,51 @@ describe('placing an enrollment', () => {
     expect(after.enrollments).toEqual([enrolled(GUARDIAN), enrolled(NEW)])
   })
 
+  it('refuses a placement into a slot that was empty at the launch and holds a credential now', async () => {
+    const setup = await setupWith([GUARDIAN, OLD], [enrolled(GUARDIAN), enrolled(OLD)])
+    const { records, counted } = countingListWrites(setup)
+    expect(await placeEnrollment(records, SEARCH, BOOK, enrolled(NEW), null)).toEqual({
+      status: 'slot-taken'
+    })
+    expect(counted.writes).toBe(0)
+    expect(await storedOf(setup)).toEqual({
+      clauses: pathWith(GUARDIAN, OLD),
+      enrollments: [enrolled(GUARDIAN), enrolled(OLD)]
+    })
+  })
+
+  it('refuses a placement where the slot holds another credential than at the launch', async () => {
+    const LATER: Credential = { method: BOOK.methods.passkey, config: '0xcc', label: 'Later' }
+    const setup = await setupWith([GUARDIAN, LATER], [enrolled(GUARDIAN), enrolled(LATER)])
+    expect(await placeEnrollment(setup, SEARCH, BOOK, enrolled(NEW), OLD)).toEqual({
+      status: 'slot-taken'
+    })
+    expect(await storedOf(setup)).toEqual({
+      clauses: pathWith(GUARDIAN, LATER),
+      enrollments: [enrolled(GUARDIAN), enrolled(LATER)]
+    })
+  })
+
+  it('refuses a placement where the slot was emptied after the launch', async () => {
+    const setup = await setupWith([GUARDIAN, emptySlot('passkey')], [enrolled(GUARDIAN)])
+    expect(await placeEnrollment(setup, SEARCH, BOOK, enrolled(NEW), OLD)).toEqual({
+      status: 'slot-taken'
+    })
+    expect((await storedOf(setup)).clauses).toEqual(pathWith(GUARDIAN, emptySlot('passkey')))
+  })
+
+  it('places into a slot that is still empty as at the launch, and again once placed', async () => {
+    const setup = await setupWith([GUARDIAN, emptySlot('passkey')], [enrolled(GUARDIAN)])
+    await placeEnrollment(setup, SEARCH, BOOK, enrolled(NEW), null)
+    expect(await placeEnrollment(setup, SEARCH, BOOK, enrolled(NEW), null)).toEqual({
+      status: 'placed',
+      enrollment: enrolled(NEW)
+    })
+    const after = await storedOf(setup)
+    expect(after.clauses).toEqual(pathWith(GUARDIAN, NEW))
+    expect(after.enrollments).toEqual([enrolled(GUARDIAN), enrolled(NEW)])
+  })
+
   it('leaves the draft and the list as they were where the first write of the list fails', async () => {
     const setup = await setupWith([GUARDIAN, OLD], [enrolled(GUARDIAN), enrolled(OLD)])
     const { records: refusing } = countingListWrites(setup, [1])

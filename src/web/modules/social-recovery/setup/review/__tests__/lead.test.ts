@@ -71,7 +71,7 @@ describe('the publication sentence', () => {
         items: t(`${ITEMS}.triple`, {
           first: t(`${LEAD}.passkey`),
           second: t(`${ITEMS}.passportIdentifier`),
-          third: t(`${ITEMS}.aadhaar`)
+          third: t(`${ITEMS}.aadhaarIdentifier`)
         }),
         count: 2
       })
@@ -94,6 +94,15 @@ describe('the publication sentence', () => {
     expect(sentence([required(PASSPORT), group(2, ALICE, BOB, CAROL)])).toBe(
       t(`${PUBLICATION}.methodsAndGuardians`, {
         items: t(`${LEAD}.passportIdentifier`),
+        count: 1
+      })
+    )
+  })
+
+  it('leads with the identifier an Aadhaar identity produces where it is the one other method', () => {
+    expect(sentence([required(AADHAAR), group(2, ALICE, BOB, CAROL)])).toBe(
+      t(`${PUBLICATION}.methodsAndGuardians`, {
+        items: t(`${LEAD}.aadhaarIdentifier`),
         count: 1
       })
     )
@@ -124,11 +133,11 @@ describe('the publication sentence', () => {
 })
 
 describe('the publication items', () => {
-  it('name a passkey, the passport identifier and the Aadhaar identity in that order', () => {
+  it('name a passkey, the passport identifier and the Aadhaar identifier in that order', () => {
     expect(publicationItemsOf(['aadhaar', 'ecdsa', 'zkpassport', 'passkey'])).toEqual([
       'passkey',
       'passportIdentifier',
-      'aadhaar'
+      'aadhaarIdentifier'
     ])
   })
 
@@ -270,8 +279,11 @@ describe('a row of the path', () => {
     ])
   })
 
-  it('carries the identity line alone on an Aadhaar row', () => {
-    expect(rowOf(enrolled(AADHAAR)).lines).toEqual([t('socialRecovery.disclosures.identity')])
+  it('carries the identity line and the publication line on an Aadhaar row', () => {
+    expect(rowOf(enrolled(AADHAAR)).lines).toEqual([
+      t('socialRecovery.disclosures.identity'),
+      t('socialRecovery.disclosures.aadhaarPublication')
+    ])
   })
 
   it('names a synced passkey by its label with the synced word', () => {

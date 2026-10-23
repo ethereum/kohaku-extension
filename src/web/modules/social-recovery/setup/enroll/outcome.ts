@@ -4,10 +4,10 @@
  * which a reload drops. A dismissal leaves the stored verdict as it was.
  */
 import { noteKeyOfOutcome } from '@web/modules/social-recovery/shared/ceremony'
-import type { CeremonyOutcome } from '@web/modules/social-recovery/shared/ceremony'
+import type { CeremonyCall, CeremonyOutcome } from '@web/modules/social-recovery/shared/ceremony'
 import type { Enrollment, EnrollmentTestVerdict } from '@web/modules/social-recovery/shared/records'
 
-import type { TestChips } from './types'
+import type { DismissalNotes, TestChips } from './types'
 
 const CEREMONY = 'socialRecovery.ceremony'
 
@@ -79,6 +79,25 @@ export const testLineKeyOf = (
 }
 
 /**
+ * The note an outcome leaves on a row. A row may name a dismissal its own way:
+ * a phone app's refusal as the holder's decline on the phone, a cancel of a
+ * flow the holder runs as a step they stopped.
+ */
+export const rowNoteKeyOf = (
+  outcome: CeremonyOutcome<unknown>,
+  call: CeremonyCall,
+  notes: DismissalNotes = {}
+): string | null => {
+  if (outcome.kind === 'dismissed' && outcome.note === 'refused' && notes.refusedNote) {
+    return notes.refusedNote
+  }
+  if (outcome.kind === 'dismissed' && outcome.note === 'cancelled' && notes.cancelledNote) {
+    return notes.cancelledNote
+  }
+  return noteKeyOfOutcome(outcome, call)
+}
+
+/**
  * The note a test outcome adds beside the stored verdict's line: a dismissal,
  * an unreachable phone, a credential of another origin. A passed or a
  * not-supported test adds none, and a note the line already reads is not
@@ -86,9 +105,10 @@ export const testLineKeyOf = (
  */
 export const testNoteKeysOf = (
   outcome: CeremonyOutcome<unknown>,
-  lineKey: string | null
+  lineKey: string | null,
+  notes?: DismissalNotes
 ): string[] => {
-  const note = noteKeyOfOutcome(outcome, 'testAccess')
+  const note = rowNoteKeyOf(outcome, 'testAccess', notes)
   if (!note || note === lineKey) {
     return []
   }

@@ -14,9 +14,15 @@ import { MethodRow } from '@web/modules/social-recovery/shared/chrome'
 import { testNoteKeysOf } from './outcome'
 import type { TestResultLinesProps } from './types'
 
-const TestResultLines = ({ row, lineKey, outcome, children }: TestResultLinesProps) => {
+const TestResultLines = ({
+  row,
+  lineKey,
+  outcome,
+  dismissalNotes,
+  children
+}: TestResultLinesProps) => {
   const { t } = useTranslation()
-  const notes = outcome ? testNoteKeysOf(outcome, lineKey) : []
+  const notes = outcome ? testNoteKeysOf(outcome, lineKey, dismissalNotes) : []
   const error = outcome ? browserErrorNameOf(outcome) : null
 
   return (

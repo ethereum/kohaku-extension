@@ -105,19 +105,6 @@ describe('the enroll view', () => {
     expect(view.navigate).toHaveBeenCalledWith(WEB_ROUTES.socialRecoverySetupEditor)
   })
 
-  each([['zkpassport'], ['aadhaar']] as const)(
-    'leaves an empty %s slot to its own screen',
-    async ([kind]) => {
-      const { records } = await recordsWith(pathWith(emptySlot(kind)))
-      view = await mountView({
-        records,
-        search: { kind, at: { clause: 0, member: 0 } },
-        deps: depsOf()
-      })
-      expectNothingToRun(view)
-    }
-  )
-
   it('renders nothing to run for a slot waiting for another kind', async () => {
     const { records } = await recordsWith(pathWith(emptySlot('ecdsa')))
     view = await mountView({

@@ -109,7 +109,10 @@ const kindLinesOf = (kind: MethodKind | undefined, t: Translate) => {
     ]
   }
   if (kind === 'aadhaar') {
-    return [t('socialRecovery.disclosures.identity')]
+    return [
+      t('socialRecovery.disclosures.identity'),
+      t('socialRecovery.disclosures.aadhaarPublication')
+    ]
   }
   return []
 }
@@ -242,7 +245,7 @@ export const publicationItemsOf = (kinds: readonly MethodKind[]): PublicationIte
     items.push('passportIdentifier')
   }
   if (kinds.includes('aadhaar')) {
-    items.push('aadhaar')
+    items.push('aadhaarIdentifier')
   }
   return items
 }

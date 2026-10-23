@@ -39,22 +39,45 @@ export const readSlot = async (
 }
 
 /**
+ * Whether the slot still holds what it held when the row started its
+ * ceremony: empty where `replaces` is null, that credential otherwise. A slot
+ * that already holds the new credential is a placement made once before.
+ */
+const slotAsLaunched = (
+  slot: SlotState,
+  replaces: Credential | null,
+  placing: Credential
+): boolean => {
+  if (slot.status === 'empty') {
+    return replaces === null
+  }
+  if (slot.status !== 'enrolled') {
+    return false
+  }
+  const held = slot.enrollment.credential
+  return sameCredential(held, placing) || (replaces !== null && sameCredential(held, replaces))
+}
+
+/**
  * Places a new enrollment in the slot: the slot must still be empty or hold
  * this screen's own credential, which the new one replaces. A credential the
  * path holds elsewhere is refused.
  *
- * The replaced credential is the one the slot held when the row started its
- * ceremony. Its enrollment leaves the list only once the draft holds the new
- * credential, and only where the path holds it nowhere; no other enrollment
- * leaves. Placing the same enrollment again with the same replaced credential
- * is safe.
+ * `replaces` is what the slot held when the row started its ceremony: the
+ * credential the new one replaces, or null for an empty slot. A slot that
+ * holds anything else now took another placement meanwhile, and this one is
+ * refused. The replaced credential's enrollment leaves the list only once the
+ * draft holds the new credential, and only where the path holds it nowhere;
+ * no other enrollment leaves. Placing the same enrollment again with the same
+ * `replaces` is safe. Without `replaces` the slot is not compared and nothing
+ * leaves the list.
  */
 export const placeEnrollment = async (
   setup: SetupRecords,
   search: EnrollSearch,
   book: AddressBook,
   enrollment: Enrollment,
-  replaced?: Credential
+  replaces?: Credential | null
 ): Promise<PlaceResult> => {
   const [draft, enrollments] = await Promise.all([setup.setupDraft.read(), enrollmentsOf(setup)])
   if (draft.status !== 'present') {
@@ -63,6 +86,9 @@ export const placeEnrollment = async (
   const { clauses } = draft.value
   const slot = slotStateOf(clauses, search.at, search.kind, book, enrollments)
   if (slot.status === 'nothing') {
+    return { status: 'slot-taken' }
+  }
+  if (replaces !== undefined && !slotAsLaunched(slot, replaces, enrollment.credential)) {
     return { status: 'slot-taken' }
   }
   if (pathHolds(clauses, enrollment.credential, search.at)) {
@@ -82,10 +108,10 @@ export const placeEnrollment = async (
     await setup.enrollments.write(enrollments).catch(() => undefined)
     throw error
   }
-  if (!replaced || pathHolds(placed.clauses, replaced)) {
+  if (!replaces || pathHolds(placed.clauses, replaces)) {
     return { status: 'placed', enrollment }
   }
-  const kept = listed.filter((e) => !sameCredential(e.credential, replaced))
+  const kept = listed.filter((e) => !sameCredential(e.credential, replaces))
   if (kept.length !== listed.length) {
     await setup.enrollments.write(kept)
   }

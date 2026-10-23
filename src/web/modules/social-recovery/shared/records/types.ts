@@ -517,7 +517,18 @@ export interface CeremonyRequestTarget {
  * material: the outcome travels back in the tab's report alone.
  */
 export type CeremonyRequestRecord =
-  | (CeremonyRequestTarget & { call: 'enroll'; methodAddress: Address; params: Params })
+  | (CeremonyRequestTarget & {
+      call: 'enroll'
+      methodAddress: Address
+      params: Params
+      /**
+       * What the slot held when the caller stored the request: the credential
+       * the new one replaces, or null for an empty slot. The placement is
+       * refused where the slot holds something else by the time the report
+       * returns. Absent on a request an earlier build stored.
+       */
+      replaces?: Credential | null
+    })
   | (CeremonyRequestTarget & {
       call: 'testAccess' | 'createClaim'
       request: ApproverRequest

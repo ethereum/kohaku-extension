@@ -8,7 +8,7 @@
  */
 import { isHex } from 'viem'
 
-import type { Address, ApproverRequest } from '@kohaku-eth/social-recovery'
+import type { Address, ApproverRequest, Credential } from '@kohaku-eth/social-recovery'
 import {
   AUTHENTICATOR_PLACES,
   deviceOf,
@@ -54,20 +54,25 @@ export const kindNameKeyOf = (facts: Pick<PasskeyFacts, 'place'> | undefined): s
     ? 'socialRecovery.methodNames.passkeyOnYourPhone'
     : 'socialRecovery.methodNames.passkeyOnThisDevice'
 
-/** The creation's ceremony request: the name the holder typed, the relying party the tab's own. */
+/**
+ * The creation's ceremony request: the name the holder typed, the relying
+ * party the tab's own, and what the slot holds now.
+ */
 export const enrollRequestOf = (input: {
   account: Address
   chainId: ChainId
   methodAddress: Address
   userName: string
   handOff: boolean
+  replaces: Credential | null
 }): CeremonyRequestRecord => ({
   call: 'enroll',
   method: PASSKEY_SLUG,
   account: input.account,
   chainId: input.chainId,
   methodAddress: input.methodAddress,
-  params: { userName: input.userName, handOff: input.handOff }
+  params: { userName: input.userName, handOff: input.handOff },
+  replaces: input.replaces
 })
 
 /**
@@ -173,9 +178,9 @@ export const passkeyEnrollmentOf = (
 /**
  * Whether a stored request is this row's own: the requests live under one key
  * for every account, so a request another account or chain stored, or one for
- * another passkey method, is not this row's to take.
+ * another module of the method, is not this row's to take.
  */
-const isRequestFor = (record: CeremonyRequestRecord, target: RowTarget): boolean => {
+export const isRequestFor = (record: CeremonyRequestRecord, target: RowTarget): boolean => {
   if (!sameAddress(record.account, target.account)) {
     return false
   }
@@ -207,7 +212,8 @@ export const passkeyRequestOf = (
     return {
       call: 'enroll',
       ...(userName ? { userName: clipName(userName) } : {}),
-      ...handOffOf(record.params)
+      ...handOffOf(record.params),
+      ...(record.replaces !== undefined ? { replaces: record.replaces } : {})
     }
   }
   if (record.call === 'testAccess') {

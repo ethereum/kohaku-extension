@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import type { Address, ApproverRequest, Credential, Hex } from '@kohaku-eth/social-recovery'
+import type { Address, ApproverRequest, Credential, Hex, Params } from '@kohaku-eth/social-recovery'
 import type {
   CeremonyOutcome,
   CeremonyReport,
@@ -18,6 +18,7 @@ import type {
 } from '@web/modules/social-recovery/shared/client'
 import type { MethodChip } from '@web/modules/social-recovery/shared/display'
 import type {
+  CeremonyRequestRecord,
   ChainId,
   Enrollment,
   EnrollmentFacts,
@@ -210,7 +211,10 @@ export interface EnrollDeps {
 /** The client as this screen reads it. */
 export type EnrollClient =
   | { status: 'loading' }
-  | { status: 'ready'; client: Pick<RecoveryKitClient, 'approving' | 'methodFor' | 'descriptor'> }
+  | {
+      status: 'ready'
+      client: Pick<RecoveryKitClient, 'approving' | 'methodFor' | 'methodParamsFor' | 'descriptor'>
+    }
   | { status: 'update-the-wallet'; retry: () => void }
   | { status: 'failed'; retry: () => void }
 
@@ -252,7 +256,7 @@ export interface RowProps {
  * the ceremony tab.
  */
 export type PasskeyCeremonyRequest =
-  | { call: 'enroll'; userName?: string; handOff?: boolean }
+  | { call: 'enroll'; userName?: string; handOff?: boolean; replaces?: Credential | null }
   | { call: 'testAccess'; request: ApproverRequest; handOff?: boolean }
 
 /** The account, chain and passkey method a row's own ceremony requests name. */
@@ -273,8 +277,11 @@ export interface PendingPlacement {
   value: EnrollValue
   userName: string
   handOff: boolean
-  /** The credential the slot held when the ceremony started, which the placement replaces. */
-  replaced?: Credential
+  /**
+   * What the slot held when the ceremony started: the credential the placement
+   * replaces, or null for an empty slot. Absent where nothing was kept.
+   */
+  replaces?: Credential | null
 }
 
 /** The offline block's challenge: the key test's typed data. */
@@ -294,7 +301,15 @@ export interface ClientStateProps {
 }
 
 /** Which row a shared block renders in, the prefix of its test ids. */
-export type RowSlug = 'passkey' | 'guardian'
+export type RowSlug = 'passkey' | 'guardian' | 'passport' | 'aadhaar'
+
+/** The notes a row reads for a dismissal, where it names one its own way. */
+export interface DismissalNotes {
+  /** The note a refused ceremony reads, where the row's device names the refusal its own way. */
+  refusedNote?: string
+  /** The note a cancelled ceremony reads, where the holder runs the flow as a step of their own. */
+  cancelledNote?: string
+}
 
 export interface TestResultLinesProps {
   row: RowSlug
@@ -302,8 +317,31 @@ export interface TestResultLinesProps {
   lineKey: string | null
   /** The test outcome that just arrived, null where none did. */
   outcome: CeremonyOutcome<unknown> | null
+  /** The notes a dismissal reads on this row, where they differ from the shared ones. */
+  dismissalNotes?: DismissalNotes
   /** What renders between the lasting line and the outcome's notes. */
   children?: ReactNode
+}
+
+/** What a row's report hook reads and calls, for the request the row reads back as `A`. */
+export interface RowReportInput<A>
+  extends Pick<RowProps, 'records' | 'navigate' | 'search' | 'deps'> {
+  /** The method slug the row's ceremonies carry. */
+  slug: string
+  /** What a stored request asked for, or null for a request that is not the row's own. */
+  askedOf: (record: CeremonyRequestRecord) => A | null
+  /** Takes the stored request of a returned ceremony before its report is read. */
+  onAsked?: (asked: A) => void
+  onReport: (report: CeremonyReport, asked: A) => void
+}
+
+/** The returned ceremony's report as a row waits for it. */
+export interface RowReport<A> {
+  undelivered: boolean
+  /** The request whose report never came back, null where none is waiting. */
+  stale: A | null
+  /** Drops the stale request, then runs the same ceremony again. */
+  retryWith: (rerun: (stale: A) => Promise<void>) => Promise<void>
 }
 
 /** What the passkey row's report hook reads and calls. */
@@ -318,13 +356,7 @@ export interface PasskeyReportInput
 }
 
 /** The returned ceremony's report as the passkey row waits for it. */
-export interface PasskeyReport {
-  undelivered: boolean
-  /** The request whose report never came back, null where none is waiting. */
-  stale: PasskeyCeremonyRequest | null
-  /** Drops the stale request, then runs the same ceremony again. */
-  retryWith: (rerun: (stale: PasskeyCeremonyRequest) => Promise<void>) => Promise<void>
-}
+export type PasskeyReport = RowReport<PasskeyCeremonyRequest>
 
 /** What the passkey row's ceremony launches read and set. */
 export interface PasskeyLaunchInput
@@ -400,18 +432,148 @@ export type PasskeyTestBlockProps = Pick<
   served: boolean
 }
 
-export type PasskeyRowNotesProps = Pick<
-  PasskeyRowState,
-  | 'undelivered'
-  | 'stale'
-  | 'canRetryUndelivered'
-  | 'retryUndelivered'
-  | 'duplicate'
-  | 'writeFailed'
-  | 'pending'
-  | 'busy'
-  | 'place'
->
+/** A row's closing notes. */
+export interface RowNotesProps {
+  row: RowSlug
+  undelivered: boolean
+  /** Whether a request whose report never came back waits to run again. */
+  staleWaiting: boolean
+  canRetryUndelivered: boolean
+  retryUndelivered: () => void
+  duplicate: boolean
+  writeFailed: boolean
+  /** Places the enrollment a failed write kept, null where none is kept. */
+  retryPlace: (() => void) | null
+  busy: boolean
+}
+
+/** The two identity kinds: a passport through zkPassport, and an Aadhaar identity. */
+export type IdentityKind = Extract<SlotKind, 'zkpassport' | 'aadhaar'>
+
+/** The strings an identity row reads, and the prefix of its test ids. */
+export interface IdentityCopy extends DismissalNotes {
+  row: RowSlug
+  title: string
+  lead: string
+  /** What the holder needs on hand, and what the ceremony takes. */
+  deviceLine: string
+  /** The disclosure lines, then the line about the document's own lifetime. */
+  disclosures: readonly string[]
+  noneYet: string
+  action: string
+  actionLine: string
+  enrolledLine: string
+  testLead: string
+  testPassed: string
+}
+
+export type IdentityCopies = { readonly [K in IdentityKind]: IdentityCopy }
+
+/**
+ * What a returned identity ceremony's request carried, read back when its
+ * report arrives: what the slot held for a creation, the request for a test.
+ */
+export type IdentityCeremonyRequest =
+  | { call: 'enroll'; replaces?: Credential | null }
+  | { call: 'testAccess'; request: ApproverRequest }
+
+/** What an identity ceremony request is built from. */
+export interface IdentityRequestInput {
+  kind: IdentityKind
+  account: Address
+  chainId: ChainId
+  /** The method's params on this chain, as the client gives them. */
+  params: Params
+}
+
+/** A passed identity creation's value: the config the method committed. */
+export interface IdentityEnrollValue {
+  config: Hex
+}
+
+/** A passed identity creation whose enrollment the records have not stored yet. */
+export interface IdentityPendingPlacement {
+  value: IdentityEnrollValue
+  /**
+   * What the slot held when the ceremony started: the credential the placement
+   * replaces, or null for an empty slot. Absent where nothing was kept.
+   */
+  replaces?: Credential | null
+}
+
+/** What an identity row reads: the row's props and its kind. */
+export interface IdentityRowProps extends RowProps {
+  kind: IdentityKind
+}
+
+/** What an identity row's ceremony launches read and set. */
+export interface IdentityLaunchInput
+  extends Pick<
+    RowProps,
+    | 'records'
+    | 'navigate'
+    | 'search'
+    | 'account'
+    | 'chainId'
+    | 'book'
+    | 'client'
+    | 'deps'
+    | 'enrollment'
+  > {
+  kind: IdentityKind
+  setBusy: (busy: boolean) => void
+  setWriteFailed: (failed: boolean) => void
+}
+
+/** The two ceremonies an identity row opens in the ceremony tab. */
+export interface IdentityLaunch {
+  create: () => Promise<void>
+  runTest: () => Promise<void>
+}
+
+/** What an identity row's report hook reads and calls. */
+export type IdentityReportInput = Pick<
+  RowProps,
+  'records' | 'navigate' | 'search' | 'account' | 'chainId' | 'book' | 'deps'
+> &
+  Pick<RowReportInput<IdentityCeremonyRequest>, 'onReport'> & {
+    kind: IdentityKind
+  }
+
+/** The identity row's state and actions. */
+export interface IdentityRowState extends IdentityLaunch {
+  enrollOutcome: CeremonyOutcome<unknown> | null
+  testOutcome: CeremonyOutcome<unknown> | null
+  skipped: boolean
+  skip: () => void
+  undelivered: boolean
+  stale: IdentityCeremonyRequest | null
+  pending: IdentityPendingPlacement | null
+  writeFailed: boolean
+  duplicate: boolean
+  busy: boolean
+  /** The chain's deployment names no params for the method, so nothing can run. */
+  unsupported: boolean
+  canLaunch: boolean
+  canRetryUndelivered: boolean
+  place: (placing: IdentityPendingPlacement) => Promise<void>
+  retryUndelivered: () => Promise<void>
+}
+
+export type IdentityCreateBlockProps = Pick<
+  IdentityRowState,
+  'enrollOutcome' | 'unsupported' | 'canLaunch' | 'create'
+> & {
+  copy: IdentityCopy
+}
+
+export type IdentityTestBlockProps = Pick<
+  IdentityRowState,
+  'testOutcome' | 'skipped' | 'skip' | 'unsupported' | 'canLaunch' | 'runTest'
+> & {
+  enrollment: Enrollment
+  copy: IdentityCopy
+}
 
 /** What the guardian's advisory checks read. */
 export interface GuardianChecksInput {

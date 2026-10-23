@@ -38,7 +38,7 @@ export interface ReviewWaitChip {
 }
 
 /** The things a recovery publishes that are not addresses, as item slugs of the disclosures. */
-export type PublicationItem = 'passkey' | 'passkeys' | 'passportIdentifier' | 'aadhaar'
+export type PublicationItem = 'passkey' | 'passkeys' | 'passportIdentifier' | 'aadhaarIdentifier'
 
 /** One row of the lead's path block, rendered. */
 export interface PathRow {

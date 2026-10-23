@@ -1,8 +1,9 @@
 /**
- * The enroll screen for one slot of the path: the passkey row or the guardian
- * row fills it with the credential its enrollment produced. Save and continue
- * and Back both return to the editor with the records as they stand; the
- * line that saving works without the test shows until a test has run.
+ * The enroll screen for one slot of the path: the passkey row, the guardian
+ * row, the passport row or the Aadhaar row fills it with the credential its
+ * enrollment produced. Save and continue and Back both return to the editor
+ * with the records as they stand; the line that saving works without the test
+ * shows until a test has run.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { ActivityIndicator, View } from 'react-native'
@@ -23,6 +24,7 @@ import type { Enrollment } from '@web/modules/social-recovery/shared/records'
 
 import ClientStateLine from './ClientStateLine'
 import GuardianRow from './GuardianRow'
+import IdentityRow from './IdentityRow'
 import PasskeyRow from './PasskeyRow'
 import type { EnrollViewProps, LoadState } from './types'
 import { readSlot } from './writes'
@@ -42,12 +44,11 @@ const EnrollView = ({
     () => addressBookOf(recoveryChainOf(chainId) ?? WALLET_RECOVERY_CHAIN),
     [chainId]
   )
-  const served = !!search && (search.kind === 'passkey' || search.kind === 'ecdsa')
   const [load, setLoad] = useState<LoadState>({ status: 'loading' })
   const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
-    if (!search || !served) {
+    if (!search) {
       return undefined
     }
     let live = true
@@ -68,7 +69,7 @@ const EnrollView = ({
     }
     // The slot is read once per slot; a returned ceremony's id changes nothing here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setup, book, served, search?.kind, search?.at.clause, search?.at.member, attempt])
+  }, [setup, book, search?.kind, search?.at.clause, search?.at.member, attempt])
 
   const onEnrollment = useCallback(
     (enrollment: Enrollment) => setLoad({ status: 'enrolled', enrollment }),
@@ -94,7 +95,7 @@ const EnrollView = ({
     />
   )
 
-  if (!search || !served || load.status === 'nothing') {
+  if (!search || load.status === 'nothing') {
     return (
       <TwoColumn testID="enroll-columns">
         <View testID="enroll-nothing">
@@ -196,7 +197,11 @@ const EnrollView = ({
 
   return (
     <View testID="enroll-screen">
-      {search.kind === 'passkey' ? <PasskeyRow {...row} /> : <GuardianRow {...row} />}
+      {search.kind === 'passkey' && <PasskeyRow {...row} />}
+      {search.kind === 'ecdsa' && <GuardianRow {...row} />}
+      {(search.kind === 'zkpassport' || search.kind === 'aadhaar') && (
+        <IdentityRow {...row} kind={search.kind} />
+      )}
     </View>
   )
 }
