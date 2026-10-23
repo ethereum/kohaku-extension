@@ -3,8 +3,8 @@
  * and health check.
  *
  * A host takes the orchestrator and the method implementation as injected
- * parameters typed by `sdk-interfaces`, and never imports the SDK doubles: the
- * ESLint fence keeps them to `shared/client`. The tab gets both from its
+ * parameters typed by the SDK package, and never imports the SDK's runtime:
+ * the ESLint fence keeps it to `shared/client`. The tab gets both from its
  * source's resolver, by default the one `shared/client` builds over the
  * wallet's records and the client. A test passes its own. Each host renders
  * its steps through `onStep`, honours `signal` as the abort, and returns
@@ -21,7 +21,16 @@
  * again after every call it awaits: an abort that arrives while the method
  * packages or checks ends in the cancelled note, and its answer is dropped.
  */
-import type { Address, ApproverRequest } from '@web/modules/social-recovery/sdk-interfaces'
+import type {
+  Address,
+  ApproverRequest,
+  EnrollInput,
+  Input,
+  Material,
+  Params,
+  Reply,
+  Verdict
+} from '@kohaku-eth/social-recovery'
 
 import type {
   CeremonyCall,
@@ -36,15 +45,17 @@ import type {
 } from './types'
 import {
   dismissed,
+  failed,
   isMethodFailure,
   notSupported,
   outcomeOfCheck,
   outcomeOfMethodFailure,
   outcomeOfThrown,
-  passed
+  passed,
+  unavailable
 } from './verdicts'
 
-const isPlainRecord = (value: unknown): value is Record<string, unknown> => {
+const isPlainRecord = (value: Params | Material): value is Params => {
   if (typeof value !== 'object' || value === null) {
     return false
   }
@@ -61,7 +72,10 @@ const isPlainRecord = (value: unknown): value is Record<string, unknown> => {
  * caller passed is replaced. Any other binding runs the caller's device, or
  * the page's device for that binding.
  */
-const chooseDevice = (context: HostContext, params: unknown): DeviceChoice | undefined => {
+const chooseDevice = (
+  context: HostContext,
+  params: Params | undefined
+): DeviceChoice | undefined => {
   if (context.method.deviceBinding === 'browser-authenticator') {
     const own = context.devices?.['browser-authenticator']
     if (!own) {
@@ -89,7 +103,7 @@ const cancelledByAbort = (context: HostContext) =>
  * ceremony's signal where the device set none. No other binding's material
  * takes a signal, so it passes unchanged.
  */
-const materialFor = (context: HostContext, material: unknown): unknown => {
+const materialFor = (context: HostContext, material: Material): Material => {
   if (context.method.deviceBinding !== 'in-browser-prover' || !context.signal) {
     return material
   }
@@ -109,7 +123,9 @@ const deviceContext = (context: HostContext, call: CeremonyCall): DeviceCallCont
   signal: context.signal,
   handOff: context.handOff,
   call,
-  onStep: context.onStep
+  onStep: context.onStep,
+  show: context.show,
+  ask: context.ask
 })
 
 /**
@@ -118,7 +134,7 @@ const deviceContext = (context: HostContext, call: CeremonyCall): DeviceCallCont
  * failed with its cause, a relying party the provider refused among them.
  */
 export const enrollHost = async (
-  context: HostContext & { methodAddress: Address; params: unknown }
+  context: HostContext & { methodAddress: Address; params?: Params }
 ): Promise<CeremonyOutcome<EnrollValue>> => {
   const aborted = cancelledByAbort(context)
   if (aborted) {
@@ -131,9 +147,9 @@ export const enrollHost = async (
   const { device } = chosen
 
   context.onStep?.('preparing')
-  let input: unknown
+  let input: EnrollInput
   try {
-    input = context.orchestrator.enrollInput(context.methodAddress, chosen.params)
+    input = context.orchestrator.enrollInput(context.methodAddress, chosen.params ?? {})
   } catch (error) {
     return outcomeOfThrown(error)
   }
@@ -173,7 +189,7 @@ export const enrollHost = async (
 
 /** The signing half test access and create claim share: options, ceremony, reply. */
 const signForRequest = async (
-  context: HostContext & { request: ApproverRequest; params?: unknown },
+  context: HostContext & { request: ApproverRequest; params?: Params },
   call: 'testAccess' | 'createClaim'
 ): Promise<SignedReply> => {
   const aborted = cancelledByAbort(context)
@@ -187,7 +203,7 @@ const signForRequest = async (
   const { device } = chosen
 
   context.onStep?.('preparing')
-  let input: unknown
+  let input: Input
   try {
     input = context.orchestrator.signingInput(context.request, chosen.params)
   } catch (error) {
@@ -224,13 +240,55 @@ const signForRequest = async (
 }
 
 /**
+ * The chain's verdict where the method's own check answered not judged and the
+ * context reads one; the method's verdict otherwise. A module that reverted
+ * reads `reverted`; a chain read that throws is a read the node did not
+ * answer. An abort ends the wait at once, and the caller reads the cancel.
+ */
+const judgedVerdict = async (
+  context: HostContext & { request: ApproverRequest },
+  local: Verdict,
+  reply: Reply
+): Promise<Verdict | 'reverted' | 'unanswered'> => {
+  if (local !== 'not-judged' || !context.chainVerdict) {
+    return local
+  }
+  const { chainVerdict } = context
+  const read = Promise.resolve()
+    .then(() => chainVerdict(context.request, reply))
+    .catch(() => 'unanswered' as const)
+  const { signal } = context
+  if (!signal) {
+    return read
+  }
+  let onAbort = () => {}
+  const aborted = new Promise<'unanswered'>((resolve) => {
+    onAbort = () => resolve('unanswered')
+    if (signal.aborted) {
+      onAbort()
+    } else {
+      signal.addEventListener('abort', onAbort, { once: true })
+    }
+  })
+  try {
+    return await Promise.race([read, aborted])
+  } finally {
+    signal.removeEventListener('abort', onAbort)
+  }
+}
+
+/**
  * Test access: sign the test challenge the caller's request carries, then run
  * the local check the wallet never enforces. The caller builds the request
  * whose digest is the test challenge; the host judges the proof through the
- * orchestrator's own verdict member, so no page holds a ctx.
+ * orchestrator's own verdict member, so no page holds a ctx. Where that member
+ * cannot judge the proof, as for a proof only the deployed verifier checks,
+ * the module's own `verify` view on chain judges it, when the context reads
+ * one: satisfied passes, rejected fails, a revert of the view fails with its
+ * own cause, and a read that did not answer is unavailable with retry.
  */
 export const testAccessHost = async (
-  context: HostContext & { request: ApproverRequest; params?: unknown }
+  context: HostContext & { request: ApproverRequest; params?: Params }
 ): Promise<CeremonyOutcome<TestAccessValue>> => {
   const signed = await signForRequest(context, 'testAccess')
   if (!signed.ok) {
@@ -238,7 +296,7 @@ export const testAccessHost = async (
   }
   context.onStep?.('checking')
   try {
-    const verdict = await context.orchestrator.verify(
+    const local = await context.orchestrator.verify(
       context.request,
       context.request.place,
       signed.reply.proof
@@ -246,6 +304,17 @@ export const testAccessHost = async (
     const abortedInCheck = cancelledByAbort(context)
     if (abortedInCheck) {
       return abortedInCheck
+    }
+    const verdict = await judgedVerdict(context, local, signed.reply)
+    const abortedInChainCheck = cancelledByAbort(context)
+    if (abortedInChainCheck) {
+      return abortedInChainCheck
+    }
+    if (verdict === 'unanswered') {
+      return unavailable('service-unanswered')
+    }
+    if (verdict === 'reverted') {
+      return failed('check-reverted')
     }
     return outcomeOfCheck(verdict, {
       proof: signed.reply.proof,
@@ -262,7 +331,7 @@ export const testAccessHost = async (
  * none. An abort before the reply returns publishes no claim.
  */
 export const createClaimHost = async (
-  context: HostContext & { request: ApproverRequest; params?: unknown }
+  context: HostContext & { request: ApproverRequest; params?: Params }
 ): Promise<CeremonyOutcome<ClaimValue>> => {
   const signed = await signForRequest(context, 'createClaim')
   if (!signed.ok) {

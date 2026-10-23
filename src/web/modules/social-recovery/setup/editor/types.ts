@@ -6,8 +6,9 @@ import type {
   Credential,
   Finding,
   ISetupClient,
+  SETUP_ERROR_CODES,
   SetupDraft
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import type {
   Enrollment,
@@ -16,6 +17,9 @@ import type {
   SlotPosition
 } from '@web/modules/social-recovery/shared/records'
 import type { RuleLine } from '@web/modules/social-recovery/shared/rule-lines'
+
+/** The code of an error the SDK's setup check finds. */
+export type SetupErrorCode = typeof SETUP_ERROR_CODES[number]
 
 /** A shape this wallet refuses to save, named by its sentence. */
 export type RefusalKey =
@@ -99,10 +103,18 @@ export interface EditorViewProps {
   navigate: (to: string) => void
   /** Members the path cannot lose: each reads still needed and cannot be removed. */
   stillNeeded?: ReadonlySet<MemberKey>
+  /**
+   * The holder's Remove keeps the group's threshold as typed, and the editor's
+   * refusal judges it. Without it, a Remove brings a threshold above the
+   * remaining members down to fit them.
+   */
+  plainRemoval?: boolean
   heading?: EditorHeading
   continueLabel?: string
   /** What sits between the path and its actions. */
   beforeActions?: ReactNode
+  /** Told when the check before Continue starts and when it ends. */
+  onCheckingChange?: (checking: boolean) => void
 }
 
 export interface CredentialRowProps {
@@ -123,6 +135,8 @@ export type KindMenuAnchorNode = View & Pick<HTMLElement, 'contains'>
 
 export interface KindMenuProps {
   kinds: readonly SlotKind[]
+  /** The network's methods: a kind whose method the deployment omits is listed, but cannot be picked. */
+  addressBook: AddressBook
   onPick: (kind: SlotKind) => void
   disabled?: boolean
   /** The menu's own test id; each kind's entry adds `-<kind>` to it. */
@@ -131,6 +145,8 @@ export interface KindMenuProps {
 
 export interface KindMenuEntryProps {
   label: string
+  /** The line under the label, where the entry says why it cannot be picked. */
+  note?: string
   onPress: () => void
   disabled?: boolean
   testID: string
@@ -141,6 +157,7 @@ export interface KindMenuAnchorProps {
   children: ReactNode
   open: boolean
   kinds: readonly SlotKind[]
+  addressBook: AddressBook
   onPick: (kind: SlotKind) => void
   onClose: () => void
   disabled?: boolean
@@ -152,6 +169,7 @@ export interface KindMenuButtonProps {
   text: string
   open: boolean
   kinds: readonly SlotKind[]
+  addressBook: AddressBook
   onToggle: () => void
   onPick: (kind: SlotKind) => void
   onClose: () => void

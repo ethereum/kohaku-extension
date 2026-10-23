@@ -3,10 +3,12 @@
  * `navigator.credentials.create` at enrollment and `navigator.credentials.get`
  * at a claim and at an access test, and hands the method the result.
  *
- * - `rp.id` and `rpId` are the extension's origin host; the method receives
- *   the full origin string as its relying party id, and the credential's rp id
- *   hash must equal `sha256("chrome-extension://<id>")`, never the hash of the
- *   bare id. A mismatch is reported before the method runs.
+ * - The method's input names the relying party by the full origin string and
+ *   carries the options for the browser under `options.publicKey`. The device
+ *   accepts that origin string and nothing else, and hands the browser the
+ *   origin's host as `rp.id` and `rpId`. The credential's rp id hash must
+ *   equal `sha256("chrome-extension://<id>")`, never the hash of the bare id.
+ *   A mismatch is reported before the method runs.
  * - The synced or device-bound kind comes from the ceremony's own flags.
  * - A high `s` is lowered before the method receives the assertion.
  * - A browser error is read before the method runs.
@@ -15,7 +17,7 @@
  * are parameters, so a test runs the device with a mocked
  * `navigator.credentials` and a fabricated authenticator data.
  */
-import { hexToBytes, isHex } from 'viem'
+import { isBytesLike } from '@web/modules/social-recovery/shared/webauthn'
 
 import type {
   AssertionResponseLike,
@@ -35,7 +37,6 @@ import { dismissed, failed } from './verdicts'
 import {
   authDataFromAttestationObject,
   CEREMONY_TIMEOUT_MS,
-  fromBase64Url,
   normalizeDerSignature,
   passkeyFactsOf,
   readAuthenticatorData,
@@ -55,14 +56,6 @@ const defaultRandomBytes = (length: number): Uint8Array =>
 const toArrayBuffer = (bytes: Uint8Array): ArrayBuffer =>
   bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer
 
-/** A credential id as bytes: base64url, the form `PublicKeyCredential.id` takes, or hex. */
-export const credentialIdBytes = (id: string): Uint8Array =>
-  isHex(id) ? hexToBytes(id) : fromBase64Url(id)
-
-/** The challenge as bytes: the digest in hex, or base64url. */
-export const challengeBytes = (challenge: string): Uint8Array =>
-  isHex(challenge) ? hexToBytes(challenge) : fromBase64Url(challenge)
-
 /**
  * Whether the method asked for the extension's own relying party: the full
  * origin string `chrome-extension://<id>` and nothing else. The bare id, an
@@ -74,71 +67,73 @@ export const isOwnRelyingParty = (asked: string | undefined, rp: RelyingParty): 
   asked === rp.relyingPartyId
 
 /**
- * The options `navigator.credentials.create` takes, from the method's input.
+ * Whether the method's input names the extension's own relying party, as its
+ * relying party id and, where its options name one, inside the options.
+ */
+const asksOwnRelyingParty = (
+  relyingPartyId: string | undefined,
+  inOptions: string | undefined,
+  rp: RelyingParty
+): boolean =>
+  isOwnRelyingParty(relyingPartyId, rp) &&
+  (inOptions === undefined || isOwnRelyingParty(inOptions, rp))
+
+/**
+ * The options `navigator.credentials.create` takes, from the method's options.
  * The method names the relying party by its origin string, the browser by the
  * host: the host replaces the id and keeps every other member the method set.
- * The hand-off asks for a cross-platform authenticator over the hybrid route.
+ * The challenge and the user id are the device's own random bytes: the
+ * method's are a fixed challenge and an id derived from the user name, so two
+ * passkeys of one name would replace each other on one authenticator. The
+ * hand-off asks for a cross-platform authenticator over the hybrid route.
  */
 export const creationOptionsFrom = (
-  input: PasskeyEnrollInput,
+  asked: Partial<PublicKeyCredentialCreationOptions>,
   rp: RelyingParty,
   settings: { handOff?: boolean; timeoutMs: number; challenge: Uint8Array; userId: Uint8Array }
 ): PublicKeyCredentialCreationOptions => {
-  const name = input.user?.name || RELYING_PARTY_NAME
+  const name = asked.user?.name || RELYING_PARTY_NAME
   const options: PublicKeyCredentialCreationOptions & { hints?: string[] } = {
-    rp: { id: rp.rpId, name: input.rp?.name || RELYING_PARTY_NAME },
+    ...asked,
+    rp: { id: rp.rpId, name: RELYING_PARTY_NAME },
     user: {
-      id: toArrayBuffer(input.user?.id ? credentialIdBytes(input.user.id) : settings.userId),
+      id: toArrayBuffer(settings.userId),
       name,
-      displayName: input.user?.displayName || name
+      displayName: asked.user?.displayName || name
     },
-    challenge: toArrayBuffer(
-      input.challenge ? challengeBytes(input.challenge) : settings.challenge
-    ),
-    pubKeyCredParams: input.pubKeyCredParams?.length
-      ? input.pubKeyCredParams
+    challenge: toArrayBuffer(settings.challenge),
+    pubKeyCredParams: asked.pubKeyCredParams?.length
+      ? asked.pubKeyCredParams
       : [{ type: 'public-key', alg: ES256 }],
     authenticatorSelection: {
       residentKey: 'required',
       requireResidentKey: true,
       userVerification: 'required',
-      ...input.authenticatorSelection,
+      ...asked.authenticatorSelection,
       ...(settings.handOff ? { authenticatorAttachment: 'cross-platform' } : {})
     },
-    attestation: input.attestation ?? 'none',
+    attestation: asked.attestation ?? 'none',
     timeout: settings.timeoutMs,
-    ...(input.excludeCredentials?.length
-      ? {
-          excludeCredentials: input.excludeCredentials.map((c) => ({
-            type: 'public-key' as const,
-            id: toArrayBuffer(credentialIdBytes(c.id))
-          }))
-        }
-      : {}),
     ...(settings.handOff ? { hints: ['hybrid'] } : {})
   }
   return options
 }
 
-/** The options `navigator.credentials.get` takes, from the method's input. */
+/**
+ * The options `navigator.credentials.get` takes, from the method's options:
+ * the method's challenge and credentials, under the origin's host as `rpId`.
+ */
 export const requestOptionsFrom = (
-  input: PasskeySigningInput,
+  asked: Partial<PublicKeyCredentialRequestOptions> & { challenge: BufferSource },
   rp: RelyingParty,
   settings: { handOff?: boolean; timeoutMs: number }
 ): PublicKeyCredentialRequestOptions => {
   const options: PublicKeyCredentialRequestOptions & { hints?: string[] } = {
-    challenge: toArrayBuffer(challengeBytes(input.challenge)),
+    ...asked,
+    challenge: toArrayBuffer(toBytes(asked.challenge)),
     rpId: rp.rpId,
-    userVerification: input.userVerification ?? 'required',
+    userVerification: asked.userVerification ?? 'required',
     timeout: settings.timeoutMs,
-    ...(input.allowCredentials?.length
-      ? {
-          allowCredentials: input.allowCredentials.map((c) => ({
-            type: 'public-key' as const,
-            id: toArrayBuffer(credentialIdBytes(c.id))
-          }))
-        }
-      : {}),
     ...(settings.handOff ? { hints: ['hybrid'] } : {})
   }
   return options
@@ -208,10 +203,14 @@ export const createPasskeyDevice = ({
 
     async enroll(input: unknown, context: DeviceCallContext): Promise<DeviceResult> {
       const asked = input as PasskeyEnrollInput | undefined
-      if (!isOwnRelyingParty(asked?.rp?.id, relyingParty)) {
+      const options = asked?.options?.publicKey
+      if (!asksOwnRelyingParty(asked?.relyingPartyId, options?.rp?.id, relyingParty)) {
         return { ok: false, stop: failed('relying-party-mismatch') }
       }
-      const publicKey = creationOptionsFrom(asked ?? {}, relyingParty, {
+      if (asked?.kind !== 'ceremony' || !options) {
+        return { ok: false, stop: failed('material-rejected') }
+      }
+      const publicKey = creationOptionsFrom(options, relyingParty, {
         handOff: context.handOff,
         timeoutMs,
         challenge: randomBytes(32),
@@ -242,13 +241,15 @@ export const createPasskeyDevice = ({
 
     async sign(input: unknown, context: DeviceCallContext): Promise<DeviceResult> {
       const asked = input as PasskeySigningInput | undefined
-      if (!asked?.challenge) {
+      const options = asked?.options?.publicKey
+      const challenge = options?.challenge
+      if (!options || !isBytesLike(challenge)) {
         return { ok: false, stop: failed('material-rejected') }
       }
-      if (!isOwnRelyingParty(asked.rpId, relyingParty)) {
+      if (!asksOwnRelyingParty(asked?.relyingPartyId, options.rpId, relyingParty)) {
         return { ok: false, stop: failed('relying-party-mismatch') }
       }
-      const publicKey = requestOptionsFrom(asked, relyingParty, {
+      const publicKey = requestOptionsFrom({ ...options, challenge }, relyingParty, {
         handOff: context.handOff,
         timeoutMs
       })

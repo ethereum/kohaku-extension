@@ -8,7 +8,7 @@
  * answer this time, with retry and no abandon; a group whose open rows
  * cannot reach its threshold, with abandon; a guardian row still open.
  */
-import type { Configuration, Gathering } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Configuration, Gathering } from '@kohaku-eth/social-recovery'
 
 import type {
   FakeDeps,
@@ -66,7 +66,7 @@ const submissionOver = (gathering: Gathering, places: number[]) => ({
   proofs: places.map((place) => {
     const at = gathering.places[place]
     return {
-      place: BigInt(place),
+      place,
       method: at.method,
       config: at.config,
       salt: at.salt,

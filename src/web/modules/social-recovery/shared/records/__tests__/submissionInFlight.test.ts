@@ -8,12 +8,7 @@
  * The records run against the rich JSON storage double, whose `calls` list
  * every storage write, so a test sees each write an accessor call makes.
  */
-import type {
-  Address,
-  ApproverReply,
-  Gathering,
-  Hex
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Gathering, Hex, Reply } from '@kohaku-eth/social-recovery'
 import {
   createWalletRecords,
   DirectWipeEvent,
@@ -50,7 +45,7 @@ const OTHER_CLAIM: SubmissionInFlightClaim = {
   claimedAt: T0 + 1000
 }
 
-const reply = (place: number): ApproverReply => ({
+const reply = (place: number): Reply => ({
   kind: 'recovery-proof-reply',
   version: 1,
   chainId: CHAIN_ID.toString(),
@@ -67,7 +62,7 @@ const reply = (place: number): ApproverReply => ({
   proof: place === 0 ? '0xdeadbeefdeadbeef' : '0xfeedfacefeedface'
 })
 
-const gathering = (replies: ApproverReply[]): Gathering => ({
+const gathering = (replies: Reply[]): Gathering => ({
   kind: 'gathering',
   version: 1,
   purpose: 'approval',
@@ -80,6 +75,8 @@ const gathering = (replies: ApproverReply[]): Gathering => ({
     attemptId: '7',
     setupNonce: '3',
     setupBody: '0x00',
+    payload: '0x00',
+    order: { token: METHOD, amount: '0', payee: ACCOUNT },
     validUntil: '1700086400',
     block: { number: 1, timestamp: '1700000000', hash: '0x01' }
   },
@@ -89,7 +86,8 @@ const gathering = (replies: ApproverReply[]): Gathering => ({
     config: '0xabcd',
     salt: '0x01',
     standing: 'not-stopped',
-    stoppable: false
+    stoppable: false,
+    credentialHoldsCode: false
   })),
   replies
 })

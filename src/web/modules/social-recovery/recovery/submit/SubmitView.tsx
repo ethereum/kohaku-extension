@@ -8,7 +8,7 @@
  * step.
  */
 import React from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
@@ -22,6 +22,7 @@ import {
   SectionCard,
   TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import { mayStillLand } from '@web/modules/social-recovery/shared/writes'
 import { DepositStepAside } from '@web/modules/social-recovery/shared/writes/components'
 
@@ -66,9 +67,9 @@ const SubmitView = ({
 
   if (load.phase === 'loading') {
     return (
-      <TwoColumn testID="submit-columns">
-        <ActivityIndicator testID="submit-loading" />
-      </TwoColumn>
+      <View testID="submit-loading" style={flexbox.flex1}>
+        <LoadingBlock variant="screen" message={t('socialRecovery.loading.session')} />
+      </View>
     )
   }
   if (load.phase === 'update-the-wallet') {
@@ -178,16 +179,18 @@ const SubmitView = ({
   const unlocked = valuesRendered && verify.status === 'verified' && sending.status === 'ready'
   const idle = write.status === 'idle' && !run.refusal
   const canStart = unlocked && idle && run.lookup !== 'reading'
+  // While the fee is checked, Start stays on screen, held.
+  const checkingFee = write.status === 'checkingGas'
   // Back wherever nothing is on its way to the chain, and on the deposit step.
   const showsBack =
     write.status === 'needsDeposit' ||
     (!isLive(run) && !landedOf(run) && !mayStillLand(write) && !run.refusal)
 
-  const actions = (idle || showsBack) && (
+  const actions = (idle || checkingFee || showsBack) && (
     <ActionsRow
       testID="submit-actions"
       primary={
-        idle ? (
+        idle || checkingFee ? (
           <Button
             testID="submit-action"
             type="primary"

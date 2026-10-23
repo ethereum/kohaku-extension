@@ -137,6 +137,21 @@ describe('the recovery in progress route', () => {
     }
   )
 
+  it('says it reads the recoveries under the settings chrome while the first read of the list has not answered', async () => {
+    const storage = makeStorage()
+    mockStorage.current = { ...storage, getAll: () => new Promise<never>(() => {}) }
+
+    view = await mount(() => <InProgressScreen />)
+
+    const waiting = view.byTestId('in-progress-route-loading')
+    expect(waiting?.textContent).toBe(t('socialRecovery.loading.entries'))
+    expect(waiting?.querySelector('[data-testid="loading-screen"]')).not.toBeNull()
+    expect(waiting?.closest('[data-testid="setup-chrome"]')).not.toBeNull()
+    expect(view.byTestId('recovery-stage')?.textContent).toBe('4 of 5')
+    expect(view.byTestId('in-progress')).toBeNull()
+    expect(mockViewMounts).toEqual([])
+  })
+
   it('renders a failed first read under the settings chrome with the failure and its retry', async () => {
     const storage = makeStorage()
     let unreadable = true

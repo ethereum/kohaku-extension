@@ -31,7 +31,7 @@
  * arrival released it. A second request of the same account, sent while the
  * first one still waits in the wallet, is refused by the request queue.
  */
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import {
   heldRequestStateOf,
   newSendRequestId,

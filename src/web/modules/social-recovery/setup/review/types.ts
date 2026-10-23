@@ -1,16 +1,16 @@
 import type {
   Address,
-  BackupForm,
+  BackupChoice,
   Clause,
   Credential,
   ISetupClient,
   ModuleInfo,
+  Parties,
   ReadResult,
   SetupDescription,
   SetupDraft,
-  SetupState,
-  TrustedParties
-} from '@web/modules/social-recovery/sdk-interfaces'
+  SetupState
+} from '@kohaku-eth/social-recovery'
 import type {
   AddressBook,
   FitCheckReading,
@@ -38,7 +38,7 @@ export interface ReviewWaitChip {
 }
 
 /** The things a recovery publishes that are not addresses, as item slugs of the disclosures. */
-export type PublicationItem = 'passkey' | 'passkeys' | 'passportIdentifier' | 'aadhaar'
+export type PublicationItem = 'passkey' | 'passkeys' | 'passportIdentifier' | 'aadhaarIdentifier'
 
 /** One row of the lead's path block, rendered. */
 export interface PathRow {
@@ -63,7 +63,7 @@ export type TrustReadName = 'trustedParties' | 'moduleInfo' | 'paused'
 
 /** The reads of one method; a member not yet present is a read still running. */
 export interface MethodReads {
-  trustedParties?: ReadResult<TrustedParties>
+  trustedParties?: ReadResult<Parties>
   moduleInfo?: ReadResult<ModuleInfo>
   paused?: ReadResult<boolean>
 }
@@ -193,7 +193,7 @@ export interface SaveGateInput extends AccountReads {
   /** The path of the draft, whose every slot must hold a method. */
   clauses: readonly Clause[]
   /** The backup form of the draft; an encrypted one needs the recovery password set. */
-  backup: BackupForm
+  backup: BackupChoice
   /** Whether the records hold a recovery password record. */
   passwordSet: boolean
 }

@@ -19,7 +19,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 import { clientFactsOf, creationPrivilegesOf } from './account-facts'
 import { addressBookOf, sameAddress } from './addresses'
@@ -27,7 +27,7 @@ import { buildRecoveryClient, isDigestVersionRefusal } from './build-client'
 import { createChainReads } from './chain-reads'
 import { CHAIN_IDS, WALLET_RECOVERY_CHAIN } from './chains'
 import { extensionProviderFor, networkOf, providerKeyOf } from './extension-provider'
-import { createCodeRead, createProviderAdapter, createTransactionRead } from './provider-adapter'
+import { createProviderAdapter } from './provider-adapter'
 import { createReceiptWait } from './receipts'
 import type { AccountFacts, ExtensionProvider, RecoveryClientState } from './types'
 
@@ -108,9 +108,7 @@ export const useRecoveryClient = (
       chain: WALLET_RECOVERY_CHAIN,
       account,
       addressBook: addressBookOf(WALLET_RECOVERY_CHAIN),
-      provider: createProviderAdapter(provider),
-      codeRead: createCodeRead(provider),
-      transactionRead: createTransactionRead(provider)
+      provider: createProviderAdapter(provider)
     })
       .then((client) => {
         if (live) {

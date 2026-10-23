@@ -1,7 +1,7 @@
 /** The guardian row's state, its record writes and the handlers its blocks call. */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 import { enrollHost, notSupported } from '@web/modules/social-recovery/shared/ceremony'
 import type { CeremonyOutcome } from '@web/modules/social-recovery/shared/ceremony'
 import { isSignerNotWired, isSignFlowFailure } from '@web/modules/social-recovery/shared/client'

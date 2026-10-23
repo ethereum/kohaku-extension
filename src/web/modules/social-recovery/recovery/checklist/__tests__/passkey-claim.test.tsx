@@ -7,7 +7,7 @@
  * ceremony that did not pass leaves its note with a retry; a passkey another
  * origin committed offers no action.
  */
-import type { Configuration } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Configuration } from '@kohaku-eth/social-recovery'
 import type { CeremonyOutcome, ReportStore } from '@web/modules/social-recovery/shared/ceremony'
 import type { ChainId } from '@web/modules/social-recovery/shared/records'
 
@@ -181,7 +181,72 @@ describe('the passkey row', () => {
     expect(back.byTestId('checklist-undelivered')).toBeNull()
   })
 
-  it('reads a reply the client refuses as the row failed note, with the row still open', async () => {
+  it('writes one replacement request and opens the ceremony once for a retry pressed again while the old request is removed', async () => {
+    const mounted = await open()
+    await mounted.press('checklist-row-0-answer-here')
+    const [id] = deps.requestIds
+    const back = await open({ account: ACCOUNT, ceremony: id })
+    const navigated = back.navigate.mock.calls.length
+    const release = world.storage.holdRemovals()
+
+    await outside(async () => {
+      back.byTestId('checklist-undelivered-retry')?.click()
+      back.byTestId('checklist-undelivered-retry')?.click()
+    })
+    expect(back.isDisabled('checklist-undelivered-retry')).toBe(true)
+    await back.press('checklist-undelivered-retry')
+    expect(deps.requestIds).toEqual([id])
+
+    release()
+    await settle()
+
+    expect(deps.requestIds).toHaveLength(2)
+    const replacement = deps.requestIds[1]
+    expect(back.navigate.mock.calls.slice(navigated).map(([path]) => path)).toEqual([
+      ceremonyPath({
+        call: 'createClaim',
+        method: 'passkey',
+        id: replacement,
+        handOff: false,
+        returnTo: checklistPathOf(ACCOUNT, replacement)
+      })
+    ])
+    expect((await world.records.ceremonyRequest(id).read()).status).toBe('absent')
+    expect((await world.records.ceremonyRequest(replacement).read()).status).toBe('present')
+  })
+
+  it('lets the claim launch again under the write-failed alert where the replacement request cannot be stored', async () => {
+    const mounted = await open()
+    await mounted.press('checklist-row-0-answer-here')
+    const [id] = deps.requestIds
+    const back = await open({ account: ACCOUNT, ceremony: id })
+    const navigated = back.navigate.mock.calls.length
+    world.storage.refuse.push('ceremonyRequest')
+
+    await back.press('checklist-undelivered-retry')
+
+    expect(back.byTestId('checklist-write-failed')?.textContent).toContain(
+      t('socialRecovery.checklist.writeFailed')
+    )
+    expect(back.navigate.mock.calls.slice(navigated)).toEqual([])
+    expect(back.isDisabled('checklist-row-0-answer-here')).toBe(false)
+
+    world.storage.refuse.splice(0)
+    await back.press('checklist-row-0-answer-here')
+
+    expect(deps.requestIds).toHaveLength(3)
+    expect(back.lastPath()).toBe(
+      ceremonyPath({
+        call: 'createClaim',
+        method: 'passkey',
+        id: deps.requestIds[2],
+        handOff: false,
+        returnTo: checklistPathOf(ACCOUNT, deps.requestIds[2])
+      })
+    )
+  })
+
+  it('reads a reply of another attempt as the row failed note, with the row still open and nothing added', async () => {
     const mounted = await open()
     await mounted.press('checklist-row-0-answer-here')
     const [id] = deps.requestIds
@@ -189,7 +254,7 @@ describe('the passkey row', () => {
 
     const back = await returnFrom(id, passed({ reply: stale }))
 
-    expect(kit.addApproverReply).toHaveBeenCalledTimes(1)
+    expect(kit.addApproverReply).not.toHaveBeenCalled()
     const after = await storedSession(world.records)
     expect(after?.value.state === 'live' && after.value.gathering.replies).toEqual([])
     expect(back.byTestId('checklist-row-0-note')?.textContent).toBe(t(`${CEREMONY}.failedNote`))
@@ -599,6 +664,7 @@ describe('the passkey row', () => {
         .write(withReplies(gathering, [0]), read?.revision ?? null)
       if (refuses) {
         kit.addApproverReply.mockImplementation((held) => ({
+          outcome: 'refused',
           gathering: held,
           reason: { kind: 'add-refusal', cause: 'binding-mismatch' }
         }))
@@ -755,6 +821,8 @@ describe('the passkey row', () => {
     expect(claimAskedOf({ ...record, chainId: String(CHAIN_ID) } as never, target)).toEqual({
       place: 0,
       request: requestOf(gathering, 0),
+      method: 'passkey',
+      params: { handOff: true },
       handOff: true
     })
     expect(claimAskedOf({ ...record, chainId: 'not-a-chain' } as never, target)).toBeNull()

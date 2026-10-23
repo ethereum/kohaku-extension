@@ -8,8 +8,15 @@ import { getAddress, zeroAddress } from 'viem'
 
 import i18n from '@common/config/localization'
 import en from '@common/config/localization/translations/en.json'
-import { SETUP_ERROR_CODES } from '@web/modules/social-recovery/sdk-interfaces'
-import type { Clause, Finding, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import { SETUP_ERROR_CODES } from '@web/modules/social-recovery/shared/client'
+import type {
+  Clause,
+  ErrorCode,
+  SetupDraft,
+  ValidationError,
+  ValidationWarning,
+  WarningCode
+} from '@kohaku-eth/social-recovery'
 
 import {
   renderFailedTestLine,
@@ -31,14 +38,17 @@ import {
   kindOf,
   makeItAGroup,
   makeRequired,
+  methodKindOf,
   moveToGroup,
   placeAt,
   readThreshold,
   removeClause,
   removeMember,
+  removeMemberToFit,
   setThreshold,
   withClauses
 } from '@web/modules/social-recovery/setup/editor/operations'
+import { refusalsOf } from '@web/modules/social-recovery/setup/editor/refusals'
 import { pathHolds, sameCredential } from '@web/modules/social-recovery/shared/records'
 import {
   AADHAAR,
@@ -56,6 +66,13 @@ import {
 } from '@web/modules/social-recovery/setup/editor/__tests__/harness'
 
 const t = i18n.t
+
+const DRAFT: SetupDraft = {
+  wait: 259200,
+  clauses: [],
+  ignoresPause: false,
+  privacy: { publicMetadata: '0x', backup: 'encrypted' }
+}
 
 /** Freezes the clauses and their credential lists, so an operation that mutates its input throws. */
 const frozen = (clauses: Clause[]): Clause[] =>
@@ -96,6 +113,16 @@ describe('the empty slot', () => {
     expect(kindOf(PASSPORT, BOOK)).toBe('zkpassport')
     expect(kindOf(AADHAAR, BOOK)).toBe('aadhaar')
     expect(kindOf({ ...ALICE, method: BOOK.manager }, BOOK)).toBeUndefined()
+  })
+
+  it('gives the zero address no kind where the deployment omits a method, and keeps the empty slot of that kind', () => {
+    const omitted = { ...BOOK, methods: { ...BOOK.methods, aadhaar: zeroAddress } }
+    expect(methodKindOf(zeroAddress, omitted)).toBeUndefined()
+    expect(
+      kindOf({ method: zeroAddress, config: '0x01', label: 'aadhaar' }, omitted)
+    ).toBeUndefined()
+    expect(kindOf(emptySlotOf('aadhaar'), omitted)).toBe('aadhaar')
+    expect(kindOf(PASSKEY, omitted)).toBe('passkey')
   })
 })
 
@@ -200,6 +227,31 @@ describe('a group', () => {
   it('stays as an empty group when it loses its last member', () => {
     const clauses = [{ threshold: 2, credentials: [ALICE] }]
     expect(removeMember(clauses, 0, 0)).toEqual([{ threshold: 2, credentials: [] }])
+  })
+
+  it("on the holder's Remove, leaves an emptied group at a threshold of one", () => {
+    const clauses = [{ threshold: 2, credentials: [ALICE] }]
+    expect(removeMemberToFit(clauses, 0, 0)).toEqual([{ threshold: 1, credentials: [] }])
+  })
+
+  it("on the holder's Remove, brings a threshold left above the members down to their count", () => {
+    const clauses = frozen([{ threshold: 2, credentials: [ALICE, BOB] }])
+    expect(removeMemberToFit(clauses, 0, 1)).toEqual([{ threshold: 1, credentials: [ALICE] }])
+    expect(clauses).toEqual([{ threshold: 2, credentials: [ALICE, BOB] }])
+  })
+
+  it("on the holder's Remove, keeps a threshold left within the members", () => {
+    const clauses = frozen([{ threshold: 1, credentials: [ALICE, BOB, CAROL] }])
+    expect(removeMemberToFit(clauses, 0, 2)).toEqual([{ threshold: 1, credentials: [ALICE, BOB] }])
+  })
+
+  it('leaves a threshold set by hand above the members to the refusals', () => {
+    const removed = removeMemberToFit([{ threshold: 2, credentials: [ALICE, BOB, CAROL] }], 0, 2)
+    const raised = setThreshold(removed, 0, 3)
+    expect(raised).toEqual([{ threshold: 3, credentials: [ALICE, BOB] }])
+    expect(refusalsOf(withClauses(DRAFT, raised)).map(({ key }) => key)).toContain(
+      'thresholdAboveMembers'
+    )
   })
 
   it('takes any whole threshold, bounds left to the refusals', () => {
@@ -309,7 +361,7 @@ describe('filling and placing', () => {
 
   it('keeps every field of the draft but its clauses', () => {
     const draft: SetupDraft = {
-      wait: 604800n,
+      wait: 604800,
       clauses: presetPath(),
       ignoresPause: true,
       privacy: { publicMetadata: '0x01', backup: 'clear' }
@@ -411,11 +463,16 @@ describe('the enroll search', () => {
 })
 
 describe('the path check at continue', () => {
-  const finding = (code: Finding['code']): Finding => ({ code, subject: 'setup', values: {} })
+  const finding = (code: ErrorCode): ValidationError => ({ code, subject: 'setup', values: {} })
+  const warning = (code: WarningCode): ValidationWarning => ({
+    code,
+    subject: 'setup',
+    values: {}
+  })
 
   it('blocks on an error finding and never on warnings alone', () => {
     expect(blocksContinue({ errors: [finding('clause.empty')], warnings: [] })).toBe(true)
-    expect(blocksContinue({ errors: [], warnings: [finding('clause.empty')] })).toBe(false)
+    expect(blocksContinue({ errors: [], warnings: [warning('clause.shared-failure')] })).toBe(false)
     expect(blocksContinue({ errors: [], warnings: [] })).toBe(false)
   })
 
@@ -452,7 +509,7 @@ describe('the path check at continue', () => {
     expect(renderFinding(finding('clause.threshold-above-count'), t)).toBe(
       en.socialRecovery.editor.refusals.thresholdAboveMembers
     )
-    expect(renderFinding(finding('clause.single-point'), t)).toBe('clause.single-point')
+    expect(renderFinding(warning('clause.single-point'), t)).toBe('clause.single-point')
   })
 })
 
@@ -478,6 +535,12 @@ describe('the line of a failed access test', () => {
       expect(renderFailedTestLine(failed(cause), t)).toBe(
         en.socialRecovery.ceremony.testFailedNoMatch
       )
+    )
+  })
+
+  it('gives the reverted sentence for a check the chain refused to judge', () => {
+    expect(renderFailedTestLine(failed('check-reverted'), t)).toBe(
+      en.socialRecovery.ceremony.testFailedReverted
     )
   })
 

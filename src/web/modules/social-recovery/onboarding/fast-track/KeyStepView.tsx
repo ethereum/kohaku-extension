@@ -3,11 +3,11 @@
  * over the only-backup warning, with the paper line beside them; the key that will control
  * the account shows as an address, never as a field. Continue stays disabled
  * until the holder confirms the words are written down, and while the wallet
- * adds the account; Back is disabled while the add runs, until its limit
- * passes with no answer.
+ * adds the account, beside a line that says the wallet adds it; Back is
+ * disabled while the add runs, until its limit passes with no answer.
  */
 import React from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
@@ -29,6 +29,7 @@ import {
   StepCounter,
   TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import { renderFullAddress } from '@web/modules/social-recovery/shared/display'
 
 import { KEY_STEP } from './constants'
@@ -102,17 +103,18 @@ const KeyStepView = ({
           {phase === 'createFailed' && failure('fast-track-key-create-failed')}
           {phase === 'addFailed' && failure('fast-track-key-add-failed')}
           {phase !== 'createFailed' && phase !== 'addFailed' && (
-            <View style={[flexbox.alignCenter, spacings.mbLg]}>
-              <ActivityIndicator testID="fast-track-key-spinner" />
-              {phase === 'creating' && (
-                <Text
-                  fontSize={14}
-                  appearance="secondaryText"
-                  style={spacings.mtSm}
-                  testID="fast-track-key-creating"
-                >
-                  {t(`${KEY}.creating`)}
-                </Text>
+            <View testID="fast-track-key-waiting" style={spacings.mbLg}>
+              {phase === 'creating' ? (
+                <View testID="fast-track-key-creating">
+                  <LoadingBlock variant="block" message={t(`${KEY}.creating`)} />
+                </View>
+              ) : (
+                <View testID="fast-track-key-adding">
+                  <LoadingBlock
+                    variant="block"
+                    message={t('socialRecovery.loading.addingAccount')}
+                  />
+                </View>
               )}
             </View>
           )}
@@ -219,6 +221,11 @@ const KeyStepView = ({
 
         {phase === 'addFailed' && failure('fast-track-key-add-failed')}
         {pendingLine}
+        {adding && (
+          <View testID="fast-track-key-adding-line" style={spacings.mbSm}>
+            <LoadingBlock variant="row" message={t('socialRecovery.loading.addingAccount')} />
+          </View>
+        )}
 
         <ActionsRow
           testID="fast-track-key-actions"
@@ -230,9 +237,7 @@ const KeyStepView = ({
               disabled={!acknowledged || adding}
               onPress={onContinue}
               hasBottomSpacing={false}
-            >
-              {adding && <ActivityIndicator style={spacings.mlTy} />}
-            </Button>
+            />
           }
           secondary={backButton(adding && !pending)}
         />

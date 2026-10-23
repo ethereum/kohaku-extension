@@ -1,16 +1,15 @@
 import type { Account } from '@ambire-common/interfaces/account'
 import type { Network } from '@ambire-common/interfaces/network'
-import type {
-  Address,
-  CancelledBy,
-  DeploymentDescriptor,
-  Hex
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, CancelledBy, DeploymentDescriptor, Hex } from '@kohaku-eth/social-recovery'
 import type {
   WatcherConnection,
   WatcherReads
 } from '@web/modules/social-recovery/shared/client/types'
-import type { ChainId, RecordStorage } from '@web/modules/social-recovery/shared/records/types'
+import type {
+  ChainId,
+  RecordDeployment,
+  RecordStorage
+} from '@web/modules/social-recovery/shared/records/types'
 
 import type { ENDING_GAPS, OPENING_GAPS } from './constants'
 
@@ -84,6 +83,8 @@ export type AttemptEnding =
       controller?: Address
       /** The time of the block of the consume log, in seconds. */
       at?: number
+      /** The transaction of the consume log; absent on a reading an earlier build wrote. */
+      transactionHash?: Hex
       /** Why a field is missing although the logs were read. */
       endingGap?: EndingGap
       /** The pinned block of the first scan that found a log of the ending missing. */
@@ -114,6 +115,8 @@ export interface WatcherReading {
   attempt?: WatchedAttempt
   /** The ending of the last attempt, where the manager holds an ended one. */
   ended?: AttemptEnding
+  /** The manager and the action the reading came from; absent on a reading an earlier build wrote. */
+  readonly deployment?: RecordDeployment
 }
 
 /** A poll that failed or did not answer in time; `at` in ms since epoch. */
@@ -189,6 +192,8 @@ export interface PollLimits {
 /** What one poll over the watched accounts takes. */
 export interface PollInput {
   reads: WatcherReads
+  /** The manager and the action `reads` go to, written with each reading. */
+  deployment: RecordDeployment
   accounts: readonly Address[]
   chainId: ChainId
   storage: WatcherStorage

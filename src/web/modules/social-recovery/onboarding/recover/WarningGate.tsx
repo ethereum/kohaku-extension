@@ -3,7 +3,9 @@
  * support agent ever asks a holder to start a recovery. Continue stays
  * disabled until the holder ticks the acknowledgment; the condensed form draws
  * no continue and reports the acknowledgment to the screen that hosts it.
- * Nothing remembers it: every mount takes its own.
+ * Nothing remembers it: every mount takes its own, except that the condensed
+ * form starts ticked where its host says the holder already acknowledged the
+ * warning on the screen before.
  */
 import React, { useCallback, useState } from 'react'
 import { View } from 'react-native'
@@ -23,7 +25,9 @@ import WarningImportPointer from './WarningImportPointer'
 
 const WarningGate = ({ form, testID = 'recovery-warning', ...handlers }: WarningGateProps) => {
   const { t } = useTranslation()
-  const [acknowledged, setAcknowledged] = useState(false)
+  const [acknowledged, setAcknowledged] = useState(
+    'initiallyAcknowledged' in handlers && handlers.initiallyAcknowledged === true
+  )
   const copy = warningCopyOf(form)
 
   const onContinue = 'onContinue' in handlers ? handlers.onContinue : null

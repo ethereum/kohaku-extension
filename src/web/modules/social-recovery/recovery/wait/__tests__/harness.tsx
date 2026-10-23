@@ -36,10 +36,10 @@ import type {
   Configuration,
   Gathering,
   Hex,
-  Notification,
+  KitNotification,
   PreparedCall,
   RecoveryState
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type {
   AccountFactsResult,
   KeyHandle,
@@ -295,7 +295,7 @@ export interface FakeChain {
   /** The pinned block's time, in seconds. */
   blockTime: number
   blockNumber: number
-  events: Notification[]
+  events: KitNotification[]
   authorized: boolean
   supported: boolean
   /** Whether the key being removed still holds a key value on the account. */
@@ -345,7 +345,7 @@ export const attemptStarted = (
   account: Address,
   payload: Hex = PAYLOAD,
   attemptId = 1n
-): Notification => ({
+): KitNotification => ({
   kind: 'attempt-started',
   account,
   action: checklist.BOOK.action,
@@ -360,7 +360,7 @@ export const attemptStarted = (
   at: logAt(START_BLOCK + 2)
 })
 
-export const attemptCancelled = (account: Address, cancelledBy: CancelledBy): Notification => ({
+export const attemptCancelled = (account: Address, cancelledBy: CancelledBy): KitNotification => ({
   kind: 'attempt-cancelled',
   account,
   action: checklist.BOOK.action,
@@ -373,7 +373,7 @@ export const attemptCancelled = (account: Address, cancelledBy: CancelledBy): No
   at: logAt(START_BLOCK + 9, TX_HASH)
 })
 
-export const attemptConsumed = (account: Address): Notification => ({
+export const attemptConsumed = (account: Address): KitNotification => ({
   kind: 'attempt-consumed',
   account,
   action: checklist.BOOK.action,
@@ -457,7 +457,7 @@ export const fakeKit = (account: Address): Kit => {
       block: { number: chain.blockNumber, timestamp: chain.blockTime, hash: zeroHash }
     }
   })
-  const fetch = jest.fn(async (): Promise<Notification[]> => chain.events)
+  const fetch = jest.fn(async (): Promise<KitNotification[]> => chain.events)
   const accountFilter = jest.fn(() => ({ kind: 'account-filter' }))
   const prepareExecuteHandover = jest.fn(async () => EXECUTE_CALL)
   const isAuthorized = jest.fn(async () => chain.authorized)
@@ -478,7 +478,7 @@ export const fakeKit = (account: Address): Kit => {
   const client = {
     chain: 'sepolia',
     account,
-    descriptor: { deployedAt: 100 },
+    descriptor: { deployedAt: 100, manager: BOOK.manager, action: BOOK.action },
     recovery: {
       recoveryState,
       events: { accountFilter, fetch },
@@ -639,6 +639,28 @@ export const storeCountdownWithoutAttempt = async (
   }
   const { attemptId, setupNonce, payloadHash, ...older } = stored.value
   await storage.set(key, { ...stored, value: older })
+}
+
+/** A manager this build no longer reads. */
+export const RETIRED_MANAGER: Address = '0x00000000000000000000000000000000000Dead1'
+
+/** Moves the stored countdown of the account onto a retired manager, all else kept. */
+export const storeCountdownOnRetiredManager = async (
+  storage: TestStorage,
+  account: Address
+): Promise<void> => {
+  const key = recordKeys.recoverySession(CHAIN_ID, account)
+  const stored = (await storage.get(key)) as StoredSession
+  if (stored.value.state !== 'landed') {
+    throw new Error('no landed session')
+  }
+  await storage.set(key, {
+    ...stored,
+    value: {
+      ...stored.value,
+      deployment: { manager: RETIRED_MANAGER, action: BOOK.action }
+    }
+  })
 }
 
 /** The request id under which another page claims the execution. */
@@ -970,6 +992,7 @@ export const mountBand = (records: WalletRecords): Promise<Mounted> =>
     <HomeRecoveryBandView
       records={records}
       chainId={CHAIN_ID}
+      deployment={{ manager: BOOK.manager, action: BOOK.action }}
       navigate={(path: string) => mockWallet.navigate(path)}
       timeZone="UTC"
       useHeadline={() => null}
@@ -1056,7 +1079,11 @@ export const openWorld = async ({
   }
   await records.recoveryEntry(CHAIN_ID, account).write(entry)
   if (cache) {
-    await records.decryptedSetupCache(CHAIN_ID, account).write({ configuration, setupNonce: 1n })
+    await records.decryptedSetupCache(CHAIN_ID, account).write({
+      configuration,
+      setupNonce: 1n,
+      deployment: { manager: BOOK.manager, action: BOOK.action }
+    })
   }
   if (countdown) {
     await landCountdown(records, account, configuration)

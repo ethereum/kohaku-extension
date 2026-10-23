@@ -3,7 +3,7 @@
  * or hold the credential this screen already placed there, which a reload
  * after the enrollment finds.
  */
-import type { Clause, Credential, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Clause, Credential, SetupDraft } from '@kohaku-eth/social-recovery'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import { sameAddress } from '@web/modules/social-recovery/shared/client'
 import { enrollmentOf, isEmptySlot, slotKindOf } from '@web/modules/social-recovery/shared/records'

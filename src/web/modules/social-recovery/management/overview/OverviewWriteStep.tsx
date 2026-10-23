@@ -11,7 +11,7 @@
  * the read decides, so the write never reads as done on this step's word.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, Linking, View } from 'react-native'
+import { Linking, View } from 'react-native'
 
 import Button from '@common/components/Button'
 import { useTranslation } from '@common/config/localization'
@@ -42,6 +42,7 @@ import {
 } from '@web/modules/social-recovery/setup/review'
 import { useTrustReads } from '@web/modules/social-recovery/setup/review/useTrustReads'
 
+import ConfirmingBlock from './ConfirmingBlock'
 import { OVERVIEW, REMOVAL_DRAFT } from './constants'
 import { overviewWriteKeysOf } from './copy'
 import ReauthorizeArrival from './ReauthorizeArrival'
@@ -355,10 +356,16 @@ const OverviewWriteStep = ({
           run={run}
           droppedLine={`${OVERVIEW}.writes.dropped`}
           keysOf={overviewWriteKeysOf}
+          action={startAction}
           testID="overview-step"
         />
       )}
-      {screen === 'confirming' && <ActivityIndicator testID="overview-step-confirming" />}
+      {screen === 'confirming' && (
+        <ConfirmingBlock
+          transactionHash={write.status === 'landed' ? write.transactionHash : undefined}
+          testID="overview-step-confirming"
+        />
+      )}
       {screen === 'unread' && <WriteStepUnread onReread={run.reread} />}
       {screen === 'run' && stopped && (
         <View style={[flexbox.directionRow, flexbox.alignCenter, spacings.mtSm]}>{back}</View>

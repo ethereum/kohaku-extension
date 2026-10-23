@@ -3,24 +3,27 @@
  * every period and whenever the tab returns to view. Rounds never overlap: a
  * round asked for while one reads runs once that one returns, so a deadline
  * that passes during a slow read wipes on its return. A round that has not
- * returned leaves the poll as it stood, and a session that changes starts
+ * returned leaves the poll as it stood, marked as reading, and a session that changes starts
  * again from nothing returned, so no reading of an earlier session ever
  * stands for the new one. A client rebuilt for the same session drops the
  * round its predecessor had in flight and reads again at once; until that
- * round returns, the poll stands as it was, as for any round in flight.
+ * round returns, the poll stands as it was, as for any round in flight. An
+ * answer older than the live request, from the manager it names, is a failed
+ * round.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { isVisible } from '@web/modules/social-recovery/shared/ceremony'
 
 import { CHECKLIST_POLL_MS, POLL_LIMIT_MS } from './constants'
-import { readPollFacts } from './poll'
+import { behindRequest, readPollFacts } from './poll'
 import type { PollHook, PollInput, PollState } from './types'
 
 const PENDING: PollState = { status: 'pending' }
 
 const usePoll = ({ kit, target, deps, after }: PollInput): PollHook => {
   const [poll, setPoll] = useState<PollState>(PENDING)
+  const [polling, setPolling] = useState(false)
 
   const kitRef = useRef(kit)
   kitRef.current = kit
@@ -47,14 +50,21 @@ const usePoll = ({ kit, target, deps, after }: PollInput): PollHook => {
       return
     }
     const clock = depsRef.current.now()
+    const asked = targetRef.current
     inFlight.current = id
-    const facts = await readPollFacts(current, POLL_LIMIT_MS)
+    setPolling(true)
+    const answer = await readPollFacts(current, POLL_LIMIT_MS)
+    const facts =
+      answer && asked.kind === 'live' && behindRequest(asked.gathering, answer, current.descriptor)
+        ? undefined
+        : answer
     if (inFlight.current === id) {
       inFlight.current = null
     }
     if (id !== generation.current) {
       return
     }
+    setPolling(false)
     // A death the round reads holds the rows before the answer renders them.
     afterRef.current(facts, clock)
     setPoll(facts ? { status: 'answered', facts, clock } : { status: 'failed' })
@@ -74,6 +84,7 @@ const usePoll = ({ kit, target, deps, after }: PollInput): PollHook => {
     generation.current += 1
     inFlight.current = null
     again.current = false
+    setPolling(false)
     if (!kit || key === null) {
       return undefined
     }
@@ -98,7 +109,7 @@ const usePoll = ({ kit, target, deps, after }: PollInput): PollHook => {
     run().catch(() => undefined)
   }, [run])
 
-  return { poll, retry }
+  return { poll, polling, retry }
 }
 
 export default usePoll

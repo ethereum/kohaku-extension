@@ -9,6 +9,7 @@
  * and at a claim it stays the cancelled note. The method never runs in any of
  * them.
  */
+import type { Material } from '@kohaku-eth/social-recovery'
 import type { CeremonyStop } from '@web/modules/social-recovery/shared/ceremony'
 
 import {
@@ -423,7 +424,7 @@ describe('the material the method receives', () => {
     expect(method.configFrom.mock.calls[0][1]).toEqual({ result: {} })
   })
 
-  const proverClaimWith = async (material: unknown, signal: AbortSignal) => {
+  const proverClaimWith = async (material: Material, signal: AbortSignal) => {
     const method = fakeMethod({}, 'in-browser-prover')
     const orchestrator = fakeOrchestrator(method)
     await hosts.createClaim({
@@ -455,7 +456,10 @@ describe('the material the method receives', () => {
     ] as const
   ).forEach(([title, material]) =>
     it(`hands an in-browser prover ${title} unchanged`, async () => {
-      const received = await proverClaimWith(material, new AbortController().signal)
+      const received = await proverClaimWith(
+        material as unknown as Material,
+        new AbortController().signal
+      )
       expect(received).toBe(material)
       expect(received).not.toHaveProperty('signal')
     })

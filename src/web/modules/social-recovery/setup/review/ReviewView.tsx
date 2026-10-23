@@ -8,7 +8,7 @@
  * publishes and the spare-key comparison sit beside them.
  */
 import React, { useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, Pressable, View } from 'react-native'
+import { Pressable, View } from 'react-native'
 
 import DownArrowIcon from '@common/assets/svg/DownArrowIcon'
 import UpArrowIcon from '@common/assets/svg/UpArrowIcon'
@@ -28,6 +28,8 @@ import {
   StatusChip,
   TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
+import RefreshingLine from '@web/modules/social-recovery/shared/chrome/RefreshingLine'
 import {
   addressBookOf,
   recoveryChainOf,
@@ -166,8 +168,8 @@ const ReviewView = ({
 
   if (!load) {
     return (
-      <TwoColumn testID="review-columns">
-        <View testID="review">
+      <TwoColumn testID="review-columns" grow={!loadFailed}>
+        <View testID="review" style={loadFailed ? undefined : flexbox.flex1}>
           {title}
           {loadFailed ? (
             <>
@@ -194,7 +196,7 @@ const ReviewView = ({
               />
             </>
           ) : (
-            <ActivityIndicator testID="review-spinner" />
+            <LoadingBlock variant="screen" message={t('socialRecovery.loading.draft')} />
           )}
         </View>
       </TwoColumn>
@@ -218,6 +220,11 @@ const ReviewView = ({
     backup: draft.privacy.backup,
     passwordSet: load.passwordSet
   })
+
+  // Save waits on the client and on reads that have not answered; no block
+  // shows until they settle, so a line beside the held Save says what runs.
+  const checking =
+    client.status === 'loading' || (!!ready && !gate.canSave && gate.blocked === null)
 
   // Runs again every read that did not answer: the trust list's reads of each
   // method and the account's reads that threw.
@@ -378,8 +385,8 @@ const ReviewView = ({
             </View>
           )}
           {expanded && client.status === 'loading' && (
-            <SectionCard>
-              <ActivityIndicator testID="review-trust-spinner" />
+            <SectionCard testID="review-trust-loading">
+              <LoadingBlock variant="block" message={t('socialRecovery.loading.trust')} />
             </SectionCard>
           )}
         </View>
@@ -445,14 +452,21 @@ const ReviewView = ({
 
         <ActionsRow
           primary={
-            <Button
-              testID="review-save"
-              type="primary"
-              text={t(`${REVIEW}.save`)}
-              disabled={!gate.canSave}
-              onPress={() => navigate(WEB_ROUTES.socialRecoverySetupSave)}
-              hasBottomSpacing={false}
-            />
+            <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap]}>
+              <Button
+                testID="review-save"
+                type="primary"
+                text={t(`${REVIEW}.save`)}
+                disabled={!gate.canSave}
+                onPress={() => navigate(WEB_ROUTES.socialRecoverySetupSave)}
+                hasBottomSpacing={false}
+              />
+              {checking && (
+                <View testID="review-save-checking" style={spacings.mlSm}>
+                  <RefreshingLine messageKey="socialRecovery.loading.saveChecks" />
+                </View>
+              )}
+            </View>
           }
           secondary={
             <>

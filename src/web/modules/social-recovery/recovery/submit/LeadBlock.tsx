@@ -6,7 +6,7 @@
  * key or account that sends the request and pays its gas once it is read.
  */
 import React from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
@@ -17,6 +17,7 @@ import spacings from '@common/styles/spacings'
 import common from '@common/styles/utils/common'
 import flexbox from '@common/styles/utils/flexbox'
 import { SectionCard, SectionLabel } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import {
   renderFullAddress,
   renderShortAddress,
@@ -41,7 +42,7 @@ const LeadBlock = ({ route, lead, payment, sendingPlan, onRetryRemoved }: LeadBl
     </Text>
   )
 
-  const value = (label: string, address: string, testID: string) => (
+  const valueCard = (label: string, body: React.ReactNode) => (
     <View
       style={[
         common.borderRadiusPrimary,
@@ -52,11 +53,26 @@ const LeadBlock = ({ route, lead, payment, sendingPlan, onRetryRemoved }: LeadBl
       ]}
     >
       <SectionLabel>{label}</SectionLabel>
+      {body}
+    </View>
+  )
+
+  const value = (label: string, address: string, testID: string) =>
+    valueCard(
+      label,
       <Text fontSize={14} weight="number_medium" selectable testID={testID}>
         {address}
       </Text>
-    </View>
-  )
+    )
+
+  // A value still being read keeps its label, with a line that says it is read.
+  const reading = (label: string, testID: string) =>
+    valueCard(
+      label,
+      <View testID={testID}>
+        <LoadingBlock variant="row" message={t('socialRecovery.loading.key')} />
+      </View>
+    )
 
   const removedBlock = () => {
     const { removed } = lead
@@ -103,7 +119,7 @@ const LeadBlock = ({ route, lead, payment, sendingPlan, onRetryRemoved }: LeadBl
         )
       case 'loading':
       default:
-        return <ActivityIndicator testID="submit-removed-key-loading" />
+        return reading(renderValueLabel('keyBeingRemoved', t), 'submit-removed-key-loading')
     }
   }
 
@@ -119,11 +135,9 @@ const LeadBlock = ({ route, lead, payment, sendingPlan, onRetryRemoved }: LeadBl
         {!!name.caveat && muted(name.caveat, 'submit-account-caveat')}
       </View>
       <View style={spacings.mbSm} testID="submit-new-key-block">
-        {lead.newKey ? (
-          value(renderValueLabel('newKey', t), renderFullAddress(lead.newKey), 'submit-new-key')
-        ) : (
-          <ActivityIndicator testID="submit-new-key-loading" />
-        )}
+        {lead.newKey
+          ? value(renderValueLabel('newKey', t), renderFullAddress(lead.newKey), 'submit-new-key')
+          : reading(renderValueLabel('newKey', t), 'submit-new-key-loading')}
         {!!lead.newKey && !!newKeyLine && muted(newKeyLine, 'submit-new-key-line')}
       </View>
       <View style={payment !== null ? spacings.mbSm : undefined} testID="submit-removed-key-block">

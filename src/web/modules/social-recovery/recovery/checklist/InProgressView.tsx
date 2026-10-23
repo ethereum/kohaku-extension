@@ -6,7 +6,7 @@
  * holder goes to the recovery's entry.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
@@ -14,6 +14,7 @@ import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import { PageTitle, SectionCard, TwoColumn } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import type { RecoveryRoute } from '@web/modules/social-recovery/shared/records'
 
 import { inProgressItemsOf, routeOfItems } from './inProgress'
@@ -145,7 +146,9 @@ const InProgressView = ({
       <TwoColumn testID="in-progress-columns">
         <View testID="in-progress">
           {title}
-          <ActivityIndicator testID="in-progress-loading" />
+          <View testID="in-progress-loading">
+            <LoadingBlock variant="block" message={t('socialRecovery.loading.entries')} />
+          </View>
         </View>
       </TwoColumn>
     )

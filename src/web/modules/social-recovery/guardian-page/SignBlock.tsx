@@ -4,12 +4,13 @@
  * it, and the sign action. The heading asks to sign the approval until the
  * box is ticked and reads ready once it is. Sign stays disabled until every
  * gate holds; under it, while the box is not ticked, the line that asks for
- * the tick. While a signature is asked for, the action is busy. A signing
- * that brought no approval reads why, with a retry. The step also offers the
- * offline block and keeps decline open.
+ * the tick. While a signature is asked for, the action is busy beside a line
+ * that says the wallet's sign screen is awaited. A signing that brought no approval reads why,
+ * with a retry. The step also offers the offline block and keeps decline
+ * open.
  */
 import React from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
@@ -18,6 +19,7 @@ import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { SectionCard, SectionLabel } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 
 import AcknowledgmentBox from './AcknowledgmentBox'
 import type { KeyReading, SignBlockProps } from './types'
@@ -119,7 +121,14 @@ const SignBlock = ({
           onPress={onSign}
           hasBottomSpacing={false}
         />
-        {busy && <ActivityIndicator testID="guardian-sign-busy" style={spacings.mlSm} />}
+        {busy && (
+          <View testID="guardian-sign-busy" style={spacings.mlSm}>
+            <LoadingBlock
+              variant="row"
+              message={t('socialRecovery.enroll.guardian.waitingForSignScreen')}
+            />
+          </View>
+        )}
       </View>
       {!acknowledged && (
         <Text

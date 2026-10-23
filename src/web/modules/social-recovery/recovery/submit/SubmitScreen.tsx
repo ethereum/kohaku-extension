@@ -299,6 +299,7 @@ const SubmitScreen = () => {
       testPrefix="submit"
       titleKey="socialRecovery.wait.readFailedTitle"
       bodyKey="socialRecovery.client.unavailableBody"
+      loadingKey="socialRecovery.loading.session"
       failed={reading.status === 'failed'}
       onRetry={retry}
     />

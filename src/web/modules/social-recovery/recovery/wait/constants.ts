@@ -1,6 +1,9 @@
 /** The wait is the fifth of the logged-in route's five stages, as the submission is. */
 export const WAIT_STAGE = 5
 
+/** The round the countdown's record anchors before any poll answers; polls count from one. */
+export const RECORD_ROUND = 0
+
 /** How often the countdown renders again, in ms. */
 export const COUNTDOWN_TICK_MS = 1_000
 

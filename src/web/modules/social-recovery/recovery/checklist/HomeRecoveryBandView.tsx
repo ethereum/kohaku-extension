@@ -1,14 +1,15 @@
 /**
  * The home surface's pointer to the recoveries this device started: one line
  * for each live session of the chain, and one for each submitted recovery
- * whose countdown runs. It renders nothing while the records load, where they
+ * whose countdown runs, of the deployment this build reads. It renders nothing while the records load, where they
  * cannot be read, and where neither exists.
  */
 import React, { useEffect, useState } from 'react'
 import { View } from 'react-native'
 
 import spacings from '@common/styles/spacings'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
+import { isOfDeployment, isSessionOfDeployment } from '@web/modules/social-recovery/shared/records'
 import WaitHomeLine from '@web/modules/social-recovery/recovery/wait/WaitHomeLine'
 
 import HomeRecoveryLine from './HomeRecoveryLine'
@@ -19,6 +20,7 @@ import type { HomeRecoveryBandViewProps, InProgressItem } from './types'
 const HomeRecoveryBandView = ({
   records,
   chainId,
+  deployment,
   navigate,
   timeZone,
   useHeadline
@@ -35,8 +37,17 @@ const HomeRecoveryBandView = ({
     ])
       .then(([sessions, entries, landed]) => {
         if (live) {
-          setItems(inProgressItemsOf(sessions, entries))
-          setCountdowns(landed.map(({ account }) => account))
+          setItems(
+            inProgressItemsOf(
+              sessions.filter(({ record }) => isSessionOfDeployment(record.value, deployment)),
+              entries
+            )
+          )
+          setCountdowns(
+            landed
+              .filter(({ record }) => isOfDeployment(record.value.deployment, deployment))
+              .map(({ account }) => account)
+          )
         }
       })
       .catch(() => {
@@ -48,7 +59,7 @@ const HomeRecoveryBandView = ({
     return () => {
       live = false
     }
-  }, [records, chainId])
+  }, [records, chainId, deployment])
 
   if (items.length === 0 && countdowns.length === 0) {
     return null

@@ -6,7 +6,7 @@
 import i18next from 'i18next'
 import { isAddressEqual } from 'viem'
 
-import type { Clause, Credential, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Clause, Credential, Hex } from '@kohaku-eth/social-recovery'
 
 import { addressBookOf } from '@web/modules/social-recovery/shared/client/addresses'
 import { emptySlot, SLOT_KINDS } from '@web/modules/social-recovery/shared/records'

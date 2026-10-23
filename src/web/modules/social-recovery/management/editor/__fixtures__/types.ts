@@ -16,7 +16,7 @@ export type LandingCase = 'lands' | 'refused'
 /** A committed setup on the stand-in's chain, a client over it, records in memory and the seams a run sends through. */
 export interface EditWorld {
   account: `0x${string}`
-  chain: ReturnType<typeof StandIn.chainFor>
+  chain: ReturnType<typeof StandIn.nodeFor>
   client: RecoveryKitClient
   storage: RecordStorage
   records: WalletRecords
@@ -36,4 +36,9 @@ export interface ScreensWorld {
   run: { start: jest.Mock } & Record<string, unknown>
   trust: unknown
   accountReads: unknown
+}
+
+/** The client seam as the edit tests reach into it, with the setup check a test drives. */
+export interface ValidatingClientSeam {
+  client: { setup: { validateSetup: jest.Mock } }
 }

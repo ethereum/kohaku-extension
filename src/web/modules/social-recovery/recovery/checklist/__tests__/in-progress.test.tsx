@@ -6,7 +6,7 @@
  * where none is left. The home band renders a line for each live session and
  * nothing without one.
  */
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 import type {
   Mounted,
@@ -14,6 +14,7 @@ import type {
 } from '@web/modules/social-recovery/recovery/checklist/__tests__/harness'
 import {
   ACCOUNT,
+  BOOK,
   CHAIN_ID,
   each,
   entryOf,
@@ -108,6 +109,22 @@ describe('the recovery in progress', () => {
     )
   })
 
+  it('says it reads the recoveries, with the title and no row, while the list has not been read', async () => {
+    await seedThree()
+    jest
+      .spyOn(world.records, 'listRecoverySessions')
+      .mockImplementation(() => new Promise<never>(() => {}))
+    view = await mountInProgress({ records: world.records })
+
+    expect(view.byTestId('in-progress-loading')?.textContent).toBe(
+      t('socialRecovery.loading.entries')
+    )
+    expect(
+      view.byTestId('in-progress-loading')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
+    expect(view.byTestId(`in-progress-${idOf(ACCOUNT)}`)).toBeNull()
+  })
+
   it('shows no count for a session whose headline cannot be read', async () => {
     await seedThree()
     view = await mountInProgress({ records: world.records, headline: null })
@@ -144,7 +161,8 @@ describe('the recovery in progress', () => {
     expect((await storedSession(world.records, ACCOUNT))?.value).toEqual({
       state: 'wiped',
       reason: 'recoverer-abandoned',
-      account: ACCOUNT
+      account: ACCOUNT,
+      deployment: { manager: BOOK.manager, action: BOOK.action }
     })
     expect((await world.records.recoveryEntry(CHAIN_ID, ACCOUNT).read()).status).toBe('absent')
     expect(view.byTestId(`in-progress-${first}`)).toBeNull()

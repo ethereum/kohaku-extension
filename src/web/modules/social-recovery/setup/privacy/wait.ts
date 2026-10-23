@@ -1,4 +1,4 @@
-import type { SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { SetupDraft } from '@kohaku-eth/social-recovery'
 
 import type { CustomWait, WaitChip, WaitChoice } from './types'
 
@@ -39,10 +39,10 @@ export const WAIT_CHIPS: readonly WaitChip[] = [
   { id: 'days7', hours: 7 * 24 }
 ]
 
-const SECONDS_PER_HOUR = 3600n
+const SECONDS_PER_HOUR = 3600
 
 export const secondsOfHours = (hours: number): SetupDraft['wait'] =>
-  BigInt(Math.round(hours * Number(SECONDS_PER_HOUR)))
+  Math.round(hours * SECONDS_PER_HOUR)
 
 /** The shortest waiting period this wallet saves, in seconds. */
 export const WAIT_FLOOR_SECONDS = secondsOfHours(WAIT_FLOOR_HOURS)
@@ -59,7 +59,7 @@ export const readCustomWait = (text: string, ceilingHours: number): CustomWait =
   if (!/^[0-9]+$/.test(text)) {
     return { status: 'notWholeHours' }
   }
-  const hours = (Number(text) * CUSTOM_UNIT_SECONDS) / Number(SECONDS_PER_HOUR)
+  const hours = (Number(text) * CUSTOM_UNIT_SECONDS) / SECONDS_PER_HOUR
   if (hours > ceilingHours) {
     return { status: 'pastCeiling' }
   }
@@ -101,12 +101,10 @@ export const DEFAULT_WAIT_SECONDS = secondsOfHours(DEFAULT_CHIP.hours)
  * so its refusal shows and continue stays held.
  */
 export const choiceOfSeconds = (seconds: SetupDraft['wait']): WaitChoice => {
-  const unit = BigInt(CUSTOM_UNIT_SECONDS)
-  if (seconds % unit !== 0n) {
-    return { kind: 'custom', text: String(Number(seconds) / Number(unit)) }
+  const unit = CUSTOM_UNIT_SECONDS
+  if (seconds % unit !== 0) {
+    return { kind: 'custom', text: String(seconds / unit) }
   }
-  const chip = WAIT_CHIPS.find(
-    (candidate) => BigInt(candidate.hours) * SECONDS_PER_HOUR === seconds
-  )
+  const chip = WAIT_CHIPS.find((candidate) => candidate.hours * SECONDS_PER_HOUR === seconds)
   return chip ? { kind: 'chip', id: chip.id } : { kind: 'custom', text: String(seconds / unit) }
 }

@@ -13,7 +13,7 @@
  */
 import { isError } from 'ethers'
 
-import type { Address, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Hex } from '@kohaku-eth/social-recovery'
 
 import {
   BLOCK_POLL_MS,

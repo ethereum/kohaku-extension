@@ -4,7 +4,7 @@
  * and the publication lines by the kinds of the set the submission carries.
  * Strings come from `t`.
  */
-import type { Gathering } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Gathering } from '@kohaku-eth/social-recovery'
 import {
   renderFullAddress,
   renderPaymentOrder,
@@ -61,10 +61,8 @@ export const newKeyLineOf = (
  * none; an order with an amount is no request this screen can render, so the
  * start stays locked.
  */
-export const namesNoPayment = (gathering: Gathering): boolean => {
-  const { order } = gathering.request
-  return !order || BigInt(order.amount) === 0n
-}
+export const namesNoPayment = (gathering: Gathering): boolean =>
+  gathering.purpose !== 'approval' || BigInt(gathering.request.order.amount) === 0n
 
 /**
  * The payment value of the request: the words no payment where it names none.

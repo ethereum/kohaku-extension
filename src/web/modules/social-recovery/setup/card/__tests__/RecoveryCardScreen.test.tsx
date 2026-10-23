@@ -14,7 +14,7 @@ import { TextDecoder, TextEncoder } from 'util'
 
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
-import type { Address, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, SetupDraft } from '@kohaku-eth/social-recovery'
 import {
   digestVersionRefusal,
   restoreRefusalOf
@@ -24,6 +24,18 @@ import type {
   FakeSetupReads
 } from '@web/modules/social-recovery/setup/card/__tests__/harness'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
+
+// The spinner's animation needs a native module jsdom lacks; a plain view stands in.
+jest.mock('@common/components/Spinner', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires, global-require */
+  const mockReact: typeof import('react') = require('react')
+  const { View: MockView }: typeof import('react-native') = require('react-native')
+  /* eslint-enable @typescript-eslint/no-var-requires, global-require */
+  return {
+    __esModule: true,
+    default: () => mockReact.createElement(MockView, { testID: 'spinner' })
+  }
+})
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -197,7 +209,7 @@ let nextAccount = 1
 const newAccount = (): Address => `0x${(nextAccount++).toString(16).padStart(40, '0')}` as Address
 
 const draftWith = (backup: SetupDraft['privacy']['backup']): SetupDraft => ({
-  wait: 86400n,
+  wait: 86400,
   clauses: [{ threshold: 1, credentials: [{ method: '0x01', config: '0xabcd' }] }],
   ignoresPause: false,
   privacy: { publicMetadata: '0x', backup }
@@ -606,14 +618,17 @@ describe('the recovery card screen', () => {
   })
 
   describe('the recovery password asked again', () => {
-    it('shows the row label alone and keeps the carriers off while the setup read runs', async () => {
+    it('shows the row label with the line that looks up the setup, and keeps the carriers off while the setup read runs', async () => {
       const read = deferred<{ hasSetup: boolean }>()
       setup.setupState.mockReturnValue(read.promise)
       const account = newAccount()
       await mount(account)
       expect(byTestId('card-password')?.textContent).toBe(
-        t('socialRecovery.display.passwords.recoveryPassword')
+        t('socialRecovery.display.passwords.recoveryPassword') + t('socialRecovery.loading.lookup')
       )
+      expect(
+        byTestId('card-password-reading')?.querySelector('[data-testid="loading-row"]')
+      ).not.toBeNull()
       expect(byTestId('card-recovery-password-ask')).toBeNull()
       expect(byTestId('card-password-gone')).toBeNull()
       expect(carriersDisabled()).toEqual([true, true])

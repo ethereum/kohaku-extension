@@ -4,34 +4,42 @@
  * one attempt and the time of a block, each at a block number the caller
  * pinned. None runs the removed-key scan the recovery state read runs.
  *
- * The provider is the extension's own for the network record, built as the
+ * The SDK's parts are bound to one account, so each read builds the part of
+ * the account it reads; the SDK pins a read by the block's number alone. The
+ * provider is the extension's own for the network record, built as the
  * recovery client hook builds it, and only a chain whose deployment record
  * names a deployed kit is read.
  */
-import { isAddressEqual, size } from 'viem'
-
-import type { Network } from '@ambire-common/interfaces/network'
+import {
+  AmbireActionCodec,
+  AmbireRecoveryAction,
+  BUILDER_BLOCK_TAGS,
+  EventManager,
+  PolicyManager
+} from '@kohaku-eth/social-recovery'
 import type {
   Address,
   BlockHeader,
   BlockRange,
   DeploymentDescriptor,
   Hex,
-  Notification
-} from '@web/modules/social-recovery/sdk-interfaces'
+  KitNotification,
+  PinnedBlock
+} from '@kohaku-eth/social-recovery'
+import { isAddressEqual, size, zeroHash } from 'viem'
+
+import type { Network } from '@ambire-common/interfaces/network'
 
 import { addressBookOf } from './addresses'
 import { deploymentOf } from './deployments'
 import { descriptorOf } from './descriptors'
+import { LOG_CHUNK_BLOCKS, notificationsInChunks } from './events'
 import { extensionProviderFor, providerKeyOf } from './extension-provider'
-import { createKitEventManager, LOG_CHUNK_BLOCKS } from './kit/events'
-import type { AttemptLog } from './kit/events/types'
-import { createActionReads, createManagerReads } from './kit/reads'
-import { decodedHandoverOf } from './kit/recovery-client/handover'
-import { withNamedRevert } from './kit/setup-client'
-import { createCodeRead, createProviderAdapter } from './provider-adapter'
+import { createProviderAdapter } from './provider-adapter'
+import { withNamedRevert } from './reverts'
 import type {
   AttemptEvents,
+  AttemptLog,
   AttemptScan,
   RecoveryChain,
   WatcherConnection,
@@ -46,9 +54,11 @@ import type {
 export const watchedDeploymentOf = (chain: RecoveryChain): DeploymentDescriptor | undefined =>
   deploymentOf(chain).kind === 'deployed' ? descriptorOf(chain, addressBookOf(chain)) : undefined
 
+// The SDK's reads pin by the block's number; the hash is reported only by a prepare.
+const pinnedAt = (block: number): PinnedBlock => ({ number: block, hash: zeroHash })
+
 export const createWatcherReads = ({
   provider,
-  codeRead,
   descriptor,
   chunkWidth = LOG_CHUNK_BLOCKS
 }: WatcherReadsInput): WatcherReads => {
@@ -57,29 +67,44 @@ export const createWatcherReads = ({
       `a log chunk width must be a whole number of blocks above zero, not ${chunkWidth}`
     )
   }
-  const manager = createManagerReads(provider, descriptor.manager)
-  const action = createActionReads({ provider, codeRead }, descriptor.action)
+  const codec = new AmbireActionCodec([descriptor.action])
+  const managerOf = (account: Address) =>
+    new PolicyManager(provider, descriptor, account, descriptor.action, BUILDER_BLOCK_TAGS)
+  const actionOf = (account: Address) =>
+    new AmbireRecoveryAction(
+      provider,
+      descriptor,
+      account,
+      descriptor.action,
+      codec,
+      BUILDER_BLOCK_TAGS
+    )
+  const hasCode = async (account: Address, block: number): Promise<boolean> =>
+    size(await provider.code(account, block)) > 0
 
   return {
     latestBlock: (): Promise<BlockHeader> => provider.block('latest'),
 
-    async hasCode(account: Address, block: number): Promise<boolean> {
-      return size(await codeRead.code(account, block)) > 0
-    },
+    hasCode,
 
-    stateOf: (account, block) =>
-      withNamedRevert(() => manager.stateOf(account, descriptor.action, block)),
+    stateOf: (account, block) => withNamedRevert(() => managerOf(account).stateOf(pinnedAt(block))),
 
-    isAuthorized: (account, block) => withNamedRevert(() => action.isAuthorized(account, block)),
+    // The action reverts for an address with no code, which authorizes nothing.
+    isAuthorized: (account, block) =>
+      withNamedRevert(async () =>
+        (await hasCode(account, block)) ? actionOf(account).isAuthorized(pinnedAt(block)) : false
+      ),
 
     async attemptEventsOf(
       account: Address,
       attemptId: bigint,
       scan: AttemptScan
     ): Promise<AttemptEvents> {
-      const events = createKitEventManager({ provider, descriptor, account, chunkWidth })
+      const events = new EventManager(provider, descriptor, account, descriptor.action, new Map(), {
+        logChunkSize: chunkWidth
+      })
       const filter = events.accountFilter()
-      const ofAttempt = (notification: Notification): notification is AttemptLog =>
+      const ofAttempt = (notification: KitNotification): notification is AttemptLog =>
         (notification.kind === 'attempt-started' ||
           notification.kind === 'attempt-cancelled' ||
           notification.kind === 'attempt-consumed') &&
@@ -101,7 +126,9 @@ export const createWatcherReads = ({
           return found
         }
         const range: BlockRange = { from: Math.max(first, last - chunkWidth + 1), to: last }
-        const logs = (await events.fetch(filter, range)).filter(ofAttempt)
+        const logs = (
+          await notificationsInChunks(provider, events, filter, range, chunkWidth)
+        ).filter(ofAttempt)
         const next = logs.reduce<AttemptEvents>((held, log) => {
           if (log.kind === 'attempt-started') {
             return { ...held, started: log }
@@ -123,7 +150,13 @@ export const createWatcherReads = ({
       return (await provider.block(block)).timestamp
     },
 
-    handoverOf: (payload: Hex) => decodedHandoverOf(descriptor.action, payload)
+    handoverOf(payload: Hex) {
+      try {
+        return codec.decode(payload)
+      } catch {
+        return undefined
+      }
+    }
   }
 }
 
@@ -138,11 +171,7 @@ export const watcherConnectionFor = (
 ): WatcherConnection => {
   const provider = extensionProviderFor(network)
   return {
-    reads: createWatcherReads({
-      provider: createProviderAdapter(provider),
-      codeRead: createCodeRead(provider),
-      descriptor
-    }),
+    reads: createWatcherReads({ provider: createProviderAdapter(provider), descriptor }),
     providerKey: providerKeyOf(network),
     destroy: () => provider.destroy()
   }

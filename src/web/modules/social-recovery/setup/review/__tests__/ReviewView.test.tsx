@@ -10,7 +10,7 @@ import { TextDecoder, TextEncoder } from 'util'
 
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
-import type { Address, Clause } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Clause } from '@kohaku-eth/social-recovery'
 import type { FitCheckReading, RemovedKeyReading } from '@web/modules/social-recovery/shared/client'
 import type { Enrollment, RecordStorage } from '@web/modules/social-recovery/shared/records'
 
@@ -19,6 +19,18 @@ import type {
   Root
 } from '@web/modules/social-recovery/setup/review/__fixtures__/review'
 import type { ReviewClient, ReviewKitClient } from '@web/modules/social-recovery/setup/review/types'
+
+// The spinner's animation needs a native module jsdom lacks; a plain view stands in.
+jest.mock('@common/components/Spinner', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires, global-require */
+  const mockReact: typeof import('react') = require('react')
+  const { View: MockView }: typeof import('react-native') = require('react-native')
+  /* eslint-enable @typescript-eslint/no-var-requires, global-require */
+  return {
+    __esModule: true,
+    default: () => mockReact.createElement(MockView, { testID: 'spinner' })
+  }
+})
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 // React only runs effects and state updates inside act() when this flag is set.
@@ -200,7 +212,7 @@ const press = async (id: string) => {
 const mount = async ({
   clauses = [group(2, ALICE, BOB, PASSKEY)],
   enrollments = [],
-  wait = 172800n,
+  wait = 172800,
   backup = 'encrypted',
   publicMetadata = '0x',
   passwordSet = true,
@@ -213,7 +225,8 @@ const mount = async ({
   setupState = async () => setupStateOf(false),
   describeSetup = async () => descriptionOf(),
   accountLabel,
-  storageRefuses = false
+  storageRefuses = false,
+  storageHeld
 }: MountOptions = {}) => {
   const storage = makeStorage(false)
   const records = createWalletRecords({ storage })
@@ -230,7 +243,18 @@ const mount = async ({
   if (passwordSet) {
     await setup.passwordSet.write('password-set')
   }
-  const shown = storageRefuses ? createWalletRecords({ storage: makeStorage(true) }) : records
+  let shown = storageRefuses ? createWalletRecords({ storage: makeStorage(true) }) : records
+  if (storageHeld) {
+    shown = createWalletRecords({
+      storage: {
+        ...storage,
+        get: async (key, defaultValue) => {
+          await storageHeld
+          return storage.get(key, defaultValue)
+        }
+      }
+    })
+  }
 
   const reads = {
     trustedParties: jest.fn(trustedParties),
@@ -451,10 +475,31 @@ describe('the titled sections of the details', () => {
 })
 
 describe('save and the trust list reads', () => {
-  it('stays disabled while a read has not come back', async () => {
+  it('stays disabled while a read has not come back, with the line that checks the setup beside it', async () => {
     await mount({ moduleInfo: () => new Promise(() => {}) })
 
     expect(isDisabled('review-save')).toBe(true)
+    expect(textOf('review-save-checking')).toBe(t('socialRecovery.loading.saveChecks'))
+  })
+
+  it("shows the line that reads the methods on a method's row while its read has not come back", async () => {
+    await mount({ clauses: [required(PASSKEY)], moduleInfo: () => new Promise(() => {}) })
+    await press('review-verify-details')
+
+    const pending = byTestId('review-trust-0-pending')
+    expect(pending?.textContent).toBe(t('socialRecovery.loading.trust'))
+    expect(pending?.querySelector('[data-testid="loading-row"]')).not.toBeNull()
+  })
+
+  it('shows no line beside Save once every read answered', async () => {
+    await mount()
+    expect(byTestId('review-save-checking')).toBeNull()
+  })
+
+  it('shows no line beside a Save a block holds', async () => {
+    await mount({ setupState: async () => setupStateOf(true) })
+    expect(isDisabled('review-save')).toBe(true)
+    expect(byTestId('review-save-checking')).toBeNull()
   })
 
   it('stays disabled while a read did not answer, then enables once the retry answers it', async () => {
@@ -556,6 +601,7 @@ describe('the path rows', () => {
   const FAILED_LINES: [Enrollment['credential'], string | undefined, string][] = [
     [ALICE, 'check-rejected', `${CEREMONY}.testFailedNoMatch`],
     [ALICE, 'check-rejected: signer mismatch', `${CEREMONY}.testFailedNoMatch`],
+    [ALICE, 'check-reverted', `${CEREMONY}.testFailedReverted`],
     [PASSKEY, 'browser-error: NotAllowedError', `${CEREMONY}.testFailedLine`],
     [PASSKEY, 'relying-party-mismatch: SecurityError', `${CEREMONY}.testFailedLine`],
     [ALICE, 'service-unanswered', `${CEREMONY}.testFailedLine`],
@@ -813,7 +859,7 @@ describe('the lead', () => {
   })
 
   it('names the waiting period by its chip and carries the spare-key comparison', async () => {
-    await mount({ wait: 604800n })
+    await mount({ wait: 604800 })
 
     expect(textOf('review-wait')).toBe(t('socialRecovery.privacy.waitingPeriod.chips.days7'))
     expect(textOf('review-spare-key')).toBe(t('socialRecovery.review.spareKey'))
@@ -824,7 +870,7 @@ describe('the lead', () => {
   })
 
   it("names a wait under one hour in minutes, and the floor in a release build's words", async () => {
-    await mount({ wait: 300n })
+    await mount({ wait: 300 })
 
     expect(textOf('review-wait')).toBe('5 minutes')
     expect(textOf('review-wait-minimum')).toBe("This wallet's minimum is 24 hours.")
@@ -868,7 +914,7 @@ describe('the lead', () => {
       mount({
         clauses,
         enrollments: [enrolled(PASSKEY)],
-        publicMetadata: shapeNoteOf({ clauses, wait: 172800n, ignoresPause: true }),
+        publicMetadata: shapeNoteOf({ clauses, wait: 172800, ignoresPause: true }),
         passwordSet
       })
 
@@ -894,7 +940,7 @@ describe('the lead', () => {
       const memberless: Clause[] = [{ threshold: 1, credentials: [] }]
       await mount({
         clauses: memberless,
-        publicMetadata: shapeNoteOf({ clauses: memberless, wait: 172800n, ignoresPause: true }),
+        publicMetadata: shapeNoteOf({ clauses: memberless, wait: 172800, ignoresPause: true }),
         passwordSet: true
       })
 
@@ -1292,10 +1338,45 @@ describe('what the review cannot read', () => {
     expect(isDisabled('review-save')).toBe(true)
   })
 
-  it('keeps Save disabled while the client loads', async () => {
+  it('keeps Save disabled while the client loads, with the line that checks the setup beside it', async () => {
     await mount({ client: 'loading' })
 
     expect(isDisabled('review-save')).toBe(true)
+    expect(textOf('review-save-checking')).toBe(t('socialRecovery.loading.saveChecks'))
+    expect(
+      byTestId('review-save-checking')?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
+  })
+
+  it('shows the block that reads the methods in the details while the client loads', async () => {
+    await mount({ client: 'loading' })
+    await press('review-verify-details')
+
+    const block = byTestId('review-trust-loading')?.querySelector('[data-testid="loading-block"]')
+    expect(block?.textContent).toBe(t('socialRecovery.loading.trust'))
+  })
+
+  it('shows the waiting block that opens the draft under the title until the draft is read', async () => {
+    let release: () => void = () => {}
+    const storageHeld = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    await mount({ storageHeld })
+
+    expect(textOf('review-title')).toBe(t('socialRecovery.review.title'))
+    expect(textOf('loading-screen')).toBe(t('socialRecovery.loading.draft'))
+    expect(byTestId('review-save')).toBeNull()
+    // The columns and the view under the title grow, so the wait centres below the title.
+    const growing = ['review-columns', 'review-columns-main', 'review']
+    growing.forEach((id) => {
+      expect(getComputedStyle(byTestId(id) as HTMLElement).flexGrow).toBe('1')
+    })
+
+    await act(async () => {
+      release()
+    })
+    expect(byTestId('loading-screen')).toBeNull()
+    expect(byTestId('review-save')).not.toBeNull()
   })
 })
 
@@ -1426,8 +1507,8 @@ describe('an account this release cannot recover', () => {
     await mount({
       describeSetup: async () =>
         descriptionOf([
-          { address: REMOVED_KEY, isAuthority: true },
-          { address: OTHER_KEY, isAuthority: true }
+          { key: REMOVED_KEY, isAuthority: true },
+          { key: OTHER_KEY, isAuthority: true }
         ])
     })
 
@@ -1442,15 +1523,15 @@ describe('an account this release cannot recover', () => {
 describe("the wallet's reading of the account's keys", () => {
   const BLOCKED = 'socialRecovery.review.blocked'
   const TWO_AUTHORITIES = [
-    { address: REMOVED_KEY, isAuthority: true },
-    { address: OTHER_KEY, isAuthority: true }
+    { key: REMOVED_KEY, isAuthority: true },
+    { key: OTHER_KEY, isAuthority: true }
   ]
   const blockers = () => container.querySelectorAll('[data-testid^="review-blocked"]')
 
   it('lets Save run with no block where the wallet names a key and one key holds authority', async () => {
     await mount({
       removedKey: async () => ({ kind: 'named', key: REMOVED_KEY }),
-      describeSetup: async () => descriptionOf([{ address: REMOVED_KEY, isAuthority: true }])
+      describeSetup: async () => descriptionOf([{ key: REMOVED_KEY, isAuthority: true }])
     })
 
     expect(blockers()).toHaveLength(0)
@@ -1682,8 +1763,8 @@ describe('the block beside Save', () => {
       {
         describeSetup: async () =>
           descriptionOf([
-            { address: REMOVED_KEY, isAuthority: true },
-            { address: OTHER_KEY, isAuthority: true }
+            { key: REMOVED_KEY, isAuthority: true },
+            { key: OTHER_KEY, isAuthority: true }
           ])
       },
       [

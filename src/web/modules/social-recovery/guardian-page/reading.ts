@@ -6,7 +6,7 @@
  */
 import { isAddressEqual, keccak256 } from 'viem'
 
-import type { ApproverRequest, Attempt } from '@web/modules/social-recovery/sdk-interfaces'
+import type { ApproverRequest, Attempt } from '@kohaku-eth/social-recovery'
 import { attemptLive } from '@web/modules/social-recovery/recovery/checklist'
 import type { PollFacts } from '@web/modules/social-recovery/recovery/checklist'
 
@@ -46,7 +46,7 @@ const isOwnAttempt = (request: ApproverRequest, attempt: Attempt): boolean =>
   attempt.state !== 'None' &&
   attempt.attemptId === BigInt(request.attemptId) &&
   attempt.setupNonce === BigInt(request.setupNonce) &&
-  request.payload !== undefined &&
+  request.purpose === 'approval' &&
   keccak256(request.payload) === attempt.payloadHash
 
 /**

@@ -2,12 +2,12 @@
  * A guardian row's value block, two columns: the account, the new key, the
  * key being removed and the payment line, then the setup number and the
  * attempt number the paste check and the approval page read. A value still
- * being read shows a loader; a failed read of the removed key offers retry. A
+ * being read shows a line that says it is read; a failed read of the removed key offers retry. A
  * wallet that cannot name the removed key says so, with no retry: another read
  * answers the same, and the carriers stay locked.
  */
 import React from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
@@ -15,6 +15,7 @@ import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { SectionCard } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import { renderNoun } from '@web/modules/social-recovery/shared/display'
 
 import type { GuardianValueName, GuardianValuesProps } from './types'
@@ -71,7 +72,7 @@ const GuardianValues = ({ place, request, block, removed, retryRemoved }: Guardi
       )
     }
     if (name === 'keyBeingRemoved' && removed.status === 'loading') {
-      return <ActivityIndicator style={flexbox.alignSelfStart} />
+      return <LoadingBlock variant="row" message={t('socialRecovery.loading.key')} />
     }
     return null
   }

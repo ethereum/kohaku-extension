@@ -22,6 +22,7 @@ const KindMenuButton = ({
   text,
   open,
   kinds,
+  addressBook,
   onToggle,
   onPick,
   onClose,
@@ -32,6 +33,7 @@ const KindMenuButton = ({
   <KindMenuAnchor
     open={open}
     kinds={kinds}
+    addressBook={addressBook}
     onPick={onPick}
     onClose={onClose}
     disabled={disabled}

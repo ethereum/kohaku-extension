@@ -8,15 +8,26 @@
  * phone that never connected. A host never calls the method's packaging after
  * a stop.
  */
+import type { Material } from '@kohaku-eth/social-recovery'
+
 import type { CeremonyDevice } from './types'
 
-/** The steps a host renders while it runs. */
+/**
+ * The steps a host renders while it runs: the five every binding shares, the
+ * phone's three answers to a zkPassport request, and the in-page prover's
+ * download of its files and its proof.
+ */
 export const CEREMONY_STEPS = [
   'preparing',
   'waitingForDevice',
   'waitingForPhone',
   'packaging',
-  'checking'
+  'checking',
+  'requestReceived',
+  'generating',
+  'resultReceived',
+  'fetchingFiles',
+  'proving'
 ] as const
 
 /**
@@ -26,8 +37,8 @@ export const CEREMONY_STEPS = [
  * device asks nothing of anyone.
  */
 export const providedMaterialDevice = (material: {
-  enroll?: unknown
-  sign?: unknown
+  enroll?: Material
+  sign?: Material
 }): CeremonyDevice => ({
   enroll: async () => ({ ok: true, material: material.enroll }),
   sign: async () => ({ ok: true, material: material.sign })

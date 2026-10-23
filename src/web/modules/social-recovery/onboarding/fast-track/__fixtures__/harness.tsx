@@ -3,7 +3,7 @@
  * The edges are fakes: the background's dispatch (every action kept, in order
  * with every navigation), the controller states it answers (the keystore, the
  * account picker, the accounts, the selected account, the networks, the auth
- * status) as external stores a test pushes, the new phrase's random words,
+ * status, the wallet's onboarding state) as external stores a test pushes, the new phrase's random words,
  * the extension's `browser.storage.local` under the real records, and the
  * gas step's chain reads. jsdom has no `TextEncoder`, which viem reads when it
  * loads, so the harness sets Node's before it loads the modules.
@@ -17,14 +17,21 @@ import type { Key } from '@ambire-common/interfaces/keystore'
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
 import type { BackgroundServiceContextReturnType } from '@web/contexts/backgroundServiceContext/types'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 import mockSlot from './slot.json'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
-export type ControllerName = 'keystore' | 'accounts' | 'picker' | 'selected' | 'networks' | 'auth'
+export type ControllerName =
+  | 'keystore'
+  | 'accounts'
+  | 'picker'
+  | 'selected'
+  | 'networks'
+  | 'auth'
+  | 'wallet'
 
 /** One thing the screens did at the edge, in the order they did it. */
 export type EdgeEvent =
@@ -121,7 +128,8 @@ const freshControllers = (): Record<ControllerName, Record<string, unknown>> => 
   picker: { addAccountsStatus: 'INITIAL', selectNextAccountStatus: 'INITIAL', pageError: null },
   selected: { account: null },
   networks: { networks: [SEPOLIA] },
-  auth: { authStatus: 'NOT_AUTHENTICATED' }
+  auth: { authStatus: 'NOT_AUTHENTICATED' },
+  wallet: { isSetupComplete: false }
 })
 
 export const mockControllers = {
@@ -189,6 +197,10 @@ jest.mock('@web/hooks/useSelectedAccountControllerState', () => ({
 jest.mock('@web/hooks/useNetworksControllerState', () => ({
   __esModule: true,
   default: mockStoreHook('networks')
+}))
+jest.mock('@web/hooks/useWalletStateController', () => ({
+  __esModule: true,
+  default: mockStoreHook('wallet')
 }))
 jest.mock('@common/modules/auth/hooks/useAuth', () => ({
   __esModule: true,
@@ -308,6 +320,11 @@ jest.mock('@common/components/AmbireLogoHorizontal', () => ({
   default: () => null
 }))
 jest.mock('@common/components/Spinner', () => ({ __esModule: true, default: () => null }))
+jest.mock('@web/modules/settings/components/Sidebar', () => ({
+  __esModule: true,
+  default: () => null
+}))
+jest.mock('@common/components/Avatar', () => ({ __esModule: true, default: () => null }))
 jest.mock('@common/utils/clipboard', () => ({ setStringAsync: async () => true }))
 jest.mock('react-native-keyboard-aware-scroll-view', () => ({
   KeyboardAwareScrollView: jest.requireActual('react-native').ScrollView
@@ -349,6 +366,8 @@ const KeyStepScreen: typeof import('@web/modules/social-recovery/onboarding/fast
   require('@web/modules/social-recovery/onboarding/fast-track/KeyStepScreen').default
 const GasStepScreen: typeof import('@web/modules/social-recovery/onboarding/fast-track/GasStepScreen').default =
   require('@web/modules/social-recovery/onboarding/fast-track/GasStepScreen').default
+const EntryScreen: typeof import('@web/modules/social-recovery/recovery/entry/EntryScreen').default =
+  require('@web/modules/social-recovery/recovery/entry/EntryScreen').default
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
 
 const THEME = Object.fromEntries(
@@ -534,6 +553,7 @@ export const mount = async (path: string, state: unknown = null) => {
               <Route path="/social-recovery/fast-track" element={<FastTrackScreen />} />
               <Route path="/social-recovery/fast-track/key" element={<KeyStepScreen />} />
               <Route path="/social-recovery/fast-track/gas" element={<GasStepScreen />} />
+              <Route path="/social-recovery/recovery" element={<EntryScreen />} />
               <Route path="*" element={null} />
             </Routes>
           </BackgroundServiceContext.Provider>

@@ -24,7 +24,7 @@ import { Interface } from 'ethers'
 import { etherUnits, parseUnits } from 'viem'
 
 import { AMBIRE_ACCOUNT_FACTORY, DEPLOYLESS_SIMULATION_FROM } from '@ambire-common/consts/deploy'
-import type { Address, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Hex } from '@kohaku-eth/social-recovery'
 import type {
   GasEstimateCall,
   ListedAccountFacts

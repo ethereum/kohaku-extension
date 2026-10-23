@@ -1,7 +1,8 @@
 import { decodeAbiParameters } from 'viem'
 
-import type { Clause } from '@web/modules/social-recovery/sdk-interfaces'
-import { sameAddress } from '@web/modules/social-recovery/shared/client'
+import type { Clause } from '@kohaku-eth/social-recovery'
+import { failedTestLineKeyOf } from '@web/modules/social-recovery/shared/ceremony'
+import { methodKindIn } from '@web/modules/social-recovery/shared/client'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import {
   DEADLINE_LOCALE,
@@ -9,7 +10,7 @@ import {
   renderShortAddress
 } from '@web/modules/social-recovery/shared/display'
 import type { Chip, Translate } from '@web/modules/social-recovery/shared/display'
-import { SLOT_KINDS, slotKindOf } from '@web/modules/social-recovery/shared/records'
+import { slotKindOf } from '@web/modules/social-recovery/shared/records'
 import type { Enrollment, EnrollmentTestVerdict } from '@web/modules/social-recovery/shared/records'
 
 import type { ResumeNote, ResumeRow, SlotKind } from './types'
@@ -29,10 +30,8 @@ const METHOD_NAME_KEYS: Partial<Record<SlotKind, string>> = {
   aadhaar: 'socialRecovery.methodNames.aadhaar'
 }
 
-const CEREMONY = 'socialRecovery.ceremony'
-
 const kindOf = (enrollment: Enrollment, book: AddressBook): SlotKind | undefined =>
-  SLOT_KINDS.find((kind) => sameAddress(book.methods[kind], enrollment.credential.method))
+  methodKindIn(book.methods, enrollment.credential.method)
 
 const nameOf = (enrollment: Enrollment, kind: SlotKind | undefined, t: Translate): string => {
   if (kind === 'passkey' && enrollment.backup === 'device-bound') {
@@ -56,17 +55,6 @@ const guardianAddressOf = (enrollment: Enrollment): string | undefined => {
   }
 }
 
-/**
- * The one line under a failed test: the no-match line when the check rejected
- * the answer, else the line that the method may never work.
- */
-const failedLineOf = (cause: string | undefined, t: Translate): string =>
-  t(
-    cause?.startsWith('check-rejected')
-      ? `${CEREMONY}.testFailedNoMatch`
-      : `${CEREMONY}.testFailedLine`
-  )
-
 const rowOf = (
   enrollment: Enrollment,
   kind: SlotKind | undefined,
@@ -77,7 +65,7 @@ const rowOf = (
   name: nameOf(enrollment, kind, t),
   chip: renderChip('method', VERDICT_CHIPS[enrollment.test], t),
   ...(kind === 'ecdsa' ? { detail: guardianAddressOf(enrollment) } : {}),
-  ...(enrollment.test === 'failed' ? { note: failedLineOf(enrollment.cause, t) } : {})
+  ...(enrollment.test === 'failed' ? { note: t(failedTestLineKeyOf(enrollment.cause)) } : {})
 })
 
 /**
@@ -122,6 +110,10 @@ export const notYetActiveOf = (
     note: t('socialRecovery.presets.resume.addedNotSaved', { count })
   }
 }
+
+/** Whether the enrollments hold a passkey, which start over leaves on its device. */
+export const holdsPasskeyOf = (enrollments: readonly Enrollment[], book: AddressBook): boolean =>
+  enrollments.some((enrollment) => kindOf(enrollment, book) === 'passkey')
 
 const NOT_STARTED_NAME_KEYS: Record<SlotKind, string> = {
   passkey: 'socialRecovery.methodNames.passkey',

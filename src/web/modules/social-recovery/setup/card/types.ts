@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 /**
  * What the card carries besides its fixed lines: at the hidden level the

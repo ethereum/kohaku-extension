@@ -3,7 +3,8 @@
  * only what survives a JSON round trip, and an alarm API that records what it
  * was asked.
  */
-import { decodeAbiParameters, encodeAbiParameters, getAddress, keccak256, zeroHash } from 'viem'
+import { AmbireActionCodec } from '@kohaku-eth/social-recovery'
+import { getAddress, keccak256, zeroHash } from 'viem'
 
 import type { Account } from '@ambire-common/interfaces/account'
 import type {
@@ -14,7 +15,9 @@ import type {
   CancelledBy,
   Hex,
   LogPosition
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
+import { addressBookOf } from '@web/modules/social-recovery/shared/client/addresses'
+import { WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client/chains'
 import type { AttemptEvents, AttemptScan } from '@web/modules/social-recovery/shared/client/types'
 import type { WatcherStorage } from '@web/modules/social-recovery/watcher'
 
@@ -32,10 +35,27 @@ export const OPENED_TIME = 1_799_000_000
 export const ENDED_BLOCK = 6_990_000
 export const ENDED_TIME = 1_799_900_000
 const COMMITMENT: Hex = `0x${'5a'.repeat(32)}`
+const ACTION: Address = getAddress('0x00000000000000000000000000000000000ac710')
+const CODEC = new AmbireActionCodec([ACTION])
 
-/** The action's payload of a handover from `OLD_KEY` to `newKey`. */
+/** The manager and the action the scripted chain stands for: the ones this build reads. */
+export const DEPLOYMENT = {
+  manager: addressBookOf(WALLET_RECOVERY_CHAIN).manager,
+  action: addressBookOf(WALLET_RECOVERY_CHAIN).action
+}
+
+/** A manager this build no longer reads, with the build's action. */
+export const RETIRED_DEPLOYMENT = {
+  manager: getAddress('0x00000000000000000000000000000000000dead1'),
+  action: DEPLOYMENT.action
+}
+
+/** The action's payload of a handover from `OLD_KEY` to `newKey`, or from `NEW_KEY` to `OLD_KEY`. */
 export const payloadTo = (newKey: Address): Hex =>
-  encodeAbiParameters([{ type: 'address' }, { type: 'address' }], [newKey, OLD_KEY])
+  CODEC.encode({
+    newAuthority: newKey,
+    removedAuthority: newKey === OLD_KEY ? NEW_KEY : OLD_KEY
+  })
 
 const positionAt = (blockNumber: number): LogPosition => ({
   blockNumber,
@@ -52,7 +72,7 @@ export const startedEvent = (
 ): NonNullable<AttemptEvents['started']> => ({
   kind: 'attempt-started',
   account,
-  action: getAddress('0x00000000000000000000000000000000000ac710'),
+  action: ACTION,
   attemptId,
   setupNonce: 1n,
   setupBody: '0x',
@@ -70,7 +90,7 @@ export const cancelledEvent = (
 ): NonNullable<AttemptEvents['cancelled']> => ({
   kind: 'attempt-cancelled',
   account: ACCOUNT,
-  action: getAddress('0x00000000000000000000000000000000000ac710'),
+  action: ACTION,
   attemptId,
   canceller: ACCOUNT,
   vetoingMethod: zeroHash.slice(0, 42) as Address,
@@ -83,7 +103,7 @@ export const cancelledEvent = (
 export const consumedEvent = (attemptId: bigint): NonNullable<AttemptEvents['consumed']> => ({
   kind: 'attempt-consumed',
   account: ACCOUNT,
-  action: getAddress('0x00000000000000000000000000000000000ac710'),
+  action: ACTION,
   attemptId,
   at: positionAt(ENDED_BLOCK)
 })
@@ -128,7 +148,12 @@ export const atBlock = <T extends { at: LogPosition }>(log: T, blockNumber: numb
  * `placeEvents` answer only a scan whose blocks hold them.
  */
 export const scriptedChain = () => {
-  const head: BlockHeader = { number: HEAD, timestamp: HEAD_TIME, hash: zeroHash }
+  // The head a test moves, a mutable copy of the header the node answers.
+  const head: { number: number; timestamp: BlockHeader['timestamp']; hash: Hex } = {
+    number: HEAD,
+    timestamp: HEAD_TIME,
+    hash: zeroHash
+  }
   const states = new Map<string, ActionState | Error>()
   const codes = new Set<string>()
   const unauthorized = new Set<string>()
@@ -182,11 +207,7 @@ export const scriptedChain = () => {
     blockTime: jest.fn(async (block: number) => times.get(block) ?? 0),
     handoverOf: (payload: Hex) => {
       try {
-        const [newAuthority, removedAuthority] = decodeAbiParameters(
-          [{ type: 'address' }, { type: 'address' }],
-          payload
-        )
-        return { newAuthority, removedAuthority }
+        return CODEC.decode(payload)
       } catch {
         return undefined
       }

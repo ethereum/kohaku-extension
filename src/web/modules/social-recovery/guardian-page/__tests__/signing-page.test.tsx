@@ -8,7 +8,7 @@
  * pasted signature, the copy actions, the reads stopping once an approval
  * exists, and the decline's message.
  */
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 import type { SignOptions, TypedDataToSign } from '@web/modules/social-recovery/shared/client'
 
 import {
@@ -349,7 +349,10 @@ describe('the signing step', () => {
     )
     const page = await mountTicked()
     await page.press('guardian-sign')
-    expect(page.has('guardian-sign-busy')).toBe(true)
+    expect(page.textOf('guardian-sign-busy')).toBe(
+      t('socialRecovery.enroll.guardian.waitingForSignScreen')
+    )
+    expect(page.hasWithin('guardian-sign-busy', 'loading-row')).toBe(true)
     expect(page.isDisabled('guardian-sign')).toBe(true)
     await page.press('guardian-sign')
     expect(wallet.signTypedData).toHaveBeenCalledTimes(1)

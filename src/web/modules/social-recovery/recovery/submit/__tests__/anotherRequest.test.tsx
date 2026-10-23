@@ -7,7 +7,7 @@
  * the session the other tab gathered. Each page has its own records over the
  * device's one storage. The clock is Jest's.
  */
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 import type { SubmitStore } from '@web/modules/social-recovery/recovery/submit'
 
 import type { Mounted } from '@web/modules/social-recovery/recovery/submit/__tests__/harness'

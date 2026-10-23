@@ -3,14 +3,9 @@
  * module reads: one contract row per method and the headings of the path
  * rows that use it.
  */
-import { zeroAddress } from 'viem'
+import { isAddressEqual, zeroAddress } from 'viem'
 
-import type {
-  Address,
-  Clause,
-  Credential,
-  TrustedParties
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Clause, Credential, Parties } from '@kohaku-eth/social-recovery'
 import { sameAddress } from '@web/modules/social-recovery/shared/client'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import { enrollmentOf, isEmptySlot } from '@web/modules/social-recovery/shared/records/slots'
@@ -28,7 +23,8 @@ import type {
 
 /**
  * The method contract a credential uses: an enrolled credential's own method,
- * or for an empty slot the address book's method of the kind it waits for.
+ * or for an empty slot the address book's method of the kind it waits for. A
+ * kind the deployment does not serve holds the zero address, and no contract.
  */
 export const methodOfCredential = (
   credential: Credential,
@@ -38,7 +34,8 @@ export const methodOfCredential = (
     return credential.method
   }
   const kind = kindOf(credential, addressBook)
-  return kind ? addressBook.methods[kind] : undefined
+  const method = kind ? addressBook.methods[kind] : undefined
+  return method && !isAddressEqual(method, zeroAddress) ? method : undefined
 }
 
 /** Every method contract of the path once, in the order the path first names it. */
@@ -91,7 +88,7 @@ const nonZero = (address: Address): Address | undefined =>
 /** What a method's declaration says about its admin, and whether that admin could recover alone. */
 const adminDeclarationOf = (
   method: Address,
-  trustedParties: TrustedParties,
+  trustedParties: Parties,
   input: TrustRowsInput
 ): AdminDeclaration => {
   const admin = nonZero(trustedParties.admin)

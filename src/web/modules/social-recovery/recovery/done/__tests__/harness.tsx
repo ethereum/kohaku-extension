@@ -30,10 +30,11 @@ import type {
   Attempt,
   Configuration,
   Credential,
+  Gathering,
   Hex,
-  Notification,
+  KitNotification,
   RecoveryState
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type { RecoveryKitClient } from '@web/modules/social-recovery/shared/client'
 import type { RecoveryRoute, WalletRecords } from '@web/modules/social-recovery/shared/records'
 import type { TestStorage } from '@web/modules/social-recovery/recovery/checklist/__tests__/harness'
@@ -66,9 +67,12 @@ export interface MockWallet {
   walletAdds: boolean
   /** The networks the networks controller pushes. */
   networks: { chainId: bigint; name: string; nativeAssetSymbol: string }[]
-  /** The block time the extension's provider answers, by block number. */
+  /** The block time the client's provider answers, by block number. */
   blockTimes: Map<number, number>
+  /** The block reads through the client's provider. */
   blockReads: number[]
+  /** The block reads through the extension's own provider, which the screen never makes. */
+  extensionBlockReads: number[]
   /** The signer-state reads of the wallet's account facts. */
   factsReads: string[]
   version: number
@@ -88,6 +92,7 @@ export const mockWallet: MockWallet = {
   networks: [],
   blockTimes: new Map(),
   blockReads: [],
+  extensionBlockReads: [],
   factsReads: [],
   version: 0,
   listeners: new Set()
@@ -196,12 +201,8 @@ jest.mock('@web/modules/social-recovery/shared/client', () => ({
   extensionProviderFor: () => ({ destroy: () => undefined }),
   createProviderAdapter: () => ({
     block: async (blockNumber: number) => {
-      mockWallet.blockReads.push(blockNumber)
-      const timestamp = mockWallet.blockTimes.get(blockNumber)
-      if (timestamp === undefined) {
-        throw new Error('no such block')
-      }
-      return { number: blockNumber, timestamp }
+      mockWallet.extensionBlockReads.push(blockNumber)
+      throw new Error('the extension provider is not read')
     }
   })
 }))
@@ -362,7 +363,7 @@ export const attemptStarted = (
     setupNonce = 1n,
     usedMethods = []
   }: { payload?: Hex; setupNonce?: bigint; usedMethods?: Address[] } = {}
-): Notification => ({
+): KitNotification => ({
   kind: 'attempt-started',
   account,
   action: BOOK.action,
@@ -382,7 +383,7 @@ export const attemptConsumed = (
   attemptId = 1n,
   blockNumber = CONSUME_BLOCK,
   transactionHash: Hex = CONSUME_TX
-): Notification => ({
+): KitNotification => ({
   kind: 'attempt-consumed',
   account,
   action: BOOK.action,
@@ -397,7 +398,7 @@ export const privilegeChanged = (
   blockNumber: number,
   transactionHash: Hex,
   logIndex = 0
-): Notification => ({
+): KitNotification => ({
   kind: 'privilege-changed',
   account,
   addr,
@@ -409,7 +410,7 @@ export const privilegeChanged = (
 export const recoveryPrivileges = (
   account: Address,
   { granted = NEW_KEY, removed = REMOVED_KEY, creation = true } = {}
-): Notification[] => [
+): KitNotification[] => [
   ...(creation
     ? [privilegeChanged(account, removed, ORIGINAL_PRIV, CREATION_BLOCK, CREATE_TX)]
     : []),
@@ -422,8 +423,8 @@ export interface FakeChain {
   attempt: Attempt
   blockNumber: number
   blockTime: number
-  accountEvents: Notification[]
-  privilegeEvents: Notification[]
+  accountEvents: KitNotification[]
+  privilegeEvents: KitNotification[]
   /** The attempt read rejects while set. */
   failing: boolean
   /** The attempt read never answers while set. */
@@ -489,16 +490,24 @@ export const fakeKit = (account: Address, configuration: Configuration = MIXED_P
   const signer = () => jest.fn(async () => SIGNER_STATE_KEY)
   const signerReads = [signer(), signer(), signer(), signer()]
   const [removedKey, isAuthority, holdsAnyPrivilege, signers] = signerReads
+  const blockTime = jest.fn(async (blockNumber: number) => {
+    mockWallet.blockReads.push(blockNumber)
+    const timestamp = mockWallet.blockTimes.get(blockNumber)
+    if (timestamp === undefined) {
+      throw new Error('no such block')
+    }
+    return timestamp
+  })
   const client = {
     chain: 'sepolia',
     account,
-    descriptor: { deployedAt: DEPLOYED_AT },
+    descriptor: { deployedAt: DEPLOYED_AT, manager: BOOK.manager, action: BOOK.action },
     recovery: {
       recoveryState,
       events: { accountFilter, privilegeFilter, fetch }
     },
     setup: { getSetup },
-    walletReads: { removedKey, signers },
+    walletReads: { removedKey, signers, blockTime },
     action: { isAuthority, holdsAnyPrivilege }
   } as unknown as RecoveryKitClient
   return { client, chain, recoveryState, fetch, getSetup, signerReads }
@@ -804,6 +813,7 @@ export const openWorld = async ({
   mockWallet.dispatch = jest.fn()
   mockWallet.blockTimes = new Map([[CONSUME_BLOCK, CONSUME_TIME]])
   mockWallet.blockReads = []
+  mockWallet.extensionBlockReads = []
   mockWallet.factsReads = []
   mockWallet.listeners = new Set()
   if (entry) {
@@ -814,7 +824,11 @@ export const openWorld = async ({
     })
   }
   if (cache) {
-    await records.decryptedSetupCache(CHAIN_ID, account).write({ configuration, setupNonce: 1n })
+    await records.decryptedSetupCache(CHAIN_ID, account).write({
+      configuration,
+      setupNonce: 1n,
+      deployment: { manager: BOOK.manager, action: BOOK.action }
+    })
   }
   if (countdown) {
     await landCountdown({ records, account, configuration }, { attempt })
@@ -830,9 +844,13 @@ export const openWorld = async ({
  * hash: its request carries no payload. The world must open with no countdown.
  */
 export const landRecordWithoutAttempt = async ({ records, account, configuration }: World) => {
+  // A session an earlier build stored, whose request carried no handover bytes.
+  const opened = gatheringOf(configuration, 1, account)
+  const { payload, ...request } = opened.request
+  expect(payload).toBeDefined()
   const live = await records
     .recoverySession(CHAIN_ID, account)
-    .write(gatheringOf(configuration, 1, account), null)
+    .write({ ...opened, request } as unknown as Gathering, null)
   await records.landSubmission(CHAIN_ID, account, live.revision)
 }
 

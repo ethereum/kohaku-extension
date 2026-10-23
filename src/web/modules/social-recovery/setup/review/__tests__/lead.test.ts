@@ -1,11 +1,14 @@
+import { zeroAddress } from 'viem'
+
 import i18n from '@common/config/localization'
-import type { Clause, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Clause, SetupDraft } from '@kohaku-eth/social-recovery'
 import { shapeNoteOf } from '@web/modules/social-recovery/shared/client'
 import { renderFullAddress } from '@web/modules/social-recovery/shared/display'
 import { emptySlot } from '@web/modules/social-recovery/shared/records/slots'
 import type { Enrollment } from '@web/modules/social-recovery/shared/records'
 
 import {
+  kindOf,
   needsHostileMinorityLine,
   passkeyLinesOf,
   pathRowOf,
@@ -68,7 +71,7 @@ describe('the publication sentence', () => {
         items: t(`${ITEMS}.triple`, {
           first: t(`${LEAD}.passkey`),
           second: t(`${ITEMS}.passportIdentifier`),
-          third: t(`${ITEMS}.aadhaar`)
+          third: t(`${ITEMS}.aadhaarIdentifier`)
         }),
         count: 2
       })
@@ -91,6 +94,15 @@ describe('the publication sentence', () => {
     expect(sentence([required(PASSPORT), group(2, ALICE, BOB, CAROL)])).toBe(
       t(`${PUBLICATION}.methodsAndGuardians`, {
         items: t(`${LEAD}.passportIdentifier`),
+        count: 1
+      })
+    )
+  })
+
+  it('leads with the identifier an Aadhaar identity produces where it is the one other method', () => {
+    expect(sentence([required(AADHAAR), group(2, ALICE, BOB, CAROL)])).toBe(
+      t(`${PUBLICATION}.methodsAndGuardians`, {
+        items: t(`${LEAD}.aadhaarIdentifier`),
         count: 1
       })
     )
@@ -121,11 +133,11 @@ describe('the publication sentence', () => {
 })
 
 describe('the publication items', () => {
-  it('name a passkey, the passport identifier and the Aadhaar identity in that order', () => {
+  it('name a passkey, the passport identifier and the Aadhaar identifier in that order', () => {
     expect(publicationItemsOf(['aadhaar', 'ecdsa', 'zkpassport', 'passkey'])).toEqual([
       'passkey',
       'passportIdentifier',
-      'aadhaar'
+      'aadhaarIdentifier'
     ])
   })
 
@@ -142,11 +154,11 @@ describe('the publication items', () => {
 })
 
 describe('the waiting period', () => {
-  const CHIPS: [bigint, string][] = [
-    [86400n, 'hours24'],
-    [172800n, 'hours48'],
-    [259200n, 'hours72'],
-    [604800n, 'days7']
+  const CHIPS: [number, string][] = [
+    [86400, 'hours24'],
+    [172800, 'hours48'],
+    [259200, 'hours72'],
+    [604800, 'days7']
   ]
   CHIPS.forEach(([wait, chip]) => {
     it(`names ${wait} seconds by the picker chip ${chip}`, () => {
@@ -155,17 +167,15 @@ describe('the waiting period', () => {
   })
 
   it('names any other length by its count of hours', () => {
-    expect(renderWait(36n * 3600n, t)).toBe(
-      t('socialRecovery.display.remainingHours', { count: 36 })
-    )
-    expect(renderWait(3600n, t)).toBe(t('socialRecovery.display.remainingHours', { count: 1 }))
-    expect(renderWait(36n * 3600n, t)).not.toBe(renderWait(3600n, t))
+    expect(renderWait(36 * 3600, t)).toBe(t('socialRecovery.display.remainingHours', { count: 36 }))
+    expect(renderWait(3600, t)).toBe(t('socialRecovery.display.remainingHours', { count: 1 }))
+    expect(renderWait(36 * 3600, t)).not.toBe(renderWait(3600, t))
   })
 
   it('names a length under one hour by its whole minutes, never as zero hours', () => {
-    expect(renderWait(300n, t)).toBe(t('socialRecovery.display.remainingMinutes', { count: 5 }))
-    expect(renderWait(3599n, t)).toBe(t('socialRecovery.display.remainingMinutes', { count: 59 }))
-    expect(renderWait(300n, t)).not.toBe(t('socialRecovery.display.remainingHours', { count: 0 }))
+    expect(renderWait(300, t)).toBe(t('socialRecovery.display.remainingMinutes', { count: 5 }))
+    expect(renderWait(3599, t)).toBe(t('socialRecovery.display.remainingMinutes', { count: 59 }))
+    expect(renderWait(300, t)).not.toBe(t('socialRecovery.display.remainingHours', { count: 0 }))
   })
 })
 
@@ -269,8 +279,11 @@ describe('a row of the path', () => {
     ])
   })
 
-  it('carries the identity line alone on an Aadhaar row', () => {
-    expect(rowOf(enrolled(AADHAAR)).lines).toEqual([t('socialRecovery.disclosures.identity')])
+  it('carries the identity line and the publication line on an Aadhaar row', () => {
+    expect(rowOf(enrolled(AADHAAR)).lines).toEqual([
+      t('socialRecovery.disclosures.identity'),
+      t('socialRecovery.disclosures.aadhaarPublication')
+    ])
   })
 
   it('names a synced passkey by its label with the synced word', () => {
@@ -311,6 +324,14 @@ describe('a row of the path', () => {
 
   it('shows no chip for a credential the records hold no verdict for', () => {
     expect(pathRowOf(ALICE, [], BOOK, t).chip).toBeNull()
+  })
+
+  it('gives a credential at the zero address no kind where the deployment omits a method', () => {
+    const omitted = { ...BOOK, methods: { ...BOOK.methods, aadhaar: zeroAddress } }
+    const atZero = { method: zeroAddress, config: '0x01' } as const
+    expect(kindOf(atZero, omitted)).toBeUndefined()
+    expect(pathRowOf(atZero, [], omitted, t).name).toBe(renderFullAddress(zeroAddress))
+    expect(kindOf(emptySlot('aadhaar'), omitted)).toBe('aadhaar')
   })
 })
 
@@ -380,7 +401,7 @@ describe('the privacy lines', () => {
       clauses,
       privacy: {
         backup: 'encrypted',
-        publicMetadata: shapeNoteOf({ clauses, wait: 172800n, ignoresPause: true })
+        publicMetadata: shapeNoteOf({ clauses, wait: 172800, ignoresPause: true })
       }
     }
     const shapeLine = t('socialRecovery.privacy.level.shapeVisible.line', {
@@ -416,7 +437,7 @@ describe('the privacy lines', () => {
         clauses: [],
         privacy: {
           backup: 'encrypted',
-          publicMetadata: shapeNoteOf({ clauses: [], wait: 172800n, ignoresPause: true })
+          publicMetadata: shapeNoteOf({ clauses: [], wait: 172800, ignoresPause: true })
         }
       }
       const emptyLine = t('socialRecovery.privacy.level.shapeVisible.lineEmpty')
@@ -438,7 +459,7 @@ describe('the privacy lines', () => {
           backup: 'encrypted',
           publicMetadata: shapeNoteOf({
             clauses: memberlessGroups,
-            wait: 172800n,
+            wait: 172800,
             ignoresPause: true
           })
         }
@@ -469,7 +490,7 @@ describe('the privacy lines', () => {
           clauses,
           privacy: {
             backup: 'clear',
-            publicMetadata: shapeNoteOf({ clauses, wait: 172800n, ignoresPause: true })
+            publicMetadata: shapeNoteOf({ clauses, wait: 172800, ignoresPause: true })
           }
         },
         BOOK,

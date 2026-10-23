@@ -13,7 +13,7 @@ import { TextDecoder, TextEncoder } from 'util'
 
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
-import type { Address, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Hex, SetupDraft } from '@kohaku-eth/social-recovery'
 import type { StepViewProps } from '@web/modules/social-recovery/setup/privacy'
 import type { RecordStorage, WalletRecords } from '@web/modules/social-recovery/shared/records'
 
@@ -34,6 +34,7 @@ const themeConfig: typeof import('@common/styles/themeConfig') = require('@commo
 const {
   createWalletRecords
 }: typeof import('@web/modules/social-recovery/shared/records') = require('@web/modules/social-recovery/shared/records')
+const { hexToString }: typeof import('viem') = require('viem')
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
 
 export const CHAIN_ID = 11155111
@@ -137,12 +138,44 @@ export const recordsOn = (faults: StorageFaults = {}): WalletRecords =>
   createWalletRecords({ storage: makeStorage(faults) })
 
 export const draftOf = (overrides: Partial<SetupDraft> = {}): SetupDraft => ({
-  wait: 172800n,
+  wait: 172800,
   clauses: [],
   ignoresPause: true,
   privacy: { backup: 'encrypted', publicMetadata: '0x' },
   ...overrides
 })
+
+export interface PublicShape {
+  wait: bigint
+  ignoresPause: boolean
+  clauses: { threshold: number; methods: Address[] }[]
+}
+
+export interface PublicNote {
+  kind: 'shape'
+  shape: PublicShape
+}
+
+const SHAPE_MARK = 'kohaku-double:shape:'
+
+/**
+ * Reads a public note as a reader of the note's layout does: the mark, then
+ * the shape as JSON whose wait is a tagged decimal string.
+ */
+export const readPublicNote = (note: Hex): PublicNote => {
+  const text = hexToString(note)
+  if (!text.startsWith(SHAPE_MARK)) {
+    throw new Error('not a shape note')
+  }
+  return {
+    kind: 'shape',
+    shape: JSON.parse(text.slice(SHAPE_MARK.length), (_key, value) =>
+      value && typeof value === 'object' && typeof value.$bigint === 'string'
+        ? BigInt(value.$bigint)
+        : value
+    )
+  }
+}
 
 export interface Harness {
   navigate: jest.Mock
@@ -224,18 +257,18 @@ const describeHarness = runningHarnessItself ? describe : () => undefined
 describeHarness('the step view harness', () => {
   it('round-trips a waiting period and a draft through the storage double', async () => {
     const setup = recordsOn().setup(CHAIN_ID, ACCOUNT)
-    await setup.waitingPeriod.write(172800n)
-    await setup.setupDraft.write(draftOf({ wait: 86400n }))
+    await setup.waitingPeriod.write(172800)
+    await setup.setupDraft.write(draftOf({ wait: 86400 }))
     const wait = await setup.waitingPeriod.read()
     const draft = await setup.setupDraft.read()
-    expect(wait.status === 'present' && wait.value).toBe(172800n)
-    expect(draft.status === 'present' && draft.value).toEqual(draftOf({ wait: 86400n }))
+    expect(wait.status === 'present' && wait.value).toBe(172800)
+    expect(draft.status === 'present' && draft.value).toEqual(draftOf({ wait: 86400 }))
   })
 
   it('refuses the given number of writes, then stores', async () => {
     const setup = recordsOn({ set: 1 }).setup(CHAIN_ID, ACCOUNT)
-    await expect(setup.waitingPeriod.write(86400n)).rejects.toThrow()
-    await setup.waitingPeriod.write(86400n)
+    await expect(setup.waitingPeriod.write(86400)).rejects.toThrow()
+    await setup.waitingPeriod.write(86400)
     expect((await setup.waitingPeriod.read()).status).toBe('present')
   })
 })

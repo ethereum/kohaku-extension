@@ -8,6 +8,7 @@
 import type { Mounted } from '@web/modules/social-recovery/recovery/submit/__tests__/harness'
 import {
   CHAIN_ID,
+  mockWallet,
   mountSubmit,
   openWorld,
   START_BLOCK,
@@ -152,14 +153,32 @@ describe('the confirmation’s entry record read', () => {
     view = undefined
   })
 
-  it('shows a spinner and nothing else while the entry record read has not answered', async () => {
+  it('says it opens the recovery, and nothing else, while the entry record read has not answered', async () => {
     const world = await openWorld()
     world.storage.get = () => new Promise<never>(() => {})
     view = await mountSubmit(world.account)
-    expect(view.byTestId('submit-entry-loading')).not.toBeNull()
+    expect(view.textOf('submit-entry-loading')).toBe(t('socialRecovery.loading.session'))
+    expect(
+      view.byTestId('submit-entry-loading')?.querySelector('[data-testid="loading-screen"]')
+    ).not.toBeNull()
+    expect(view.byTestId('submit-title')).toBeNull()
     expect(view.byTestId('submit-entry-failed')).toBeNull()
     expect(view.byTestId('submit-action')).toBeNull()
     expect(view.paths()).toEqual([])
+  })
+
+  it('says it opens the recovery, with no lead and no start, while the client is not ready', async () => {
+    const world = await openWorld()
+    mockWallet.client = { status: 'loading' }
+    view = await mountSubmit(world.account)
+    expect(view.textOf('submit-loading')).toBe(t('socialRecovery.loading.session'))
+    expect(
+      view.byTestId('submit-loading')?.querySelector('[data-testid="loading-screen"]')
+    ).not.toBeNull()
+    expect(view.byTestId('submit-title')).toBeNull()
+    expect(view.byTestId('submit-columns')).toBeNull()
+    expect(view.byTestId('submit-lead')).toBeNull()
+    expect(view.byTestId('submit-action')).toBeNull()
   })
 
   it('renders failed with a retry where the entry record read fails, and the confirmation once the retry reads it', async () => {

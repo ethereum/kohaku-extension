@@ -4,7 +4,7 @@
  * with the unlock and the wrong password's line over it.
  */
 import React from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
@@ -12,6 +12,7 @@ import InputPassword from '@common/components/InputPassword'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import { ActionsRow } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
 
 import { LOCKED, OVERVIEW } from './constants'
@@ -30,7 +31,11 @@ const PathLockedBody = ({
   const { t } = useTranslation()
 
   if (ask.status === 'checking') {
-    return <ActivityIndicator testID={`${testID}-checking`} style={spacings.mbSm} />
+    return (
+      <View testID={`${testID}-checking`}>
+        <LoadingBlock variant="block" message={t('socialRecovery.loading.unlocking')} />
+      </View>
+    )
   }
   if (ask.status === 'event-failed') {
     return (

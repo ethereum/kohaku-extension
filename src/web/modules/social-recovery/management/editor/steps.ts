@@ -40,15 +40,16 @@
 import { REMOVAL_DRAFT } from '@web/modules/social-recovery/management/overview/constants'
 import {
   attemptOpenOf,
-  isCacheCurrent
+  isReadUnder
 } from '@web/modules/social-recovery/management/overview/readings'
-import type { SetupConfirmation, SetupState } from '@web/modules/social-recovery/sdk-interfaces'
+import type { SetupConfirmation, SetupState } from '@kohaku-eth/social-recovery'
 import {
   accountBatchTransactionOf,
   newSendRequestId
 } from '@web/modules/social-recovery/shared/client'
 import {
   SETUP_RECORD_NAMES,
+  recordDeploymentOf,
   setRecoveryPassword,
   wipeRecoveryPassword
 } from '@web/modules/social-recovery/shared/records'
@@ -208,7 +209,7 @@ export const editStepsOf = (input: EditStepsInput): SaveSteps => {
   return {
     ...save,
     ...ownRequestSteps('manageEdit', save),
-    hasSetup: async () => !isCacheCurrent(baseline, await input.client.setup.setupState()),
+    hasSetup: async () => !isReadUnder(baseline, await input.client.setup.setupState()),
     async prepare(): Promise<PreparedSave> {
       if (sealed && password === undefined) {
         throw new Error('The save seals the setup and needs the recovery password.')
@@ -242,7 +243,8 @@ export const editStepsOf = (input: EditStepsInput): SaveSteps => {
           ? cache.write({
               configuration: configurationOfDraft(landed.draft),
               setupNonce: landed.confirmation.nonce,
-              setupCommitment: landed.confirmation.setupCommitment
+              setupCommitment: landed.confirmation.setupCommitment,
+              deployment: recordDeploymentOf(input.client.descriptor)
             })
           : cache.wipe()
       ])
@@ -300,6 +302,7 @@ export const removalStepsOf = (input: EditorStepsInput): SaveSteps => {
       const ended = removalStands(state)
       return {
         landed: ended,
+        ...(ended ? {} : { cause: 'no-event' as const }),
         isAuthorized: ended,
         nonce: state.setupNonce,
         setupCommitment: state.setupCommitment

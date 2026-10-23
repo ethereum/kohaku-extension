@@ -93,7 +93,7 @@ import { isSmartAccount } from '@ambire-common/libs/account/account'
 import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
 import type { FeePaymentOption } from '@ambire-common/libs/estimate/interfaces'
 import { stringify } from '@ambire-common/libs/richJson/richJson'
-import type { Address, Hex, PreparedCall } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Hex, PreparedCall } from '@kohaku-eth/social-recovery'
 
 import { isVisible } from '@web/modules/social-recovery/shared/ceremony/visibility'
 

@@ -54,8 +54,8 @@ const UNTESTED = [{ credential: ALICE, clause: 0, member: 0 }]
 const PENDING_ROWS = passkeyRows({ trustedParties: declaration(), moduleInfo: info() })
 
 const TWO_AUTHORITIES = descriptionOf([
-  { address: REMOVED_KEY, isAuthority: true },
-  { address: OTHER_KEY, isAuthority: true }
+  { key: REMOVED_KEY, isAuthority: true },
+  { key: OTHER_KEY, isAuthority: true }
 ])
 
 const READS: AccountReads = {
@@ -174,8 +174,8 @@ describe('the save gate', () => {
 
     it('counts only the candidate keys that hold authority', () => {
       const description = descriptionOf([
-        { address: REMOVED_KEY, isAuthority: true },
-        { address: OTHER_KEY, isAuthority: false }
+        { key: REMOVED_KEY, isAuthority: true },
+        { key: OTHER_KEY, isAuthority: false }
       ])
 
       expect(gateOf({ description: { status: 'answered', value: description } })).toMatchObject({

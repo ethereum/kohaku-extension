@@ -18,7 +18,7 @@ import { Wallet } from 'ethers'
 import { SigningStatus } from '@ambire-common/controllers/signAccountOp/signAccountOp'
 import type { SignUserRequest } from '@ambire-common/interfaces/userRequest'
 import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
-import type { Address, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Hex } from '@kohaku-eth/social-recovery'
 import {
   ABSENCE_GRACE_MS,
   activityListing,

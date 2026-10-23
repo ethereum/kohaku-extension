@@ -19,12 +19,14 @@
  * the stored write is read again whenever the tab comes back into view.
  */
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, Linking, View } from 'react-native'
+import { Linking, View } from 'react-native'
 
 import Button from '@common/components/Button'
 import { useTranslation } from '@common/config/localization'
 import useNavigation from '@common/hooks/useNavigation'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
+import ConfirmingBlock from '@web/modules/social-recovery/management/overview/ConfirmingBlock'
+import { useHeldKeys } from '@web/modules/social-recovery/management/overview/useHeldKeys'
 import { useOverviewReads } from '@web/modules/social-recovery/management/overview/useOverviewReads'
 import { PageTitle } from '@web/modules/social-recovery/shared/chrome'
 import SetupChrome from '@web/modules/social-recovery/shared/chrome/SetupChrome'
@@ -81,7 +83,15 @@ export const ReviewStageView = ({
 }: EditStageProps) => {
   const { t } = useTranslation()
   const clientState = useRecoveryClient(account)
-  const reads = useOverviewReads({ client: clientState, records, chainId, account })
+  const heldKeys = useHeldKeys()
+  const reads = useOverviewReads({
+    client: clientState,
+    records,
+    watcherStorage: extensionRecordStorage,
+    chainId,
+    account,
+    heldKeys
+  })
   const kit = clientState.status === 'ready' ? clientState.client : null
   const facts = reads.facts.status === 'answered' ? reads.facts.value : null
   // The attempt as the save last read it before the send; a new read of the overview's facts replaces it.
@@ -318,7 +328,12 @@ export const ReviewStageView = ({
         lead={t(`${REVIEW}.lead`)}
         titleTestID="manage-review-title"
       />
-      <ReadsGate reads={reads} needsPath={false} testID="manage-review-reads">
+      <ReadsGate
+        reads={reads}
+        needsPath={false}
+        onControlMoved={arrives && held.status === 'none' ? toOverview : undefined}
+        testID="manage-review-reads"
+      >
         {screen === 'saved' && (
           <ReviewSaved
             transactionHash={write.status === 'landed' ? write.transactionHash : undefined}
@@ -339,16 +354,7 @@ export const ReviewStageView = ({
             openUrl={openUrl}
           />
         )}
-        {screen === 'confirming' && <ActivityIndicator testID="manage-review-confirming" />}
-        {screen === 'run' && (
-          <ReviewRun
-            run={run}
-            attemptOpen={attemptOpen}
-            dormantRefused={dormantRefused}
-            backToEditor={backToEditor}
-          />
-        )}
-        {arrives && (
+        {(arrives || screen === 'run' || screen === 'confirming') && (
           <ReviewArrival
             held={held}
             load={load}
@@ -377,6 +383,21 @@ export const ReviewStageView = ({
             onEditor={toEditor}
             onOverview={toOverview}
             backToEditor={backToEditor}
+            run={
+              screen === 'run' ? (
+                <ReviewRun
+                  run={run}
+                  attemptOpen={attemptOpen}
+                  dormantRefused={dormantRefused}
+                  backToEditor={backToEditor}
+                />
+              ) : screen === 'confirming' ? (
+                <ConfirmingBlock
+                  transactionHash={write.status === 'landed' ? write.transactionHash : undefined}
+                  testID="manage-review-confirming"
+                />
+              ) : undefined
+            }
           />
         )}
       </ReadsGate>

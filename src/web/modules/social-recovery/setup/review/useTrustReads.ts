@@ -5,7 +5,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import type { Address, IMethodModuleReads } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, IMethodModuleReads } from '@kohaku-eth/social-recovery'
 
 import { readKeyOf } from './trust'
 import { TRUST_READ_NAMES } from './constants'

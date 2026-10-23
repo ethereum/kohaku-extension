@@ -7,7 +7,7 @@
  * the parts of its file, and every string a page shows, read by a tokenizer of
  * its own.
  */
-import type { RestoreCause, RestoreRefusal } from '@web/modules/social-recovery/sdk-interfaces'
+import type { KitRefusalError, RestoreCause, RestoreCauseCode } from '@kohaku-eth/social-recovery'
 import type { DigestVersionRefusal } from '@web/modules/social-recovery/shared/client'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 
@@ -126,12 +126,12 @@ export interface PdfFileParts {
   streams: PdfStream[]
 }
 
-export const restoreRefusalOf = (cause: RestoreCause): RestoreRefusal => {
-  const error = new Error(`The restore refused: ${cause}`) as RestoreRefusal
-  error.name = 'RestoreRefusal'
-  error.cause = { code: cause, subject: 'setup', values: {} }
-  return error
-}
+export const restoreRefusalOf = (cause: RestoreCauseCode): KitRefusalError =>
+  Object.assign(new Error(`The restore refused: ${cause}`), {
+    name: 'KitRefusalError',
+    // The values of each cause are the SDK's to fill; the screens read the code alone.
+    restoreCause: { code: cause, subject: 'restore', values: {} } as unknown as RestoreCause
+  })
 
 /** The refusal of a client built against another deployment's digest version. */
 export const digestVersionRefusal = (): DigestVersionRefusal =>
@@ -465,7 +465,7 @@ if (expect.getState().testPath === __filename) {
     it('throws a restore refusal as an error that carries its cause', () => {
       const refusal = restoreRefusalOf('restore.backup-unopened')
       expect(refusal).toBeInstanceOf(Error)
-      expect(refusal.cause.code).toBe('restore.backup-unopened')
+      expect(refusal.restoreCause?.code).toBe('restore.backup-unopened')
     })
   })
 }

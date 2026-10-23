@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { levelOfReading } from '@web/modules/social-recovery/management/overview/readings'
 import { readSetupReading } from '@web/modules/social-recovery/recovery/entry/readout'
-import type { SetupState } from '@web/modules/social-recovery/sdk-interfaces'
+import type { SetupState } from '@kohaku-eth/social-recovery'
 import type { RecoveryKitClient } from '@web/modules/social-recovery/shared/client'
 
 import type { CommittedLevel } from './types'

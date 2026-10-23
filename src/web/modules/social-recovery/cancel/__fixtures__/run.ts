@@ -7,12 +7,7 @@
  */
 import { getAddress, zeroHash } from 'viem'
 
-import type {
-  Address,
-  CancelledBy,
-  Hex,
-  PreparedCall
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, CancelledBy, Hex, PreparedCall } from '@kohaku-eth/social-recovery'
 import { accountBatchRefusal } from '@web/modules/social-recovery/shared/client'
 import type {
   ProviderTransactionReceipt,
@@ -28,6 +23,7 @@ import {
 import type { CancelHold, CancelLog, CancelSteps } from '@web/modules/social-recovery/cancel'
 import {
   ACCOUNT,
+  DEPLOYMENT,
   HEAD,
   NEW_KEY,
   SEPOLIA,
@@ -204,6 +200,7 @@ export const runWorld = (chain: Chain = openChain(), now: () => number = Date.no
   const receiptCancel = jest.fn(async (): Promise<CancelLog | undefined> => undefined)
   const readAttempt = attemptReaderOf({
     reads: chain.reads,
+    deployment: DEPLOYMENT,
     account: ACCOUNT,
     chainId: SEPOLIA,
     storage,

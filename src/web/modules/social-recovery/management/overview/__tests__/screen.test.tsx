@@ -25,10 +25,12 @@ const mockWallet: {
   client: unknown
   port: SendPort | null
   storage: unknown
-} = { account: undefined, facts: null, client: null, port: null, storage: null }
+  watched: unknown
+} = { account: undefined, facts: null, client: null, port: null, storage: null, watched: undefined }
 // The wallet's controller states keep their identity between renders, as the real hooks do.
 const mockState = {
   accounts: { accounts: [] as unknown[] },
+  keystore: { keys: [] as unknown[] },
   networks: { networks: [] as unknown[] },
   requests: { userRequests: [] as unknown[] },
   selected: { account: null },
@@ -56,6 +58,10 @@ jest.mock('@common/hooks/useNavigation', () => ({
 jest.mock('@web/hooks/useAccountsControllerState', () => ({
   __esModule: true,
   default: () => mockState.accounts
+}))
+jest.mock('@web/hooks/useKeystoreControllerState', () => ({
+  __esModule: true,
+  default: () => mockState.keystore
 }))
 jest.mock('@web/hooks/useNetworksControllerState', () => ({
   __esModule: true,
@@ -90,8 +96,21 @@ jest.mock('@web/modules/social-recovery/cancel/AccountAttemptBanner', () => ({
   __esModule: true,
   default: () => null
 }))
+// Each mounted reader of the watcher's record, so a test can push the record's next state.
+const mockWatchers = new Set<(update: (round: number) => number) => void>()
 jest.mock('@web/modules/social-recovery/watcher/useWatchedAttempt', () => ({
-  useWatchedAttempt: () => ({ status: 'unwatched' })
+  useWatchedAttempt: () => {
+    // eslint-disable-next-line global-require
+    const { useEffect, useState } = require('react')
+    const [, bump] = useState(0)
+    useEffect(() => {
+      mockWatchers.add(bump)
+      return () => {
+        mockWatchers.delete(bump)
+      }
+    }, [])
+    return mockWallet.watched ?? { status: 'unwatched' }
+  }
 }))
 jest.mock('@web/modules/social-recovery/shared/client/useRecoveryClient', () => ({
   useRecoveryClient: () => mockWallet.client
@@ -136,6 +155,7 @@ const {
 }: typeof import('@web/modules/social-recovery/shared/chrome/__fixtures__/deferred') = require('@web/modules/social-recovery/shared/chrome/__fixtures__/deferred')
 const OverviewScreen: typeof import('@web/modules/social-recovery/management/overview/OverviewScreen').default =
   require('@web/modules/social-recovery/management/overview/OverviewScreen').default
+const display: typeof import('@web/modules/social-recovery/shared/display') = require('@web/modules/social-recovery/shared/display')
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
 
 const {
@@ -153,6 +173,8 @@ const {
   CHAIN_ID,
   CONFIGURATION
 } = harness
+
+const O = 'socialRecovery.management.overview'
 
 let seed = 0x5c0
 let account: Account
@@ -451,5 +473,240 @@ describe("the overview's screen", () => {
 
     expect(view.byTestId('overview-write-elsewhere')).toBeNull()
     expect(view.byTestId('overview-dormant')).not.toBeNull()
+  })
+
+  it('reads the account as no longer controlled from here once a recovery executed, with the time the watcher read', async () => {
+    const storage = makeStorage()
+    mockWallet.storage = storage
+    const world = await worldAt('public', address, storage)
+    const controller = '0x00000000000000000000000000000000000000e2' as const
+    world.chain.setAuthorities([key.addr])
+    world.chain.openAttempt({ handover: { newAuthority: controller, removedAuthority: key.addr } })
+    world.chain.consume()
+    const { attempt } = await world.client.walletReads.attemptState()
+    mockWallet.client = readyOver(world.client)
+    mockState.accounts.accounts = [account]
+    mockState.keystore.keys = [{ addr: key.addr, type: key.type }]
+    mockWallet.watched = {
+      status: 'watched',
+      reading: {
+        account: address,
+        block: { number: 300, timestamp: 3_000 },
+        hasSetup: true,
+        dormant: false,
+        ended: {
+          attemptId: attempt.attemptId,
+          road: 'executed',
+          controller,
+          at: 2_500,
+          transactionHash: armHarness.TX_HASH
+        }
+      },
+      attemptDismissed: false
+    }
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    try {
+      view = await mount(<OverviewScreen />)
+      await harness.settleReads()
+
+      expect(view.textOf('overview-title')).toBe(t(`${O}.controlMoved.title`))
+      expect(view.text()).toContain(
+        t(`${O}.controlMoved.lead`, { date: display.renderDateTimeInZone(2_500_000, zone).date })
+      )
+      expect(view.textOf('overview-control-moved-controller')).toBe(
+        display.renderFullAddress(controller)
+      )
+      expect(view.byTestId('overview-control-moved-transaction')).not.toBeNull()
+      expect(view.byTestId('overview-edit-path')).toBeNull()
+      expect(view.byTestId('overview-remove-recovery')).toBeNull()
+    } finally {
+      mockState.accounts.accounts = []
+      mockState.keystore.keys = []
+      mockWallet.watched = undefined
+    }
+  })
+
+  it('stays set up with its actions where the recovery handed control to the key of another account of this wallet', async () => {
+    const storage = makeStorage()
+    mockWallet.storage = storage
+    const world = await worldAt('public', address, storage)
+    // The key of another account the keystore holds, which this account's entry never lists.
+    const other = await armHarness.keyedAccount(seed + 0x1000)
+    expect(account.associatedKeys.map((associated) => associated.toLowerCase())).not.toContain(
+      other.key.addr.toLowerCase()
+    )
+    world.chain.setAuthorities([key.addr])
+    world.chain.openAttempt({
+      handover: { newAuthority: other.key.addr, removedAuthority: key.addr }
+    })
+    world.chain.consume()
+    mockWallet.client = readyOver(world.client)
+    mockState.accounts.accounts = [account, other.account]
+    mockState.keystore.keys = [
+      { addr: key.addr, type: key.type },
+      { addr: other.key.addr, type: other.key.type }
+    ]
+    try {
+      view = await mount(<OverviewScreen />)
+      await harness.settleReads()
+
+      expect(view.byTestId('overview-control-moved-notice')).toBeNull()
+      expect(view.textOf('overview-title')).not.toBe(t(`${O}.controlMoved.title`))
+      expect(view.byTestId('overview-chip-set-up')).not.toBeNull()
+      expect(view.byTestId('overview-edit-path')).not.toBeNull()
+      expect(view.byTestId('overview-remove-recovery')).not.toBeNull()
+    } finally {
+      mockState.accounts.accounts = []
+      mockState.keystore.keys = []
+    }
+  })
+
+  describe('left open while an attempt waits', () => {
+    const CONTROLLER = '0x00000000000000000000000000000000000000e2' as const
+
+    /** An attempt open on the account that hands control away from its one held key. */
+    const waitingWorld = async () => {
+      const storage = makeStorage()
+      mockWallet.storage = storage
+      const world = await worldAt('public', address, storage)
+      world.chain.setAuthorities([key.addr])
+      world.chain.openAttempt({
+        handover: { newAuthority: CONTROLLER, removedAuthority: key.addr }
+      })
+      const { attempt } = await world.client.walletReads.attemptState()
+      mockWallet.client = readyOver(world.client)
+      mockState.accounts.accounts = [account]
+      mockState.keystore.keys = [{ addr: key.addr, type: key.type }]
+      mockWallet.watched = { status: 'watched', attemptDismissed: false }
+      return { world, attemptId: attempt.attemptId }
+    }
+
+    /** The recovery executes from another wallet: the attempt consumed, the held key no longer signing. */
+    const executeElsewhere = async (world: Awaited<ReturnType<typeof waitingWorld>>['world']) => {
+      world.chain.consume()
+      expect((await world.client.walletReads.attemptState()).attempt.state).toBe('Consumed')
+      expect(await world.client.action.isAuthority(key.addr)).toBe(false)
+    }
+
+    const pushExecutedEnding = async (attemptId: bigint) => {
+      mockWallet.watched = {
+        status: 'watched',
+        reading: {
+          account: address,
+          block: { number: 300, timestamp: 3_000 },
+          hasSetup: true,
+          dormant: false,
+          ended: {
+            attemptId,
+            road: 'executed',
+            controller: CONTROLLER,
+            at: 2_500,
+            transactionHash: armHarness.TX_HASH
+          }
+        },
+        attemptDismissed: false
+      }
+      await act(async () => {
+        mockWatchers.forEach((bump) => bump((round) => round + 1))
+      })
+      await harness.settleReads()
+    }
+
+    const showTab = async () => {
+      await act(async () => {
+        document.dispatchEvent(new Event('visibilitychange'))
+      })
+      await harness.settleReads()
+    }
+
+    const terminal = () => ({
+      moved: view?.byTestId('overview-control-moved-notice') !== null,
+      edit: view?.byTestId('overview-edit-path') !== null
+    })
+
+    afterEach(() => {
+      mockState.accounts.accounts = []
+      mockState.keystore.keys = []
+      mockWallet.watched = undefined
+    })
+
+    it('reaches the terminal state with no remount once the watcher reads the execution and the tab is shown', async () => {
+      const { world, attemptId } = await waitingWorld()
+      view = await mount(<OverviewScreen />)
+      await harness.settleReads()
+      expect(terminal()).toEqual({ moved: false, edit: true })
+
+      await executeElsewhere(world)
+      await pushExecutedEnding(attemptId)
+      await showTab()
+
+      expect(terminal()).toEqual({ moved: true, edit: false })
+      expect(view.textOf('overview-control-moved-controller')).toBe(
+        display.renderFullAddress(CONTROLLER)
+      )
+    })
+
+    it('reads the chain again when the watcher reads a new ending alone', async () => {
+      const { world, attemptId } = await waitingWorld()
+      view = await mount(<OverviewScreen />)
+      await harness.settleReads()
+
+      await executeElsewhere(world)
+      await pushExecutedEnding(attemptId)
+
+      expect(terminal()).toEqual({ moved: true, edit: false })
+    })
+
+    it('reads the chain again when the tab is shown alone', async () => {
+      const { world } = await waitingWorld()
+      view = await mount(<OverviewScreen />)
+      await harness.settleReads()
+
+      await executeElsewhere(world)
+      await showTab()
+
+      expect(terminal()).toEqual({ moved: true, edit: false })
+    })
+  })
+
+  it('keeps an open write step mounted when the tab is shown or the watcher reads a new ending', async () => {
+    const world = await dormantWorld()
+    await storeOverviewWrite(world, 'clear', address)
+    const receipts = receiptsOver()
+    receipts.wait.mockImplementation(() => armHarness.pending())
+    mockWallet.port = sendPortOver()
+    mockWallet.client = readyOver(world.client, GAS_READS, receipts)
+    mockWallet.watched = { status: 'watched', attemptDismissed: false }
+    try {
+      view = await mount(<OverviewScreen />)
+      const step = view.byTestId('overview-step-clear')
+      expect(step).not.toBeNull()
+
+      await act(async () => {
+        document.dispatchEvent(new Event('visibilitychange'))
+      })
+      await settle()
+      mockWallet.watched = {
+        status: 'watched',
+        reading: {
+          account: address,
+          block: { number: 300, timestamp: 3_000 },
+          hasSetup: true,
+          dormant: true,
+          ended: { attemptId: 9n, road: 'cancelled', cancelledBy: 'cancelByOwner', at: 2_500 }
+        },
+        attemptDismissed: false
+      }
+      await act(async () => {
+        mockWatchers.forEach((bump) => bump((round) => round + 1))
+      })
+      await settle()
+
+      expect(view.byTestId('overview-step-clear')).toBe(step)
+      expect(view.byTestId('overview-step-submitting')).not.toBeNull()
+      expect(view.byTestId('overview-reading')).toBeNull()
+    } finally {
+      mockWallet.watched = undefined
+    }
   })
 })

@@ -4,16 +4,20 @@
  * for that key alone. A failed last poll comes back beside the last good
  * reading, never in its place. A storage read that fails, or a stored value
  * that is not a watcher record, reads as failed with a retry, never as an
- * account the watcher has not polled.
+ * account the watcher has not polled. A reading of another deployment than
+ * the one this build reads is not shown: the account reads as not polled
+ * until the watcher polls it.
  */
 import { useCallback, useEffect, useState } from 'react'
 
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import {
   browserReportStore,
   browserReportSubscribe
 } from '@web/modules/social-recovery/shared/ceremony/screen/browserDefaults'
+import { addressBookOf } from '@web/modules/social-recovery/shared/client/addresses'
 import { CHAIN_IDS, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client/chains'
+import { isOfDeployment } from '@web/modules/social-recovery/shared/records/deployment'
 
 import { attemptDismissed, watcherKeyOf, watcherRecordFrom } from './record'
 import type { WatchedAttemptSources, WatchedAttemptState } from './types'
@@ -49,6 +53,13 @@ export const useWatchedAttempt = (
       const record = watcherRecordFrom(value)
       if (!record) {
         return { status: 'failed', retry }
+      }
+      // A reading of another deployment, or one that names none, is none of this build's until a poll.
+      if (
+        record.reading &&
+        !isOfDeployment(record.reading.deployment, addressBookOf(WALLET_RECOVERY_CHAIN))
+      ) {
+        return { status: 'unwatched' }
       }
       return {
         status: 'watched',

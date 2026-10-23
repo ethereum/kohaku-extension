@@ -5,14 +5,17 @@
  * that lands the batch on the stand-in's chain as the wallet would, and the
  * receipt reads that answer for it.
  */
+import { webcrypto } from 'crypto'
 import { TextDecoder, TextEncoder } from 'util'
 
-import type { Configuration, Hex, PreparedCall } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Configuration, DraftPrivacy, Hex, PreparedCall } from '@kohaku-eth/social-recovery'
 import type { EstimationListener, SendPort } from '@web/modules/social-recovery/shared/client'
 
 import type { EditWorld, LandingCase } from './types'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
+// The sealed backup is sealed with WebCrypto, which jsdom does not carry.
+Object.defineProperty(globalThis, 'crypto', { value: webcrypto, configurable: true })
 
 jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
   SEPOLIA_DEPLOYMENT_VARIABLE: 'SOCIAL_RECOVERY_SEPOLIA_DEPLOYMENT',
@@ -20,6 +23,10 @@ jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
 }))
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
+const {
+  walletMethod
+}: typeof import('@kohaku-eth/social-recovery') = require('@kohaku-eth/social-recovery')
+const { getAddress }: typeof import('viem') = require('viem')
 const arm: typeof import('@web/modules/social-recovery/setup/arm/__tests__/harness') = require('@web/modules/social-recovery/setup/arm/__tests__/harness')
 const {
   accountBatchRefusal,
@@ -31,9 +38,6 @@ const {
 const {
   sdkStandIn
 }: typeof import('@web/modules/social-recovery/shared/client/stand-in') = require('@web/modules/social-recovery/shared/client/stand-in')
-const {
-  ecdsaConfigOf
-}: typeof import('@web/modules/social-recovery/shared/client/kit/formats/credentials') = require('@web/modules/social-recovery/shared/client/kit/formats/credentials')
 const {
   createWalletRecords
 }: typeof import('@web/modules/social-recovery/shared/records') = require('@web/modules/social-recovery/shared/records')
@@ -54,14 +58,29 @@ export const SECOND_GUARDIAN = '0x00000000000000000000000000000000000c0c00' as c
 
 export const guardianOf = (address: `0x${string}`) => ({
   method: ADDRESS_BOOK.methods.ecdsa,
-  config: ecdsaConfigOf(address)
+  config: walletMethod().codec.encodeConfig({ signer: address })
 })
 
 export const CONFIGURATION: Configuration = {
   clauses: [{ threshold: 1, credentials: [guardianOf(GUARDIAN)] }],
-  wait: 172_800n,
+  wait: 172_800,
   ignoresPause: true
 }
+
+/** A configuration as the SDK opens it from a backup: every method address checksummed. */
+export const asOpened = (configuration: Configuration): Configuration => ({
+  ...configuration,
+  clauses: configuration.clauses.map((clause) => ({
+    ...clause,
+    credentials: clause.credentials.map((credential) => ({
+      ...credential,
+      method: getAddress(credential.method)
+    }))
+  }))
+})
+
+/** The privacy a private save chooses: no public note, the backup sealed under the password. */
+export const PRIVATE: DraftPrivacy = { publicMetadata: '0x', backup: 'encrypted' }
 
 /** A port whose account batch lands on the chain, or is refused before it reaches it. */
 const portOver = (world: Pick<EditWorld, 'chain'>, landing: LandingCase): SendPort => ({
@@ -80,7 +99,9 @@ const portOver = (world: Pick<EditWorld, 'chain'>, landing: LandingCase): SendPo
       if (landing === 'refused') {
         throw accountBatchRefusal('refused', account)
       }
-      world.chain.land({ kind: 'batch', calls: [...calls] } as never)
+      // The account's batch lands all its calls together, as the wallet sends them.
+      const { number, hash } = world.chain.head
+      world.chain.land({ kind: 'batch', calls, atomic: true, block: { number, hash } })
       return arm.TX_HASH
     }
   )
@@ -90,16 +111,14 @@ export const worldOf = async (landing: LandingCase = 'lands'): Promise<EditWorld
   const account = await arm.smartAccount()
   const address = account.addr as `0x${string}`
   sdkStandIn.reset()
-  const chain = sdkStandIn.chainFor(descriptorOf(WALLET_RECOVERY_CHAIN, ADDRESS_BOOK), address)
-  chain.commitSetup({ level: 'private', configuration: CONFIGURATION, password: PASSWORD })
+  const chain = sdkStandIn.nodeFor(descriptorOf(WALLET_RECOVERY_CHAIN, ADDRESS_BOOK), address)
+  await chain.commitSetup(CONFIGURATION, PRIVATE, PASSWORD)
   chain.setAuthorized(true)
   const client = await buildRecoveryClient({
     chain: WALLET_RECOVERY_CHAIN,
     account: address,
     addressBook: ADDRESS_BOOK,
-    provider: sdkStandIn.providerFor(chain),
-    codeRead: { code: async () => '0x' },
-    transactionRead: async () => null
+    provider: sdkStandIn.providerFor(chain)
   })
   const storage = makeStorage()
   const world = {

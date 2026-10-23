@@ -7,15 +7,16 @@
  * being recovered, and the origin this build serves is read from the page.
  */
 import React, { useCallback, useEffect, useMemo } from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 import { useLocation } from 'react-router-dom'
 
 import { useTranslation } from '@common/config/localization'
 import useNavigation from '@common/hooks/useNavigation'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
-import spacings from '@common/styles/spacings'
+import flexbox from '@common/styles/utils/flexbox'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import { relyingPartyOf } from '@web/modules/social-recovery/shared/ceremony'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
 import RecoveryChrome from '@web/modules/social-recovery/shared/chrome/RecoveryChrome'
 import {
@@ -118,8 +119,8 @@ const ReadoutScreen = () => {
       testID="recovery-readout"
     >
       {!!account && read.status === 'pending' && (
-        <View testID="readout-entry-reading">
-          <ActivityIndicator style={spacings.mbSm} />
+        <View testID="readout-entry-reading" style={flexbox.flex1}>
+          <LoadingBlock variant="screen" message={t('socialRecovery.loading.session')} />
         </View>
       )}
       {!!account && read.status === 'failed' && (

@@ -8,7 +8,7 @@
  * whose method is the zero address, whose config is empty and whose label is
  * its kind; it stands for a method the holder has yet to enroll.
  */
-import { decodeAbiParameters, isAddressEqual } from 'viem'
+import { decodeAbiParameters, isAddressEqual, zeroAddress } from 'viem'
 
 import type {
   Address,
@@ -17,15 +17,11 @@ import type {
   Finding,
   SetupDraft,
   ValidationResult
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
+import { credentialKindIn, methodKindIn } from '@web/modules/social-recovery/shared/client'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import type { SlotKind } from '@web/modules/social-recovery/shared/records'
-import {
-  isEmptySlot,
-  pathHolds,
-  SLOT_KINDS,
-  slotKindOf
-} from '@web/modules/social-recovery/shared/records'
+import { isEmptySlot, pathHolds } from '@web/modules/social-recovery/shared/records'
 
 import type { AddTarget, ClauseRole, EditorFill, EditResult, SlotPosition } from './types'
 
@@ -45,9 +41,17 @@ const DUPLICATE: EditResult = { status: 'refused', reason: 'duplicate' }
 
 export { emptySlot as emptySlotOf, isEmptySlot } from '@web/modules/social-recovery/shared/records'
 
-/** The kind of method a method module address serves; a module the address book does not hold has none. */
+/**
+ * The kind of method a method module address serves; a module the address
+ * book does not hold has none, and the zero address a deployment leaves for a
+ * method it omits is no module.
+ */
 export const methodKindOf = (method: Address, addressBook: AddressBook): SlotKind | undefined =>
-  SLOT_KINDS.find((kind) => isAddressEqual(addressBook.methods[kind], method))
+  methodKindIn(addressBook.methods, method)
+
+/** Whether the network's deployment ships the kind's method: one it omits is the zero address. */
+export const isKindOnNetwork = (kind: SlotKind, addressBook: AddressBook): boolean =>
+  !isAddressEqual(addressBook.methods[kind], zeroAddress)
 
 /**
  * The kind of a credential: the kind an empty slot waits for, or the address
@@ -55,7 +59,7 @@ export const methodKindOf = (method: Address, addressBook: AddressBook): SlotKin
  * does not hold has no kind.
  */
 export const kindOf = (credential: Credential, addressBook: AddressBook): SlotKind | undefined =>
-  isEmptySlot(credential) ? slotKindOf(credential) : methodKindOf(credential.method, addressBook)
+  credentialKindIn(credential, addressBook.methods)
 
 /** The address a guardian's config holds, ABI-encoded in one word. */
 export const guardianAddressOf = (credential: Credential): Address | undefined => {
@@ -139,7 +143,10 @@ export const addMember = (
   }
 }
 
-/** Removes one member; a group that loses its last member stays until it is removed. */
+/**
+ * Removes one member, the threshold kept; a group that loses its last member
+ * stays until it is removed.
+ */
 export const removeMember = (
   clauses: readonly Clause[],
   group: number,
@@ -150,6 +157,24 @@ export const removeMember = (
     threshold,
     credentials: credentials.filter((_, i) => i !== member)
   })
+}
+
+/**
+ * The holder's Remove: removes one member, and a threshold the removal leaves
+ * above the members comes down to their count, never below one. A threshold
+ * within the members is kept.
+ */
+export const removeMemberToFit = (
+  clauses: readonly Clause[],
+  group: number,
+  member: number
+): Clause[] => {
+  const removed = removeMember(clauses, group, member)
+  const { threshold, credentials } = removed[group]
+  if (threshold <= credentials.length) {
+    return removed
+  }
+  return replaceAt(removed, group, { threshold: Math.max(1, credentials.length), credentials })
 }
 
 /** Sets a clause's threshold to any integer; the editor's refusals judge its bounds. */

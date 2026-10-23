@@ -51,6 +51,7 @@ const client: typeof import('@web/modules/social-recovery/shared/client') = jest
   '@web/modules/social-recovery/shared/client'
 )
 const DEPOSIT_LINE = 'Send at most 0.00096 ETH to this key for the submission.'
+const READING_BALANCE = 'Reading the balance and the fee…'
 
 // While `hold` is set, each balance read waits until the test answers it.
 const held = {
@@ -330,7 +331,7 @@ describe('the gas step', () => {
 
       expect(mockChain.balanceReads).toHaveLength(2)
       expect(byTestId('fast-track-gas')).not.toBeNull()
-      expect(byTestId('fast-track-gas-spinner')).toBeNull()
+      expect(byTestId('fast-track-gas-waiting')).toBeNull()
       expect(text()).toContain(DEPOSIT_LINE)
     })
 
@@ -373,11 +374,15 @@ describe('the gas step', () => {
       held.hold = true
       await mount(GAS_STEP)
 
-      expect(byTestId('fast-track-gas-spinner')).not.toBeNull()
+      expect(byTestId('fast-track-gas-waiting')?.textContent).toBe(READING_BALANCE)
+      expect(
+        byTestId('fast-track-gas-waiting')?.querySelector('[data-testid="loading-screen"]')
+      ).not.toBeNull()
+      expect(byTestId('fast-track-gas-columns')).toBeNull()
 
       await passes(BALANCE_READ_LIMIT_MS)
 
-      expect(byTestId('fast-track-gas-spinner')).toBeNull()
+      expect(byTestId('fast-track-gas-waiting')).toBeNull()
       expect(byTestId('fast-track-gas-failed')).not.toBeNull()
     })
 

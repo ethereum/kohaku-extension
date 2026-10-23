@@ -7,7 +7,7 @@
 import { keccak256 } from 'viem'
 
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
-import type { ApproverRequest } from '@web/modules/social-recovery/sdk-interfaces'
+import type { ApproverRequest } from '@kohaku-eth/social-recovery'
 import {
   approvalLinkOf,
   requestOfApprovalLink
@@ -17,7 +17,7 @@ const TAB = 'chrome-extension://kohaku/tab.html'
 
 const GATHERING_BODY = '0x0102030405060708090a0b0c0d0e0f'
 
-const REQUEST: ApproverRequest = {
+const REQUEST: Extract<ApproverRequest, { purpose: 'approval' }> = {
   kind: 'recovery-proof-request',
   version: 1,
   purpose: 'approval',
@@ -39,7 +39,8 @@ const REQUEST: ApproverRequest = {
   place: 1,
   method: '0x9000000000000000000000000000000000000003',
   config: '0x0000000000000000000000007000000000000000000000000000000000000001',
-  salt: '0x00000000000000000000000000000000000000000000000000000000000003e9'
+  salt: '0x00000000000000000000000000000000000000000000000000000000000003e9',
+  credentialHoldsCode: false
 }
 
 /** The text of the link's one search parameter, as the guardian's browser reads it. */
@@ -68,10 +69,10 @@ describe('the approval page link', () => {
   })
 
   it('reads back a cancellation request that carries no order and no handover bytes', () => {
-    const bare: ApproverRequest = { ...REQUEST, purpose: 'cancellation' }
-    delete bare.order
-    delete bare.payload
+    const { payload, order, ...members } = REQUEST
+    const bare: ApproverRequest = { ...members, purpose: 'cancellation' }
 
+    expect([payload, order]).not.toContain(undefined)
     expect(requestOfApprovalLink(approvalLinkOf(bare, TAB))).toEqual(bare)
   })
 
@@ -130,9 +131,13 @@ describe('the approval page link', () => {
     ['a request whose deadline is not a decimal', linkCarrying({ ...REQUEST, validUntil: 'soon' })],
     [
       'a request whose order has no payee',
-      linkCarrying({ ...REQUEST, order: { token: REQUEST.order?.token, amount: '0' } })
+      linkCarrying({ ...REQUEST, order: { token: REQUEST.order.token, amount: '0' } })
     ],
-    ['a request whose handover bytes are not hex', linkCarrying({ ...REQUEST, payload: 'abc' })]
+    ['a request whose handover bytes are not hex', linkCarrying({ ...REQUEST, payload: 'abc' })],
+    [
+      'a request that says in text whether its credential holds code',
+      linkCarrying({ ...REQUEST, credentialHoldsCode: 'false' })
+    ]
   ]
 
   mangled.forEach(([name, link]) =>
@@ -148,13 +153,24 @@ describe('the approval page link', () => {
     expect(requestOfApprovalLink(linkCarrying(withoutPayload))).toBeNull()
   })
 
-  it('reads back an approval request with no order as one with no payment', () => {
+  it('reads an approval request with no order as no request', () => {
     const { order, ...withoutOrder } = REQUEST
 
     expect(order).toBeDefined()
-    const read = requestOfApprovalLink(approvalLinkOf(withoutOrder, TAB))
-    expect(read).toEqual(withoutOrder)
-    expect(read).not.toHaveProperty('order')
+    expect(requestOfApprovalLink(linkCarrying(withoutOrder))).toBeNull()
+  })
+
+  it('reads a request that does not say whether its credential holds code as one that holds none', () => {
+    const { credentialHoldsCode, ...unsaid } = { ...REQUEST, credentialHoldsCode: true }
+
+    expect(credentialHoldsCode).toBe(true)
+    expect(requestOfApprovalLink(linkCarrying(unsaid))).toEqual(REQUEST)
+  })
+
+  it('carries whether the credential holds code', () => {
+    const holding = { ...REQUEST, credentialHoldsCode: true }
+
+    expect(requestOfApprovalLink(approvalLinkOf(holding, TAB))).toEqual(holding)
   })
 
   it('reads a cancellation request with neither from a link built elsewhere', () => {

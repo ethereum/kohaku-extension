@@ -13,7 +13,7 @@ import { SectionCard } from '@web/modules/social-recovery/shared/chrome'
 
 import type { ValueRowProps } from './types'
 
-const ValueRow = ({ label, text, action, stage, onStage }: ValueRowProps) => (
+const ValueRow = ({ label, text, action, stage, disabled, onStage }: ValueRowProps) => (
   <SectionCard label={label} spacing="item" testID={`manage-value-${stage}`}>
     <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap]}>
       {!!text && (
@@ -31,6 +31,7 @@ const ValueRow = ({ label, text, action, stage, onStage }: ValueRowProps) => (
         type="secondary"
         size="small"
         text={action}
+        disabled={disabled}
         onPress={() => onStage(stage)}
         hasBottomSpacing={false}
       />

@@ -2,7 +2,7 @@
  * A guardian row's paste field: the one line the guardian sent back, and
  * "Add approval". The paste counts or fails at once: an added approval clears
  * the field, and every failure renders its written error with the paste kept
- * for a retry. Nothing waits as pending.
+ * for a retry. While the check runs a line beside the held button says so.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
@@ -13,6 +13,7 @@ import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 
 import { pasteErrorLinesOf } from './paste'
 import type { PasteError, PasteFieldProps } from './types'
@@ -89,7 +90,7 @@ const PasteField = ({ place, busy, paste, addReply }: PasteFieldProps) => {
           ))}
         </View>
       )}
-      <View style={flexbox.alignStart}>
+      <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap]}>
         <Button
           testID={`checklist-row-${place}-paste-add`}
           type="primary"
@@ -101,6 +102,11 @@ const PasteField = ({ place, busy, paste, addReply }: PasteFieldProps) => {
           }}
           hasBottomSpacing={false}
         />
+        {checking && (
+          <View testID={`checklist-row-${place}-paste-checking`} style={spacings.mlSm}>
+            <LoadingBlock variant="row" message={t('socialRecovery.loading.signature')} />
+          </View>
+        )}
       </View>
     </View>
   )

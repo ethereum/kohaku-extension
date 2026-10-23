@@ -16,13 +16,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { checklistPathOf } from '@web/modules/social-recovery/recovery/checklist/search'
-import type {
-  Address,
-  Configuration,
-  PrivacyLevel,
-  SetupState
-} from '@web/modules/social-recovery/sdk-interfaces'
-import { setRecoveryPassword } from '@web/modules/social-recovery/shared/records'
+import type { Address, Configuration, SetupState } from '@kohaku-eth/social-recovery'
+import type { PrivacyLevel } from '@web/modules/social-recovery/shared/client'
+import {
+  recordDeploymentOf,
+  isSessionOfDeployment,
+  setRecoveryPassword
+} from '@web/modules/social-recovery/shared/records'
 import type { ChainId, WalletRecords } from '@web/modules/social-recovery/shared/records'
 
 import { continuePathOf, readSetupReading, unlockFailureOf } from './readout'
@@ -119,7 +119,10 @@ export const useReadout = ({
   // The run of the reads whose unlock is being checked; a later run checks its own.
   const checking = useRef<number | null>(null)
 
-  /** Writes the opened setup to the decrypted setup cache of the account being recovered. */
+  /**
+   * Writes the opened setup to the decrypted setup cache of the account being
+   * recovered, with the deployment it was read from.
+   */
   const writeCache = useCallback(
     (configuration: Configuration): Promise<unknown> => {
       const read = state.current
@@ -127,11 +130,12 @@ export const useReadout = ({
         ? records.decryptedSetupCache(chainId, account).write({
             configuration,
             setupNonce: read.setupNonce,
-            setupCommitment: read.setupCommitment
+            setupCommitment: read.setupCommitment,
+            ...(kit ? { deployment: recordDeploymentOf(kit.descriptor) } : {})
           })
         : Promise.resolve()
     },
-    [chainId, account, records]
+    [chainId, account, records, kit]
   )
 
   /**
@@ -206,7 +210,12 @@ export const useReadout = ({
     }
     const run = async (): Promise<void> => {
       const session = await records.recoverySession(chainId, account).read()
-      if (session.status === 'present' && session.value.state === 'live') {
+      // A session of another deployment, or one that names none, is not resumed.
+      if (
+        session.status === 'present' &&
+        session.value.state === 'live' &&
+        isSessionOfDeployment(session.value, kit.descriptor)
+      ) {
         const cache = await records.decryptedSetupCache(chainId, account).read()
         if (!current()) {
           return
@@ -242,9 +251,6 @@ export const useReadout = ({
           return
         case 'sealed':
           setStep({ kind: 'locked', level: 'private', unlock: IDLE })
-          return
-        case 'unreadable':
-          setStep({ kind: 'update-the-wallet' })
           return
         default:
           setStep({ kind: reading.kind })
@@ -287,8 +293,6 @@ export const useReadout = ({
             typed.current = failure === 'event-failed' ? password : null
             if (failure === 'wrong' || failure === 'event-failed') {
               setStep({ kind: 'locked', level, shape, unlock: { status: failure } })
-            } else if (failure === 'unreadable') {
-              setStep({ kind: 'update-the-wallet' })
             } else {
               setStep({ kind: failure })
             }

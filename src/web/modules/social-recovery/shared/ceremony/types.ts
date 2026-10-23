@@ -1,14 +1,20 @@
 import type { Storage } from '@ambire-common/interfaces/storage'
 import type {
   Address,
-  ApproverReply,
   ApproverRequest,
   DeviceBinding,
+  EnrollInput,
   Hex,
   IMethodsOrchestrator,
+  Input,
   IRecoveryMethod,
-  MethodFailureCause
-} from '@web/modules/social-recovery/sdk-interfaces'
+  Material,
+  Params,
+  Reply,
+  ReplyFailureCause,
+  Verdict,
+  ZkPassportRequest
+} from '@kohaku-eth/social-recovery'
 import type { CollectionChip, MethodChip } from '@web/modules/social-recovery/shared/display'
 
 import type { CEREMONY_STEPS } from './device'
@@ -24,7 +30,7 @@ export type CeremonyCall = typeof CEREMONY_CALLS[number]
 export type CeremonyVerdict = typeof CEREMONY_VERDICTS[number]
 export type DismissalNote = typeof DISMISSAL_NOTES[number]
 export type HostCause = typeof HOST_CAUSES[number]
-export type CeremonyCause = MethodFailureCause | HostCause
+export type CeremonyCause = ReplyFailureCause | HostCause
 
 export type PassedOutcome<T> = { kind: 'verdict'; verdict: 'passed'; retry: false; value: T }
 export type FailedOutcome = {
@@ -170,6 +176,15 @@ export type Held = { run: () => void; drop: (reason: Error) => void }
 
 export type CeremonyStep = typeof CEREMONY_STEPS[number]
 
+/** What a device asks the screen to draw: the request link the holder's phone scans. */
+export type CeremonyView = { kind: 'scanCode'; url: string }
+
+/** What a device asks the holder for: the image of an Aadhaar secure QR code. */
+export type CeremonyAsk = { kind: 'qrImage' }
+
+/** The holder's answer to an ask: the decoded QR data, or the Cancel. */
+export type CeremonyAnswer = { kind: 'qrData'; qrData: string } | { kind: 'cancelled' }
+
 export interface DeviceCallContext {
   /** Aborts the device call; an aborted call is the cancelled note. */
   signal?: AbortSignal
@@ -178,12 +193,36 @@ export interface DeviceCallContext {
   /** The lifecycle call the device serves; a test and a claim read a dismissal apart. */
   call?: CeremonyCall
   onStep?: (step: CeremonyStep) => void
+  /** Draws what the holder acts on outside the page, the phone's request link. */
+  show?: (view: CeremonyView) => void
+  /** Asks the holder for an input and resolves with the answer. */
+  ask?: (ask: CeremonyAsk) => Promise<CeremonyAnswer>
 }
+
+/**
+ * A zkPassport request as the installed app library delivers it: the SDK's
+ * request, the result callback the library still fires, which carries the
+ * verified flag and the unique identifier an enrollment needs, the
+ * callbacks of the bridge that connects the phone, and the close of that
+ * bridge, which the extension's stack adds.
+ */
+export type ZkPassportRequestWithResult = ZkPassportRequest & {
+  onResult?: (callback: (response: unknown) => void) => void
+  onBridgeConnect?: (callback: () => void) => void
+  onBridgeConnectionLost?: (callback: () => void) => void
+  close?: () => void
+}
+
+/**
+ * The chain's verdict over a reply: the `verify` view of the reply's method
+ * module, or `reverted` where the module refused to judge the proof.
+ */
+export type ChainVerdict = (request: ApproverRequest, reply: Reply) => Promise<Verdict | 'reverted'>
 
 export type DeviceResult =
   | {
       ok: true
-      material: unknown
+      material: Material
       /** The ceremony's own facts, a passkey's kind among them. */
       facts?: PasskeyFacts
       /** The credential id, base64url, where the ceremony minted or used one. */
@@ -193,9 +232,9 @@ export type DeviceResult =
 
 export interface CeremonyDevice {
   /** The enrollment ceremony: `input` is what the method's `enrollInput` returned. */
-  enroll(input: unknown, context: DeviceCallContext): Promise<DeviceResult>
+  enroll(input: EnrollInput, context: DeviceCallContext): Promise<DeviceResult>
   /** The signing ceremony: `input` is what the method's `signingInput` returned. */
-  sign(input: unknown, context: DeviceCallContext): Promise<DeviceResult>
+  sign(input: Input, context: DeviceCallContext): Promise<DeviceResult>
 }
 
 // ---------------------------------------------------------------------------
@@ -217,6 +256,14 @@ export interface CredentialsLike {
   get(options: CredentialRequestOptions): Promise<Credential | null>
 }
 
+export interface ExternalAppDeviceOptions {
+  /**
+   * How long the device waits for the next answer of a phone that took the
+   * request, in milliseconds.
+   */
+  phoneIdleMs?: number
+}
+
 export interface PasskeyDeviceOptions {
   credentials: CredentialsLike
   relyingParty: RelyingParty
@@ -225,23 +272,26 @@ export interface PasskeyDeviceOptions {
   randomBytes?: (length: number) => Uint8Array
 }
 
-/** The creation options a passkey method's `enrollInput` returns. */
+/**
+ * What a passkey method's `enrollInput` returns: the relying party id it was
+ * handed, the user name, and the options for `navigator.credentials.create`.
+ */
 export interface PasskeyEnrollInput {
-  rp?: { id?: string; name?: string }
-  user?: { id?: string; name?: string; displayName?: string }
-  pubKeyCredParams?: { type: 'public-key'; alg: number }[]
-  authenticatorSelection?: AuthenticatorSelectionCriteria
-  attestation?: AttestationConveyancePreference
-  excludeCredentials?: { type?: 'public-key'; id: string }[]
-  challenge?: string
+  kind?: string
+  relyingPartyId?: string
+  userName?: string
+  options?: { publicKey?: Partial<PublicKeyCredentialCreationOptions> }
 }
 
-/** The request options a passkey method's `signingInput` returns. */
+/**
+ * What a passkey method's `signingInput` returns: the relying party id it was
+ * handed, the credential it limits the claim to, and the options for
+ * `navigator.credentials.get`.
+ */
 export interface PasskeySigningInput {
-  challenge: Hex | string
-  rpId?: string
-  userVerification?: UserVerificationRequirement
-  allowCredentials?: { type?: 'public-key'; id: string }[]
+  relyingPartyId?: string
+  credentialId?: string
+  options?: { publicKey?: Partial<PublicKeyCredentialRequestOptions> }
 }
 
 /**
@@ -320,6 +370,13 @@ export interface HostContext {
   handOff?: boolean
   signal?: AbortSignal
   onStep?: (step: CeremonyStep) => void
+  show?: (view: CeremonyView) => void
+  ask?: (ask: CeremonyAsk) => Promise<CeremonyAnswer>
+  /**
+   * The chain's verdict, read at an access test where the method's own check
+   * answers not judged.
+   */
+  chainVerdict?: ChainVerdict
 }
 
 /**
@@ -341,7 +398,7 @@ export interface TestAccessValue {
 
 /** What a passed claim carries: the reply for one place. */
 export interface ClaimValue {
-  reply: ApproverReply
+  reply: Reply
   facts?: PasskeyFacts
 }
 
@@ -349,11 +406,11 @@ export interface ClaimValue {
 export type CeremonyValue = EnrollValue | TestAccessValue | ClaimValue
 
 /** The device a call runs and the params the method receives. */
-export type DeviceChoice = { device: CeremonyDevice; params: unknown }
+export type DeviceChoice = { device: CeremonyDevice; params: Params | undefined }
 
 /** The signing half's answer: the reply, or the outcome that ends the call. */
 export type SignedReply =
-  | { ok: true; reply: ApproverReply; facts?: PasskeyFacts }
+  | { ok: true; reply: Reply; facts?: PasskeyFacts }
   | { ok: false; outcome: CeremonyOutcome<never> }
 
 // ---------------------------------------------------------------------------
@@ -407,7 +464,7 @@ export type ReportSubscribe = (key: string, onValue: (value: unknown) => void) =
 
 /**
  * What the caller's record resolves to: the injected orchestrator and method
- * implementation (typed by `sdk-interfaces`, never the doubles), and the
+ * implementation (typed by the SDK package), and the
  * inputs of the call. Enroll needs `methodAddress` and `params`; test access
  * and create claim need `request`. A method whose material the caller already
  * holds (a guardian's address or signature, a zkPassport result, an Aadhaar
@@ -422,9 +479,11 @@ export interface ResolvedCeremony {
   orchestrator: IMethodsOrchestrator
   method: IRecoveryMethod
   methodAddress?: Address
-  params?: unknown
+  params?: Params
   request?: ApproverRequest
   device?: CeremonyDevice
+  /** The chain's verdict an access test reads where the method's own check cannot judge. */
+  chainVerdict?: ChainVerdict
 }
 
 /**
@@ -447,4 +506,6 @@ export interface RunDeps {
   devices?: PageDevices
   signal?: AbortSignal
   onStep?: (step: CeremonyStep) => void
+  show?: (view: CeremonyView) => void
+  ask?: (ask: CeremonyAsk) => Promise<CeremonyAnswer>
 }

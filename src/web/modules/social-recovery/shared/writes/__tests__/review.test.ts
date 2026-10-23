@@ -13,8 +13,8 @@
  */
 import { DEPLOYLESS_SIMULATION_FROM } from '@ambire-common/consts/deploy'
 import i18n from '@common/config/localization'
-import { KIT_ERROR_NAMES, type KitErrorName } from '@web/modules/social-recovery/sdk-interfaces'
-import { isProviderReadFailure } from '@web/modules/social-recovery/shared/client'
+import { KIT_ERROR_NAMES, isProviderReadFailure } from '@web/modules/social-recovery/shared/client'
+import type { KitErrorName } from '@web/modules/social-recovery/shared/client'
 
 import {
   ACCOUNT,

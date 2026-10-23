@@ -8,12 +8,12 @@ import type {
   Configuration,
   Credential,
   Hex,
-  PrivacyLevel,
   SetupConfirmation,
   SetupDraft,
   SetupState
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type {
+  PrivacyLevel,
   AddressBook,
   ChainReads,
   KeyHandle,
@@ -247,6 +247,11 @@ export interface ReadsGateProps {
   passwordHeld?: boolean
   /** Whether the screen needs the path read, or the setup read alone. */
   needsPath?: boolean
+  /**
+   * Leaves the screen where a recovery moved control away from every key
+   * this wallet holds for the account; with none the screen renders as read.
+   */
+  onControlMoved?: () => void
   testID: string
   children: ReactNode
 }
@@ -278,6 +283,8 @@ export interface ValuesBlockProps {
   addressBook: AddressBook
   passwordChanged: boolean
   stale: boolean
+  /** Holds every change while the path is checked. */
+  disabled: boolean
   onStage: (stage: EditStage) => void
 }
 
@@ -287,6 +294,7 @@ export interface ValueRowProps {
   text: string
   action: string
   stage: EditStage
+  disabled: boolean
   onStage: (stage: EditStage) => void
 }
 
@@ -357,6 +365,8 @@ export interface ReviewArrivalProps {
   onEditor: () => void
   onOverview: () => void
   backToEditor: ReactNode
+  /** The save on its way, drawn in place of the save's own actions under the same content. */
+  run?: ReactNode
 }
 
 export interface ReviewSetupChangedProps {
@@ -391,6 +401,8 @@ export interface RemoveArrivalProps {
   onRemove: () => void
   onLookAgain: () => void
   keep: ReactNode
+  /** The removal on its way, drawn in place of the removal's own actions under the same content. */
+  run?: ReactNode
 }
 
 export interface RemoveDisagreedProps {

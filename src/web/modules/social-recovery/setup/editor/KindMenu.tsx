@@ -9,10 +9,15 @@ import flexbox from '@common/styles/utils/flexbox'
 
 import { renderKindName } from './copy'
 import KindMenuEntry from './KindMenuEntry'
+import { isKindOnNetwork } from './operations'
 import type { KindMenuProps } from './types'
 
-/** The kinds a holder can add, one entry each, under the control that opened them. */
-const KindMenu = ({ kinds, onPick, disabled, testID }: KindMenuProps) => {
+/**
+ * The kinds a holder can add, one entry each, under the control that opened
+ * them. A kind whose method this network's deployment omits keeps its place,
+ * cannot be picked, and says so under its name.
+ */
+const KindMenu = ({ kinds, addressBook, onPick, disabled, testID }: KindMenuProps) => {
   const { t } = useTranslation()
   const { theme } = useTheme()
 
@@ -34,15 +39,19 @@ const KindMenu = ({ kinds, onPick, disabled, testID }: KindMenuProps) => {
         }
       ]}
     >
-      {kinds.map((kind) => (
-        <KindMenuEntry
-          key={kind}
-          label={renderKindName(kind, t)}
-          onPress={() => onPick(kind)}
-          disabled={disabled}
-          testID={`${testID}-${kind}`}
-        />
-      ))}
+      {kinds.map((kind) => {
+        const absent = !isKindOnNetwork(kind, addressBook)
+        return (
+          <KindMenuEntry
+            key={kind}
+            label={renderKindName(kind, t)}
+            note={absent ? t('socialRecovery.ceremony.notOnThisNetworkLine') : undefined}
+            onPress={() => onPick(kind)}
+            disabled={disabled || absent}
+            testID={`${testID}-${kind}`}
+          />
+        )
+      })}
     </View>
   )
 }

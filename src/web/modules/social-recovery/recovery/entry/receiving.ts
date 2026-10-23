@@ -9,7 +9,7 @@ import { isAddress } from 'viem'
 
 import { isSmartAccount } from '@ambire-common/libs/account/account'
 import { sameAddress } from '@web/modules/social-recovery/shared/client'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 import type { HeldKeySource, ReceivingAccountSource, ReceivingChoice } from './types'
 

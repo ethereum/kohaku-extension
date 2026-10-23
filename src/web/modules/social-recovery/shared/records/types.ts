@@ -13,10 +13,11 @@ import type {
   Credential,
   Gathering,
   Hex,
+  Params,
   PreparedBatch,
   PreparedCall,
   SetupDraft
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type { CollectionChip } from '@web/modules/social-recovery/shared/display'
 
 /**
@@ -68,7 +69,7 @@ export type SetupDraftRecord = SetupDraft
  * with a fresh `clauses` list, so a caller may change what it gets.
  */
 export const defaultSetupDraft = (): SetupDraftRecord => ({
-  wait: BigInt(48 * 60 * 60),
+  wait: 48 * 60 * 60,
   clauses: [],
   ignoresPause: true,
   privacy: { publicMetadata: '0x', backup: 'encrypted' }
@@ -175,6 +176,12 @@ export interface SlotPosition {
 
 /** 5. The waiting period, in seconds, the type the setup draft's `wait` carries. */
 export type WaitingPeriodRecord = SetupDraft['wait']
+
+/**
+ * A wait in seconds as the storage may hold it: a record written before the
+ * wait was a number holds it as a bigint.
+ */
+export type StoredWait = SetupDraft['wait'] | bigint
 
 /**
  * 6. The password-set flag. Never a boolean: the record's presence says the
@@ -298,6 +305,8 @@ export interface WipedRecoverySession {
   reason: DirectWipeEvent
   account: Address
   deadline?: string
+  /** The manager and the action of the wiped request; absent on a line an earlier build wrote. */
+  readonly deployment?: RecordDeployment
 }
 
 /**
@@ -331,7 +340,15 @@ export interface LandedRecoverySession {
   attemptId?: string
   setupNonce?: string
   payloadHash?: Hex
+  /**
+   * When the attempt becomes executable, in seconds since epoch, as the
+   * attempt read at the landing gave it; absent on a session an earlier build
+   * wrote, or one landed with no such read.
+   */
+  executableAt?: number
   execution?: ExecutionInFlightRecord
+  /** The manager and the action the attempt was opened on; absent on a session an earlier build wrote. */
+  readonly deployment?: RecordDeployment
 }
 
 export type RecoverySessionRecord =
@@ -388,6 +405,10 @@ export interface ChainCountdown {
   setupNonce: bigint
   payloadHash: Hex
   openedAtMs: number
+  /** When the attempt becomes executable, in seconds since epoch. */
+  executableAt: number
+  /** The manager and the action the attempt was read from. */
+  deployment: RecordDeployment
 }
 
 /** Whether a restore wrote the countdown, or kept the session it found. */
@@ -416,16 +437,27 @@ export interface ExecutionClaimResult {
 }
 
 /**
+ * The deployment a record was read under: the manager and the action the reads
+ * went to. A setup nonce counts only against reads of the same deployment.
+ */
+export interface RecordDeployment {
+  readonly manager: Address
+  readonly action: Address
+}
+
+/**
  * The decrypted setup cache: the setup the recovery password unlocked on this
  * device, kept after the recovery executes, with the setup nonce it was read
- * under and, where known, the setup commitment. The chain stays the source: a
- * reader compares the nonce or the commitment with the chain before trusting
- * the cache.
+ * under and, where known, the setup commitment and the deployment it was read
+ * from; a record an earlier build wrote names no deployment. The chain stays
+ * the source: a reader compares the nonce or the commitment with the chain
+ * before trusting the cache.
  */
 export interface DecryptedSetupCacheRecord {
   configuration: Configuration
   setupNonce: bigint
   setupCommitment?: Hex
+  readonly deployment?: RecordDeployment
 }
 
 /** One account's record in a listing of a chain's sessions or countdowns, with its revision. */
@@ -454,6 +486,8 @@ export interface RecoveryEntryRecord {
   account: Address
   route: RecoveryRoute
   receivingAccount: Address
+  /** The manager and the action the recovery runs on; absent on an entry an earlier build wrote. */
+  readonly deployment?: RecordDeployment
 }
 
 /** The recovery entry of one account on one chain. */
@@ -491,11 +525,22 @@ export interface CeremonyRequestTarget {
  * material: the outcome travels back in the tab's report alone.
  */
 export type CeremonyRequestRecord =
-  | (CeremonyRequestTarget & { call: 'enroll'; methodAddress: Address; params: unknown })
+  | (CeremonyRequestTarget & {
+      call: 'enroll'
+      methodAddress: Address
+      params: Params
+      /**
+       * What the slot held when the caller stored the request: the credential
+       * the new one replaces, or null for an empty slot. The placement is
+       * refused where the slot holds something else by the time the report
+       * returns. Absent on a request an earlier build stored.
+       */
+      replaces?: Credential | null
+    })
   | (CeremonyRequestTarget & {
       call: 'testAccess' | 'createClaim'
       request: ApproverRequest
-      params?: unknown
+      params?: Params
     })
   | (CeremonyRequestTarget & { call: 'healthCheck' })
 
@@ -724,7 +769,9 @@ export interface WalletRecords {
   landSubmission(
     chainId: ChainId,
     account: Address,
-    expectedRevision: ExpectedRevision
+    expectedRevision: ExpectedRevision,
+    /** When the landed attempt becomes executable, in seconds since epoch, from the landing's attempt read. */
+    executableAt?: number
   ): Promise<StoredCountdown>
   clearWipedSession(
     chainId: ChainId,

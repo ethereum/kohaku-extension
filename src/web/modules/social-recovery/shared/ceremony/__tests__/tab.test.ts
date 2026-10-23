@@ -24,9 +24,10 @@ import { getRpcProvider } from '@ambire-common/services/provider/getRpcProvider'
 import en from '@common/config/localization/translations/en.json'
 import { browser } from '@web/constants/browserapi'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
-import type { ApproverRequest, DeviceBinding } from '@web/modules/social-recovery/sdk-interfaces'
+import type { ApproverRequest, DeviceBinding } from '@kohaku-eth/social-recovery'
 import type { CeremonyCall } from '@web/modules/social-recovery/shared/ceremony'
 import type { CeremonySource } from '@web/modules/social-recovery/shared/ceremony/screen'
+import { qrDataOfImage } from '@web/modules/social-recovery/shared/ceremony/qrImage'
 import { buildRecoveryClient } from '@web/modules/social-recovery/shared/client/build-client'
 import type { CeremonyRequestRecord } from '@web/modules/social-recovery/shared/records'
 
@@ -36,6 +37,7 @@ import {
   callerParams,
   carries,
   ceremony,
+  CONFIG_HEX,
   EXTENSION_ORIGIN,
   fakeAssertion,
   fakeAttestation,
@@ -56,6 +58,7 @@ import {
   setVisibility,
   SYNCED_FLAGS
 } from '@web/modules/social-recovery/shared/ceremony/__tests__/harness'
+import type { Callback } from '@web/modules/social-recovery/shared/ceremony/__fixtures__/types'
 
 const mockUi = { isTab: true, isPopup: false, isActionWindow: false }
 const mockNetworks: { current: Network[]; listeners: Set<() => void> } = {
@@ -123,6 +126,18 @@ jest.mock('@common/components/Panel', () => {
   }
 })
 jest.mock('@common/components/Spinner', () => ({ __esModule: true, default: () => null }))
+// The QR library ships untranspiled modules; the stub keeps the value it draws.
+jest.mock('react-native-qrcode-svg', () => {
+  const R = jest.requireActual('react')
+  return {
+    __esModule: true,
+    default: ({ value }: { value: string }) => R.createElement('span', { 'data-qr': value })
+  }
+})
+// jsdom draws no image: the decoder's answer is the test's.
+jest.mock('@web/modules/social-recovery/shared/ceremony/qrImage', () => ({
+  qrDataOfImage: jest.fn()
+}))
 jest.mock('@common/components/Text', () => {
   const R = jest.requireActual('react')
   return {
@@ -154,6 +169,7 @@ const buildProvider = getRpcProvider as jest.Mock
 const storageGet = browser.storage.local.get as jest.Mock
 const buildClient = buildRecoveryClient as jest.Mock
 const networksState = useNetworksControllerState as jest.Mock
+const decodeImage = qrDataOfImage as jest.Mock
 
 // React 18.3.0 exports `act` only as `unstable_act`; the react-dom re-export warns on every call.
 const act: typeof React.act =
@@ -457,36 +473,29 @@ describe('the ceremony tab with no provider above it', () => {
     expect(page.textContent).not.toContain(TRY_AGAIN)
   })
 
-  const OTHER_BINDINGS: [string, DeviceBinding][] = [
-    ['ecdsa', 'none'],
-    ['zkpassport', 'external-app'],
-    ['aadhaar', 'in-browser-prover']
-  ]
-  OTHER_BINDINGS.forEach(([slug, binding]) =>
-    it(`ends the ${slug} request as not supported with no retry, since the page serves only the browser authenticator`, async () => {
-      const other = fakeMethod({}, binding)
-      const otherOrchestrator = fakeOrchestrator(other)
-      buildClient.mockImplementation(async () => ({
-        approving: otherOrchestrator,
-        methodFor: (asked: string) => (asked === slug ? other : undefined),
-        descriptor: {}
-      }))
-      await callerRecords()
-        .ceremonyRequest(ID)
-        .write({ ...recorded.enroll(), method: slug })
-      const page = await render(`?call=enroll&method=${slug}&id=${ID}`)
-      expect(methodRunCount(other, otherOrchestrator)).toBe(0)
-      expect(creds.create).not.toHaveBeenCalled()
-      const report = await takeReport('enroll', slug)
-      expect(report?.outcome).toEqual({
-        kind: 'verdict',
-        verdict: 'notSupported',
-        cause: 'no-implementation',
-        retry: false
-      })
-      expect(page.textContent).not.toContain(TRY_AGAIN)
+  it('ends the ecdsa request as not supported with no retry, since the page serves no device for it', async () => {
+    const other = fakeMethod({}, 'none')
+    const otherOrchestrator = fakeOrchestrator(other)
+    buildClient.mockImplementation(async () => ({
+      approving: otherOrchestrator,
+      methodFor: (asked: string) => (asked === 'ecdsa' ? other : undefined),
+      descriptor: {}
+    }))
+    await callerRecords()
+      .ceremonyRequest(ID)
+      .write({ ...recorded.enroll(), method: 'ecdsa' })
+    const page = await render(`?call=enroll&method=ecdsa&id=${ID}`)
+    expect(methodRunCount(other, otherOrchestrator)).toBe(0)
+    expect(creds.create).not.toHaveBeenCalled()
+    const report = await takeReport('enroll', 'ecdsa')
+    expect(report?.outcome).toEqual({
+      kind: 'verdict',
+      verdict: 'notSupported',
+      cause: 'no-implementation',
+      retry: false
     })
-  )
+    expect(page.textContent).not.toContain(TRY_AGAIN)
+  })
 
   it('runs no second ceremony once the request is older than a report may live, as after a reload or in a second tab', async () => {
     await callerRecords().ceremonyRequest(ID).write(recorded.enroll())
@@ -504,11 +513,19 @@ describe('the ceremony tab with no provider above it', () => {
     expect(await storedReports()).toEqual([])
   })
 
-  it('reads no record and builds no provider while the tab is hidden, and runs once it is shown', async () => {
+  it('reads no record and builds no provider while the tab is hidden, saying it opens the request, and runs once it is shown', async () => {
     await callerRecords().ceremonyRequest(ID).write(recorded.enroll())
     storageGet.mockClear()
     setVisibility('hidden', false)
-    await render(ENROLL)
+    const page = await render(ENROLL)
+    expect(page.querySelector('[data-testid="ceremony-waiting"]')?.textContent).toContain(
+      en.socialRecovery.loading.request
+    )
+    expect(
+      page.querySelector('[data-testid="ceremony-waiting"] [data-testid="loading-screen"]')
+        ?.textContent
+    ).toBe(en.socialRecovery.loading.request)
+    expect(page.querySelector('[data-testid="ceremony-columns"]')).toBeNull()
     expect(storageGet).not.toHaveBeenCalled()
     expect(networksState).toHaveBeenCalled()
     expect(buildProvider).not.toHaveBeenCalled()
@@ -539,6 +556,9 @@ describe('the ceremony tab with no provider above it', () => {
       .write(recorded.withRequest('testAccess', fixtureRequest()))
     const page = await render(`?call=testAccess&method=passkey&id=${ID}&handOff=phone`)
     expect(page.textContent).toContain(CONTINUE_ON_PHONE)
+    // The browser draws its own code here, so the tab asks for no single scan.
+    expect(page.textContent).toContain(en.socialRecovery.ceremony.scanCode)
+    expect(page.textContent).not.toContain(en.socialRecovery.ceremony.scanOnce)
     const asked = creds.get.mock.calls[0][0] as { publicKey?: { hints?: string[] } }
     expect(asked.publicKey?.hints).toEqual(['hybrid'])
     expect(await storedReports()).toEqual([])
@@ -688,6 +708,392 @@ describe('the ceremony tab with no provider above it', () => {
       expect(page.textContent).not.toContain('Not supported')
     })
   )
+})
+
+describe('the ceremony tab for the identity bindings', () => {
+  const STRINGS = en.socialRecovery.ceremony
+  const PHONE_URL = 'https://zkpassport.example/r?id=1'
+  const QR_DATA = '2374971804270526477833002468783965837992554564899874087591661303561346432389'
+  const OUTER = { name: 'outer_evm_count_4' }
+
+  /** A zkPassport request whose callbacks the test fires, as the phone would. */
+  const phoneRequest = () => {
+    const handlers = new Map<string, Callback[]>()
+    const on = (name: string) => (callback: Callback) => {
+      handlers.set(name, [...(handlers.get(name) ?? []), callback])
+    }
+    const request = {
+      url: PHONE_URL,
+      requestId: 'request-1',
+      onRequestReceived: on('received'),
+      onGeneratingProof: on('generating'),
+      onProofGenerated: on('generated'),
+      onSuccess: on('success'),
+      onReject: on('reject'),
+      onError: on('error'),
+      onResult: on('result'),
+      onBridgeConnectionLost: on('lost')
+    }
+    const fire = async (name: string, ...args: unknown[]) => {
+      await act(async () => {
+        ;(handlers.get(name) ?? []).forEach((callback) => callback(...args))
+        await flush(20)
+      })
+    }
+    return { request, fire }
+  }
+
+  const IDENTITY_PARAMS = { domain: 'kohaku.example', scope: 'recovery' }
+
+  /** The client of the request's account, serving `served` under `slug`. */
+  const serve = (slug: string, served: FakeMethod, extra: Record<string, unknown> = {}) => {
+    const servedOrchestrator = fakeOrchestrator(served)
+    buildClient.mockImplementation(async () => ({
+      approving: servedOrchestrator,
+      methodFor: (asked: string) => (asked === slug ? served : undefined),
+      methodParamsFor: (asked: string) => (asked === slug ? IDENTITY_PARAMS : undefined),
+      descriptor: {},
+      ...extra
+    }))
+    return servedOrchestrator
+  }
+
+  const passportMethod = (phone: ReturnType<typeof phoneRequest>, binding: DeviceBinding) =>
+    fakeMethod(
+      {
+        enrollInput: { kind: 'ceremony', openRequest: () => phone.request },
+        signingInput: { openRequest: () => phone.request }
+      },
+      binding
+    )
+
+  const aadhaarMethod = () =>
+    fakeMethod(
+      { enrollInput: { kind: 'aadhaar-enroll' } as never, signingInput: { signal: '1' } },
+      'in-browser-prover'
+    )
+
+  const enrollRecord = (slug: string) => ({
+    ...recorded.enroll(),
+    method: slug,
+    params: IDENTITY_PARAMS
+  })
+
+  const requestRecord = (slug: string, call: 'testAccess' | 'createClaim') => ({
+    ...recorded.withRequest(call, fixtureRequest()),
+    method: slug,
+    params: IDENTITY_PARAMS
+  })
+
+  /** The inputs the page created, newest last; the file chooser among them. */
+  let createdInputs: HTMLInputElement[] = []
+  let creating: jest.SpyInstance | null = null
+
+  afterEach(() => {
+    creating?.mockRestore()
+    creating = null
+  })
+
+  beforeEach(() => {
+    createdInputs = []
+    const create = document.createElement.bind(document)
+    creating = jest
+      .spyOn(document, 'createElement')
+      .mockImplementation((tag: string, options?: ElementCreationOptions) => {
+        const element = create(tag, options)
+        if (tag === 'input') {
+          createdInputs.push(element as HTMLInputElement)
+          jest.spyOn(element as HTMLInputElement, 'click').mockImplementation(() => undefined)
+        }
+        return element
+      })
+    decodeImage.mockReset()
+  })
+
+  /** The holder picks `file` in the last file chooser the page opened. */
+  const pick = async (file: Blob) => {
+    const input = createdInputs[createdInputs.length - 1]
+    Object.defineProperty(input, 'files', { configurable: true, value: [file] })
+    await act(async () => {
+      input.dispatchEvent(new Event('change'))
+      await flush(20)
+    })
+  }
+
+  it('draws the request link for the phone and follows the phone to a passed enrollment', async () => {
+    const phone = phoneRequest()
+    const servedOrchestrator = serve('zkpassport', passportMethod(phone, 'external-app'))
+    await callerRecords().ceremonyRequest(ID).write(enrollRecord('zkpassport'))
+    const page = await render(`?call=enroll&method=zkpassport&id=${ID}`)
+
+    expect(page.querySelector('[data-qr]')?.getAttribute('data-qr')).toBe(PHONE_URL)
+    expect(page.textContent).toContain(STRINGS.scanWithApp)
+    expect(page.textContent).toContain(STRINGS.scanOnce)
+    expect(page.textContent).toContain(STRINGS.keepTabOpen)
+    expect(page.textContent).toContain(STRINGS.waitingForPhone)
+    expect(page.textContent).not.toContain(STRINGS.phoneReads)
+    expect(page.querySelector('[data-testid="loading-block"]')?.textContent).toBe(
+      STRINGS.waitingForPhone
+    )
+    expect(await storedReports()).toEqual([])
+
+    await phone.fire('received')
+    expect(page.textContent).toContain(STRINGS.requestReceived)
+    await phone.fire('generating')
+    expect(page.textContent).toContain(STRINGS.generating)
+    await phone.fire('generated', OUTER)
+    expect(page.textContent).toContain(STRINGS.resultReceived)
+
+    const result = { verified: true, uniqueIdentifier: '123', proofs: [OUTER] }
+    await phone.fire('success', { proofs: [OUTER], result: {} })
+    await phone.fire('result', result)
+    expect(servedOrchestrator.configFrom).toHaveBeenCalledTimes(1)
+    expect(servedOrchestrator.configFrom.mock.calls[0][2]).toEqual({ result })
+    expect(creds.create).not.toHaveBeenCalled()
+    const report = await takeReport('enroll', 'zkpassport')
+    expect(report?.outcome).toMatchObject({
+      kind: 'verdict',
+      verdict: 'passed',
+      value: { config: CONFIG_HEX }
+    })
+  })
+
+  it('warns that the phone reads the account at a claim, and hands the proofs to the method', async () => {
+    const phone = phoneRequest()
+    const servedOrchestrator = serve('zkpassport', passportMethod(phone, 'external-app'))
+    await callerRecords().ceremonyRequest(ID).write(requestRecord('zkpassport', 'createClaim'))
+    const page = await render(`?call=createClaim&method=zkpassport&id=${ID}`)
+    expect(page.textContent).toContain(STRINGS.phoneReads)
+
+    await phone.fire('success', { proofs: [OUTER], result: {} })
+    expect(servedOrchestrator.replyFrom.mock.calls[0][2]).toEqual({ proofs: [OUTER] })
+    const report = await takeReport('createClaim', 'zkpassport')
+    expect(report?.outcome).toMatchObject({ kind: 'verdict', verdict: 'passed' })
+  })
+
+  it("reads the access test passed on the chain's verdict where the method cannot judge the proof", async () => {
+    const phone = phoneRequest()
+    const served = fakeMethod(
+      { signingInput: { openRequest: () => phone.request }, verify: 'not-judged' },
+      'external-app'
+    )
+    const verifyReply = jest.fn(async () => 'satisfied')
+    serve('zkpassport', served, { walletReads: { verifyReply } })
+    await callerRecords().ceremonyRequest(ID).write(requestRecord('zkpassport', 'testAccess'))
+    await render(`?call=testAccess&method=zkpassport&id=${ID}`)
+
+    await phone.fire('success', { proofs: [OUTER], result: {} })
+    expect(verifyReply).toHaveBeenCalledTimes(1)
+    const report = await takeReport('testAccess', 'zkpassport')
+    expect(report?.outcome).toMatchObject({ kind: 'verdict', verdict: 'passed' })
+  })
+
+  it('reads a request the holder declined on the phone as the declined note', async () => {
+    const phone = phoneRequest()
+    serve('zkpassport', passportMethod(phone, 'external-app'))
+    await callerRecords().ceremonyRequest(ID).write(enrollRecord('zkpassport'))
+    const page = await render(`?call=enroll&method=zkpassport&id=${ID}`)
+    await phone.fire('received')
+    await phone.fire('reject')
+
+    expect(page.textContent).toContain(STRINGS.declinedNote)
+    expect(page.textContent).not.toContain(STRINGS.refusedNote)
+    const report = await takeReport('enroll', 'zkpassport')
+    expect(report?.outcome).toMatchObject({ kind: 'dismissed', note: 'refused' })
+  })
+
+  it("reads the phone's error as failed with the phone's note and a retry", async () => {
+    const phone = phoneRequest()
+    serve('zkpassport', passportMethod(phone, 'external-app'))
+    await callerRecords().ceremonyRequest(ID).write(enrollRecord('zkpassport'))
+    const page = await render(`?call=enroll&method=zkpassport&id=${ID}`)
+    await phone.fire('error', 'The chip did not answer.')
+
+    expect(page.textContent).toContain(STRINGS.phoneErrorNote)
+    expect(page.textContent).toContain(TRY_AGAIN)
+    const report = await takeReport('enroll', 'zkpassport')
+    expect(report?.outcome).toMatchObject({ verdict: 'failed', cause: 'phone-error', retry: true })
+  })
+
+  it("reads the phone's lost connection as unreachable with Try again", async () => {
+    const phone = phoneRequest()
+    serve('zkpassport', passportMethod(phone, 'external-app'))
+    await callerRecords().ceremonyRequest(ID).write(enrollRecord('zkpassport'))
+    const page = await render(`?call=enroll&method=zkpassport&id=${ID}`)
+    await phone.fire('received')
+    await phone.fire('lost')
+
+    expect(page.textContent).toContain(STRINGS.unreachableNote)
+    expect(page.textContent).toContain(TRY_AGAIN)
+    const report = await takeReport('enroll', 'zkpassport')
+    expect(report?.outcome).toMatchObject({
+      verdict: 'unavailable',
+      cause: 'unreachable',
+      retry: true
+    })
+  })
+
+  it('cancels a request the phone has not answered at Cancel, and ignores a late answer', async () => {
+    const phone = phoneRequest()
+    const servedOrchestrator = serve('zkpassport', passportMethod(phone, 'external-app'))
+    await callerRecords().ceremonyRequest(ID).write(enrollRecord('zkpassport'))
+    const page = await render(`?call=enroll&method=zkpassport&id=${ID}`)
+    await press(page, STRINGS.cancelAction)
+    await phone.fire('result', { verified: true, uniqueIdentifier: '123', proofs: [OUTER] })
+    expect(servedOrchestrator.configFrom).not.toHaveBeenCalled()
+    const report = await takeReport('enroll', 'zkpassport')
+    expect(report?.outcome).toMatchObject({ kind: 'dismissed', note: 'cancelled' })
+  })
+
+  it('asks for the QR image, proves the decoded data and reads passed', async () => {
+    const servedOrchestrator = serve('aadhaar', aadhaarMethod())
+    await callerRecords().ceremonyRequest(ID).write(enrollRecord('aadhaar'))
+    const page = await render(`?call=enroll&method=aadhaar&id=${ID}`)
+
+    expect(page.textContent).toContain(STRINGS.uploadTitle)
+    expect(page.textContent).toContain(STRINGS.uploadHint)
+    expect(servedOrchestrator.configFrom).not.toHaveBeenCalled()
+    await press(page, STRINGS.chooseImage)
+    expect(createdInputs[createdInputs.length - 1]).toMatchObject({
+      type: 'file',
+      accept: 'image/png,image/jpeg'
+    })
+
+    const image = new Blob(['qr'], { type: 'image/png' })
+    decodeImage.mockResolvedValueOnce(QR_DATA)
+    await pick(image)
+    expect(decodeImage).toHaveBeenCalledWith(image)
+    expect(servedOrchestrator.configFrom).toHaveBeenCalledTimes(1)
+    expect(servedOrchestrator.configFrom.mock.calls[0][2]).toMatchObject({ qrData: QR_DATA })
+    const report = await takeReport('enroll', 'aadhaar')
+    expect(report?.outcome).toMatchObject({ kind: 'verdict', verdict: 'passed' })
+  })
+
+  it('says no QR code was found and keeps waiting, then proves the next image that holds one', async () => {
+    const servedOrchestrator = serve('aadhaar', aadhaarMethod())
+    await callerRecords().ceremonyRequest(ID).write(requestRecord('aadhaar', 'createClaim'))
+    const page = await render(`?call=createClaim&method=aadhaar&id=${ID}`)
+
+    await press(page, STRINGS.chooseImage)
+    decodeImage.mockResolvedValueOnce(undefined)
+    await pick(new Blob(['photo'], { type: 'image/jpeg' }))
+    expect(page.textContent).toContain(STRINGS.noQrFound)
+    expect(page.textContent).toContain(STRINGS.uploadTitle)
+    expect(servedOrchestrator.replyFrom).not.toHaveBeenCalled()
+    expect(await storedReports()).toEqual([])
+
+    await press(page, STRINGS.chooseImage)
+    decodeImage.mockResolvedValueOnce(QR_DATA)
+    await pick(new Blob(['qr'], { type: 'image/png' }))
+    expect(page.textContent).not.toContain(STRINGS.noQrFound)
+    expect(servedOrchestrator.replyFrom.mock.calls[0][2]).toMatchObject({ qrData: QR_DATA })
+    const report = await takeReport('createClaim', 'aadhaar')
+    expect(report?.outcome).toMatchObject({ kind: 'verdict', verdict: 'passed' })
+  })
+
+  it('proves only the image picked last, when an earlier pick decodes after it', async () => {
+    const servedOrchestrator = serve('aadhaar', aadhaarMethod())
+    await callerRecords().ceremonyRequest(ID).write(enrollRecord('aadhaar'))
+    const page = await render(`?call=enroll&method=aadhaar&id=${ID}`)
+    const decodes: ((qrData: string | undefined) => void)[] = []
+    decodeImage.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          decodes.push(resolve)
+        })
+    )
+
+    await press(page, STRINGS.chooseImage)
+    await pick(new Blob(['first'], { type: 'image/png' }))
+    await press(page, STRINGS.chooseImage)
+    await pick(new Blob(['second'], { type: 'image/png' }))
+    expect(decodes).toHaveLength(2)
+
+    await act(async () => {
+      decodes[0]('111')
+      await flush(20)
+    })
+    expect(servedOrchestrator.configFrom).not.toHaveBeenCalled()
+    expect(page.textContent).toContain(STRINGS.uploadTitle)
+
+    await act(async () => {
+      decodes[1](QR_DATA)
+      await flush(20)
+    })
+    expect(servedOrchestrator.configFrom).toHaveBeenCalledTimes(1)
+    expect(servedOrchestrator.configFrom.mock.calls[0][2]).toMatchObject({ qrData: QR_DATA })
+  })
+
+  it('shows no missing-code line for an earlier pick that decodes to nothing after a later pick', async () => {
+    const servedOrchestrator = serve('aadhaar', aadhaarMethod())
+    await callerRecords().ceremonyRequest(ID).write(enrollRecord('aadhaar'))
+    const page = await render(`?call=enroll&method=aadhaar&id=${ID}`)
+    const decodes: ((qrData: string | undefined) => void)[] = []
+    decodeImage.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          decodes.push(resolve)
+        })
+    )
+
+    await press(page, STRINGS.chooseImage)
+    await pick(new Blob(['first'], { type: 'image/png' }))
+    await press(page, STRINGS.chooseImage)
+    await pick(new Blob(['second'], { type: 'image/png' }))
+    await act(async () => {
+      decodes[0](undefined)
+      await flush(20)
+    })
+    expect(page.textContent).not.toContain(STRINGS.noQrFound)
+    expect(servedOrchestrator.configFrom).not.toHaveBeenCalled()
+  })
+
+  it('cancels at the upload with nothing proved', async () => {
+    const servedOrchestrator = serve('aadhaar', aadhaarMethod())
+    await callerRecords().ceremonyRequest(ID).write(enrollRecord('aadhaar'))
+    const page = await render(`?call=enroll&method=aadhaar&id=${ID}`)
+    await press(page, STRINGS.cancelAction)
+    expect(servedOrchestrator.configFrom).not.toHaveBeenCalled()
+    const report = await takeReport('enroll', 'aadhaar')
+    expect(report?.outcome).toMatchObject({ kind: 'dismissed', note: 'cancelled' })
+  })
+
+  it("shows the prover's progress and stops the proof at Stop", async () => {
+    const served = aadhaarMethod()
+    served.configFrom.mockImplementation(
+      (_input, material) =>
+        new Promise((resolve) => {
+          const { onProgress, signal } = material as {
+            onProgress: (state: string) => void
+            signal: AbortSignal
+          }
+          onProgress('fetching-wasm')
+          signal.addEventListener('abort', () =>
+            resolve({ kind: 'reply-failure', cause: 'device-refused' })
+          )
+        })
+    )
+    serve('aadhaar', served)
+    await callerRecords().ceremonyRequest(ID).write(enrollRecord('aadhaar'))
+    const page = await render(`?call=enroll&method=aadhaar&id=${ID}`)
+    await press(page, STRINGS.chooseImage)
+    decodeImage.mockResolvedValueOnce(QR_DATA)
+    await pick(new Blob(['qr'], { type: 'image/png' }))
+
+    expect(page.textContent).toContain(STRINGS.fetchingFiles)
+    expect(page.querySelector('[data-testid="loading-block"]')?.textContent).toBe(
+      STRINGS.fetchingFiles
+    )
+    const material = served.configFrom.mock.calls[0][1] as { onProgress: (state: string) => void }
+    await act(async () => {
+      material.onProgress('proving')
+      await flush(20)
+    })
+    expect(page.textContent).toContain(STRINGS.proving)
+    await press(page, STRINGS.stopAction)
+    const report = await takeReport('enroll', 'aadhaar')
+    expect(report?.outcome).toMatchObject({ kind: 'dismissed', note: 'cancelled' })
+  })
 })
 
 describe('the ceremony tab under a provider', () => {

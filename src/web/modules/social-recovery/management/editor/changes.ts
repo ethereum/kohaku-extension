@@ -9,7 +9,7 @@
  * threshold equals its members: removing it leaves the group below its
  * threshold.
  */
-import type { Clause, Credential, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Clause, Credential, SetupDraft } from '@kohaku-eth/social-recovery'
 import { privacyLevelOf } from '@web/modules/social-recovery/shared/client'
 import { isEmptySlot, sameCredential } from '@web/modules/social-recovery/shared/records'
 

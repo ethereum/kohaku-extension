@@ -12,8 +12,23 @@
  */
 import { TextDecoder, TextEncoder } from 'util'
 
-import type { ScreensWorld } from '@web/modules/social-recovery/management/editor/__fixtures__/types'
-import type { Configuration } from '@web/modules/social-recovery/sdk-interfaces'
+import type {
+  ScreensWorld,
+  ValidatingClientSeam
+} from '@web/modules/social-recovery/management/editor/__fixtures__/types'
+import type { Configuration } from '@kohaku-eth/social-recovery'
+
+// The spinner's animation needs a native module jsdom lacks; a plain view stands in.
+jest.mock('@common/components/Spinner', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires, global-require */
+  const mockReact: typeof import('react') = require('react')
+  const { View: MockView }: typeof import('react-native') = require('react-native')
+  /* eslint-enable @typescript-eslint/no-var-requires, global-require */
+  return {
+    __esModule: true,
+    default: () => mockReact.createElement(MockView, { testID: 'spinner' })
+  }
+})
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 
@@ -25,6 +40,10 @@ jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
 const mockWorld: Pick<ScreensWorld, 'client' | 'reads'> = { client: null, reads: null }
 
 jest.mock('@common/utils/clipboard', () => ({ setStringAsync: async () => true }))
+jest.mock('@web/modules/social-recovery/management/overview/useHeldKeys', () => {
+  const held: string[] = []
+  return { useHeldKeys: () => held }
+})
 jest.mock('@common/hooks/useNavigation', () => ({
   __esModule: true,
   default: () => ({ navigate: jest.fn() })
@@ -53,6 +72,7 @@ jest.mock('@web/modules/social-recovery/management/editor/useCommittedLevel', ()
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const React: typeof import('react') = require('react')
 const {
+  act,
   mount,
   settle,
   t
@@ -88,13 +108,14 @@ const DAVE = { ...ALICE, config: `0x${'0d'.repeat(32)}` as const }
 // A group that needs both of its members, and a group that needs one of two.
 const COMMITTED: Configuration = {
   clauses: [review.group(2, ALICE, BOB), review.group(1, CAROL, DAVE)],
-  wait: 172_800n,
+  wait: 172_800,
   ignoresPause: true
 }
 
 const editPage = async (
   records: ReturnType<typeof createWalletRecords> = createWalletRecords({ storage: makeStorage() }),
-  navigate: (to: string) => void = jest.fn()
+  navigate: (to: string) => void = jest.fn(),
+  movedBy: bigint | undefined = undefined
 ) => {
   const storage = makeStorage()
   const session = editSessionOf(storage, CHAIN_ID, ACCOUNT)
@@ -114,11 +135,16 @@ const editPage = async (
     reads: {
       facts: {
         status: 'answered',
-        value: { setup: { ...review.setupStateOf(true), setupNonce: 2n }, attemptOpen: false }
+        value: {
+          setup: { ...review.setupStateOf(true), setupNonce: 2n },
+          attemptOpen: false,
+          ...(movedBy !== undefined ? { movedBy } : {})
+        }
       },
       path: { kind: 'readable', configuration: COMMITTED },
       ask: { status: 'idle' },
       notices: { status: 'pending' },
+      cached: null,
       retry: jest.fn(),
       retryPath: jest.fn(),
       retryNotices: jest.fn(),
@@ -138,6 +164,17 @@ const editPage = async (
   return { view, records }
 }
 
+// Types into a threshold field the way a key press does, through the input's own value setter.
+const typeThreshold = async (field: HTMLElement | null, value: string) => {
+  const input = field as HTMLInputElement
+  const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+  act(() => {
+    setValue?.call(input, value)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await settle()
+}
+
 const before = (first: HTMLElement | null, second: HTMLElement | null): boolean => {
   if (!first || !second) {
     return false
@@ -147,6 +184,40 @@ const before = (first: HTMLElement | null, second: HTMLElement | null): boolean 
 }
 
 describe('the edit page', () => {
+  it('sends an edit opened by its address to the overview once a recovery moved control away from this wallet', async () => {
+    const navigate = jest.fn()
+    const { view } = await editPage(undefined, navigate, 3n)
+
+    expect(navigate).toHaveBeenCalledWith('social-recovery/manage')
+    expect(view.byTestId('manage-edit-reads')).toBeNull()
+    expect(view.byTestId('editor-continue')).toBeNull()
+    view.unmount()
+  })
+
+  it('says it reads the setup in a waiting block, with no editor, while the setup state has not answered', async () => {
+    const first = await editPage()
+    first.view.unmount()
+    Object.assign(mockWorld, {
+      reads: { ...(mockWorld.reads as object), facts: { status: 'pending' } }
+    })
+    const view = await mount(
+      React.createElement(EditStageView, {
+        records: first.records,
+        session: editSessionOf(makeStorage(), CHAIN_ID, ACCOUNT),
+        chainId: CHAIN_ID,
+        account: ACCOUNT,
+        navigate: jest.fn()
+      })
+    )
+
+    expect(view.textOf('manage-edit-reads-reading')).toBe(t('socialRecovery.loading.lookup'))
+    expect(
+      view.byTestId('manage-edit-reads-reading')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
+    expect(view.byTestId('editor-continue')).toBeNull()
+    view.unmount()
+  })
+
   it('shows one title, the values above the review action, and that action in its words', async () => {
     const { view } = await editPage()
 
@@ -158,6 +229,33 @@ describe('the edit page', () => {
     expect(view.byTestId('manage-values')).not.toBeNull()
     expect(before(view.byTestId('manage-values'), view.byTestId('editor-continue'))).toBe(true)
     expect(view.textOf('manage-value-wait-change')).toBe(t(`${EDITOR}.values.change`))
+    view.unmount()
+  })
+
+  it('holds the changes of the values while the path is checked, as the editor holds its own edits, and keeps the cancel', async () => {
+    const { view } = await editPage()
+    const { validateSetup } = (mockWorld.client as unknown as ValidatingClientSeam).client.setup
+    let fail: (reason: Error) => void = () => {}
+    validateSetup.mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          fail = reject
+        })
+    )
+    const held = ['manage-value-wait-change', 'manage-value-privacy-change']
+    held.forEach((id) => expect(view.isDisabled(id)).toBe(false))
+
+    await view.press('editor-continue')
+    expect(validateSetup).toHaveBeenCalledTimes(1)
+    expect(view.byTestId('editor-waiting')).not.toBeNull()
+    expect(view.isDisabled('editor-continue')).toBe(true)
+    held.forEach((id) => expect(view.isDisabled(id)).toBe(true))
+    expect(view.isDisabled('manage-edit-cancel')).toBe(false)
+
+    await act(async () => fail(new Error('node unavailable')))
+    await settle()
+    expect(view.byTestId('editor-waiting')).toBeNull()
+    held.forEach((id) => expect(view.isDisabled(id)).toBe(false))
     view.unmount()
   })
 
@@ -200,6 +298,22 @@ describe('the edit page', () => {
     view.unmount()
   })
 
+  it('keeps a typed threshold above the members when a member is removed, and the refusal stays', async () => {
+    const { view, records } = await editPage()
+
+    await typeThreshold(view.byTestId('editor-group-0-threshold'), '3')
+    expect(view.byTestId('editor-group-0-above-members')).not.toBeNull()
+    await view.press('editor-member-0-0-remove')
+    await settle()
+    const edited = await records.setup(CHAIN_ID, ACCOUNT).setupDraft.read()
+    expect(edited.status === 'present' && edited.value.clauses[0]).toEqual({
+      threshold: 3,
+      credentials: [COMMITTED.clauses[0].credentials[1]]
+    })
+    expect(view.byTestId('editor-group-0-above-members')).not.toBeNull()
+    view.unmount()
+  })
+
   it('sends the tab nowhere where the page was left before its read of a stored write answered', async () => {
     const records = createWalletRecords({ storage: makeStorage() })
     let answer: (read: unknown) => void = () => undefined
@@ -213,6 +327,10 @@ describe('the edit page', () => {
     })
     const navigate = jest.fn()
     const { view } = await editPage(records, navigate)
+    expect(view.textOf('manage-edit-opening')).toBe(t('socialRecovery.loading.draft'))
+    expect(
+      view.byTestId('manage-edit-opening')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
 
     view.unmount()
     answer({
@@ -240,6 +358,7 @@ describe('the edit page', () => {
           addressBook: review.BOOK,
           passwordChanged,
           stale: passwordChanged,
+          disabled: false,
           onStage
         })
       )

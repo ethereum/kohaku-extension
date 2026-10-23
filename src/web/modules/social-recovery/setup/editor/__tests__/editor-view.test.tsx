@@ -14,10 +14,13 @@ import { TextDecoder, TextEncoder } from 'util'
 
 import type {
   Clause,
-  Finding,
+  ErrorCode,
   SetupDraft,
-  ValidationResult
-} from '@web/modules/social-recovery/sdk-interfaces'
+  ValidationError,
+  ValidationResult,
+  ValidationWarning,
+  WarningCode
+} from '@kohaku-eth/social-recovery'
 import type { Enrollment } from '@web/modules/social-recovery/shared/records'
 
 import type {
@@ -25,6 +28,18 @@ import type {
   Root,
   Validate
 } from '@web/modules/social-recovery/setup/editor/__tests__/harness'
+
+// The spinner's animation needs a native module jsdom lacks; a plain view stands in.
+jest.mock('@common/components/Spinner', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires, global-require */
+  const mockReact: typeof import('react') = require('react')
+  const { View: MockView }: typeof import('react-native') = require('react-native')
+  /* eslint-enable @typescript-eslint/no-var-requires, global-require */
+  return {
+    __esModule: true,
+    default: () => mockReact.createElement(MockView, { testID: 'spinner' })
+  }
+})
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 
@@ -55,6 +70,12 @@ const { renderShortAddress } = jest.requireActual<
 const { ThemeContext } = jest.requireActual<typeof import('@common/contexts/themeContext')>(
   '@common/contexts/themeContext'
 )
+const { CHAIN_NAMES } = jest.requireActual<
+  typeof import('@web/modules/social-recovery/recovery/entry/constants')
+>('@web/modules/social-recovery/recovery/entry/constants')
+const { WALLET_RECOVERY_CHAIN } = jest.requireActual<
+  typeof import('@web/modules/social-recovery/shared/client')
+>('@web/modules/social-recovery/shared/client')
 const EditorView = jest.requireActual<
   typeof import('@web/modules/social-recovery/setup/editor/EditorView')
 >('@web/modules/social-recovery/setup/editor/EditorView').default
@@ -83,14 +104,15 @@ const {
 } = harness
 
 const draftOf = (clauses: Clause[]): SetupDraft => ({
-  wait: 259200n,
+  wait: 259200,
   clauses,
   ignoresPause: false,
   privacy: { publicMetadata: '0x', backup: 'encrypted' }
 })
 
 const NO_FINDING: ValidationResult = { errors: [], warnings: [] }
-const finding = (code: Finding['code']): Finding => ({ code, subject: 'clause', values: {} })
+const finding = (code: ErrorCode): ValidationError => ({ code, subject: 'clause', values: {} })
+const warning = (code: WarningCode): ValidationWarning => ({ code, subject: 'clause', values: {} })
 
 let container: HTMLDivElement
 let root: Root
@@ -216,7 +238,7 @@ const mount = async ({
 }
 
 const expectPathMatchesDraft = async (
-  stored: () => Promise<{ draft: SetupDraft | null; path: Clause[] | null }>,
+  stored: () => Promise<{ draft: SetupDraft | null; path: readonly Clause[] | null }>,
   clauses: Clause[]
 ) => {
   const { draft, path } = await stored()
@@ -570,17 +592,22 @@ describe('continue', () => {
   it('goes on past warnings alone and renders none of them', async () => {
     const { navigate } = await mount({
       clauses: presetPath(),
-      validate: async () => ({ errors: [], warnings: [finding('clause.shared-failure')] })
+      validate: async () => ({ errors: [], warnings: [warning('clause.shared-failure')] })
     })
     await press('editor-continue')
     expect(navigate).toHaveBeenCalledWith(WEB_ROUTES.socialRecoverySetupWaitingPeriod)
     expect(allByTestId('editor-finding')).toEqual([])
   })
 
-  it('shows a spinner and no continue while the client loads', async () => {
+  it('keeps the path and a held continue while the client loads, with the line naming the network', async () => {
     await mount({ clauses: presetPath(), client: 'loading' })
-    expect(byTestId('editor-continue')).toBeNull()
-    expect(byTestId('editor-spinner')).not.toBeNull()
+    expect(isHeld('editor-continue')).toBe(true)
+    expect(byTestId('editor')).not.toBeNull()
+    const waiting = byTestId('editor-waiting')
+    expect(waiting?.querySelector('[data-testid="loading-row"]')).not.toBeNull()
+    expect(waiting?.textContent).toBe(
+      t('socialRecovery.loading.client', { network: CHAIN_NAMES[WALLET_RECOVERY_CHAIN] })
+    )
   })
 
   it('offers a retry and no continue when the client is refused', async () => {
@@ -599,7 +626,7 @@ describe('the first edit over no stored draft', () => {
     await press('editor-add-group')
     const { draft, path } = await stored()
     expect(draft).toEqual({
-      wait: BigInt(48 * 60 * 60),
+      wait: 48 * 60 * 60,
       clauses: [{ threshold: 2, credentials: [] }],
       ignoresPause: true,
       privacy: { publicMetadata: '0x', backup: 'encrypted' }
@@ -689,7 +716,8 @@ describe('a group while the holder edits it', () => {
       )
     })
     await press('editor-member-0-1-remove')
-    await expectPathMatchesDraft(stored, [{ threshold: 2, credentials: [PASSKEY] }])
+    await expectPathMatchesDraft(stored, [{ threshold: 1, credentials: [PASSKEY] }])
+    expectGroupCard(0)
   })
 
   it('stays a group when a new group takes one member and a threshold of one', async () => {
@@ -766,7 +794,9 @@ describe('edits while the path check runs', () => {
     await press('editor-group-1-add')
     await press('editor-continue')
     expect(validateSetup).toHaveBeenCalledTimes(1)
-    expect(byTestId('editor-spinner')).not.toBeNull()
+    expect(byTestId('editor-waiting')?.textContent).toBe(t('socialRecovery.loading.checks'))
+    expect(byTestId('editor-waiting')?.querySelector('[data-testid="loading-row"]')).not.toBeNull()
+    expect(isHeld('editor-continue')).toBe(true)
 
     expect(controls.filter((id) => !isHeld(id))).toEqual([])
     await buttons.reduce((previous, id) => previous.then(() => press(id)), Promise.resolve())

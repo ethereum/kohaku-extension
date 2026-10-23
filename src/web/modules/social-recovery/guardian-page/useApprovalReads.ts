@@ -3,7 +3,8 @@
  * the setup number, and whether the account authorizes the action. One round
  * runs when the client is ready or another link opens, then one every minute
  * and on a retry. Rounds never overlap. A round that throws or runs past its
- * limit reads as failed, never as the last answer; a new client or a new link
+ * limit reads as failed, never as the last answer; a round that runs after an
+ * answer keeps that answer, marked as refreshing; a new client or a new link
  * starts again from nothing answered. Once the last answer is final no round
  * runs, and that answer stays, through a new client too, until another link
  * opens.
@@ -40,6 +41,7 @@ const useApprovalReads = ({
   // earlier one is dropped.
   const generation = useRef(0)
   const inFlight = useRef(false)
+  const [running, setRunning] = useState(false)
   const stoppedRef = useRef(stopped)
   stoppedRef.current = stopped
 
@@ -51,11 +53,13 @@ const useApprovalReads = ({
       return
     }
     inFlight.current = true
+    setRunning(true)
     const facts = await readApprovalFacts(current, APPROVAL_READ_LIMIT_MS)
     if (id !== generation.current) {
       return
     }
     inFlight.current = false
+    setRunning(false)
     setLinked({
       link: forLink,
       reads: facts ? { status: 'answered', facts } : { status: 'failed' }
@@ -66,6 +70,7 @@ const useApprovalReads = ({
   useEffect(() => {
     generation.current += 1
     inFlight.current = false
+    setRunning(false)
     // A final answer for this link outlives a new client: a round of the old
     // client is dropped, and nothing reads again.
     if (stoppedRef.current && linkedRef.current.link === link) {
@@ -100,7 +105,8 @@ const useApprovalReads = ({
     run().catch(() => undefined)
   }, [run])
 
-  return { reads: linked.link === link ? linked.reads : PENDING, retry }
+  const reads = linked.link === link ? linked.reads : PENDING
+  return { reads, refreshing: running && reads.status === 'answered', retry }
 }
 
 export default useApprovalReads

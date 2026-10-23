@@ -5,7 +5,7 @@
  * reads and nothing read later.
  */
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
-import type { Address, Configuration } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Configuration } from '@kohaku-eth/social-recovery'
 import { CHECKLIST_SEARCH_KEYS } from '@web/modules/social-recovery/recovery/checklist'
 
 import { isAttemptOf } from './read'

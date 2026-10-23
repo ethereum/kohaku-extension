@@ -14,7 +14,7 @@
  */
 import { hexToBigInt, isAddressEqual } from 'viem'
 
-import type { LogPosition } from '@web/modules/social-recovery/sdk-interfaces'
+import type { LogPosition } from '@kohaku-eth/social-recovery'
 import type { CountdownRead } from '@web/modules/social-recovery/shared/records'
 import {
   isAttemptOf,

@@ -6,7 +6,7 @@ import type {
   Hex,
   PreparedCall,
   RecoveryState
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type {
   AddGate,
   ChainReads,
@@ -53,7 +53,7 @@ import type { ALREADY_RUNNING_CAUSES, ALREADY_RUNNING_FINDINGS } from './constan
 
 export type SubmitKitClient = Pick<
   RecoveryKitClient,
-  'recovery' | 'setup' | 'walletReads' | 'action'
+  'recovery' | 'setup' | 'walletReads' | 'action' | 'descriptor'
 >
 
 /** The recovery client of the account being recovered, as the screen reads it. */
@@ -299,8 +299,11 @@ export interface SubmitSteps {
     dispatch: (event: WriteEvent) => void,
     run: number
   ): Promise<void>
-  /** The session landed as the countdown's record, read again after another tab moved it. */
-  land(): Promise<LandOutcome>
+  /**
+   * The session landed as the countdown's record, read again after another tab
+   * moved it, with when the attempt becomes executable, in seconds since epoch.
+   */
+  land(executableAt: number): Promise<LandOutcome>
 }
 
 export interface SubmitStepsInput {

@@ -19,13 +19,12 @@ import {
   depsOf,
   fakeKit,
   gatheringOf,
-  HANDOVER,
   MIXED_PATH,
   mountChecklist,
   mountSwappableChecklist,
   qrDouble,
+  recoveryStateOf,
   REMOVED,
-  requestOf,
   seedCache,
   seedEntry,
   seedSession,
@@ -37,7 +36,7 @@ import {
   withReplies
 } from '@web/modules/social-recovery/recovery/checklist/__tests__/harness'
 import type { DestinationReading } from '@web/modules/social-recovery/recovery/checklist/types'
-import type { Address, Gathering } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Gathering } from '@kohaku-eth/social-recovery'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
@@ -97,7 +96,7 @@ describe('the guardian row carriers', () => {
     await seedEntry(world.records)
     await seedCache(world.records, MIXED_PATH)
     await seedSession(world.records, gathering)
-    kit = fakeKit(MIXED_PATH, { served: true })
+    kit = fakeKit(MIXED_PATH)
     clipboard.setStringAsync.mockClear()
     clipboard.setStringAsync.mockImplementation(async () => true)
   })
@@ -153,6 +152,29 @@ describe('the guardian row carriers', () => {
     expect(mounted.byTestId(id(1, 'unlock-reason'))).toBeNull()
   })
 
+  it('holds the carriers while the first chain read runs, and frees them once it answers', async () => {
+    const opened = jest.spyOn(window, 'open').mockImplementation(() => null)
+    const read = deferred<ReturnType<typeof recoveryStateOf>>()
+    kit.recoveryState.mockImplementationOnce(() => read.promise)
+    const mounted = await open()
+
+    expect(mounted.byTestId('checklist-refreshing')).not.toBeNull()
+    expect(locked(mounted, 1)).toEqual([true, true, true, true])
+    await mounted.press(id(1, 'open-page'))
+    await mounted.press(id(1, 'copy-link'))
+    await mounted.press(id(1, 'copy-message'))
+    await mounted.press(id(1, 'show-qr'))
+    expect(opened).not.toHaveBeenCalled()
+    expect(clipboard.setStringAsync).not.toHaveBeenCalled()
+    expect(mounted.byTestId(id(1, 'qr'))).toBeNull()
+
+    read.resolve(recoveryStateOf())
+    await settle()
+
+    expect(mounted.byTestId('checklist-refreshing')).toBeNull()
+    expect(locked(mounted, 1)).toEqual([false, false, false, false])
+  })
+
   it('keeps the carriers locked while the removed key is read, and unlocks them when it answers', async () => {
     const read = deferred<{ kind: 'named'; key: typeof REMOVED }>()
     kit.removedKey.mockImplementation(() => read.promise)
@@ -163,7 +185,12 @@ describe('the guardian row carriers', () => {
       t(`${GUARDIAN}.unlockReason`)
     )
     expect(mounted.byTestId(id(1, 'link'))).toBeNull()
-    expect(mounted.byTestId(id(1, 'value-keyBeingRemoved'))?.textContent).toBe('')
+    expect(mounted.byTestId(id(1, 'value-keyBeingRemoved'))?.textContent).toBe(
+      t('socialRecovery.loading.key')
+    )
+    expect(
+      mounted.byTestId(id(1, 'value-keyBeingRemoved'))?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
     await mounted.press(id(1, 'copy-link'))
     await mounted.press(id(1, 'copy-message'))
     await mounted.press(id(1, 'show-qr'))
@@ -232,11 +259,8 @@ describe('the guardian row carriers', () => {
     expect(mounted.byTestId(id(1, 'unlock-reason'))).not.toBeNull()
   })
 
-  it('reads no payment and unlocks the carriers where the request names no order', async () => {
+  it('reads no payment and unlocks the carriers where the request orders no amount', async () => {
     kit = fakeKit(MIXED_PATH)
-    kit.getApproverRequests.mockImplementation((of: Gathering) =>
-      of.places.map((place) => ({ ...requestOf(of, place.place), payload: HANDOVER }))
-    )
     const mounted = await open()
 
     expect(mounted.byTestId(id(1, 'value-payment'))?.textContent).toBe(
@@ -244,29 +268,6 @@ describe('the guardian row carriers', () => {
     )
     expect(locked(mounted, 1)).toEqual([false, false, false, false])
     expect(mounted.byTestId(id(1, 'unlock-reason'))).toBeNull()
-  })
-
-  it('cuts a link the approval page reads back where the request carries the handover bytes and no order', async () => {
-    const withoutOrder = (of: Gathering, place: number) => {
-      const request = servedRequestOf(of, place)
-      delete request.order
-      return request
-    }
-    kit.getApproverRequests.mockImplementation((of: Gathering) =>
-      of.places.map((place) => withoutOrder(of, place.place))
-    )
-    const mounted = await open()
-
-    expect(mounted.byTestId(id(1, 'value-payment'))?.textContent).toBe(
-      t('socialRecovery.display.values.noPayment')
-    )
-    await mounted.press(id(1, 'copy-link'))
-
-    expect(clipboard.setStringAsync).toHaveBeenCalledTimes(1)
-    const [written] = clipboard.setStringAsync.mock.calls[0]
-    const read = requestOfApprovalLink(written)
-    expect(read).toEqual(withoutOrder(gathering, 1))
-    expect(read).not.toHaveProperty('order')
   })
 
   it('says how the guardian answers under the values, above the link line and the carriers', async () => {
@@ -513,30 +514,6 @@ describe('the guardian row carriers', () => {
     expect(mounted.byTestId(id(1, 'qr'))).not.toBeNull()
   })
 
-  it('keeps the carriers locked with the unlock reason where an approval request has no handover bytes', async () => {
-    kit.getApproverRequests.mockImplementation((of: Gathering) =>
-      of.places.map((place) => {
-        const request = servedRequestOf(of, place.place)
-        delete request.payload
-        return request
-      })
-    )
-    const mounted = await open()
-
-    expect(mounted.byTestId(id(1, 'value-keyBeingRemoved'))?.textContent).toBe(getAddress(REMOVED))
-    expect(locked(mounted, 1)).toEqual([true, true, true, true])
-    expect(mounted.byTestId(id(1, 'unlock-reason'))?.textContent).toBe(
-      t(`${GUARDIAN}.unlockReason`)
-    )
-    expect(mounted.byTestId(id(1, 'link'))).toBeNull()
-    await mounted.press(id(1, 'copy-link'))
-    await mounted.press(id(1, 'copy-message'))
-    await mounted.press(id(1, 'show-qr'))
-    expect(clipboard.setStringAsync).not.toHaveBeenCalled()
-    expect(mounted.byTestId(id(1, 'qr'))).toBeNull()
-    expect(qrDouble.drawn).toEqual([])
-  })
-
   it('keeps the carriers locked with the unlock reason where the order pays a token the row cannot name', async () => {
     kit.getApproverRequests.mockImplementation((of: Gathering) =>
       of.places.map((place) => ({
@@ -588,7 +565,7 @@ describe('the guardian row carriers', () => {
 
     /** A second kit over the same path, whose requests carry other handover bytes. */
     const rebuiltKit = () => {
-      const next = fakeKit(MIXED_PATH, { served: true })
+      const next = fakeKit(MIXED_PATH)
       next.getApproverRequests.mockImplementation((of: Gathering) =>
         of.places.map((place) => ({
           ...servedRequestOf(of, place.place),
@@ -598,8 +575,10 @@ describe('the guardian row carriers', () => {
       return next
     }
 
-    const fromRebuilt = (value: string) =>
-      requestOfApprovalLink(value)?.payload === REBUILT_HANDOVER
+    const fromRebuilt = (value: string) => {
+      const read = requestOfApprovalLink(value)
+      return read?.purpose === 'approval' && read.payload === REBUILT_HANDOVER
+    }
 
     const openSwappable = async () => {
       const mounted = await mountSwappableChecklist({
@@ -627,7 +606,9 @@ describe('the guardian row carriers', () => {
       expect(mounted.byTestId(id(1, 'unlock-reason'))?.textContent).toBe(
         t(`${GUARDIAN}.unlockReason`)
       )
-      expect(mounted.byTestId(id(1, 'value-keyBeingRemoved'))?.textContent).toBe('')
+      expect(mounted.byTestId(id(1, 'value-keyBeingRemoved'))?.textContent).toBe(
+        t('socialRecovery.loading.key')
+      )
       expect(mounted.byTestId(id(1, 'link'))).toBeNull()
       expect(mounted.byTestId(id(1, 'qr'))).toBeNull()
       expect(qrDouble.drawn.filter(fromRebuilt)).toEqual([])
@@ -656,7 +637,9 @@ describe('the guardian row carriers', () => {
       await settle()
 
       expect(locked(mounted, 1)).toEqual([true, true, true, true])
-      expect(mounted.byTestId(id(1, 'value-keyBeingRemoved'))?.textContent).toBe('')
+      expect(mounted.byTestId(id(1, 'value-keyBeingRemoved'))?.textContent).toBe(
+        t('socialRecovery.loading.key')
+      )
 
       second.resolve({ kind: 'named', key: OTHER_REMOVED })
       await settle()
@@ -680,7 +663,9 @@ describe('the guardian row carriers', () => {
 
       expect(kit.removedKey).toHaveBeenCalledTimes(2)
       expect(locked(mounted, 1)).toEqual([true, true, true, true])
-      expect(mounted.byTestId(id(1, 'value-keyBeingRemoved'))?.textContent).toBe('')
+      expect(mounted.byTestId(id(1, 'value-keyBeingRemoved'))?.textContent).toBe(
+        t('socialRecovery.loading.key')
+      )
 
       again.resolve({ kind: 'named', key: OTHER_REMOVED })
       await settle()

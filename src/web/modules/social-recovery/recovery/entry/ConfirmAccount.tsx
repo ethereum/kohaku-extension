@@ -2,7 +2,8 @@
  * The confirmation of the account found: its avatar, the name it resolved
  * from with the caveat that a name can change hands, its full address and the
  * network. "This is my account" writes the recovery entry; "Not mine" goes
- * back to the field with nothing written.
+ * back to the field with nothing written. While the entry is read and
+ * written, both hold beside a line that says the recovery opens.
  */
 import React from 'react'
 import { View } from 'react-native'
@@ -20,6 +21,7 @@ import {
   SectionLabel,
   TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import {
   renderFullAddress,
   renderResolvedName,
@@ -125,14 +127,21 @@ const ConfirmAccount = ({
 
         <ActionsRow
           primary={
-            <Button
-              testID="entry-confirm-mine"
-              type="primary"
-              text={t(`${CONFIRM}.thisIsMine`)}
-              disabled={writing}
-              onPress={onConfirm}
-              hasBottomSpacing={false}
-            />
+            <View style={[flexbox.directionRow, flexbox.alignCenter, flexbox.wrap]}>
+              <Button
+                testID="entry-confirm-mine"
+                type="primary"
+                text={t(`${CONFIRM}.thisIsMine`)}
+                disabled={writing}
+                onPress={onConfirm}
+                hasBottomSpacing={false}
+              />
+              {writing && (
+                <View testID="entry-confirm-writing" style={spacings.mlSm}>
+                  <LoadingBlock variant="row" message={t('socialRecovery.loading.session')} />
+                </View>
+              )}
+            </View>
           }
           secondary={
             <Button

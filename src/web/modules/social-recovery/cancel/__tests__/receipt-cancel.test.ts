@@ -1,6 +1,6 @@
 /**
  * The owner's cancel read from a landed receipt's own logs, decoded by the
- * kit's events feed. The logs are encoded here from the event's signature.
+ * SDK's event manager. The logs are encoded here from the event's signature.
  */
 import {
   encodeAbiParameters,
@@ -12,10 +12,11 @@ import {
   zeroAddress
 } from 'viem'
 
-import type { Address, IProvider } from '@web/modules/social-recovery/sdk-interfaces'
-import { createKitEventManager } from '@web/modules/social-recovery/shared/client/kit/events'
+import { EventManager } from '@kohaku-eth/social-recovery'
+import type { Address, IProvider } from '@kohaku-eth/social-recovery'
 import { ownerCancelOf } from '@web/modules/social-recovery/cancel'
 import type { ReceiptLog } from '@web/modules/social-recovery/cancel'
+import { deploymentDescriptor } from '@web/modules/social-recovery/shared/client'
 
 const MANAGER: Address = getAddress('0x734b9aa580d4a184ea129e791c4c9fb8734b3ac6')
 const ACCOUNT: Address = getAddress('0xabcdef0123456789abcdef0123456789abcdef01')
@@ -30,7 +31,11 @@ const CANCELLED = parseAbi([
 
 const cancelLog = (
   attemptId: bigint,
-  { emitter = MANAGER, canceller = ACCOUNT }: { emitter?: Address; canceller?: Address } = {}
+  {
+    emitter = MANAGER,
+    canceller = ACCOUNT,
+    usedPlaces = []
+  }: { emitter?: Address; canceller?: Address; usedPlaces?: bigint[] } = {}
 ): ReceiptLog => ({
   address: emitter,
   topics: encodeEventTopics({
@@ -43,7 +48,7 @@ const cancelLog = (
     canceller,
     zeroAddress,
     1n,
-    []
+    usedPlaces
   ]),
   blockNumber: 100,
   blockHash: BLOCK_HASH,
@@ -53,11 +58,14 @@ const cancelLog = (
 })
 
 // Only the feed's decoding is used: it reads nothing through its provider.
-const events = createKitEventManager({
-  provider: {} as IProvider,
-  descriptor: { manager: MANAGER, action: ACTION },
-  account: ACCOUNT
-})
+const events = new EventManager(
+  {} as IProvider,
+  { ...deploymentDescriptor('sepolia'), manager: MANAGER, action: ACTION },
+  ACCOUNT,
+  ACTION,
+  new Map(),
+  { logChunkSize: 1000 }
+)
 
 const find = (logs: ReceiptLog[]) =>
   ownerCancelOf({ logs, transactionHash: TX, events, account: ACCOUNT, action: ACTION })
@@ -73,7 +81,9 @@ describe("the owner's cancel in a receipt's logs", () => {
 
   it("finds none in a log another contract emitted, or in a cancel that was not the owner's", () => {
     expect(find([cancelLog(41n, { emitter: OTHER })])).toBeUndefined()
-    expect(find([cancelLog(41n, { canceller: OTHER })])).toBeUndefined()
+    // The guardians' cancel and a setup write's cancel.
+    expect(find([cancelLog(41n, { canceller: OTHER, usedPlaces: [1n] })])).toBeUndefined()
+    expect(find([cancelLog(41n, { canceller: zeroAddress })])).toBeUndefined()
     expect(find([])).toBeUndefined()
   })
 

@@ -22,10 +22,11 @@ const RunningAttemptBand = ({
   claim,
   account,
   chainId,
+  deployment,
   records,
   navigate
 }: RunningAttemptBandProps) => {
-  const { attempt, refreshFailed, opening, authority, entries, retry, recheck } = state
+  const { attempt, refreshFailed, refreshing, opening, authority, entries, retry, recheck } = state
   const { ownership, target } = claim
   const [continueState, setContinueState] = useState<ContinueState>('idle')
   const timeZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
@@ -35,7 +36,8 @@ const RunningAttemptBand = ({
       !target ||
       attempt.status !== 'answered' ||
       opening.status !== 'answered' ||
-      continueState === 'writing'
+      continueState === 'writing' ||
+      refreshing
     ) {
       return
     }
@@ -58,7 +60,9 @@ const RunningAttemptBand = ({
           attemptId: running.attemptId,
           setupNonce: running.setupNonce,
           payloadHash: running.payloadHash,
-          openedAtMs: openedAt * 1000
+          openedAtMs: openedAt * 1000,
+          executableAt: running.consumableAfter,
+          deployment
         },
         target
       )
@@ -73,14 +77,32 @@ const RunningAttemptBand = ({
       },
       () => setContinueState('failed')
     )
-  }, [target, attempt, opening, continueState, recheck, records, chainId, account, navigate])
+  }, [
+    target,
+    attempt,
+    opening,
+    continueState,
+    refreshing,
+    recheck,
+    records,
+    chainId,
+    account,
+    deployment,
+    navigate
+  ])
 
-  const onCancel = useCallback(() => navigate(cancelPathOf(account)), [navigate, account])
+  const onCancel = useCallback(() => {
+    if (refreshing) {
+      return
+    }
+    navigate(cancelPathOf(account))
+  }, [refreshing, navigate, account])
 
   return (
     <RunningAttemptBandView
       attempt={attempt}
       refreshFailed={refreshFailed}
+      refreshing={refreshing}
       opening={opening}
       entries={entries}
       ownership={ownership}

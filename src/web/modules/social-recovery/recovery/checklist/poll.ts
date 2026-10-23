@@ -5,9 +5,9 @@
  * that does not answer within its limit, is a failed poll, never the last
  * good reading. Every decision takes the clock read before the poll's read.
  */
-import { keccak256 } from 'viem'
+import { isAddressEqual, keccak256 } from 'viem'
 
-import type { Attempt, Gathering } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Attempt, DeploymentDescriptor, Gathering } from '@kohaku-eth/social-recovery'
 import { within } from '@web/modules/social-recovery/shared/client'
 
 import type { ChecklistKitClient, ChecklistLoad, PollFacts, PollOutcome, PollTarget } from './types'
@@ -34,6 +34,24 @@ export const readPollFacts = (
     }
   }, limitMs)
 
+/**
+ * Whether an answer is older than the request: a setup nonce or an attempt
+ * counter below the ones the request was built under, read from the manager
+ * and the action the request names. Neither ever goes down at one manager, so
+ * such an answer comes from a node that lags or that lost its state, and it
+ * reads as a failed poll, never as a change. An answer from another manager or
+ * action says nothing of the request's counters and is never behind it.
+ */
+export const behindRequest = (
+  gathering: Gathering,
+  facts: PollFacts,
+  descriptor: Pick<DeploymentDescriptor, 'manager' | 'action'>
+): boolean =>
+  isAddressEqual(gathering.request.manager, descriptor.manager) &&
+  isAddressEqual(gathering.request.action, descriptor.action) &&
+  (facts.setupNonce < BigInt(gathering.request.setupNonce) ||
+    facts.nextAttemptId < BigInt(gathering.request.attemptId))
+
 /** Whether an attempt holds the account's one slot: it waits out its period. */
 export const attemptLive = (attempt: Attempt): boolean => attempt.state === 'Waiting'
 
@@ -49,13 +67,13 @@ export const deadlinePassed = (gathering: Gathering, clock: number): boolean =>
  * changed setup is not this request's.
  */
 const isOwnAttempt = (gathering: Gathering, attempt: Attempt): boolean => {
-  const { attemptId, setupNonce, payload } = gathering.request
+  const { attemptId, setupNonce } = gathering.request
   return (
     attempt.state !== 'None' &&
     attempt.attemptId === BigInt(attemptId) &&
     attempt.setupNonce === BigInt(setupNonce) &&
-    payload !== undefined &&
-    keccak256(payload) === attempt.payloadHash
+    gathering.purpose === 'approval' &&
+    keccak256(gathering.request.payload) === attempt.payloadHash
   )
 }
 

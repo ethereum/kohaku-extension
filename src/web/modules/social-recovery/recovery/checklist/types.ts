@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
 
 import type {
+  AddRefusalCause,
   Address,
-  ApproverReply,
   ApproverRequest,
   Assessment,
   Attempt,
@@ -10,8 +10,10 @@ import type {
   Gathering,
   GatheringPlace,
   Hex,
+  Params,
+  Reply,
   Verdict
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type {
   CeremonyOutcome,
   PasskeyFacts,
@@ -25,6 +27,7 @@ import type {
   ChainId,
   DirectWipeEvent,
   LiveRecoverySession,
+  RecordDeployment,
   RecoveryEntryRecord,
   RecoveryRoute,
   RowNote,
@@ -104,6 +107,8 @@ export interface RowStateExtras {
   chosen?: ReadonlySet<number>
   /** The places whose method did not answer this time. */
   didNotAnswer?: ReadonlySet<number>
+  /** The identity methods the client can run a claim for here. */
+  served?: ReadonlySet<IdentityClaimSlug>
 }
 
 /** Why the path cannot be satisfied yet, read from the rows' own states, in the order the checklist names them. */
@@ -119,7 +124,14 @@ export type UnsatisfiedReading =
 
 export type ChecklistKitClient = Pick<
   RecoveryKitClient,
-  'recovery' | 'setup' | 'walletReads' | 'action'
+  | 'recovery'
+  | 'setup'
+  | 'walletReads'
+  | 'action'
+  | 'approving'
+  | 'descriptor'
+  | 'methodFor'
+  | 'methodParamsFor'
 >
 
 export type ChecklistClient =
@@ -261,7 +273,7 @@ export interface ConfigurationInput {
   records: WalletRecords
   chainId: ChainId
   account: Address
-  client: ChecklistKitClient
+  client: Pick<ChecklistKitClient, 'setup' | 'descriptor'>
   password: string | undefined
 }
 
@@ -282,7 +294,7 @@ export interface HeldConfiguration {
 /** What adding a reply came to; `held` where a failed poll held every add. */
 export type AddReplyResult =
   | { kind: 'added' }
-  | { kind: 'refused'; cause: string }
+  | { kind: 'refused'; cause: AddRefusalCause | 'not-live' }
   | { kind: 'conflict' }
   | { kind: 'write-failed' }
   | { kind: 'held' }
@@ -291,7 +303,7 @@ export interface ChecklistState {
   load: ChecklistLoad
   assessment: Assessment | null
   retry: () => void
-  addReply: (reply: ApproverReply) => Promise<AddReplyResult>
+  addReply: (reply: Reply) => Promise<AddReplyResult>
   setNote: (place: number, note: RowNote | null) => Promise<void>
   noteFailed: boolean
   /** Wipes the live session; `onWiped` runs once the wipe lands, before the tab leaves. */
@@ -304,6 +316,8 @@ export interface ChecklistState {
   readSetupAgain: () => Promise<void>
   /** The last poll of the account's recovery state. */
   poll: PollState
+  /** A round is reading; the last answer stays on screen meanwhile. */
+  polling: boolean
   retryPoll: () => void
   /** A death the poll read could not be wiped; the next poll tries again. */
   deathFailed: boolean
@@ -366,25 +380,35 @@ export interface PollInput {
 
 export interface PollHook {
   poll: PollState
+  /** A round is reading; the last answer stays on screen meanwhile. */
+  polling: boolean
   retry: () => void
 }
 
 // ---------------------------------------------------------------------------
-// The passkey claim
+// The claim
 // ---------------------------------------------------------------------------
 
+/** The identity methods a checklist row claims through the ceremony tab. */
+export type IdentityClaimSlug = 'zkpassport' | 'aadhaar'
+
+/** What a claim runs: the method's slug, the params it receives, and whether the holder chose the phone. */
+export interface ClaimLaunch {
+  method: string
+  params: Params
+  handOff: boolean
+}
+
 /** What a stored claim request asked for, read back when its ceremony returns. */
-export interface ClaimAsked {
+export interface ClaimAsked extends ClaimLaunch {
   place: number
   request: ApproverRequest
-  handOff: boolean
 }
 
 export interface ClaimRequestInput {
   account: Address
   chainId: ChainId
   request: ApproverRequest
-  handOff: boolean
 }
 
 /** The account and chain a claim request must name to be this checklist's. */
@@ -395,7 +419,7 @@ export interface ClaimTarget {
 
 /** A passed claim's reply, with where the authenticator sat where the report says. */
 export interface PassedClaim {
-  reply: ApproverReply
+  reply: Reply
   facts?: Pick<PasskeyFacts, 'place'>
 }
 
@@ -418,7 +442,7 @@ export interface ClaimOutcome {
   handOff: boolean
 }
 
-export interface PasskeyClaimInput {
+export interface CeremonyClaimInput {
   records: WalletRecords
   chainId: ChainId
   account: Address
@@ -430,9 +454,9 @@ export interface PasskeyClaimInput {
   >
 }
 
-export interface PasskeyClaim {
+export interface CeremonyClaim {
   /** Stores the claim's request and opens the ceremony tab. */
-  launch: (request: ApproverRequest, handOff: boolean) => Promise<void>
+  launch: (request: ApproverRequest, claim: ClaimLaunch) => Promise<void>
   /** The last outcome each place's ceremony reported, a passed one included. */
   outcomes: Partial<Record<number, ClaimOutcome>>
   /** A passed claim the checklist has not added yet. */
@@ -496,7 +520,7 @@ export interface GuardianRowProps {
   support: GuardianSupport
   busy: boolean
   setNote: (place: number, note: RowNote | null) => void
-  addReply: (reply: ApproverReply) => Promise<AddReplyResult>
+  addReply: (reply: Reply) => Promise<AddReplyResult>
 }
 
 /** The guardian row's carriers, its message and its paste field mount here. */
@@ -515,7 +539,7 @@ export interface GuardianCarriersProps {
 // The guardian rows' link, values and paste check
 // ---------------------------------------------------------------------------
 
-export type AddReply = (reply: ApproverReply) => Promise<AddReplyResult>
+export type AddReply = (reply: Reply) => Promise<AddReplyResult>
 
 /** The key the recovery removes, as the checklist read it for the guardian rows. */
 export type RemovedKeyRead =
@@ -562,7 +586,7 @@ export type PasteError =
 /** The pure steps' answer: a written error, or the reply to verify against its own place's request. */
 export type PasteJudgement =
   | { kind: 'refused'; error: PasteError }
-  | { kind: 'verify'; reply: ApproverReply; request: ApproverRequest | undefined }
+  | { kind: 'verify'; reply: Reply; request: ApproverRequest | undefined }
 
 /** What a paste came to: the reply added to its place, or one written error. */
 export type PasteOutcome = { kind: 'added'; place: number } | { kind: 'error'; error: PasteError }
@@ -570,7 +594,7 @@ export type PasteOutcome = { kind: 'added'; place: number } | { kind: 'error'; e
 /** What the verify of one reply came to: passed on to the add, rejected, or a check that failed. */
 export type VerifyStep = 'pass' | 'rejected' | 'failed'
 
-export type VerifyReply = (request: ApproverRequest, reply: ApproverReply) => Promise<Verdict>
+export type VerifyReply = (request: ApproverRequest, reply: Reply) => Promise<Verdict>
 
 export interface PasteJudgeInput {
   text: string
@@ -581,7 +605,7 @@ export interface PasteJudgeInput {
   /** One approval is the whole request: a one-row path or a group of threshold one. */
   oneApproval: boolean
   /** Whether the client refuses the reply's kind or version. */
-  versionRefused: (reply: ApproverReply) => boolean
+  versionRefused: (reply: Reply) => boolean
 }
 
 export interface PasteInput extends Omit<PasteJudgeInput, 'nowSeconds'> {
@@ -641,6 +665,30 @@ export interface PasteFieldProps {
 export interface IdentityRowProps {
   row: ChecklistRow
   state: RowState
+}
+
+/** What an identity row reads of its claim's last outcome: the note, the cause line, and the retry. */
+export interface IdentityNotes {
+  note: string | null
+  cause: string | null
+  retry: boolean
+}
+
+export interface IdentityNotesBlockProps {
+  place: number
+  notes: IdentityNotes
+  busy: boolean
+  onRetry: () => void
+}
+
+/** A passport or an Aadhaar row: the place's request, its last outcome, and the launch of its claim. */
+export interface IdentityClaimRowProps {
+  row: ChecklistRow
+  state: RowState
+  request: ApproverRequest | undefined
+  outcome: ClaimOutcome | undefined
+  busy: boolean
+  launch: (request: ApproverRequest) => void
 }
 
 export interface ChecklistRowsProps {
@@ -747,6 +795,8 @@ export interface HomeRecoveryLineProps {
 export interface HomeRecoveryBandViewProps {
   records: WalletRecords
   chainId: ChainId
+  /** The manager and the action this build reads; a recovery of another deployment is not listed. */
+  deployment: RecordDeployment
   navigate: Navigate
   timeZone: string
   useHeadline: SessionHeadlineHook

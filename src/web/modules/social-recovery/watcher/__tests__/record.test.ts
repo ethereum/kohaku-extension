@@ -10,6 +10,7 @@ import {
 } from '@web/modules/social-recovery/watcher'
 import {
   ACCOUNT,
+  DEPLOYMENT,
   HEAD,
   HEAD_TIME,
   memoryStorage,
@@ -43,6 +44,66 @@ describe('the watcher record', () => {
     expect(watcherKeyOf(SEPOLIA, ACCOUNT)).toBe(
       `socialRecovery:watcher:11155111:${ACCOUNT.toLowerCase()}`
     )
+  })
+
+  it("reads back the consume's transaction of an executed ending, reads an ending stored without one, and refuses one that is not a hash", async () => {
+    const storage = memoryStorage()
+    const hash = `0x${'2a'.repeat(32)}` as const
+    const executed = {
+      attemptId: 2n,
+      road: 'executed' as const,
+      controller: NEW_KEY,
+      at: HEAD_TIME
+    }
+    const withEnding = (ended: unknown): WatcherRecord =>
+      ({ ...RECORD, reading: RECORD.reading && { ...RECORD.reading, ended } } as WatcherRecord)
+
+    await updateWatcherRecord(storage, SEPOLIA, ACCOUNT, () =>
+      withEnding({ ...executed, transactionHash: hash })
+    )
+    expect((await readWatcherRecord(storage, SEPOLIA, ACCOUNT))?.reading?.ended).toEqual({
+      ...executed,
+      transactionHash: hash
+    })
+
+    await updateWatcherRecord(storage, SEPOLIA, ACCOUNT, () => withEnding(executed))
+    const earlier = (await readWatcherRecord(storage, SEPOLIA, ACCOUNT))?.reading?.ended
+    expect(earlier).toEqual(executed)
+    expect(earlier && 'transactionHash' in earlier).toBe(false)
+
+    const stored = storedWatcherRecordOf(withEnding({ ...executed, transactionHash: hash }))
+    const garbled = {
+      ...stored,
+      reading: stored.reading && {
+        ...stored.reading,
+        ended: { ...stored.reading.ended, transactionHash: 'not a hash' }
+      }
+    }
+    expect(watcherRecordFrom({ savedAt: 1, value: stored })).toBeDefined()
+    expect(watcherRecordFrom({ savedAt: 1, value: garbled })).toBeUndefined()
+  })
+
+  it('reads back the deployment a reading was read from, and reads a reading that names none', async () => {
+    const storage = memoryStorage()
+    const reading = RECORD.reading && { ...RECORD.reading, deployment: DEPLOYMENT }
+    await updateWatcherRecord(storage, SEPOLIA, ACCOUNT, () => ({ ...RECORD, reading }))
+    expect((await readWatcherRecord(storage, SEPOLIA, ACCOUNT))?.reading?.deployment).toEqual(
+      DEPLOYMENT
+    )
+
+    await updateWatcherRecord(storage, SEPOLIA, ACCOUNT, () => RECORD)
+    const earlier = await readWatcherRecord(storage, SEPOLIA, ACCOUNT)
+    expect(earlier?.reading?.attempt?.setupNonce).toBe(3n)
+    expect(earlier?.reading?.deployment).toBeUndefined()
+  })
+
+  it('reads a reading whose deployment is not two addresses as no record', () => {
+    const stored = storedWatcherRecordOf(RECORD)
+    const malformed = [{ manager: DEPLOYMENT.manager }, { manager: 'nope', action: 'nope' }, 'x']
+    malformed.forEach((deployment) => {
+      const value = { ...stored, reading: { ...stored.reading, deployment } }
+      expect(watcherRecordFrom({ value, savedAt: 1 })).toBeUndefined()
+    })
   })
 
   it('reads back what it wrote, every bigint whole', async () => {

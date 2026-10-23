@@ -18,13 +18,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { isAddressEqual } from 'viem'
 
-import { RESTORE_CAUSES } from '@web/modules/social-recovery/sdk-interfaces'
-import type {
-  Address,
-  RestoreCause,
-  RestoreRefusal
-} from '@web/modules/social-recovery/sdk-interfaces'
-import { CHAIN_IDS, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
+import {
+  RESTORE_CAUSE_CODES,
+  CHAIN_IDS,
+  WALLET_RECOVERY_CHAIN
+} from '@web/modules/social-recovery/shared/client'
+import type { Address, KitRefusalError, RestoreCauseCode } from '@kohaku-eth/social-recovery'
 import { useRecoveryClient } from '@web/modules/social-recovery/shared/client/useRecoveryClient'
 import {
   readRecoveryPassword,
@@ -50,15 +49,15 @@ const GONE: MissingPasswordRow = { kind: 'gone' }
 const sameAccount = (a: Address | null, b: Address): boolean => !!a && isAddressEqual(a, b)
 
 /** The restore cause a refused setup read carries, if the thrown value is a restore refusal. */
-const restoreCauseOf = (error: unknown): RestoreCause | undefined => {
-  if (typeof error !== 'object' || error === null || !('cause' in error)) {
+const restoreCauseOf = (error: unknown): RestoreCauseCode | undefined => {
+  if (typeof error !== 'object' || error === null || !('restoreCause' in error)) {
     return undefined
   }
-  const { cause } = error as Partial<RestoreRefusal>
+  const { restoreCause: cause } = error as Partial<KitRefusalError>
   if (typeof cause !== 'object' || cause === null) {
     return undefined
   }
-  return RESTORE_CAUSES.find((known) => known === cause.code)
+  return RESTORE_CAUSE_CODES.find((known) => known === cause.code)
 }
 
 export const useCardPassword = (address: Address | null, level: CardLevel | null): CardPassword => {

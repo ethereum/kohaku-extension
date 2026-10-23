@@ -4,12 +4,13 @@
  * once the stored write has been read, and the failed read of it with retry.
  */
 import React from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import { ActionsRow } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
 
 import { OVERVIEW } from './constants'
@@ -39,7 +40,9 @@ const WriteStepArrival = ({
         </Text>
       )}
       {reading ? (
-        <ActivityIndicator testID="overview-step-lookup" style={spacings.mtSm} />
+        <View testID="overview-step-lookup" style={spacings.mtSm}>
+          <LoadingBlock variant="row" message={t('socialRecovery.loading.unfinishedSave')} />
+        </View>
       ) : (
         <ActionsRow primary={startAction} secondary={back} />
       )}

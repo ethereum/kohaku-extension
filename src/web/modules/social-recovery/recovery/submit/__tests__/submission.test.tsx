@@ -135,6 +135,32 @@ describe('the submission', () => {
     })
   })
 
+  describe('the fee check', () => {
+    it('keeps Start on screen and disabled beside the fee line while the fee is checked, and sends once it answers', async () => {
+      const world = await openWorld()
+      const estimate = deferred<bigint>()
+      world.kit.reads.estimateGas.mockImplementation(() => estimate.promise)
+      const mounted = await startOn(world)
+
+      expect(mounted.byTestId('write-checking-fee')?.textContent).toContain(
+        t('socialRecovery.loading.fee')
+      )
+      expect(
+        mounted.byTestId('write-checking-fee')?.querySelector('[data-testid="loading-row"]')
+      ).not.toBeNull()
+      expect(mounted.isDisabled('submit-action')).toBe(true)
+      await mounted.press('submit-action')
+      expect(world.port.sendAccountBatch).not.toHaveBeenCalled()
+      expect(world.port.send).not.toHaveBeenCalled()
+
+      estimate.resolve(300_000n)
+      await settle()
+
+      expect(world.port.sendAccountBatch).toHaveBeenCalledTimes(1)
+      expect(mounted.byTestId('write-checking-fee')).toBeNull()
+    })
+  })
+
   describe('the failed readings', () => {
     it('reads nothing was sent for a refused send, releases the claim, and offers the retry', async () => {
       const world = await openWorld()
@@ -251,7 +277,7 @@ describe('the submission', () => {
         const request = picked(...args)
         return {
           ...request,
-          proofs: [...request.proofs.slice(0, 3), { ...request.proofs[3], place: 4n }]
+          proofs: [...request.proofs.slice(0, 3), { ...request.proofs[3], place: 4 }]
         }
       })
       await mounted.press('submit-action')
@@ -276,7 +302,12 @@ describe('the submission', () => {
         account: world.account,
         attemptId: world.gathering.request.attemptId,
         setupNonce: world.gathering.request.setupNonce,
-        payloadHash: PAYLOAD_HASH
+        payloadHash: PAYLOAD_HASH,
+        executableAt: 0,
+        deployment: {
+          manager: world.gathering.request.manager,
+          action: world.gathering.request.action
+        }
       })
       expect(await rawStorage(world.storage)).not.toContain('"gathering"')
       expect(mockWallet.navigate).toHaveBeenLastCalledWith(waitPathOf(world.account), {
@@ -295,7 +326,11 @@ describe('the submission', () => {
       world.kit.recoveryState.mockImplementationOnce(() => read.promise)
       await mounted.press('submit-action')
       expect(world.port.sendAccountBatch).toHaveBeenCalledTimes(1)
-      expect(mounted.byTestId('submit-confirming')).not.toBeNull()
+      expect(mounted.textOf('submit-confirming')).toContain(t('socialRecovery.loading.landed'))
+      expect(
+        mounted.byTestId('submit-confirming')?.querySelector('[data-testid="loading-block"]')
+      ).not.toBeNull()
+      expect(mounted.byTestId('submit-confirming-hash')?.textContent).toBeTruthy()
       expect((await sessionOf(world.records, world.account))?.state).toBe('live')
       expect(mockWallet.navigate).not.toHaveBeenCalled()
       read.resolve(recoveryStateOf(attemptOf(world.gathering)))
@@ -304,6 +339,23 @@ describe('the submission', () => {
       expect(mockWallet.navigate).toHaveBeenLastCalledWith(waitPathOf(world.account), {
         replace: true
       })
+    })
+
+    it('keeps when the attempt becomes executable, as the attempt read after the receipt gives it', async () => {
+      const executableAt = 1_700_086_400
+      const world = await openWorld()
+      const mounted = await mountSubmit(world.account)
+      view = mounted
+      world.kit.recoveryState.mockImplementationOnce(async () =>
+        recoveryStateOf(world.kit.chain.attempt)
+      )
+      world.kit.recoveryState.mockImplementationOnce(async () =>
+        recoveryStateOf(attemptOf(world.gathering, { consumableAfter: executableAt }))
+      )
+      await mounted.press('submit-action')
+      await settle()
+      const session = await sessionOf(world.records, world.account)
+      expect(session?.state === 'landed' && session.executableAt).toBe(executableAt)
     })
 
     const DISAGREEMENTS = [

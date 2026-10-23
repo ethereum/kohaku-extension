@@ -1,8 +1,7 @@
-import type { Address, Clause, Credential } from '@web/modules/social-recovery/sdk-interfaces'
-import { sameAddress } from '@web/modules/social-recovery/shared/client'
+import type { Address, Clause } from '@kohaku-eth/social-recovery'
+import { credentialKindIn, methodKindIn } from '@web/modules/social-recovery/shared/client'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import type { Translate } from '@web/modules/social-recovery/shared/display'
-import { isEmptySlot, slotKindOf } from '@web/modules/social-recovery/shared/records'
 
 import type { ExposureLines, MethodKind, OfferedLevel } from './types'
 
@@ -10,25 +9,19 @@ const EXPOSURE = 'socialRecovery.privacy.level.exposure'
 const ITEMS = 'socialRecovery.disclosures.items'
 const ITEMS_LEAD = 'socialRecovery.disclosures.itemsLead'
 
-/** The kind of method a method module address serves in the address book, if any. */
+/**
+ * The kind of method a method module address serves in the address book, if
+ * any; the zero address a deployment leaves for a method it omits serves none.
+ */
 export const kindOfMethodIn =
   (book: AddressBook) =>
-  (method: Address): MethodKind | undefined => {
-    const kinds = Object.keys(book.methods) as MethodKind[]
-    return kinds.find((kind) => sameAddress(method, book.methods[kind]))
-  }
-
-/**
- * The kind a row of the path holds: the kind an empty slot waits for, or the
- * kind whose method address an enrolled credential names.
- */
-const methodKindOf = (credential: Credential, book: AddressBook): MethodKind | undefined =>
-  isEmptySlot(credential) ? slotKindOf(credential) : kindOfMethodIn(book)(credential.method)
+  (method: Address): MethodKind | undefined =>
+    methodKindIn(book.methods, method)
 
 /**
  * The items of the unguessable line, each an item slug under the disclosures:
- * the passkeys, the passport and the Aadhaar identity of the path. An address
- * row is guessable and is never among them.
+ * the passkeys and the identifiers the passport and the Aadhaar identity of
+ * the path produce. An address row is guessable and is never among them.
  */
 const unguessableItemsOf = (kinds: MethodKind[]): string[] => {
   const passkeys = kinds.filter((kind) => kind === 'passkey').length
@@ -40,10 +33,10 @@ const unguessableItemsOf = (kinds: MethodKind[]): string[] => {
     items.push('passkeys')
   }
   if (kinds.includes('zkpassport')) {
-    items.push('passport')
+    items.push('passportIdentifier')
   }
   if (kinds.includes('aadhaar')) {
-    items.push('aadhaar')
+    items.push('aadhaarIdentifier')
   }
   return items
 }
@@ -76,14 +69,14 @@ const joinItems = ([lead, ...rest]: string[], t: Translate): string => {
  * the clear.
  */
 export const exposureLinesOf = (
-  clauses: Clause[],
+  clauses: readonly Clause[],
   level: OfferedLevel,
   book: AddressBook,
   t: Translate
 ): ExposureLines => {
   const kinds = clauses
     .flatMap(({ credentials }) => credentials)
-    .map((credential) => methodKindOf(credential, book))
+    .map((credential) => credentialKindIn(credential, book.methods))
     .filter((kind): kind is MethodKind => kind !== undefined)
   if (level === 'public' || !kinds.includes('ecdsa')) {
     return {}

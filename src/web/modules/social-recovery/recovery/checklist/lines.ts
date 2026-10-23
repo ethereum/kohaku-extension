@@ -2,7 +2,7 @@
  * The checklist's dated lines: the request's deadline and the day a row or a
  * session was answered or started, in the reader's own zone.
  */
-import type { Gathering } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Gathering } from '@kohaku-eth/social-recovery'
 import { renderDateTimeInZone, renderDeadline } from '@web/modules/social-recovery/shared/display'
 import type { Translate } from '@web/modules/social-recovery/shared/display'
 

@@ -5,11 +5,7 @@
  */
 import { getBaseAccount } from '@ambire-common/libs/account/getBaseAccount'
 import type { AccountOp } from '@ambire-common/libs/accountOp/accountOp'
-import type {
-  Address,
-  DeploymentDescriptor,
-  PreparedCall
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, DeploymentDescriptor, PreparedCall } from '@kohaku-eth/social-recovery'
 
 import type { AccountBatchSource, GasEstimateCall, KeyHandle, RecoveryKitMark } from './types'
 

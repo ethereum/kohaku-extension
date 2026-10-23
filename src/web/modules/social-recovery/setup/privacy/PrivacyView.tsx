@@ -17,7 +17,7 @@ import { useTranslation } from '@common/config/localization'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
-import type { Clause } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Clause } from '@kohaku-eth/social-recovery'
 import {
   ActionsRow,
   PageTitle,
@@ -56,7 +56,7 @@ const PrivacyView = ({ records, chainId, account, navigate }: PrivacyViewProps) 
   const { t } = useTranslation()
 
   const [level, setLevel] = useState<OfferedLevel>('private')
-  const [clauses, setClauses] = useState<Clause[]>([])
+  const [clauses, setClauses] = useState<readonly Clause[]>([])
   const [password, setPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [loaded, setLoaded] = useState(false)

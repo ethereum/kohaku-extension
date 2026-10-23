@@ -9,7 +9,7 @@
 import { getAddress, zeroAddress } from 'viem'
 
 import { PROXY_AMBIRE_ACCOUNT } from '@ambire-common/consts/deploy'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import {
   addressBookOf,
   AUDITED_ACTIONS,
@@ -69,6 +69,35 @@ const FACTS = {
     { action: ACTION, publisher: 'ethereumFoundation' },
     { action: SECOND_ACTION, publisher: 'ethereumFoundation' }
   ]
+}
+
+/** A throwaway self-signed certificate made for this test; it holds no secret. */
+const CERTIFICATE = [
+  '-----BEGIN CERTIFICATE-----',
+  'MIIBnTCCAQYCCQDiAomKfafhkDANBgkqhkiG9w0BAQsFADATMREwDwYDVQQDDAhz',
+  'dGFuZC1pbjAeFw0yNjEwMjEyMTI5MDVaFw0yNjEwMjIyMTI5MDVaMBMxETAPBgNV',
+  'BAMMCHN0YW5kLWluMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDf1ajsyhTb',
+  'wDBA+BeWq15hB9CQin6fR5NADbiwA4h5aiUpbHTTh2Swx6fiu3bVjmtLkTGZvMLB',
+  'Hw0JeWry2BNYH1WLKGI5OZXB/rBzXBmcPfZ41C4UrC8qZ0CrgI/w58hZXl+g3um6',
+  'Hd5Rljdkr07Jz9KOh0xpzQ2Y5b8sfDT4HwIDAQABMA0GCSqGSIb3DQEBCwUAA4GB',
+  'AKW5PABs4ZLTCXK6LfCYsbVnCMbIbUbRJk25v5/APqcMZsuHM3Q9POGC+nH07VTn',
+  '4s3HHqJEL8/1gfeF3DDV3lm4e3ybTKL2IXyT1ILhYa/rNE8NBMn6fwfgoj8hg8os',
+  'SSa1V1qyaYYIhxPdgPdWIfwhclYaX/kAyi/1Cl2va0kP',
+  '-----END CERTIFICATE-----',
+  ''
+].join('\n')
+
+const FIELD_MODULUS =
+  '21888242871839275222246405745257275088548364400416034343698204186575808495617'
+const FIELD_MAXIMUM =
+  '21888242871839275222246405745257275088548364400416034343698204186575808495616'
+
+const IDENTITY_FIELDS = {
+  zkPassportDomain: 'wallet.example',
+  zkPassportScope: 'social-recovery',
+  zkPassportTestnetTree: true,
+  aadhaarNullifierSeed: '1234567890',
+  aadhaarCertificate: CERTIFICATE
 }
 
 const json = (value: unknown): string => JSON.stringify(value)
@@ -198,13 +227,13 @@ describe('a build with a Sepolia deployment variable', () => {
     expect(deploymentOf('sepolia')).toEqual({ kind: 'deployed', facts: FACTS })
   })
 
-  it('names the deployed addresses and keeps the placeholder of each identity method it lacks', () => {
+  it('names the deployed addresses and the zero address for each identity method it lacks', () => {
     expect(deploymentAddressesOf('sepolia')).toEqual({
       manager: MANAGER,
       methodEcdsa: METHOD_ECDSA,
       methodPasskey: METHOD_PASSKEY,
-      methodAadhaar: SEPOLIA_PLACEHOLDERS.methodAadhaar,
-      methodZkpassport: SEPOLIA_PLACEHOLDERS.methodZkpassport,
+      methodAadhaar: zeroAddress,
+      methodZkpassport: zeroAddress,
       action: ACTION,
       servedImplementation: PROXY_AMBIRE_ACCOUNT
     })
@@ -213,8 +242,8 @@ describe('a build with a Sepolia deployment variable', () => {
       methods: {
         ecdsa: METHOD_ECDSA,
         passkey: METHOD_PASSKEY,
-        aadhaar: SEPOLIA_PLACEHOLDERS.methodAadhaar,
-        zkpassport: SEPOLIA_PLACEHOLDERS.methodZkpassport
+        aadhaar: zeroAddress,
+        zkpassport: zeroAddress
       },
       action: ACTION
     })
@@ -226,9 +255,13 @@ describe('a build with a Sepolia deployment variable', () => {
       ecdsa: METHOD_ECDSA,
       passkey: METHOD_PASSKEY,
       aadhaar: METHOD_AADHAAR,
-      zkpassport: SEPOLIA_PLACEHOLDERS.methodZkpassport
+      zkpassport: zeroAddress
     })
-    expect(deploymentDescriptor('sepolia').methodAadhaar).toBe(METHOD_AADHAAR)
+    expect(deploymentDescriptor('sepolia')).toMatchObject({
+      methodAadhaar: METHOD_AADHAAR,
+      methodZkpassport: zeroAddress,
+      shippedMethods: [METHOD_ECDSA, METHOD_PASSKEY, METHOD_AADHAAR]
+    })
   })
 
   it('describes Sepolia with the deployed addresses and facts', () => {
@@ -237,19 +270,14 @@ describe('a build with a Sepolia deployment variable', () => {
       manager: MANAGER,
       methodEcdsa: METHOD_ECDSA,
       methodPasskey: METHOD_PASSKEY,
-      methodAadhaar: SEPOLIA_PLACEHOLDERS.methodAadhaar,
-      methodZkpassport: SEPOLIA_PLACEHOLDERS.methodZkpassport,
+      methodAadhaar: zeroAddress,
+      methodZkpassport: zeroAddress,
       action: ACTION,
       servedImplementation: PROXY_AMBIRE_ACCOUNT,
       deployedAt: 4242,
       digestVersion: '2',
       managerVersion: '1.4.0',
-      shippedMethods: [
-        METHOD_ECDSA,
-        METHOD_PASSKEY,
-        SEPOLIA_PLACEHOLDERS.methodAadhaar,
-        SEPOLIA_PLACEHOLDERS.methodZkpassport
-      ],
+      shippedMethods: [METHOD_ECDSA, METHOD_PASSKEY],
       auditedActions: [ACTION, SECOND_ACTION]
     })
   })
@@ -297,6 +325,49 @@ describe('a build with a Sepolia deployment variable', () => {
     )
   })
 
+  it('keeps the identity method fields the variable gives', () => {
+    variable.mockReturnValue(json({ ...FACTS, ...IDENTITY_FIELDS }))
+    const deployment = deploymentOf('sepolia')
+    expect(deployment.kind === 'deployed' && deployment.facts).toMatchObject(IDENTITY_FIELDS)
+  })
+
+  it('leaves each identity method field it lacks undefined', () => {
+    const deployment = deploymentOf('sepolia')
+    const facts = deployment.kind === 'deployed' ? deployment.facts : undefined
+    expect(facts).toBeDefined()
+    expect(facts?.zkPassportDomain).toBeUndefined()
+    expect(facts?.zkPassportScope).toBeUndefined()
+    expect(facts?.zkPassportTestnetTree).toBeUndefined()
+    expect(facts?.aadhaarNullifierSeed).toBeUndefined()
+    expect(facts?.aadhaarCertificate).toBeUndefined()
+  })
+
+  it('takes a testnet tree flag of false', () => {
+    const deployment = deploymentFactsFrom(json({ ...FACTS, zkPassportTestnetTree: false }))
+    expect(deployment.zkPassportTestnetTree).toBe(false)
+  })
+
+  it('takes the largest nullifier seed below the proving field', () => {
+    const seed = FIELD_MAXIMUM
+    expect(
+      deploymentFactsFrom(
+        json({ ...FACTS, aadhaarNullifierSeed: seed, aadhaarCertificate: CERTIFICATE })
+      ).aadhaarNullifierSeed
+    ).toBe(seed)
+  })
+
+  it('takes both identity method pairs together without the testnet flag', () => {
+    const pairs = {
+      zkPassportDomain: IDENTITY_FIELDS.zkPassportDomain,
+      zkPassportScope: IDENTITY_FIELDS.zkPassportScope,
+      aadhaarNullifierSeed: IDENTITY_FIELDS.aadhaarNullifierSeed,
+      aadhaarCertificate: IDENTITY_FIELDS.aadhaarCertificate
+    }
+    const facts = deploymentFactsFrom(json({ ...FACTS, ...pairs }))
+    expect(facts).toMatchObject(pairs)
+    expect(facts.zkPassportTestnetTree).toBeUndefined()
+  })
+
   it('takes a new value of the variable at the next call', () => {
     expect(addressBookOf('sepolia').manager).toBe(MANAGER)
     variable.mockReturnValue(json({ ...FACTS, manager: SECOND_ACTION, deployedAt: 7 }))
@@ -337,7 +408,7 @@ describe('a fresh record at every call', () => {
     book.manager = SECOND_ACTION
     book.methods.ecdsa = SECOND_ACTION
     const descriptor = deploymentDescriptor('sepolia')
-    descriptor.auditedActions.push(MANAGER)
+    ;(descriptor.auditedActions as string[]).push(MANAGER)
     const rows = auditedActionsOn('sepolia')
     rows[0].action = MANAGER
     rows.pop()
@@ -412,6 +483,112 @@ describe('a malformed deployment variable', () => {
       'a data explorer address',
       json({ ...FACTS, explorerUrl: 'data:text/html,explorer' }),
       /explorerUrl/
+    ],
+    [
+      'an empty zkPassport domain',
+      json({ ...FACTS, zkPassportDomain: '' }),
+      /zkPassportDomain must be a non-empty string/
+    ],
+    [
+      'a zkPassport domain that is not text',
+      json({ ...FACTS, zkPassportDomain: 7 }),
+      /zkPassportDomain must be a non-empty string/
+    ],
+    [
+      'a blank zkPassport scope',
+      json({ ...FACTS, zkPassportScope: '  ' }),
+      /zkPassportScope must be a non-empty string/
+    ],
+    [
+      'a testnet tree flag as text',
+      json({ ...FACTS, zkPassportTestnetTree: 'true' }),
+      /zkPassportTestnetTree must be true or false/
+    ],
+    [
+      'a nullifier seed as a number',
+      json({ ...FACTS, aadhaarNullifierSeed: 1234 }),
+      /aadhaarNullifierSeed must be a decimal number/
+    ],
+    [
+      'a hexadecimal nullifier seed',
+      json({ ...FACTS, aadhaarNullifierSeed: '0x1234' }),
+      /aadhaarNullifierSeed must be a decimal number/
+    ],
+    [
+      'a negative nullifier seed',
+      json({ ...FACTS, aadhaarNullifierSeed: '-1' }),
+      /aadhaarNullifierSeed must be a decimal number/
+    ],
+    [
+      'an empty nullifier seed',
+      json({ ...FACTS, aadhaarNullifierSeed: '' }),
+      /aadhaarNullifierSeed must be a decimal number/
+    ],
+    [
+      'a nullifier seed of 78 digits',
+      json({ ...FACTS, aadhaarNullifierSeed: '1'.repeat(78) }),
+      /aadhaarNullifierSeed must be a decimal number below the proving field/
+    ],
+    [
+      'a nullifier seed equal to the proving field modulus',
+      json({ ...FACTS, aadhaarNullifierSeed: FIELD_MODULUS }),
+      /aadhaarNullifierSeed must be a decimal number below the proving field/
+    ],
+    [
+      'a nullifier seed of 77 nines',
+      json({ ...FACTS, aadhaarNullifierSeed: '9'.repeat(77) }),
+      /aadhaarNullifierSeed must be a decimal number below the proving field/
+    ],
+    [
+      'an empty Aadhaar certificate',
+      json({ ...FACTS, aadhaarCertificate: '' }),
+      /aadhaarCertificate must be a non-empty string/
+    ],
+    [
+      'an Aadhaar certificate that is not PEM',
+      json({ ...FACTS, aadhaarCertificate: 'MIIBmade+up' }),
+      /aadhaarCertificate must be a PEM certificate/
+    ],
+    [
+      'an Aadhaar certificate of the markers alone',
+      json({
+        ...FACTS,
+        aadhaarCertificate: '-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----\n'
+      }),
+      /aadhaarCertificate must be a complete PEM certificate/
+    ],
+    [
+      'an Aadhaar certificate whose body is not base64',
+      json({
+        ...FACTS,
+        aadhaarCertificate: '-----BEGIN CERTIFICATE-----\nnot base64!\n-----END CERTIFICATE-----\n'
+      }),
+      /aadhaarCertificate must be a complete PEM certificate/
+    ],
+    [
+      'an Aadhaar certificate with no end line',
+      json({ ...FACTS, aadhaarCertificate: CERTIFICATE.replace('-----END CERTIFICATE-----', '') }),
+      /aadhaarCertificate must be a complete PEM certificate/
+    ],
+    [
+      'a zkPassport domain without its scope',
+      json({ ...FACTS, zkPassportDomain: IDENTITY_FIELDS.zkPassportDomain }),
+      /zkPassportDomain and zkPassportScope must be given together/
+    ],
+    [
+      'a zkPassport scope without its domain',
+      json({ ...FACTS, zkPassportScope: IDENTITY_FIELDS.zkPassportScope }),
+      /zkPassportDomain and zkPassportScope must be given together/
+    ],
+    [
+      'an Aadhaar nullifier seed without its certificate',
+      json({ ...FACTS, aadhaarNullifierSeed: IDENTITY_FIELDS.aadhaarNullifierSeed }),
+      /aadhaarNullifierSeed and aadhaarCertificate must be given together/
+    ],
+    [
+      'an Aadhaar certificate without its nullifier seed',
+      json({ ...FACTS, aadhaarCertificate: CERTIFICATE }),
+      /aadhaarNullifierSeed and aadhaarCertificate must be given together/
     ]
   ]
 
@@ -463,7 +640,8 @@ describe('a malformed deployment variable', () => {
       methodAadhaar: METHOD_AADHAAR,
       methodZkpassport: getAddress(SECOND_ACTION),
       deployedAt: 0,
-      explorerUrl: 'http://localhost:4000/tx/'
+      explorerUrl: 'http://localhost:4000/tx/',
+      ...IDENTITY_FIELDS
     }
     expect(deploymentFactsFrom(json(full))).toEqual(full)
   })

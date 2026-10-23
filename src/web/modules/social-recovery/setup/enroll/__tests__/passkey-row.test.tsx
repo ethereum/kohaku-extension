@@ -6,7 +6,7 @@
  * the backup kind the ceremony read. The access test runs through the same tab
  * and never holds the save.
  */
-import type { Address, Clause, Credential, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Clause, Credential, Hex } from '@kohaku-eth/social-recovery'
 import type { CeremonyOutcome, PasskeyFacts } from '@web/modules/social-recovery/shared/ceremony'
 import type {
   CeremonyRequestRecord,
@@ -33,6 +33,7 @@ import {
   draftOf,
   each,
   emptySlot,
+  holdReportReads,
   mountView,
   NOW,
   outside,
@@ -44,6 +45,18 @@ import {
   SYNCED_ON_GOOGLE,
   t
 } from '@web/modules/social-recovery/setup/enroll/__tests__/harness'
+
+// The spinner's animation needs a native module jsdom lacks; a plain view stands in.
+jest.mock('@common/components/Spinner', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires, global-require */
+  const mockReact: typeof import('react') = require('react')
+  const { View: MockView }: typeof import('react-native') = require('react-native')
+  /* eslint-enable @typescript-eslint/no-var-requires, global-require */
+  return {
+    __esModule: true,
+    default: () => mockReact.createElement(MockView, { testID: 'spinner' })
+  }
+})
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const {
@@ -226,7 +239,8 @@ describe('the passkey row', () => {
           account: ACCOUNT,
           chainId: CHAIN_ID,
           methodAddress: BOOK.methods.passkey,
-          params: { userName: 'Work laptop', handOff }
+          params: { userName: 'Work laptop', handOff },
+          replaces: null
         })
 
         const target = lastNavigation()
@@ -315,6 +329,50 @@ describe('the passkey row', () => {
       )
 
       // A reload that still carries the id finds nothing more to apply.
+      await open({ ...SEARCH, ceremony: id })
+      expect(await storedEnrollments(records)).toHaveLength(1)
+      expect(view!.byTestId('passkey-undelivered')).toBeNull()
+    })
+
+    it('acts on no report it reads after the row left the page', async () => {
+      await open()
+      await view!.press('passkey-create-here')
+      const id = deps.requestIds[deps.requestIds.length - 1]
+      await deps.channel.report(id, 'enroll', createdWith(SYNCED_ON_GOOGLE))
+      const release = holdReportReads(deps)
+      const left = await open({ ...SEARCH, ceremony: id })
+      left.unmount()
+      view = undefined
+
+      await outside(async () => release())
+      await settle()
+
+      expect(left.navigate).not.toHaveBeenCalled()
+      expect(await storedClauses(records)).toEqual(TWO_SLOTS)
+      expect(await storedEnrollments(records)).toEqual([])
+      expect(await storedRequest(id)).toBeDefined()
+    })
+
+    it('keeps a report read after the row left the page, and the next mount applies it once', async () => {
+      await open()
+      await view!.press('passkey-create-here')
+      const id = deps.requestIds[deps.requestIds.length - 1]
+      await deps.channel.report(id, 'enroll', createdWith(SYNCED_ON_GOOGLE))
+      const release = holdReportReads(deps)
+      const left = await open({ ...SEARCH, ceremony: id })
+      left.unmount()
+      view = undefined
+      await outside(async () => release())
+      await settle()
+      expect(deps.channel.has(id)).toBe(true)
+
+      await open({ ...SEARCH, ceremony: id })
+      expect(await storedEnrollments(records)).toHaveLength(1)
+      expect(view!.byTestId('passkey-undelivered')).toBeNull()
+      expect(await storedRequest(id)).toBeUndefined()
+      expect(deps.channel.has(id)).toBe(false)
+      expect(deps.channel.takes).toHaveBeenCalledTimes(1)
+
       await open({ ...SEARCH, ceremony: id })
       expect(await storedEnrollments(records)).toHaveLength(1)
       expect(view!.byTestId('passkey-undelivered')).toBeNull()
@@ -608,6 +666,31 @@ describe('the passkey row', () => {
         }
       ])
       expect(view!.byTestId('passkey-chip')?.textContent).toBe(chip('notTested'))
+    })
+
+    it('refuses an earlier new passkey that returns after a later one replaced the credential', async () => {
+      await testAndReturn(failed('browser-error', 'NotAllowedError'))
+      const [first] = await storedEnrollments(records)
+      await view!.press('passkey-create-new')
+      const earlier = deps.requestIds[deps.requestIds.length - 1]
+      expect(await storedRequest(earlier)).toMatchObject({ replaces: first.credential })
+      await open()
+      await view!.press('passkey-create-new')
+      const later = deps.requestIds[deps.requestIds.length - 1]
+
+      await returnFrom(later, 'enroll', createdWith(BOUND_TO_THIS_MAC, '0xbeef', 'credential-b'))
+      await returnFrom(earlier, 'enroll', createdWith(BOUND_TO_THIS_MAC, '0xfeed', 'credential-c'))
+
+      const kept: Credential = {
+        method: BOOK.methods.passkey,
+        config: '0xbeef',
+        label: DEFAULT_NAME
+      }
+      expect(await storedClauses(records)).toEqual(pathWith(emptySlot('passkey'), kept))
+      expect((await storedEnrollments(records)).map((e) => e.credential)).toEqual([kept])
+      expect(view!.byTestId('enroll-write-failed')?.textContent).toBe(
+        t('socialRecovery.records.writeFailed')
+      )
     })
 
     it('renders the write failure where the verdict cannot be stored, and keeps the credential', async () => {

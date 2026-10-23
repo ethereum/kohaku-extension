@@ -29,6 +29,7 @@ import {
   StatusChip,
   TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
 import { renderHiddenValue, renderPasswordName } from '@web/modules/social-recovery/shared/display'
 
@@ -120,7 +121,13 @@ const RecoveryCardView = ({
   )
 
   let missingBody: ReactNode = null
-  if (missingPassword.kind === 'gone') {
+  if (missingPassword.kind === 'reading') {
+    missingBody = (
+      <View testID="card-password-reading" style={spacings.mtSm}>
+        <LoadingBlock variant="row" message={t('socialRecovery.loading.lookup')} />
+      </View>
+    )
+  } else if (missingPassword.kind === 'gone') {
     missingBody = (
       <Alert
         type="warning"
@@ -155,7 +162,6 @@ const RecoveryCardView = ({
     )
   }
 
-  // While the setup read runs the row holds its label alone.
   const missingPasswordRow = (
     <View testID="card-password" style={[flexbox.directionRow, flexbox.alignStart, spacings.mbSm]}>
       <Text

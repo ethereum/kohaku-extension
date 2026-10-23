@@ -10,7 +10,7 @@ import omitBy from 'lodash/omitBy'
 import isEqual from 'react-fast-compare'
 import { isAddress, isAddressEqual, isHex, keccak256 } from 'viem'
 
-import type { BlockHeader, RawLog } from '@web/modules/social-recovery/sdk-interfaces'
+import type { BlockHeader, RawLog } from '@kohaku-eth/social-recovery'
 import {
   CHAIN_IDS,
   providerReadFailure,
@@ -21,6 +21,10 @@ import {
   watchedDeploymentOf,
   watcherConnectionFor
 } from '@web/modules/social-recovery/shared/client/watcher-reads'
+import {
+  isOfDeployment,
+  recordDeploymentOf
+} from '@web/modules/social-recovery/shared/records/deployment'
 import { extensionRecordStorage } from '@web/modules/social-recovery/shared/records/extensionStorage'
 import { sameHash } from '@web/modules/social-recovery/shared/writes/hashes'
 import {
@@ -71,6 +75,7 @@ const comparableOf = ({ block, attempt, ended, ...rest }: WatcherReading) => ({
 export const attemptReaderOf =
   ({
     reads,
+    deployment,
     account,
     chainId,
     storage,
@@ -87,11 +92,17 @@ export const attemptReaderOf =
     }
     try {
       const record = await readWatcherRecord(storage, chainId, account)
-      const previous = record?.reading
-      const reading = await pollAccount(reads, account, latestBlock, previous, {
-        stateMs: limitMs,
-        scanMs: scanLimitMs
-      })
+      // A reading of another deployment, or one that names none, says nothing of this one.
+      const previous = isOfDeployment(record?.reading?.deployment, deployment)
+        ? record?.reading
+        : undefined
+      const reading: WatcherReading = {
+        ...(await pollAccount(reads, account, latestBlock, previous, {
+          stateMs: limitMs,
+          scanMs: scanLimitMs
+        })),
+        deployment
+      }
       const unchanged =
         !!previous && !record?.failed && isEqual(comparableOf(previous), comparableOf(reading))
       // A reading of a newer block than the page's own stands: the page's node lags.
@@ -108,14 +119,16 @@ export const attemptReaderOf =
           account,
           (current) => {
             const stored = current?.reading
-            if (stored && reading.block.number < stored.block.number) {
+            const ours = isOfDeployment(stored?.deployment, deployment)
+            if (ours && stored && reading.block.number < stored.block.number) {
               newer(stored)
               // A throw inside the update leaves the record untouched, its poll's start time too.
               throw new Error(
                 `The page read block ${reading.block.number}, below the stored ${stored.block.number}.`
               )
             }
-            return { reading, dismissed: current?.dismissed ?? [] }
+            // A new manager numbers its attempts afresh: no dismissal of another deployment holds.
+            return { reading, dismissed: ours ? current?.dismissed ?? [] : [] }
           },
           { now, polledAt }
         ).catch(() => undefined)
@@ -166,7 +179,8 @@ const rawLogOf = (log: ReceiptLog): RawLog | undefined => {
  * The owner's cancel of the account among a receipt's logs, decoded by the
  * kit's events feed: it names the attempt the cancel ended, whatever its id.
  * Only the logs of the receipt's own transaction count. Undefined where no
- * log decodes as one.
+ * log is that cancel; a log at the manager's address that does not decode
+ * throws, and the caller then falls back to the reading by id.
  */
 export const ownerCancelOf = ({
   logs,
@@ -319,6 +333,7 @@ export const pollOnce = async ({
   try {
     await pollAccounts({
       reads: connection.reads,
+      deployment: recordDeploymentOf(descriptor),
       accounts: [account],
       chainId: CHAIN_IDS[WALLET_RECOVERY_CHAIN],
       storage,

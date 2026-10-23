@@ -1,4 +1,4 @@
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 
 /** The byte forms the browser's WebAuthn objects hand over. */
 export type BytesLike = ArrayBuffer | ArrayBufferView

@@ -7,7 +7,7 @@
 import eventBus from '@web/extension-services/event/eventBus'
 import { SigningStatus } from '@ambire-common/controllers/signAccountOp/signAccountOp'
 import { AccountOpStatus } from '@ambire-common/libs/accountOp/types'
-import type { Address, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Hex } from '@kohaku-eth/social-recovery'
 import {
   advance,
   basicAccount,

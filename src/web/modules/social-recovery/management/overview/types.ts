@@ -10,12 +10,13 @@ import type {
 import type {
   Address,
   Configuration,
+  Hex,
   LogPosition,
-  PrivacyLevel,
   SetupDraft,
   SetupState
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type {
+  PrivacyLevel,
   AccountFactsResult,
   ChainReads,
   KeyHandle,
@@ -34,7 +35,7 @@ import type {
 } from '@web/modules/social-recovery/shared/writes'
 import type { ArmRun, SaveWriteKeys } from '@web/modules/social-recovery/setup/arm'
 import type { TrustRow } from '@web/modules/social-recovery/setup/review'
-import type { AttemptEnding } from '@web/modules/social-recovery/watcher'
+import type { AttemptEnding, WatcherStorage } from '@web/modules/social-recovery/watcher'
 
 // ---------------------------------------------------------------------------
 // The chain's reading of the account
@@ -56,11 +57,23 @@ export type OverviewKind =
    * clear alone leaves it. Repaired by removing the authorization.
    */
   | 'mirror'
+  /**
+   * A recovery executed and no key this wallet's keystore holds is an
+   * authority of the account any longer: the account is no longer controlled
+   * from this device, and nothing here acts on it.
+   */
+  | 'control-moved'
 
 /** The setup state and whether an attempt is open on the account, pending or ready. */
 export interface OverviewFacts {
   setup: SetupState
   attemptOpen: boolean
+  /**
+   * The executed attempt that left no key this wallet's keystore holds an
+   * authority of the account; absent where the last attempt did not execute,
+   * or a key this wallet holds still signs for the account.
+   */
+  movedBy?: bigint
 }
 
 /** The chain read of the overview, with the client's own state where it cannot read. */
@@ -78,12 +91,17 @@ export type PathStep =
   | { kind: 'none' }
   | { kind: 'reading' }
   | { kind: 'read-failed' }
-  | { kind: 'update-the-wallet' }
   | { kind: 'no-details' }
   | { kind: 'mismatch' }
   /** This device cannot read the path until the recovery password opens it. */
   | { kind: 'locked'; level: HiddenLevel; shape?: ShapeNote }
   | { kind: 'readable'; configuration: Configuration }
+
+/** A configuration this device opened, with the setup nonce it was committed under. */
+export interface OpenedSetup {
+  configuration: Configuration
+  setupNonce: bigint
+}
 
 // ---------------------------------------------------------------------------
 // The notices
@@ -101,6 +119,13 @@ export interface OverviewNotices {
   cancelledAttempts: bigint[]
 }
 
+/** What the watcher read of the execution that moved control: when, in seconds, to which key, and in which transaction. */
+export interface ControlMovedNotice {
+  at?: number
+  controller?: Address
+  transactionHash?: Hex
+}
+
 /** The notice after an ended attempt: the road that ended it and when, in seconds. */
 export interface EndedNotice {
   road: 'ownerCancel' | 'setupWrite'
@@ -111,11 +136,30 @@ export interface EndedNotice {
 // The reads hook
 // ---------------------------------------------------------------------------
 
+/**
+ * What this device has seen of the account's setup at the client's
+ * deployment: the highest setup nonce, and the block of the watcher's last
+ * reading where it found a setup.
+ */
+export interface KnownFloor {
+  setupNonce?: bigint
+  setupBlock?: number
+}
+
 export interface OverviewReadsInput {
   client: RecoveryClientState & { retry: () => void }
   records: Pick<WalletRecords, 'decryptedSetupCache'>
+  /** The storage the watcher keeps its record of each account in; with none, only the cache sets the floor. */
+  watcherStorage?: WatcherStorage
   chainId: ChainId
   account: Address
+  /**
+   * Every key this wallet's keystore holds, whichever account it was made
+   * for, asked whether it signs for the account where its last attempt
+   * executed; undefined while the keystore is not read, which holds the facts
+   * as read until it is.
+   */
+  heldKeys?: readonly Address[]
 }
 
 export interface OverviewReads {
@@ -124,6 +168,12 @@ export interface OverviewReads {
   /** The password ask, shared by the locked path and the re-authorize step. */
   ask: UnlockState
   notices: EntryRead<OverviewNotices>
+  /**
+   * The configuration this device last opened for the account at the
+   * deployment the client reads, shown while a fresh read runs; null where
+   * it holds none, or where the setup state read names another setup nonce.
+   */
+  cached: Configuration | null
   /** Reads the setup state and the attempt again, and everything that follows from them. */
   retry: () => void
   retryPath: () => void
@@ -205,6 +255,8 @@ export interface PathLockedBodyProps {
 
 export interface OverviewViewProps {
   reads: OverviewReads
+  /** The account the overview reads. */
+  account: Address
   context: ReadoutRowContext
   /** The recovery chain's name, as the wallet lists its network. */
   networkName: string
@@ -225,6 +277,8 @@ export interface OverviewViewProps {
    */
   held: ReactNode
   onOpen: (intent: OverviewIntent) => void
+  /** Opens the explorer page of a transaction on the recovery chain. */
+  onTransaction: (transactionHash: Hex) => void
   navigate: (to: string) => void
 }
 
@@ -267,6 +321,19 @@ export interface OverviewNavigateProps {
   navigate: (to: string) => void
 }
 
+export interface ControlMovedBlockProps {
+  notice: ControlMovedNotice
+  /** The account the overview reads. */
+  account: Address
+}
+
+export interface ControlMovedTitleProps {
+  notice: ControlMovedNotice
+  timeZone: string
+  /** Opens the explorer page of the transaction that moved control. */
+  onTransaction: (transactionHash: Hex) => void
+}
+
 export interface OverviewChipsProps {
   kind: OverviewKind
   path: PathStep
@@ -285,7 +352,10 @@ export interface MirrorBlockProps {
 export type NoticesBlockProps = Pick<
   OverviewViewProps,
   'reads' | 'context' | 'timeZone' | 'ending' | 'methodNameOf' | 'adminOf' | 'navigate'
->
+> & {
+  /** Whether each notice carries its action; without, only its text is drawn. */
+  actionable: boolean
+}
 
 export type PathBodyProps = Pick<OverviewViewProps, 'reads' | 'context' | 'networkName'>
 
@@ -293,6 +363,16 @@ export type PathBlockProps = PathBodyProps & {
   kind: OverviewKind
   attemptOpen: boolean
   navigate: (to: string) => void
+}
+
+export interface PathActionsProps {
+  /** Held while a fresh read runs, so neither opens on a path that may be stale. */
+  disabled: boolean
+  navigate: (to: string) => void
+}
+
+export type CachedPathBlockProps = Pick<OverviewViewProps, 'context' | 'navigate'> & {
+  configuration: Configuration
 }
 
 export interface WriteStepUnavailableProps {
@@ -335,6 +415,8 @@ export interface RunBlockProps {
   droppedLine: string
   /** The screen's own words over a write state, where it carries any. */
   keysOf?: (state: WriteState) => SaveWriteKeys
+  /** The screen's own action, drawn held beside the fee line while the gas check runs. */
+  action?: ReactNode
   testID: string
 }
 
@@ -342,4 +424,10 @@ export interface RunBlockProps {
 export interface OpenStep {
   intent: OverviewIntent
   autoStart: boolean
+}
+
+/** A landed write while the read after its receipt runs: its hash, where known, and the line. */
+export interface ConfirmingBlockProps {
+  transactionHash?: Hex
+  testID: string
 }

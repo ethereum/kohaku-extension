@@ -10,7 +10,19 @@
  * state and its failed state with retry, and a read that failed or has not
  * returned never renders as an answer. An answer from a block below the last
  * one the facts accepted reads as failed with retry, so a lagging provider
- * never shows an older state.
+ * never shows an older state; so does an answer whose setup nonce is below
+ * one this device has seen for the account at the same manager and action,
+ * or one of no setup from a block before the watcher's last reading that
+ * found one, so a node that lags or lost its state never shows a setup as
+ * gone. A stored record that cannot be read fails the facts with retry; a
+ * record that is absent sets no floor. Where the last attempt executed, the
+ * facts also ask whether any key this wallet's keystore holds is an
+ * authority of the account, and wait for the keystore's keys to ask about; a
+ * failed answer fails the facts. The configuration this device last opened
+ * at the client's deployment, or at this build's own before the client
+ * stands, is read beside them, for the screen to show while they run, and
+ * while the path reads only where it was committed under the setup nonce
+ * they answered; it decides nothing.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -18,16 +30,34 @@ import {
   readSetupReading,
   unlockFailureOf
 } from '@web/modules/social-recovery/recovery/entry/readout'
+import { holdsAuthority } from '@web/modules/social-recovery/recovery/entry/running'
 import type { EntryRead, UnlockState } from '@web/modules/social-recovery/recovery/entry/types'
-import type { Configuration, SetupState } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Configuration, SetupState } from '@kohaku-eth/social-recovery'
 import {
+  addressBookOf,
+  descriptorOf,
+  WALLET_RECOVERY_CHAIN
+} from '@web/modules/social-recovery/shared/client'
+import {
+  isOfDeployment,
   readRecoveryPassword,
+  recordDeploymentOf,
   setRecoveryPassword
 } from '@web/modules/social-recovery/shared/records'
+import { readWatcherRecord } from '@web/modules/social-recovery/watcher'
 
 import { COMMITMENT_DISAGREEMENT_LIMIT } from './constants'
-import { attemptOpenOf, isCacheCurrent, isSameSetup, noticesOf } from './readings'
+import {
+  attemptOpenOf,
+  isBelowFloor,
+  isCacheCurrent,
+  isSameSetup,
+  knownFloorOf,
+  movedByOf,
+  noticesOf
+} from './readings'
 import type {
+  OpenedSetup,
   OverviewFactsRead,
   OverviewNotices,
   OverviewReads,
@@ -36,20 +66,24 @@ import type {
 } from './types'
 
 const PENDING = { status: 'pending' } as const
+const BUILD_DESCRIPTOR = descriptorOf(WALLET_RECOVERY_CHAIN, addressBookOf(WALLET_RECOVERY_CHAIN))
 const IDLE: UnlockState = { status: 'idle' }
 const NONE: PathStep = { kind: 'none' }
 
 export const useOverviewReads = ({
   client,
   records,
+  watcherStorage,
   chainId,
-  account
+  account,
+  heldKeys
 }: OverviewReadsInput): OverviewReads => {
   const kit = client.status === 'ready' ? client.client : null
   const [facts, setFacts] = useState<OverviewFactsRead>(PENDING)
   const [path, setPath] = useState<PathStep>(NONE)
   const [ask, setAsk] = useState<UnlockState>(IDLE)
   const [notices, setNotices] = useState<EntryRead<OverviewNotices>>(PENDING)
+  const [lastOpened, setLastOpened] = useState<OpenedSetup | null>(null)
   const [factsRound, setFactsRound] = useState(0)
   const [pathRound, setPathRound] = useState(0)
   const [noticesRound, setNoticesRound] = useState(0)
@@ -63,11 +97,52 @@ export const useOverviewReads = ({
   const disagreements = useRef(0)
 
   const setup: SetupState | null = facts.status === 'answered' ? facts.value.setup : null
+  // The setup the path is read under, for the path read now to keep its nonce.
+  const pathSetup = useRef<SetupState | null>(setup)
+  pathSetup.current = setup
 
   useEffect(() => {
     floor.current = undefined
     disagreements.current = 0
   }, [kit])
+
+  // The cache is read before the client stands, under this build's deployment until the client names its own.
+  const { manager, action } = kit?.descriptor ?? BUILD_DESCRIPTOR
+  useEffect(() => {
+    setLastOpened(null)
+    let live = true
+    records
+      .decryptedSetupCache(chainId, account)
+      .read()
+      .then(
+        (read) => {
+          if (
+            live &&
+            read.status === 'present' &&
+            isOfDeployment(read.value.deployment, { manager, action })
+          ) {
+            setLastOpened({
+              configuration: read.value.configuration,
+              setupNonce: read.value.setupNonce
+            })
+          }
+        },
+        () => undefined
+      )
+    return () => {
+      live = false
+    }
+  }, [manager, action, records, chainId, account])
+
+  // A path read now is the one to show while a later read runs.
+  useEffect(() => {
+    if (path.kind === 'readable' && pathSetup.current) {
+      setLastOpened({
+        configuration: path.configuration,
+        setupNonce: pathSetup.current.setupNonce
+      })
+    }
+  }, [path])
 
   useEffect(() => {
     if (client.status === 'update-the-wallet') {
@@ -83,19 +158,50 @@ export const useOverviewReads = ({
       return undefined
     }
     let live = true
-    Promise.all([kit.setup.setupState(), kit.walletReads.attemptState()]).then(
-      ([state, attempt]) => {
-        if (!live) {
+    const known = Promise.all([
+      records
+        .decryptedSetupCache(chainId, account)
+        .read()
+        .then((cached) => (cached.status === 'present' ? cached.value : undefined)),
+      watcherStorage ? readWatcherRecord(watcherStorage, chainId, account) : undefined
+    ]).then(([cached, watched]) => knownFloorOf(cached, watched, kit.descriptor))
+    const read = async () => {
+      const [state, attempt, seen] = await Promise.all([
+        kit.setup.setupState(),
+        kit.walletReads.attemptState(),
+        known
+      ])
+      if (attempt.attempt.state !== 'Consumed') {
+        return { state, attempt, seen, heldAuthority: false }
+      }
+      if (!heldKeys) {
+        return null
+      }
+      const heldAuthority = await holdsAuthority((key) => kit.action.isAuthority(key), heldKeys)
+      return { state, attempt, seen, heldAuthority }
+    }
+    read().then(
+      (answer) => {
+        if (!live || !answer) {
           return
         }
-        if (floor.current !== undefined && state.block.number < floor.current) {
+        const { state, attempt, seen, heldAuthority } = answer
+        if (
+          (floor.current !== undefined && state.block.number < floor.current) ||
+          isBelowFloor(state, seen)
+        ) {
           setFacts({ status: 'failed' })
           return
         }
         floor.current = state.block.number
+        const movedBy = movedByOf(attempt, heldAuthority)
         setFacts({
           status: 'answered',
-          value: { setup: state, attemptOpen: attemptOpenOf(state, attempt) }
+          value: {
+            setup: state,
+            attemptOpen: attemptOpenOf(state, attempt),
+            ...(movedBy !== undefined ? { movedBy } : {})
+          }
         })
       },
       () => {
@@ -107,7 +213,7 @@ export const useOverviewReads = ({
     return () => {
       live = false
     }
-  }, [client.status, kit, factsRound])
+  }, [client.status, kit, records, watcherStorage, chainId, account, heldKeys, factsRound])
 
   /**
    * Keeps the opened setup on this device where it is the setup the facts read,
@@ -139,7 +245,8 @@ export const useOverviewReads = ({
         .write({
           configuration,
           setupNonce: state.setupNonce,
-          setupCommitment: state.setupCommitment
+          setupCommitment: state.setupCommitment,
+          deployment: recordDeploymentOf(kit.descriptor)
         })
         .catch(() => undefined)
       return true
@@ -165,7 +272,7 @@ export const useOverviewReads = ({
         .decryptedSetupCache(chainId, account)
         .read()
         .catch(() => null)
-      if (cached?.status === 'present' && isCacheCurrent(cached.value, setup)) {
+      if (cached?.status === 'present' && isCacheCurrent(cached.value, setup, kit.descriptor)) {
         return { kind: 'readable', configuration: cached.value.configuration }
       }
       const held = readRecoveryPassword(chainId, account)
@@ -185,8 +292,6 @@ export const useOverviewReads = ({
           return { kind: 'locked', level: 'shape-visible', shape: reading.shape }
         case 'sealed':
           return { kind: 'locked', level: 'private' }
-        case 'unreadable':
-          return { kind: 'update-the-wallet' }
         default:
           return { kind: reading.kind }
       }
@@ -223,18 +328,9 @@ export const useOverviewReads = ({
     let live = true
     const { events } = kit.setup
     const range = { from: setup.setupCommittedAtBlock, to: setup.block.number }
-    // A kit that does not serve the method logs reads as none moved; any other failure fails the read.
-    const methodLogs = Promise.resolve()
-      .then(() => events.fetch(events.methodFilter(), range))
-      .catch((error: unknown) => {
-        if (error instanceof Error && error.name === 'NotServedRefusal') {
-          return []
-        }
-        throw error
-      })
     Promise.all([
       Promise.resolve().then(() => events.fetch(events.accountFilter(), range)),
-      methodLogs
+      Promise.resolve().then(() => events.fetch(events.methodFilter(), range))
     ]).then(
       ([own, methods]) => {
         if (live) {
@@ -301,7 +397,7 @@ export const useOverviewReads = ({
             return
           }
           setAsk(IDLE)
-          setPath(failure === 'unreadable' ? { kind: 'update-the-wallet' } : { kind: failure })
+          setPath({ kind: failure })
         }
       )
     },
@@ -344,5 +440,21 @@ export const useOverviewReads = ({
 
   const retryNotices = useCallback(() => setNoticesRound((round) => round + 1), [])
 
-  return { facts, path, ask, notices, retry, retryPath, retryNotices, unlock, askAgain }
+  const cached =
+    lastOpened && (!setup || lastOpened.setupNonce === setup.setupNonce)
+      ? lastOpened.configuration
+      : null
+
+  return {
+    facts,
+    path,
+    ask,
+    notices,
+    cached,
+    retry,
+    retryPath,
+    retryNotices,
+    unlock,
+    askAgain
+  }
 }

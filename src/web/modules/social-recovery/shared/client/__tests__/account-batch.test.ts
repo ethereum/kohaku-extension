@@ -15,7 +15,7 @@ import { dedicatedToOneSAPriv } from '@ambire-common/interfaces/keystore'
 import { getBasicAccount, getSmartAccount, getSpoof } from '@ambire-common/libs/account/account'
 import AmbireAccount from '@contracts/compiled/AmbireAccount.json'
 import AmbireFactory from '@contracts/compiled/AmbireFactory.json'
-import type { Address, Hex, PreparedCall } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Hex, PreparedCall } from '@kohaku-eth/social-recovery'
 
 import {
   accountBatchTransactionOf,

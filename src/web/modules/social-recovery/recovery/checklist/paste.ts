@@ -8,7 +8,7 @@
  */
 import { isHex } from 'viem'
 
-import type { ApproverReply, ApproverRequest } from '@web/modules/social-recovery/sdk-interfaces'
+import type { AddRefusalCause, ApproverRequest, Reply } from '@kohaku-eth/social-recovery'
 import type { Translate } from '@web/modules/social-recovery/shared/display'
 
 import { isDecimalString, isStoredAddress } from '@web/modules/social-recovery/shared/records'
@@ -42,7 +42,7 @@ const replyRecordOf = ({
   salt,
   digest,
   proof
-}: ApproverReply): ApproverReply => ({
+}: Reply): Reply => ({
   kind,
   version,
   chainId,
@@ -60,10 +60,10 @@ const replyRecordOf = ({
 })
 
 /** An approval as the one line the guardian sends back: its record as plain JSON. */
-export const replyLineOf = (reply: ApproverReply): string => JSON.stringify(replyRecordOf(reply))
+export const replyLineOf = (reply: Reply): string => JSON.stringify(replyRecordOf(reply))
 
 /** The approval a pasted text carries, or null where it is not one; any JSON whitespace is accepted. */
-export const replyOfLine = (text: string): ApproverReply | null => {
+export const replyOfLine = (text: string): Reply | null => {
   const r = recordOfJsonLine(text)
   if (
     !isObject(r) ||
@@ -126,27 +126,28 @@ export const judgePaste = (input: PasteJudgeInput): PasteJudgement => {
 }
 
 /**
- * The verify of one reply against its place's request. Only a satisfied
- * verdict passes; a verdict that judges nothing is a failed check the holder
- * retries, as is any thrown read.
+ * The local verify of one reply against its place's request. A satisfied
+ * verdict passes, and so does one that judges nothing: a guardian whose
+ * address holds code has only the chain's own word, which the submission
+ * reads. A thrown check is a failed one the holder retries.
  */
 export const verifyStepOf = async (
   verify: VerifyReply,
   request: ApproverRequest,
-  reply: ApproverReply
+  reply: Reply
 ): Promise<VerifyStep> => {
   try {
     const verdict = await verify(request, reply)
     if (verdict === 'rejected') {
       return 'rejected'
     }
-    return verdict === 'satisfied' ? 'pass' : 'failed'
+    return 'pass'
   } catch {
     return 'failed'
   }
 }
 
-const NO_MATCH_CAUSES = [
+const NO_MATCH_CAUSES: readonly AddRefusalCause[] = [
   'binding-mismatch',
   'digest-mismatch',
   'place-unknown',
@@ -164,10 +165,12 @@ export const errorOfAdd = (result: Exclude<AddReplyResult, { kind: 'added' }>): 
   if (result.kind === 'held') {
     return { kind: 'held' }
   }
-  if (result.cause === 'version-unread') {
+  if (result.cause === 'kind-or-version-unread') {
     return { kind: 'notAnApproval' }
   }
-  return NO_MATCH_CAUSES.includes(result.cause) ? { kind: 'noMatch' } : { kind: 'writeFailed' }
+  return NO_MATCH_CAUSES.some((cause) => cause === result.cause)
+    ? { kind: 'noMatch' }
+    : { kind: 'writeFailed' }
 }
 
 const PASTE = 'socialRecovery.checklist.paste'

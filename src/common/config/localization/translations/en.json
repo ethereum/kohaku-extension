@@ -246,13 +246,16 @@
     "ceremony": {
       "passedNote": "check {{hash}} · passed just now",
       "cancelledNote": "Cancelled · you cancelled the prompt, the row is unchanged",
+      "stoppedNote": "Stopped · you stopped this step, the row is unchanged",
       "refusedNote": "Refused · the device refused the request",
       "failedNote": "Failed · Try again",
       "unreachableNote": "Unreachable · the phone never connected · Try again",
+      "phoneUnansweredNote": "Did not answer · your phone stopped answering",
       "notSupportedNote": "Not supported · this document cannot be checked by this method",
       "notTestedLine": "An untested method may fail on the day it is needed.",
       "testFailedLine": "This method may never work.",
       "testFailedNoMatch": "The check did not match the method's key on chain.",
+      "testFailedReverted": "The check on chain refused this result. The method may not accept this app's version yet.",
       "testUnavailableLine": "The check could not run. The verifier could not be reached.",
       "notSupportedLine": "This document cannot be checked by this method. The answer will not change.",
       "chromeOnly": "Passkeys need Kohaku on Chrome.",
@@ -288,7 +291,29 @@
       "backToMethod": "Back to the method",
       "orCopyLink": "Or copy the link",
       "passkeyTunnel": "Passkey: your phone creates the passkey. Your browser's vendor runs the tunnel that carries this between the two devices.",
-      "passportTunnel": "Passport: your phone reads the chip in your passport. zkPassport runs the flow that carries this between the two devices."
+      "passportTunnel": "Passport: your phone reads the chip in your passport. zkPassport runs the flow that carries this between the two devices.",
+      "scanWithApp": "Scan this code with the zkPassport app on your phone. The app reads the chip and this tab waits.",
+      "scanOnce": "Scan this code once. To scan again, cancel and start again.",
+      "requestReceived": "Your phone received the request…",
+      "generating": "Your phone is preparing the result…",
+      "resultReceived": "Result received. Checking…",
+      "uploadTitle": "Upload the QR image",
+      "uploadHint": "The secure QR code from the mAadhaar app or the e-Aadhaar PDF, as a PNG or JPEG.",
+      "chooseImage": "Choose the image",
+      "noQrFound": "No QR code was found in this image. Choose another image.",
+      "fetchingFiles": "Downloading the check's files… this happens once.",
+      "proving": "Checking the QR code… this takes about a minute.",
+      "checkingResult": "Checking the result…",
+      "stopAction": "Stop",
+      "declinedNote": "Declined · you declined the request on the phone",
+      "phoneErrorNote": "Failed · your phone reported an error · Try again",
+      "noMatchCause": "The result did not match the identifier recorded at setup.",
+      "rejectedCause": "The result did not pass the method's own check. Try again with the same document.",
+      "phoneRequestName": "Kohaku",
+      "phoneRequestPurposeEnroll": "Enroll your passport as a way to recover your Kohaku account",
+      "phoneRequestPurposeTest": "Test that your passport can recover your Kohaku account",
+      "phoneRequestPurposeClaim": "Approve the recovery of a Kohaku account",
+      "notOnThisNetworkLine": "This method is not available on this network."
     },
     "records": {
       "expiredTitle": "This request expired",
@@ -299,7 +324,8 @@
       "setupChangedBody": "Every approval you collected was given under the old setup.",
       "wipedNote": "Nothing was submitted and nothing left the account. Every approval was wiped from this device. Only this reason is kept.",
       "draftAge": "Your setup is unfinished. Draft from {{date}}. Nothing is saved on chain until you confirm.",
-      "startOverNote": "Start over discards the draft. Your created passkey is not deleted.",
+      "startOverNote": "Start over discards the draft.",
+      "startOverPasskeyNote": "Your created passkey is not deleted.",
       "startOverWhileSaving": "A save is on its way. Wait until it ends, then start over.",
       "writeFailed": "This device could not save your draft. Nothing changed. Try again.",
       "loadFailed": "This device could not read your draft."
@@ -328,6 +354,36 @@
         "body": "This setup belongs to {{account}}. Your work here stays with that account.",
         "switchAction": "Set up recovery for the selected account instead"
       }
+    },
+    "loading": {
+      "refreshing": "Refreshing…",
+      "refreshingSetup": "Refreshing the setup from the chain…",
+      "refreshingAttempt": "Refreshing the state of the recovery from the chain…",
+      "draft": "Opening your draft…",
+      "client": "Connecting to the recovery contracts on {{network}}…",
+      "checks": "Checking the path against the chain…",
+      "saveChecks": "Checking the setup before you save…",
+      "trust": "Reading the methods on the chain…",
+      "fee": "Checking the fee…",
+      "landed": "Landed. Reading the result…",
+      "key": "Reading the key…",
+      "accounts": "Reading your accounts…",
+      "entries": "Reading your recoveries…",
+      "session": "Opening this recovery…",
+      "attempt": "Reading the recovery in progress…",
+      "signature": "Checking the approval…",
+      "countdown": "Reading the waiting period…",
+      "finishing": "Finishing the recovery…",
+      "addingAccount": "Adding the account to this wallet…",
+      "unlocking": "Unlocking the recovery setup…",
+      "level": "Reading the committed level…",
+      "request": "Opening the request…",
+      "slot": "Reading this method's slot…",
+      "balance": "Reading the balance and the fee…",
+      "lookup": "Looking up the recovery setup…",
+      "unfinishedSave": "Checking for an unfinished save…",
+      "notices": "Reading the changes since the setup…",
+      "address": "Checking this address…"
     },
     "methodNames": {
       "passkey": "Passkey",
@@ -365,6 +421,7 @@
       "smartAccount": "If this address is a smart account, whoever controls it can approve for it.",
       "identity": "This method shows the details on the document, not that you are the one using it now.",
       "passportPublication": "If a recovery ever uses this method, the identifier your passport produces goes on chain in the clear, beside your account. Any later setup with the same passport can be linked to it.",
+      "aadhaarPublication": "If a recovery ever uses this method, the identifier your Aadhaar produces goes on chain in the clear, beside your account. Any later setup with the same Aadhaar can be linked to it.",
       "items": {
         "passkey": "your passkey",
         "passkeys": "your passkeys",
@@ -372,6 +429,7 @@
         "passportIdentifier": "the identifier your passport produces",
         "pair": "{{first}} and {{second}}",
         "aadhaar": "your Aadhaar identity",
+        "aadhaarIdentifier": "the identifier your Aadhaar produces",
         "triple": "{{first}}, {{second}} and {{third}}"
       },
       "itemsLead": {
@@ -379,7 +437,8 @@
         "passkeys": "Your passkeys",
         "passport": "Your passport",
         "passportIdentifier": "The identifier your passport produces",
-        "aadhaar": "Your Aadhaar identity"
+        "aadhaar": "Your Aadhaar identity",
+        "aadhaarIdentifier": "The identifier your Aadhaar produces"
       }
     },
     "costLines": {
@@ -520,6 +579,29 @@
         "bringBackHeader": "Bring the signature back",
         "pasteSignature": "Paste the signature",
         "signaturePlaceholder": "0x…"
+      },
+      "passport": {
+        "title": "Passport",
+        "lead": "Your phone reads the chip in your passport with the zkPassport app. The result is an identifier only your passport produces.",
+        "needsApp": "You need the zkPassport app on a phone that can read the chip. The document must be a passport or an identity card with a chip.",
+        "noneYet": "No passport enrolled yet",
+        "scanAction": "Scan with your phone",
+        "scanLine": "A code appears on the next screen. Scan it with the zkPassport app, read the chip, and approve the request there.",
+        "enrolledLine": "Your passport is enrolled. The wallet stores the identifier, never the document.",
+        "testLead": "Run the check once now. Your phone reads the chip again and the chain confirms the result.",
+        "testPassed": "The chain confirmed the identifier your passport produces."
+      },
+      "aadhaar": {
+        "title": "Aadhaar identity",
+        "lead": "Upload the image of the secure QR code from the mAadhaar app or your e-Aadhaar PDF. The check runs in this browser, and the image never leaves this device.",
+        "noneYet": "No Aadhaar identity enrolled yet",
+        "uploadAction": "Choose the QR image",
+        "uploadLine": "A PNG or JPEG that shows the whole QR code.",
+        "takesTime": "The check takes about a minute and downloads its files once, about 300 MB. Keep the tab open.",
+        "sameQr": "At recovery you make a fresh QR code in the Aadhaar app. It must come from the same Aadhaar identity.",
+        "enrolledLine": "Your Aadhaar identity is enrolled. The wallet stores the identifier, never the QR code.",
+        "testLead": "Run the check once now. Upload the QR image again and the chain confirms the result.",
+        "testPassed": "The chain confirmed the identifier your Aadhaar produces."
       }
     },
     "privacy": {
@@ -845,7 +927,6 @@
         "lead": "Check the address before you continue.",
         "thisIsMine": "This is my account",
         "notMine": "Not mine",
-        "readingSetup": "Reading the recovery setup…",
         "readingAuthorization": "Reading whether the account still authorizes the recovery module…",
         "readingFit": "Checking whether this release can recover this account…",
         "readingDestination": "Checking the key that receives control…",
@@ -1081,6 +1162,17 @@
         "confirm": "Abandoning wipes every approval you collected from this device. Nothing was submitted.",
         "confirmAction": "Abandon",
         "keep": "Keep this recovery"
+      },
+      "passport": {
+        "lead": "Your phone reads the chip in your passport and approves this recovery.",
+        "scanAction": "Scan with your phone",
+        "phoneReads": "The phone that scans the code reads the account and the new key.",
+        "borrowedPhone": "If you borrow a phone, its owner learns the account and the new key."
+      },
+      "aadhaar": {
+        "lead": "Make a fresh QR code in the Aadhaar app and upload it here. The check runs here and takes about a minute.",
+        "uploadAction": "Choose the QR image",
+        "sameQr": "A QR code older than a day is refused. It must come from the same Aadhaar identity as at setup."
       }
     },
     "inProgress": {
@@ -1492,7 +1584,6 @@
           "action": "Open the Recovery Card"
         },
         "reads": {
-          "loading": "Reading this account's recovery setup.",
           "failedTitle": "This wallet could not read the setup",
           "failedBody": "The read did not return. The setup on the chain is unchanged. Try again.",
           "noticesFailedTitle": "This wallet could not read the notices",
@@ -1551,6 +1642,14 @@
           "title": "Re-authorize this setup",
           "lead": "This wallet saves your whole setup again and authorizes the recovery module on the account, in one transaction your key signs.",
           "action": "Re-authorize"
+        },
+        "controlMoved": {
+          "title": "This account is no longer controlled from this device",
+          "lead": "Control moved to a new key on {{date}}.",
+          "noTime": "Control moved to a new key.",
+          "controller": "Now controlled by",
+          "path": "Your recovery path no longer covers a key this device holds.",
+          "transaction": "See the transaction"
         }
       },
       "editor": {

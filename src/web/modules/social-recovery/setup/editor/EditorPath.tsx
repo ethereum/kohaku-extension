@@ -92,6 +92,7 @@ const EditorPath = ({
             text={t('socialRecovery.editor.addRequired')}
             open={menu?.place === 'required'}
             kinds={ADD_KINDS}
+            addressBook={addressBook}
             onToggle={() => onToggleMenu({ place: 'required' })}
             onPick={onPickKind}
             onClose={onCloseMenu}
@@ -159,6 +160,7 @@ const EditorPath = ({
               text={t('socialRecovery.editor.addSecondMethod')}
               open={menu?.place === 'second'}
               kinds={SECOND_METHOD_KINDS}
+              addressBook={addressBook}
               onToggle={() => onToggleMenu({ place: 'second' })}
               onPick={onPickKind}
               onClose={onCloseMenu}

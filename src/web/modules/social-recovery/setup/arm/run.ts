@@ -57,7 +57,7 @@
  * after the write's carries its run, so the answer of a run the holder left
  * behind moves nothing.
  */
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 import {
   accountBatchRefusal,
   providerReadFailure,

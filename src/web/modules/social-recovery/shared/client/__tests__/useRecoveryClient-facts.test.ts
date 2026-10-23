@@ -4,8 +4,8 @@
  * The hook's client takes the listed account's own facts when its caller
  * passes none: a smart account's creation record and associated keys, so the
  * removed-key read names the key; a basic or unlisted account gives none, as
- * before. The client is the real one, built over the stand-in's scripted
- * chain, with the extension's provider mocked over that chain.
+ * before. The client is the real one, built over the stand-in's fake
+ * node, the account's controlling key written on it.
  */
 import * as React from 'react'
 import { createRoot, Root } from 'react-dom/client'
@@ -16,11 +16,11 @@ import { getBasicAccount, getSmartAccount } from '@ambire-common/libs/account/ac
 import { getRpcProvider } from '@ambire-common/services/provider/getRpcProvider'
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
-import type { Address, CreationRecord } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, CreationRecord } from '@kohaku-eth/social-recovery'
+import * as buildClient from '@web/modules/social-recovery/shared/client/build-client'
 import { useRecoveryClient } from '@web/modules/social-recovery/shared/client/useRecoveryClient'
 
 import {
-  BuilderSpies,
   CONTROLLING_KEY,
   createWorld,
   creationRecordOf,
@@ -68,7 +68,8 @@ const STRANGER = '0x0000000000000000000000000000000000057a9e' as Address
 let smart: Account
 let basic: Account
 let world: World
-let builder: BuilderSpies
+let builder: ReturnType<typeof spyOnBuilder>
+let built: jest.SpyInstance
 /** The accounts the wallet lists; undefined until the background pushed them. */
 let listed: Account[] | undefined
 let latest: HookState | undefined
@@ -89,7 +90,7 @@ const Probe = ({
 const render = async (account: Address, facts?: Parameters<typeof useRecoveryClient>[1]) => {
   if (!world || world.account !== account) {
     world = createWorld({ account })
-    world.chain.authorities = [CONTROLLING_KEY]
+    world.chain.setPrivilege(CONTROLLING_KEY)
   }
   await act(async () => {
     root.render(React.createElement(Probe, { account, facts }))
@@ -114,6 +115,7 @@ beforeEach(() => {
   networksState.mockImplementation(() => ({ networks: [networkRecord(WALLET_RECOVERY_CHAIN)] }))
   buildProvider.mockImplementation(() => world.ethers)
   builder = spyOnBuilder()
+  built = jest.spyOn(buildClient, 'buildRecoveryClient')
   root = createRoot(document.createElement('div'))
   latest = undefined
 })
@@ -129,7 +131,7 @@ describe('useRecoveryClient with no facts given', () => {
   it("builds a listed smart account's client with its creation record and associated keys", async () => {
     await render(smart.addr as Address)
     expect(latest?.status).toBe('ready')
-    expect(lastArg(builder.config)).toMatchObject({
+    expect(lastArg(built)).toMatchObject({
       creation: creationRecordOf(smart),
       candidateKeys: [CONTROLLING_KEY]
     })
@@ -148,7 +150,7 @@ describe('useRecoveryClient with no facts given', () => {
   it('answers no-source for a basic account with no code, as before', async () => {
     await render(BASIC)
     world.chain.setHasCode(false)
-    expect(lastArg(builder.config)).not.toHaveProperty('creation')
+    expect(lastArg(built)).not.toHaveProperty('creation')
     await expect(removedKeyOf()).resolves.toEqual({
       kind: 'unavailable',
       cause: 'no-source'
@@ -194,12 +196,12 @@ describe('useRecoveryClient with facts given', () => {
 
   it("builds with the caller's facts, not the listed account's", async () => {
     await render(smart.addr as Address, { creation: OTHER, candidateKeys: [BASIC] })
-    expect(lastArg(builder.config)).toMatchObject({ creation: OTHER, candidateKeys: [BASIC] })
+    expect(lastArg(built)).toMatchObject({ creation: OTHER, candidateKeys: [BASIC] })
   })
 
   it("keeps the caller's empty facts for a listed smart account, so the read answers from the chain", async () => {
     await render(smart.addr as Address, {})
-    expect(lastArg(builder.config)).not.toHaveProperty('creation')
+    expect(lastArg(built)).not.toHaveProperty('creation')
     await expect(removedKeyOf()).resolves.toEqual({ kind: 'named', key: CONTROLLING_KEY })
   })
 

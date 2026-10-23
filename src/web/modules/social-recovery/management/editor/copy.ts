@@ -2,8 +2,8 @@
  * The editor's words over the shared strings: a privacy level's name, the
  * rule a path reads as, and the line of each changed value.
  */
-import type { Clause, PrivacyLevel } from '@web/modules/social-recovery/sdk-interfaces'
-import type { AddressBook } from '@web/modules/social-recovery/shared/client'
+import type { Clause } from '@kohaku-eth/social-recovery'
+import type { PrivacyLevel, AddressBook } from '@web/modules/social-recovery/shared/client'
 import type { Translate } from '@web/modules/social-recovery/shared/display'
 import { renderShapeSentence } from '@web/modules/social-recovery/shared/rule-lines'
 import { kindOfMethodIn } from '@web/modules/social-recovery/setup/privacy/exposure'

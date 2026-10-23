@@ -5,7 +5,7 @@
  * logged-in route it is the chosen account's own key, a smart account sending
  * the call as its own batch with its controlling key as the payer.
  */
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import type { ListedAccountFacts } from '@web/modules/social-recovery/shared/client'
 
 import type { SendingPlan } from './types'

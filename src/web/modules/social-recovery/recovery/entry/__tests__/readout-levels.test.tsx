@@ -9,6 +9,7 @@
  */
 import type { Mounted } from '@web/modules/social-recovery/recovery/entry/__tests__/harness'
 import {
+  advanceClock,
   BASIC,
   CARD_PASSWORD,
   CHAIN_ID,
@@ -34,9 +35,11 @@ import {
   storedCache,
   storeEntry,
   t,
-  UNKNOWN_METHOD_SETUP
+  UNKNOWN_METHOD_SETUP,
+  useLiveFakeClock
 } from '@web/modules/social-recovery/recovery/entry/__tests__/harness'
-import type { SetupState } from '@web/modules/social-recovery/sdk-interfaces'
+import { RETRY_PAUSES_MS } from '@web/modules/social-recovery/shared/client/events/__fixtures__/retries'
+import type { SetupState } from '@kohaku-eth/social-recovery'
 import { renderFullAddress } from '@web/modules/social-recovery/shared/display'
 import type { HiddenLevel } from '@web/modules/social-recovery/recovery/entry/types'
 import {
@@ -77,6 +80,7 @@ beforeEach(async () => {
   await storeEntry('logged-in')
 })
 afterEach(() => {
+  jest.useRealTimers()
   screen?.unmount()
   screen = null
 })
@@ -119,6 +123,13 @@ const unlockWith = async (page: Mounted, password: string) => {
   await page.press('readout-unlock')
 }
 
+/** Unlocks while the node answers no log, past every retry pause of the log reads. */
+const unlockWithLogsDown = async (page: Mounted, password: string) => {
+  useLiveFakeClock()
+  await unlockWith(page, password)
+  await advanceClock(RETRY_PAUSES_MS * 2)
+}
+
 describe('the readout at Private', () => {
   it('renders the lock and nothing of the setup before the password', async () => {
     await commitLostSetup('private')
@@ -154,6 +165,9 @@ describe('the readout at Private', () => {
     })
     await unlockWith(page, CARD_PASSWORD)
     expect(page.has('readout-unlock-checking')).toBe(true)
+    expect(
+      page.byTestId('readout-unlock-checking')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
     expectNothingOfTheSetup(page)
     expectConfigured(page)
     await outside(() => held.resolve())
@@ -194,7 +208,11 @@ describe('the readout at Private', () => {
     expect(await storedCache()).toEqual({
       configuration: LOST_SETUP,
       setupNonce: state.setupNonce,
-      setupCommitment: state.setupCommitment
+      setupCommitment: state.setupCommitment,
+      deployment: {
+        manager: world.client.descriptor.manager,
+        action: world.client.descriptor.action
+      }
     })
     expect(readRecoveryPassword(CHAIN_ID, BASIC)).toBeUndefined()
     expect(await storedCache(BASIC)).toBeNull()
@@ -203,8 +221,8 @@ describe('the readout at Private', () => {
   it('renders a failed setup event read after the card password as its own state naming the network, and its retry opens the setup', async () => {
     const world = await commitLostSetup('private')
     const page = await open()
-    world.chain.failRead('events.fetch')
-    await unlockWith(page, CARD_PASSWORD)
+    world.chain.failRead('logs')
+    await unlockWithLogsDown(page, CARD_PASSWORD)
     expect(page.has('readout-event-failed')).toBe(true)
     expect(page.text()).toContain(t('socialRecovery.readout.readFailedTitle', { network: NETWORK }))
     expect(page.text()).not.toContain(PASSWORD_WORKED)
@@ -213,7 +231,7 @@ describe('the readout at Private', () => {
     expectNothingOfTheSetup(page)
     expectConfigured(page)
 
-    world.chain.restoreRead('events.fetch')
+    world.chain.restoreRead('logs')
     await page.press('readout-event-failed-retry')
     expectValues(page)
     expect(readRecoveryPassword(CHAIN_ID, LOST)).toBe(CARD_PASSWORD)
@@ -222,8 +240,8 @@ describe('the readout at Private', () => {
   it('renders a failed setup event read after a wrong password under the neutral title, never as a password that worked', async () => {
     const world = await commitLostSetup('private')
     const page = await open()
-    world.chain.failRead('events.fetch')
-    await unlockWith(page, WRONG_PASSWORD)
+    world.chain.failRead('logs')
+    await unlockWithLogsDown(page, WRONG_PASSWORD)
     expect(page.has('readout-event-failed')).toBe(true)
     expect(page.text()).toContain(t('socialRecovery.readout.readFailedTitle', { network: NETWORK }))
     expect(page.text()).toContain(
@@ -235,7 +253,7 @@ describe('the readout at Private', () => {
     expect(readRecoveryPassword(CHAIN_ID, LOST)).toBeUndefined()
     expect(await storedCache()).toBeNull()
 
-    world.chain.restoreRead('events.fetch')
+    world.chain.restoreRead('logs')
     await page.press('readout-event-failed-retry')
     expect(page.has('readout-wrong-password')).toBe(true)
     expectNothingOfTheSetup(page)
@@ -274,12 +292,9 @@ describe('the readout at Shape visible', () => {
     expect(await storedCache()).not.toBeNull()
   })
 
-  it('renders a refused setup event read as a failed read with a retry, never as Private', async () => {
+  it('renders a rejected setup event read as a failed read with a retry, never as Private', async () => {
     const world = await commitLostSetup('shape-visible')
-    const refusal = Object.assign(new Error('not served'), {
-      name: 'NotServedRefusal',
-      member: 'setup.events.fetch'
-    })
+    const refusal = new Error('the node did not answer')
     const { events } = world.client.setup
     const fetch = events.fetch.bind(events)
     // The restore with no password reads the setup event first; the note read follows it.
@@ -310,8 +325,8 @@ describe('the readout at Shape visible', () => {
   it('renders a failed setup event read after the password under the details title, and its retry opens the setup', async () => {
     const world = await commitLostSetup('shape-visible')
     const page = await open()
-    world.chain.failRead('events.fetch')
-    await unlockWith(page, CARD_PASSWORD)
+    world.chain.failRead('logs')
+    await unlockWithLogsDown(page, CARD_PASSWORD)
     expect(page.has('readout-event-failed')).toBe(true)
     expect(page.textOf('readout-event-failed-alert')).toContain(
       t('socialRecovery.readout.detailsFailed')
@@ -326,7 +341,7 @@ describe('the readout at Shape visible', () => {
     expect(text).not.toContain(WAIT_VALUE)
     expectConfigured(page)
 
-    world.chain.restoreRead('events.fetch')
+    world.chain.restoreRead('logs')
     await page.press('readout-event-failed-retry')
     expect(page.has('readout-readable-shape-visible')).toBe(true)
     expectValues(page)
@@ -357,7 +372,11 @@ describe('the readout at Public', () => {
     expect(await storedCache()).toEqual({
       configuration: LOST_SETUP,
       setupNonce: state.setupNonce,
-      setupCommitment: state.setupCommitment
+      setupCommitment: state.setupCommitment,
+      deployment: {
+        manager: world.client.descriptor.manager,
+        action: world.client.descriptor.action
+      }
     })
     expect(await storedCache(BASIC)).toBeNull()
     expect(readRecoveryPassword(CHAIN_ID, LOST)).toBeUndefined()
@@ -417,6 +436,9 @@ describe('the reads that fail and the setups this build cannot read', () => {
     const page = await open()
     expect(page.has('readout-reading')).toBe(true)
     expect(page.text()).toContain(t('socialRecovery.readout.reading', { network: NETWORK }))
+    expect(
+      page.byTestId('readout-reading')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
     expect(page.has('readout-locked')).toBe(false)
     expectConfigured(page)
     await outside(() => held.resolve())
@@ -425,14 +447,14 @@ describe('the reads that fail and the setups this build cannot read', () => {
 
   it('renders a failed setup state read with the network and a retry, never as no setup', async () => {
     const world = await commitLostSetup('private')
-    world.chain.failRead('setup.setupState')
+    world.chain.failRead('stateOf')
     const page = await open()
     expect(page.has('readout-read-failed')).toBe(true)
     expect(page.text()).toContain(t('socialRecovery.readout.readFailedTitle', { network: NETWORK }))
     expectNothingOfTheSetup(page)
     expectConfigured(page)
 
-    world.chain.restoreRead('setup.setupState')
+    world.chain.restoreRead('stateOf')
     await page.press('readout-read-failed-block-retry')
     expect(page.has('readout-locked-private')).toBe(true)
   })
@@ -452,21 +474,6 @@ describe('the reads that fail and the setups this build cannot read', () => {
     expect(page.text()).toContain(t('socialRecovery.client.updateTheWalletTitle'))
     expect(page.text()).toContain(t('socialRecovery.client.updateTheWalletHow'))
     expect(page.has('readout-password-field')).toBe(false)
-    expectConfigured(page)
-  })
-
-  it('renders update the wallet for a backup whose format this build cannot read', async () => {
-    const world = await commitLostSetup('private')
-    jest
-      .spyOn(world.client.setup, 'getSetup')
-      .mockRejectedValue(
-        restoreRefusal('restore.backup-unopened', { reason: 'unknown-version', version: 9 })
-      )
-    const page = await open()
-    expect(page.has('readout-update-the-wallet')).toBe(true)
-    expect(page.text()).toContain(t('socialRecovery.client.updateTheWalletTitle'))
-    expect(page.has('readout-password-field')).toBe(false)
-    expectNothingOfTheSetup(page)
     expectConfigured(page)
   })
 
@@ -560,8 +567,8 @@ describe('the readout while the setup is locked', () => {
     it(`shows back and no continue after the setup event read failed at ${level}`, async () => {
       const world = await commitLostSetup(level)
       const page = await open()
-      world.chain.failRead('events.fetch')
-      await unlockWith(page, CARD_PASSWORD)
+      world.chain.failRead('logs')
+      await unlockWithLogsDown(page, CARD_PASSWORD)
       expect(page.has('readout-event-failed')).toBe(true)
       expect(page.has('readout-back')).toBe(true)
       expectNoContinue(page)
@@ -676,12 +683,24 @@ describe('the values the readout names', () => {
 
   it('says the account has a recovery setup on a failed read, with Back beside it', async () => {
     const world = await commitLostSetup('private')
-    world.chain.failRead('setup.setupState')
+    world.chain.failRead('stateOf')
     const page = await open()
     expect(page.textOf('readout-read-failed-block')).toContain(
       t('socialRecovery.readout.configuredLine')
     )
     expect(page.textOf('readout-back')).toBe(t('socialRecovery.actions.back'))
+  })
+
+  it('says it opens the recovery while the recovery entry has not been read, with no readout', async () => {
+    await commitLostSetup('public')
+    const get = jest.spyOn(storage, 'get').mockImplementation(() => new Promise<never>(() => {}))
+    const page = await open()
+    expect(page.textOf('readout-entry-reading')).toBe(t('socialRecovery.loading.session'))
+    expect(
+      page.byTestId('readout-entry-reading')?.querySelector('[data-testid="loading-screen"]')
+    ).not.toBeNull()
+    expect(page.has('readout')).toBe(false)
+    get.mockRestore()
   })
 
   it('renders a failed read of the recovery entry with its own line and a retry that opens the readout', async () => {

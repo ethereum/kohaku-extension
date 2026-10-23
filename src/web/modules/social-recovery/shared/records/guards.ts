@@ -8,3 +8,7 @@ export const isStoredAddress = (value: unknown): value is Address =>
 /** Whether a value read back from outside is a decimal string, the form a bigint travels in. */
 export const isDecimalString = (value: unknown): value is string =>
   typeof value === 'string' && /^[0-9]+$/.test(value)
+
+/** Whether a value read back from outside is a time in whole seconds since epoch. */
+export const isStoredSeconds = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= 0

@@ -14,6 +14,7 @@ import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import { renderPasswordName } from '@web/modules/social-recovery/shared/display'
 
 import type {
@@ -111,6 +112,11 @@ const RecoveryPasswordAsk = ({ check }: RecoveryPasswordAskProps) => {
         onPress={submit}
         style={[flexbox.alignSelfStart, spacings.mtSm]}
       />
+      {checking && (
+        <View testID="card-recovery-password-checking" style={spacings.mtSm}>
+          <LoadingBlock variant="row" message={t('socialRecovery.loading.unlocking')} />
+        </View>
+      )}
     </View>
   )
 }

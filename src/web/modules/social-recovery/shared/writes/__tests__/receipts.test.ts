@@ -15,7 +15,7 @@
  *   not settle from it; the hash it names says the call reached the chain, so
  *   the write waits for its receipt under that hash.
  */
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 
 import {
   failThrown,

@@ -22,6 +22,9 @@ import vm from 'vm'
 import type { WriteState } from '@web/modules/social-recovery/shared/writes'
 import type { WriteStateViewProps } from '@web/modules/social-recovery/shared/writes/components'
 
+// The waiting line's spinner needs a native module jsdom lacks; nothing stands in.
+jest.mock('@common/components/Spinner', () => ({ __esModule: true, default: () => null }))
+
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 
 const client = jest.requireActual<typeof import('@web/modules/social-recovery/shared/client')>(
@@ -184,5 +187,15 @@ describe('the lines a screen gives the state view', () => {
     expect(texts).not.toContain(t(WRITES_KEYS.submittingBody))
     expect(texts).toContain(t(WRITES_KEYS.submitting))
     expect(buttons()).toEqual([])
+  })
+
+  it("keep the screen's title and controls while the fee is checked, with the line that says so and no retry", async () => {
+    const state: WriteState = { status: 'checkingGas', write: 'save' }
+    await show({ state, title: TITLE, onRetry: jest.fn(), children: checkAgain() })
+    expect(shownTexts()).toEqual([TITLE])
+    expect(container.querySelector('[data-testid="write-checking-fee"]')?.textContent).toBe(
+      t('socialRecovery.loading.fee')
+    )
+    expect(buttons()).toEqual([CHECK_AGAIN])
   })
 })

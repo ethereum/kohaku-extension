@@ -35,9 +35,11 @@ import {
   walletAddsIt
 } from '@web/modules/social-recovery/recovery/done/__tests__/harness'
 import type { Mounted } from '@web/modules/social-recovery/recovery/done/__tests__/harness'
-import type { Configuration, Credential } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Configuration, Credential } from '@kohaku-eth/social-recovery'
 import { renderChip, renderFullAddress } from '@web/modules/social-recovery/shared/display'
 import { kindNameOf } from '@web/modules/social-recovery/setup/review'
+import { rowsOfPath } from '@web/modules/social-recovery/recovery/done/summary'
+import { zeroAddress } from 'viem'
 import { setRecoveryPassword } from '@web/modules/social-recovery/shared/records'
 
 useDoneClock()
@@ -47,6 +49,8 @@ const DONE = 'socialRecovery.done'
 const LAPTOP = passkeyCredential('Laptop passkey')
 
 const PHONE = passkeyCredential('Phone passkey')
+
+const RETIRED_MANAGER = '0x00000000000000000000000000000000000Dead1' as const
 
 /** The cleanup blocks the screen renders, one card each. */
 const blocksOf = (screen: Mounted) => screen.allByTestIdPrefix('done-cleanup-synced-')
@@ -361,6 +365,33 @@ describe('what this recovery did', () => {
 })
 
 describe('the cleanup block by the path passkeys', () => {
+  it('renders none from a cache of a retired manager where the setup the password opens holds no passkey', async () => {
+    const walletOnly = configurationOf([
+      { threshold: 1, credentials: [guardianCredential(GUARDIANS[0])] }
+    ])
+    const world = await openWorld({
+      route: 'logged-in',
+      configuration: walletOnly,
+      cache: false,
+      walletAdds: true
+    })
+    await world.records.decryptedSetupCache(CHAIN_ID, world.account).write({
+      configuration: configurationOf([{ threshold: 1, credentials: [LAPTOP] }]),
+      setupNonce: 1n,
+      deployment: { manager: RETIRED_MANAGER, action: BOOK.action }
+    })
+    setRecoveryPassword(CHAIN_ID, world.account, PASSWORD)
+    world.kit.chain.accountEvents = [
+      attemptStarted(world.account, [0]),
+      attemptConsumed(world.account)
+    ]
+    const screen = await mountDone(world.account)
+    expect(world.kit.getSetup).toHaveBeenCalledWith({ password: PASSWORD })
+    expect(screen.textOf('done-used')).toBe(usedLine([guardianName(0)]))
+    expect(blocksOf(screen)).toHaveLength(0)
+    screen.unmount()
+  })
+
   it('renders the synced repair in its one order, then the cannot-reach exit, in a path of many rows', async () => {
     const { screen } = await mountOver(MIXED_PATH)
     expect(blocksOf(screen)).toHaveLength(1)
@@ -544,5 +575,21 @@ describe('a device that holds the entry record but no countdown', () => {
     expectSyncedRepairOnly(screen)
     expect(dispatchedOf(ADD_ACTION)).toHaveLength(0)
     screen.unmount()
+  })
+})
+
+describe('the rows of the path', () => {
+  it('give a credential at the zero address no kind where the deployment omits a method', () => {
+    const methods = { ...BOOK.methods, aadhaar: zeroAddress }
+    const rows = rowsOfPath(
+      configurationOf([
+        {
+          threshold: 1,
+          credentials: [{ method: zeroAddress, config: '0x01' }, passkeyCredential('Laptop')]
+        }
+      ]),
+      methods
+    )
+    expect(rows.map(({ kind }) => kind)).toEqual([undefined, 'passkey'])
   })
 })

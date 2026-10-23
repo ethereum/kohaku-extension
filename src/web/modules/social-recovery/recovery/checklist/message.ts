@@ -5,7 +5,7 @@
  * guardian already holds, and names the deadline and how the approval comes
  * back. Pure.
  */
-import type { ApproverRequest } from '@web/modules/social-recovery/sdk-interfaces'
+import type { ApproverRequest } from '@kohaku-eth/social-recovery'
 import type { Translate } from '@web/modules/social-recovery/shared/display'
 
 const MESSAGE = 'socialRecovery.checklist.message'

@@ -9,7 +9,7 @@ import { Wallet } from 'ethers'
 import type { Account, AccountOnchainState, AccountStates } from '@ambire-common/interfaces/account'
 import { dedicatedToOneSAPriv } from '@ambire-common/interfaces/keystore'
 import { getBasicAccount, getSmartAccount } from '@ambire-common/libs/account/account'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 import {
   accountFactsOf,

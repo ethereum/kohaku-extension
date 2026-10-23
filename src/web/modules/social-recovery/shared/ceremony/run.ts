@@ -26,7 +26,10 @@ export const runCeremony = async (
     devices: deps.devices,
     handOff: params.handOff,
     signal: deps.signal,
-    onStep: deps.onStep
+    onStep: deps.onStep,
+    show: deps.show,
+    ask: deps.ask,
+    chainVerdict: resolved.chainVerdict
   }
   switch (params.call) {
     case 'enroll':

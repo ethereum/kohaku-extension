@@ -15,17 +15,20 @@ import { decodeAbiParameters, hexToString, isAddress, isHex } from 'viem'
 
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import { checklistPathOf } from '@web/modules/social-recovery/recovery/checklist/search'
-import { RESTORE_CAUSES } from '@web/modules/social-recovery/sdk-interfaces'
+import {
+  RESTORE_CAUSE_CODES,
+  REQUEST_WINDOW_SECONDS,
+  sameAddress
+} from '@web/modules/social-recovery/shared/client'
 import type {
   Address,
   Clause,
   Configuration,
   Credential,
   Hex,
-  RestoreRefusal,
+  KitRefusalError,
   SetupState
-} from '@web/modules/social-recovery/sdk-interfaces'
-import { REQUEST_WINDOW_SECONDS, sameAddress } from '@web/modules/social-recovery/shared/client'
+} from '@kohaku-eth/social-recovery'
 import { renderFullAddress, renderHiddenValue } from '@web/modules/social-recovery/shared/display'
 import type { Translate } from '@web/modules/social-recovery/shared/display'
 import { isStoredAddress } from '@web/modules/social-recovery/shared/records'
@@ -64,9 +67,6 @@ export const REQUEST_HOURS = REQUEST_WINDOW_SECONDS / 3600
 
 /** The password a restore takes to open a backup kept in the clear, which asks for none. */
 const NO_PASSWORD = ''
-
-/** The refusal reasons of a backup whose bytes this build cannot read. */
-const UNREADABLE_REASONS: readonly unknown[] = ['unknown-version', 'malformed']
 
 /**
  * The rule lines the readout leaves out: the offers to add a method, which
@@ -107,27 +107,23 @@ export const continuePathOf = (route: RecoveryRoute, account: Address): string =
 // The thrown values a read answers
 // ---------------------------------------------------------------------------
 
-/** The restore cause and the backup's refusal reason a thrown value carries, if it is a restore refusal. */
+/** The restore cause a thrown value carries, if it is a restore refusal. */
 export const restoreRefusalOf = (error: unknown): RestoreRefusalReading | null => {
-  if (typeof error !== 'object' || error === null || !('cause' in error)) {
+  if (typeof error !== 'object' || error === null || !('restoreCause' in error)) {
     return null
   }
-  const { cause } = error as Partial<RestoreRefusal>
+  const { restoreCause: cause } = error as Partial<KitRefusalError>
   if (typeof cause !== 'object' || cause === null) {
     return null
   }
-  const known = RESTORE_CAUSES.find((restore) => restore === cause.code)
-  if (!known) {
-    return null
-  }
-  const { values } = cause
-  const reason = typeof values === 'object' && values !== null ? values.reason : undefined
-  return { cause: known, reason }
+  const known = RESTORE_CAUSE_CODES.find((restore) => restore === cause.code)
+  return known ? { cause: known } : null
 }
 
 /**
  * Why a restore with the recovery password failed. A backup the password does
- * not open is a wrong password; a failure that is no refusal is a failed read
+ * not open is a wrong password, a damaged backup too, since the restore
+ * refuses both alike; a failure that is no refusal is a failed read
  * of the setup event, which the restore makes before it can judge the password.
  */
 export const unlockFailureOf = (error: unknown): UnlockFailure => {
@@ -141,7 +137,7 @@ export const unlockFailureOf = (error: unknown): UnlockFailure => {
   if (refusal.cause === 'restore.commitment-mismatch') {
     return 'mismatch'
   }
-  return UNREADABLE_REASONS.includes(refusal.reason) ? 'unreadable' : 'wrong'
+  return 'wrong'
 }
 
 // ---------------------------------------------------------------------------
@@ -239,11 +235,16 @@ export const configurationOfNote = (note: Hex): Configuration | null => {
     return null
   }
   const { wait, ignoresPause } = body as Record<string, unknown>
-  if (typeof wait !== 'bigint' || typeof ignoresPause !== 'boolean') {
+  if (
+    typeof wait !== 'bigint' ||
+    wait < 0n ||
+    wait > BigInt(Number.MAX_SAFE_INTEGER) ||
+    typeof ignoresPause !== 'boolean'
+  ) {
     return null
   }
   return {
-    wait,
+    wait: Number(wait),
     ignoresPause,
     clauses: clauses.map(({ threshold, credentials }) => ({
       threshold,
@@ -292,9 +293,6 @@ const readingOfRefusal = (error: unknown): SetupReading | null => {
   }
   if (refusal.cause === 'restore.commitment-mismatch') {
     return { kind: 'mismatch' }
-  }
-  if (UNREADABLE_REASONS.includes(refusal.reason)) {
-    return { kind: 'unreadable' }
   }
   return null
 }

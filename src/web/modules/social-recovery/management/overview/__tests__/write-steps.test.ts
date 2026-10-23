@@ -8,7 +8,7 @@
  * keeps after a re-authorize, under the setup its own check agreed on.
  */
 import type { OverviewIntent } from '@web/modules/social-recovery/management/overview/types'
-import type { SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { SetupDraft } from '@kohaku-eth/social-recovery'
 import type {
   ChainReads,
   ListedAccountFacts,
@@ -146,9 +146,9 @@ describe('the overview writes', () => {
     world.chain.land(sent.prepared)
     const agreed = await steps.confirm(sent)
     expect(agreed.landed && agreed.isAuthorized).toBe(true)
-    world.chain.commitSetup({
-      level: 'public',
-      configuration: { ...CONFIGURATION, wait: CONFIGURATION.wait + 1n }
+    await harness.commitAt(world.chain, 'public', {
+      ...CONFIGURATION,
+      wait: CONFIGURATION.wait + 1
     })
 
     await steps.wipe()
@@ -157,7 +157,9 @@ describe('the overview writes', () => {
     expect(cache.status === 'present' && cache.value.setupNonce).toBe(agreed.nonce)
     const now = await world.client.setup.setupState()
     expect(now.setupNonce).not.toBe(agreed.nonce)
-    expect(cache.status === 'present' && isCacheCurrent(cache.value, now)).toBe(false)
+    expect(
+      cache.status === 'present' && isCacheCurrent(cache.value, now, world.client.descriptor)
+    ).toBe(false)
   })
 
   it('leaves the cache untouched where a re-authorize wipes with no check of its own', async () => {

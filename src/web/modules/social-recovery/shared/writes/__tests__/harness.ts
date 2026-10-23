@@ -28,10 +28,10 @@ import type {
   Address,
   Hex,
   KitError,
-  KitErrorName,
   PreparedBatch,
   PreparedCall
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
+import type { KitErrorName } from '@web/modules/social-recovery/shared/client'
 import {
   createChainReads,
   createReceiptWait,
@@ -163,14 +163,30 @@ export const preparedFor = (write: WriteKind): PreparedCall | PreparedBatch => {
   }
 }
 
-/** A kit error the wallet decoded for a revert. */
-export const kitError = (name: KitErrorName): KitError => ({
-  kind: 'known',
-  source: 'manager',
-  name,
-  selector: '0x12345678',
-  args: {}
-})
+const ACTION_ERROR_NAMES: readonly KitErrorName[] = [
+  'BatchNotApproved',
+  'MalformedHandover',
+  'AccountNotServed',
+  'NotConsumable'
+]
+
+/**
+ * A kit error the wallet decoded for a revert, under the contract's own name:
+ * the action's errors with its prefix, the manager's with the manager's.
+ */
+export const kitError = (name: KitErrorName): KitError => {
+  if (name.startsWith('RecoveryAction_')) {
+    return { known: true, source: 'action', name, selector: '0x12345678', args: {} }
+  }
+  const action = ACTION_ERROR_NAMES.includes(name)
+  return {
+    known: true,
+    source: action ? 'action' : 'manager',
+    name: `${action ? 'RecoveryAction_' : 'PolicyManager_'}${name}`,
+    selector: '0x12345678',
+    args: {}
+  }
+}
 
 export type MockReads = ChainReads & {
   nativeBalance: jest.Mock

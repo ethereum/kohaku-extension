@@ -86,6 +86,8 @@ jest.mock('@common/components/Panel', () => {
   }
 })
 jest.mock('@common/components/Spinner', () => ({ __esModule: true, default: () => null }))
+// The QR library ships untranspiled modules.
+jest.mock('react-native-qrcode-svg', () => ({ __esModule: true, default: () => null }))
 jest.mock('@common/components/Text', () => {
   const R = jest.requireActual('react')
   return {

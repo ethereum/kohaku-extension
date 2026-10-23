@@ -3,11 +3,11 @@
  * and the row's lasting line; the outcome that just arrived adds its note,
  * which a reload drops. A dismissal leaves the stored verdict as it was.
  */
-import { noteKeyOfOutcome } from '@web/modules/social-recovery/shared/ceremony'
-import type { CeremonyOutcome } from '@web/modules/social-recovery/shared/ceremony'
+import { failedTestLineKeyOf, noteKeyOfOutcome } from '@web/modules/social-recovery/shared/ceremony'
+import type { CeremonyCall, CeremonyOutcome } from '@web/modules/social-recovery/shared/ceremony'
 import type { Enrollment, EnrollmentTestVerdict } from '@web/modules/social-recovery/shared/records'
 
-import type { TestChips } from './types'
+import type { DismissalNotes, TestChips } from './types'
 
 const CEREMONY = 'socialRecovery.ceremony'
 
@@ -52,7 +52,8 @@ export const causeOf = (outcome: CeremonyOutcome<unknown>): string | undefined =
 
 /**
  * The line a stored verdict reads under the chip: the passed line the row
- * names, a failed check that did not match, any other failure, the check that
+ * names, a failed check that did not match or that the chain refused to
+ * judge, any other failure, the check that
  * could not run, the method that cannot serve, and for a skipped test the
  * line that an untested method may fail on the day.
  */
@@ -65,9 +66,7 @@ export const testLineKeyOf = (
     case 'passed':
       return passedKey
     case 'failed':
-      return enrollment.cause?.startsWith('check-rejected')
-        ? `${CEREMONY}.testFailedNoMatch`
-        : `${CEREMONY}.testFailedLine`
+      return failedTestLineKeyOf(enrollment.cause)
     case 'unavailable':
       return `${CEREMONY}.testUnavailableLine`
     case 'not-supported':
@@ -79,6 +78,25 @@ export const testLineKeyOf = (
 }
 
 /**
+ * The note an outcome leaves on a row. A row may name a dismissal its own way:
+ * a phone app's refusal as the holder's decline on the phone, a cancel of a
+ * flow the holder runs as a step they stopped.
+ */
+export const rowNoteKeyOf = (
+  outcome: CeremonyOutcome<unknown>,
+  call: CeremonyCall,
+  notes: DismissalNotes = {}
+): string | null => {
+  if (outcome.kind === 'dismissed' && outcome.note === 'refused' && notes.refusedNote) {
+    return notes.refusedNote
+  }
+  if (outcome.kind === 'dismissed' && outcome.note === 'cancelled' && notes.cancelledNote) {
+    return notes.cancelledNote
+  }
+  return noteKeyOfOutcome(outcome, call)
+}
+
+/**
  * The note a test outcome adds beside the stored verdict's line: a dismissal,
  * an unreachable phone, a credential of another origin. A passed or a
  * not-supported test adds none, and a note the line already reads is not
@@ -86,9 +104,10 @@ export const testLineKeyOf = (
  */
 export const testNoteKeysOf = (
   outcome: CeremonyOutcome<unknown>,
-  lineKey: string | null
+  lineKey: string | null,
+  notes?: DismissalNotes
 ): string[] => {
-  const note = noteKeyOfOutcome(outcome, 'testAccess')
+  const note = rowNoteKeyOf(outcome, 'testAccess', notes)
   if (!note || note === lineKey) {
     return []
   }

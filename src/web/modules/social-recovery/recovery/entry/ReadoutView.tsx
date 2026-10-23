@@ -9,7 +9,7 @@
  * state, and every state says the account has a recovery setup.
  */
 import React, { useMemo } from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
@@ -22,6 +22,7 @@ import {
   SectionCard,
   TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
 
 import AccountLine from './AccountLine'
@@ -104,20 +105,20 @@ const ReadoutView = ({ state, account, networkName, context, onBack }: ReadoutVi
         }
         return (
           <View testID="readout-reading">
-            <ActivityIndicator style={spacings.mbSm} />
-            <Text fontSize={14} appearance="secondaryText" style={spacings.mbTy}>
-              {t(`${READOUT}.reading`, { network: networkName })}
-            </Text>
+            <LoadingBlock
+              variant="block"
+              message={t(`${READOUT}.reading`, { network: networkName })}
+            />
             {configured}
           </View>
         )
       case 'reading':
         return (
           <View testID="readout-reading">
-            <ActivityIndicator style={spacings.mbSm} />
-            <Text fontSize={14} appearance="secondaryText" style={spacings.mbTy}>
-              {t(`${READOUT}.reading`, { network: networkName })}
-            </Text>
+            <LoadingBlock
+              variant="block"
+              message={t(`${READOUT}.reading`, { network: networkName })}
+            />
             {configured}
           </View>
         )

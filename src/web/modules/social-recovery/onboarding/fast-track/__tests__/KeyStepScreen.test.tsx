@@ -47,9 +47,10 @@ const OTHER_PHRASE = 'legal winner thank year wave sausage worth useful legal wi
 const LIMIT_MS = 60_000
 const CREATING = 'Creating your new key…'
 const ADD_PENDING = 'The wallet is still adding your key. Wait, or go back and continue again.'
+const ADDING = 'Adding the account to this wallet…'
 
 const types = () => dispatched().map(({ type }) => type)
-const ACCOUNT_STEP_WITH_NO_ACCOUNT = '/social-recovery/recovery/account?route=fresh-install'
+const LOGGED_IN_ENTRY = '/social-recovery/recovery'
 
 const visibility = { current: 'visible' as DocumentVisibilityState }
 Object.defineProperty(document, 'visibilityState', {
@@ -126,13 +127,16 @@ describe('the key step', () => {
         },
         { kind: 'dispatch', type: SEND_TEMP_SEED, params: undefined }
       ])
-      expect(byTestId('fast-track-key-spinner')).not.toBeNull()
+      expect(byTestId('fast-track-key-waiting')).not.toBeNull()
     })
 
     it('says the key is being created under the spinner until the words show', async () => {
       await mount(KEY_STEP, ACKNOWLEDGED)
 
       expect(byTestId('fast-track-key-creating')?.textContent).toBe(CREATING)
+      expect(
+        byTestId('fast-track-key-creating')?.querySelector('[data-testid="loading-block"]')
+      ).not.toBeNull()
       expect(byTestId('fast-track-key-pending')).toBeNull()
 
       await keystoreSends(PHRASE)
@@ -431,6 +435,11 @@ describe('the key step', () => {
         jest.advanceTimersByTime(LIMIT_MS - 1)
       })
       expect(byTestId('fast-track-key-pending')).toBeNull()
+      expect(byTestId('fast-track-key-adding-line')?.textContent).toBe(ADDING)
+      expect(
+        byTestId('fast-track-key-adding-line')?.querySelector('[data-testid="loading-row"]')
+      ).not.toBeNull()
+      expect(isDisabled('fast-track-key-continue')).toBe(true)
 
       await act(async () => {
         jest.advanceTimersByTime(1)
@@ -515,7 +524,7 @@ describe('the key step', () => {
   })
 
   describe('a return to the step', () => {
-    it('makes no phrase where the wallet already lists accounts and replaces itself with the account step', async () => {
+    it('makes no phrase where the fast track already added the slot, and goes on to the account step with that basic account', async () => {
       await walletListsSlot()
 
       await mount(KEY_STEP, ACKNOWLEDGED)
@@ -528,7 +537,37 @@ describe('the key step', () => {
       expect(where()).toBe(ACCOUNT_STEP)
     })
 
-    it('names no receiving account where the selected account is a smart account', async () => {
+    it('takes the fast track back from the door to the account step with the slot, never to the logged-in entry', async () => {
+      await walletListsSlot()
+      await mount('/social-recovery/recover')
+
+      await press('recovery-warning-acknowledge')
+      await press('recovery-warning-continue')
+      await flush()
+      await flush()
+
+      expect(mockEdge.made).toBe(0)
+      expect(where()).toBe(ACCOUNT_STEP)
+      expect(visits.some(({ path }) => path === LOGGED_IN_ENTRY)).toBe(false)
+    })
+
+    it('makes no phrase where onboarding is complete with a basic account selected, and replaces itself with the logged-in entry', async () => {
+      await walletListsSlot()
+      await setController('wallet', { isSetupComplete: true })
+
+      await mount(KEY_STEP, ACKNOWLEDGED)
+
+      expect(mockEdge.made).toBe(0)
+      expect(dispatched()).toEqual([])
+      expect(movesAway()).toEqual([
+        { kind: 'navigate', to: LOGGED_IN_ENTRY.slice(1), replace: true, state: ACKNOWLEDGED },
+        // The entry keeps the acknowledgment and drops it from its history entry.
+        { kind: 'navigate', to: LOGGED_IN_ENTRY, replace: true, state: undefined }
+      ])
+      expect(where()).toBe(LOGGED_IN_ENTRY)
+    })
+
+    it('sends a wallet whose selected account is a smart account to the logged-in entry', async () => {
       await setController('keystore', { keys: [slotKey, offsetKey] })
       await setController('accounts', { accounts: [basicAccount, smartAccount] })
       await setController('selected', { account: smartAccount })
@@ -537,7 +576,42 @@ describe('the key step', () => {
       await mount(KEY_STEP, ACKNOWLEDGED)
 
       expect(mockEdge.made).toBe(0)
-      expect(where()).toBe(ACCOUNT_STEP_WITH_NO_ACCOUNT)
+      expect(where()).toBe(LOGGED_IN_ENTRY)
+    })
+
+    it('takes a wallet with a smart account selected from the door to the logged-in entry, with no way back to the door', async () => {
+      await setController('keystore', { keys: [slotKey, offsetKey] })
+      await setController('accounts', { accounts: [basicAccount, smartAccount] })
+      await setController('selected', { account: smartAccount })
+      await setController('auth', { authStatus: 'authenticated' })
+      await mount('/social-recovery/recover')
+
+      await press('recovery-warning-acknowledge')
+      await press('recovery-warning-continue')
+      await flush()
+      await flush()
+
+      expect(mockEdge.made).toBe(0)
+      expect(where()).toBe(LOGGED_IN_ENTRY)
+      expect(byTestId('recovery-entry')).not.toBeNull()
+      expect(byTestId('entry-owner')).not.toBeNull()
+      expect(byTestId('recover')).toBeNull()
+      expect(visits.some(({ path }) => path.startsWith('/social-recovery/recovery/account'))).toBe(
+        false
+      )
+      expect(visits.filter(({ path }) => path === '/social-recovery/recover')).toHaveLength(1)
+
+      // The entry takes the door's acknowledgment: its warning shows ticked and
+      // continue opens once an account is chosen, with no second tick.
+      expect(byTestId('recovery-warning-acknowledge')?.querySelector('svg')).not.toBeNull()
+      const basicChoice = `entry-owner-choice-${basicAccount.addr.toLowerCase()}`
+      expect(isDisabled(basicChoice)).toBe(false)
+      await press(basicChoice)
+      expect(isDisabled('entry-owner-continue')).toBe(false)
+      await press('entry-owner-continue')
+      expect(where()).toBe(
+        `/social-recovery/recovery/account?route=logged-in&to=${basicAccount.addr}`
+      )
     })
 
     it('meets a direct open with accounts listed with the warning, and sends nothing', async () => {
@@ -551,8 +625,9 @@ describe('the key step', () => {
       expect(movesAway()).toEqual([])
     })
 
-    it('goes on to the account step once the holder acknowledges that warning', async () => {
+    it('goes on to the logged-in entry once the holder acknowledges that warning, where onboarding is complete', async () => {
       await walletListsSlot()
+      await setController('wallet', { isSetupComplete: true })
       await mount(KEY_STEP)
 
       await press('recovery-warning-acknowledge')
@@ -561,7 +636,7 @@ describe('the key step', () => {
 
       expect(mockEdge.made).toBe(0)
       expect(dispatched()).toEqual([])
-      expect(where()).toBe(ACCOUNT_STEP)
+      expect(where()).toBe(LOGGED_IN_ENTRY)
     })
   })
 
@@ -578,14 +653,17 @@ describe('the key step', () => {
       expect(dispatched()).toEqual([])
       expect(byTestId('fast-track-key-words')).toBeNull()
       expect(text()).not.toContain('junk')
-      expect(byTestId('fast-track-key-spinner')).not.toBeNull()
+      expect(byTestId('fast-track-key-waiting')).not.toBeNull()
       expect(isDisabled('fast-track-key-back')).toBe(true)
     })
 
-    it('shows the spinner with no line saying a key is being created', async () => {
+    it('says the wallet adds the account, with no line saying a key is being created', async () => {
       await atEarlierAdd()
 
-      expect(byTestId('fast-track-key-spinner')).not.toBeNull()
+      expect(byTestId('fast-track-key-adding')?.textContent).toBe(ADDING)
+      expect(
+        byTestId('fast-track-key-adding')?.querySelector('[data-testid="loading-block"]')
+      ).not.toBeNull()
       expect(byTestId('fast-track-key-creating')).toBeNull()
       expect(text()).not.toContain(CREATING)
       expect(byTestId('fast-track-key-pending')).toBeNull()
@@ -601,7 +679,7 @@ describe('the key step', () => {
 
       expect(byTestId('fast-track-key-pending')?.textContent).toBe(ADD_PENDING)
       expect(byTestId('fast-track-key-creating')).toBeNull()
-      expect(byTestId('fast-track-key-spinner')).not.toBeNull()
+      expect(byTestId('fast-track-key-waiting')).not.toBeNull()
       expect(dispatched()).toEqual([])
     })
 
@@ -651,7 +729,7 @@ describe('the key step', () => {
 
       expect(dispatched()).toEqual([])
       expect(movesAway()).toEqual([])
-      expect(byTestId('fast-track-key-spinner')).not.toBeNull()
+      expect(byTestId('fast-track-key-waiting')).not.toBeNull()
 
       await setController('picker', { addAccountsStatus: 'SUCCESS' })
 
@@ -759,7 +837,7 @@ describe('the key step', () => {
       expect(dispatched()).toEqual([])
       expect(byTestId('fast-track-key-words')).toBeNull()
       expect(byTestId('fast-track-key-creating')).toBeNull()
-      expect(byTestId('fast-track-key-spinner')).not.toBeNull()
+      expect(byTestId('fast-track-key-waiting')).not.toBeNull()
       expect(isDisabled('fast-track-key-back')).toBe(true)
     })
 
@@ -793,7 +871,7 @@ describe('the key step', () => {
       await setController('picker', { selectNextAccountStatus: 'SUCCESS' })
 
       expect(byTestId('fast-track-key-add-failed')).toBeNull()
-      expect(byTestId('fast-track-key-spinner')).not.toBeNull()
+      expect(byTestId('fast-track-key-waiting')).not.toBeNull()
 
       await setController('picker', { addAccountsStatus: 'LOADING' })
       await walletListsSlot()

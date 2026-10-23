@@ -7,7 +7,7 @@
  * through the request queue or brought back through the offline block, with
  * the signature checked locally.
  */
-import type { Address, Clause, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Clause, Hex } from '@kohaku-eth/social-recovery'
 import type {
   KeyHandle,
   SignOptions,
@@ -19,6 +19,7 @@ import type {
   WalletRecords
 } from '@web/modules/social-recovery/shared/records'
 
+import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 import type { MethodChip } from '@web/modules/social-recovery/shared/display'
 
 import type { EnrollSearch, GuardianChain } from '@web/modules/social-recovery/setup/enroll/types'
@@ -47,6 +48,18 @@ import {
   storedEnrollments,
   t
 } from '@web/modules/social-recovery/setup/enroll/__tests__/harness'
+
+// The spinner's animation needs a native module jsdom lacks; a plain view stands in.
+jest.mock('@common/components/Spinner', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires, global-require */
+  const mockReact: typeof import('react') = require('react')
+  const { View: MockView }: typeof import('react-native') = require('react-native')
+  /* eslint-enable @typescript-eslint/no-var-requires, global-require */
+  return {
+    __esModule: true,
+    default: () => mockReact.createElement(MockView, { testID: 'spinner' })
+  }
+})
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const {
@@ -403,6 +416,30 @@ describe('the guardian row', () => {
       expect(await storedEnrollments(records)).toEqual([{ credential, test: 'not-tested' }])
     })
 
+    it('shows the block that checks the path in the card and holds Add until the guardian is placed', async () => {
+      const gate = deferred<void>()
+      const { set, setEntries } = storage
+      storage.set = async (key, value) => {
+        await gate.promise
+        return set(key, value)
+      }
+      storage.setEntries = async (entries) => {
+        await gate.promise
+        return setEntries(entries)
+      }
+      await addGuardian()
+      const adding = view!.byTestId('guardian-adding')
+      expect(adding?.querySelector('[data-testid="loading-block"]')?.textContent).toBe(
+        t('socialRecovery.loading.address')
+      )
+      expect(view!.isDisabled('guardian-add')).toBe(true)
+
+      gate.resolve()
+      await settle()
+      expect(view!.byTestId('guardian-adding')).toBeNull()
+      expect(await storedEnrollments(records)).toHaveLength(1)
+    })
+
     it('stores no name for a guardian added by a resolved name', async () => {
       deps = depsOf({ resolveName: async () => HELD })
       await addGuardian('bluejay.eth')
@@ -462,9 +499,9 @@ describe('the guardian row', () => {
       if (client.state.status !== 'ready') {
         throw new Error('client not ready')
       }
-      client.state.client.approving.enrollInput = () => {
+      jest.spyOn(client.state.client.approving, 'enrollInput').mockImplementation(() => {
         throw new Error('bad address')
-      }
+      })
       await addGuardian()
       expect(view!.byTestId('guardian-add-note')?.textContent).toBe(t(`${CEREMONY}.failedNote`))
       expect(view!.inputOf('guardian-address')?.value).toBe(HELD)

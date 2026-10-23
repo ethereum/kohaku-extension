@@ -8,9 +8,10 @@
  */
 import { isHex } from 'viem'
 
-import type { Address, CancelledBy } from '@web/modules/social-recovery/sdk-interfaces'
-import { CANCELLED_BY } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, CancelledBy, Hex } from '@kohaku-eth/social-recovery'
+import { CANCELLED_BY } from '@web/modules/social-recovery/shared/client'
 import { extensionRecordStorage } from '@web/modules/social-recovery/shared/records/extensionStorage'
+import { recordDeploymentFrom } from '@web/modules/social-recovery/shared/records/deployment'
 import {
   isDecimalString,
   isStoredAddress
@@ -130,12 +131,18 @@ const endingFrom = (value: unknown): AttemptEnding | undefined => {
     ...(endingGap ? { endingGap } : {}),
     ...(notFoundAt !== undefined ? { notFoundAt } : {})
   }
-  if (value.road === 'executed' && optional(value.controller, isStoredAddress)) {
+  if (
+    value.road === 'executed' &&
+    optional(value.controller, isStoredAddress) &&
+    optional(value.transactionHash, isHex)
+  ) {
+    const transactionHash = value.transactionHash as Hex | undefined
     return {
       attemptId,
       road: 'executed',
       controller: value.controller as Address | undefined,
       at,
+      ...(transactionHash ? { transactionHash } : {}),
       ...gap
     }
   }
@@ -168,7 +175,13 @@ const readingFrom = (value: unknown): WatcherReading | undefined => {
   }
   const attempt = value.attempt === undefined ? undefined : attemptFrom(value.attempt)
   const ended = value.ended === undefined ? undefined : endingFrom(value.ended)
-  if ((value.attempt !== undefined && !attempt) || (value.ended !== undefined && !ended)) {
+  const deployment =
+    value.deployment === undefined ? undefined : recordDeploymentFrom(value.deployment)
+  if (
+    (value.attempt !== undefined && !attempt) ||
+    (value.ended !== undefined && !ended) ||
+    (value.deployment !== undefined && !deployment)
+  ) {
     return undefined
   }
   return {
@@ -177,7 +190,8 @@ const readingFrom = (value: unknown): WatcherReading | undefined => {
     hasSetup: value.hasSetup,
     dormant: value.dormant,
     ...(attempt ? { attempt } : {}),
-    ...(ended ? { ended } : {})
+    ...(ended ? { ended } : {}),
+    ...(deployment ? { deployment } : {})
   }
 }
 

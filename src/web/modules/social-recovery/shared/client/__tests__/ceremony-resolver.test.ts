@@ -5,8 +5,17 @@
  * the account and chain that request names.
  */
 import { getRpcProvider } from '@ambire-common/services/provider/getRpcProvider'
-import { addressOf, PasskeyMethodDouble } from '@web/modules/social-recovery/sdk-doubles'
-import type { ApproverRequest, IRecoveryMethod } from '@web/modules/social-recovery/sdk-interfaces'
+import { approvalDigest, passkeyMethod } from '@kohaku-eth/social-recovery'
+import type {
+  Address,
+  ApproverRequest,
+  Hex,
+  IMethodsOrchestrator,
+  IRecoveryMethod,
+  Reply,
+  Verdict
+} from '@kohaku-eth/social-recovery'
+import { anonAadhaarMethod } from '@kohaku-eth/social-recovery/recovery-methods'
 import {
   CEREMONY_REPORT_CLOCK_SKEW_MS,
   CEREMONY_REPORT_TTL_MS,
@@ -16,7 +25,8 @@ import {
   runCeremony,
   type CeremonyCall,
   type CeremonyParams,
-  type CeremonyResolver
+  type CeremonyResolver,
+  type ChainVerdict
 } from '@web/modules/social-recovery/shared/ceremony'
 import {
   ABSENT,
@@ -29,18 +39,23 @@ import {
   buildRecoveryClient,
   CHAIN_IDS,
   createCeremonyResolver,
+  createDeployedWorld,
   createWorld,
+  DEPLOYED_FACTS,
   deploymentDescriptor,
   extensionClientFor,
+  failEverything,
   fakeApprovingClient,
   networkRecord,
   recordsInMemory,
   sameAddress,
-  spyOnBuilder,
-  thrownBy
+  sdkStandIn,
+  thrownBy,
+  World
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
+import { addressOf } from '@web/modules/social-recovery/shared/client/__fixtures__/addresses'
 import { sepoliaDeploymentVariable } from '@web/modules/social-recovery/shared/client/deployment-env'
-import { FACTS } from '@web/modules/social-recovery/shared/client/kit/builder/__tests__/harness'
+import { createScriptedAadhaarStack } from '@web/modules/social-recovery/shared/client/scripted'
 
 jest.mock('@ambire-common/services/provider/getRpcProvider', () => ({
   getRpcProvider: jest.fn()
@@ -76,9 +91,10 @@ describe("the client's method implementation by slug", () => {
       expect(method.modules(world.descriptor).some((served) => sameAddress(served, module))).toBe(
         true
       )
-      const input = { enrolling: slug }
-      jest.spyOn(method, 'enrollInput').mockReturnValue(input)
-      expect(client.approving.enrollInput(module, {})).toBe(input)
+      const input = { kind: 'nothing-to-perform' } as const
+      const enroll = jest.spyOn(method, 'enrollInput').mockReturnValue(input)
+      expect(client.approving.enrollInput(module, {})).toEqual(input)
+      expect(enroll).toHaveBeenCalledTimes(1)
     })
   )
 
@@ -87,28 +103,6 @@ describe("the client's method implementation by slug", () => {
     const methods = SLUGS.map((slug) => client.methodFor(slug))
     expect(new Set(methods).size).toBe(SLUGS.length)
     SLUGS.forEach((slug, i) => expect(client.methodFor(slug)).toBe(methods[i]))
-  })
-
-  it('hands out, for two slugs on one module, the method registered last, the one the approving side runs', async () => {
-    const { addressBook } = createWorld().config
-    const shared = addressBook.methods.passkey
-    const world = createWorld({
-      addressBook: { ...addressBook, methods: { ...addressBook.methods, aadhaar: shared } }
-    })
-    const spies = spyOnBuilder()
-    const client = await buildRecoveryClient(world.config)
-    const serving = spies.method.mock.calls
-      .map(([registered]) => registered as IRecoveryMethod)
-      .filter((registered) =>
-        registered.modules(world.descriptor).some((served) => sameAddress(served, shared))
-      )
-    expect(serving).toHaveLength(2)
-    const last = serving[serving.length - 1]
-    expect(client.methodFor('passkey')).toBe(last)
-    expect(client.methodFor('aadhaar')).toBe(last)
-    const input = { enrolling: 'shared' }
-    jest.spyOn(last, 'enrollInput').mockReturnValue(input)
-    expect(client.approving.enrollInput(shared, {})).toBe(input)
   })
 
   const UNKNOWN = [
@@ -151,7 +145,10 @@ const REQUEST: ApproverRequest = {
   place: 0,
   method: METHOD_ADDRESS,
   config: '0xabcd',
-  salt: '0x01'
+  salt: '0x01',
+  credentialHoldsCode: false,
+  payload: '0x',
+  order: { token: addressOf('token'), amount: '0', payee: addressOf('payee') }
 }
 const target = { account: ACCOUNT, chainId: CHAIN_ID, method: 'passkey' }
 const ENROLL: CeremonyRequestRecord = {
@@ -176,7 +173,7 @@ const resolverWorld = (
   served: Record<string, IRecoveryMethod> = {},
   descriptor = deploymentDescriptor('sepolia')
 ) => {
-  const passkey = new PasskeyMethodDouble()
+  const passkey = passkeyMethod()
   const { records, storage, clock } = recordsInMemory({ t: T0 })
   const client = fakeApprovingClient({ passkey, ...served }, descriptor)
   const clientFor = jest.fn(async () => client)
@@ -268,7 +265,7 @@ describe('the ceremony resolver', () => {
     const { records, clock } = recordsInMemory()
     const resolve = createCeremonyResolver({
       records,
-      clientFor: async () => fakeApprovingClient({ passkey: new PasskeyMethodDouble() })
+      clientFor: async () => fakeApprovingClient({ passkey: passkeyMethod() })
     })
     await records.ceremonyRequest('fresh').write(ENROLL)
     clock.t = Date.now() - CEREMONY_REPORT_TTL_MS - 1000
@@ -442,12 +439,14 @@ describe('the client builder the ceremony tab uses', () => {
     const client = await clientFor(world.account, CHAIN_ID)
     expect(buildProvider).toHaveBeenCalledTimes(1)
     expect(buildProvider.mock.calls[0][0]).toBe(SEPOLIA)
-    expect(world.ethers.send).toHaveBeenCalledWith('eth_chainId', [])
     SLUGS.forEach((slug) => expect(client.methodFor(slug)).toBeDefined())
     const module = world.config.addressBook.methods.passkey
-    const input = { enrolling: 'passkey' }
-    jest.spyOn(client.methodFor('passkey') as IRecoveryMethod, 'enrollInput').mockReturnValue(input)
-    expect(client.approving.enrollInput(module, {})).toBe(input)
+    const input = { kind: 'nothing-to-perform' } as const
+    const enroll = jest
+      .spyOn(client.methodFor('passkey') as IRecoveryMethod, 'enrollInput')
+      .mockReturnValue(input)
+    expect(client.approving.enrollInput(module, {})).toEqual(input)
+    expect(enroll).toHaveBeenCalledTimes(1)
     expect(world.ethers.destroy).toHaveBeenCalledTimes(1)
   })
 
@@ -460,21 +459,22 @@ describe('the client builder the ceremony tab uses', () => {
 
   it('destroys the provider and rejects with the refusal where the build is refused', async () => {
     const world = createWorld()
-    world.ethers.answeredChainId = 1
+    world.chain.setChainId(1)
     buildProvider.mockReturnValue(world.ethers)
     const caught = await thrownBy(extensionClientFor(() => [SEPOLIA])(world.account, CHAIN_ID))
     expect(caught).toBeInstanceOf(Error)
-    expect((caught as { check?: string }).check).toBe('chain-id')
+    expect(caught).toMatchObject({ message: expect.stringMatching(/chain/i) })
     expect(world.ethers.destroy).toHaveBeenCalledTimes(1)
   })
 
   it('reads code over the same provider, so a deployed action address with no code is refused as undeployed', async () => {
-    deploymentVariable.mockReturnValue(JSON.stringify(FACTS))
-    const world = createWorld()
+    deploymentVariable.mockReturnValue(JSON.stringify(DEPLOYED_FACTS))
+    const world = createDeployedWorld()
+    world.chain.setContractCode(world.descriptor.action, false)
     buildProvider.mockReturnValue(world.ethers)
     const caught = await thrownBy(extensionClientFor(() => [SEPOLIA])(world.account, CHAIN_ID))
     expect(caught).toMatchObject({ name: 'DeploymentRefusal', check: 'action' })
-    expect(world.ethers.getCode).toHaveBeenCalledWith(FACTS.action, 'latest')
+    expect(world.ethers.getCode).toHaveBeenCalledWith(DEPLOYED_FACTS.action, 'latest')
     expect(world.ethers.destroy).toHaveBeenCalledTimes(1)
   })
 
@@ -517,7 +517,7 @@ describe('the client builder the ceremony tab uses', () => {
 })
 
 describe('a request for a method the page serves no device for, on the client the extension builds', () => {
-  const OTHER_SLUGS = ['ecdsa', 'zkpassport', 'aadhaar'] as const
+  const OTHER_SLUGS = ['ecdsa'] as const
   OTHER_SLUGS.forEach((slug) =>
     (['enroll', 'testAccess'] as const).forEach((call) =>
       it(`ends the ${call} of ${slug} as not supported with no retry, since the page serves only the browser authenticator`, async () => {
@@ -564,4 +564,253 @@ describe('a request for a method the page serves no device for, on the client th
       })
     )
   )
+})
+
+describe("an identity method's parameters the resolver hands the tab", () => {
+  const AADHAAR_ADDRESS = addressBookOf('sepolia').methods.aadhaar
+  const STORED = { nullifierSeed: 7n, issuerCertificate: 'stored' }
+  const CURRENT = { nullifierSeed: 1n, issuerCertificate: 'current' }
+  const aadhaarTarget = { account: ACCOUNT, chainId: CHAIN_ID, method: 'aadhaar' }
+  const AADHAAR_REQUEST = { ...REQUEST, method: AADHAAR_ADDRESS }
+  const STORED_BY_CALL: Record<'enroll' | 'testAccess' | 'createClaim', CeremonyRequestRecord> = {
+    enroll: { ...aadhaarTarget, call: 'enroll', methodAddress: AADHAAR_ADDRESS, params: STORED },
+    testAccess: { ...aadhaarTarget, call: 'testAccess', request: AADHAAR_REQUEST, params: STORED },
+    createClaim: { ...aadhaarTarget, call: 'createClaim', request: AADHAAR_REQUEST, params: STORED }
+  }
+
+  const identityWorld = () => {
+    const world = resolverWorld({
+      aadhaar: anonAadhaarMethod({ stack: createScriptedAadhaarStack() })
+    })
+    world.client.methodParamsFor.mockImplementation((slug) =>
+      slug === 'aadhaar' ? CURRENT : undefined
+    )
+    return world
+  }
+  ;(['enroll', 'testAccess', 'createClaim'] as const).forEach((call) => {
+    it(`hands a ${call} the parameters of the client it built, never the ones the request stored`, async () => {
+      const { records, resolve, client } = identityWorld()
+      await records.ceremonyRequest(ID).write(STORED_BY_CALL[call])
+      const resolved = ceremonyOf(await resolve(routeOf(call, 'aadhaar')))
+      expect(resolved.params).toEqual(CURRENT)
+      expect(client.methodParamsFor).toHaveBeenCalledWith('aadhaar', call)
+    })
+
+    it(`refuses a ${call} where the client it built holds no parameters of the method`, async () => {
+      const { records, resolve, client } = identityWorld()
+      client.methodParamsFor.mockReturnValue(undefined)
+      await records.ceremonyRequest(ID).write(STORED_BY_CALL[call])
+      await expect(resolve(routeOf(call, 'aadhaar'))).resolves.toEqual({
+        refused: 'no-implementation'
+      })
+    })
+  })
+
+  it('resolves a health check of an identity method, which takes no parameters', async () => {
+    const { records, resolve, client } = identityWorld()
+    client.methodParamsFor.mockReturnValue(undefined)
+    await records.ceremonyRequest(ID).write({ ...aadhaarTarget, call: 'healthCheck' })
+    expect(ceremonyOf(await resolve(routeOf('healthCheck', 'aadhaar')))).not.toHaveProperty(
+      'params'
+    )
+  })
+
+  it("keeps the passkey's stored parameters, the relying party and the hand-off its caller chose", async () => {
+    const { records, resolve, client } = identityWorld()
+    client.methodParamsFor.mockReturnValue(CURRENT)
+    await records.ceremonyRequest(ID).write(ENROLL)
+    expect(ceremonyOf(await resolve(routeOf('enroll'))).params).toEqual(PARAMS)
+  })
+})
+
+describe("the chain's verdict the resolver hands the tab", () => {
+  const CHAIN_VERDICT: ChainVerdict = async () => 'satisfied'
+
+  const withVerdictWorld = () => {
+    const passkey = passkeyMethod()
+    const { records, clock } = recordsInMemory({ t: T0 })
+    const client = { ...fakeApprovingClient({ passkey }), chainVerdict: CHAIN_VERDICT }
+    const resolve = createCeremonyResolver({
+      records,
+      clientFor: async () => client,
+      now: () => clock.t
+    })
+    return { records, resolve }
+  }
+
+  it('hands it to an access test', async () => {
+    const { records, resolve } = withVerdictWorld()
+    await records.ceremonyRequest(ID).write({ ...target, call: 'testAccess', request: REQUEST })
+    expect(ceremonyOf(await resolve(routeOf('testAccess'))).chainVerdict).toBe(CHAIN_VERDICT)
+  })
+  ;(['enroll', 'createClaim'] as const).forEach((call) =>
+    it(`hands none at ${call}`, async () => {
+      const { records, resolve } = withVerdictWorld()
+      await records
+        .ceremonyRequest(ID)
+        .write(call === 'enroll' ? ENROLL : { ...target, call, request: REQUEST })
+      const resolved = ceremonyOf(await resolve(routeOf(call)))
+      expect(resolved).not.toHaveProperty('chainVerdict')
+    })
+  )
+
+  it('hands none to an access test where the client reads none', async () => {
+    const { records, clock } = recordsInMemory({ t: T0 })
+    const resolve = createCeremonyResolver({
+      records,
+      clientFor: async () => fakeApprovingClient({ passkey: passkeyMethod() }),
+      now: () => clock.t
+    })
+    await records.ceremonyRequest(ID).write({ ...target, call: 'testAccess', request: REQUEST })
+    expect(ceremonyOf(await resolve(routeOf('testAccess')))).not.toHaveProperty('chainVerdict')
+  })
+})
+
+describe("the chain's verdict of the client builder the ceremony tab uses", () => {
+  const SEPOLIA = networkRecord('sepolia')
+  const PROOF: Hex = '0x01'
+
+  /** A request of the world's account and deployment for `method` and `config`, and its reply. */
+  const exchangeFor = (world: World, method: Address, config: Hex) => {
+    const request = {
+      ...REQUEST,
+      chainId: String(world.descriptor.chainId),
+      manager: world.descriptor.manager,
+      action: world.descriptor.action,
+      account: world.account,
+      method,
+      config
+    } as ApproverRequest & { purpose: 'approval' }
+    const digest = approvalDigest(
+      {
+        chainId: Number(request.chainId),
+        manager: request.manager,
+        account: request.account,
+        action: request.action,
+        attemptId: BigInt(request.attemptId),
+        setupNonce: BigInt(request.setupNonce),
+        setupBodyHash: request.setupBodyHash,
+        validUntil: Number(request.validUntil),
+        payload: request.payload,
+        order: { ...request.order, amount: 0n }
+      },
+      request.place
+    )
+    const reply: Reply = {
+      kind: 'recovery-proof-reply',
+      version: 1,
+      chainId: request.chainId,
+      manager: request.manager,
+      account: request.account,
+      action: request.action,
+      attemptId: request.attemptId,
+      purpose: 'approval',
+      place: request.place,
+      method,
+      config,
+      salt: request.salt,
+      digest,
+      proof: PROOF
+    }
+    return { request, reply }
+  }
+
+  /** The access test of a method that cannot judge its proof, judged by `chainVerdict`. */
+  const accessTestOver = (
+    chainVerdict: ChainVerdict | undefined,
+    request: ApproverRequest,
+    reply: Reply
+  ) => {
+    const orchestrator = {
+      signingInput: () => ({}),
+      replyFrom: async () => reply,
+      verify: async (): Promise<Verdict> => 'not-judged'
+    } as unknown as IMethodsOrchestrator
+    const method = { deviceBinding: 'external-app' } as unknown as IRecoveryMethod
+    return runCeremony(
+      routeOf('testAccess', 'zkpassport'),
+      { orchestrator, method, request, ...(chainVerdict ? { chainVerdict } : {}) },
+      {
+        devices: {
+          'external-app': {
+            enroll: async () => ({ ok: true, material: {} }),
+            sign: async () => ({ ok: true, material: {} })
+          }
+        }
+      }
+    )
+  }
+
+  it('reads each verdict on a deployed chain through a provider of its own, destroyed after the read', async () => {
+    deploymentVariable.mockReturnValue(
+      JSON.stringify({
+        ...DEPLOYED_FACTS,
+        methodZkpassport: addressOf('deployed-method-zkpassport')
+      })
+    )
+    const world = createDeployedWorld()
+    buildProvider.mockReturnValue(world.ethers)
+    const client = await extensionClientFor(() => [SEPOLIA])(world.account, CHAIN_ID)
+    expect(buildProvider).toHaveBeenCalledTimes(1)
+    expect(world.ethers.destroy).toHaveBeenCalledTimes(1)
+    const config: Hex = `0x${'a1'.repeat(96)}`
+    const { request, reply } = exchangeFor(world, world.descriptor.methodZkpassport, config)
+
+    world.chain.setVerdict(config, 'satisfied')
+    expect(await accessTestOver(client.chainVerdict, request, reply)).toMatchObject({
+      verdict: 'passed'
+    })
+    expect(buildProvider).toHaveBeenCalledTimes(2)
+    expect(buildProvider.mock.calls[1][0]).toBe(SEPOLIA)
+    expect(world.ethers.destroy).toHaveBeenCalledTimes(2)
+
+    world.chain.setVerdict(config, 'rejected')
+    expect(await accessTestOver(client.chainVerdict, request, reply)).toEqual({
+      kind: 'verdict',
+      verdict: 'failed',
+      retry: true,
+      cause: 'check-rejected'
+    })
+    expect(buildProvider).toHaveBeenCalledTimes(3)
+    expect(world.ethers.destroy).toHaveBeenCalledTimes(3)
+
+    failEverything(world.ethers, new Error('the node did not answer'))
+    expect(await accessTestOver(client.chainVerdict, request, reply)).toEqual({
+      kind: 'verdict',
+      verdict: 'unavailable',
+      retry: true,
+      cause: 'service-unanswered'
+    })
+    expect(buildProvider).toHaveBeenCalledTimes(4)
+    expect(world.ethers.destroy).toHaveBeenCalledTimes(4)
+  })
+
+  it("reads the same page's fake node on the stand-in chain, through no provider of its own", async () => {
+    deploymentVariable.mockReturnValue(undefined)
+    const world = createWorld({ chain: 'sepolia' })
+    buildProvider.mockReturnValue(world.ethers)
+    const client = await extensionClientFor(() => [SEPOLIA])(world.account, CHAIN_ID)
+    const config: Hex = `0x${'b2'.repeat(96)}`
+    const { request, reply } = exchangeFor(world, world.descriptor.methodPasskey, config)
+
+    sdkStandIn.nodeFor(world.descriptor, world.account).setVerdict(config, 'satisfied')
+    expect(await accessTestOver(client.chainVerdict, request, reply)).toMatchObject({
+      verdict: 'passed'
+    })
+    sdkStandIn.nodeFor(world.descriptor, world.account).setVerdict(config, 'rejected')
+    expect(await accessTestOver(client.chainVerdict, request, reply)).toMatchObject({
+      verdict: 'failed',
+      cause: 'check-rejected'
+    })
+    expect(buildProvider).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves a proof the method cannot judge unavailable where the tab holds no chain verdict', async () => {
+    const world = createWorld({ chain: 'sepolia' })
+    const { request, reply } = exchangeFor(world, world.descriptor.methodZkpassport, '0x01')
+    expect(await accessTestOver(undefined, request, reply)).toMatchObject({
+      verdict: 'unavailable',
+      cause: 'not-judged'
+    })
+  })
 })

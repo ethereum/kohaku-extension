@@ -6,7 +6,7 @@
  * nothing-to-run line with Back alone for any other search or slot. Back leads
  * to the editor that opened the enrollment.
  */
-import type { Credential } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Credential } from '@kohaku-eth/social-recovery'
 
 import type { Mounted } from '@web/modules/social-recovery/setup/enroll/__tests__/harness'
 import {
@@ -18,8 +18,24 @@ import {
   mountView,
   pathWith,
   recordsWith,
+  settle,
   t
 } from '@web/modules/social-recovery/setup/enroll/__tests__/harness'
+import { CHAIN_NAMES } from '@web/modules/social-recovery/recovery/entry/constants'
+import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
+import { WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
+
+// The spinner's animation needs a native module jsdom lacks; a plain view stands in.
+jest.mock('@common/components/Spinner', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires, global-require */
+  const mockReact: typeof import('react') = require('react')
+  const { View: MockView }: typeof import('react-native') = require('react-native')
+  /* eslint-enable @typescript-eslint/no-var-requires, global-require */
+  return {
+    __esModule: true,
+    default: () => mockReact.createElement(MockView, { testID: 'spinner' })
+  }
+})
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const {
@@ -104,19 +120,6 @@ describe('the enroll view', () => {
     await view.press('enroll-back')
     expect(view.navigate).toHaveBeenCalledWith(WEB_ROUTES.socialRecoverySetupEditor)
   })
-
-  each([['zkpassport'], ['aadhaar']] as const)(
-    'leaves an empty %s slot to its own screen',
-    async ([kind]) => {
-      const { records } = await recordsWith(pathWith(emptySlot(kind)))
-      view = await mountView({
-        records,
-        search: { kind, at: { clause: 0, member: 0 } },
-        deps: depsOf()
-      })
-      expectNothingToRun(view)
-    }
-  )
 
   it('renders nothing to run for a slot waiting for another kind', async () => {
     const { records } = await recordsWith(pathWith(emptySlot('ecdsa')))
@@ -204,6 +207,47 @@ describe('the enroll view', () => {
     await view.press('enroll-load-retry')
     expect(view.byTestId('enroll-load-failed')).toBeNull()
     expect(view.byTestId('passkey-none-yet')).not.toBeNull()
+  })
+
+  it('shows the waiting block that reads the slot until the slot is read', async () => {
+    const { records, storage } = await recordsWith(pathWith(emptySlot('passkey')))
+    const gate = deferred<void>()
+    const { get } = storage
+    storage.get = async (key, defaultValue) => {
+      await gate.promise
+      return get(key, defaultValue)
+    }
+    view = await mountView({
+      records,
+      search: { kind: 'passkey', at: { clause: 0, member: 0 } },
+      deps: depsOf()
+    })
+    expect(view.byTestId('loading-screen')?.textContent).toBe(t('socialRecovery.loading.slot'))
+    expect(view.byTestId('enroll-loading')?.contains(view.byTestId('loading-screen'))).toBe(true)
+    expect(view.byTestId('enroll-columns')).toBeNull()
+    expect(view.byTestId('enroll-passkey')).toBeNull()
+
+    gate.resolve()
+    await settle()
+    expect(view.byTestId('loading-screen')).toBeNull()
+    expect(view.byTestId('passkey-none-yet')).not.toBeNull()
+  })
+
+  it('names the network in the waiting block while the client loads, and keeps the row on screen', async () => {
+    const { records } = await recordsWith(pathWith(emptySlot('ecdsa')))
+    view = await mountView({
+      records,
+      search: { kind: 'ecdsa', at: { clause: 0, member: 0 } },
+      client: { status: 'loading' },
+      deps: depsOf()
+    })
+    const block = view
+      .byTestId('enroll-client-loading')
+      ?.querySelector('[data-testid="loading-block"]')
+    expect(block?.textContent).toBe(
+      t('socialRecovery.loading.client', { network: CHAIN_NAMES[WALLET_RECOVERY_CHAIN] })
+    )
+    expect(view.byTestId('enroll-guardian')).not.toBeNull()
   })
 
   it('goes back to the editor from a row with the records as they stand', async () => {

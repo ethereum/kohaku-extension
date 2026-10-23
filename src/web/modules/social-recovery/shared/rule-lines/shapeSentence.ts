@@ -5,7 +5,7 @@
  * review read it back to the holder.
  * Pure: the same input yields equal output and the input is never mutated.
  */
-import type { Clause, Credential } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Clause, Credential } from '@kohaku-eth/social-recovery'
 import type { Translate } from '@web/modules/social-recovery/shared/display/types'
 import { isEmptySlot, slotKindOf } from '@web/modules/social-recovery/shared/records/slots'
 import type { SlotKind } from '@web/modules/social-recovery/shared/records/types'

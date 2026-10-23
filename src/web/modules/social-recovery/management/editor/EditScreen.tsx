@@ -12,15 +12,17 @@
  * the edit: the setup records, the session and a new password.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import { useTranslation } from '@common/config/localization'
 import useNavigation from '@common/hooks/useNavigation'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
+import { useHeldKeys } from '@web/modules/social-recovery/management/overview/useHeldKeys'
 import { useOverviewReads } from '@web/modules/social-recovery/management/overview/useOverviewReads'
-import type { SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { SetupDraft } from '@kohaku-eth/social-recovery'
 import { PageTitle } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import SetupChrome from '@web/modules/social-recovery/shared/chrome/SetupChrome'
 import useSetupAccount from '@web/modules/social-recovery/shared/chrome/useSetupAccount'
 import {
@@ -59,7 +61,15 @@ import { useCommittedLevel } from './useCommittedLevel'
 export const EditStageView = ({ records, session, chainId, account, navigate }: EditStageProps) => {
   const { t } = useTranslation()
   const clientState = useRecoveryClient(account)
-  const reads = useOverviewReads({ client: clientState, records, chainId, account })
+  const heldKeys = useHeldKeys()
+  const reads = useOverviewReads({
+    client: clientState,
+    records,
+    watcherStorage: extensionRecordStorage,
+    chainId,
+    account,
+    heldKeys
+  })
   const kit = clientState.status === 'ready' ? clientState.client : null
   const setupState = reads.facts.status === 'answered' ? reads.facts.value.setup : null
   const committedLevel = useCommittedLevel(kit, setupState)
@@ -257,6 +267,7 @@ export const EditStageView = ({ records, session, chainId, account, navigate }: 
   const stageTitled = canOpen && !openFailed && !!opened && !!draft && stage !== 'password'
 
   const retryOpen = useCallback(() => setOpenRound((round) => round + 1), [])
+  const toOverview = useCallback(() => navigate(WEB_ROUTES.socialRecoveryManage), [navigate])
   const toPath = useCallback(() => setStage('path'), [])
   // The draft of an edit that opened, where opening it did not fail.
   const openDraft = !openFailed && opened ? draft : null
@@ -268,6 +279,7 @@ export const EditStageView = ({ records, session, chainId, account, navigate }: 
       )}
       <ReadsGate
         reads={reads}
+        onControlMoved={toOverview}
         level={committedLevel.level}
         onRetryLevel={committedLevel.retry}
         passwordHeld={passwordHeld}
@@ -275,7 +287,11 @@ export const EditStageView = ({ records, session, chainId, account, navigate }: 
       >
         <View style={spacings.mtSm}>
           {openFailed && <EditOpenFailed onRetry={retryOpen} />}
-          {!openFailed && !openDraft && <ActivityIndicator testID="manage-edit-opening" />}
+          {!openFailed && !openDraft && (
+            <View testID="manage-edit-opening">
+              <LoadingBlock variant="block" message={t('socialRecovery.loading.draft')} />
+            </View>
+          )}
           {!!openDraft && stage === 'wait' && (
             <WaitingPeriodView
               records={observed}

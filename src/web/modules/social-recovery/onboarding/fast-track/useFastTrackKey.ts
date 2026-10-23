@@ -42,7 +42,7 @@ import useAccountPickerControllerState from '@web/hooks/useAccountPickerControll
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import { seedBasicAccountOf } from '@web/modules/social-recovery/shared/client'
 
 import { KEY_STEP_LIMIT_MS, RECOVERY_PHRASE_WORDS } from './constants'

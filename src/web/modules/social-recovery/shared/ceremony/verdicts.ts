@@ -17,13 +17,13 @@
  * Every function here is pure and runs under Jest's node environment.
  */
 import type {
-  ApproverReply,
   DeviceBinding,
   EnrollFailure,
   Hex,
+  Reply,
   ReplyFailure,
   Verdict
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type { MethodChip } from '@web/modules/social-recovery/shared/display'
 
 import type {
@@ -61,14 +61,19 @@ export const DISMISSAL_NOTES = ['cancelled', 'refused'] as const
 
 /**
  * The causes a verdict other than passed names: the method's own five and the
- * host's own eight.
+ * host's own eleven.
  *
  * - `thrown`: the method threw a refusal (enrollInput and signingInput throw).
  * - `check-rejected`: the local check answered rejected.
+ * - `check-reverted`: the method module's `verify` view on chain reverted
+ *   instead of judging the proof, as a module that does not accept the
+ *   proof's version does.
  * - `relying-party-mismatch`: the credential or the assertion was minted under a
  *   relying party other than the extension's own origin. At enrollment this is
  *   the provider that refused Kohaku (the 1Password case).
  * - `unreachable`: a phone hand-off that never connected.
+ * - `phone-unanswered`: a phone that took the request and then stopped
+ *   answering.
  * - `service-unanswered`: a node or a service did not answer.
  * - `not-judged`: the local check needs a contract's own word.
  * - `no-implementation`: this build holds no implementation for the method, or
@@ -76,16 +81,21 @@ export const DISMISSAL_NOTES = ['cancelled', 'refused'] as const
  * - `browser-error`: the browser's own error at a test or a claim, its name in
  *   `detail`, for example `NotAllowedError` at a test access, where the browser
  *   cannot tell a dismissed prompt from a missing credential.
+ * - `phone-error`: the app on the holder's phone reported an error, its message
+ *   in `detail`.
  */
 export const HOST_CAUSES = [
   'thrown',
   'check-rejected',
+  'check-reverted',
   'relying-party-mismatch',
   'unreachable',
+  'phone-unanswered',
   'service-unanswered',
   'not-judged',
   'no-implementation',
-  'browser-error'
+  'browser-error',
+  'phone-error'
 ] as const
 
 export const passed = <T>(value: T): PassedOutcome<T> => ({
@@ -181,11 +191,13 @@ export const chipOfOutcome = (
  * - Passed: a test or a claim reads the passed note with its hash; a passed
  *   enrollment reads no note, the kind line takes its place.
  * - Not supported: the not-supported note.
- * - Unavailable: a hand-off that never connected reads unreachable; any other
- *   cause reads the test-unavailable line at a test, once (`lineKeyOfOutcome`
- *   adds none), and the unavailable note at an enrollment or a claim, which
- *   never shows a test line.
- * - Failed: a relying-party mismatch reads the provider's refusal at
+ * - Unavailable: a hand-off that never connected reads unreachable, and a
+ *   phone that stopped answering reads its own note; any other cause reads
+ *   the test-unavailable line at a test, once (`lineKeyOfOutcome` adds none),
+ *   and the unavailable note at an enrollment or a claim, which never shows a
+ *   test line.
+ * - Failed: an error the holder's phone reported reads the phone's note at
+ *   every call; a relying-party mismatch reads the provider's refusal at
  *   enrollment and the mismatch note at a test or a claim; a failed test reads
  *   no note (the chip, the browser's error name and the line say it); an
  *   enrollment or a claim reads the failed note.
@@ -210,11 +222,17 @@ export const noteKeyOfOutcome = (
       if (outcome.cause === 'unreachable') {
         return 'socialRecovery.ceremony.unreachableNote'
       }
+      if (outcome.cause === 'phone-unanswered') {
+        return 'socialRecovery.ceremony.phoneUnansweredNote'
+      }
       return call === 'testAccess'
         ? 'socialRecovery.ceremony.testUnavailableLine'
         : 'socialRecovery.ceremony.unavailableNote'
     case 'failed':
     default:
+      if (outcome.cause === 'phone-error') {
+        return 'socialRecovery.ceremony.phoneErrorNote'
+      }
       if (outcome.cause === 'relying-party-mismatch') {
         return call === 'enroll'
           ? 'socialRecovery.ceremony.providerRefused'
@@ -225,9 +243,25 @@ export const noteKeyOfOutcome = (
 }
 
 /**
+ * The line under a failed test, from its cause as an outcome carries it or as
+ * a record stores it with its detail after the cause: a check that did not
+ * match reads the no-match line, a check the module on chain refused to judge
+ * reads the reverted line, and any other failure reads that the method may
+ * never work.
+ */
+export const failedTestLineKeyOf = (cause: string | undefined): string => {
+  if (cause?.startsWith('check-rejected')) {
+    return 'socialRecovery.ceremony.testFailedNoMatch'
+  }
+  return cause?.startsWith('check-reverted')
+    ? 'socialRecovery.ceremony.testFailedReverted'
+    : 'socialRecovery.ceremony.testFailedLine'
+}
+
+/**
  * The line a TEST ACCESS verdict carries under its chip: a failed test reads
- * test failed with its line and never the not-tested line.
- * Every other call carries no test line. An unavailable test carries none
+ * test failed with its line (`failedTestLineKeyOf`) and never the not-tested
+ * line. Every other call carries no test line. An unavailable test carries none
  * either, since its note already reads the test-unavailable line.
  */
 export const lineKeyOfOutcome = (
@@ -239,9 +273,7 @@ export const lineKeyOfOutcome = (
   }
   switch (outcome.verdict) {
     case 'failed':
-      return outcome.cause === 'check-rejected'
-        ? 'socialRecovery.ceremony.testFailedNoMatch'
-        : 'socialRecovery.ceremony.testFailedLine'
+      return failedTestLineKeyOf(outcome.cause)
     case 'notSupported':
       return 'socialRecovery.ceremony.notSupportedLine'
     case 'unavailable':
@@ -273,9 +305,9 @@ export const browserErrorNameOf = (outcome: CeremonyOutcome<unknown>): string | 
 // ---------------------------------------------------------------------------
 
 export const isMethodFailure = (
-  value: Hex | ApproverReply | EnrollFailure | ReplyFailure
+  value: Hex | Reply | EnrollFailure | ReplyFailure
 ): value is EnrollFailure | ReplyFailure =>
-  typeof value === 'object' && (value.kind === 'enroll-failure' || value.kind === 'reply-failure')
+  typeof value === 'object' && value.kind === 'reply-failure'
 
 /**
  * One typed failure of the method as an outcome.
@@ -289,7 +321,7 @@ export const isMethodFailure = (
  * - device-unavailable: the device did not answer, unavailable with retry; a
  *   phone hand-off that never connected reads unreachable.
  * - material-rejected: the material was not a config or a proof, failed.
- * - method-unsupported, version-unread: not supported, with no retry.
+ * - method-unsupported, request-unsupported: not supported, with no retry.
  */
 export const outcomeOfMethodFailure = (
   failure: EnrollFailure | ReplyFailure,
@@ -303,7 +335,7 @@ export const outcomeOfMethodFailure = (
     case 'device-unavailable':
       return unavailable(options.handOff ? 'unreachable' : 'device-unavailable')
     case 'method-unsupported':
-    case 'version-unread':
+    case 'request-unsupported':
       return notSupported(failure.cause)
     case 'material-rejected':
     default:

@@ -10,7 +10,7 @@
  * save, a Recovery Card that finds no password shows the hidden value with no
  * reveal.
  */
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 import type { ChainId } from './types'
 

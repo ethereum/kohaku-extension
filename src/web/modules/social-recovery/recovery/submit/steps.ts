@@ -14,12 +14,7 @@
  */
 import { keccak256 } from 'viem'
 
-import type {
-  Address,
-  Gathering,
-  Hex,
-  RecoveryState
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Gathering, Hex, RecoveryState } from '@kohaku-eth/social-recovery'
 import {
   accountBatchTransactionOf,
   listedBasicAccountOf,
@@ -57,11 +52,13 @@ export const submitStepsOf = (input: SubmitStepsInput): SubmitSteps => {
   const session = records.recoverySession(chainId, account)
   const attemptId = BigInt(gathering.request.attemptId)
   const setupNonce = BigInt(gathering.request.setupNonce)
+  const payloadOf = (request: Gathering['request']): Hex | undefined =>
+    'payload' in request ? request.payload : undefined
+  const payload = payloadOf(gathering.request)
   // The manager keeps the hash of the payload the start carried, the request's own.
-  const payloadHash = keccak256(gathering.request.payload ?? '0x')
+  const payloadHash = keccak256(payload ?? '0x')
   // The landed session keeps that hash only where the request carried a payload.
-  const landedPayloadHash =
-    gathering.request.payload === undefined ? undefined : keccak256(gathering.request.payload)
+  const landedPayloadHash = payload === undefined ? undefined : keccak256(payload)
 
   const sameHex = (a: Hex | undefined, b: Hex | undefined): boolean =>
     a === undefined || b === undefined ? a === b : a.toLowerCase() === b.toLowerCase()
@@ -71,7 +68,7 @@ export const submitStepsOf = (input: SubmitStepsInput): SubmitSteps => {
     request.attemptId === gathering.request.attemptId &&
     request.setupNonce === gathering.request.setupNonce &&
     request.validUntil === gathering.request.validUntil &&
-    sameHex(request.payload, gathering.request.payload)
+    sameHex(payloadOf(request), payload)
 
   const ownsSession = (value: RecoverySessionRecord): boolean => {
     switch (value.state) {
@@ -158,7 +155,7 @@ export const submitStepsOf = (input: SubmitStepsInput): SubmitSteps => {
         throw new Error('The gathering completed to no start request.')
       }
       // The start carries the set the screen verified and shows, or nothing is sent.
-      const places = new Set(request.proofs.map((proof) => Number(proof.place)))
+      const places = new Set(request.proofs.map((proof) => proof.place))
       if (
         places.size !== input.chosen.size ||
         [...places].some((place) => !input.chosen.has(place))
@@ -283,7 +280,7 @@ export const submitStepsOf = (input: SubmitStepsInput): SubmitSteps => {
         dispatch({ type: 'error', run, error, transactionHash })
       }
     },
-    land: () =>
+    land: (executableAt) =>
       // A session another page landed meanwhile for this request, on any try,
       // is this landing done; one of another request is not this run's to land.
       withFreshRevision(async (revision, read): Promise<LandOutcome> => {
@@ -293,7 +290,7 @@ export const submitStepsOf = (input: SubmitStepsInput): SubmitSteps => {
         if (read.value.state === 'live' && !ownsSession(read.value)) {
           return 'other-request'
         }
-        await records.landSubmission(chainId, account, revision)
+        await records.landSubmission(chainId, account, revision, executableAt)
         return 'landed'
       })
   }

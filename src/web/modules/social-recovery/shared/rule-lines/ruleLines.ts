@@ -3,7 +3,7 @@
  * The SDK returns no verdict on a rule, so these lines are the wallet's own.
  * Pure: the same input yields equal output and the input is never mutated.
  */
-import type { Clause, Credential, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Clause, Credential, SetupDraft } from '@kohaku-eth/social-recovery'
 import { isEmptySlot, slotKindOf } from '@web/modules/social-recovery/shared/records/slots'
 
 import type {

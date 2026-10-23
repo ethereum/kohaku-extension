@@ -3,7 +3,7 @@
  * block it is asked for, `0x` for an address with none; an answer that is not
  * hex, or a read the provider could not make, rejects as a failed code read.
  */
-import type { Address, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Hex } from '@kohaku-eth/social-recovery'
 import {
   createCodeRead,
   isProviderReadFailure

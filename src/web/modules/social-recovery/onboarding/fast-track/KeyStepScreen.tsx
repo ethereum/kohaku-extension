@@ -4,16 +4,22 @@
  * With no extension password yet the holder goes back to step 2; with a
  * locked keystore, to the wallet's unlock.
  *
- * A wallet that already lists accounts when the step opens (a Back or a
- * reload after the add, or a logged-in wallet at this URL) makes no new
- * phrase: past the warning, the holder goes on to the account step for the
- * selected basic account. So does a step that opens while the wallet still
- * adds the account of an earlier visit, once that add lists it. Once the
- * wallet lists the slot's basic account, the step closes the wallet's picker
- * session and its newly-added marks, as the wallet's own create flow does,
- * and the holder goes on to the account step on the fresh install's route,
- * with that basic account as the account that receives control. Every
- * move replaces this step in the history, so Back never returns to it.
+ * A wallet that already lists accounts when the step opens makes no new
+ * phrase. Where onboarding is not complete and the selected account is a
+ * basic account (the fast track's own holder back at the door after the add,
+ * through a Back, a reload, choosing another account, abandoning or leaving
+ * the wait), the holder goes on, past the warning, to the account step on the
+ * fresh install's route with that basic account. Every other wallet that
+ * lists accounts (onboarding complete, or a smart account selected) goes on
+ * to the logged-in recovery entry, where the holder chooses the account that
+ * receives control. A step that opens while the wallet still adds the account
+ * of an earlier visit goes on to the account step for the selected basic
+ * account once that add lists it. Once the wallet lists the slot's basic
+ * account, the step closes the wallet's picker session and its newly-added
+ * marks, as the wallet's own create flow does, and the holder goes on to the
+ * account step on the fresh install's route, with that basic account as the
+ * account that receives control. Every move replaces this step in the
+ * history, so Back never returns to it.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
@@ -25,6 +31,7 @@ import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
 import useSelectedAccountControllerState from '@web/hooks/useSelectedAccountControllerState'
+import useWalletStateController from '@web/hooks/useWalletStateController'
 import RecoverScreen from '@web/modules/social-recovery/onboarding/recover/RecoverScreen'
 import { acknowledgedInState } from '@web/modules/social-recovery/recovery/entry/search'
 import PlainChrome from '@web/modules/social-recovery/shared/chrome/PlainChrome'
@@ -92,14 +99,18 @@ const KeyStepScreen = () => {
   const { hasPasswordSecret, isUnlocked } = useKeystoreControllerState()
   const { accounts } = useAccountsControllerState()
   const { account: selected } = useSelectedAccountControllerState()
+  const { isSetupComplete } = useWalletStateController()
   // Whether the wallet listed accounts before this step opened.
   const [alreadyListed] = useState(!!accounts?.length)
   const dropping = acknowledgedInState(location.state)
+  const fastTrackAccount = isSetupComplete ? undefined : selectedBasicAccountOf(selected)
 
   const away = !acknowledged
     ? null
     : alreadyListed
-    ? accountStepPathOf(selectedBasicAccountOf(selected))
+    ? fastTrackAccount
+      ? accountStepPathOf(fastTrackAccount)
+      : WEB_ROUTES.socialRecoveryRecovery
     : !hasPasswordSecret
     ? WEB_ROUTES.socialRecoveryFastTrack
     : !isUnlocked

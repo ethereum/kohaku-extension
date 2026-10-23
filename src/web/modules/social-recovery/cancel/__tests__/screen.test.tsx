@@ -7,7 +7,7 @@
  * funds.
  */
 import type { Network } from '@ambire-common/interfaces/network'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 jest.mock('viem', () => {
   // eslint-disable-next-line global-require
@@ -185,7 +185,7 @@ describe("the cancel's screen", () => {
 
     expect(mockWallet.navigate).toHaveBeenCalledWith(`/${WEB_ROUTES.dashboard}`, { replace: true })
     expect(view.byTestId('cancel-confirm')).toBeNull()
-    expect(view.byTestId('cancel-spinner')).toBeNull()
+    expect(view.byTestId('cancel-loading')).toBeNull()
   })
 
   it('offers the attempt its own read finds open', async () => {

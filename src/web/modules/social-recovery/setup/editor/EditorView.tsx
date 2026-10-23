@@ -10,14 +10,15 @@
  * opens its enrollment.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
 import { useTranslation } from '@common/config/localization'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
-import type { Clause, Finding, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Clause, Finding, SetupDraft } from '@kohaku-eth/social-recovery'
 import { ActionsRow, TwoColumn } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import { defaultSetupDraft } from '@web/modules/social-recovery/shared/records'
 import type { SlotKind } from '@web/modules/social-recovery/shared/records'
 import { getRuleLines, RULE_LINE_KEYS } from '@web/modules/social-recovery/shared/rule-lines'
@@ -47,6 +48,7 @@ import {
   readThreshold,
   removeClause,
   removeMember,
+  removeMemberToFit,
   rolesOf,
   sameAddTarget,
   setThreshold,
@@ -79,9 +81,11 @@ const EditorView = ({
   addressBook,
   navigate,
   stillNeeded,
+  plainRemoval,
   heading,
   continueLabel,
-  beforeActions
+  beforeActions,
+  onCheckingChange
 }: EditorViewProps) => {
   const { t } = useTranslation()
   const [load, setLoad] = useState<EditorLoad | null>(null)
@@ -101,6 +105,10 @@ const EditorView = ({
   const mounted = useRef(true)
   const loadRef = useRef<EditorLoad | null>(null)
   const writes = useRef<Promise<void>>(Promise.resolve())
+
+  useEffect(() => {
+    onCheckingChange?.(checking)
+  }, [checking, onCheckingChange])
 
   useEffect(() => {
     mounted.current = true
@@ -346,7 +354,7 @@ const EditorView = ({
 
   if (!load) {
     if (!loadFailed) {
-      return <ActivityIndicator testID="editor-spinner" />
+      return <LoadingBlock variant="screen" message={t('socialRecovery.loading.draft')} />
     }
     return (
       <View testID="editor">
@@ -418,7 +426,8 @@ const EditorView = ({
           }}
           onRemoveMember={(index, member) => {
             if (!stillNeeded?.has(`${index}:${member}`)) {
-              commit(removeMember(current(), index, member), currentRoles())
+              const remove = plainRemoval ? removeMember : removeMemberToFit
+              commit(remove(current(), index, member), currentRoles())
             }
           }}
           onLowerAndRemove={(index, member) => {

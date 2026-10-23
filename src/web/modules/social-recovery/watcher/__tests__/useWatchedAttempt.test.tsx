@@ -8,6 +8,8 @@ import type { WatchedAttemptState, WatcherRecord } from '@web/modules/social-rec
 import { storedWatcherRecordOf, watcherKeyOf } from '@web/modules/social-recovery/watcher'
 import {
   ACCOUNT,
+  DEPLOYMENT,
+  RETIRED_DEPLOYMENT,
   HEAD,
   HEAD_TIME,
   NEW_KEY,
@@ -55,7 +57,8 @@ const OPEN: WatcherRecord = {
       consumableAfter: HEAD_TIME + 3600,
       executionDue: false,
       newKey: NEW_KEY
-    }
+    },
+    deployment: DEPLOYMENT
   },
   dismissed: []
 }
@@ -119,6 +122,17 @@ describe('the watched attempt hook', () => {
       reading: OPEN.reading,
       attemptDismissed: false
     })
+  })
+
+  it('reads a reading of a retired deployment as an account not polled yet', async () => {
+    const retired = {
+      ...OPEN,
+      reading: OPEN.reading && { ...OPEN.reading, deployment: RETIRED_DEPLOYMENT }
+    }
+    const sources = sourcesOver({ [watcherKeyOf(SEPOLIA, ACCOUNT)]: recordWith(retired) })
+    await mount(sources)
+
+    expect(latest()).toEqual({ status: 'unwatched' })
   })
 
   it('reads an account the watcher has not polled as unwatched', async () => {

@@ -6,9 +6,9 @@ import type {
   DeploymentDescriptor,
   Hex,
   IEventManager,
-  Notification,
+  KitNotification,
   PreparedCall
-} from '@web/modules/social-recovery/sdk-interfaces'
+} from '@kohaku-eth/social-recovery'
 import type {
   AddGate,
   ChainReads,
@@ -22,7 +22,7 @@ import type {
   WatcherConnection,
   WatcherReads
 } from '@web/modules/social-recovery/shared/client/types'
-import type { ChainId } from '@web/modules/social-recovery/shared/records/types'
+import type { ChainId, RecordDeployment } from '@web/modules/social-recovery/shared/records/types'
 import type {
   GasCheck,
   RequestHold,
@@ -149,6 +149,8 @@ export interface PollOnceInput {
 /** One fresh reading of an account's attempt, written to its watcher record. */
 export interface AttemptReaderInput {
   reads: WatcherReads
+  /** The manager and the action `reads` go to, written with each reading. */
+  deployment: RecordDeployment
   account: Address
   chainId: ChainId
   storage: WatcherStorage
@@ -160,7 +162,7 @@ export interface AttemptReaderInput {
 export type AttemptReader = () => Promise<WatcherReading>
 
 /** An attempt's cancel as the manager's log names it. */
-export type CancelLog = Extract<Notification, { kind: 'attempt-cancelled' }>
+export type CancelLog = Extract<KitNotification, { kind: 'attempt-cancelled' }>
 
 /** The members of a log on ethers' receipt that the decoding reads. */
 export type ReceiptLog = Pick<
@@ -229,6 +231,12 @@ export interface Arrival {
 
 export type ArrivalReader = () => Promise<Arrival>
 
+/** What the confirm waits on with its send held: the fresh read of the attempt, or the gas check. */
+export type ConfirmWait = 'refreshing' | 'fee' | null
+
+/** The watcher's last reading of the account this device stored, where one stands for the deployment read. */
+export type LastReadingReader = () => Promise<WatcherReading | undefined>
+
 /** The arrival's read as the hook last stored it, with the reader and the round it belongs to. */
 export interface StoredAttemptRead {
   reader: ArrivalReader | null
@@ -236,8 +244,16 @@ export interface StoredAttemptRead {
   read: AttemptRead
 }
 
+/** The watcher's last reading as the hook last stored it, with the reader it belongs to. */
+export interface StoredLastReading {
+  reader: LastReadingReader | null
+  reading: WatcherReading | null
+}
+
 export interface AttemptReadResult {
   read: AttemptRead
+  /** The watcher's last reading, shown while the fresh read runs; null where this device holds none. */
+  last: WatcherReading | null
   retry: () => void
 }
 
@@ -434,6 +450,11 @@ export interface CancelBodyProps {
 
 export interface CancelViewProps {
   read: AttemptRead
+  /**
+   * The watcher's last reading, shown with the send held while the fresh read
+   * runs; absent or null where this device holds none.
+   */
+  last?: WatcherReading | null
   run: CancelState
   readiness: CancelReadiness
   timeZone: string

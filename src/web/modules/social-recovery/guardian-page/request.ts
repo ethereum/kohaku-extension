@@ -5,10 +5,7 @@
  * own hash still holds the whole link. The page carries approvals alone, so
  * a request of any other purpose is no request this page reads.
  */
-import type {
-  ApproverRequest,
-  RequestDescription
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { ApproverRequest, RequestDescription } from '@kohaku-eth/social-recovery'
 import { requestOfApprovalLink } from '@web/modules/social-recovery/recovery/checklist'
 
 import type { DescribedRequest } from './types'

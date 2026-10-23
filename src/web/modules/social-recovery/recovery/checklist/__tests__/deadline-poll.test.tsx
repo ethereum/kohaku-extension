@@ -3,18 +3,19 @@
  *
  * The request's deadline and the poll of the account's recovery state, on
  * Jest's fake clock: the deadline line ticks every minute and once more the
- * moment the deadline passes, which wipes the session after one chain read
- * and holds every add, launch and continue while that read runs; it says
- * every approval dies together unless one approval is the whole
- * request; the poll reads at once, on every period and when the tab returns
- * to view; a poll that throws or runs past its limit holds every add, launch
- * and continue under the failed read with a retry, and the rows never render
- * from a poll that has not returned since open. A client rebuilt for the same
- * session keeps the rows and reads with the new client; a new session starts
- * from nothing returned. An account that no longer authorizes the action
- * reads as dormant and keeps every approval.
+ * moment the deadline passes, which wipes the session after one chain read,
+ * on the return of a read already in flight, the first one included, and
+ * holds every add, launch and continue while that read runs; it says every
+ * approval dies together unless one approval is the whole request; the poll
+ * reads at once, on every period and when the tab returns to view; until the
+ * first poll answers, the rows show from the session record and stay held
+ * beside the refreshing line; a poll that throws or runs past its limit holds
+ * every add, launch and continue under the failed read with a retry. A client
+ * rebuilt for the same session keeps the rows and reads with the new client;
+ * a new session starts from nothing returned. An account that no longer
+ * authorizes the action reads as dormant and keeps every approval.
  */
-import type { Configuration } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Configuration } from '@kohaku-eth/social-recovery'
 
 import type {
   FakeKit,
@@ -251,6 +252,39 @@ describe('the checklist deadline and poll', () => {
         t('socialRecovery.records.expiredTitle')
       )
     })
+    it('wipes the session on the return of the first poll when the deadline passes while it reads', async () => {
+      const wipe = jest.spyOn(world.records, 'wipeRecoverySession')
+      const read = deferred<ReturnType<typeof recoveryStateOf>>()
+      await seedCache(world.records, TWO_ROWS)
+      await seedSession(world.records, closingIn(TWO_ROWS, 5))
+      kit = fakeKit(TWO_ROWS)
+      kit.recoveryState.mockImplementationOnce(() => read.promise)
+      view = await mountChecklist({
+        records: world.records,
+        client: kit.state,
+        deps: depsOf({ now: () => Date.now(), visibility })
+      })
+
+      await settle(6000)
+      expect(kit.recoveryState).toHaveBeenCalledTimes(1)
+      expect(wipe).not.toHaveBeenCalled()
+      expect(view.byTestId('checklist-rows')).not.toBeNull()
+
+      read.resolve(recoveryStateOf())
+      await settle()
+
+      expect(kit.recoveryState).toHaveBeenCalledTimes(2)
+      expect(wipe).toHaveBeenCalledTimes(1)
+      expect(wipe).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        'deadline-passed',
+        expect.anything()
+      )
+      expect(view.byTestId('checklist-wiped-title')?.textContent).toBe(
+        t('socialRecovery.records.expiredTitle')
+      )
+    })
   })
 
   describe('past the deadline, while its one chain read runs', () => {
@@ -447,7 +481,7 @@ describe('the checklist deadline and poll', () => {
       expect(lastClock).toBe(NOW_SECONDS + CHECKLIST_POLL_MS / 1000)
     })
 
-    it('renders no row from a poll that has not returned since open, then the failed read past its limit', async () => {
+    it('shows the session rows held beside the refreshing line while the first poll has not returned, then the failed read past its limit', async () => {
       await seedCache(world.records, MIXED_PATH)
       await seedSession(world.records, gatheringOf(MIXED_PATH))
       kit = fakeKit(MIXED_PATH)
@@ -458,17 +492,72 @@ describe('the checklist deadline and poll', () => {
         deps: depsOf({ now: () => Date.now(), visibility })
       })
 
-      expect(view.byTestId('checklist-loading')).not.toBeNull()
-      expect(view.byTestId('checklist-rows')).toBeNull()
-      expect(view.byTestId('checklist-row-0')).toBeNull()
+      expect(view.byTestId('checklist-loading')).toBeNull()
+      expect(view.byTestId('checklist-refreshing')?.textContent).toBe(
+        t('socialRecovery.loading.refreshingAttempt')
+      )
+      expect(
+        view.byTestId('checklist-refreshing')?.querySelector('[data-testid="loading-row"]')
+      ).not.toBeNull()
+      expect(view.byTestId('checklist-rows')).not.toBeNull()
+      const held = ['checklist-continue', 'checklist-row-0-answer-here', 'checklist-row-0-phone']
+      held.forEach((id) => expect(view?.isDisabled(id)).toBe(true))
 
       await settle(POLL_LIMIT_MS - 1)
-      expect(view.byTestId('checklist-rows')).toBeNull()
+      expect(view.byTestId('checklist-refreshing')).not.toBeNull()
       expect(view.byTestId('checklist-poll-failed')).toBeNull()
 
       await settle(1)
+      expect(view.byTestId('checklist-refreshing')).toBeNull()
       expect(view.byTestId('checklist-poll-failed')).not.toBeNull()
       expect(view.byTestId('checklist-poll-retry')).not.toBeNull()
+    })
+
+    it('keeps the rows and holds their actions beside the refreshing line while a later poll reads', async () => {
+      const mounted = await open(MIXED_PATH)
+      const action = 'checklist-row-0-answer-here'
+      expect(mounted.byTestId('checklist-refreshing')).toBeNull()
+      expect(mounted.isDisabled(action)).toBe(false)
+
+      kit.recoveryState.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(() => resolve(recoveryStateOf()), 5000)
+          })
+      )
+      await settle(CHECKLIST_POLL_MS)
+      expect(mounted.byTestId('checklist-refreshing')?.textContent).toBe(
+        t('socialRecovery.loading.refreshingAttempt')
+      )
+      expect(
+        mounted.byTestId('checklist-refreshing')?.querySelector('[data-testid="loading-row"]')
+      ).not.toBeNull()
+      expect(mounted.byTestId('checklist-rows')).not.toBeNull()
+      expect(mounted.isDisabled(action)).toBe(true)
+
+      await settle(5000)
+      expect(mounted.byTestId('checklist-refreshing')).toBeNull()
+      expect(mounted.byTestId('checklist-rows')).not.toBeNull()
+      expect(mounted.isDisabled(action)).toBe(false)
+    })
+
+    it('holds continue on a satisfied path while a later poll reads, and gives it back once that poll answers', async () => {
+      const mounted = await open(TWO_ROWS, withReplies(gatheringOf(TWO_ROWS), [0, 1]))
+      expect(mounted.isDisabled('checklist-continue')).toBe(false)
+
+      kit.recoveryState.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(() => resolve(recoveryStateOf()), 5000)
+          })
+      )
+      await settle(CHECKLIST_POLL_MS)
+      expect(mounted.byTestId('checklist-refreshing')).not.toBeNull()
+      expect(mounted.isDisabled('checklist-continue')).toBe(true)
+
+      await settle(5000)
+      expect(mounted.byTestId('checklist-refreshing')).toBeNull()
+      expect(mounted.isDisabled('checklist-continue')).toBe(false)
     })
 
     it('holds every launch and every row action under a poll that throws, and a retry that succeeds restores them', async () => {
@@ -615,19 +704,26 @@ describe('the checklist deadline and poll', () => {
 
       await mounted.swapClient({ status: 'loading' })
       expect(mounted.byTestId('checklist-rows')).toBeNull()
-      expect(mounted.byTestId('checklist-loading')).not.toBeNull()
+      expect(mounted.byTestId('checklist-loading')?.textContent).toBe(
+        t('socialRecovery.loading.session')
+      )
+      expect(
+        mounted.byTestId('checklist-loading')?.querySelector('[data-testid="loading-screen"]')
+      ).not.toBeNull()
 
       const rebuilt = fakeKit(MIXED_PATH)
       const read = deferred<ReturnType<typeof recoveryStateOf>>()
       rebuilt.recoveryState.mockImplementationOnce(() => read.promise)
       await mounted.swapClient(rebuilt.state)
       expect(rebuilt.recoveryState).toHaveBeenCalledTimes(1)
-      expect(mounted.byTestId('checklist-rows')).toBeNull()
-      expect(mounted.byTestId('checklist-loading')).not.toBeNull()
+      expect(mounted.byTestId('checklist-rows')).not.toBeNull()
+      expect(mounted.byTestId('checklist-refreshing')).not.toBeNull()
+      expect(mounted.isDisabled('checklist-continue')).toBe(true)
 
       await outside(async () => read.resolve(recoveryStateOf()))
       await settle()
       expect(mounted.byTestId('checklist-rows')).not.toBeNull()
+      expect(mounted.byTestId('checklist-refreshing')).toBeNull()
     })
 
     it('starts again from nothing returned for a new session', async () => {
@@ -650,11 +746,12 @@ describe('the checklist deadline and poll', () => {
       await settle()
 
       expect((await storedSession(world.records))?.value.state).toBe('live')
-      expect(mounted.byTestId('checklist-loading')).not.toBeNull()
-      expect(mounted.byTestId('checklist-rows')).toBeNull()
+      expect(mounted.byTestId('checklist-refreshing')).not.toBeNull()
+      expect(mounted.isDisabled('checklist-continue')).toBe(true)
 
       await outside(async () => read.resolve(recoveryStateOf({ nextAttemptId: BigInt(6) })))
       await settle()
+      expect(mounted.byTestId('checklist-refreshing')).toBeNull()
       expect(mounted.byTestId('checklist-rows')).not.toBeNull()
     })
   })
@@ -726,7 +823,7 @@ describe('the checklist deadline and poll', () => {
       })
       await settle(1000)
 
-      expect(view.byTestId('checklist-loading')).not.toBeNull()
+      expect(view.byTestId('checklist-refreshing')).not.toBeNull()
       expect(kit.addApproverReply).not.toHaveBeenCalled()
       const before = await storedSession(world.records)
       expect(before?.value.state === 'live' && before.value.gathering.replies).toEqual([])

@@ -16,7 +16,7 @@
  * on them, so the caller that destroys the provider releases the wait first
  * through the signal, and every wait in flight rejects naming its hash.
  */
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 
 import type {
   ProviderTransaction,

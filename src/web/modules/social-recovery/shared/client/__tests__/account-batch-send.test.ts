@@ -13,7 +13,7 @@ import { EstimationStatus } from '@ambire-common/controllers/estimation/types'
 import type { FeeSpeed, SpeedCalc } from '@ambire-common/controllers/signAccountOp/signAccountOp'
 import type { FeePaymentOption } from '@ambire-common/libs/estimate/interfaces'
 import eventBus from '@web/extension-services/event/eventBus'
-import type { Address, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Hex } from '@kohaku-eth/social-recovery'
 
 import {
   activityListing,

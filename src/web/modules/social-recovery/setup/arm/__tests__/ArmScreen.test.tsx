@@ -25,11 +25,7 @@ import { TextDecoder, TextEncoder } from 'util'
 import type { Account } from '@ambire-common/interfaces/account'
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
-import type {
-  Clause,
-  SetupConfirmation,
-  SetupDraft
-} from '@web/modules/social-recovery/sdk-interfaces'
+import type { SetupConfirmation, SetupDraft } from '@kohaku-eth/social-recovery'
 import type {
   KeyHandle,
   SendPort,
@@ -37,7 +33,10 @@ import type {
   SubmittedOperation
 } from '@web/modules/social-recovery/shared/client'
 import type { ArmKitClient } from '@web/modules/social-recovery/setup/arm'
-import type { Chain } from '@web/modules/social-recovery/setup/arm/__tests__/harness'
+import type {
+  Chain,
+  RemountedSaveCase
+} from '@web/modules/social-recovery/setup/arm/__tests__/harness'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
@@ -754,37 +753,40 @@ describe('the start of the save', () => {
 })
 
 describe('a save in progress across remounts', () => {
-  const LIVE: [string, string, () => () => void][] = [
-    [
-      'while the gas check runs',
-      'arm-write-checkingGas',
-      () => {
+  const LIVE: RemountedSaveCase[] = [
+    {
+      named: 'while the gas check runs',
+      shown: 'arm-write-checkingGas',
+      save: 'held',
+      hold: () => {
         const gate = deferred<bigint>()
         reads.nativeBalance.mockImplementationOnce(() => gate.promise)
         return () => gate.resolve(1_000_000_000_000_000_000n)
       }
-    ],
-    [
-      'while the batch is submitting',
-      'arm-write-submitting',
-      () => {
+    },
+    {
+      named: 'while the batch is submitting',
+      shown: 'arm-write-submitting',
+      save: 'absent',
+      hold: () => {
         const gate = deferred<`0x${string}`>()
         port.sendAccountBatch.mockImplementationOnce(() => gate.promise)
         return () => gate.resolve(harness.TX_HASH)
       }
-    ],
-    [
-      'while the check after the landing runs',
-      'arm-confirming',
-      () => {
+    },
+    {
+      named: 'while the check after the landing runs',
+      shown: 'arm-confirming',
+      save: 'absent',
+      hold: () => {
         const gate = deferred<SetupConfirmation>()
         confirmSetup.mockImplementationOnce(() => gate.promise)
         return () => gate.resolve(confirmation(true, true))
       }
-    ]
+    }
   ]
 
-  LIVE.forEach(([named, shown, hold]) =>
+  LIVE.forEach(({ named, shown, save, hold }) =>
     it(`takes up the save ${named} on a remount, sends nothing more, and saves once it ends`, async () => {
       await writeRecords(draftOf('encrypted'))
       wireClient('ready')
@@ -799,7 +801,10 @@ describe('a save in progress across remounts', () => {
       await settle()
 
       expect(byTestId(shown)).not.toBeNull()
-      expect(byTestId('arm-save')).toBeNull()
+      expect(byTestId('arm-save') === null).toBe(save === 'absent')
+      expect(byTestId('arm-save')?.getAttribute('aria-disabled')).toBe(
+        save === 'held' ? 'true' : undefined
+      )
       expect(prepareCommitSetup).toHaveBeenCalledTimes(1)
 
       await act(async () => {
@@ -1340,50 +1345,52 @@ describe("the deposit step's Continue", () => {
 })
 
 describe('the blocks on arrival', () => {
-  const BLOCKED: [string, string, (draft: { clauses: Clause[] }) => void][] = [
+  const BLOCKED: [string, string, (draft: SetupDraft) => SetupDraft][] = [
     [
       'a trust read that did not answer',
       'unavailable',
-      () => {
+      (draft) => {
         chain.paused = { answered: false }
+        return draft
       }
     ],
     [
       'a removed key the wallet cannot read',
       'removed-key-unreadable',
-      () => {
+      (draft) => {
         chain.removedKey = { kind: 'unavailable', cause: 'no-source' }
+        return draft
       }
     ],
     [
       'an action that does not fit the account',
       'cannot-recover',
-      () => {
+      (draft) => {
         chain.fitCheck = { basis: 'deployed-code', fits: false }
+        return draft
       }
     ],
     [
       'an account that already has a setup',
       'already-set-up',
-      () => {
+      (draft) => {
         chain.setupState = setupStateOf(true)
+        return draft
       }
     ],
     [
       'a path with an empty slot',
       'empty-slot',
-      (draft) => {
-        // eslint-disable-next-line no-param-reassign
-        draft.clauses = [{ threshold: 1, credentials: [emptySlot('passkey')] }]
-      }
+      (draft) => ({
+        ...draft,
+        clauses: [{ threshold: 1, credentials: [emptySlot('passkey')] }]
+      })
     ]
   ]
 
   BLOCKED.forEach(([named, kind, arrange]) =>
     it(`blocks on ${named} with the review blocker, and prepares and sends nothing`, async () => {
-      const draft = draftOf('encrypted')
-      arrange(draft)
-      await writeRecords(draft)
+      await writeRecords(arrange(draftOf('encrypted')))
       wireClient('ready')
       await openByPush()
 
@@ -1582,6 +1589,23 @@ describe("another page's save that lands during this page's gas check", () => {
     expect(wipes()).toBe(1)
     return firstPort
   }
+
+  it('keeps Save on screen, held, beside the line that says the fee is checked while the gas check runs', async () => {
+    const gas = await pressSaveAndHoldGas()
+    expect(pageText()).toContain(t('socialRecovery.loading.fee'))
+    expect(
+      byTestId('arm-write-checkingGas')?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
+    expect(byTestId('arm-save')?.getAttribute('aria-disabled')).toBe('true')
+    await press('arm-save')
+    expect(port.sendAccountBatch).not.toHaveBeenCalled()
+
+    await act(async () => {
+      gas.resolve(1_000_000_000_000_000_000n)
+    })
+    await settle()
+    expect(port.sendAccountBatch).toHaveBeenCalledTimes(1)
+  })
 
   it('sends nothing, releases its own claim and shows the account as already set up', async () => {
     const gas = await pressSaveAndHoldGas()

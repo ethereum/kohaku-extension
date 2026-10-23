@@ -7,16 +7,14 @@
  * or `ColibriRpcProvider` with its prover. Each reads through its own JSON-RPC
  * `send`, so a read may route through a light client and its prover.
  *
- * The four reads are the SDK's list and nothing else: the chain id, one call
+ * The six reads are the SDK's list and nothing else: the chain id, one call
  * honouring `from` and a block tag, one log query over a filter and two
- * blocks, and `block(tag)`. A reverted call rejects with its raw revert data
- * (`RevertedCall`), and a read the provider could not make rejects
- * (`ProviderReadFailure`), never answering empty. A read the node refused for
- * its rate limit is made again after a pause before it fails.
+ * blocks, `block(tag)`, the code at an address and one transaction by its
+ * hash. A reverted call rejects with its raw revert data (`RevertedCall`), and
+ * a read the provider could not make rejects (`ProviderReadFailure`), never
+ * answering empty. A read the node refused for its rate limit is made again
+ * after a pause before it fails.
  */
-import { getAddress, hexToBigInt, isHex } from 'viem'
-
-import { delayPromise } from '@common/utils/promises'
 import type {
   Address,
   BlockHeader,
@@ -25,8 +23,12 @@ import type {
   FilterSpec,
   Hex,
   IProvider,
-  RawLog
-} from '@web/modules/social-recovery/sdk-interfaces'
+  RawLog,
+  RawTransaction
+} from '@kohaku-eth/social-recovery'
+import { getAddress, hexToBigInt, isHex } from 'viem'
+
+import { delayPromise } from '@common/utils/promises'
 
 import type {
   AdapterProvider,
@@ -288,7 +290,7 @@ export const createProviderAdapter = (provider: AdapterProvider): IProvider => (
     })
   },
 
-  async call(to: Address, data: Hex, from: Address | undefined, block: BlockTag): Promise<Hex> {
+  async call(to: Address, data: Hex, from: Address, block: BlockTag): Promise<Hex> {
     let answer: string
     try {
       answer = await retryWhileRateLimited(() => provider.call({ to, data, from, blockTag: block }))
@@ -301,8 +303,10 @@ export const createProviderAdapter = (provider: AdapterProvider): IProvider => (
   logs(filterSpec: FilterSpec, range: BlockRange): Promise<RawLog[]> {
     return attemptRead('logs', async () => {
       const logs = await provider.getLogs({
-        address: filterSpec.addresses,
-        topics: filterSpec.topics,
+        address: [...filterSpec.address],
+        topics: filterSpec.topics.map((topic) =>
+          topic === null || typeof topic === 'string' ? topic : [...topic]
+        ),
         fromBlock: range.from,
         toBlock: range.to
       })
@@ -320,6 +324,27 @@ export const createProviderAdapter = (provider: AdapterProvider): IProvider => (
       timestamp: header.timestamp,
       hash: hexOf('block', header.hash)
     }
+  },
+
+  code(address: Address, block: BlockTag): Promise<Hex> {
+    return attemptRead('code', async () => hexOf('code', await provider.getCode(address, block)))
+  },
+
+  transaction(hash: Hex): Promise<RawTransaction | undefined> {
+    return attemptRead('transaction', async () => {
+      const transaction = await provider.getTransaction(hash)
+      if (!transaction || transaction.blockNumber === null || transaction.blockHash === null) {
+        return undefined
+      }
+      return {
+        hash: hexOf('transaction', transaction.hash),
+        from: getAddress(transaction.from),
+        to: transaction.to === null ? null : getAddress(transaction.to),
+        input: hexOf('transaction', transaction.data),
+        blockNumber: transaction.blockNumber,
+        blockHash: hexOf('transaction', transaction.blockHash)
+      }
+    })
   }
 })
 

@@ -10,7 +10,7 @@
  * recovery client, the receiving account's facts and the report channel are
  * the harness's fakes; the extension's storage is its in-memory double.
  */
-import type { Configuration } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Configuration } from '@kohaku-eth/social-recovery'
 import type { CeremonyOutcome } from '@web/modules/social-recovery/shared/ceremony'
 
 import type {
@@ -170,14 +170,15 @@ describe('the passkey row on the return from its claim ceremony', () => {
     await seedEntry(world.records)
     await seedCache(world.records, path)
     await seedSession(world.records, gathering)
-    await world.records.ceremonyRequest(CEREMONY_ID).write(
-      claimRequestRecordOf({
-        account: ACCOUNT,
-        chainId: CHAIN_ID,
-        request: requestOf(gathering, 0),
-        handOff: false
-      })
-    )
+    await world.records
+      .ceremonyRequest(CEREMONY_ID)
+      .write(
+        claimRequestRecordOf(
+          'passkey',
+          { account: ACCOUNT, chainId: CHAIN_ID, request: requestOf(gathering, 0) },
+          { handOff: false }
+        )
+      )
     kit = fakeKit(path)
     channel = reportChannel()
     mockWorld.storage = world.storage

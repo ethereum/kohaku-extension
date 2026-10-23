@@ -1,6 +1,6 @@
 import en from '@common/config/localization/translations/en.json'
 
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 import * as display from '@web/modules/social-recovery/shared/display'
 

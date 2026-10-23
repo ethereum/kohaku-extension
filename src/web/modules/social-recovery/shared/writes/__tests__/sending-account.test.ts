@@ -7,7 +7,7 @@
  * account is not the selected one, the port selects it first and adds its
  * request once the wallet pushes the selection, and only once.
  */
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import {
   type AddGate,
   createSendPort,

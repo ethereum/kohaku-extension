@@ -5,7 +5,7 @@
  */
 import { isAddress, isAddressEqual } from 'viem'
 
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import type { ListedAccountFacts } from '@web/modules/social-recovery/shared/client'
 
 /** The destination key of a listed receiving account, or null where the keystore holds none. */

@@ -10,11 +10,12 @@ import en from '@common/config/localization/translations/en.json'
 import type {
   Clause,
   Credential,
-  Finding,
-  SetupDraft
-} from '@web/modules/social-recovery/sdk-interfaces'
-import { SETUP_ERROR_CODES } from '@web/modules/social-recovery/sdk-interfaces'
+  ErrorCode,
+  SetupDraft,
+  ValidationError
+} from '@kohaku-eth/social-recovery'
 import {
+  SETUP_ERROR_CODES,
   clientConfigurationOf,
   WALLET_RECOVERY_CHAIN
 } from '@web/modules/social-recovery/shared/client'
@@ -46,12 +47,12 @@ import {
 
 const t = i18n.t
 
-const HOUR = 3600n
-const DAY = 24n * HOUR
+const HOUR = 3600
+const DAY = 24 * HOUR
 /** Two to the 48 seconds, the first wait a 48-bit field cannot hold. */
-const TWO_TO_THE_48 = 281474976710656n
+const TWO_TO_THE_48 = 281474976710656
 
-const draftOf = (clauses: Clause[], wait: bigint = 3n * DAY): SetupDraft => ({
+const draftOf = (clauses: Clause[], wait: number = 3 * DAY): SetupDraft => ({
   wait,
   clauses,
   ignoresPause: false,
@@ -65,7 +66,7 @@ const guardians = (count: number): Credential[] =>
     config: `0x${(i + 1).toString(16).padStart(64, '0')}`
   }))
 
-const keysOf = (clauses: Clause[], wait?: bigint) =>
+const keysOf = (clauses: Clause[], wait?: number) =>
   refusalsOf(draftOf(clauses, wait)).map((refusal) => refusal.key)
 
 const ALL_REFUSAL_KEYS: RefusalKey[] = [
@@ -355,27 +356,25 @@ describe('the waiting period', () => {
 
   it('passes 24 hours and the longest the picker offers, 30 days', () => {
     expect(keysOf(clauses, DAY)).toEqual([])
-    expect(keysOf(clauses, 30n * DAY)).toEqual([])
+    expect(keysOf(clauses, 30 * DAY)).toEqual([])
   })
 
   it("offers exactly the longest wait the client's configuration lets the SDK save", () => {
-    const { maximumWait } = clientConfigurationOf({
+    const { maxWait } = clientConfigurationOf({
       chain: WALLET_RECOVERY_CHAIN,
       account: ACCOUNT,
       addressBook: BOOK,
-      provider: {} as never,
-      codeRead: {} as never,
-      transactionRead: {} as never
+      provider: {} as never
     })
-    expect(PICKER_CEILING_SECONDS).toBe(BigInt(maximumWait ?? -1))
+    expect(PICKER_CEILING_SECONDS).toBe(maxWait)
   })
 
   it('refuses the picker ceiling plus one hour with the picker sentence', () => {
-    expect(refusalsOf(draftOf(clauses, 30n * DAY + HOUR))).toEqual([{ key: 'waitCeiling' }])
+    expect(refusalsOf(draftOf(clauses, 30 * DAY + HOUR))).toEqual([{ key: 'waitCeiling' }])
   })
 
   it('refuses the largest wait the field holds with the picker sentence alone', () => {
-    expect(keysOf(clauses, TWO_TO_THE_48 - 1n)).toEqual(['waitCeiling'])
+    expect(keysOf(clauses, TWO_TO_THE_48 - 1)).toEqual(['waitCeiling'])
   })
 
   it('refuses 2 to the 48 seconds with the field-width sentence alone', () => {
@@ -383,7 +382,7 @@ describe('the waiting period', () => {
   })
 
   it('refuses a negative wait with the field-width sentence', () => {
-    expect(keysOf(clauses, -1n)).toEqual(['waitFieldWidth'])
+    expect(keysOf(clauses, -1)).toEqual(['waitFieldWidth'])
   })
 })
 
@@ -398,8 +397,8 @@ describe("the shape's refusals alone", () => {
       { key: 'thresholdBelowOneOwnRule', clause: 0 },
       { key: 'thresholdAboveMembers', clause: 1 }
     ])
-    expect(shapeRefusalsOf(draftOf(presetPath(), 30n * DAY + HOUR))).toEqual([])
-    expect(shapeRefusalsOf(draftOf([], -1n))).toEqual([{ key: 'noMethod' }])
+    expect(shapeRefusalsOf(draftOf(presetPath(), 30 * DAY + HOUR))).toEqual([])
+    expect(shapeRefusalsOf(draftOf([], -1))).toEqual([{ key: 'noMethod' }])
   })
 })
 
@@ -421,7 +420,7 @@ describe('several refusals at once', () => {
       { key: 'thresholdAboveMembers', clause: 1 },
       { key: 'waitFieldWidth' }
     ])
-    expect(keysOf([], -1n)).toEqual(['noMethod', 'waitFieldWidth'])
+    expect(keysOf([], -1)).toEqual(['noMethod', 'waitFieldWidth'])
   })
 })
 
@@ -478,7 +477,7 @@ describe('the place a refusal points at', () => {
 })
 
 describe("the SDK's setup errors", () => {
-  const finding = (code: Finding['code']): Finding => ({ code, subject: 'setup', values: {} })
+  const finding = (code: ErrorCode): ValidationError => ({ code, subject: 'setup', values: {} })
 
   it('each render a sentence, never a bare code, and none credits the chain', () => {
     SETUP_ERROR_CODES.forEach((code) => {

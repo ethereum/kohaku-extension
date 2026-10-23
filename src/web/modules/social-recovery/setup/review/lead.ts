@@ -6,13 +6,13 @@
  */
 import { decodeAbiParameters } from 'viem'
 
-import type {
-  Address,
-  Clause,
-  Credential,
-  SetupDraft
-} from '@web/modules/social-recovery/sdk-interfaces'
-import { privacyLevelOf, sameAddress } from '@web/modules/social-recovery/shared/client'
+import type { Address, Clause, Credential, SetupDraft } from '@kohaku-eth/social-recovery'
+import { failedTestLineKeyOf } from '@web/modules/social-recovery/shared/ceremony'
+import {
+  credentialKindIn,
+  methodKindIn,
+  privacyLevelOf
+} from '@web/modules/social-recovery/shared/client'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import {
   renderChip,
@@ -20,11 +20,7 @@ import {
   renderWaitLength
 } from '@web/modules/social-recovery/shared/display'
 import type { MethodChip, Translate } from '@web/modules/social-recovery/shared/display'
-import {
-  enrollmentOf,
-  isEmptySlot,
-  slotKindOf
-} from '@web/modules/social-recovery/shared/records/slots'
+import { enrollmentOf, isEmptySlot } from '@web/modules/social-recovery/shared/records/slots'
 import type {
   Enrollment,
   EnrollmentTestVerdict
@@ -59,19 +55,13 @@ const PUBLICATION = 'socialRecovery.review.publication'
 const ITEMS = 'socialRecovery.disclosures.items'
 const ITEMS_LEAD = 'socialRecovery.disclosures.itemsLead'
 
-/** The address book's kind of a method module; a module it does not hold has none. */
-const methodKindOf = (method: Address, addressBook: AddressBook): MethodKind | undefined =>
-  (Object.keys(addressBook.methods) as MethodKind[]).find((kind) =>
-    sameAddress(addressBook.methods[kind], method)
-  )
-
 /**
  * The kind of method a credential holds: the kind an empty slot waits for, or
  * the address book's kind of an enrolled credential's method. A method the
  * address book does not hold has no kind.
  */
 export const kindOf = (credential: Credential, addressBook: AddressBook): MethodKind | undefined =>
-  isEmptySlot(credential) ? slotKindOf(credential) : methodKindOf(credential.method, addressBook)
+  credentialKindIn(credential, addressBook.methods)
 
 /** The kind's name, the word a row and a contract row name a method by. */
 export const kindNameOf = (kind: MethodKind, t: Translate): string => t(KIND_NAME_KEYS[kind])
@@ -88,17 +78,12 @@ export const guardianAddressOf = (credential: Credential): Address | undefined =
 
 /**
  * The lines a test verdict carries under its chip. A failed test reads one
- * line: that the check did not match where its stored cause says so, else that
- * the method may never work.
+ * line, the one its stored cause selects.
  */
 const verdictLinesOf = (enrollment: Enrollment, t: Translate): string[] => {
   switch (enrollment.test) {
     case 'failed':
-      return [
-        enrollment.cause?.startsWith('check-rejected')
-          ? t(`${CEREMONY}.testFailedNoMatch`)
-          : t(`${CEREMONY}.testFailedLine`)
-      ]
+      return [t(failedTestLineKeyOf(enrollment.cause))]
     case 'unavailable':
       return [t(`${CEREMONY}.testUnavailableLine`)]
     case 'not-supported':
@@ -120,7 +105,10 @@ const kindLinesOf = (kind: MethodKind | undefined, t: Translate) => {
     ]
   }
   if (kind === 'aadhaar') {
-    return [t('socialRecovery.disclosures.identity')]
+    return [
+      t('socialRecovery.disclosures.identity'),
+      t('socialRecovery.disclosures.aadhaarPublication')
+    ]
   }
   return []
 }
@@ -208,13 +196,13 @@ export const ruleLinesOf = (
   addressBook: AddressBook,
   t: Translate
 ): string[] => {
-  const kindOfMethod = (method: Address) => methodKindOf(method, addressBook)
+  const kindOfMethod = (method: Address) => methodKindIn(addressBook.methods, method)
   return renderRuleLines(getRuleLines(draft, { kindOfMethod }), (key, params) =>
     t(key, { ...params })
   )
 }
 
-const SECONDS_PER_HOUR = 3600n
+const SECONDS_PER_HOUR = 3600
 
 /**
  * The waiting period as the picker named it: a chip's word where it is one of
@@ -223,8 +211,8 @@ const SECONDS_PER_HOUR = 3600n
  */
 export const renderWait = (wait: SetupDraft['wait'], t: Translate): string => {
   const chip =
-    wait % SECONDS_PER_HOUR === 0n
-      ? REVIEW_WAIT_CHIPS.find(({ hours }) => BigInt(hours) * SECONDS_PER_HOUR === wait)
+    wait % SECONDS_PER_HOUR === 0
+      ? REVIEW_WAIT_CHIPS.find(({ hours }) => hours * SECONDS_PER_HOUR === wait)
       : undefined
   if (chip) {
     return t(`socialRecovery.privacy.waitingPeriod.chips.${chip.id}`)
@@ -253,7 +241,7 @@ export const publicationItemsOf = (kinds: readonly MethodKind[]): PublicationIte
     items.push('passportIdentifier')
   }
   if (kinds.includes('aadhaar')) {
-    items.push('aadhaar')
+    items.push('aadhaarIdentifier')
   }
   return items
 }
@@ -323,7 +311,7 @@ export const privacyLinesOf = (
     ]
   }
   if (level === 'shape-visible') {
-    const kindOfMethod = (method: Address) => methodKindOf(method, addressBook)
+    const kindOfMethod = (method: Address) => methodKindIn(addressBook.methods, method)
     const shape = renderShapeSentence(
       draft.clauses,
       { skipMemberlessClauses: true, kindOfMethod },

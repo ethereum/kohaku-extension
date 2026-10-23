@@ -34,7 +34,13 @@ import { isSaveInFlightRefusal } from '@web/modules/social-recovery/shared/recor
 import { startDraft } from './draft'
 import { cardRuleLines, shapeRowsOf } from './lines'
 import { PRESETS } from './presets'
-import { draftAgeLine, notStartedRowsOf, notYetActiveOf, resumeRowsOf } from './resume'
+import {
+  draftAgeLine,
+  holdsPasskeyOf,
+  notStartedRowsOf,
+  notYetActiveOf,
+  resumeRowsOf
+} from './resume'
 import type {
   Preset,
   PresetChoice,
@@ -56,6 +62,7 @@ const PresetsView = ({ records, chainId, account, onOpenEditor, onRecover }: Pre
   const [resumeRows, setResumeRows] = useState<ResumeRow[]>([])
   const [notYetActive, setNotYetActive] = useState<ResumeNote | null>(null)
   const [notStartedRows, setNotStartedRows] = useState<ResumeRow[]>([])
+  const [holdsPasskey, setHoldsPasskey] = useState(false)
   const [picked, setPicked] = useState<PresetChoice | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -74,7 +81,8 @@ const PresetsView = ({ records, chainId, account, onOpenEditor, onRecover }: Pre
       savedAt: at,
       rows: resumeRowsOf(enrolled, book, t),
       notYetActive: notYetActiveOf(enrolled, book, t),
-      notStarted: notStartedRowsOf(clauses, enrolled, book, t)
+      notStarted: notStartedRowsOf(clauses, enrolled, book, t),
+      holdsPasskey: holdsPasskeyOf(enrolled, book)
     }
   }, [records, setup, chainId, account, t])
 
@@ -82,6 +90,7 @@ const PresetsView = ({ records, chainId, account, onOpenEditor, onRecover }: Pre
     setResumeRows(loaded.rows)
     setNotYetActive(loaded.notYetActive)
     setNotStartedRows(loaded.notStarted)
+    setHoldsPasskey(loaded.holdsPasskey)
     setSavedAt(loaded.savedAt)
   }, [])
 
@@ -332,7 +341,13 @@ const PresetsView = ({ records, chainId, account, onOpenEditor, onRecover }: Pre
             hasBottomSpacing={false}
           />
         }
-        note={t('socialRecovery.records.startOverNote')}
+        note={
+          holdsPasskey
+            ? `${t('socialRecovery.records.startOverNote')} ${t(
+                'socialRecovery.records.startOverPasskeyNote'
+              )}`
+            : t('socialRecovery.records.startOverNote')
+        }
       />
     </SectionCard>
   )

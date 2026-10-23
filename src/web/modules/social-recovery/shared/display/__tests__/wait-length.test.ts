@@ -14,9 +14,9 @@ describe('a waiting period length', () => {
 
   it('reads whole minutes under one hour, rounded down', () => {
     const { calls, t } = recorded()
-    renderWaitLength(300n, t)
-    renderWaitLength(3599n, t)
-    renderWaitLength(59n, t)
+    renderWaitLength(300, t)
+    renderWaitLength(3599, t)
+    renderWaitLength(59, t)
     expect(calls).toEqual([
       ['socialRecovery.display.remainingMinutes', { count: 5 }],
       ['socialRecovery.display.remainingMinutes', { count: 59 }],
@@ -26,9 +26,9 @@ describe('a waiting period length', () => {
 
   it('reads whole hours alone, and hours with their minutes otherwise', () => {
     const { calls, t } = recorded()
-    renderWaitLength(3600n, t)
-    renderWaitLength(86_400n + 59n, t)
-    renderWaitLength(3900n, t)
+    renderWaitLength(3600, t)
+    renderWaitLength(86_400 + 59, t)
+    renderWaitLength(3900, t)
     expect(calls).toEqual([
       ['socialRecovery.display.remainingHours', { count: 1 }],
       ['socialRecovery.display.remainingHours', { count: 24 }],
@@ -46,12 +46,12 @@ describe('a waiting period length', () => {
 
   it('renders the English through en.json, with its plural', () => {
     const t: Translate = (key, options) => String(i18n.t(key, options))
-    expect(renderWaitLength(300n, t)).toBe('5 minutes')
-    expect(renderWaitLength(60n, t)).toBe('1 minute')
-    expect(renderWaitLength(86_400n, t)).toBe('24 hours')
-    expect(renderWaitLength(3600n, t)).toBe('1 hour')
-    expect(renderWaitLength(3900n, t)).toBe('1 hour 5 minutes')
-    expect(renderWaitLength(9000n, t)).toBe('2 hours 30 minutes')
-    expect(renderWaitLength(3660n, t)).toBe('1 hour 1 minute')
+    expect(renderWaitLength(300, t)).toBe('5 minutes')
+    expect(renderWaitLength(60, t)).toBe('1 minute')
+    expect(renderWaitLength(86_400, t)).toBe('24 hours')
+    expect(renderWaitLength(3600, t)).toBe('1 hour')
+    expect(renderWaitLength(3900, t)).toBe('1 hour 5 minutes')
+    expect(renderWaitLength(9000, t)).toBe('2 hours 30 minutes')
+    expect(renderWaitLength(3660, t)).toBe('1 hour 1 minute')
   })
 })

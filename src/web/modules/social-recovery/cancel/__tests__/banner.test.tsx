@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import type { Account } from '@ambire-common/interfaces/account'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import type { WatcherRecord } from '@web/modules/social-recovery/watcher'
 
 // viem builds a TextEncoder and a TextDecoder when either entry loads, which
@@ -61,6 +61,7 @@ const openRecord = (
       newKey: NEW_KEY,
       ...attempt
     },
+    deployment: watcherFixtures.DEPLOYMENT,
     ...overrides
   },
   dismissed: []
@@ -260,7 +261,7 @@ describe('the recovery banner', () => {
       pollOnce({
         account,
         network: { chainId: BigInt(SEPOLIA) } as never,
-        deployment: () => ({} as never),
+        deployment: () => watcherFixtures.DEPLOYMENT as never,
         connect: () => ({ reads: chain.reads, providerKey: 'test', destroy }),
         storage: world.storage
       })

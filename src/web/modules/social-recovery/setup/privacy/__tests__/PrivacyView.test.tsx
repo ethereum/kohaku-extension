@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import type { Clause, Credential, SetupDraft } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Clause, Credential, SetupDraft } from '@kohaku-eth/social-recovery'
 import type { WalletRecords } from '@web/modules/social-recovery/shared/records'
 
 import type {
@@ -14,6 +14,7 @@ import {
   draftOf,
   harnessOf,
   holdReads,
+  readPublicNote,
   recordsOn
 } from '@web/modules/social-recovery/setup/privacy/__tests__/harness'
 
@@ -29,9 +30,6 @@ const {
   WALLET_RECOVERY_CHAIN
 }: typeof import('@web/modules/social-recovery/shared/client') = require('@web/modules/social-recovery/shared/client')
 const {
-  readPublicNote
-}: typeof import('@web/modules/social-recovery/sdk-doubles') = require('@web/modules/social-recovery/sdk-doubles')
-const {
   PASSWORD_SET,
   readRecoveryPassword,
   setRecoveryPassword,
@@ -39,6 +37,9 @@ const {
 }: typeof import('@web/modules/social-recovery/shared/records') = require('@web/modules/social-recovery/shared/records')
 const PrivacyView: typeof import('@web/modules/social-recovery/setup/privacy/PrivacyView').default =
   require('@web/modules/social-recovery/setup/privacy/PrivacyView').default
+const {
+  kindOfMethodIn
+}: typeof import('@web/modules/social-recovery/setup/privacy/exposure') = require('@web/modules/social-recovery/setup/privacy/exposure')
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
 
 const L = en.socialRecovery.privacy.level
@@ -305,9 +306,9 @@ describe('the privacy step', () => {
     const PUBLICATION =
       'A recovery publishes the rule with its waiting period and every method in it, so every method of your path is exposed, the ones it used and the ones it did not.'
     const UNGUESSABLE =
-      'Your passkey and your passport cannot be guessed at all and lose nothing before a recovery.'
+      'Your passkey and the identifier your passport produces cannot be guessed at all and lose nothing before a recovery.'
 
-    it('a path with guardian slots carries the guardian half and names the passkey and the passport', async () => {
+    it('a path with guardian slots carries the guardian half and names the passkey and the identifier of the passport', async () => {
       await h.mount(await withDraft({ clauses: GUARDIAN_SLOTS_BESIDE_PASSKEY_AND_PASSPORT }))
       expect(h.byTestId('exposure-guardians')?.textContent).toBe(GUARDIANS)
       expect(h.byTestId('exposure-unguessable')?.textContent).toBe(UNGUESSABLE)
@@ -323,13 +324,13 @@ describe('the privacy step', () => {
       expect(h.byTestId('exposure-unguessable')?.textContent).toBe(UNGUESSABLE)
     })
 
-    it('a guardian beside an Aadhaar identity names the Aadhaar identity alone', async () => {
+    it('a guardian beside an Aadhaar identity names its identifier alone', async () => {
       await h.mount(
         await withDraft({ clauses: [{ threshold: 2, credentials: [guardian, aadhaar] }] })
       )
       expect(h.byTestId('exposure-guardians')?.textContent).toBe(GUARDIANS)
       expect(h.byTestId('exposure-unguessable')?.textContent).toBe(
-        fill(L.exposure.unguessableOne, { items: S.disclosures.itemsLead.aadhaar })
+        fill(L.exposure.unguessableOne, { items: S.disclosures.itemsLead.aadhaarIdentifier })
       )
     })
 
@@ -342,13 +343,13 @@ describe('the privacy step', () => {
       )
     })
 
-    it('a passkey and a passport beside a guardian take the plural line and name both', async () => {
+    it('a passkey and a passport beside a guardian take the plural line and name the passkey and the identifier of the passport', async () => {
       await h.mount(await withDraft({ clauses: PASSKEY_PASSPORT_AND_GUARDIAN }))
       expect(h.byTestId('exposure-unguessable')?.textContent).toBe(
         fill(L.exposure.unguessable, {
           items: fill(S.disclosures.items.pair, {
             first: S.disclosures.itemsLead.passkey,
-            second: S.disclosures.items.passport
+            second: S.disclosures.items.passportIdentifier
           })
         })
       )
@@ -377,7 +378,7 @@ describe('the privacy step', () => {
         })
       )
       expect(h.byTestId('exposure-unguessable')?.textContent).toBe(
-        'Your passkey, your passport and your Aadhaar identity cannot be guessed at all and lose nothing before a recovery.'
+        'Your passkey, the identifier your passport produces and the identifier your Aadhaar produces cannot be guessed at all and lose nothing before a recovery.'
       )
     })
 
@@ -557,7 +558,7 @@ describe('the privacy step', () => {
       expect(readPublicNote(draft.privacy.publicMetadata)).toEqual({
         kind: 'shape',
         shape: {
-          wait: draft.wait,
+          wait: BigInt(draft.wait),
           ignoresPause: draft.ignoresPause,
           clauses: [{ threshold: 2, methods: [passkey.method, passport.method, guardian.method] }]
         }
@@ -633,14 +634,14 @@ describe('the privacy step', () => {
 
     it('continue with no draft starts one with a sealed backup beside a note that reads back as Shape visible', async () => {
       const records = recordsOn()
-      await records.setup(CHAIN_ID, ACCOUNT).waitingPeriod.write(259200n)
+      await records.setup(CHAIN_ID, ACCOUNT).waitingPeriod.write(259200)
       await h.mount(records)
       await h.press('level-shape-visible')
       await typePasswords('correct horse', 'correct horse')
       await h.press('continue')
       const draft = await storedDraft(records)
       expect(draft.clauses).toEqual([])
-      expect(draft.wait).toBe(259200n)
+      expect(draft.wait).toBe(259200)
       expect(draft.privacy.backup).toBe('encrypted')
       expect(draft.privacy.publicMetadata).not.toBe('0x')
       expect(privacyLevelOf(draft.privacy)).toBe('shape-visible')
@@ -652,9 +653,9 @@ describe('the privacy step', () => {
     it('continue carries the stored waiting period into the note', async () => {
       const records = recordsOn()
       const setup = records.setup(CHAIN_ID, ACCOUNT)
-      await setup.waitingPeriod.write(259200n)
+      await setup.waitingPeriod.write(259200)
       await setup.setupDraft.write(
-        draftOf({ wait: 259200n, clauses: PASSKEY_PASSPORT_AND_GUARDIAN })
+        draftOf({ wait: 259200, clauses: PASSKEY_PASSPORT_AND_GUARDIAN })
       )
       await h.mount(records)
       await h.press('level-shape-visible')
@@ -699,13 +700,13 @@ describe('the privacy step', () => {
 
     it('continue with no draft starts one in the clear that carries the stored waiting period', async () => {
       const records = recordsOn()
-      await records.setup(CHAIN_ID, ACCOUNT).waitingPeriod.write(259200n)
+      await records.setup(CHAIN_ID, ACCOUNT).waitingPeriod.write(259200)
       await h.mount(records)
       await h.press('level-public')
       await h.press('continue')
       const draft = await storedDraft(records)
       expect(draft.privacy.backup).toBe('clear')
-      expect(draft.wait).toBe(259200n)
+      expect(draft.wait).toBe(259200)
       expect(draft.clauses).toEqual([])
       expect(await flagOf(records)).toBeUndefined()
       expect(h.navigate).toHaveBeenCalledWith(WEB_ROUTES.socialRecoverySetupReview)
@@ -914,5 +915,17 @@ describe('the privacy step', () => {
       expect(await flagOf(records)).toBeUndefined()
       expect(readRecoveryPassword(CHAIN_ID, ACCOUNT)).toBeUndefined()
     })
+  })
+})
+
+describe('the kind a method address serves', () => {
+  it('gives the zero address no kind where the deployment omits a method', () => {
+    const book = addressBookOf(WALLET_RECOVERY_CHAIN)
+    const omitted = {
+      ...book,
+      methods: { ...book.methods, zkpassport: '0x0000000000000000000000000000000000000000' }
+    } as const
+    expect(kindOfMethodIn(omitted)('0x0000000000000000000000000000000000000000')).toBeUndefined()
+    expect(kindOfMethodIn(omitted)(book.methods.passkey)).toBe('passkey')
   })
 })

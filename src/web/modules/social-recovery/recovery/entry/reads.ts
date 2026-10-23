@@ -6,7 +6,7 @@
  * An account with no code and no creation record names no removed key; that
  * answer is the account's refusal, like every other key the wallet cannot name.
  */
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 import type { DestinationAnswers, EntryKitClient, FitAnswers } from './types'
 

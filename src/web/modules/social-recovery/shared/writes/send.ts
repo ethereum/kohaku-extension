@@ -17,7 +17,7 @@
  * Every answer carries the run it was started for, so the machine drops the
  * answers of a run the holder left behind.
  */
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 
 import { receiptOf } from './classify'
 import type { AccountBatchDrive, DriveRun, SendDrive } from './types'

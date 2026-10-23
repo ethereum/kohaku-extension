@@ -18,7 +18,7 @@
  * stored write is read again whenever the tab comes back into view.
  */
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
@@ -26,7 +26,9 @@ import { useTranslation } from '@common/config/localization'
 import useNavigation from '@common/hooks/useNavigation'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import spacings from '@common/styles/spacings'
+import ConfirmingBlock from '@web/modules/social-recovery/management/overview/ConfirmingBlock'
 import { OVERVIEW } from '@web/modules/social-recovery/management/overview/constants'
+import { useHeldKeys } from '@web/modules/social-recovery/management/overview/useHeldKeys'
 import { useOverviewReads } from '@web/modules/social-recovery/management/overview/useOverviewReads'
 import { PageTitle } from '@web/modules/social-recovery/shared/chrome'
 import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
@@ -64,7 +66,15 @@ export const RemoveStageView = ({
 }: EditStageProps) => {
   const { t } = useTranslation()
   const clientState = useRecoveryClient(account)
-  const reads = useOverviewReads({ client: clientState, records, chainId, account })
+  const heldKeys = useHeldKeys()
+  const reads = useOverviewReads({
+    client: clientState,
+    records,
+    watcherStorage: extensionRecordStorage,
+    chainId,
+    account,
+    heldKeys
+  })
   const kit = clientState.status === 'ready' ? clientState.client : null
   // The attempt as the removal last read it before the send; a new read of the overview's facts replaces it.
   const [attemptRead, setAttemptRead] = useState<AttemptRead | null>(null)
@@ -200,7 +210,12 @@ export const RemoveStageView = ({
         style={spacings.mbSm}
         text={t(`${REMOVE}.warning`)}
       />
-      <ReadsGate reads={reads} needsPath={false} testID="manage-remove-reads">
+      <ReadsGate
+        reads={reads}
+        needsPath={false}
+        onControlMoved={arrives && held.status === 'none' ? toOverview : undefined}
+        testID="manage-remove-reads"
+      >
         {screen === 'disagreed' && check.status === 'failed' && (
           <ReadFailedBlock
             testID="manage-remove-check-failed"
@@ -224,9 +239,7 @@ export const RemoveStageView = ({
             onRetry={run.reread}
           />
         )}
-        {screen === 'confirming' && <ActivityIndicator testID="manage-remove-confirming" />}
-        {screen === 'run' && <RemoveRun run={run} attemptOpen={attemptOpen} keep={keep} />}
-        {arrives && (
+        {(arrives || screen === 'run' || screen === 'confirming') && (
           <RemoveArrival
             heldFailed={held.status === 'failed'}
             onRetryHeld={retryHeld}
@@ -241,6 +254,18 @@ export const RemoveStageView = ({
             onRemove={run.start}
             onLookAgain={run.lookAgain}
             keep={keep}
+            run={
+              screen === 'run' ? (
+                <RemoveRun run={run} attemptOpen={attemptOpen} keep={keep} />
+              ) : screen === 'confirming' ? (
+                <ConfirmingBlock
+                  transactionHash={
+                    state.write.status === 'landed' ? state.write.transactionHash : undefined
+                  }
+                  testID="manage-remove-confirming"
+                />
+              ) : undefined
+            }
           />
         )}
       </ReadsGate>

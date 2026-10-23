@@ -7,7 +7,7 @@
 import { mainnet, sepolia } from 'viem/chains'
 
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 import { deploymentOf, type RecoveryChain } from '@web/modules/social-recovery/shared/client'
 import type { CardLevel } from '@web/modules/social-recovery/setup/card'
 

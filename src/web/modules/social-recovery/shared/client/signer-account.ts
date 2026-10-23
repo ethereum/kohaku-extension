@@ -12,7 +12,7 @@ import { bytesToHex, stringToHex } from 'viem'
 import type { LocalAccount, SignableMessage, TypedDataDefinition } from 'viem'
 import { toAccount } from 'viem/accounts'
 
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 
 import type { KeyHandle, SignerFacade, TypedDataToSign } from './types'
 

@@ -2,12 +2,13 @@
  * The submission as it stands once it started: the gas check, the deposit
  * step that reads the balance again by itself, the shared submitting and
  * failed states in the submission's own words, the refusal for an attempt
- * already running with no retry, the read after a landed receipt, and a
+ * already running with no retry, the landed hash while the read after its
+ * receipt runs, and a
  * start the network dropped, offered again. The submitting state leaves its
  * sentence to the page's lead.
  */
 import React from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
@@ -16,6 +17,8 @@ import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { SectionCard } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
+import { renderHash } from '@web/modules/social-recovery/shared/display'
 import { mayStillLand } from '@web/modules/social-recovery/shared/writes'
 import DepositStepView from '@web/modules/social-recovery/shared/writes/components/DepositStepView'
 import WriteStateView from '@web/modules/social-recovery/shared/writes/components/WriteStateView'
@@ -58,7 +61,22 @@ const RunBlock = ({ run, onStart, onCheckAgain, onReread, onBack }: RunBlockProp
         </View>
       )
     }
-    return <ActivityIndicator testID="submit-confirming" />
+    return (
+      <SectionCard testID="submit-confirming">
+        {write.status === 'landed' && (
+          <Text
+            fontSize={14}
+            weight="number_medium"
+            selectable
+            style={spacings.mbTy}
+            testID="submit-confirming-hash"
+          >
+            {renderHash(write.transactionHash)}
+          </Text>
+        )}
+        <LoadingBlock variant="block" message={t('socialRecovery.loading.landed')} />
+      </SectionCard>
+    )
   }
 
   if (run.refusal || revertedRunning(write)) {

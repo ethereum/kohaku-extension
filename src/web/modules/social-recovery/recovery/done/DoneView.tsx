@@ -1,9 +1,9 @@
 /**
  * The done screen over given props. Until the consume event's read answers it
- * renders loading; a failed read renders failed with retry; a read that found
- * no consume renders nothing of done (the screen goes back to the wait). The
- * done text waits for the add of the recovered account to this wallet and
- * renders its failure with retry.
+ * says the recovery finishes; a failed read renders failed with retry; a read
+ * that found no consume renders nothing of done (the screen goes back to the
+ * wait). The done text waits, with a line that names it, for the add of the
+ * recovered account to this wallet and renders its failure with retry.
  *
  * Then: the account is the holder's again since the consume's block time; the
  * account with the set-up chip; the key that now controls it as the consume's
@@ -15,7 +15,7 @@
  * the last act. Beside them: what the recovery did and the new key's one limit.
  */
 import React from 'react'
-import { ActivityIndicator, View } from 'react-native'
+import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
@@ -33,6 +33,7 @@ import {
   StatusChip,
   TwoColumn
 } from '@web/modules/social-recovery/shared/chrome'
+import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import {
   renderApprovalValueName,
   renderChip,
@@ -93,9 +94,9 @@ const DoneView = ({
   }
   if (read.status === 'pending' || read.reading.kind === 'none' || !summary) {
     return (
-      <TwoColumn testID="done-columns">
-        <ActivityIndicator testID="done-loading" />
-      </TwoColumn>
+      <View testID="done-loading" style={flexbox.flex1}>
+        <LoadingBlock variant="screen" message={t('socialRecovery.loading.finishing')} />
+      </View>
     )
   }
   const { event } = read.reading
@@ -105,7 +106,9 @@ const DoneView = ({
       <TwoColumn testID="done-columns">
         <View testID="done-adding">
           <PageTitle title={t(`${DONE}.title`)} titleTestID="done-title" />
-          <ActivityIndicator testID="done-add-loading" />
+          <View testID="done-add-loading">
+            <LoadingBlock variant="block" message={t('socialRecovery.loading.addingAccount')} />
+          </View>
         </View>
       </TwoColumn>
     )

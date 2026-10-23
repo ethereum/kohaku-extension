@@ -12,7 +12,7 @@
  * The port and the wait are the fakes of harness.ts. The refusals are the
  * client's own, and the wait errors are ethers' shapes the harness builds.
  */
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 import {
   accountBatchRefusal,
   SEND_REFUSAL_REASONS,

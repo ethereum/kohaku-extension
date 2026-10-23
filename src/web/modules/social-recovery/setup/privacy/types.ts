@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react'
 
-import type { Address, PrivacyLevel } from '@web/modules/social-recovery/sdk-interfaces'
-import type { AddressBook } from '@web/modules/social-recovery/shared/client'
+import type { Address } from '@kohaku-eth/social-recovery'
+import type { PrivacyLevel, AddressBook } from '@web/modules/social-recovery/shared/client'
 import type { ChainId, WalletRecords } from '@web/modules/social-recovery/shared/records'
 
 /** The fixed chips of the picker. */

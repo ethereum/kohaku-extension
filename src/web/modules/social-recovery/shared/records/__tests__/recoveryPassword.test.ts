@@ -7,7 +7,7 @@
  * and `remove` calls, single or batched, so a test sees every storage write a
  * holder call makes.
  */
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 import {
   ABSENT,
   ChainId,

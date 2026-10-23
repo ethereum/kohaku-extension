@@ -5,7 +5,7 @@
  * an icon in its tone beside its text; and the passkey name and the guardian
  * address take a neutral focus, not the colours of an error.
  */
-import type { Address, Clause, Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address, Clause, Hex } from '@kohaku-eth/social-recovery'
 
 import type {
   CheckTone,
@@ -27,6 +27,18 @@ import {
   t,
   THEME
 } from '@web/modules/social-recovery/setup/enroll/__tests__/harness'
+
+// The spinner's animation needs a native module jsdom lacks; a plain view stands in.
+jest.mock('@common/components/Spinner', () => {
+  /* eslint-disable @typescript-eslint/no-var-requires, global-require */
+  const mockReact: typeof import('react') = require('react')
+  const { View: MockView }: typeof import('react-native') = require('react-native')
+  /* eslint-enable @typescript-eslint/no-var-requires, global-require */
+  return {
+    __esModule: true,
+    default: () => mockReact.createElement(MockView, { testID: 'spinner' })
+  }
+})
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const {

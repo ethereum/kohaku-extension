@@ -23,7 +23,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 import { listsWithKey, recoveredAccountOf } from './account'
 import { ADD_LIMIT_MS } from './constants'

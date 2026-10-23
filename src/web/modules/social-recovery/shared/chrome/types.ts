@@ -59,6 +59,8 @@ export interface EntryReadFallbackProps {
   /** The string keys of the failed read's title and line. */
   titleKey: string
   bodyKey: string
+  /** The string key of the line that says what the screen opens while the record is read. */
+  loadingKey: string
   failed: boolean
   onRetry: () => void
 }
@@ -72,6 +74,20 @@ export interface ReadFailedBlockProps {
   retryTestID?: string
   /** Lines under the body, above the retry. */
   children?: ReactNode
+}
+
+/** Where a wait sits: the whole screen, a card or section, or one line. */
+export type LoadingVariant = 'screen' | 'block' | 'row'
+
+export interface LoadingBlockProps {
+  /** What the screen reads or does, already translated. */
+  message: string
+  variant: LoadingVariant
+}
+
+export interface RefreshingLineProps {
+  /** The string key of the line; the plain refreshing line when none is given. */
+  messageKey?: string
 }
 
 export interface PageTitleProps {
@@ -162,6 +178,8 @@ export interface TwoColumnProps {
   children: ReactNode
   /** The cards that only inform, drawn in the narrower column beside the main one. */
   aside?: ReactNode
+  /** Grows both the columns and the main one to the height they are given. */
+  grow?: boolean
   testID?: string
 }
 

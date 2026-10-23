@@ -7,7 +7,7 @@ import {
   checklistPathOf as routedChecklistPathOf,
   readoutPathOf as routedReadoutPathOf
 } from '@web/modules/social-recovery/recovery/checklist/search'
-import type { Address } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Address } from '@kohaku-eth/social-recovery'
 
 import { FRESH_INSTALL_ROUTE } from './constants'
 

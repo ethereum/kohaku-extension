@@ -19,6 +19,8 @@ import {
   readyClient,
   reloadAccountStep,
   kit,
+  DEPLOYMENT,
+  gatheringFor,
   LOST,
   LOST_KEY,
   MODULE,
@@ -50,6 +52,8 @@ import {
 } from '@web/modules/social-recovery/recovery/entry/__tests__/harness'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 
+// A manager this build no longer reads.
+const RETIRED_MANAGER = '0x00000000000000000000000000000000000Dead1' as const
 const LOGGED_IN = searchOf('logged-in', BASIC)
 const FRESH_INSTALL = searchOf('fresh-install', SMART)
 const NO_SETUP_SENTENCE = t('socialRecovery.entry.noSetup.title', { network: NETWORK })
@@ -165,6 +169,25 @@ describe('the account field', () => {
     await page.press('entry-account-name-error-retry')
     expect(page.has('entry-confirm')).toBe(true)
     expect(page.textOf('entry-confirm-address')).toBe(LOST)
+  })
+
+  it('says it looks the name up beside the held lookup while the name has not resolved', async () => {
+    const held = deferred<string>()
+    resolveName.mockImplementationOnce(() => held.promise)
+    const page = await open(LOGGED_IN)
+    await lookUp(page, 'lost.eth')
+    expect(page.textOf('entry-account-resolving')).toBe(
+      t('socialRecovery.entry.account.lookingUp', { network: NETWORK })
+    )
+    expect(
+      page.byTestId('entry-account-resolving')?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
+    expect(page.isDisabled('entry-account-look-up')).toBe(true)
+    expect(kit.setupState).not.toHaveBeenCalled()
+
+    await outside(() => held.resolve(LOST))
+    expect(page.has('entry-account-resolving')).toBe(false)
+    expect(page.has('entry-confirm')).toBe(true)
   })
 
   it('renders a failed read for a resolver that throws, never the no-setup sentence', async () => {
@@ -300,6 +323,9 @@ describe('the lookup', () => {
     const page = await open(LOGGED_IN)
     await lookUp(page, LOST.toLowerCase())
     expect(page.has('entry-lookup-loading')).toBe(true)
+    expect(
+      page.byTestId('entry-lookup-loading')?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
     expect(page.text()).toContain(t('socialRecovery.entry.account.lookingUp', { network: NETWORK }))
     expectNoNoSetup(page)
     expect(page.has('entry-confirm')).toBe(false)
@@ -490,9 +516,46 @@ describe('the confirmation', () => {
     expect(await storedEntry(LOST)).toEqual({
       account: LOST,
       route: 'fresh-install',
-      receivingAccount: SMART
+      receivingAccount: SMART,
+      deployment: DEPLOYMENT
     })
     expect(kit.isAuthorized).not.toHaveBeenCalled()
+  })
+
+  it('resumes no recovery whose entry and live session run on a retired manager, and writes its own entry', async () => {
+    const retired = { ...DEPLOYMENT, manager: RETIRED_MANAGER }
+    const held = records()
+    await held.recoveryEntry(CHAIN_ID, LOST).write({
+      account: LOST,
+      route: 'fresh-install',
+      receivingAccount: SMART,
+      deployment: retired
+    })
+    const old = gatheringFor(LOST)
+    await held
+      .recoverySession(CHAIN_ID, LOST)
+      .write({ ...old, request: { ...old.request, manager: RETIRED_MANAGER } } as typeof old, null)
+    const page = await open(LOGGED_IN)
+    await confirmLost(page)
+    expect(navigationsAway()).toEqual([])
+    expect(await storedEntry(LOST)).toEqual({
+      account: LOST,
+      route: 'logged-in',
+      receivingAccount: BASIC,
+      deployment: DEPLOYMENT
+    })
+    expect(page.has('entry-continue')).toBe(true)
+  })
+
+  it('resumes no recovery whose entry an earlier build wrote with no deployment', async () => {
+    await storeLiveRecovery(LOST, { route: 'fresh-install', receivingAccount: SMART })
+    await records()
+      .recoveryEntry(CHAIN_ID, LOST)
+      .write({ account: LOST, route: 'fresh-install', receivingAccount: SMART })
+    const page = await open(LOGGED_IN)
+    await confirmLost(page)
+    expect(navigationsAway()).toEqual([])
+    expect((await storedEntry(LOST))?.deployment).toEqual(DEPLOYMENT)
   })
 
   it('overwrites an entry whose session is no longer live, and reads on', async () => {
@@ -503,7 +566,8 @@ describe('the confirmation', () => {
     expect(await storedEntry(LOST)).toEqual({
       account: LOST,
       route: 'logged-in',
-      receivingAccount: BASIC
+      receivingAccount: BASIC,
+      deployment: DEPLOYMENT
     })
     expect(kit.isAuthorized).toHaveBeenCalledTimes(1)
     expect(page.has('entry-continue')).toBe(true)
@@ -536,17 +600,25 @@ describe('the confirmation', () => {
     expect(storage.set).toHaveBeenCalledTimes(1)
     expect(kit.isAuthorized).not.toHaveBeenCalled()
     expect(kit.supportsAccount).not.toHaveBeenCalled()
+    expect(page.textOf('entry-confirm-writing')).toBe(t('socialRecovery.loading.session'))
+    expect(
+      page.byTestId('entry-confirm-writing')?.querySelector('[data-testid="loading-row"]')
+    ).not.toBeNull()
+    expect(page.isDisabled('entry-confirm-mine')).toBe(true)
+    expect(page.isDisabled('entry-confirm-not-mine')).toBe(true)
 
     // A second press while the write runs writes nothing more.
     await page.press('entry-confirm-mine')
     expect(storage.set).toHaveBeenCalledTimes(1)
 
     await outside(() => storage.hold?.resolve())
+    expect(page.has('entry-confirm-writing')).toBe(false)
     const entry = await records().recoveryEntry(CHAIN_ID, LOST).read()
     expect(entry.status === 'present' && entry.value).toEqual({
       account: LOST,
       route: 'logged-in',
-      receivingAccount: BASIC
+      receivingAccount: BASIC,
+      deployment: DEPLOYMENT
     })
     expect(kit.isAuthorized).toHaveBeenCalledTimes(1)
     expect(page.has('entry-continue')).toBe(true)
@@ -559,7 +631,8 @@ describe('the confirmation', () => {
     expect(entry.status === 'present' && entry.value).toEqual({
       account: LOST,
       route: 'fresh-install',
-      receivingAccount: SMART
+      receivingAccount: SMART,
+      deployment: DEPLOYMENT
     })
   })
 
@@ -624,12 +697,20 @@ describe('the authorization read', () => {
     expect(page.has('entry-continue')).toBe(true)
   })
 
-  it('shows the authorization read running until it returns', async () => {
+  it('shows the authorization read running, named for its stage, until it returns', async () => {
     const held = deferred<boolean>()
     kit.isAuthorized.mockReturnValueOnce(held.promise)
     const page = await open(LOGGED_IN)
     await confirmLost(page)
     expect(page.has('entry-reads-authorization-loading')).toBe(true)
+    expect(page.textOf('entry-reads-authorization-loading')).toBe(
+      t('socialRecovery.entry.confirm.readingAuthorization')
+    )
+    expect(
+      page
+        .byTestId('entry-reads-authorization-loading')
+        ?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
     expectNoContinue(page)
     await outside(() => held.resolve(true))
     expect(page.has('entry-continue')).toBe(true)
@@ -789,6 +870,25 @@ describe('the destination key', () => {
 
     await page.press('entry-reads-destination-failed-retry')
     expect(kit.supportsAccount).toHaveBeenCalledTimes(1)
+    expect(page.has('entry-continue')).toBe(true)
+  })
+
+  it('shows the destination read running, named for its stage, until it returns', async () => {
+    const held = deferred<boolean>()
+    kit.holdsAnyPrivilege.mockReturnValueOnce(held.promise)
+    const page = await open(LOGGED_IN)
+    await confirmLost(page)
+    expect(page.textOf('entry-reads-destination-loading')).toBe(
+      t('socialRecovery.entry.confirm.readingDestination')
+    )
+    expect(
+      page
+        .byTestId('entry-reads-destination-loading')
+        ?.querySelector('[data-testid="loading-block"]')
+    ).not.toBeNull()
+    expect(page.has('entry-destination-refusal')).toBe(false)
+    expectNoContinue(page)
+    await outside(() => held.resolve(false))
     expect(page.has('entry-continue')).toBe(true)
   })
 })

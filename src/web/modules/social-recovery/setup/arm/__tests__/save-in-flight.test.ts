@@ -1127,7 +1127,7 @@ describe('a follower checks with the draft the stored save sent', () => {
   it('stores at the claim the draft the save commits, with its shape note rebuilt, and a follower checks with that draft', async () => {
     const storage = memoryStorage()
     const requests = requestsFake()
-    const stale = shapeNoteOf({ clauses: [], wait: 1n, ignoresPause: true })
+    const stale = shapeNoteOf({ clauses: [], wait: 1, ignoresPause: true })
     const first = wireSave(account, script({ publicMetadata: stale }), { storage, requests })
     first.receipts.wait.mockImplementation(() => pending())
     unawaited(startSave(createArmStore(), first.steps, OPTIONS))

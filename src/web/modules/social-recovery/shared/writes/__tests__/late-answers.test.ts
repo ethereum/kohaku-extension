@@ -8,7 +8,7 @@
  * only for a hash the wallet announced: the first one, or a repriced
  * replacement's.
  */
-import type { Hex } from '@web/modules/social-recovery/sdk-interfaces'
+import type { Hex } from '@kohaku-eth/social-recovery'
 
 import {
   canRetry,
