@@ -15,6 +15,7 @@ import {
   renderTokenAmount,
   Translate
 } from '@web/modules/social-recovery/shared/display'
+import type { TranslateCall } from '@web/modules/social-recovery/shared/display/__fixtures__/types'
 
 const expectRefusal = (fn: () => unknown, message: string) => {
   expect(fn).toThrow(TypeError)
@@ -340,7 +341,7 @@ describe('payment order: amount, symbol and payee, or no payment, in one form', 
   })
 
   it('passes the full payee to a translate function given as the third argument', () => {
-    const calls: [string, Record<string, unknown> | undefined][] = []
+    const calls: TranslateCall[] = []
     const t: Translate = (key, options) => {
       calls.push([key, options])
       return `<${key}>`

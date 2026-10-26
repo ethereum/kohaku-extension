@@ -40,7 +40,9 @@ import {
 import type {
   Followed,
   Heard,
-  IdentityWorld
+  IdentityWorld,
+  ConfigChangeCase,
+  IdentityCall
 } from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 import type { ApprovalRequest } from '@web/modules/social-recovery/shared/client/scripted/__fixtures__/types'
 import type { RecoveryKitClient } from '@web/modules/social-recovery/shared/client/types'
@@ -160,7 +162,7 @@ const materialOf = (result: DeviceResult): Material => {
   return result.material
 }
 
-const deviceContext = (call: 'enroll' | 'createClaim', followed: Followed) => ({
+const deviceContext = (call: IdentityCall, followed: Followed) => ({
   call,
   onStep: (step: CeremonyStep) => followed.steps.push(step),
   show: (view: CeremonyView) => followed.views.push(view)
@@ -403,10 +405,7 @@ describe('an Aadhaar credential from enrollment to a claim the node accepts', ()
     ).resolves.toBe('satisfied')
   })
 
-  const CONFIG_CHANGES: [
-    string,
-    { nullifier: bigint; nullifierSeed: bigint; freshnessWindow: bigint }
-  ][] = [
+  const CONFIG_CHANGES: ConfigChangeCase[] = [
     ['another nullifier', { nullifier: 23n, nullifierSeed: 1n, freshnessWindow: 86400n }],
     ['another seed', { nullifier: 22n, nullifierSeed: 2n, freshnessWindow: 86400n }],
     ['a window under an hour', { nullifier: 22n, nullifierSeed: 1n, freshnessWindow: 3599n }]

@@ -41,6 +41,12 @@ import {
   stepOf,
   writeReducer
 } from '@web/modules/social-recovery/shared/writes/__tests__/harness'
+import type {
+  AskedCall,
+  EstimateCall,
+  FlagCase,
+  GasWorld
+} from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 const SEPOLIA = { chainId: 11155111n, name: 'Sepolia' } as Network
 
@@ -105,20 +111,15 @@ const spoofOriginNode = ({
   gas,
   factory = ACCOUNT_FACTORY,
   reverts = false
-}: {
-  balance: bigint
-  gas: bigint
-  factory?: Address
-  reverts?: boolean
-}) => {
-  const asked: { from: string; to: string; data: string }[] = []
+}: GasWorld) => {
+  const asked: AskedCall[] = []
   const balanceOf: string[] = []
   const provider = {
     getBalance: async (address: string) => {
       balanceOf.push(address)
       return balance
     },
-    estimateGas: async (call: { from?: unknown; to?: unknown; data?: unknown }) => {
+    estimateGas: async (call: EstimateCall) => {
       const from = String(call.from)
       const to = String(call.to)
       asked.push({ from, to, data: String(call.data) })
@@ -136,7 +137,7 @@ const spoofOriginNode = ({
 }
 
 describe("the gas check of an account's batch, over the library's transaction", () => {
-  const STATES: [string, boolean][] = [
+  const STATES: FlagCase[] = [
     ['with code', true],
     ['with no code yet', false]
   ]

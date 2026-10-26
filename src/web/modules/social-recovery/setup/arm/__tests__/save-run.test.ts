@@ -54,7 +54,6 @@ import {
   DESCRIPTOR,
   draftOf,
   feeReading,
-  HAPPY,
   KEY,
   landedReceipt,
   memoryStorage,
@@ -69,9 +68,19 @@ import {
   smartAccount,
   START_BLOCK,
   TX_HASH,
-  wireSave
+  wireSave,
+  HAPPY
 } from '@web/modules/social-recovery/setup/arm/__tests__/harness'
-import type { SaveScript } from '@web/modules/social-recovery/setup/arm/__tests__/harness'
+import type {
+  SaveScript,
+  BatchCase,
+  DisagreedCase,
+  KeptEndingCase,
+  ReadingCase,
+  RetryCase,
+  SettledCase,
+  TargetedCall
+} from '@web/modules/social-recovery/setup/arm/__tests__/harness'
 
 let account: Account
 
@@ -87,7 +96,7 @@ const script = (overrides: Partial<SaveScript> = {}): SaveScript => ({
 })
 
 describe('the batch the save sends', () => {
-  const CASES: [string, boolean, boolean][] = [
+  const CASES: BatchCase[] = [
     ['not yet authorized, with code', false, true],
     ['not yet authorized, with no code', false, false],
     ['already authorized, with code', true, true],
@@ -105,7 +114,7 @@ describe('the batch the save sends', () => {
       expect(calls).toEqual(authorized ? [COMMIT] : [armingCallOf(wired.account), COMMIT])
       // No call the wallet composed: nothing to the factory, nothing beyond what the client prepared.
       expect(
-        calls.filter((call: { target: string }) =>
+        calls.filter((call: TargetedCall) =>
           sameAddress(call.target, account.creation!.factoryAddr)
         )
       ).toEqual([])
@@ -488,7 +497,7 @@ describe('after the batch landed', () => {
     expect(isSaved(store.state())).toBe(true)
   })
 
-  const DISAGREED: [string, SaveScript['confirm'], 'mismatch' | 'authorization', number][] = [
+  const DISAGREED: DisagreedCase[] = [
     ['an authorization the module does not recognize', 'unauthorized', 'authorization', 1],
     ["the commitment's coded mismatch", 'mismatch', 'mismatch', 1],
     [
@@ -642,7 +651,7 @@ describe('the setup read at the start of every run', () => {
   })
 
   /** Each way a run fails with the retry offered, and how the edge that failed answers on the retry. */
-  const FAILURES: [string, Partial<SaveScript>, (wired: ReturnType<typeof wireSave>) => void][] = [
+  const FAILURES: RetryCase[] = [
     [
       'a setup read that threw',
       { setup: 'throws' },
@@ -1024,7 +1033,7 @@ describe('a receipt wait that failed after the batch was sent', () => {
     expect(wired.saveSetup).not.toHaveBeenCalled()
   })
 
-  const SETTLED: [string, () => Error, 'failedReverted' | 'failedNotSent'][] = [
+  const SETTLED: SettledCase[] = [
     ['reverted', () => minedAndReverted(), 'failedReverted'],
     ['replaced', () => replacedTransaction(), 'failedNotSent']
   ]
@@ -1371,7 +1380,7 @@ describe('the time limit of the first receipt wait', () => {
 })
 
 describe('which ended runs the screen keeps for the next arrival', () => {
-  const ENDINGS: [string, Partial<SaveScript>, boolean][] = [
+  const ENDINGS: KeptEndingCase[] = [
     ['a refusal whose operation may still land', { send: 'not-a-transaction' }, true],
     ['a landed save whose check did not answer', { confirm: 'throws' }, true],
     ['saved', {}, false],
@@ -1393,7 +1402,7 @@ describe('which ended runs the screen keeps for the next arrival', () => {
 })
 
 describe("the sign screen's estimation before a save never sent", () => {
-  const SHORT_READINGS: [string, ReturnType<typeof feeReading>][] = [
+  const SHORT_READINGS: ReadingCase[] = [
     ['an error', feeReading({ error: true })],
     ['no available option', feeReading({ available: false })]
   ]

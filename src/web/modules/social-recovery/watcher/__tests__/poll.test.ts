@@ -39,6 +39,7 @@ import {
   startedEvent,
   stateWith
 } from '@web/modules/social-recovery/watcher/__fixtures__/harness'
+import type { TimeCut } from '@web/modules/social-recovery/watcher/__fixtures__/types'
 
 const NOW = 1_800_000_123_000
 const KIT_ACCOUNT = addressOf('kit-account')
@@ -656,7 +657,7 @@ describe('a poll of the watched accounts', () => {
     expect((await record())?.failed?.message).toBe('node down')
   })
 
-  const timeCuts: { name: string; cut: (chain: ReturnType<typeof scriptedChain>) => void }[] = [
+  const timeCuts: TimeCut[] = [
     {
       name: 'its time read threw',
       cut: (chain) => chain.reads.blockTime.mockRejectedValueOnce(new Error('block refused'))

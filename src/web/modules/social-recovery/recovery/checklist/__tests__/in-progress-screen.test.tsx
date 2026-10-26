@@ -9,7 +9,11 @@
  */
 import type { RecordStorage } from '@web/modules/social-recovery/shared/records'
 
-import type { Mounted } from '@web/modules/social-recovery/recovery/checklist/__tests__/harness'
+import type {
+  Mounted,
+  ChromeCounterProps,
+  StorageMock
+} from '@web/modules/social-recovery/recovery/checklist/__tests__/harness'
 import {
   ACCOUNT,
   each,
@@ -26,7 +30,7 @@ import {
   t
 } from '@web/modules/social-recovery/recovery/checklist/__tests__/harness'
 
-const mockStorage: { current: RecordStorage | null } = { current: null }
+const mockStorage: StorageMock = { current: null }
 const mockViewMounts: string[] = []
 
 // The chrome's account latch is the chrome's own, tested in its folder.
@@ -49,13 +53,7 @@ const mockFrame = (name: string) => {
   const R = jest.requireActual('react')
   return {
     __esModule: true,
-    default: ({
-      children,
-      counter
-    }: {
-      children?: unknown
-      counter?: { testID?: string; step: number; total: number }
-    }) =>
+    default: ({ children, counter }: ChromeCounterProps) =>
       R.createElement(
         'div',
         { 'data-testid': name },

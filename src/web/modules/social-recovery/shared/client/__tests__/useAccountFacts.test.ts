@@ -13,6 +13,11 @@ import useProvidersControllerState from '@web/hooks/useProvidersControllerState'
 import type { Address } from '@kohaku-eth/social-recovery'
 import type { AccountFactsResult } from '@web/modules/social-recovery/shared/client/types'
 import { useAccountFacts } from '@web/modules/social-recovery/shared/client/useAccountFacts'
+import type {
+  AccountStateMembers,
+  ControllerStates,
+  OptionalAccountProps
+} from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 jest.mock('@web/hooks/useAccountsControllerState', () => ({ __esModule: true, default: jest.fn() }))
 jest.mock('@web/hooks/useKeystoreControllerState', () => ({ __esModule: true, default: jest.fn() }))
@@ -67,11 +72,7 @@ const OTHER_LISTED: Account = {
 }
 
 /** One account's state on the recovery chain, as the background pushes it. */
-const onChain = (
-  addr: Address,
-  isDeployed: boolean,
-  members: { nonce?: bigint; balance?: bigint; currentBlock?: bigint } = {}
-) => ({
+const onChain = (addr: Address, isDeployed: boolean, members: AccountStateMembers = {}) => ({
   [String(SEPOLIA)]: {
     accountAddr: addr,
     isDeployed,
@@ -105,7 +106,7 @@ const REFRESH = {
 let root: Root
 let latest: AccountFactsResult | undefined
 
-const Probe = ({ account }: { account: Address | undefined }) => {
+const Probe = ({ account }: OptionalAccountProps) => {
   latest = useAccountFacts(account)
   return null
 }
@@ -117,14 +118,7 @@ const render = async (account: Address | null = ACCOUNT) => {
 }
 
 /** What the controller states hand the hook; a test changes it and renders again. */
-let wallet: {
-  accounts?: Account[]
-  accountStates?: AccountStates
-  areAccountStatesLoading?: boolean
-  keys?: { addr: string; type: string }[]
-  networks?: object[]
-  providers?: Record<string, { isWorking?: boolean }>
-}
+let wallet: ControllerStates
 
 beforeEach(() => {
   wallet = {

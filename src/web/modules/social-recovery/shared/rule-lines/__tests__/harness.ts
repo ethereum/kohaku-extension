@@ -3,6 +3,7 @@
  * read as that part.
  */
 import en from '@common/config/localization/translations/en.json'
+import type { Clause } from '@kohaku-eth/social-recovery'
 
 type SentenceTable = {
   kinds: { passkey: string; passport: string; guardian: string; aadhaar: string; method: string }
@@ -42,3 +43,12 @@ if (expect.getState().testPath === __filename) {
     })
   })
 }
+
+/** A path: its name, its clauses and the lines it earns in order. */
+export type LinedShape = { name: string; clauses: Clause[]; expected: Expected[] }
+
+/** A path that earns no line: its name and its clauses. */
+export type SilentShape = { name: string; clauses: Clause[] }
+
+/** A case's name, the path, and the lines it earns. */
+export type SingleCase = [string, Clause[], Expected[]]

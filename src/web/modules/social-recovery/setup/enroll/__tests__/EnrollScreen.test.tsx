@@ -16,24 +16,23 @@ import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
 import type { Address } from '@kohaku-eth/social-recovery'
 import type { EnrollViewProps } from '@web/modules/social-recovery/setup/enroll/types'
+import type {
+  MountCount,
+  SelectedAccountMock,
+  WalletMock
+} from '@web/modules/social-recovery/setup/enroll/__fixtures__/types'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 // React only runs effects and state updates inside act() when this flag is set.
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 // The selected account as an external store, so a test can switch it.
-const mockSelected: {
-  state: { account: { addr: string } | null }
-  listeners: Set<() => void>
-} = { state: { account: null }, listeners: new Set() }
+const mockSelected: SelectedAccountMock = { state: { account: null }, listeners: new Set() }
 const mockViewRenders: EnrollViewProps[] = []
-const mockViewMounts: { count: number } = { count: 0 }
+const mockViewMounts: MountCount = { count: 0 }
 const mockNavigate = jest.fn()
 // The wallet's listed accounts and stored keys, so a test can give it seeds.
-const mockWallet: {
-  accounts: { addr: string; associatedKeys: string[] }[]
-  keys: { addr: string; type: string; meta?: { fromSeedId?: string } }[]
-} = { accounts: [], keys: [] }
+const mockWallet: WalletMock = { accounts: [], keys: [] }
 
 jest.mock('@web/hooks/useSelectedAccountControllerState', () => ({
   __esModule: true,

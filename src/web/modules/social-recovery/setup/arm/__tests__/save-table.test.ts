@@ -55,7 +55,6 @@ import {
 import {
   arrivalFor,
   CLIENT_CASES,
-  CONFIRM_CASES,
   confirmAgrees,
   confirmation,
   confirmReadsOf,
@@ -64,7 +63,6 @@ import {
   FACTS_CASES,
   GAS_CASES,
   GATE_CASES,
-  HAPPY,
   landedReceipt,
   RETRIES,
   runSave,
@@ -72,18 +70,21 @@ import {
   SHORT_TIMEOUT_MS,
   smartAccount,
   TX_HASH,
-  wireSave
+  wireSave,
+  CONFIRM_CASES,
+  HAPPY
 } from '@web/modules/social-recovery/setup/arm/__tests__/harness'
 import type {
   ArrivalCase,
   Retry,
   Row,
   SaveScript,
-  WiredSave
+  WiredSave,
+  SaveEdges
 } from '@web/modules/social-recovery/setup/arm/__tests__/harness'
 
 /** The send, the receipt and the check, pruned by the second rule. */
-const AFTER_GAS: Pick<SaveScript, 'send' | 'receipt' | 'confirm'>[] = [
+const AFTER_GAS: SaveEdges[] = [
   ...SEND_REFUSAL_REASONS.map((send) => ({
     send,
     receipt: 'landed' as const,

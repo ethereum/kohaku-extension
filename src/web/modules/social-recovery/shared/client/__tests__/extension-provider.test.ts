@@ -2,6 +2,7 @@ import type { Network } from '@ambire-common/interfaces/network'
 import { providerKeyOf } from '@web/modules/social-recovery/shared/client/extension-provider'
 
 import { SEPOLIA } from '@web/modules/social-recovery/shared/client/__tests__/harness'
+import type { NetworkField } from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 const sepolia = (overrides: Partial<Network> = {}): Network =>
   ({
@@ -17,7 +18,7 @@ const sepolia = (overrides: Partial<Network> = {}): Network =>
   } as Network)
 
 describe('providerKeyOf, the key the recovery provider is rebuilt on', () => {
-  const INPUTS: [keyof Network, unknown][] = [
+  const INPUTS: NetworkField[] = [
     ['chainId', 1n],
     ['rpcUrls', ['https://rpc.example/sepolia', 'https://rpc.example/other']],
     ['selectedRpcUrl', 'https://rpc.example/other'],

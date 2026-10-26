@@ -31,6 +31,7 @@ import {
   WALLET_RECOVERY_CHAIN,
   World
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
+import type { FactsProbeProps } from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 jest.mock('@ambire-common/services/provider/getRpcProvider', () => ({
   getRpcProvider: jest.fn()
@@ -75,13 +76,7 @@ let listed: Account[] | undefined
 let latest: HookState | undefined
 let root: Root
 
-const Probe = ({
-  account,
-  facts
-}: {
-  account: Address
-  facts?: Parameters<typeof useRecoveryClient>[1]
-}) => {
+const Probe = ({ account, facts }: FactsProbeProps) => {
   latest = useRecoveryClient(account, facts)
   return null
 }

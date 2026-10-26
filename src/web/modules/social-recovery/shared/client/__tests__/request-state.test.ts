@@ -32,6 +32,7 @@ import {
   SubmittedOperation,
   track
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
+import type { SessionOutcome } from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 const HASH: Hex = `0x${'ab'.repeat(32)}`
 const CALL_HASH: Hex = `0x${'cd'.repeat(32)}`
@@ -486,7 +487,7 @@ describe("a queued request's state, read by another page", () => {
   })
 
   describe('the session closed in every outcome', () => {
-    const OUTCOMES: [string, (w: ReturnType<typeof wallet>) => Promise<void>, string][] = [
+    const OUTCOMES: SessionOutcome<ReturnType<typeof wallet>>[] = [
       ['broadcast', async ({ page }) => page([operationFor(ID, { hash: HASH })]), 'broadcast'],
       [
         'untracked',

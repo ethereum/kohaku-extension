@@ -26,6 +26,10 @@ import {
   createScriptedZkPassportStack
 } from '@web/modules/social-recovery/shared/client/scripted'
 import type { DeploymentFacts } from '@web/modules/social-recovery/shared/client/types'
+import type {
+  GapCase,
+  UndeployedCase
+} from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
   ...jest.requireActual('@web/modules/social-recovery/shared/client/deployment-env'),
@@ -101,7 +105,7 @@ describe('the identity parameters of a chain', () => {
     })
   })
 
-  const GAPS: [string, (keyof DeploymentFacts)[], 'zkPassport' | 'aadhaar'][] = [
+  const GAPS: GapCase[] = [
     ['the zkPassport domain', ['zkPassportDomain'], 'zkPassport'],
     ['the zkPassport scope', ['zkPassportScope'], 'zkPassport'],
     ['both zkPassport fields', ['zkPassportDomain', 'zkPassportScope'], 'zkPassport'],
@@ -118,7 +122,7 @@ describe('the identity parameters of a chain', () => {
     })
   )
 
-  const UNDEPLOYED: ['zkPassport' | 'aadhaar', keyof DeploymentFacts][] = [
+  const UNDEPLOYED: UndeployedCase[] = [
     ['zkPassport', 'methodZkpassport'],
     ['aadhaar', 'methodAadhaar']
   ]

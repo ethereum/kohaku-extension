@@ -56,6 +56,15 @@ import {
   typedMessageOf,
   WINDOW_ID
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
+import type {
+  ChainIdVCase,
+  FormCase,
+  ListCase,
+  PlaceCase,
+  SignatureForm,
+  SignatureRefusalCase,
+  TypedDataPart
+} from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 /** The key the tests sign with, a basic account the wallet lists. */
 const WALLET = new Wallet(`0x${'11'.repeat(32)}`)
@@ -272,7 +281,7 @@ describe('the signer facade over the request queue', () => {
       await expect(bytes).resolves.toBe(SIG.bytes)
     })
 
-    const refusals: [string, 'bytes' | 'typed', keyof typeof SIG][] = [
+    const refusals: SignatureRefusalCase<keyof typeof SIG>[] = [
       ['bytes signed by another key', 'bytes', 'otherKeyBytes'],
       ['typed data signed by another key', 'typed', 'otherKeyTyped'],
       ['another content signed by the right key', 'bytes', 'otherContent'],
@@ -300,7 +309,7 @@ describe('the signer facade over the request queue', () => {
       })
     )
 
-    const FORMS: [string, 'bytes' | 'typed'][] = [
+    const FORMS: FormCase[] = [
       ['raw bytes', 'bytes'],
       ['typed data', 'typed']
     ]
@@ -330,7 +339,7 @@ describe('the signer facade over the request queue', () => {
       })
     )
 
-    const EIP155_V: [number, Hex, keyof typeof SIG][] = [
+    const EIP155_V: ChainIdVCase<keyof typeof SIG>[] = [
       [37, V27_BYTES, 'v27Bytes'],
       [38, BYTES, 'bytes']
     ]
@@ -450,7 +459,7 @@ describe('the signer facade over the request queue', () => {
     const UPPER = `0x${KEY.slice(2).toUpperCase()}` as Address
     const LOWER = KEY.toLowerCase() as Address
 
-    const carrying = (where: 'message' | 'domain', account: Address) =>
+    const carrying = (where: TypedDataPart, account: Address) =>
       where === 'message'
         ? {
             ...TYPED,
@@ -461,7 +470,7 @@ describe('the signer facade over the request queue', () => {
           }
         : { ...TYPED, domain: { ...TYPED.domain, verifyingContract: account } }
 
-    const PLACES: [string, 'message' | 'domain'][] = [
+    const PLACES: PlaceCase[] = [
       ['an address in the message', 'message'],
       ['the verifying contract', 'domain']
     ]
@@ -745,13 +754,13 @@ describe('the signer facade over the request queue', () => {
   })
 
   describe('a withdrawal by its caller', () => {
-    const sign = (q: QueueWorld, kind: 'bytes' | 'typed', signal: AbortSignal) =>
+    const sign = (q: QueueWorld, kind: SignatureForm, signal: AbortSignal) =>
       track(
         kind === 'bytes'
           ? q.signer.signBytes(HANDLE, BYTES, { signal })
           : q.signer.signTypedData(HANDLE, TYPED, { signal })
       )
-    const KINDS: [string, 'bytes' | 'typed'][] = [
+    const KINDS: FormCase[] = [
       ['raw bytes', 'bytes'],
       ['typed data', 'typed']
     ]
@@ -935,7 +944,7 @@ describe('the signer facade over the request queue', () => {
       return { q, signing, id: addedRequest(q.dispatch).userRequest.id }
     }
 
-    const LISTS: [string, (id: string | number) => ReturnType<typeof listedIn>, number][] = [
+    const LISTS: ListCase[] = [
       ['the queue', (id) => listedIn([id], []), 0],
       ['the list waiting for an account switch', (id) => listedIn([], [id]), 1]
     ]

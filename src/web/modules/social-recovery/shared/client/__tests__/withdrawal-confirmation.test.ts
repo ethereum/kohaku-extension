@@ -45,7 +45,6 @@ import {
   SendRefusal,
   SendRefusalReason,
   SendRequestAction,
-  SendRequestUpdate,
   sendQueueOver,
   SendWorld,
   signAccountOpPush,
@@ -54,6 +53,13 @@ import {
   track,
   TrackedSend
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
+import type {
+  EndingStatus,
+  HeldCase,
+  LetGoCase,
+  LettingGoCase,
+  Withdrawal
+} from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 const KEY = new Wallet(`0x${'11'.repeat(32)}`).address as Address
 const HANDLE: KeyHandle = { addr: KEY, type: 'internal' }
@@ -130,13 +136,7 @@ SUBJECTS.forEach(({ title, account, accounts, start }) =>
      * still lists the request, the queue where it waits for an account switch,
      * and the queue once the removal landed.
      */
-    const WITHDRAWALS: {
-      reason: SendRefusalReason
-      withdraw: (q: SendWorld, own: SignUserRequest) => Promise<void>
-      listed: (own: SignUserRequest) => HeldAndPushedQueue
-      waiting: (own: SignUserRequest) => HeldAndPushedQueue
-      gone: () => HeldAndPushedQueue
-    }[] = [
+    const WITHDRAWALS: Withdrawal[] = [
       {
         reason: 'other-request-pending',
         withdraw: async (q, own) => {
@@ -397,11 +397,7 @@ SUBJECTS.forEach(({ title, account, accounts, start }) =>
         await refusesOneSettleLater(q, send, 'refused')
       })
 
-      const ENDINGS: {
-        ending: string
-        end: (q: SendWorld, id: string) => Promise<void>
-        status: TrackedSend['status']
-      }[] = [
+      const ENDINGS: EndingStatus[] = [
         {
           ending: 'a refusal',
           end: async (q) => {
@@ -473,7 +469,7 @@ SUBJECTS.forEach(({ title, account, accounts, start }) =>
         await refusesOneSettleLater(q, send, 'timeout')
       })
 
-      const HELD: [string, (own: SignUserRequest) => HeldAndPushedQueue][] = [
+      const HELD: HeldCase[] = [
         ['among the waiting requests', (own) => queueHolding([own])],
         ['among those that wait for an account switch', (own) => queueHolding([], [own])]
       ]
@@ -730,7 +726,7 @@ SUBJECTS.forEach(({ title, account, accounts, start }) =>
           expect(jest.getTimerCount()).toBe(0)
         })
 
-        const LETTING_GO: [string, (q: SendWorld) => void, (q: SendWorld) => void][] = [
+        const LETTING_GO: LettingGoCase[] = [
           [
             'the queue first, then the sign screen',
             (q) => q.show(queueHolding([dapp])),
@@ -767,7 +763,7 @@ SUBJECTS.forEach(({ title, account, accounts, start }) =>
         )
       })
 
-      const LET_GO: [string, (id: string) => SendRequestUpdate][] = [
+      const LET_GO: LetGoCase[] = [
         ['a reset state', () => signAccountOpPush({})],
         [
           "another request's operation",

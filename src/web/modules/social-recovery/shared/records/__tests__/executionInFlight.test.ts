@@ -24,7 +24,13 @@ import {
   WalletRecords
 } from '@web/modules/social-recovery/shared/records'
 import { makeStorage } from '@web/modules/social-recovery/shared/records/__fixtures__/storage'
-import type { RichJsonStorageDouble } from '@web/modules/social-recovery/shared/records/__fixtures__/types'
+import type {
+  RichJsonStorageDouble,
+  DamagedCase,
+  NamedValue,
+  PayloadCase,
+  StateCase
+} from '@web/modules/social-recovery/shared/records/__fixtures__/types'
 
 const ACCOUNT: Address = '0x1111111111111111111111111111111111111111'
 const METHOD: Address = '0x3333333333333333333333333333333333333333'
@@ -211,7 +217,7 @@ describe('the landed session keeps the attempt of the landed request', () => {
   })
 
   // A session an earlier build or a damaged storage left: the storage keeps no undefined key.
-  const STORED_PAYLOADS: [string, string | undefined][] = [
+  const STORED_PAYLOADS: PayloadCase[] = [
     ['no payload', undefined],
     ['a payload that is not hex', 'zz']
   ]
@@ -246,7 +252,7 @@ describe('the landed session keeps the attempt of the landed request', () => {
     expect(listed.map((c) => c.record.value)).toEqual([{ account: ACCOUNT }])
   })
 
-  const damaged: [string, Record<string, unknown>, Record<string, unknown>][] = [
+  const damaged: DamagedCase[] = [
     ['an attempt id that is a number', { attemptId: 42 }, { attemptId: undefined }],
     ['an empty attempt id', { attemptId: '' }, { attemptId: undefined }],
     ['a hex attempt id', { attemptId: '0x2a' }, { attemptId: undefined }],
@@ -313,7 +319,7 @@ describe('the landed session keeps when its attempt becomes executable', () => {
     expect(presentOf(await countdown(records).read()).value.executableAt).toBe(EXECUTABLE_AT)
   })
 
-  const DAMAGED_TIMES: [string, unknown][] = [
+  const DAMAGED_TIMES: NamedValue[] = [
     ['a string', '1700086400'],
     ['a negative number', -1],
     ['a fraction', 1_700_086_400.5],
@@ -534,7 +540,7 @@ describe('the execution in flight ends with the countdown', () => {
 })
 
 describe('a session that is not landed takes no execution in flight', () => {
-  const states: [string, (records: WalletRecords) => Promise<unknown>][] = [
+  const states: StateCase[] = [
     ['an absent', async () => undefined],
     ['a live', async (records) => writeGathering(records, gathering(PAYLOAD))],
     [
@@ -564,7 +570,7 @@ describe('a session that is not landed takes no execution in flight', () => {
 })
 
 describe('a damaged stored execution in flight', () => {
-  const damaged: [string, unknown][] = [
+  const damaged: NamedValue[] = [
     ['null', null],
     ['a string', 'social-recovery-execute:first'],
     ['an empty request id', { ...CLAIM, requestId: '' }],

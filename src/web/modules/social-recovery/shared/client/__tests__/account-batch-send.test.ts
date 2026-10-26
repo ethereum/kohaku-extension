@@ -42,6 +42,13 @@ import {
   track,
   WINDOW_ID
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
+import type {
+  FeeOptionAmount,
+  FeeOptionSelection,
+  ListingCase,
+  NamedValue,
+  ResetCase
+} from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 /** A basic account the wallet lists, which the sign screen offers as a payer. */
 const PAYER = new Wallet(`0x${'55'.repeat(32)}`).address as Address
@@ -203,7 +210,7 @@ describe("a listed smart account's batch", () => {
     expect(q.listeners()).toBe(0)
   })
 
-  const UNLISTED: [string, () => ReturnType<typeof LISTED>][] = [
+  const UNLISTED: ListingCase[] = [
     ['while the wallet lists no account', () => []],
     [
       'that the wallet does not list, though it lists its controlling key',
@@ -308,7 +315,7 @@ describe("the reading of the sign screen's estimation", () => {
     expect(heard.mock.calls[0][0].error).not.toHaveProperty('code')
   })
 
-  const NO_MESSAGE: [string, unknown][] = [
+  const NO_MESSAGE: NamedValue[] = [
     ['an empty message', new Error('')],
     ['a message that is not text', { message: 42 }],
     ['no message', {}],
@@ -363,11 +370,11 @@ describe("the reading of the sign screen's estimation", () => {
       )
     )
     const [[reading]] = heard.mock.calls
-    expect(reading.options.map((option: { selected: boolean }) => option.selected)).toEqual([
+    expect(reading.options.map((option: FeeOptionSelection) => option.selected)).toEqual([
       true,
       false
     ])
-    expect(reading.options.map((option: { amount?: bigint }) => option.amount)).toEqual([
+    expect(reading.options.map((option: FeeOptionAmount) => option.amount)).toEqual([
       6_000_000_000_000_000n,
       8_000_000_000_000_000n
     ])
@@ -410,7 +417,7 @@ describe("the reading of the sign screen's estimation", () => {
     expect(heard.mock.calls[2][0].error).toEqual(INSUFFICIENT)
   })
 
-  const RESET: [string, (id: string) => SignAccountOpState][] = [
+  const RESET: ResetCase[] = [
     [
       'still holding the operation',
       (id) =>

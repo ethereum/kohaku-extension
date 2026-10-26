@@ -24,6 +24,7 @@ import {
   UNKNOWN_ACTION
 } from '@web/modules/social-recovery/shared/client'
 import { sepoliaDeploymentVariable } from '@web/modules/social-recovery/shared/client/deployment-env'
+import type { MalformedCase } from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
   ...jest.requireActual('@web/modules/social-recovery/shared/client/deployment-env'),
@@ -420,7 +421,7 @@ describe('a fresh record at every call', () => {
 })
 
 describe('a malformed deployment variable', () => {
-  const MALFORMED: [string, string, RegExp][] = [
+  const MALFORMED: MalformedCase[] = [
     ['a value that is not JSON', '{"manager":', /not JSON/],
     ['a JSON list', json([FACTS]), /JSON object/],
     ['a JSON string', json('deployed'), /JSON object/],

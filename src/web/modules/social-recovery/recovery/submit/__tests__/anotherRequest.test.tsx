@@ -10,7 +10,10 @@
 import type { Hex } from '@kohaku-eth/social-recovery'
 import type { SubmitStore } from '@web/modules/social-recovery/recovery/submit'
 
-import type { Mounted } from '@web/modules/social-recovery/recovery/submit/__tests__/harness'
+import type {
+  Mounted,
+  SubmitPage
+} from '@web/modules/social-recovery/recovery/submit/__tests__/harness'
 import {
   advanceTimers,
   attemptOf,
@@ -50,7 +53,7 @@ const { BALANCE_POLL_MS, checkAgain, isLanded, lookForClaim, startSubmission } =
 submit
 
 describe('a gathering another tab abandoned and opened again', () => {
-  const pages: { store: SubmitStore; steps: ReturnType<typeof stepsOf> }[] = []
+  const pages: SubmitPage[] = []
   let view: Mounted | undefined
 
   beforeEach(() => {

@@ -16,6 +16,7 @@ import { EventManager } from '@kohaku-eth/social-recovery'
 import type { Address, IProvider } from '@kohaku-eth/social-recovery'
 import { ownerCancelOf } from '@web/modules/social-recovery/cancel'
 import type { ReceiptLog } from '@web/modules/social-recovery/cancel'
+import type { CancelLogOptions } from '@web/modules/social-recovery/cancel/__fixtures__/types'
 import { deploymentDescriptor } from '@web/modules/social-recovery/shared/client'
 
 const MANAGER: Address = getAddress('0x734b9aa580d4a184ea129e791c4c9fb8734b3ac6')
@@ -31,11 +32,7 @@ const CANCELLED = parseAbi([
 
 const cancelLog = (
   attemptId: bigint,
-  {
-    emitter = MANAGER,
-    canceller = ACCOUNT,
-    usedPlaces = []
-  }: { emitter?: Address; canceller?: Address; usedPlaces?: bigint[] } = {}
+  { emitter = MANAGER, canceller = ACCOUNT, usedPlaces = [] }: CancelLogOptions = {}
 ): ReceiptLog => ({
   address: emitter,
   topics: encodeEventTopics({

@@ -24,7 +24,6 @@ import {
   mainStatus,
   newSendRequestId,
   operationFor,
-  QueuedFor,
   queuedRequest,
   queueHolding,
   requestsPush,
@@ -41,6 +40,11 @@ import {
   track,
   TrackedSend
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
+import type {
+  BlockingCase,
+  QueuedCase,
+  SigningEndCase
+} from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 const KEY = new Wallet(`0x${'11'.repeat(32)}`).address as Address
 const HANDLE: KeyHandle = { addr: KEY, type: 'internal' }
@@ -99,7 +103,7 @@ afterEach(() => {
 SUBJECTS.forEach(({ title, account, accounts, start }) =>
   describe(title, () => {
     describe('another request of the account already in the queue', () => {
-      const BLOCKING: [string, (a: Address) => ReturnType<typeof queueHolding>][] = [
+      const BLOCKING: BlockingCase[] = [
         ['in the queue', (a) => queueHolding([dappCalls(a)])],
         ['waiting for an account switch', (a) => queueHolding([], [dappCalls(a)])]
       ]
@@ -120,7 +124,7 @@ SUBJECTS.forEach(({ title, account, accounts, start }) =>
         })
       )
 
-      const NOT_BLOCKING: [string, QueuedFor][] = [
+      const NOT_BLOCKING: QueuedCase[] = [
         ['of another account', { account: OTHER_ACCOUNT }],
         ['of the account on another chain', { account, chainId: 1n }],
         ['of the account that is not a calls request', { account, kind: 'message' }],
@@ -310,7 +314,7 @@ SUBJECTS.forEach(({ title, account, accounts, start }) =>
       )
 
       /** Each push that ends the signing, and whether its operation still carries the request. */
-      const ENDINGS: [string, (id: string) => SendRequestUpdate, boolean][] = [
+      const ENDINGS: SigningEndCase[] = [
         ['back at ready to sign', (id) => signScreen([id], SigningStatus.ReadyToSign), true],
         [
           "at another request's operation",
@@ -463,7 +467,7 @@ SUBJECTS.forEach(({ title, account, accounts, start }) =>
         await refusesOnceGone(q, send)
       })
 
-      const NOT_JOINING: [string, QueuedFor][] = [
+      const NOT_JOINING: QueuedCase[] = [
         ['of another account', { account: OTHER_ACCOUNT }],
         ['of the account on another chain', { account, chainId: 1n }],
         ['of the account that is not a calls request', { account, kind: 'message' }]

@@ -1,4 +1,7 @@
-import type { EditSessionAccessor } from '@web/modules/social-recovery/management/editor/types'
+import type {
+  EditSessionAccessor,
+  EditSession
+} from '@web/modules/social-recovery/management/editor/types'
 import type {
   ChainReads,
   ListedAccountFacts,
@@ -9,6 +12,7 @@ import type {
 } from '@web/modules/social-recovery/shared/client'
 import type { sdkStandIn as StandIn } from '@web/modules/social-recovery/shared/client/stand-in'
 import type { RecordStorage, WalletRecords } from '@web/modules/social-recovery/shared/records'
+import type { Clause } from '@kohaku-eth/social-recovery'
 
 /** Whether the port lands the batch it is handed, or refuses it before it reaches the chain. */
 export type LandingCase = 'lands' | 'refused'
@@ -51,3 +55,27 @@ export interface PasswordValueCase {
   changed: boolean
   value: string
 }
+
+/** How a screen test sets up an edit: the path, the reads, the attempt and the session. */
+export type EditScreenSetup = {
+  clauses: Clause[]
+  trustAnswered: boolean
+  attemptOpen: boolean
+  authorized?: boolean
+  /** The path the edit started from. */
+  committed?: Clause[]
+  wait?: number
+  password?: EditSession['password']
+}
+
+/** One edit a test makes: its name, the setup it starts from and the change it reads. */
+export type EditChangeCase = { name: string; options: EditScreenSetup; change: string }
+
+/** Where the commitment check stopped: the reads disagreed, or a read did not answer. */
+export type CheckStop = 'disagreed' | 'unread'
+
+/** The management intent a stage opens with: an edit or a removal. */
+export type ManageIntent = 'manageEdit' | 'manageRemove'
+
+/** What the mocked hooks answer: the record storage and the client. */
+export type WatcherFloorMocks = { storage: RecordStorage | null; client: unknown }

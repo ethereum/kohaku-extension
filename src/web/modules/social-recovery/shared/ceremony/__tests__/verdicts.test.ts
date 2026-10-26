@@ -37,6 +37,7 @@ import {
   SYNCED_FLAGS,
   ceremony
 } from '@web/modules/social-recovery/shared/ceremony/__tests__/harness'
+import type { VerdictOutcome } from '@web/modules/social-recovery/shared/ceremony/__fixtures__/types'
 
 const THROWN_CAUSE = 'the authenticator returned a key of the wrong curve'
 
@@ -213,7 +214,7 @@ const FAILED_TEST_LINES: Record<string, string> = {
 }
 
 /** The chip, note and line a row renders for one verdict of `call`. */
-const expectRow = (outcome: Outcome & { type: 'verdict' }, call: Call) => {
+const expectRow = (outcome: VerdictOutcome, call: Call) => {
   const chip = rowChipOf(outcome, call)
   const note = noteKeyOf(outcome, call)
   const line = lineKeyOf(outcome, call)

@@ -41,9 +41,19 @@ import {
   setVisibility,
   SYNCED_FLAGS
 } from '@web/modules/social-recovery/shared/ceremony/__tests__/harness'
+import type {
+  ButtonProps,
+  ChildrenProps,
+  NamedValue,
+  ScreenOptions,
+  SeenSignal,
+  SourceMock,
+  StoreGetArgs,
+  StoreKeyArgs
+} from '@web/modules/social-recovery/shared/ceremony/__fixtures__/types'
 
 const mockUi = { isTab: true, isPopup: false, isActionWindow: false }
-const mockSource: { current: Record<string, unknown>; listeners: Set<() => void> } = {
+const mockSource: SourceMock = {
   current: {},
   listeners: new Set()
 }
@@ -67,14 +77,14 @@ jest.mock('@web/modules/social-recovery/shared/ceremony/screen/CeremonySource', 
   return {
     __esModule: true,
     useCeremonySource: () => R.useSyncExternalStore(subscribe, () => mockSource.current),
-    CeremonySourceProvider: ({ children }: { children: unknown }) => children
+    CeremonySourceProvider: ({ children }: ChildrenProps) => children
   }
 })
 jest.mock('@common/components/Button', () => {
   const R = jest.requireActual('react')
   return {
     __esModule: true,
-    default: ({ text, onPress }: { text: string; onPress?: () => void }) =>
+    default: ({ text, onPress }: ButtonProps) =>
       R.createElement('button', { onClick: onPress }, text)
   }
 })
@@ -82,7 +92,7 @@ jest.mock('@common/components/Panel', () => {
   const R = jest.requireActual('react')
   return {
     __esModule: true,
-    default: ({ children }: { children: unknown }) => R.createElement('div', null, children)
+    default: ({ children }: ChildrenProps) => R.createElement('div', null, children)
   }
 })
 jest.mock('@common/components/Spinner', () => ({ __esModule: true, default: () => null }))
@@ -92,7 +102,7 @@ jest.mock('@common/components/Text', () => {
   const R = jest.requireActual('react')
   return {
     __esModule: true,
-    default: ({ children }: { children: unknown }) => R.createElement('p', null, children)
+    default: ({ children }: ChildrenProps) => R.createElement('p', null, children)
   }
 })
 jest.mock('@common/hooks/useTheme', () => ({ __esModule: true, default: () => ({ theme: {} }) }))
@@ -111,7 +121,7 @@ jest.mock('@common/modules/header/components/Header', () => ({
 }))
 jest.mock('@web/components/TabLayoutWrapper/TabLayoutWrapper', () => {
   const R = jest.requireActual('react')
-  const Box = ({ children }: { children: unknown }) => R.createElement('div', null, children)
+  const Box = ({ children }: ChildrenProps) => R.createElement('div', null, children)
   return { __esModule: true, TabLayoutContainer: Box, TabLayoutWrapperMainContent: Box }
 })
 
@@ -163,19 +173,16 @@ afterEach(async () => {
 })
 
 const fakeStore = () => ({
-  get: jest.fn<Promise<unknown>, [string, unknown?]>(async () => null),
-  set: jest.fn<Promise<null>, [string, unknown]>(async () => null),
-  remove: jest.fn<Promise<null>, [string]>(async () => null)
+  get: jest.fn<Promise<unknown>, StoreGetArgs>(async () => null),
+  set: jest.fn<Promise<null>, NamedValue>(async () => null),
+  remove: jest.fn<Promise<null>, StoreKeyArgs>(async () => null)
 })
 
 /**
  * Renders the tab at `search`. With `from`, the tab was opened from that page;
  * with `strict`, it renders inside React's StrictMode.
  */
-const render = async (
-  search: string,
-  { from, strict }: { from?: string; strict?: boolean } = {}
-) => {
+const render = async (search: string, { from, strict }: ScreenOptions = {}) => {
   const Screen = loadScreen()
   container = document.createElement('div')
   document.body.appendChild(container)
@@ -813,7 +820,7 @@ describe('a cancel while the ceremony resolves', () => {
 
 /** A browser that answers the claim's prompt and keeps the abort signal it was given. */
 const signalKeepingBrowser = () => {
-  const seen: { signal?: AbortSignal } = {}
+  const seen: SeenSignal = {}
   browser = installCredentials({
     get: async (options) => {
       seen.signal = options?.signal

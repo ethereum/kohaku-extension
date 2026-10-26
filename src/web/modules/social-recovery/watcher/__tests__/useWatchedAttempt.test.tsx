@@ -17,6 +17,7 @@ import {
   SEPOLIA
 } from '@web/modules/social-recovery/watcher/__fixtures__/harness'
 import { useWatchedAttempt } from '@web/modules/social-recovery/watcher/useWatchedAttempt'
+import type { SourcesProps } from '@web/modules/social-recovery/watcher/__fixtures__/types'
 
 // viem builds a TextEncoder and a TextDecoder when either entry loads, which
 // jsdom lacks: Node's own are installed first, whichever entry loads first.
@@ -86,7 +87,7 @@ let container: HTMLDivElement
 let root: Root
 const seen: WatchedAttemptState[] = []
 
-const Probe = ({ sources }: { sources: ReturnType<typeof sourcesOver> }) => {
+const Probe = ({ sources }: SourcesProps<ReturnType<typeof sourcesOver>>) => {
   seen.push(useWatchedAttempt(ACCOUNT, sources))
   return null
 }

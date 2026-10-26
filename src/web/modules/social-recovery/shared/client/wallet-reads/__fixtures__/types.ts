@@ -7,6 +7,7 @@ import type {
   Reply
 } from '@kohaku-eth/social-recovery'
 import type { PrivilegeAccount } from '@web/modules/social-recovery/shared/client/types'
+import type { worldOf } from '@web/modules/social-recovery/shared/client/wallet-reads/__fixtures__/world'
 
 /** An account scripted on the provider, deployed unless its code is empty, with no creation record unless one is given. */
 export interface AccountWorldOptions {
@@ -53,3 +54,29 @@ export interface VerifyAnswers {
 
 /** A reply that does not answer the request: the case's name, and the request and reply it builds. */
 export type MismatchedReplyCase = [string, () => [ApproverRequest, Reply]]
+
+/** How a test scripts the account; each member has a default. */
+export type AccountReadsWorld = {
+  addr?: string
+  code?: Hex
+  initialPrivileges?: [string, string][]
+  associatedKeys?: string[]
+  creation?: PrivilegeAccount['creation']
+  accountImplementation?: Address
+  supportsAccount?: boolean
+}
+
+/** A case's name and the logs the chain holds for a key. */
+export type LogsCase = [string, (key: Address) => RawLog[]]
+
+/** A case's name and the key, or none. */
+export type KeyCase = [string, Address | null]
+
+/** A case's name and the number. */
+export type NumberCase = [string, number]
+
+/** A case's name and the error. */
+export type ErrorCase = [string, Error]
+
+/** A case's name and how the world fails a read. */
+export type WorldFailureCase = [string, (world: ReturnType<typeof worldOf>) => void]

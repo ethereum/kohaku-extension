@@ -40,6 +40,7 @@ import {
 } from '@web/modules/social-recovery/onboarding/fast-track/__fixtures__/harness'
 import { BALANCE_READ_LIMIT_MS } from '@web/modules/social-recovery/onboarding/fast-track'
 import { renderFullAddress, renderShortAddress } from '@web/modules/social-recovery/shared/display'
+import type { KeysCase } from '@web/modules/social-recovery/onboarding/fast-track/__fixtures__/types'
 
 const GAS_STEP = `/social-recovery/fast-track/gas?account=${LOST_ACCOUNT}`
 const CHECKLIST = `/social-recovery/recovery/checklist?account=${LOST_ACCOUNT}`
@@ -267,7 +268,7 @@ describe('the gas step', () => {
     expect(text()).not.toContain(OFFSET_KEY)
   })
 
-  const notOrdinary: { name: string; keys: ReturnType<typeof internalKey>[] }[] = [
+  const notOrdinary: KeysCase[] = [
     { name: 'as a dedicated key', keys: [internalKey(ORDINARY_KEY, true)] },
     { name: 'with no recovery phrase behind it', keys: [seedlessKey] }
   ]

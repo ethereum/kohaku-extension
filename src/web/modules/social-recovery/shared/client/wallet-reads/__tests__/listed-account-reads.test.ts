@@ -36,6 +36,7 @@ import {
   RELAYER,
   worldOf
 } from '@web/modules/social-recovery/shared/client/wallet-reads/__fixtures__/world'
+import type { LogsCase } from '@web/modules/social-recovery/shared/client/wallet-reads/__fixtures__/types'
 
 const listedWorldOf = (options: Parameters<typeof worldOf>[0] = {}) =>
   worldOf({
@@ -56,7 +57,7 @@ const recoveredTo = (key: Address): RawLog[] => {
 }
 
 describe('a listed account another wallet recovered', () => {
-  eachIt<[string, (key: Address) => RawLog[]]>([
+  eachIt<LogsCase>([
     [
       'the consumed handover and the privilege write',
       (key) => [

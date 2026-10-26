@@ -53,6 +53,10 @@ import {
   writeReducer
 } from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
+import type {
+  DriveBase,
+  ReplacedEnding
+} from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 const OTHER_HASH: Hex = `0x${'d'.repeat(64)}`
 const REQUEST_ID = 'social-recovery-sender:from-the-caller'
@@ -84,7 +88,7 @@ const LISTENER = () => undefined
 const DRIVES = [
   {
     title: "a key's own transaction",
-    run: (base: Omit<Parameters<typeof driveSend>[0], 'key' | 'transaction'>) =>
+    run: (base: DriveBase) =>
       driveSend({ ...base, key: KEY, transaction: ownerTransaction('save') }),
     expectAsked: (port: ReturnType<typeof fakeSendPort>) => {
       expect(port.send).toHaveBeenCalledTimes(1)
@@ -95,7 +99,7 @@ const DRIVES = [
   },
   {
     title: "an account's batch",
-    run: (base: Omit<Parameters<typeof driveSend>[0], 'key' | 'transaction'>) =>
+    run: (base: DriveBase) =>
       driveAccountBatch({
         ...base,
         account: ACCOUNT,
@@ -466,7 +470,7 @@ describe('an error of the receipt wait', () => {
     expect(machine.state()).toMatchObject({ status: 'failedReverted', transactionHash: TX_HASH })
   })
 
-  const REPLACED: ('cancelled' | 'replaced')[] = ['cancelled', 'replaced']
+  const REPLACED: ReplacedEnding[] = ['cancelled', 'replaced']
   REPLACED.forEach((reason) =>
     it(`reads ethers' TRANSACTION_REPLACED, ${reason}, as the replaced reading: failed, not sent, with its reason`, async () => {
       const replaced = replacedBy(reason)

@@ -14,7 +14,11 @@ import type {
   OverviewReads,
   OverviewWriteStepProps
 } from '@web/modules/social-recovery/management/overview/types'
-import type { KeyHandle, SendPort } from '@web/modules/social-recovery/shared/client'
+import type { KeyHandle } from '@web/modules/social-recovery/shared/client'
+import type {
+  DispatchedAction,
+  WriteStepMocks
+} from '@web/modules/social-recovery/management/overview/__fixtures__/types'
 
 jest.mock('viem', () => {
   // eslint-disable-next-line global-require
@@ -27,14 +31,14 @@ jest.mock('@common/utils/clipboard', () => ({ setStringAsync: async () => true }
 jest.mock('@common/components/Spinner', () => ({ __esModule: true, default: () => null }))
 
 // The wallet's controller states keep their identity between renders, as the real hooks do.
-const mockWallet: { facts: unknown; port: SendPort | null } = { facts: null, port: null }
+const mockWallet: WriteStepMocks = { facts: null, port: null }
 const mockState = {
   accounts: { accounts: [] as unknown[] },
   requests: { userRequests: [] as unknown[] },
   selected: { account: null },
   // The background answers the sign screen's state as it does once the page asks for it.
   background: {
-    dispatch: jest.fn((action: { type: string }) => {
+    dispatch: jest.fn((action: DispatchedAction) => {
       if (action.type === 'INIT_CONTROLLER_STATE') {
         Promise.resolve()
           .then(() => {

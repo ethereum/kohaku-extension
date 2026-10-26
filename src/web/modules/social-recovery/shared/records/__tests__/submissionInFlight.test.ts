@@ -21,7 +21,11 @@ import {
   WalletRecords
 } from '@web/modules/social-recovery/shared/records'
 import { makeStorage } from '@web/modules/social-recovery/shared/records/__fixtures__/storage'
-import type { RichJsonStorageDouble } from '@web/modules/social-recovery/shared/records/__fixtures__/types'
+import type {
+  RichJsonStorageDouble,
+  NamedValue,
+  StateCase
+} from '@web/modules/social-recovery/shared/records/__fixtures__/types'
 
 const ACCOUNT: Address = '0x1111111111111111111111111111111111111111'
 const METHOD: Address = '0x3333333333333333333333333333333333333333'
@@ -390,7 +394,7 @@ describe('the submission in flight lives and dies with its gathering', () => {
 })
 
 describe('a session that is not live takes no submission in flight', () => {
-  const states: [string, (records: WalletRecords) => Promise<unknown>][] = [
+  const states: StateCase[] = [
     ['an absent', async () => undefined],
     [
       'a wiped',
@@ -428,7 +432,7 @@ describe('a session that is not live takes no submission in flight', () => {
 })
 
 describe('a damaged stored submission in flight', () => {
-  const damaged: [string, unknown][] = [
+  const damaged: NamedValue[] = [
     ['null', null],
     ['a string', 'social-recovery-submit:first'],
     ['an empty request id', { ...CLAIM, requestId: '' }],

@@ -22,7 +22,11 @@ import {
   tick,
   useWaitClock
 } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
-import type { Mounted, World } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
+import type {
+  Mounted,
+  World,
+  WorldCase
+} from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
 import type { Hex } from '@kohaku-eth/social-recovery'
 
 const POLL_MS = 30_000
@@ -226,7 +230,7 @@ describe('a countdown stored before it kept its attempt', () => {
     view = undefined
   })
 
-  const CASES: [string, (world: World) => void][] = [
+  const CASES: WorldCase[] = [
     ['the attempt runs', () => undefined],
     ['the attempt reached its end', (world) => elapse(world.kit)],
     [

@@ -6,7 +6,10 @@
  * poll reads that answer as a failed read with its retry, and the gathering,
  * its replies and its pending submission stay as stored.
  */
-import type { Mounted } from '@web/modules/social-recovery/recovery/checklist/__tests__/harness'
+import type {
+  ClaimCase,
+  Mounted
+} from '@web/modules/social-recovery/recovery/checklist/__tests__/harness'
 import {
   ACCOUNT,
   CHAIN_ID,
@@ -39,7 +42,7 @@ describe('a live gathering over a fake node that starts afresh', () => {
     view = undefined
   })
 
-  const cases: { name: string; claimed: boolean }[] = [
+  const cases: ClaimCase[] = [
     { name: 'with no submission pending', claimed: false },
     { name: 'with a submission pending', claimed: true }
   ]

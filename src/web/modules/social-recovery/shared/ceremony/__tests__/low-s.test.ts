@@ -24,6 +24,7 @@ import {
   parseSignature,
   signaturesIn
 } from '@web/modules/social-recovery/shared/ceremony/__tests__/harness'
+import type { LowSCase } from '@web/modules/social-recovery/shared/ceremony/__fixtures__/types'
 
 const R = BigInt('0x1c2e8b4f5a6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f9011223344556677')
 // A high s with its top bit set, as a real one has, so its DER needs a 0x00 pad.
@@ -54,7 +55,7 @@ describe('the high-s normalization', () => {
     expect(normalized(R, P256_HALF_N + BigInt(1)).parsed.s).toBe(P256_HALF_N)
   })
 
-  const LOW: [string, bigint][] = [
+  const LOW: LowSCase[] = [
     ['the largest low s, (n - 1) / 2', P256_HALF_N],
     ['a low s with its top byte clear', P256_N - HIGH_S],
     ['s = 1', BigInt(1)]

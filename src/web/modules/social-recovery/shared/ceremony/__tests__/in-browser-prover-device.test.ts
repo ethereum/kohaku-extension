@@ -16,6 +16,7 @@ import type {
   DeviceResult
 } from '@web/modules/social-recovery/shared/ceremony'
 import { inBrowserProverDevice } from '@web/modules/social-recovery/shared/ceremony/inBrowserProverDevice'
+import type { ProgressCase } from '@web/modules/social-recovery/shared/ceremony/__fixtures__/types'
 
 const QR_DATA = '2374971804270526477833002468783965837992554564899874087591661303561346432389'
 const INPUT = { kind: 'aadhaar-enroll' } as unknown as EnrollInput & Input
@@ -64,7 +65,7 @@ const materialOf = (result: DeviceResult): AadhaarMaterial => {
       expect(material).not.toHaveProperty('signal')
     })
 
-    const PROGRESS: [string, CeremonyStep | undefined][] = [
+    const PROGRESS: ProgressCase[] = [
       ['fetching-wasm', 'fetchingFiles'],
       ['fetching-zkey', 'fetchingFiles'],
       ['proving', 'proving'],

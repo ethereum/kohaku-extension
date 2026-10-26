@@ -7,7 +7,12 @@
  * of them rendered.
  */
 import type { Key } from '@ambire-common/interfaces/keystore'
-import type { Mounted, World } from '@web/modules/social-recovery/recovery/submit/__tests__/harness'
+import type {
+  Mounted,
+  World,
+  NamedKeyRead,
+  PlacedRequest
+} from '@web/modules/social-recovery/recovery/submit/__tests__/harness'
 import {
   configurationOf,
   factsOf,
@@ -25,6 +30,7 @@ import {
   t
 } from '@web/modules/social-recovery/recovery/submit/__tests__/harness'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
+import type { RecoveryRoute } from '@web/modules/social-recovery/shared/records'
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const { getAddress }: typeof import('viem') = require('viem')
@@ -190,7 +196,7 @@ describe('the submission confirmation', () => {
     })
 
     /** The payment block names the key that sends the start as its own transaction. */
-    const namesTheSendingKey = async (route: 'fresh-install' | 'logged-in') => {
+    const namesTheSendingKey = async (route: RecoveryRoute) => {
       const world = await openWorld({ route, receiving: 'basic' })
       const mounted = await open(world)
       const sender = getAddress(world.sendingKey)
@@ -411,7 +417,7 @@ describe('the submission confirmation', () => {
 
     it('stays locked while the key being removed is not read yet, its label kept beside the line that reads it', async () => {
       const world = await openWorld()
-      const removed = deferred<{ kind: 'named'; key: string }>()
+      const removed = deferred<NamedKeyRead>()
       world.kit.removedKey.mockImplementation(() => removed.promise)
       const mounted = await open(world)
       await openDetails(mounted)
@@ -450,7 +456,7 @@ describe('the submission confirmation', () => {
 
     it('names the row whose approval did not verify and stays locked', async () => {
       const world = await openWorld()
-      world.kit.verifyReply.mockImplementation(async (request: { place: number }) =>
+      world.kit.verifyReply.mockImplementation(async (request: PlacedRequest) =>
         request.place === 0 ? 'rejected' : 'satisfied'
       )
       const mounted = await open(world)

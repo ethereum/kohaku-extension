@@ -21,6 +21,7 @@ import {
   transferTransactionOf,
   WRITE_KINDS
 } from '@web/modules/social-recovery/shared/writes/__tests__/harness'
+import type { DataCall } from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
 
@@ -164,7 +165,7 @@ describe('the gas check', () => {
     })
 
     it("the transfer route's amount carries the transfer's own fee; the deposit from outside the shortfall", async () => {
-      const gas = (call: { data: string }) =>
+      const gas = (call: DataCall) =>
         call.data === transferTransactionOf(ACCOUNT, KEY.addr).data ? 40_000n : 180_000n
       const step = stepOf(
         await runGasCheck({ write: 'submission', reads: mockReads({ balance: 0n, gas }) })
@@ -190,8 +191,7 @@ describe('the gas check', () => {
     })
 
     it('the amount follows the estimate of each transaction, not a constant', async () => {
-      const perCall = (call: { data: string }) =>
-        call.data === SUBMISSION.data ? 150_000n : 450_000n
+      const perCall = (call: DataCall) => (call.data === SUBMISSION.data ? 150_000n : 450_000n)
       const submission = stepOf(
         await runGasCheck({ write: 'submission', reads: mockReads({ balance: 0n, gas: perCall }) })
       )

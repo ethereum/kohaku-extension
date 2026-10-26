@@ -17,7 +17,6 @@ import { revertedCall, providerReadFailure } from '@web/modules/social-recovery/
 import {
   ACCOUNT,
   ACCOUNT_FACTORY,
-  ACCOUNT_REF,
   ATTEMPT_STILL_RUNNING,
   canRetry,
   causeKey,
@@ -33,7 +32,6 @@ import {
   mockReads,
   NETWORK,
   offersMoveFunds,
-  ownerTransaction,
   readingOf,
   renderDepositStep,
   renderGasAmount,
@@ -50,8 +48,11 @@ import {
   WRITE_KINDS,
   writeReducer,
   WRITES_KEYS,
-  initialWriteState
+  initialWriteState,
+  ACCOUNT_REF,
+  ownerTransaction
 } from '@web/modules/social-recovery/shared/writes/__tests__/harness'
+import type { DataCall } from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 const t = i18n.t
 const PRICE = 3n * GWEI
@@ -68,7 +69,7 @@ const DEPLOY_AND_TRANSFER = {
 }
 const DEPLOYED_TRANSFER_DATA = transferTransactionOf(ACCOUNT, KEY.addr).data
 
-const gasFor = (call: { data: string }) => {
+const gasFor = (call: DataCall) => {
   if (call.data === DEPLOY_AND_TRANSFER.data) {
     return DEPLOY_AND_TRANSFER_GAS
   }
@@ -154,7 +155,7 @@ describe('an account with no code pays its transfer through the factory', () => 
 })
 
 describe('a transfer estimate that reverts drops the transfer route and keeps the deposit from outside', () => {
-  const reverting = (call: { data: string }) => {
+  const reverting = (call: DataCall) => {
     if (call.data === DEPLOYED_TRANSFER_DATA) {
       throw revertedCall('estimateGas', '0x')
     }

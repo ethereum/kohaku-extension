@@ -33,7 +33,8 @@ import {
 import type {
   Mounted,
   RoutedWait,
-  World
+  World,
+  EndingCase
 } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
 import type { CancelledBy } from '@kohaku-eth/social-recovery'
 import { recordKeys } from '@web/modules/social-recovery/shared/records'
@@ -392,7 +393,7 @@ describe('the recovery that can no longer execute', () => {
     view = undefined
   })
 
-  const CASES: [string, (world: World) => void, string, string][] = [
+  const CASES: EndingCase[] = [
     [
       'the account no longer authorizes the action',
       (world) => {

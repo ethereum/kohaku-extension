@@ -9,13 +9,17 @@ import {
   createTransactionRead,
   isProviderReadFailure
 } from '@web/modules/social-recovery/shared/client/provider-adapter'
+import type {
+  HashArgs,
+  TransactionAnswer
+} from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 const HASH: Hex = `0x${'ab'.repeat(32)}`
 const SENDER_LOWER = '0xc18a000000000000000000000000000000000abc'
 const SENDER = '0xc18a000000000000000000000000000000000abC'
 
-const readAnswering = (answer: () => Promise<{ from: string } | null>) => {
-  const getTransaction = jest.fn<Promise<{ from: string } | null>, [string]>(() => answer())
+const readAnswering = (answer: () => TransactionAnswer) => {
+  const getTransaction = jest.fn<TransactionAnswer, HashArgs>(() => answer())
   return {
     read: createTransactionRead({ getTransaction } as unknown as Parameters<
       typeof createTransactionRead

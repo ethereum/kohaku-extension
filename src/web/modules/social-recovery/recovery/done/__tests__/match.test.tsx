@@ -34,9 +34,9 @@ import {
   useDoneClock
 } from '@web/modules/social-recovery/recovery/done/__tests__/harness'
 import type {
-  FakeChain,
   Mounted,
-  World
+  World,
+  RivalCase
 } from '@web/modules/social-recovery/recovery/done/__tests__/harness'
 import { ADD_LIMIT_MS } from '@web/modules/social-recovery/recovery/done'
 import { POLL_LIMIT_MS } from '@web/modules/social-recovery/recovery/checklist/constants'
@@ -86,7 +86,7 @@ const openLanded = async (options: Parameters<typeof openWorld>[0] = {}) => {
 }
 
 describe('a consume under the landed attempt id that is not the landed attempt', () => {
-  const rivals: { name: string; change: (world: World) => Partial<FakeChain> }[] = [
+  const rivals: RivalCase[] = [
     {
       name: 'the manager attempt carries another payload hash',
       change: ({ kit }) => ({

@@ -32,7 +32,13 @@ import {
   PASSKEY_METHOD,
   PROOF_HEX
 } from '@web/modules/social-recovery/shared/ceremony/__tests__/harness'
-import type { HostSetup } from '@web/modules/social-recovery/shared/ceremony/__fixtures__/types'
+import type {
+  HostSetup,
+  RejectSettle,
+  ResolveSettle,
+  Settle,
+  VerdictLine
+} from '@web/modules/social-recovery/shared/ceremony/__fixtures__/types'
 
 const PROOFS: Material = { proofs: [{ name: 'outer_evm_count_4' }] }
 
@@ -200,11 +206,8 @@ describe('the access test of a method that cannot judge its own proof', () => {
   })
   ;(
     [
-      ['a verdict', (settle: { resolve: (v: Verdict) => void }) => settle.resolve('satisfied')],
-      [
-        'a rejection',
-        (settle: { reject: (e: Error) => void }) => settle.reject(new Error('late read failure'))
-      ]
+      ['a verdict', (settle: ResolveSettle) => settle.resolve('satisfied')],
+      ['a rejection', (settle: RejectSettle) => settle.reject(new Error('late read failure'))]
     ] as const
   ).forEach(([what, finish]) =>
     it(`stays cancelled, with no unhandled rejection, where the hung read later settles with ${what}`, async () => {
@@ -217,7 +220,7 @@ describe('the access test of a method that cannot judge its own proof', () => {
         const asked = new Promise<void>((resolve) => {
           reading = resolve
         })
-        const settle: { resolve: (value: Verdict) => void; reject: (error: Error) => void } = {
+        const settle: Settle = {
           resolve: () => undefined,
           reject: () => undefined
         }
@@ -257,7 +260,7 @@ describe('the access test of a method that cannot judge its own proof', () => {
 })
 
 describe("the chain's verdict where the method judges its own proof", () => {
-  const LOCAL: [Verdict, string][] = [
+  const LOCAL: VerdictLine[] = [
     ['satisfied', 'passed'],
     ['rejected', 'failed']
   ]

@@ -18,7 +18,6 @@
 import i18n from '@common/config/localization'
 import en from '@common/config/localization/translations/en.json'
 import { KIT_ERROR_NAMES } from '@web/modules/social-recovery/shared/client'
-import type { KitErrorName } from '@web/modules/social-recovery/shared/client'
 import { renderFullAddress } from '@web/modules/social-recovery/shared/display'
 
 import {
@@ -50,10 +49,10 @@ import {
   UNNAMED_CAUSE_KEY,
   UNRESOLVED,
   WRITE_KINDS,
-  WriteKind,
   WRITES_KEYS,
   GAS_KEYS
 } from '@web/modules/social-recovery/shared/writes/__tests__/harness'
+import type { OwnErrorCase } from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 /** The value at a dotted key of en.json, or undefined. */
 const lookup = (key: string): unknown =>
@@ -113,7 +112,7 @@ describe('the cause of a revert', () => {
 describe('each write reads its own reverted sentence', () => {
   // The execution reads that the recovery is still ready only for a cause
   // that leaves the attempt ready, and revertedExecuteGone otherwise.
-  const OWN: [WriteKind, string, KitErrorName][] = [
+  const OWN: OwnErrorCase[] = [
     ['save', 'revertedSave', 'WrongSetupNonce'],
     ['edit', 'revertedEdit', 'WrongSetupNonce'],
     ['submission', 'revertedSubmit', 'WrongSetupNonce'],

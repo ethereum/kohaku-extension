@@ -20,7 +20,9 @@ import type {
   HistoryListener,
   HistoryTarget,
   RouterHistory,
-  WatchedHistory
+  WatchedHistory,
+  ProbeProps,
+  SelectedAccountMock
 } from '@web/modules/social-recovery/shared/chrome/__fixtures__/types'
 import { eachIt } from '@web/modules/social-recovery/shared/chrome/__fixtures__/table'
 
@@ -28,10 +30,7 @@ Object.assign(globalThis, { TextEncoder, TextDecoder })
 // React only runs effects and state updates inside act() when this flag is set.
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
-const mockSelected: {
-  state: { account: { addr: string } | null }
-  listeners: Set<() => void>
-} = { state: { account: null }, listeners: new Set() }
+const mockSelected: SelectedAccountMock = { state: { account: null }, listeners: new Set() }
 
 // A fresh page loads the hook's module again; React and the router stay the
 // ones the test renders with, so the reloaded hook reads the same router.
@@ -91,7 +90,7 @@ const THIRD_ACCOUNT: Address = '0x3333333333333333333333333333333333333333'
 // Each probe keeps the last value its hook returned, and the account of every render.
 const reads: Record<string, SetupAccount> = {}
 const rendered: Record<string, (Address | undefined)[]> = {}
-const Probe = ({ name }: { name: string }) => {
+const Probe = ({ name }: ProbeProps) => {
   reads[name] = useHook()
   rendered[name] = [...(rendered[name] ?? []), reads[name].account]
   return null

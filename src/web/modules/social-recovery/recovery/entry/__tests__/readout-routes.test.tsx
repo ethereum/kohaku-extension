@@ -6,7 +6,10 @@
  * the holder on to the checklist, continue on each route, and a read that
  * answers after the readout moved on.
  */
-import type { Mounted } from '@web/modules/social-recovery/recovery/entry/__tests__/harness'
+import type {
+  Mounted,
+  NamedText
+} from '@web/modules/social-recovery/recovery/entry/__tests__/harness'
 import {
   BASIC,
   gatheringFor,
@@ -97,7 +100,7 @@ describe('the recovery entry record', () => {
     expect(page.has('readout')).toBe(false)
   })
 
-  const unusable: [string, string][] = [
+  const unusable: NamedText[] = [
     ['no search', ''],
     ['a malformed account', '?account=0x1234']
   ]

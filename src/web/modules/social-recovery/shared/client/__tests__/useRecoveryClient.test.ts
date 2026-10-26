@@ -15,6 +15,11 @@ import type {
 import { buildRecoveryClient } from '@web/modules/social-recovery/shared/client/build-client'
 import { useRecoveryClient } from '@web/modules/social-recovery/shared/client/useRecoveryClient'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
+import type {
+  AccountProps,
+  NetworkInput,
+  PromiseOutcome
+} from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 // The client build is stubbed: the SDK doubles need a TextEncoder that jsdom lacks,
 // and these tests look at the provider the hook builds, not at the client.
@@ -135,7 +140,7 @@ const receiptsOf = (state: HookState | undefined) => {
   return state.receipts
 }
 
-const Probe = ({ account }: { account: Address }) => {
+const Probe = ({ account }: AccountProps) => {
   latest = useRecoveryClient(account)
   seen.push(latest)
   return null
@@ -189,7 +194,7 @@ describe('useRecoveryClient over the network record', () => {
     expect(built[0].destroy).toHaveBeenCalledTimes(1)
   })
 
-  const INPUTS: [keyof Network, string][] = [
+  const INPUTS: NetworkInput[] = [
     ['proverRpcUrl', 'https://prover.example/two'],
     ['consensusRpcUrl', 'https://consensus.example/two']
   ]
@@ -261,7 +266,7 @@ describe('useRecoveryClient over the network record', () => {
     const [first] = built
     first.getTransaction.mockImplementation(() => new Promise(() => {}))
     const hash = `0x${'ef'.repeat(32)}` as const
-    const outcome: { status: 'pending' | 'resolved' | 'rejected'; value?: unknown } = {
+    const outcome: PromiseOutcome = {
       status: 'pending'
     }
     receiptsOf(latest)
@@ -281,7 +286,7 @@ describe('useRecoveryClient over the network record', () => {
     const [first] = built
     first.getTransaction.mockImplementation(() => new Promise(() => {}))
     const hash = `0x${'cd'.repeat(32)}` as const
-    const outcome: { status: 'pending' | 'resolved' | 'rejected'; value?: unknown } = {
+    const outcome: PromiseOutcome = {
       status: 'pending'
     }
     receiptsOf(latest)

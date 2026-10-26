@@ -22,6 +22,10 @@ import {
   RATE_LIMIT_RETRY_MS,
   rateLimited
 } from '@web/modules/social-recovery/shared/client/provider-adapter'
+import type {
+  NamedValue,
+  NodeError
+} from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 const TO: Address = '0x1111111111111111111111111111111111111111'
 const DATA: Hex = '0xdeadbeef'
@@ -32,7 +36,7 @@ const SENDER: Address = '0xc18a000000000000000000000000000000000abC'
 const TOO_MANY = { code: -32005, message: 'Too Many Requests' }
 
 /** The error ethers' JSON-RPC provider throws for one item of a batch the node answered with `error`. */
-const nodeAnswered = (method: string, error: { code: number; message: string; data?: Hex }) =>
+const nodeAnswered = (method: string, error: NodeError) =>
   JsonRpcApiProvider.prototype.getRpcError.call(
     undefined,
     { method, params: [{ to: TO, data: DATA }], id: 1, jsonrpc: '2.0' },
@@ -241,7 +245,7 @@ describe('the other reads the node refuses for its rate limit', () => {
 })
 
 describe('what reads as the rate limit', () => {
-  const RATE_LIMITED: [string, unknown][] = [
+  const RATE_LIMITED: NamedValue[] = [
     ['the node error a provider that bypasses ethers throws', { ...TOO_MANY }],
     [
       'a request-limit code in a batch item',
@@ -275,7 +279,7 @@ describe('what reads as the rate limit', () => {
     ]
   ]
 
-  const NOT_RATE_LIMITED: [string, unknown][] = [
+  const NOT_RATE_LIMITED: NamedValue[] = [
     [
       'a revert',
       nodeAnswered('eth_call', { code: 3, message: 'execution reverted', data: REVERT })

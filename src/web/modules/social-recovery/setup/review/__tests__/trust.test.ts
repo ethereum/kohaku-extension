@@ -35,6 +35,7 @@ import {
   THIRD_PARTY_MODULE,
   UNANSWERED
 } from '@web/modules/social-recovery/setup/review/__fixtures__/review'
+import type { PathCase } from '@web/modules/social-recovery/setup/review/__fixtures__/types'
 
 const rowsOf = (
   clauses: Clause[],
@@ -201,7 +202,7 @@ describe('the trust rows', () => {
     const passportContract = (clauses: Clause[]) =>
       rowOf(rowsOf(clauses, EVERY_METHOD_ANSWERED), BOOK.methods.zkpassport).contract
 
-    const ALONE_AT_ONE: [string, Clause[]][] = [
+    const ALONE_AT_ONE: PathCase[] = [
       ['a lone required row', [required(PASSPORT)]],
       ['a group of one of two', [group(1, PASSPORT, ALICE)]],
       ['two groups of any one', [group(1, PASSPORT, ALICE), group(1, SECOND_PASSPORT, PASSKEY)]]
@@ -215,7 +216,7 @@ describe('the trust rows', () => {
       })
     })
 
-    const ALONE_OTHERWISE: [string, Clause[]][] = [
+    const ALONE_OTHERWISE: PathCase[] = [
       ['two required passport rows', [required(PASSPORT), required(SECOND_PASSPORT)]],
       ['a required row beside a group', [required(PASSPORT), group(1, SECOND_PASSPORT, ALICE)]]
     ]

@@ -39,6 +39,7 @@ import {
   writeReducer,
   WriteState
 } from '@web/modules/social-recovery/shared/writes/__tests__/harness'
+import type { ThrowCase } from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 // The not-sent reading: nothing reached the chain, and the account stands as it did.
 const NOTHING_REACHED_THE_CHAIN = /\b(?:nothing reached the chain|before it reached the chain)\b/i
@@ -58,7 +59,7 @@ const STILL_RUNNING = { ended: ATTEMPT_STILL_RUNNING }
 const rendered = (state: WriteState) => text(copyOfState(state))
 
 describe('a call the wallet never sent, the first reading', () => {
-  const errors: [string, () => unknown][] = [
+  const errors: ThrowCase[] = [
     ['the holder rejected the request', userRejected],
     ['the node refused the transaction', nodeRefused],
     ['the wallet failed before broadcasting', walletFailed]

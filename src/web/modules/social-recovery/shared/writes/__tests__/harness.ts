@@ -68,6 +68,11 @@ import {
   writeReducer,
   WriteState
 } from '@web/modules/social-recovery/shared/writes'
+import type * as React from 'react'
+import type {
+  DepositStepViewProps,
+  WriteStateViewProps
+} from '@web/modules/social-recovery/shared/writes/components'
 
 export * from '@web/modules/social-recovery/shared/writes'
 export { writes as WRITES_MODULE }
@@ -667,4 +672,62 @@ if (expect.getState().testPath === __filename) {
       expect(new Set(data).size).toBe(WRITE_KINDS.length)
     })
   })
+}
+
+/** The balance and gas a test scripts, and whether the account has a factory or the estimate reverts. */
+export type GasWorld = {
+  balance: bigint
+  gas: bigint
+  factory?: Address
+  reverts?: boolean
+}
+
+/** A call the estimate was asked for. */
+export type AskedCall = { from: string; to: string; data: string }
+
+/** A call as the estimate receives it. */
+export type EstimateCall = { from?: unknown; to?: unknown; data?: unknown }
+
+/** A case's name and a flag. */
+export type FlagCase = [string, boolean]
+
+/** A case's name and what the call throws. */
+export type ThrowCase = [string, () => unknown]
+
+/** The arguments of a copy: the text. */
+export type CopyArgs = [string]
+
+/** The props of the stand-in button. */
+export type ButtonProps = { text: string; onPress: () => void }
+
+/** The props of the stand-in text. */
+export type TextProps = { children?: React.ReactNode }
+
+/** The deposit view's module once loaded. */
+export type LoadedDepositView = { exports: { default?: React.ComponentType<DepositStepViewProps> } }
+
+/** A call, read by its data. */
+export type DataCall = { data: string }
+
+/** A case's name and the text. */
+export type NamedText = [string, string]
+
+/** A case's name and a value. */
+export type NamedValue = [string, unknown]
+
+/** What every drive of a send takes, apart from the key and the transaction. */
+export type DriveBase = Omit<Parameters<typeof writes.driveSend>[0], 'key' | 'transaction'>
+
+/** A way a transaction was replaced. */
+export type ReplacedEnding = 'cancelled' | 'replaced'
+
+/** The arguments of a dispatch: the action. */
+export type DispatchArgs = [SendRequestAction]
+
+/** A write, the case's name, and the error the kit names. */
+export type OwnErrorCase = [WriteKind, string, KitErrorName]
+
+/** The write state view's module once loaded. */
+export type LoadedWriteStateView = {
+  exports: { default?: React.ComponentType<WriteStateViewProps> }
 }

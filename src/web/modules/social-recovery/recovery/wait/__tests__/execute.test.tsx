@@ -34,7 +34,12 @@ import {
   TX_HASH,
   useWaitClock
 } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
-import type { Mounted, World } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
+import type {
+  Mounted,
+  World,
+  BlockRange,
+  RestartCase
+} from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
 import type { KitNotification } from '@kohaku-eth/social-recovery'
 import type { ProviderTransactionReceipt } from '@web/modules/social-recovery/shared/client'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
@@ -495,7 +500,7 @@ describe('the two readings of a send no node knows', () => {
     await expectReleased(world)
   })
 
-  const restarts: { name: string; between: (world: World) => void }[] = [
+  const restarts: RestartCase[] = [
     {
       name: 'the node knows the hash',
       between: (world) => {
@@ -576,7 +581,7 @@ describe('the two readings of a send no node knows', () => {
 
   it('keeps the claim where the manager names the attempt consumed at the second reading, and reaches the done screen', async () => {
     const world = await openWorld()
-    world.kit.fetch.mockImplementation(async (_filter: unknown, range: { from: number }) =>
+    world.kit.fetch.mockImplementation(async (_filter: unknown, range: BlockRange) =>
       range.from === SEND_BLOCK
         ? [...world.kit.chain.events, attemptConsumed(world.account)]
         : world.kit.chain.events
@@ -600,7 +605,7 @@ describe('the two readings of a send no node knows', () => {
     const world = await openWorld()
     let failNext = false
     world.kit.fetch.mockImplementation(
-      async (_filter: unknown, range: { from: number }): Promise<KitNotification[]> => {
+      async (_filter: unknown, range: BlockRange): Promise<KitNotification[]> => {
         if (range.from === SEND_BLOCK && failNext) {
           failNext = false
           throw new Error('the node did not answer')

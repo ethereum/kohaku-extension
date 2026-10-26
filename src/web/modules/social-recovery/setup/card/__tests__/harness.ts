@@ -10,6 +10,8 @@
 import type { KitRefusalError, RestoreCause, RestoreCauseCode } from '@kohaku-eth/social-recovery'
 import type { DigestVersionRefusal } from '@web/modules/social-recovery/shared/client'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
+import type { CardLevel } from '@web/modules/social-recovery/setup/card'
+import type { MissingPasswordRow } from '@web/modules/social-recovery/setup/card/types'
 
 /** The two setup reads the card's password row calls on the client. */
 export interface FakeSetupReads {
@@ -468,4 +470,49 @@ if (expect.getState().testPath === __filename) {
       expect(refusal.restoreCause?.code).toBe('restore.backup-unopened')
     })
   })
+}
+
+/** A hold the next storage read waits for; none while null. */
+export type ReadHold = { current: Promise<void> | null }
+
+/** The background the screen dispatches to. */
+export type BackgroundMock = { dispatch: jest.Mock; windowId: undefined }
+
+/** The setup read's input: the typed password. */
+export type PasswordQuery = { password: string }
+
+/** A case's name, what brings it about and the line the screen shows. */
+export type OtherCase = [string, () => void, string]
+
+/** The setup read's answer. */
+export type SetupAnswer = { hasSetup: boolean }
+
+/** A case's name and the error a read fails with. */
+export type ErrorCase = [string, () => Error]
+
+/** One print: whether the print view showed, and the card text it printed. */
+export type PrintCall = { printView: boolean; printCardText: string }
+
+/** How a test renders the card view; each member has a default. */
+export type CardViewOptions = {
+  level?: CardLevel
+  password?: string | null
+  carriedBefore?: boolean
+  missingPassword?: MissingPasswordRow
+}
+
+/** The arguments of the password check: the typed password. */
+export type PasswordArgs = [string]
+
+/** A click on a download link: its target, its file name, whether it was in the page and whether its URL was live. */
+export type LinkClick = { href: string; download: string; inPage: boolean; live: boolean }
+
+/** The elements of a page a print test builds. */
+export type PrintPage = {
+  html: HTMLElement
+  body: HTMLElement
+  other: HTMLElement
+  view: HTMLElement
+  card: HTMLElement
+  line: HTMLElement
 }

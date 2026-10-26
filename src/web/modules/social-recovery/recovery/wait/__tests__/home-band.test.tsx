@@ -23,8 +23,11 @@ import {
   waitPathOf,
   waiting
 } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
-import type { Mounted, World } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
-import type { Attempt } from '@kohaku-eth/social-recovery'
+import type {
+  Mounted,
+  World,
+  RivalAttempt
+} from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
 import { renderShortAddress } from '@web/modules/social-recovery/shared/display'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 
@@ -271,7 +274,7 @@ describe('the home band for an attempt that is not the landed one', () => {
     expect(view.byTestId(`home-countdown-${id}-chip`)).toBeNull()
   }
 
-  const RIVALS: [string, Partial<Attempt>][] = [
+  const RIVALS: RivalAttempt[] = [
     ['a later attempt id', { attemptId: 2n }],
     ['another setup number', { setupNonce: 2n }],
     ['another payload hash', { payloadHash: `0x${'ab'.repeat(32)}` }]

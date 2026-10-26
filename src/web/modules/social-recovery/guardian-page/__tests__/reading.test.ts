@@ -27,6 +27,7 @@ import type {
   DeadlineView,
   DomainOfBuild
 } from '@web/modules/social-recovery/guardian-page'
+import type { ApproverApproval } from '@web/modules/social-recovery/guardian-page/__tests__/harness'
 
 const t = (key: string, values?: Record<string, unknown>): string => i18n.t(key, values)
 
@@ -44,9 +45,7 @@ const VALID_UNTIL = CREATED_AT + 86_400
 const BEFORE_DEADLINE = CREATED_AT * 1000
 const AFTER_DEADLINE = (VALID_UNTIL + 1) * 1000
 
-const requestOf = (
-  overrides: Partial<Extract<ApproverRequest, { purpose: 'approval' }>> = {}
-): Extract<ApproverRequest, { purpose: 'approval' }> => ({
+const requestOf = (overrides: Partial<ApproverApproval> = {}): ApproverApproval => ({
   kind: 'recovery-proof-request',
   version: 1,
   purpose: 'approval',
@@ -317,7 +316,7 @@ describe('what the page reads of the request', () => {
   })
 
   it('refuses a request aimed at another chain, manager or digest version before any read', () => {
-    const others: Partial<Extract<ApproverRequest, { purpose: 'approval' }>>[] = [
+    const others: Partial<ApproverApproval>[] = [
       { chainId: '1' },
       { manager: getAddress('0xd41f8b062c97ae5310bd7f4a6e21c08539dab7e7') },
       { digestVersion: '2' }

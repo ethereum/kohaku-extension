@@ -1,9 +1,12 @@
-import type { Gathering } from '@kohaku-eth/social-recovery'
+import type { Gathering, Address } from '@kohaku-eth/social-recovery'
 import type {
   ExpectedRevision,
   LastAttempt,
   RecordStorage,
-  WalletRecords
+  WalletRecords,
+  CeremonyRequestRecord,
+  ChainId,
+  SaveInFlightClaim
 } from '@web/modules/social-recovery/shared/records'
 
 /** The request of an approval gathering, the purpose a live session holds. */
@@ -44,3 +47,48 @@ export type HolderModule = typeof import('@web/modules/social-recovery/shared/re
 
 /** The last attempt the manager holds, named for the test that reads it. */
 export type PastCountdownCase = [name: string, last: LastAttempt]
+
+/** A case's name and the stored payload, if any. */
+export type PayloadCase = [string, string | undefined]
+
+/** A case's name, the damaged record and what the read returns. */
+export type DamagedCase = [string, Record<string, unknown>, Record<string, unknown>]
+
+/** A case's name and a value. */
+export type NamedValue = [string, unknown]
+
+/** A case's name and how it brings the records to that state. */
+export type StateCase = [string, (records: WalletRecords) => Promise<unknown>]
+
+/** A clock a test moves. */
+export type Clock = { t: number }
+
+/** One address in two letter cases. */
+export type AddressPair = [Address, Address]
+
+/** A case's name and how the request differs. */
+export type RequestVariant = [string, Partial<ApprovalRequest>]
+
+/** An update and the account it names. */
+export type UpdateCase = [SessionUpdate, Address]
+
+/** A case's name and the update. */
+export type NamedUpdate = [string, SessionUpdate]
+
+/** A page that writes a reply: its records and its storage's read. */
+export type ReplyWriter = { records: WalletRecords; storage: Pick<RecordStorage, 'get'> }
+
+/** A case's name and the request record it stores. */
+export type ReplaceCase = [string, CeremonyRequestRecord]
+
+/** A pair of texts: a name or a call, and the value it carries. */
+export type NamedText = [string, string]
+
+/** A case's name and the claim. */
+export type ClaimCase = [string, SaveInFlightClaim]
+
+/** A storage call that writes. */
+export type StorageWrite = 'set' | 'remove'
+
+/** A chain and an account. */
+export type ChainAccount = [ChainId, Address]

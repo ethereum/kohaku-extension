@@ -15,6 +15,7 @@ import {
   HEAD
 } from '@web/modules/social-recovery/shared/client/__fixtures__/scripted-provider'
 import { worldOf as accountWorldOf } from '@web/modules/social-recovery/shared/client/wallet-reads/__fixtures__/world'
+import type { AccountReadsWorld } from '@web/modules/social-recovery/shared/client/wallet-reads/__fixtures__/types'
 
 const KEY_A: Address = '0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa'
 const KEY_B: Address = '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB'
@@ -33,15 +34,7 @@ const worldOf = ({
   creation = CREATION,
   accountImplementation,
   supportsAccount = true
-}: {
-  addr?: string
-  code?: Hex
-  initialPrivileges?: [string, string][]
-  associatedKeys?: string[]
-  creation?: typeof CREATION | null
-  accountImplementation?: Address
-  supportsAccount?: boolean
-}) =>
+}: AccountReadsWorld) =>
   accountWorldOf({
     addr,
     code,

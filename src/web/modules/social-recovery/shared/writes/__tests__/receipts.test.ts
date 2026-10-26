@@ -27,14 +27,15 @@ import {
   waitTimedOut,
   WRITE_KINDS
 } from '@web/modules/social-recovery/shared/writes/__tests__/harness'
+import type { NamedText } from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
-const HASHES: [string, string][] = [
+const HASHES: NamedText[] = [
   ['64 lower-case hex digits', TX_HASH],
   ['64 upper-case hex digits', `0x${'ABCDEF09'.repeat(8)}`],
   ['64 hex digits in mixed case', `0x${'aBcD'.repeat(16)}`]
 ]
 
-const NOT_HASHES: [string, string][] = [
+const NOT_HASHES: NamedText[] = [
   ['63 hex digits', TX_HASH.slice(0, -1)],
   ['65 hex digits', `${TX_HASH}0`],
   ['0X with a capital X before 64 hex digits', `0X${TX_HASH.slice(2)}`],

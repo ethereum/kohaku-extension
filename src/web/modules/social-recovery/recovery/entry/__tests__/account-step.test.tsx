@@ -5,7 +5,13 @@
  * setup, the confirmation, the recovery entry it writes and the reads that
  * decide whether the recovery can go on.
  */
-import type { Mounted } from '@web/modules/social-recovery/recovery/entry/__tests__/harness'
+import type {
+  BlockCase,
+  ErrorCase,
+  Mounted,
+  NamedText,
+  RedirectCase
+} from '@web/modules/social-recovery/recovery/entry/__tests__/harness'
 import {
   BASIC,
   CHAIN_ID,
@@ -112,7 +118,7 @@ describe('the account step chrome', () => {
     expect(page.has('entry-account-field')).toBe(true)
   })
 
-  const unusable: [string, string, string][] = [
+  const unusable: RedirectCase[] = [
     ['no search', '', '/social-recovery/recovery'],
     ['no receiving account', '?route=logged-in', '/social-recovery/recovery'],
     ['a malformed receiving account', '?route=fresh-install&to=0x1234', '/social-recovery/recover'],
@@ -133,7 +139,7 @@ describe('the account step chrome', () => {
 })
 
 describe('the account field', () => {
-  const malformed: [string, string][] = [
+  const malformed: NamedText[] = [
     ['a short hex value', '0x1234'],
     ['an address with one character too many', `${LOST.toLowerCase()}0`],
     [
@@ -207,7 +213,7 @@ describe('the account field', () => {
     expectNoNoSetup(page)
   })
 
-  const absentNames: [string, () => Error][] = [
+  const absentNames: ErrorCase[] = [
     ['a name with no resolver', () => revertedCall(REVERTS.resolverNotFound)],
     [
       'a name with no resolver, read through the page provider',
@@ -248,7 +254,7 @@ describe('the account field', () => {
     })
   })
 
-  const failedReads: [string, () => Error][] = [
+  const failedReads: ErrorCase[] = [
     [
       'a resolver call the page provider could not send',
       () => forwardedCall('Provider not found for chainId 11155111')
@@ -390,7 +396,6 @@ describe('the lookup', () => {
     expect(page.textOf('entry-lookup-update-how')).toBe(
       t('socialRecovery.client.updateTheWalletHow')
     )
-    expect(state?.textContent).not.toContain(t('socialRecovery.client.updateTheWalletAction'))
     expect(state?.querySelector('[role="button"], button')).toBeNull()
     expect(page.has('entry-lookup-refused-retry')).toBe(false)
     expect(page.has('entry-lookup-another')).toBe(false)
@@ -723,7 +728,7 @@ describe('the authorization read', () => {
 })
 
 describe('the fit reads', () => {
-  const refusals: [string, () => void, string][] = [
+  const refusals: BlockCase[] = [
     [
       'the action that does not support the account',
       () => kit.supportsAccount.mockResolvedValueOnce(false),
@@ -1063,7 +1068,7 @@ describe('a direct open', () => {
 })
 
 describe('leaving a blocked state', () => {
-  const blockedBy: [string, () => void, string][] = [
+  const blockedBy: BlockCase[] = [
     [
       'the dormant state',
       () => kit.isAuthorized.mockResolvedValueOnce(false),

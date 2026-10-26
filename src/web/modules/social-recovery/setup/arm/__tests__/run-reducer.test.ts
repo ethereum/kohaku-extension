@@ -30,7 +30,11 @@ import {
   nodeError,
   TX_HASH
 } from '@web/modules/social-recovery/setup/arm/__tests__/harness'
-import type { Node, Walk } from '@web/modules/social-recovery/setup/arm/__tests__/harness'
+import type {
+  Node,
+  Walk,
+  ReceiptStatus
+} from '@web/modules/social-recovery/setup/arm/__tests__/harness'
 
 const LAST_RUN = 3
 
@@ -57,7 +61,7 @@ const STEP: DepositStep = {
 }
 const DEPOSIT: GasCheck = { kind: 'deposit', step: STEP }
 
-const receipt = (run: number, status: 0 | 1, hash: Hex = TX_HASH): ArmEvent => ({
+const receipt = (run: number, status: ReceiptStatus, hash: Hex = TX_HASH): ArmEvent => ({
   type: 'write',
   event: { type: 'receipt', run, receipt: { transactionHash: hash, status } }
 })

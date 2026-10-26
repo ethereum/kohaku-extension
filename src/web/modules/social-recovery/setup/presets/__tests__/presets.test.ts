@@ -16,14 +16,14 @@ import {
   clausesOfShape,
   draftAgeLine,
   draftOf,
-  emptySlot,
   notStartedRowsOf,
   notYetActiveOf,
   presetOf,
   resumeRowsOf,
   shapeRowsOf,
   slotKindOf,
-  startDraft
+  startDraft,
+  emptySlot
 } from '@web/modules/social-recovery/setup/presets'
 import type { PresetChoice, PresetId, SlotKind } from '@web/modules/social-recovery/setup/presets'
 import { addressBookOf, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
@@ -39,6 +39,7 @@ import type {
   RecordStorage,
   SetupRecords
 } from '@web/modules/social-recovery/shared/records'
+import type { PresetShapes } from '@web/modules/social-recovery/setup/presets/__fixtures__/types'
 
 const { t } = i18n
 
@@ -90,7 +91,7 @@ const readDraft = async (setup: SetupRecords): Promise<SetupDraft> => {
 }
 
 // The shapes the four cards promise: each clause's threshold and the kind every member slot waits for.
-const SHAPES: Record<PresetId, { threshold: number; kinds: SlotKind[] }[]> = {
+const SHAPES: PresetShapes = {
   deviceAndGuardians: [
     { threshold: 1, kinds: ['passkey'] },
     { threshold: 2, kinds: ['ecdsa', 'ecdsa', 'ecdsa'] }

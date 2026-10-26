@@ -9,13 +9,14 @@
 import { createRoot } from 'react-dom/client'
 import { act } from 'react-dom/test-utils'
 import { TextDecoder, TextEncoder } from 'util'
+import type { GuardName } from '@web/modules/social-recovery/recovery/done/__tests__/harness'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const mockGuards = { unlocked: true, authenticated: true }
 
-const mockGuard = (name: 'unlocked' | 'authenticated') => {
+const mockGuard = (name: GuardName) => {
   const R = jest.requireActual('react')
   const { Outlet } = jest.requireActual('react-router-dom')
   return {

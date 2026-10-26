@@ -15,7 +15,10 @@ import type { Attempt, Hex } from '@kohaku-eth/social-recovery'
 import type { WriteEvent } from '@web/modules/social-recovery/shared/writes'
 import type { SendingPlan, SubmitStore } from '@web/modules/social-recovery/recovery/submit'
 
-import type { Device } from '@web/modules/social-recovery/recovery/submit/__tests__/harness'
+import type {
+  Device,
+  SubmitPage
+} from '@web/modules/social-recovery/recovery/submit/__tests__/harness'
 import {
   advanceTimers,
   attemptOf,
@@ -69,7 +72,7 @@ const otherPage = async (device: Device) => {
 let planSeed = 0xc2000
 
 describe('a submission on its way to the chain', () => {
-  const stores: { store: SubmitStore; steps: ReturnType<typeof stepsOf> }[] = []
+  const stores: SubmitPage[] = []
 
   beforeEach(() => {
     jest.useFakeTimers()

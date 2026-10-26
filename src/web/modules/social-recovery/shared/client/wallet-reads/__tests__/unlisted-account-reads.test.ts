@@ -12,7 +12,7 @@
  */
 import { toFunctionSelector, zeroHash } from 'viem'
 
-import type { Address, RawLog } from '@kohaku-eth/social-recovery'
+import type { RawLog } from '@kohaku-eth/social-recovery'
 import { eachIt } from '@web/modules/social-recovery/shared/chrome/__fixtures__/table'
 import {
   ACCOUNT,
@@ -47,6 +47,12 @@ import {
   STRANGER,
   worldOf
 } from '@web/modules/social-recovery/shared/client/wallet-reads/__fixtures__/world'
+import type {
+  ErrorCase,
+  KeyCase,
+  NumberCase,
+  WorldFailureCase
+} from '@web/modules/social-recovery/shared/client/wallet-reads/__fixtures__/types'
 
 describe("the sender of the account's latest setup commit", () => {
   it('is the removed key where no privilege write names it and the wallet knows none, once the action counts it', async () => {
@@ -80,7 +86,7 @@ describe("the sender of the account's latest setup commit", () => {
     expect(node.provider.transaction.mock.calls).toEqual([[latest.transactionHash]])
   })
 
-  eachIt<[string, Address | null]>([
+  eachIt<KeyCase>([
     ['a relayer the action does not count', RELAYER],
     ['no sender, the node knowing no such transaction', null]
   ])('is dropped for %s, and the next source answers', async (_, sender) => {
@@ -351,7 +357,7 @@ describe('the scans of an account with no creation record', () => {
     expect(scansOf(MANAGER)).toEqual(chunksFrom(DEPLOYED_AT))
   })
 
-  eachIt<[string, number]>([
+  eachIt<NumberCase>([
     ['the first block', 0],
     ['the second block', 1],
     ['a block long before the manager', DEPLOYED_AT - 123_457],
@@ -480,7 +486,7 @@ describe('an account with no creation record and no code', () => {
 
 describe('a node that refuses code reads at past blocks for its pruned history', () => {
   const PRUNED = { code: 4444, message: 'pruned history unavailable' }
-  const refusals: [string, Error][] = [
+  const refusals: ErrorCase[] = [
     [
       'the node error ethers keeps',
       providerReadFailure(
@@ -576,7 +582,7 @@ describe('a node that refuses code reads at past blocks for its pruned history',
 
 describe('a failed read of an account with no creation record', () => {
   const failure = providerReadFailure('call', new Error('timeout'))
-  eachIt<[string, (world: ReturnType<typeof worldOf>) => void]>([
+  eachIt<WorldFailureCase>([
     ['the pinned block', ({ node }) => node.provider.block.mockRejectedValueOnce(failure)],
     ['the code', ({ node }) => node.provider.code.mockRejectedValueOnce(failure)],
     [

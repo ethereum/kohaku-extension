@@ -36,6 +36,11 @@ import {
   rowChipOf,
   SYNCED_FLAGS
 } from '@web/modules/social-recovery/shared/ceremony/__tests__/harness'
+import type {
+  HostCall,
+  StopCase,
+  StoppedRun
+} from '@web/modules/social-recovery/shared/ceremony/__fixtures__/types'
 
 const NOTE = (key: string) => `socialRecovery.ceremony.${key}`
 
@@ -67,7 +72,7 @@ const browserAnswers = () => {
   })
 }
 
-const run = async (host: 'enroll' | 'testAccess' | 'createClaim', method = fakeMethod()) => {
+const run = async (host: HostCall, method = fakeMethod()) => {
   const orchestrator = fakeOrchestrator(method)
   const outcome = await hosts[host]({ method, orchestrator })
   return { outcome, method, orchestrator }
@@ -356,13 +361,13 @@ describe('a device stop that arrives after a cancel', () => {
   /** A phone that answers only once the holder has cancelled, and then with a stop. */
   const lateStopDevice = (signal: AbortSignal, stop: CeremonyStop) => {
     const settle = () =>
-      new Promise<{ ok: false; stop: CeremonyStop }>((resolve) => {
+      new Promise<StoppedRun>((resolve) => {
         signal.addEventListener('abort', () => resolve({ ok: false, stop }))
       })
     return { enroll: jest.fn(settle), sign: jest.fn(settle) }
   }
 
-  const STOPS: [string, () => CeremonyStop][] = [
+  const STOPS: StopCase[] = [
     ['an unreachable phone', () => ceremony().unavailable('unreachable')],
     ['a refusal', () => ceremony().dismissed('refused')]
   ]

@@ -25,6 +25,12 @@ import {
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
 import { isDeploymentRefusal } from '@web/modules/social-recovery/shared/client'
 import { sepoliaDeploymentVariable } from '@web/modules/social-recovery/shared/client/deployment-env'
+import type {
+  OptionalCallArgs,
+  OptionalDataCall,
+  WorldCase,
+  WorldRefusalCase
+} from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
   ...jest.requireActual('@web/modules/social-recovery/shared/client/deployment-env'),
@@ -46,7 +52,7 @@ const VIEW_NAMES = new Map<string, string>(
 
 /** The deployment checks' reads the build made through the extension's provider, by name, in order. */
 const checksOf = (world: World): string[] =>
-  world.ethers.call.mock.calls.flatMap(([tx]: [{ data?: string }]) => {
+  world.ethers.call.mock.calls.flatMap(([tx]: OptionalCallArgs) => {
     const name = VIEW_NAMES.get((tx.data ?? '').slice(0, 10))
     return name ? [name] : []
   })
@@ -91,7 +97,7 @@ describe('a chain whose deployment record names a deployed kit', () => {
     await expect(world.chain.code(zeroAddress, 'latest')).resolves.toBe('0x')
   })
 
-  const REFUSALS: [string, (world: World) => void, string][] = [
+  const REFUSALS: WorldRefusalCase[] = [
     [
       'a manager address with no code',
       ({ chain, descriptor }) => chain.setContractCode(descriptor.manager, false),
@@ -144,7 +150,7 @@ describe('a chain whose deployment record names a deployed kit', () => {
     })
   )
 
-  const CONSTRUCTION: [string, (world: World) => void][] = [
+  const CONSTRUCTION: WorldCase[] = [
     [
       'a provider on another chain',
       ({ ethers }) => {
@@ -195,13 +201,13 @@ describe('a chain whose deployment record names a deployed kit', () => {
 
   it('passes a read the provider could not make through as a read failure, never a refusal', async () => {
     const down = new Error('the node did not answer')
-    const failing: [string, (world: World) => void][] = [
+    const failing: WorldCase[] = [
       ['the domain', ({ ethers }) => ethers.call.mockRejectedValue(down)],
       [
         'the binding',
         ({ ethers }) => {
           const answer = ethers.call.getMockImplementation()
-          ethers.call.mockImplementation(async (tx: { data?: string }) => {
+          ethers.call.mockImplementation(async (tx: OptionalDataCall) => {
             if (VIEW_NAMES.get((tx.data ?? '').slice(0, 10)) === 'BINDING') {
               throw down
             }

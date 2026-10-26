@@ -19,7 +19,8 @@ import {
 } from '@web/modules/social-recovery/shared/records'
 import type {
   CountingStorageDouble,
-  HolderModule
+  HolderModule,
+  ChainAccount
 } from '@web/modules/social-recovery/shared/records/__fixtures__/types'
 
 const makeStorage = ({ failRemove = false } = {}): CountingStorageDouble => {
@@ -67,7 +68,7 @@ const OTHER_CHAIN_ID: ChainId = 1n
 const PASSWORD = 'correct horse battery staple'
 const OTHER_PASSWORD = 'tr0ub4dor&3'
 
-const PAIRS: [ChainId, Address][] = [
+const PAIRS: ChainAccount[] = [
   [CHAIN_ID, ACCOUNT],
   [CHAIN_ID, OTHER_ACCOUNT],
   [OTHER_CHAIN_ID, ACCOUNT],

@@ -3,11 +3,11 @@
  * two fields read as. The note is read back as a reader of the note's own
  * layout reads it, so what a setup writes is what a reader later sees.
  */
-import type { BackupChoice, Configuration, Hex } from '@kohaku-eth/social-recovery'
+import type { Configuration, Hex } from '@kohaku-eth/social-recovery'
 import { hexToString } from 'viem'
 
-import type { PrivacyLevel } from '@web/modules/social-recovery/shared/client/types'
 import { privacyLevelOf, shapeNoteOf } from '@web/modules/social-recovery/shared/client'
+import type { NoteCase } from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 const PASSKEY = '0x1000000000000000000000000000000000000001' as Hex
 const PASSPORT = '0x2000000000000000000000000000000000000002' as Hex
@@ -106,21 +106,20 @@ describe('shapeNoteOf', () => {
 
 describe('privacyLevelOf', () => {
   const NOTE = shapeNoteOf(CONFIGURATION)
-  const cases: { note: string; publicMetadata: Hex; backup: BackupChoice; level: PrivacyLevel }[] =
-    [
-      { note: 'no public note', publicMetadata: '0x', backup: 'encrypted', level: 'private' },
-      { note: 'no public note', publicMetadata: '0x', backup: 'empty', level: 'private' },
-      { note: 'no public note', publicMetadata: '0x', backup: 'clear', level: 'public' },
-      { note: 'the shape note', publicMetadata: NOTE, backup: 'encrypted', level: 'shape-visible' },
-      { note: 'the shape note', publicMetadata: NOTE, backup: 'empty', level: 'shape-visible' },
-      { note: 'the shape note', publicMetadata: NOTE, backup: 'clear', level: 'public' },
-      {
-        note: 'one byte of note',
-        publicMetadata: '0x01',
-        backup: 'encrypted',
-        level: 'shape-visible'
-      }
-    ]
+  const cases: NoteCase[] = [
+    { note: 'no public note', publicMetadata: '0x', backup: 'encrypted', level: 'private' },
+    { note: 'no public note', publicMetadata: '0x', backup: 'empty', level: 'private' },
+    { note: 'no public note', publicMetadata: '0x', backup: 'clear', level: 'public' },
+    { note: 'the shape note', publicMetadata: NOTE, backup: 'encrypted', level: 'shape-visible' },
+    { note: 'the shape note', publicMetadata: NOTE, backup: 'empty', level: 'shape-visible' },
+    { note: 'the shape note', publicMetadata: NOTE, backup: 'clear', level: 'public' },
+    {
+      note: 'one byte of note',
+      publicMetadata: '0x01',
+      backup: 'encrypted',
+      level: 'shape-visible'
+    }
+  ]
 
   cases.forEach(({ note, publicMetadata, backup, level }) => {
     it(`${note} beside a backup of form ${backup} reads ${level}`, () => {

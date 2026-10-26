@@ -15,6 +15,10 @@ import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
 import type { Address } from '@kohaku-eth/social-recovery'
 import type { ReviewViewProps } from '@web/modules/social-recovery/setup/review/types'
+import type {
+  MountCount,
+  SelectedAccountMock
+} from '@web/modules/social-recovery/setup/review/__fixtures__/types'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 // React only runs effects and state updates inside act() when this flag is set.
@@ -24,12 +28,9 @@ const mockAccount = '0x1111111111111111111111111111111111111111'
 const mockOtherAccount = '0x2222222222222222222222222222222222222222'
 
 // The selected account as an external store, so a test can switch it.
-const mockSelected: {
-  state: { account: { addr: string } | null }
-  listeners: Set<() => void>
-} = { state: { account: null }, listeners: new Set() }
+const mockSelected: SelectedAccountMock = { state: { account: null }, listeners: new Set() }
 const mockViewRenders: ReviewViewProps[] = []
-const mockViewMounts: { count: number } = { count: 0 }
+const mockViewMounts: MountCount = { count: 0 }
 const mockAccounts = [
   { addr: mockAccount, preferences: { label: 'Account 1' } },
   { addr: mockOtherAccount, preferences: { label: 'Account 2' } }

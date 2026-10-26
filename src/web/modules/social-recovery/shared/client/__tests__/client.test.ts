@@ -42,6 +42,10 @@ import {
   spyOnBuilder,
   thrownBy
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
+import type {
+  CallSender,
+  CodedFinding
+} from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 afterEach(() => jest.restoreAllMocks())
 
@@ -241,7 +245,7 @@ describe('the fit check the built client runs against the account implementation
     const client = await buildRecoveryClient(world.config)
     world.chain.setHasCode(hasCode)
     const result = await client.setup.validateSetup(draftOf(world))
-    const codes = (findings: readonly { code: string }[]) =>
+    const codes = (findings: readonly CodedFinding[]) =>
       findings.map((finding) => finding.code).filter((code) => code.startsWith('action.'))
     return { errors: codes(result.errors), warnings: codes(result.warnings) }
   }
@@ -326,7 +330,7 @@ describe('with no rail configured, every prepared call is sent from a key the si
   const accountKey: KeyHandle = { addr: addressOf('controlling-key'), type: 'internal' }
   const recovererKey: KeyHandle = { addr: addressOf('recoverer-key'), type: 'internal' }
   const block = { number: 1, hash: `0x${'00'.repeat(32)}` as const }
-  const call = (sender: 'account' | 'anyone'): PreparedCall => ({
+  const call = (sender: CallSender): PreparedCall => ({
     kind: 'call',
     target: addressOf('manager'),
     value: 0n,

@@ -26,29 +26,37 @@ import type { Account } from '@ambire-common/interfaces/account'
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
 import type { SetupConfirmation, SetupDraft } from '@kohaku-eth/social-recovery'
-import type {
-  KeyHandle,
-  SendPort,
-  SendRequestAction,
-  SubmittedOperation
-} from '@web/modules/social-recovery/shared/client'
+import type { KeyHandle, SendRequestAction } from '@web/modules/social-recovery/shared/client'
 import type { ArmKitClient } from '@web/modules/social-recovery/setup/arm'
 import type {
   Chain,
-  RemountedSaveCase
+  RemountedSaveCase,
+  ActivityMock,
+  AsyncCase,
+  AwayCase,
+  BlockedCase,
+  ClientMock,
+  EndedCase,
+  FactsState,
+  MeanwhileCase,
+  PopCase,
+  PortMock,
+  ProbedRouter,
+  QueueMock,
+  ReadHold,
+  RemoveListener,
+  SelectedAccountMock,
+  TranslateModule
 } from '@web/modules/social-recovery/setup/arm/__tests__/harness'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
-const mockSelected: {
-  current: { addr: string; preferences: { label: string } } | null
-  listeners: Set<() => void>
-} = { current: null, listeners: new Set() }
+const mockSelected: SelectedAccountMock = { current: null, listeners: new Set() }
 const mockFacts = new Map<string, unknown>()
-const mockClient: { current: unknown } = { current: { status: 'loading' } }
-const mockPort: { current: SendPort | null } = { current: null }
+const mockClient: ClientMock = { current: { status: 'loading' } }
+const mockPort: PortMock = { current: null }
 
 jest.mock('@web/hooks/useSelectedAccountControllerState', () => ({
   __esModule: true,
@@ -78,7 +86,7 @@ jest.mock('@web/hooks/useAccountsControllerState', () => ({
   __esModule: true,
   default: () => ({ accounts: [] })
 }))
-const mockQueue: { current: { userRequests: { id: string }[] }; listeners: Set<() => void> } = {
+const mockQueue: QueueMock = {
   current: { userRequests: [] },
   listeners: new Set()
 }
@@ -114,9 +122,9 @@ jest.mock('@web/modules/social-recovery/shared/client', () => ({
 }))
 const mockEntries = new Map<string, unknown>()
 const mockRemovals: string[][] = []
-const mockOnRemove: { current: ((keys: string[]) => void) | null } = { current: null }
+const mockOnRemove: RemoveListener = { current: null }
 /** Where set, the next storage read waits for it, then reads the entries as they stand then. */
-const mockReadHold: { current: Promise<void> | null } = { current: null }
+const mockReadHold: ReadHold = { current: null }
 jest.mock('@web/constants/browserapi', () => ({
   ...jest.requireActual('@web/constants/browserapi'),
   browser: {
@@ -168,8 +176,7 @@ const {
 const {
   WEB_ROUTES
 }: typeof import('@common/modules/router/constants/common') = require('@common/modules/router/constants/common')
-const { t }: { t: (key: string, options?: object) => string } =
-  require('@common/config/localization').default
+const { t }: TranslateModule = require('@common/config/localization').default
 const {
   ThemeContext
 }: typeof import('@common/contexts/themeContext') = require('@common/contexts/themeContext')
@@ -242,7 +249,7 @@ const THEME_CONTEXT: ThemeContextReturnType = {
 }
 
 /** The operations the account's activity lists for a page that reads it; null where it does not answer. */
-const activity: { current: SubmittedOperation[] | null } = { current: [] }
+const activity: ActivityMock = { current: [] }
 
 /**
  * The background the route sends its requests through: the send port the test
@@ -286,15 +293,15 @@ const SAVE_PATH = `/${WEB_ROUTES.socialRecoverySetupSave}`
 const CARD_PATH = `/${WEB_ROUTES.socialRecoverySetupCard}`
 
 /** Where the router stands, and its navigation, as the probe last read them. */
-const router: {
-  pathname: string
-  search: string
-  hash: string
-  state: unknown
-  type: string
-  navigate: ((to: string | number) => void) | null
-  push: ((to: string, state: unknown) => void) | null
-} = { pathname: '', search: '', hash: '', state: null, type: '', navigate: null, push: null }
+const router: ProbedRouter = {
+  pathname: '',
+  search: '',
+  hash: '',
+  state: null,
+  type: '',
+  navigate: null,
+  push: null
+}
 
 const RouterProbe = () => {
   const { pathname, search, hash, state } = useLocation()
@@ -413,7 +420,7 @@ const writeRecords = async (draft: SetupDraft, passwordSet = true, owner: string
   }
 }
 
-const wireClient = (facts: 'ready' | 'loading' | 'view-only' | 'state-unread', deployed = true) => {
+const wireClient = (facts: FactsState, deployed = true) => {
   port = sendPortFor(chain.send === 'sent' ? 'sent' : chain.send, address, chain.estimation)
   mockPort.current = port
   prepareCommitSetup = jest.fn(async () => preparedOf(address, false))
@@ -658,7 +665,7 @@ describe('the start of the save', () => {
 
   // An entry the router did not push is replaced in place with a keyed one; an
   // entry with a key of its own stays as the history move left it.
-  const POPS: [string, SetupDraft['privacy']['backup'], () => Promise<void>, string][] = [
+  const POPS: PopCase[] = [
     ['a reload', 'clear', reload, 'REPLACE'],
     ['a typed address', 'encrypted', openByAddress, 'REPLACE'],
     [
@@ -849,13 +856,7 @@ describe('a save in progress across remounts', () => {
   })
 
   /** How a save ended, what it showed, whether its batch left a setup on the account, and what the next arrival shows. */
-  const ENDED: {
-    named: string
-    arrange: () => void
-    ended: string
-    setUp: boolean
-    arrival: string
-  }[] = [
+  const ENDED: EndedCase[] = [
     {
       named: 'saved',
       arrange: () => {},
@@ -1345,7 +1346,7 @@ describe("the deposit step's Continue", () => {
 })
 
 describe('the blocks on arrival', () => {
-  const BLOCKED: [string, string, (draft: SetupDraft) => SetupDraft][] = [
+  const BLOCKED: BlockedCase[] = [
     [
       'a trust read that did not answer',
       'unavailable',
@@ -1652,7 +1653,7 @@ describe("another page's save that lands during this page's gas check", () => {
 })
 
 describe('a save another page of this device sent', () => {
-  const ARRIVALS: [string, () => Promise<void>][] = [
+  const ARRIVALS: AsyncCase[] = [
     ['a reload with the recovery password gone', reload],
     ['a second tab reached by the review push', openByPush]
   ]
@@ -1690,7 +1691,7 @@ describe('a save another page of this device sent', () => {
     })
   )
 
-  const DRAFT_AFTER: [string, () => Promise<void>][] = [
+  const DRAFT_AFTER: AsyncCase[] = [
     ['changed', () => writeRecords(draftOf('clear', '0x', []))],
     [
       'removed',
@@ -1897,7 +1898,7 @@ describe('a save another page of this device sent', () => {
     })
 
     /** Ways the screen of a followed save goes away and comes back. */
-    const AWAY: [string, () => Promise<void>, () => Promise<void>][] = [
+    const AWAY: AwayCase[] = [
       [
         'an account switch',
         async () => {
@@ -1953,7 +1954,7 @@ describe('a save another page of this device sent', () => {
     })
 
     /** Ways the screen changes while its read of the stored save is in flight. */
-    const WHILE_READING: [string, () => Promise<void>][] = [
+    const WHILE_READING: AsyncCase[] = [
       [
         'leaves and comes back',
         async () => {
@@ -2061,7 +2062,7 @@ describe('a save another page of this device sent', () => {
     )
 
     /** What another page does to this screen's claim while its setup read after the claim waits. */
-    const MEANWHILE: [string, (entry: string, claimed: string, requestId: string) => void][] = [
+    const MEANWHILE: MeanwhileCase[] = [
       [
         'claims anew after a void',
         (entry, claimed, requestId) =>

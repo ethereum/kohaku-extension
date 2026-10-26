@@ -8,7 +8,12 @@
  * once the chain agrees; a write another screen stored opens no step.
  */
 import type { Account } from '@ambire-common/interfaces/account'
-import type { KeyHandle, SendPort } from '@web/modules/social-recovery/shared/client'
+import type { KeyHandle } from '@web/modules/social-recovery/shared/client'
+import type {
+  ChildrenProps,
+  DispatchedAction,
+  OverviewMocks
+} from '@web/modules/social-recovery/management/overview/__fixtures__/types'
 
 jest.mock('viem', () => {
   // eslint-disable-next-line global-require
@@ -19,14 +24,14 @@ jest.mock('viem', () => {
 jest.mock('@common/utils/clipboard', () => ({ setStringAsync: async () => true }))
 jest.mock('@common/components/Spinner', () => ({ __esModule: true, default: () => null }))
 
-const mockWallet: {
-  account: string | undefined
-  facts: unknown
-  client: unknown
-  port: SendPort | null
-  storage: unknown
-  watched: unknown
-} = { account: undefined, facts: null, client: null, port: null, storage: null, watched: undefined }
+const mockWallet: OverviewMocks = {
+  account: undefined,
+  facts: null,
+  client: null,
+  port: null,
+  storage: null,
+  watched: undefined
+}
 // The wallet's controller states keep their identity between renders, as the real hooks do.
 const mockState = {
   accounts: { accounts: [] as unknown[] },
@@ -36,7 +41,7 @@ const mockState = {
   selected: { account: null },
   navigation: { navigate: jest.fn() },
   background: {
-    dispatch: jest.fn((action: { type: string }) => {
+    dispatch: jest.fn((action: DispatchedAction) => {
       if (action.type === 'INIT_CONTROLLER_STATE') {
         Promise.resolve()
           .then(() => {
@@ -90,7 +95,7 @@ jest.mock('@web/modules/social-recovery/shared/chrome/useSetupAccount', () => ({
 }))
 jest.mock('@web/modules/social-recovery/shared/chrome/SetupChrome', () => ({
   __esModule: true,
-  default: ({ children }: { children: unknown }) => children
+  default: ({ children }: ChildrenProps) => children
 }))
 jest.mock('@web/modules/social-recovery/cancel/AccountAttemptBanner', () => ({
   __esModule: true,

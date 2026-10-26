@@ -49,6 +49,7 @@ import {
   WRITES_KEYS,
   WriteState
 } from '@web/modules/social-recovery/shared/writes/__tests__/harness'
+import type { DataCall } from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 const REVERTED_AND_GONE = /\bthe gas it spent is gone\b/i
 const STILL_READY = /\bthe recovery is still ready\b/i
@@ -135,7 +136,7 @@ describe("the transfer route carries the transfer's own fee", () => {
   const WRITE_GAS = 180_000n
   const PRICE = 3n * GWEI
   const transferData = transferTransactionOf(ACCOUNT, KEY.addr).data
-  const gas = (call: { data: string }) => (call.data === transferData ? TRANSFER_GAS : WRITE_GAS)
+  const gas = (call: DataCall) => (call.data === transferData ? TRANSFER_GAS : WRITE_GAS)
   // What the transfer costs the key when it lands at the fee of the check.
   const TRANSFER_COST = (TRANSFER_GAS + VALUE_TRANSFER_GAS) * PRICE
 

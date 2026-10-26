@@ -12,12 +12,16 @@ import {
   approvalLinkOf,
   requestOfApprovalLink
 } from '@web/modules/social-recovery/recovery/checklist'
+import type {
+  ApproverApproval,
+  NamedText
+} from '@web/modules/social-recovery/recovery/checklist/__tests__/harness'
 
 const TAB = 'chrome-extension://kohaku/tab.html'
 
 const GATHERING_BODY = '0x0102030405060708090a0b0c0d0e0f'
 
-const REQUEST: Extract<ApproverRequest, { purpose: 'approval' }> = {
+const REQUEST: ApproverApproval = {
   kind: 'recovery-proof-request',
   version: 1,
   purpose: 'approval',
@@ -95,7 +99,7 @@ describe('the approval page link', () => {
     expect(carriedOf(approvalLinkOf(REQUEST, TAB))).toMatch(/^[A-Za-z0-9_-]+$/)
   })
 
-  const mangled: [string, string][] = [
+  const mangled: NamedText[] = [
     ['a link with no request parameter', `${TAB}#/${WEB_ROUTES.socialRecoveryApprove}`],
     ['an empty request parameter', `${TAB}#/${WEB_ROUTES.socialRecoveryApprove}?request=`],
     [

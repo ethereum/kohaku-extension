@@ -30,6 +30,10 @@ import {
   UNKNOWN_TRANSACTION_MS,
   watchEthersWaits
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
+import type {
+  ReceiptStatus,
+  ReplacementCase
+} from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 const SENDER = '0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A' as Address
 const TARGET = '0x0000000000000000000000000000000000c70101' as Address
@@ -52,7 +56,7 @@ const sent = (overrides: Partial<NodeTransaction> = {}): NodeTransaction => ({
   ...overrides
 })
 
-const receiptFor = (tx: NodeTransaction, status: 0 | 1): NodeReceipt => ({
+const receiptFor = (tx: NodeTransaction, status: ReceiptStatus): NodeReceipt => ({
   hash: tx.hash,
   from: tx.from,
   to: tx.to,
@@ -71,7 +75,7 @@ const nodeWith = (script: Partial<NodeScript>): ScriptedNode => {
 }
 
 /** The node where the transaction was mined in START with the given status. */
-const minedWith = (status: 0 | 1) => {
+const minedWith = (status: ReceiptStatus) => {
   const tx = sent({ blockNumber: START })
   return nodeWith({
     blockNumber: START + 1,
@@ -141,12 +145,11 @@ describe('the receipt wait', () => {
     expect(caught).toBe(await outcomeOf(ethersWaits[0]))
   })
 
-  const REPLACEMENTS: [string, Partial<NodeTransaction>, 'cancelled' | 'replaced' | 'repriced'][] =
-    [
-      ['a transaction to itself that sends nothing', { to: SENDER, data: '0x' }, 'cancelled'],
-      ['another call', { to: OTHER_TARGET }, 'replaced'],
-      ['the same call at another fee', {}, 'repriced']
-    ]
+  const REPLACEMENTS: ReplacementCase[] = [
+    ['a transaction to itself that sends nothing', { to: SENDER, data: '0x' }, 'cancelled'],
+    ['another call', { to: OTHER_TARGET }, 'replaced'],
+    ['the same call at another fee', {}, 'repriced']
+  ]
   REPLACEMENTS.forEach(([title, replacement, reason]) =>
     it(`lets ethers' TRANSACTION_REPLACED through unchanged for ${title} mined in its place`, async () => {
       const node = replacedBy(replacement)

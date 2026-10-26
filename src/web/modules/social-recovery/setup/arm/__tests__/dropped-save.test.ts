@@ -35,7 +35,6 @@ import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures_
 import {
   advanceTimers,
   CHAIN_ID,
-  HAPPY,
   landedReceipt,
   memoryStorage,
   nodeError,
@@ -48,14 +47,20 @@ import {
   START_BLOCK,
   TX_HASH,
   unawaited,
-  wireSave
+  wireSave,
+  HAPPY
 } from '@web/modules/social-recovery/setup/arm/__tests__/harness'
 import type {
   MemoryStorage,
   Page,
   RequestsFake,
   SaveScript,
-  WiredSave
+  WiredSave,
+  FailingReadCase,
+  KnownAnswer,
+  PageCase,
+  RecordTimes,
+  RecordWrite
 } from '@web/modules/social-recovery/setup/arm/__tests__/harness'
 
 const OPTIONS = { timeoutMs: SHORT_TIMEOUT_MS }
@@ -264,7 +269,7 @@ describe('a page that finds a save stored under its hash', () => {
     expect(page.wired.port.sendAccountBatch).not.toHaveBeenCalled()
   })
 
-  const FAILING_READS: [string, (page: Page) => void, number][] = [
+  const FAILING_READS: FailingReadCase[] = [
     [
       'the node read rejects',
       ({ wired }) => wired.receipts.transactionKnown.mockRejectedValue(nodeError()),
@@ -377,7 +382,7 @@ describe('the two readings of a dropped save', () => {
     expect(page.wired.setupState).toHaveBeenCalledTimes(1)
   })
 
-  const BETWEEN: [string, (page: Page) => void][] = [
+  const BETWEEN: PageCase[] = [
     [
       'a known answer',
       ({ wired }) => wired.receipts.transactionKnown.mockResolvedValueOnce('known')
@@ -503,7 +508,7 @@ describe('the two readings of a dropped save', () => {
 })
 
 describe('the hour of a dropped save', () => {
-  const recordAt = async (times: { claimedAgo: number; sentAgo?: number }) => {
+  const recordAt = async (times: RecordTimes) => {
     const storage = memoryStorage()
     const requests = requestsFake()
     const { record } = await firstPageSent(storage, requests)
@@ -744,7 +749,7 @@ describe('when the check for a dropped save runs', () => {
     expect(wired.port.sendAccountBatch).toHaveBeenCalledTimes(1)
   })
 
-  const AT_THE_STALL: [string, (page: Page) => void][] = [
+  const AT_THE_STALL: PageCase[] = [
     ['at the same block, the minute passed', () => undefined],
     ['at a new block', ({ wired }) => wired.receipts.blockNumber.mockResolvedValue(START_BLOCK + 1)]
   ]
@@ -801,7 +806,7 @@ describe('when the check for a dropped save runs', () => {
     await firstPageSent(storage, requests)
     const { page } = await stalledFollower(storage, requests)
     passTime(DROPPED_AFTER_MS)
-    const known = deferred<'known' | 'unknown'>()
+    const known = deferred<KnownAnswer>()
     page.wired.receipts.transactionKnown.mockImplementationOnce(() => known.promise)
 
     unawaited(checkReceiptAgain(page.store, page.wired.steps, OPTIONS))
@@ -849,10 +854,7 @@ describe('when the check for a dropped save runs', () => {
     expect(isDropped(page.store)).toBe(true)
   })
 
-  const ANOTHER_RECORD: [
-    string,
-    (storage: MemoryStorage, record: SaveInFlightRecord) => Promise<unknown>
-  ][] = [
+  const ANOTHER_RECORD: RecordWrite[] = [
     [
       "another request's save stored in its place",
       (storage, record) =>
@@ -1056,7 +1058,7 @@ describe('save again', () => {
     expect(other.wired.port.sendAccountBatch).not.toHaveBeenCalled()
   })
 
-  const SET_UP_MEANWHILE: [string, (page: Page) => void][] = [
+  const SET_UP_MEANWHILE: PageCase[] = [
     ['before the prepare', ({ wired }) => wired.setupState.mockResolvedValue(setupStateOf(true))],
     [
       'after the claim',

@@ -25,6 +25,7 @@ import type { TempSeed } from '@web/modules/social-recovery/onboarding/fast-trac
 import type { Address } from '@kohaku-eth/social-recovery'
 import { seedBasicAccountOf } from '@web/modules/social-recovery/shared/client'
 import slot from '@web/modules/social-recovery/onboarding/fast-track/__fixtures__/slot.json'
+import type { NotHeldCase } from '@web/modules/social-recovery/onboarding/fast-track/__fixtures__/types'
 
 const TEST_PHRASE = slot.phrase
 const ORDINARY_KEY = slot.ordinaryKey as Address
@@ -89,7 +90,7 @@ const libraryKeyAt = async (index: number): Promise<string> => {
 
 // The wallets that do not hold the slot's basic account with an ordinary key
 // of a recovery phrase.
-const notHeld = (): { name: string; accounts: Account[]; keys: Key[] }[] => [
+const notHeld = (): NotHeldCase[] => [
   {
     name: 'the account at that address is a smart account',
     accounts: [{ ...smartAccount, addr: ORDINARY_KEY }],

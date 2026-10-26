@@ -13,17 +13,18 @@ import { TextDecoder, TextEncoder } from 'util'
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
 import type { Address } from '@kohaku-eth/social-recovery'
-import type {
-  CardFile,
-  CardLevel,
-  PasswordAskAnswer
-} from '@web/modules/social-recovery/setup/card'
+import type { CardFile, PasswordAskAnswer } from '@web/modules/social-recovery/setup/card'
 import { pdfTextBlocks } from '@web/modules/social-recovery/setup/card/__tests__/harness'
 import type {
   MissingPasswordRow,
   RecoveryPasswordCheck
 } from '@web/modules/social-recovery/setup/card/types'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
+import type {
+  CardViewOptions,
+  PasswordArgs,
+  PrintCall
+} from '@web/modules/social-recovery/setup/card/__tests__/harness'
 
 // The spinner's animation needs a native module jsdom lacks; a plain view stands in.
 jest.mock('@common/components/Spinner', () => {
@@ -98,7 +99,7 @@ describe('the recovery card view', () => {
   let container: HTMLDivElement
   let root: Root
   let files: CardFile[]
-  let printed: { printView: boolean; printCardText: string }[]
+  let printed: PrintCall[]
   let onCarried: jest.Mock
   let onBack: jest.Mock
   let onContinue: jest.Mock
@@ -152,12 +153,7 @@ describe('the recovery card view', () => {
     password = PASSWORD,
     carriedBefore = false,
     missingPassword = { kind: 'gone' }
-  }: {
-    level?: CardLevel
-    password?: string | null
-    carriedBefore?: boolean
-    missingPassword?: MissingPasswordRow
-  } = {}) => {
+  }: CardViewOptions = {}) => {
     await act(async () => {
       root.render(
         <ThemeContext.Provider value={THEME_CONTEXT}>
@@ -710,7 +706,7 @@ describe('the recovery card view', () => {
 
     it('says a check that could not run, or that threw, could not check, and keeps the value', async () => {
       const check = jest
-        .fn<Promise<RecoveryPasswordCheck>, [string]>()
+        .fn<Promise<RecoveryPasswordCheck>, PasswordArgs>()
         .mockResolvedValueOnce('unchecked')
         .mockRejectedValueOnce(new Error('the check threw'))
       await mount({ password: null, missingPassword: askWith(check) })
@@ -732,7 +728,7 @@ describe('the recovery card view', () => {
     it('clears the earlier line on a new check and keeps the button off, with the line that unlocks the setup, while it runs', async () => {
       const second = deferred<RecoveryPasswordCheck>()
       const check = jest
-        .fn<Promise<RecoveryPasswordCheck>, [string]>()
+        .fn<Promise<RecoveryPasswordCheck>, PasswordArgs>()
         .mockResolvedValueOnce('wrong')
         .mockReturnValueOnce(second.promise)
       await mount({ password: null, missingPassword: askWith(check) })

@@ -3,8 +3,9 @@ import en from '@common/config/localization/translations/en.json'
 import type { Address } from '@kohaku-eth/social-recovery'
 
 import * as display from '@web/modules/social-recovery/shared/display'
+import type { DisplayBan } from '@web/modules/social-recovery/shared/display/__fixtures__/types'
 
-const BANS: { rule: string; pattern: RegExp }[] = [
+const BANS: DisplayBan[] = [
   { rule: 'policy', pattern: /\bpolic(?:y|ies)\b/i },
   { rule: 'proof', pattern: /\bproofs?\b/i },
   { rule: 'relayer', pattern: /\brelayers?\b/i },

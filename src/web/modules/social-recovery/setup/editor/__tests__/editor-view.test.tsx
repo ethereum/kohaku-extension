@@ -26,7 +26,10 @@ import type { Enrollment } from '@web/modules/social-recovery/shared/records'
 import type {
   MountOptions,
   Root,
-  Validate
+  Validate,
+  EnrollmentCase,
+  FallbackCase,
+  StoredEdit
 } from '@web/modules/social-recovery/setup/editor/__tests__/harness'
 
 // The spinner's animation needs a native module jsdom lacks; a plain view stands in.
@@ -237,10 +240,7 @@ const mount = async ({
   return { storage, records, validateSetup, navigate, stored, writesBefore, reopen }
 }
 
-const expectPathMatchesDraft = async (
-  stored: () => Promise<{ draft: SetupDraft | null; path: readonly Clause[] | null }>,
-  clauses: Clause[]
-) => {
+const expectPathMatchesDraft = async (stored: () => Promise<StoredEdit>, clauses: Clause[]) => {
   const { draft, path } = await stored()
   expect(draft?.clauses).toEqual(clauses)
   expect(path).toEqual(clauses)
@@ -1152,7 +1152,7 @@ describe('a method whose access test failed', () => {
     })
   )
 
-  const fallbacks: [string, string | undefined][] = [
+  const fallbacks: FallbackCase[] = [
     ['a browser error', 'browser-error: NotAllowedError'],
     ['a passkey the browser refused under this origin', 'relying-party-mismatch: SecurityError'],
     ['a cause the wallet has no words for', 'timeout'],
@@ -1164,7 +1164,7 @@ describe('a method whose access test failed', () => {
     })
   )
 
-  const unfailed: [string, Enrollment][] = [
+  const unfailed: EnrollmentCase[] = [
     ['passed', enrolled(PASSKEY)],
     ['was not run', { credential: PASSKEY, test: 'not-tested' }]
   ]

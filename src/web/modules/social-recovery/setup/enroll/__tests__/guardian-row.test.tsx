@@ -48,6 +48,11 @@ import {
   storedEnrollments,
   t
 } from '@web/modules/social-recovery/setup/enroll/__tests__/harness'
+import type {
+  CallTarget,
+  SignTypedDataArgs,
+  TypedField
+} from '@web/modules/social-recovery/setup/enroll/__fixtures__/types'
 
 // The spinner's animation needs a native module jsdom lacks; a plain view stands in.
 jest.mock('@common/components/Spinner', () => {
@@ -137,7 +142,7 @@ const typedDataFromText = (text: string): TypedDataToSign => {
     primaryType: string
     message: Record<string, unknown>
   }
-  const revive = (fields: { name: string; type: string }[], value: Record<string, unknown>) =>
+  const revive = (fields: TypedField[], value: Record<string, unknown>) =>
     Object.fromEntries(
       Object.entries(value).map(([name, member]) => {
         const type = fields.find((field) => field.name === name)?.type ?? ''
@@ -469,7 +474,6 @@ describe('the guardian row', () => {
       expect(view!.text()).toContain(t(`${GUARDIAN}.howMany`))
       expect(view!.byTestId('guardian-test')?.textContent).toBe(t(`${GUARDIAN}.testThisKey`))
       expect(view!.byTestId('guardian-field')).toBeNull()
-      expect(view!.text()).not.toContain(t(`${GUARDIAN}.addAnother`))
     })
 
     it('reads the guardian back on a reload', async () => {
@@ -1046,7 +1050,7 @@ describe('the guardian row', () => {
         reads.push(method)
         return '0x'
       })
-      const call = jest.fn(async (transaction: { to: string }) => {
+      const call = jest.fn(async (transaction: CallTarget) => {
         reads.push(`call ${transaction.to}`)
         return '0x'
       })
@@ -1200,7 +1204,7 @@ describe('the guardian row', () => {
     it('carries the same typed data by QR and by file as the row asked the queue to sign', async () => {
       const key: KeyHandle = { addr: HELD, type: 'internal' }
       const saveFile = jest.fn()
-      const signTypedData = jest.fn<Promise<Hex>, [KeyHandle, TypedDataToSign]>(async () => {
+      const signTypedData = jest.fn<Promise<Hex>, SignTypedDataArgs>(async () => {
         throw signerNotWired('signTypedData', key)
       })
       deps = depsOf({ keys: [key], signTypedData, saveFile })
@@ -1262,8 +1266,8 @@ describe('the guardian row', () => {
 
     it('asks for no call back and no owner answer, before Add, after Add or after a test', async () => {
       const absent = () => {
-        expect(view!.text()).not.toContain(t(`${GUARDIAN}.callBack`))
-        expect(view!.text()).not.toContain(t(`${GUARDIAN}.ownerAnswer`))
+        expect(view!.text()).not.toContain(t('socialRecovery.checklist.guardian.askCallBack'))
+        expect(view!.text()).not.toContain(t('socialRecovery.checklist.message.callBack'))
       }
       await open()
       await enter(HELD)

@@ -26,6 +26,7 @@ import {
   stateRefreshOf,
   WALLET_RECOVERY_CHAIN
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
+import type { PushedState } from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 const SECOND_KEY = new Wallet(`0x${'66'.repeat(32)}`).address as Address
 const BASIC = new Wallet(`0x${'77'.repeat(32)}`).address as Address
@@ -325,11 +326,7 @@ describe("the refresh of a listed account's state on the recovery chain", () => 
 
   it('is none with no account given, or until the background pushed the accounts, their states and the networks', () => {
     expect(stateRefreshOf(undefined, sources())).toBeUndefined()
-    const PUSHED: ('accounts' | 'accountStates' | 'networks')[] = [
-      'accounts',
-      'accountStates',
-      'networks'
-    ]
+    const PUSHED: PushedState[] = ['accounts', 'accountStates', 'networks']
     PUSHED.forEach((source) =>
       expect(
         stateRefreshOf(smart.addr as Address, sources({ [source]: undefined }))

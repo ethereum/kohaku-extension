@@ -16,7 +16,13 @@
  */
 import { TextDecoder, TextEncoder } from 'util'
 
-import type { ScreensWorld } from '@web/modules/social-recovery/management/editor/__fixtures__/types'
+import type {
+  ScreensWorld,
+  CheckStop,
+  EditChangeCase,
+  EditScreenSetup,
+  ManageIntent
+} from '@web/modules/social-recovery/management/editor/__fixtures__/types'
 import type { EditSession } from '@web/modules/social-recovery/management/editor/types'
 import type { Clause } from '@kohaku-eth/social-recovery'
 
@@ -191,16 +197,7 @@ const given = async ({
   committed = COMMITTED,
   wait,
   password = 'kept'
-}: {
-  clauses: Clause[]
-  trustAnswered: boolean
-  attemptOpen: boolean
-  authorized?: boolean
-  /** The path the edit started from. */
-  committed?: Clause[]
-  wait?: number
-  password?: EditSession['password']
-}) => {
+}: EditScreenSetup) => {
   const storage = makeStorage()
   const records = createWalletRecords({ storage })
   const session = editSessionOf(storage, CHAIN_ID, ACCOUNT)
@@ -286,7 +283,7 @@ describe('the save of an edit that adds no row', () => {
   // The trust reads never answer here: an edit that adds no row has none to wait for.
   const noTrust = { trustAnswered: false, attemptOpen: false }
   const TWO = [review.group(2, ALICE, BOB)]
-  const cases: { name: string; options: Parameters<typeof given>[0]; change: string }[] = [
+  const cases: EditChangeCase[] = [
     {
       name: 'a threshold change',
       options: { ...noTrust, committed: TWO, clauses: [review.group(1, ALICE, BOB)] },
@@ -614,7 +611,7 @@ describe('the removal around the refusals and other writes', () => {
       trustAnswered: true,
       attemptOpen: false
     })
-    const checked = (stage: 'disagreed' | 'unread') => {
+    const checked = (stage: CheckStop) => {
       mockWorld.run = {
         ...idleRun(),
         state: {
@@ -937,7 +934,7 @@ describe('the review and the removal once a recovery moved control away from thi
    */
   const followingOwnWrite = async (
     stage: typeof ReviewStageView | typeof RemoveStageView,
-    intent: 'manageEdit' | 'manageRemove'
+    intent: ManageIntent
   ) => {
     const { records, session } = await given({
       clauses: COMMITTED,

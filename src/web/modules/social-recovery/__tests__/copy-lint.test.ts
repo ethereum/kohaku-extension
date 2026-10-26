@@ -14,6 +14,7 @@ import type {
   JsonValue,
   StringEntry
 } from '@web/modules/social-recovery/__tests__/stubs/types'
+import type { BannedTerm } from '@web/modules/social-recovery/__fixtures__/types'
 
 const EN_JSON_PATH = path.resolve(
   __dirname,
@@ -58,7 +59,7 @@ const collectKeys = (node: JsonValue, keyPath: string, out: StringEntry[] = []):
 // Whole-word bans. "Word-bounded" means a longer word that merely contains the
 // term (proofread, waterproof, relayed) is not a hit, but the plural of
 // the banned word is, since the ban names the term and its plural is the term.
-const CASE_INSENSITIVE_BANS: { term: string; pattern: RegExp }[] = [
+const CASE_INSENSITIVE_BANS: BannedTerm[] = [
   { term: 'policy', pattern: /\bpolic(?:y|ies)\b/i },
   { term: 'proof', pattern: /\bproofs?\b/i },
   { term: 'relayer', pattern: /\brelayers?\b/i },

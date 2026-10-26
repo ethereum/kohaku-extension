@@ -45,6 +45,10 @@ import {
   SYNCED_ON_GOOGLE,
   t
 } from '@web/modules/social-recovery/setup/enroll/__tests__/harness'
+import type {
+  Attachment,
+  PasskeyCall
+} from '@web/modules/social-recovery/setup/enroll/__fixtures__/types'
 
 // The spinner's animation needs a native module jsdom lacks; a plain view stands in.
 jest.mock('@common/components/Spinner', () => {
@@ -104,7 +108,7 @@ const chip = (name: MethodChip) => renderChip('method', name, t)
  * flags but no attested credential data, so no AAGUID, and the browser reports
  * no transports for it.
  */
-const assertedOn = (attachment: 'platform' | 'cross-platform', synced: boolean): PasskeyFacts => {
+const assertedOn = (attachment: Attachment, synced: boolean): PasskeyFacts => {
   const authenticatorData = new Uint8Array(37)
   // User present and verified, plus backup eligible and backed up for a synced passkey.
   authenticatorData[32] = synced ? 0x1d : 0x05
@@ -145,11 +149,7 @@ describe('the passkey row', () => {
   }
 
   /** The tab writes its report and returns to the path the row gave it. */
-  const returnFrom = async (
-    id: string,
-    call: 'enroll' | 'testAccess',
-    outcome: CeremonyOutcome<unknown>
-  ) => {
+  const returnFrom = async (id: string, call: PasskeyCall, outcome: CeremonyOutcome<unknown>) => {
     await deps.channel.report(id, call, outcome)
     await open({ ...SEARCH, ceremony: id })
   }

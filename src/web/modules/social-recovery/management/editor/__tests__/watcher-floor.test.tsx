@@ -6,9 +6,10 @@
  * manager and action: the page reads the facts as failed with retry, never as
  * no setup.
  */
-import type { RecordStorage } from '@web/modules/social-recovery/shared/records'
 
-const mockStore: { storage: RecordStorage | null; client: unknown } = {
+import type { WatcherFloorMocks } from '@web/modules/social-recovery/management/editor/__fixtures__/types'
+
+const mockStore: WatcherFloorMocks = {
   storage: null,
   client: null
 }

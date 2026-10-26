@@ -4,6 +4,10 @@ import {
   renderRemaining,
   Translate
 } from '@web/modules/social-recovery/shared/display'
+import type {
+  BadTimeCase,
+  TranslateCall
+} from '@web/modules/social-recovery/shared/display/__fixtures__/types'
 
 const expectRefusal = (fn: () => unknown, message: string) => {
   expect(fn).toThrow(TypeError)
@@ -18,7 +22,7 @@ const before = (ms: number) => new Date(DEADLINE.getTime() - ms)
 
 describe('countdown words come from en.json alone', () => {
   it('reads the registered keys with a count and passes no fallback text', () => {
-    const calls: [string, Record<string, unknown> | undefined][] = []
+    const calls: TranslateCall[] = []
     const t: Translate = (key, options) => {
       calls.push([key, options])
       return `<${key}>`
@@ -106,7 +110,7 @@ describe('deadline', () => {
 })
 
 describe('a value that is not a valid time', () => {
-  const BAD_TIMES: [Date | number, string][] = [
+  const BAD_TIMES: BadTimeCase[] = [
     [NaN, 'Not a time: NaN'],
     [new Date(NaN), 'Not a time: Invalid Date'],
     [Infinity, 'Not a time: Infinity'],

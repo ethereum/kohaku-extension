@@ -32,6 +32,10 @@ import {
   stringsIn,
   SYNCED_FLAGS
 } from '@web/modules/social-recovery/shared/ceremony/__tests__/harness'
+import type {
+  EnrollInputCase,
+  NamedValue
+} from '@web/modules/social-recovery/shared/ceremony/__fixtures__/types'
 
 let point: P256Point
 let bareIdHash: string
@@ -182,7 +186,7 @@ describe('the origin string the method names', () => {
   class CallerParams {
     userName = 'holder'
   }
-  const NOT_PLAIN: [string, unknown][] = [
+  const NOT_PLAIN: NamedValue[] = [
     ['an array', ['holder']],
     ['a class instance', new CallerParams()]
   ]
@@ -211,7 +215,7 @@ describe('the origin string the method names', () => {
   // The device accepts the full origin string back and nothing else.
   const enrollInputFor = (relyingPartyId: string): EnrollInput =>
     sdkPasskeyMethod().enrollInput({ relyingPartyId, userName: 'holder' })
-  const ENROLL_CASES: [string, () => EnrollInput][] = [
+  const ENROLL_CASES: EnrollInputCase[] = [
     ['the bare id', () => enrollInputFor(EXTENSION_ID)],
     ['another origin', () => enrollInputFor('https://example.com')],
     [

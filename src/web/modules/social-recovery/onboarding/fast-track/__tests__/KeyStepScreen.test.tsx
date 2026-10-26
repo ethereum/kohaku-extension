@@ -36,6 +36,10 @@ import {
   walletListsSlot,
   where
 } from '@web/modules/social-recovery/onboarding/fast-track/__fixtures__/harness'
+import type {
+  FailureCase,
+  KeysCase
+} from '@web/modules/social-recovery/onboarding/fast-track/__fixtures__/types'
 
 const KEY_STEP = '/social-recovery/fast-track/key'
 const ACKNOWLEDGED = { acknowledged: true }
@@ -312,7 +316,7 @@ describe('the key step', () => {
       expect(dispatched(PICKER_OPEN)).toHaveLength(1)
     })
 
-    const notOrdinary: { name: string; keys: ReturnType<typeof internalKey>[] }[] = [
+    const notOrdinary: KeysCase[] = [
       { name: 'no key at all', keys: [] },
       { name: 'the key as a dedicated key', keys: [internalKey(ORDINARY_KEY, true)] },
       {
@@ -751,7 +755,7 @@ describe('the key step', () => {
       expect(where()).toBe(ACCOUNT_STEP)
     })
 
-    const failures: { name: string; ends: Record<string, unknown> }[] = [
+    const failures: FailureCase[] = [
       { name: 'goes idle with no success', ends: { addAccountsStatus: 'INITIAL' } },
       {
         name: 'ends in a page error',

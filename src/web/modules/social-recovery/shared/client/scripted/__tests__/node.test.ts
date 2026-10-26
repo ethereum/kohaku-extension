@@ -48,6 +48,11 @@ import {
   createScriptedAadhaarStack,
   ScriptedNode
 } from '@web/modules/social-recovery/shared/client/scripted'
+import type {
+  AgeCase,
+  OwnerWrite,
+  WindowCase
+} from '@web/modules/social-recovery/shared/client/scripted/__fixtures__/types'
 
 const at = (n: number): Address => `0x${n.toString(16).padStart(40, '0')}` as Address
 
@@ -116,7 +121,7 @@ const startOf = (node: ScriptedNode, setupBody: Hex): PreparedCall =>
     })
   } as unknown as PreparedCall)
 
-const ownerWriteOf = (functionName: 'clearSetup' | 'cancelByOwner', word: bigint): PreparedCall =>
+const ownerWriteOf = (functionName: OwnerWrite, word: bigint): PreparedCall =>
   ({
     kind: 'call',
     target: DESCRIPTOR.manager,
@@ -422,7 +427,7 @@ describe("the Aadhaar module's verdict on the fake node", () => {
     ).resolves.toBe('satisfied')
   })
 
-  const WINDOWS: [bigint, string][] = [
+  const WINDOWS: WindowCase[] = [
     [3599n, 'rejected'],
     [3600n, 'satisfied'],
     [0n, 'rejected']
@@ -443,7 +448,7 @@ describe("the Aadhaar module's verdict on the fake node", () => {
     })
   )
 
-  const AGES: [string, number, string][] = [
+  const AGES: AgeCase[] = [
     ['exactly the window', DAY, 'satisfied'],
     ['one second past the window', DAY + 1, 'rejected'],
     ['two days', 2 * DAY, 'rejected'],

@@ -6,8 +6,9 @@
  * is read, and the same list while the keystore names the same keys.
  */
 import type { Address } from '@kohaku-eth/social-recovery'
+import type { KeystoreMock } from '@web/modules/social-recovery/management/overview/__fixtures__/types'
 
-const mockKeystore: { keys: { addr: string; type: string }[] | undefined } = { keys: undefined }
+const mockKeystore: KeystoreMock = { keys: undefined }
 jest.mock('@web/hooks/useKeystoreControllerState', () => ({
   __esModule: true,
   default: () => mockKeystore

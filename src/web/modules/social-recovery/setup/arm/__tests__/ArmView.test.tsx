@@ -13,9 +13,13 @@ import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
 import type { Address, Hex, KitError } from '@kohaku-eth/social-recovery'
 import type { DepositStep, WriteMachineState } from '@web/modules/social-recovery/shared/writes'
-import type { SaveBlock } from '@web/modules/social-recovery/setup/review'
 
 import type { ArmState, ArmViewProps, Arrival } from '@web/modules/social-recovery/setup/arm/types'
+import type {
+  ArmStateCase,
+  BlockLines,
+  SubmittingCase
+} from '@web/modules/social-recovery/setup/arm/__tests__/harness'
 
 // The spinner's animation needs a native module jsdom lacks; a plain view stands in.
 jest.mock('@common/components/Spinner', () => {
@@ -281,7 +285,7 @@ describe('before the save is sent', () => {
 })
 
 describe('the arrival blocks', () => {
-  const BLOCKS: [SaveBlock, string[]][] = [
+  const BLOCKS: BlockLines[] = [
     [
       { kind: 'unavailable' },
       [
@@ -635,7 +639,7 @@ describe('the write states in the save words', () => {
     expect(byTestId('arm-back')).toBeNull()
   })
 
-  const SUBMITTING_NOTE: [string, Partial<ArmState>, WriteMachineState][] = [
+  const SUBMITTING_NOTE: SubmittingCase[] = [
     ['queued', { follow: 'queued' }, { status: 'submitting', write: 'save', run: 2 }],
     [
       'broadcast under its hash',
@@ -723,7 +727,7 @@ describe('the write states in the save words', () => {
   })
 
   describe('a save the network dropped', () => {
-    const DROPPED: [string, Partial<ArmState>][] = [
+    const DROPPED: ArmStateCase[] = [
       ['', {}],
       [' and its wait stalled', { stalled: true }]
     ]

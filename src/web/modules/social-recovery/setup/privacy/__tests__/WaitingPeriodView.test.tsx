@@ -15,6 +15,10 @@ import {
   holdReads,
   recordsOn
 } from '@web/modules/social-recovery/setup/privacy/__tests__/harness'
+import type {
+  LengthCase,
+  RefusedLengthCase
+} from '@web/modules/social-recovery/setup/privacy/__fixtures__/types'
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const React: typeof import('react') = require('react')
@@ -84,7 +88,7 @@ describe('the waiting period step', () => {
       ])
     })
 
-    const LENGTHS: [string, number][] = [
+    const LENGTHS: LengthCase[] = [
       ['hours24', 86400],
       ['hours48', 172800],
       ['hours72', 259200],
@@ -351,7 +355,7 @@ describe('the waiting period step', () => {
       expect(await storedRecord(records)).toBe(30 * 3600)
     })
 
-    const REFUSED_STORED: [string, number, string, string][] = [
+    const REFUSED_STORED: RefusedLengthCase[] = [
       ['under the floor', 3600, '1', 'This wallet needs 24 hours or more.'],
       [
         'past the ceiling',

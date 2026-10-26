@@ -1247,3 +1247,12 @@ describeHarness('the submission harness', () => {
     expect((await kit.recoveryState()).attempt).toEqual(attemptOf(gathering))
   })
 })
+
+/** One page of the submission: its store and its steps. */
+export type SubmitPage = { store: SubmitStore; steps: ReturnType<typeof stepsOf> }
+
+/** A removed-key read that names a key. */
+export type NamedKeyRead = { kind: 'named'; key: string }
+
+/** A reply check's request, read by its place. */
+export type PlacedRequest = { place: number }

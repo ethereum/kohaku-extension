@@ -8,9 +8,12 @@
  * chromes stand in as plain frames and the checklist as a marker, since only
  * which state shows matters here.
  */
-import type { RecordStorage } from '@web/modules/social-recovery/shared/records'
 
-import type { Mounted } from '@web/modules/social-recovery/recovery/checklist/__tests__/harness'
+import type {
+  Mounted,
+  ChromeTestIdProps,
+  StorageMock
+} from '@web/modules/social-recovery/recovery/checklist/__tests__/harness'
 import {
   ACCOUNT,
   entryOf,
@@ -21,7 +24,7 @@ import {
   t
 } from '@web/modules/social-recovery/recovery/checklist/__tests__/harness'
 
-const mockStorage: { current: RecordStorage | null } = { current: null }
+const mockStorage: StorageMock = { current: null }
 const mockNavigate = jest.fn()
 
 jest.mock('@web/modules/social-recovery/shared/chrome/useSetupAccount')
@@ -40,7 +43,7 @@ function mockFrame(name: string) {
   const R = jest.requireActual('react')
   return {
     __esModule: true,
-    default: ({ children, counter }: { children?: unknown; counter?: { testID?: string } }) =>
+    default: ({ children, counter }: ChromeTestIdProps) =>
       R.createElement(
         'div',
         { 'data-testid': name },

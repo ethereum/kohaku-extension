@@ -39,6 +39,7 @@ import type { Mounted } from '@web/modules/social-recovery/recovery/done/__tests
 import { ADD_LIMIT_MS } from '@web/modules/social-recovery/recovery/done'
 import * as accountModule from '@web/modules/social-recovery/recovery/done/account'
 import { renderFullAddress } from '@web/modules/social-recovery/shared/display'
+import type { RecoveryRoute } from '@web/modules/social-recovery/shared/records'
 
 useDoneClock()
 
@@ -297,7 +298,7 @@ describe('the wallet account list going and coming back', () => {
 
 describe('a mount again while the first add runs', () => {
   /** Mounts, lets the add start, and mounts again while the accounts controller still reads it loading. */
-  const remountDuringAdd = async (route: 'fresh-install' | 'logged-in' = 'fresh-install') => {
+  const remountDuringAdd = async (route: RecoveryRoute = 'fresh-install') => {
     const world = await openWorld({ route })
     const first = await mountDone(world.account)
     expect(dispatchedOf(ADD_ACTION)).toHaveLength(1)

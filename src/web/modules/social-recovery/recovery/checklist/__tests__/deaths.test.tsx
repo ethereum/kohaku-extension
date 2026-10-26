@@ -18,7 +18,8 @@ import type {
   FakeDeps,
   FakeKit,
   Mounted,
-  TestRecords
+  TestRecords,
+  BehindCase
 } from '@web/modules/social-recovery/recovery/checklist/__tests__/harness'
 import {
   ACCOUNT,
@@ -543,7 +544,7 @@ describe('the request dies', () => {
       )
     })
 
-    const behind: [string, ReturnType<typeof recoveryStateOf>][] = [
+    const behind: BehindCase[] = [
       [
         'a setup nonce below the request',
         recoveryStateOf({ setupNonce: BigInt(0), nextAttemptId: BigInt(3) })

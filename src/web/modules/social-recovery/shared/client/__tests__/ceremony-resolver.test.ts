@@ -56,6 +56,10 @@ import {
 import { addressOf } from '@web/modules/social-recovery/shared/client/__fixtures__/addresses'
 import { sepoliaDeploymentVariable } from '@web/modules/social-recovery/shared/client/deployment-env'
 import { createScriptedAadhaarStack } from '@web/modules/social-recovery/shared/client/scripted'
+import type {
+  ChainCase,
+  RecordsByCall
+} from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 jest.mock('@ambire-common/services/provider/getRpcProvider', () => ({
   getRpcProvider: jest.fn()
@@ -274,7 +278,7 @@ describe('the ceremony resolver', () => {
     await expect(resolve(routeOf('enroll', 'passkey', 'stale'))).resolves.toBeNull()
   })
 
-  const OTHER_CHAINS: [string, number | bigint][] = [
+  const OTHER_CHAINS: ChainCase[] = [
     ['mainnet, the other recovery chain', 1],
     ['mainnet as a bigint', 1n],
     ['chain 10', 10],
@@ -572,7 +576,7 @@ describe("an identity method's parameters the resolver hands the tab", () => {
   const CURRENT = { nullifierSeed: 1n, issuerCertificate: 'current' }
   const aadhaarTarget = { account: ACCOUNT, chainId: CHAIN_ID, method: 'aadhaar' }
   const AADHAAR_REQUEST = { ...REQUEST, method: AADHAAR_ADDRESS }
-  const STORED_BY_CALL: Record<'enroll' | 'testAccess' | 'createClaim', CeremonyRequestRecord> = {
+  const STORED_BY_CALL: RecordsByCall = {
     enroll: { ...aadhaarTarget, call: 'enroll', methodAddress: AADHAAR_ADDRESS, params: STORED },
     testAccess: { ...aadhaarTarget, call: 'testAccess', request: AADHAAR_REQUEST, params: STORED },
     createClaim: { ...aadhaarTarget, call: 'createClaim', request: AADHAAR_REQUEST, params: STORED }

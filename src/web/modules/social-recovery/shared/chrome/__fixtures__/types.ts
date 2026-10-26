@@ -25,3 +25,12 @@ export interface Deferred<T> {
   resolve: (value: T) => void
   reject: (error: unknown) => void
 }
+
+/** The selected account as an external store a test can switch. */
+export type SelectedAccountMock = {
+  state: { account: { addr: string } | null }
+  listeners: Set<() => void>
+}
+
+/** The props of the probe: its name. */
+export type ProbeProps = { name: string }

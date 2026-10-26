@@ -133,7 +133,6 @@
       "publishers": {
         "ethereumFoundation": "Ethereum Foundation"
       },
-      "accountWithName": "{{account}} · {{name}}",
       "nameWithAccount": "{{name}} · {{account}}"
     },
     "ruleLines": {
@@ -288,9 +287,6 @@
       },
       "unavailableNote": "Could not run · the service did not answer · Try again",
       "undeliveredNote": "Not delivered · the result did not reach the row · Try again",
-      "backToMethod": "Back to the method",
-      "orCopyLink": "Or copy the link",
-      "passkeyTunnel": "Passkey: your phone creates the passkey. Your browser's vendor runs the tunnel that carries this between the two devices.",
       "passportTunnel": "Passport: your phone reads the chip in your passport. zkPassport runs the flow that carries this between the two devices.",
       "scanWithApp": "Scan this code with the zkPassport app on your phone. The app reads the chip and this tab waits.",
       "scanOnce": "Scan this code once. To scan again, cancel and start again.",
@@ -343,11 +339,9 @@
       "runTheTest": "Run the test",
       "runTheTestAgain": "Run the test again",
       "skipTheTest": "Skip the test",
-      "saveAnyway": "Save anyway",
-      "fundTheKey": "Fund the key"
+      "saveAnyway": "Save anyway"
     },
     "chrome": {
-      "settings": "Settings",
       "breadcrumb": "Settings › Account recovery",
       "setupStageCounter": "Set up · Step {{step}} of {{total}}",
       "otherAccount": {
@@ -502,7 +496,6 @@
       "addSecondMethod": "Add a second method",
       "nothingRequired": "Nothing required yet",
       "duplicate": "This method is already in your path. This wallet allows each method once.",
-      "saveChanges": "Save changes",
       "continueUnlock": "Continue unlocks when your path has at least one method.",
       "refusals": {
         "emptyGroup": "This wallet cannot save a group with no members. Add a member or remove the group.",
@@ -520,14 +513,12 @@
         "backupTooWide": "This wallet cannot save a path whose hidden details are too large for the setup's backup. Remove members or groups.",
         "actionUnsupported": "This release cannot recover this account yet, so this wallet cannot save a setup for it.",
         "thresholdWholeNumber": "This wallet cannot save a threshold that is not a whole number. Type how many members must answer."
-      },
-      "startingFrom": "Starting from: {{preset}}"
+      }
     },
     "enroll": {
       "saveWithoutTest": "Save works with or without the test.",
       "accessTest": "Access test",
       "recommended": "Recommended",
-      "methodsHeader": "Methods to set up",
       "passkey": {
         "title": "Set up your passkey",
         "authenticators": "Face ID, a fingerprint or a security key",
@@ -561,7 +552,6 @@
         "sameSeed": "This address comes from the same seed as your key, so losing the seed loses both.",
         "heldHere": "This wallet holds this key too, apart from your account's recovery phrase. Losing this device loses both.",
         "advisory": "These checks are advisory. None of them stops you from saving.",
-        "addAnother": "+ Add another guardian",
         "howMany": "How many must approve is set on the path, not here.",
         "testedLine": "This key signed the test challenge.",
         "testThisKey": "Test this key",
@@ -623,8 +613,7 @@
         "wholeMinutes": "This wallet counts the waiting period in whole minutes.",
         "whatForHeader": "What the wait is for",
         "noticeWindow": "The waiting period is your whole notice window. Open the wallet during the wait to see the banner for a recovery you did not start.",
-        "nothingElseWatches": "Until you install Kohaku on another device, nothing else watches this account.",
-        "howToChoose": "How do I choose a length?"
+        "nothingElseWatches": "Until you install Kohaku on another device, nothing else watches this account."
       },
       "level": {
         "title": "Privacy level and recovery password",
@@ -701,8 +690,6 @@
         "thirdPartyRow": "Third-party method · Unknown outside parties",
         "thirdPartyDeclaredRow": "Third-party method · Not audited · the method's admin {{party}}",
         "thirdPartyLine": "This method publishes no declaration of who it trusts.",
-        "secondModuleRow": "Second recovery module · published by {{publisher}}",
-        "perAccountTrust": "The trust a module carries is per account, not per module. Authorizing a second module trusts it with the whole account.",
         "selfAttested": "Every declaration above is the contract's own statement about itself.",
         "deadProvider": "A method whose provider stops working is dead for good."
       },
@@ -762,7 +749,6 @@
       "explorer": "View on explorer",
       "oneTransaction": "One transaction. Nothing else was sent.",
       "hiddenBehindPassword": "Setup details hidden behind your recovery password.",
-      "shapeVisibleBehindPassword": "Method details hidden behind your recovery password. The shape of your setup is readable.",
       "writtenTo": "This is the account your setup was written to.",
       "settingsLine": "Change anything later in Settings › Account recovery.",
       "notListed": "This wallet does not list this account on this network.",
@@ -823,7 +809,6 @@
       "updateTheWalletBody": "This account has a recovery setup.",
       "unavailableTitle": "This wallet could not reach the recovery kit",
       "unavailableBody": "Nothing changed. Try again.",
-      "updateTheWalletAction": "Update the wallet",
       "updateTheWalletHow": "Update Kohaku from your browser's extension store, then open this page again."
     },
     "recover": {
@@ -870,10 +855,6 @@
         "createFailed": "This device could not create the key. Nothing was saved. Try again.",
         "addFailed": "This wallet could not add the new key's accounts. The key may still be added in the background. Wait a moment, then try again.",
         "addPending": "The wallet is still adding your key. Wait, or go back and continue again."
-      },
-      "gas": {
-        "noSendingKey": "This wallet holds no key of the recovery phrase you created here, so nothing can send the recovery. Start the fast track again.",
-        "entryReadFailed": "This device could not read which account you are recovering. Try again."
       }
     },
     "entry": {
@@ -933,7 +914,6 @@
         "readFailed": "The read failed.",
         "fitReadFailedTitle": "This wallet could not check whether this release can recover this account.",
         "fitReadFailedBody": "The read failed. This is not a refusal. Try again.",
-        "destinationReadFailedTitle": "This wallet could not read whether this key can receive control.",
         "wrongAccountTitle": "Wrong account?",
         "wrongAccountBody": "Go back and check the address on your Recovery Card, character by character.",
         "startsNothingTitle": "Confirming starts nothing",
@@ -954,14 +934,11 @@
       "refusal": {
         "removedUnknown": "This wallet cannot name the key a recovery would remove on this account.",
         "removedNotAuthority": "The key a recovery would remove does not hold control of this account.",
-        "malformed": "This wallet could not build a valid recovery request for this account.",
-        "unnamed": "This wallet read a refusal it cannot name.",
         "sameAccount": "This is the account being recovered. Choose another account to receive control."
       },
       "destination": {
         "holdsPrivilege": "This key already holds a privilege on the account you are recovering, so this recovery cannot install it. Choose another account.",
-        "alreadyAKey": "This key is already one of the account's keys. Choose another account.",
-        "chooseAnother": "Choose another account"
+        "alreadyAKey": "This key is already one of the account's keys. Choose another account."
       },
       "dormant": {
         "title": "This setup is not active on the account.",
@@ -1067,7 +1044,6 @@
         "sendMessage": "Send them the message with the link over a channel you already use.",
         "askCallBack": "Ask them to call you back on a number they already have. Do not call them first.",
         "readValues": "When they call, read them the account and the new key.",
-        "howTheyAnswer": "Your guardian pastes the link into a browser that has Kohaku, signs on the page with the wallet that holds the key, or through the page's offline block on an air-gapped machine, and sends back one line. Paste it below.",
         "offlineBlock": "Open the approval page and use its offline block: carry the payload to your air-gapped machine by QR, sign it there, and bring the approval back. Paste it below.",
         "ownKey": "If you hold this key yourself, open the approval page and sign there like any guardian.",
         "openPage": "Open the approval page",
@@ -1211,7 +1187,6 @@
         "items": {
           "guardianAddress": "this guardian's address",
           "guardianAddresses": "these guardians' addresses",
-          "ownKey": "your own key's address",
           "passkey": "your passkey's public key",
           "passport": "the identifier your passport produces",
           "aadhaar": "the identifier your Aadhaar produces"
@@ -1294,7 +1269,6 @@
         "startAgain": "Start again",
         "startNew": "Start a new recovery"
       },
-      "cancelledOn": "Cancelled on {{date}}",
       "leaveFailed": "This device could not record that this recovery ended. Nothing changed. Try again.",
       "cannotExecute": {
         "title": "This recovery can no longer execute",
@@ -1303,7 +1277,6 @@
         "upgradedAway": "The account was upgraded away from the recovery module.",
         "movedPrivilege": "A key on the account moved a privilege during the wait, so this recovery can no longer execute.",
         "unmatched": "This device cannot confirm that the attempt the registry reports is the one it submitted, so it will not execute it.",
-        "refused": "The execution is refused. This wallet read: {{read}}",
         "approvalsDie": "The approvals die with this attempt.",
         "noRetry": "There is no retry, and no new recovery can start.",
         "slotClosed": "Only the account's own key ends this attempt in this release, and the attempt holds the account's one recovery slot until it does. Recovery on this deployment is closed until somebody holds that key.",
@@ -1348,11 +1321,6 @@
         "addFirst": "Add a method first, then remove the old row.",
         "leavesWholeRule": "Removing that row leaves {{method}} as the whole rule."
       },
-      "deviceBound": {
-        "dead": "The passkey on the lost device is dead. Edit your path to replace it.",
-        "twoRequired": "Your path is two required rows. Removing one leaves the other as the whole rule.",
-        "groupOfTwo": "Your path is a group of two members. Removing one leaves the other as the whole rule."
-      },
       "close": "Done",
       "addFailed": "This wallet could not add the recovered account to its list. The recovery itself is done. Try again.",
       "addRetry": "Try again",
@@ -1379,9 +1347,7 @@
         "publication": "Approving puts your address on chain in the clear, permanently public. Where this method serves several accounts, approving links them visibly.",
         "pathPublic": "A recovery on this account publishes the whole recovery path, so a reader who can guess your address reads it from the chain even where this approval was never used.",
         "noForward": "This link reveals the account and the new key, so do not forward it.",
-        "compare": "Compare the account and the new key, character by character, with what the owner read to you on the call.",
-        "paymentTo": "{{amount}} to {{payee}}",
-        "paymentToExecutor": "{{amount}} to whoever executes the recovery"
+        "compare": "Compare the account and the new key, character by character, with what the owner read to you on the call."
       },
       "details": {
         "title": "Verify the details",
@@ -1503,7 +1469,6 @@
         "title": "We could not check this account",
         "body": "This says nothing about whether a recovery is running.",
         "lastRead": "Last checked {{date}}.",
-        "lastBlock": "Last read at block time {{date}}.",
         "retry": "Try again"
       },
       "executed": {
@@ -1527,9 +1492,7 @@
       },
       "inProgress": {
         "title": "Cancelling…",
-        "body": "The attempt is live until this lands. Keep this window open.",
-        "earlierMayLand": "An earlier cancel of this account may still land and could end this recovery. Wait for it, or cancel again in a few minutes.",
-        "newerAttempt": "Another recovery of this account started meanwhile. This wallet offers its cancel once the earlier one is settled."
+        "body": "The attempt is live until this lands. Keep this window open."
       },
       "landed": {
         "title": "The cancel landed",

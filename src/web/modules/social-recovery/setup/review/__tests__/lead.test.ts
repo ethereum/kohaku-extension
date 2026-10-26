@@ -1,7 +1,7 @@
 import { zeroAddress } from 'viem'
 
 import i18n from '@common/config/localization'
-import type { Clause, SetupDraft } from '@kohaku-eth/social-recovery'
+import type { Clause } from '@kohaku-eth/social-recovery'
 import { shapeNoteOf } from '@web/modules/social-recovery/shared/client'
 import { renderFullAddress } from '@web/modules/social-recovery/shared/display'
 import { emptySlot } from '@web/modules/social-recovery/shared/records/slots'
@@ -32,6 +32,11 @@ import {
   PHONE_PASSKEY,
   required
 } from '@web/modules/social-recovery/setup/review/__fixtures__/review'
+import type {
+  ChipCase,
+  DraftShape,
+  NeverWorkCase
+} from '@web/modules/social-recovery/setup/review/__fixtures__/types'
 
 const { t } = i18n
 const ITEMS = 'socialRecovery.disclosures.items'
@@ -154,7 +159,7 @@ describe('the publication items', () => {
 })
 
 describe('the waiting period', () => {
-  const CHIPS: [number, string][] = [
+  const CHIPS: ChipCase[] = [
     [86400, 'hours24'],
     [172800, 'hours48'],
     [259200, 'hours72'],
@@ -227,7 +232,7 @@ describe('a row of the path', () => {
     })
   })
 
-  const MAY_NEVER_WORK: [string, Enrollment['credential'], string | undefined][] = [
+  const MAY_NEVER_WORK: NeverWorkCase[] = [
     ['a browser error with its name', PASSKEY, 'browser-error: NotAllowedError'],
     ['a browser error with no error name', PASSKEY, 'browser-error: the user left'],
     [
@@ -397,7 +402,7 @@ describe('the privacy lines', () => {
   describe('at Shape visible', () => {
     const SHAPE = 'socialRecovery.shape.sentence'
     const clauses = [group(2, PASSKEY, PASSPORT, ALICE)]
-    const shapeVisible: Pick<SetupDraft, 'privacy' | 'clauses'> = {
+    const shapeVisible: DraftShape = {
       clauses,
       privacy: {
         backup: 'encrypted',
@@ -433,7 +438,7 @@ describe('the privacy lines', () => {
     })
 
     it('read the line for an empty path where the path has no member, with or without the password stored', () => {
-      const memberless: Pick<SetupDraft, 'privacy' | 'clauses'> = {
+      const memberless: DraftShape = {
         clauses: [],
         privacy: {
           backup: 'encrypted',
@@ -453,7 +458,7 @@ describe('the privacy lines', () => {
 
     it('read the line for an empty path where the groups have no member, with or without the password stored', () => {
       const memberlessGroups = [{ threshold: 1, credentials: [] }]
-      const memberless: Pick<SetupDraft, 'privacy' | 'clauses'> = {
+      const memberless: DraftShape = {
         clauses: memberlessGroups,
         privacy: {
           backup: 'encrypted',

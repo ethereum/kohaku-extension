@@ -9,8 +9,12 @@
  * open carries any of it.
  */
 import type {
+  BannedLine,
+  ClipboardMock,
   FakeKit,
   Mounted,
+  NamedKeyRead,
+  RemovedKeyRead,
   TestRecords
 } from '@web/modules/social-recovery/recovery/checklist/__tests__/harness'
 import {
@@ -44,7 +48,7 @@ const { getAddress }: typeof import('viem') = require('viem')
 const {
   WEB_ROUTES
 }: typeof import('@common/modules/router/constants/common') = require('@common/modules/router/constants/common')
-const clipboard: { setStringAsync: jest.Mock } = require('@common/utils/clipboard')
+const clipboard: ClipboardMock = require('@common/utils/clipboard')
 const {
   renderDateTimeInZone
 }: typeof import('@web/modules/social-recovery/shared/display') = require('@web/modules/social-recovery/shared/display')
@@ -57,7 +61,7 @@ const GUARDIAN = 'socialRecovery.checklist.guardian'
 const MESSAGE = 'socialRecovery.checklist.message'
 const CARRIERS = ['open-page', 'copy-link', 'copy-message', 'show-qr'] as const
 
-const BANNED: [string, RegExp][] = [
+const BANNED: BannedLine[] = [
   ['recovery phrase', /\brecovery\s+phrases?\b/i],
   ['policy', /\bpolic(?:y|ies)\b/i],
   ['proof', /\bproofs?\b/i],
@@ -176,7 +180,7 @@ describe('the guardian row carriers', () => {
   })
 
   it('keeps the carriers locked while the removed key is read, and unlocks them when it answers', async () => {
-    const read = deferred<{ kind: 'named'; key: typeof REMOVED }>()
+    const read = deferred<RemovedKeyRead>()
     kit.removedKey.mockImplementation(() => read.promise)
     const mounted = await open()
 
@@ -597,7 +601,7 @@ describe('the guardian row carriers', () => {
       expect(mounted.byTestId(id(1, 'qr'))).not.toBeNull()
 
       const next = rebuiltKit()
-      const read = deferred<{ kind: 'named'; key: Address }>()
+      const read = deferred<NamedKeyRead>()
       next.removedKey.mockImplementation(() => read.promise)
       await mounted.swapClient(next.state)
 
@@ -625,12 +629,12 @@ describe('the guardian row carriers', () => {
     })
 
     it('never shows the reading of the kit it replaced, even when that read answers late', async () => {
-      const first = deferred<{ kind: 'named'; key: Address }>()
+      const first = deferred<NamedKeyRead>()
       kit.removedKey.mockImplementation(() => first.promise)
       const mounted = await openSwappable()
 
       const next = rebuiltKit()
-      const second = deferred<{ kind: 'named'; key: Address }>()
+      const second = deferred<NamedKeyRead>()
       next.removedKey.mockImplementation(() => second.promise)
       await mounted.swapClient(next.state)
       first.resolve({ kind: 'named', key: REMOVED })
@@ -657,7 +661,7 @@ describe('the guardian row carriers', () => {
         getAddress(REMOVED)
       )
 
-      const again = deferred<{ kind: 'named'; key: Address }>()
+      const again = deferred<NamedKeyRead>()
       kit.removedKey.mockImplementation(() => again.promise)
       await mounted.swapClient(kit.state)
 

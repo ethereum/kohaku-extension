@@ -66,12 +66,24 @@ import {
   WIPE_REASON_STRING_KEYS,
   wipeRecoveryPassword
 } from '@web/modules/social-recovery/shared/records'
+import type { RowNote } from '@web/modules/social-recovery/shared/records'
 import { makeStorage } from '@web/modules/social-recovery/shared/records/__fixtures__/storage'
 import type {
   ApprovalRequest,
   RequestMembers,
   RichJsonStorageDouble,
-  SessionUpdate
+  AddressPair,
+  ClaimCase,
+  Clock,
+  NamedText,
+  NamedUpdate,
+  NamedValue,
+  ReplaceCase,
+  ReplyWriter,
+  RequestVariant,
+  StateCase,
+  StorageWrite,
+  UpdateCase
 } from '@web/modules/social-recovery/shared/records/__fixtures__/types'
 
 // The extension's `browser.storage.local` for `extensionRecordStorage`: one
@@ -251,7 +263,7 @@ const FIVE_EVENTS: RecoveryWipeEvent[] = [
 ]
 const DIRECT_EVENTS = FIVE_EVENTS.filter((e) => e !== 'submission-landed') as DirectWipeEvent[]
 
-const setup = (clock: { t: number } = { t: T0 }) => {
+const setup = (clock: Clock = { t: T0 }) => {
   const storage = makeStorage()
   const records = createWalletRecords({ storage, now: () => clock.t })
   return { storage, records, clock }
@@ -984,7 +996,7 @@ describe('the recovery session', () => {
   })
 
   it('a write takes a gathering whose request names the account in another letter case', async () => {
-    const pairs: [Address, Address][] = [
+    const pairs: AddressPair[] = [
       [LOWER, CHECKSUMMED],
       [CHECKSUMMED, MISCASED],
       [MISCASED, LOWER]
@@ -1467,7 +1479,7 @@ describe('the session survives the submission as the countdown record, with no i
 })
 
 describe('a live request is compared whole, and its replies only grow', () => {
-  const REQUEST_VARIANTS: [string, Partial<ApprovalRequest>][] = [
+  const REQUEST_VARIANTS: RequestVariant[] = [
     ['setupBody', { setupBody: '0x01' }],
     ['digestVersion', { digestVersion: '2' }],
     ['payload', { payload: '0x1234' }],
@@ -1490,7 +1502,7 @@ describe('a live request is compared whole, and its replies only grow', () => {
   // The approval request holds no optional key, so a key it does not hold goes in through a cast.
   const withKeys = (keys: Record<string, null | undefined>) =>
     keys as unknown as Partial<ApprovalRequest>
-  const UNDEFINED_KEYS: [string, Partial<ApprovalRequest>][] = [
+  const UNDEFINED_KEYS: RequestVariant[] = [
     ['a key the request does not hold', withKeys({ consumableAfter: undefined })],
     [
       'several keys the request does not hold',
@@ -1957,7 +1969,7 @@ describe('a session update refuses when the session changed after its caller rea
     storage.calls.remove.length = 0
     const other = 'f'.repeat(24)
     // A clear touches only a wiped session and an end only a landed one.
-    const cases: [SessionUpdate, Address][] = [
+    const cases: UpdateCase[] = [
       [(r, revision) => r.clearWipedSession(CHAIN_ID, ACCOUNT, revision), ACCOUNT],
       [(r, revision) => r.clearWipedSession(CHAIN_ID, third, revision), third],
       [(r, revision) => r.clearWipedSession(CHAIN_ID, noSession, revision), noSession],
@@ -2039,7 +2051,7 @@ describe('a session update refuses when the session changed after its caller rea
 
 describe('the revision an update names', () => {
   it('an update that names the empty revision meets the conflict, or returns false for a clear or an end on another state, and writes nothing', async () => {
-    const states: [string, (records: WalletRecords) => Promise<unknown>][] = [
+    const states: StateCase[] = [
       ['none', async () => undefined],
       ['live', (records) => writeSession(records, GATHERING)],
       [
@@ -2057,7 +2069,7 @@ describe('the revision an update names', () => {
         }
       ]
     ]
-    const updates: [string, SessionUpdate][] = [
+    const updates: NamedUpdate[] = [
       [
         'a reply write',
         (records, revision) => records.recoverySession(CHAIN_ID, ACCOUNT).write(GATHERING, revision)
@@ -2202,10 +2214,7 @@ const withNavigator = async (value: unknown, run: () => Promise<void>) => {
 
 // Two reply writes from one read, the first held after its read: the second
 // must wait for the first, then meet the conflict; a retry keeps both replies.
-const raceTwoReplyWrites = async (
-  first: { records: WalletRecords; storage: Pick<RecordStorage, 'get'> },
-  second: WalletRecords
-) => {
+const raceTwoReplyWrites = async (first: ReplyWriter, second: WalletRecords) => {
   await first.records.recoverySession(CHAIN_ID, ACCOUNT).write(gathering(ACCOUNT, []), null)
   const read = await first.records.recoverySession(CHAIN_ID, ACCOUNT).read()
   const hold = holdNextRead(first.storage, SESSION_KEY)
@@ -2356,7 +2365,7 @@ describe('the ceremony request under its request id', () => {
   )
 
   const REPLACED: Credential = { method: METHOD, config: '0xabcd', label: 'Laptop', salt: '0x01' }
-  const REPLACES: [string, CeremonyRequestRecord][] = [
+  const REPLACES: ReplaceCase[] = [
     ['with no slot as launched', ENROLL],
     ['for an empty slot', { ...ENROLL, replaces: null }],
     ['for a slot that held a credential', { ...ENROLL, replaces: REPLACED }],
@@ -2429,7 +2438,7 @@ describe('the ceremony request under its request id', () => {
   })
 
   const stored = (value: unknown) => ({ value, savedAt: T0 })
-  const MALFORMED: [string, unknown][] = [
+  const MALFORMED: NamedValue[] = [
     ['a bare request with no savedAt', ENROLL],
     ['a bare false', false],
     ['a bare zero', 0],
@@ -2498,7 +2507,7 @@ describe('the ceremony request under its request id', () => {
     const get = (async () => value) as typeof storage.get
     return createWalletRecords({ storage: { ...storage, get }, now: () => T0 })
   }
-  const BAD_CHAIN_IDS: [string, unknown][] = [
+  const BAD_CHAIN_IDS: NamedValue[] = [
     ['a fraction', 1.5],
     ['NaN', NaN],
     ['Infinity', Infinity],
@@ -2530,7 +2539,7 @@ describe('the ceremony request under its request id', () => {
     expect(present(await records.ceremonyRequest(longest).read()).value).toEqual(ENROLL)
   })
 
-  const BAD_IDS: [string, string][] = [
+  const BAD_IDS: NamedText[] = [
     ['an empty id', ''],
     ['an id with a slash', 'a/b'],
     ['an id with a colon', 'a:b'],
@@ -2844,7 +2853,7 @@ describe('the setup save in flight', () => {
     expect(storage.calls.remove).toEqual([])
   })
 
-  const UNREADABLE_CLAIMS: [string, SaveInFlightClaim][] = [
+  const UNREADABLE_CLAIMS: ClaimCase[] = [
     ['a negative start block', { ...SAVE_CLAIM, startBlock: -1 }],
     ['an empty request id', { ...SAVE_CLAIM, requestId: '' }],
     ['a claim time that is not finite', { ...SAVE_CLAIM, claimedAt: Number.POSITIVE_INFINITY }]
@@ -2921,7 +2930,7 @@ describe('the setup save in flight', () => {
   })
 
   const stored = (value: unknown) => ({ value, savedAt: T0 })
-  const MALFORMED: [string, unknown][] = [
+  const MALFORMED: NamedValue[] = [
     ['a bare record with no savedAt', SAVE_CLAIM],
     ['a bare false', false],
     ['a bare string', 'saving'],
@@ -3138,7 +3147,7 @@ const ENTRY_KEY = recordKeys.recoveryEntry(CHAIN_ID, ACCOUNT)
 
 // Records every `set` and `remove` of the storage in one ordered list.
 const logWrites = (storage: RichJsonStorageDouble) => {
-  const log: [string, string][] = []
+  const log: NamedText[] = []
   const { set, remove } = storage
   // eslint-disable-next-line no-param-reassign
   storage.set = async (key, value) => {
@@ -3154,7 +3163,7 @@ const logWrites = (storage: RichJsonStorageDouble) => {
 }
 
 // Makes the next `set` or `remove` of `key` reject, storing nothing.
-const failNext = (storage: RichJsonStorageDouble, call: 'set' | 'remove', key: string) => {
+const failNext = (storage: RichJsonStorageDouble, call: StorageWrite, key: string) => {
   const { set, remove } = storage
   let armed = true
   const fails = (k: string) => {
@@ -3397,7 +3406,7 @@ describe('the recovery entry', () => {
   })
 
   it('an abandon that wipes nothing, or names a stale revision, leaves the entry', async () => {
-    const states: [string, (records: WalletRecords) => Promise<unknown>][] = [
+    const states: StateCase[] = [
       ['none', async () => undefined],
       [
         'wiped',
@@ -3439,11 +3448,7 @@ describe('the recovery entry', () => {
 
 const NOTE_GATHERING = gathering(ACCOUNT, [])
 
-const setNote = async (
-  records: WalletRecords,
-  place: number,
-  note: 'declined' | 'unanswered' | null
-) =>
+const setNote = async (records: WalletRecords, place: number, note: RowNote | null) =>
   records
     .recoverySession(CHAIN_ID, ACCOUNT)
     .setNote(place, note, await revisionNow(records, ACCOUNT, CHAIN_ID))
@@ -3648,7 +3653,7 @@ describe('the row notes of a live session', () => {
   })
 
   it('a note on a stored live session whose gathering has no list of places or replies is refused and writes nothing', async () => {
-    const malformed: [string, unknown][] = [
+    const malformed: NamedValue[] = [
       ['replies', { ...NOTE_GATHERING, replies: undefined }],
       ['places', { ...NOTE_GATHERING, places: undefined }]
     ]
@@ -3682,7 +3687,7 @@ describe('the row notes of a live session', () => {
   })
 
   it('a note on a wiped, a landed or an absent session is refused and writes nothing', async () => {
-    const states: [string, (records: WalletRecords) => Promise<unknown>][] = [
+    const states: StateCase[] = [
       ['none', async () => undefined],
       [
         'wiped',

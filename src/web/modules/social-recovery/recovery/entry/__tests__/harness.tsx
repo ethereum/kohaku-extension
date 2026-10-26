@@ -1135,3 +1135,15 @@ describeHarness('the recovery entry harness', () => {
     expect(mockStorage.raw.get('key')).toBe('value')
   })
 })
+
+/** A case's name, the search the route opens with, and where it sends the page. */
+export type RedirectCase = [string, string, string]
+
+/** A case's name and the text it uses. */
+export type NamedText = [string, string]
+
+/** A case's name and the error a read fails with. */
+export type ErrorCase = [string, () => Error]
+
+/** A case's name, what brings it about and the state the screen shows. */
+export type BlockCase = [string, () => void, string]

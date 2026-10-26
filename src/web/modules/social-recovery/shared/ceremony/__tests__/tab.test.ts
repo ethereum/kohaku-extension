@@ -58,10 +58,22 @@ import {
   setVisibility,
   SYNCED_FLAGS
 } from '@web/modules/social-recovery/shared/ceremony/__tests__/harness'
-import type { Callback } from '@web/modules/social-recovery/shared/ceremony/__fixtures__/types'
+import type {
+  Callback,
+  ButtonProps,
+  ChildrenProps,
+  NamedValue,
+  NetworksMock,
+  ProviderMock,
+  QrProps,
+  StoreGetArgs,
+  StoreKeyArgs,
+  TabCall,
+  TabOptions
+} from '@web/modules/social-recovery/shared/ceremony/__fixtures__/types'
 
 const mockUi = { isTab: true, isPopup: false, isActionWindow: false }
-const mockNetworks: { current: Network[]; listeners: Set<() => void> } = {
+const mockNetworks: NetworksMock = {
   current: [],
   listeners: new Set()
 }
@@ -114,7 +126,7 @@ jest.mock('@common/components/Button', () => {
   const R = jest.requireActual('react')
   return {
     __esModule: true,
-    default: ({ text, onPress }: { text: string; onPress?: () => void }) =>
+    default: ({ text, onPress }: ButtonProps) =>
       R.createElement('button', { onClick: onPress }, text)
   }
 })
@@ -122,7 +134,7 @@ jest.mock('@common/components/Panel', () => {
   const R = jest.requireActual('react')
   return {
     __esModule: true,
-    default: ({ children }: { children: unknown }) => R.createElement('div', null, children)
+    default: ({ children }: ChildrenProps) => R.createElement('div', null, children)
   }
 })
 jest.mock('@common/components/Spinner', () => ({ __esModule: true, default: () => null }))
@@ -131,7 +143,7 @@ jest.mock('react-native-qrcode-svg', () => {
   const R = jest.requireActual('react')
   return {
     __esModule: true,
-    default: ({ value }: { value: string }) => R.createElement('span', { 'data-qr': value })
+    default: ({ value }: QrProps) => R.createElement('span', { 'data-qr': value })
   }
 })
 // jsdom draws no image: the decoder's answer is the test's.
@@ -142,7 +154,7 @@ jest.mock('@common/components/Text', () => {
   const R = jest.requireActual('react')
   return {
     __esModule: true,
-    default: ({ children }: { children: unknown }) => R.createElement('p', null, children)
+    default: ({ children }: ChildrenProps) => R.createElement('p', null, children)
   }
 })
 jest.mock('@common/hooks/useTheme', () => ({ __esModule: true, default: () => ({ theme: {} }) }))
@@ -161,7 +173,7 @@ jest.mock('@common/modules/header/components/Header', () => ({
 }))
 jest.mock('@web/components/TabLayoutWrapper/TabLayoutWrapper', () => {
   const R = jest.requireActual('react')
-  const Box = ({ children }: { children: unknown }) => R.createElement('div', null, children)
+  const Box = ({ children }: ChildrenProps) => R.createElement('div', null, children)
   return { __esModule: true, TabLayoutContainer: Box, TabLayoutWrapperMainContent: Box }
 })
 
@@ -210,10 +222,7 @@ const recorded = {
     methodAddress: PASSKEY_METHOD,
     params: callerParams()
   }),
-  withRequest: (
-    call: 'testAccess' | 'createClaim',
-    request: ApproverRequest
-  ): CeremonyRequestRecord => ({
+  withRequest: (call: TabCall, request: ApproverRequest): CeremonyRequestRecord => ({
     account: ACCOUNT,
     chainId: SEPOLIA_ID,
     method: 'passkey',
@@ -261,7 +270,7 @@ let container: HTMLElement | null = null
 let creds: ReturnType<typeof installCredentials>
 let method: FakeMethod
 let orchestrator: FakeOrchestrator
-let providers: { destroy: jest.Mock }[]
+let providers: ProviderMock[]
 let clock: jest.SpyInstance | null = null
 
 /** Moves the wall clock `ms` ahead of now, as a reload or a second tab opened later reads it. */
@@ -318,10 +327,7 @@ afterEach(async () => {
  * supplies that source; with `bare`, the screen renders alone, with no tab and
  * no provider; with `strict`, inside React's StrictMode.
  */
-const render = async (
-  search: string,
-  { provide, bare, strict }: { provide?: CeremonySource; bare?: boolean; strict?: boolean } = {}
-) => {
+const render = async (search: string, { provide, bare, strict }: TabOptions = {}) => {
   const loaded = loadWithReactJsx(bare ? SCREEN : TAB)
   const Tab = loaded.default as React.ComponentType
   const Provider = loaded.CeremonySourceProvider as React.ComponentType<{
@@ -793,7 +799,7 @@ describe('the ceremony tab for the identity bindings', () => {
     params: IDENTITY_PARAMS
   })
 
-  const requestRecord = (slug: string, call: 'testAccess' | 'createClaim') => ({
+  const requestRecord = (slug: string, call: TabCall) => ({
     ...recorded.withRequest(call, fixtureRequest()),
     method: slug,
     params: IDENTITY_PARAMS
@@ -1162,9 +1168,9 @@ describe('the ceremony tab for the identity bindings', () => {
 
 describe('the ceremony tab under a provider', () => {
   const fakeStore = () => ({
-    get: jest.fn<Promise<unknown>, [string, unknown?]>(async () => null),
-    set: jest.fn<Promise<null>, [string, unknown]>(async () => null),
-    remove: jest.fn<Promise<null>, [string]>(async () => null)
+    get: jest.fn<Promise<unknown>, StoreGetArgs>(async () => null),
+    set: jest.fn<Promise<null>, NamedValue>(async () => null),
+    remove: jest.fn<Promise<null>, StoreKeyArgs>(async () => null)
   })
 
   it("runs the ceremony the provider's source resolves, and never reads the wallet's own", async () => {

@@ -19,6 +19,13 @@ import type {
   Root
 } from '@web/modules/social-recovery/setup/review/__fixtures__/review'
 import type { ReviewClient, ReviewKitClient } from '@web/modules/social-recovery/setup/review/types'
+import type {
+  BlockedMountCase,
+  FailedLineCase,
+  PathCase,
+  UnfailedLineCase,
+  VerdictCase
+} from '@web/modules/social-recovery/setup/review/__fixtures__/types'
 
 // The spinner's animation needs a native module jsdom lacks; a plain view stands in.
 jest.mock('@common/components/Spinner', () => {
@@ -579,7 +586,7 @@ describe('save and the trust list reads', () => {
 describe('the path rows', () => {
   const CEREMONY = 'socialRecovery.ceremony'
 
-  const VERDICTS: [Enrollment['test'], string | undefined, string, string | null][] = [
+  const VERDICTS: VerdictCase[] = [
     ['passed', undefined, 'tested', null],
     ['not-tested', undefined, 'notTested', null],
     ['failed', 'check-rejected', 'testFailed', `${CEREMONY}.testFailedNoMatch`],
@@ -598,7 +605,7 @@ describe('the path rows', () => {
     })
   })
 
-  const FAILED_LINES: [Enrollment['credential'], string | undefined, string][] = [
+  const FAILED_LINES: FailedLineCase[] = [
     [ALICE, 'check-rejected', `${CEREMONY}.testFailedNoMatch`],
     [ALICE, 'check-rejected: signer mismatch', `${CEREMONY}.testFailedNoMatch`],
     [ALICE, 'check-reverted', `${CEREMONY}.testFailedReverted`],
@@ -620,7 +627,7 @@ describe('the path rows', () => {
     })
   })
 
-  const UNFAILED_LINES: [Enrollment['test'], string[]][] = [
+  const UNFAILED_LINES: UnfailedLineCase[] = [
     ['passed', []],
     ['not-tested', []]
   ]
@@ -1243,7 +1250,7 @@ describe('the trust list', () => {
     const passportAdmin = async (module: Address) =>
       sameAddress(module, BOOK.methods.zkpassport) ? declaration(ADMIN) : declaration()
 
-    const AT_ONE: [string, Clause[]][] = [
+    const AT_ONE: PathCase[] = [
       ['a lone required row', [required(PASSPORT)]],
       ['a group of one of two', [group(1, PASSPORT, ALICE)]],
       ['two groups of any one', [group(1, PASSPORT, ALICE), group(1, SECOND_PASSPORT, BOB)]]
@@ -1259,7 +1266,7 @@ describe('the trust list', () => {
       })
     })
 
-    const OTHERWISE: [string, Clause[]][] = [
+    const OTHERWISE: PathCase[] = [
       ['two required passport rows', [required(PASSPORT), required(SECOND_PASSPORT)]],
       ['a required row beside a group', [required(PASSPORT), group(1, SECOND_PASSPORT, ALICE)]]
     ]
@@ -1707,7 +1714,7 @@ describe('the block beside Save', () => {
       (node) => [node.dataset.testid, node.textContent]
     )
 
-  const CASES: [string, string, MountOptions, [string, string][]][] = [
+  const CASES: BlockedMountCase[] = [
     [
       'a path with an empty slot',
       'empty-slot',

@@ -25,6 +25,12 @@ import vm from 'vm'
 
 import type { DepositStep } from '@web/modules/social-recovery/shared/writes'
 import type { DepositStepViewProps } from '@web/modules/social-recovery/shared/writes/components'
+import type {
+  ButtonProps,
+  CopyArgs,
+  LoadedDepositView,
+  TextProps
+} from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 
@@ -45,11 +51,10 @@ const act: typeof React.act =
   (React as unknown as { unstable_act: typeof React.act }).unstable_act
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
-const setStringAsync = jest.fn<Promise<boolean>, [string]>()
-const StandInButton = ({ text: label, onPress }: { text: string; onPress: () => void }) =>
+const setStringAsync = jest.fn<Promise<boolean>, CopyArgs>()
+const StandInButton = ({ text: label, onPress }: ButtonProps) =>
   React.createElement('button', { type: 'button', onClick: onPress }, label)
-const StandInText = ({ children }: { children?: React.ReactNode }) =>
-  React.createElement('span', null, children)
+const StandInText = ({ children }: TextProps) => React.createElement('span', null, children)
 /** Every style the view asks for is empty: the app's style modules load the native app config. */
 const noStyles = new Proxy({}, { get: () => ({}) })
 const STAND_INS: Record<string, unknown> = {
@@ -74,7 +79,7 @@ const loadView = (): React.ComponentType<DepositStepViewProps> => {
   const load = (specifier: string): unknown =>
     STAND_INS[specifier] ??
     jest.requireActual(specifier.startsWith('.') ? path.resolve(VIEWS, specifier) : specifier)
-  const loaded: { exports: { default?: React.ComponentType<DepositStepViewProps> } } = {
+  const loaded: LoadedDepositView = {
     exports: {}
   }
   vm.compileFunction(outputText, ['require', 'module', 'exports'], { filename: file })(

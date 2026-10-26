@@ -1,7 +1,8 @@
 /**
  * @jest-environment jsdom
  */
-import type { Banner } from '@ambire-common/interfaces/banner'
+
+import type { BannerStubProps } from '@web/modules/social-recovery/cancel/__fixtures__/types'
 
 jest.mock('@web/modules/PPv1/screens/dashboard/hooks/useBanners', () => ({
   __esModule: true,
@@ -16,7 +17,7 @@ jest.mock(
   '@common/modules/dashboard/components/DashboardBanners/DashboardBanner/DashboardBanner',
   () => ({
     __esModule: true,
-    default: ({ banner }: { banner: Banner }) =>
+    default: ({ banner }: BannerStubProps) =>
       // eslint-disable-next-line global-require
       require('react').createElement(
         'span',

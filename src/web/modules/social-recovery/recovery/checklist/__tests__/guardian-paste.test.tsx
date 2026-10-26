@@ -10,6 +10,11 @@
 import type {
   FakeKit,
   Mounted,
+  NamedConfiguration,
+  NamedText,
+  PasteOutcome,
+  PasteStep,
+  PasteVerdict,
   TestRecords
 } from '@web/modules/social-recovery/recovery/checklist/__tests__/harness'
 import {
@@ -114,7 +119,7 @@ describe('the guardian paste', () => {
     )
 
   /** After a paste a row either took the approval with its field gone, or kept the paste under one error. */
-  const expectSettled = (place: number, text: string, outcome: 'added' | 'error') => {
+  const expectSettled = (place: number, text: string, outcome: PasteOutcome) => {
     const mounted = view as Mounted
     if (outcome === 'added') {
       expect(mounted.byTestId(id(place, 'verified'))).not.toBeNull()
@@ -206,7 +211,7 @@ describe('the guardian paste', () => {
     expectSettled(3, line, 'error')
   })
 
-  const notReplies: [string, string][] = [
+  const notReplies: NamedText[] = [
     ['plain words', 'yes I approve'],
     ['a line that is not JSON', '{"kind":*bad'],
     [
@@ -297,7 +302,7 @@ describe('the guardian paste', () => {
     expectSettled(1, line, 'error')
   })
 
-  const oneApproval: [string, Configuration][] = [
+  const oneApproval: NamedConfiguration[] = [
     ['a path of one row', ONE_GUARDIAN],
     ['a lone group of threshold one', GROUP_OF_ONE]
   ]
@@ -473,14 +478,14 @@ describe('the guardian paste', () => {
 
   it('shows no pending state: every paste either adds or reads its error', async () => {
     await open()
-    const lines: [number, string, 'added' | 'error'][] = [
+    const lines: PasteStep[] = [
       [1, 'not a reply', 'error'],
       [1, lineOf(replyOf(gathering, 1)), 'added'],
       [2, lineOf(replyOf(gathering, 1)), 'error'],
       [2, lineOf(replyOf(gathering, 2)), 'added']
     ]
 
-    const step = async ([place, text, outcome]: [number, string, 'added' | 'error']) => {
+    const step = async ([place, text, outcome]: PasteStep) => {
       await paste(place, text)
       expectSettled(place, text, outcome)
       ;[0, 1, 2, 3, 4].forEach((row) => {
@@ -502,7 +507,7 @@ describe('the guardian paste', () => {
       (view?.byTestId(id(place, 'paste-input')) as HTMLInputElement | null)
 
     const startPaste = async (line: string) => {
-      const verdict = deferred<'satisfied' | 'rejected'>()
+      const verdict = deferred<PasteVerdict>()
       kit.verify.mockImplementation(() => verdict.promise)
       const mounted = view as Mounted
       await mounted.type(id(1, 'paste-input'), line)

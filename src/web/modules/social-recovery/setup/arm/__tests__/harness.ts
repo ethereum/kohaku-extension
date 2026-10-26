@@ -78,11 +78,12 @@ import type {
   LastAttempt,
   RecordStorage,
   SetupDraftRecord,
-  SaveInFlightAccessor
+  SaveInFlightAccessor,
+  SaveInFlightRecord
 } from '@web/modules/social-recovery/shared/records'
 import { emptySlot } from '@web/modules/social-recovery/shared/records/slots'
 import { saveGateOf, trustRowsOf } from '@web/modules/social-recovery/setup/review'
-import type { AccountReads, SaveGate } from '@web/modules/social-recovery/setup/review'
+import type { AccountReads, SaveGate, SaveBlock } from '@web/modules/social-recovery/setup/review'
 
 import {
   arrivalOf,
@@ -102,6 +103,7 @@ import type {
   ArmStore,
   SaveSteps
 } from '@web/modules/social-recovery/setup/arm'
+import type { WriteMachineState } from '@web/modules/social-recovery/shared/writes'
 
 export const S = en.socialRecovery
 
@@ -1102,3 +1104,144 @@ if (expect.getState().testPath === __filename) {
     })
   })
 }
+
+/** The selected account as an external store a test can switch. */
+export type SelectedAccountMock = {
+  current: { addr: string; preferences: { label: string } } | null
+  listeners: Set<() => void>
+}
+
+/** The client state the mocked hook answers. */
+export type ClientMock = { current: unknown }
+
+/** The send port the mocked hook answers. */
+export type PortMock = { current: SendPort | null }
+
+/** The request queue as an external store a test can change. */
+export type QueueMock = { current: { userRequests: { id: string }[] }; listeners: Set<() => void> }
+
+/** The keystore's removal listener, once the screen subscribes. */
+export type RemoveListener = { current: ((keys: string[]) => void) | null }
+
+/** A hold the next storage read waits for; none while null. */
+export type ReadHold = { current: Promise<void> | null }
+
+/** The translation module a test reads strings through. */
+export type TranslateModule = { t: (key: string, options?: object) => string }
+
+/** The operations the account's activity lists; null where it does not answer. */
+export type ActivityMock = { current: SubmittedOperation[] | null }
+
+/** Where the router stands, and its navigation, as the probe last read them. */
+export type ProbedRouter = {
+  pathname: string
+  search: string
+  hash: string
+  state: unknown
+  type: string
+  navigate: ((to: string | number) => void) | null
+  push: ((to: string, state: unknown) => void) | null
+}
+
+/** The state of the account facts a test wires. */
+export type FactsState = 'ready' | 'loading' | 'view-only' | 'state-unread'
+
+/** A history move: the case's name, the backup, the move and what the screen shows. */
+export type PopCase = [string, SetupDraft['privacy']['backup'], () => Promise<void>, string]
+
+/** How a save ended, what it showed, whether its batch left a setup, and what the next arrival shows. */
+export type EndedCase = {
+  named: string
+  arrange: () => void
+  ended: string
+  setUp: boolean
+  arrival: string
+}
+
+/** A block on arrival: the case's name, the block and the draft change that brings it. */
+export type BlockedCase = [string, string, (draft: SetupDraft) => SetupDraft]
+
+/** A case's name and what it does. */
+export type AsyncCase = [string, () => Promise<void>]
+
+/** A case's name, how the screen goes away, and how it comes back. */
+export type AwayCase = [string, () => Promise<void>, () => Promise<void>]
+
+/** A case's name and what another page does to the claim meanwhile. */
+export type MeanwhileCase = [string, (entry: string, claimed: string, requestId: string) => void]
+
+/** A save block and the lines it shows. */
+export type BlockLines = [SaveBlock, string[]]
+
+/** A case's name, the screen state and the write state it shows. */
+export type SubmittingCase = [string, Partial<ArmState>, WriteMachineState]
+
+/** A case's name and the screen state. */
+export type ArmStateCase = [string, Partial<ArmState>]
+
+/** A reason the send port refuses a save. */
+export type SaveRefusal = 'not-a-transaction' | 'other-request-pending'
+
+/** A case's name, how the read fails, and how many receipt reads it takes. */
+export type FailingReadCase = [string, (page: Page) => void, number]
+
+/** A case's name and what it does to the page. */
+export type PageCase = [string, (page: Page) => void]
+
+/** How long ago the save was claimed and sent. */
+export type RecordTimes = { claimedAgo: number; sentAgo?: number }
+
+/** Whether the activity read knows the transaction. */
+export type KnownAnswer = 'known' | 'unknown'
+
+/** A case's name and a write another page makes to the stored save. */
+export type RecordWrite = [
+  string,
+  (storage: MemoryStorage, record: SaveInFlightRecord) => Promise<unknown>
+]
+
+/** A receipt's status: reverted or succeeded. */
+export type ReceiptStatus = 0 | 1
+
+/** Whether the stored save carries a transaction hash. */
+export type HashOption = { withHash: boolean }
+
+/** A save this page follows: the case's name, whether it has a hash, and how the test arranges it. */
+export type FollowCase = {
+  named: string
+  withHash: boolean
+  arrange: (requestId: string, page: WiredSave, requests: RequestsFake) => void
+}
+
+/** A failure that sent nothing. */
+export type UnsentFailure = 'failedNotSent' | 'gasReadError'
+
+/** A case's name and what it does to the wired save. */
+export type WiredCase = [string, (page: WiredSave) => void]
+
+/** A case's name and where the request comes to rest. */
+export type RestCase = [string, (requests: RequestsFake, requestId: string) => void]
+
+/** A case's name, whether the module is already authorized, and whether the account has code. */
+export type BatchCase = [string, boolean, boolean]
+
+/** A call of the batch, read by its target. */
+export type TargetedCall = { target: string }
+
+/** A case's name, the check's answer, the refusal it reads, and how many checks run. */
+export type DisagreedCase = [string, SaveScript['confirm'], 'mismatch' | 'authorization', number]
+
+/** A case's name, how the run fails, and how the edge that failed answers on the retry. */
+export type RetryCase = [string, Partial<SaveScript>, (wired: ReturnType<typeof wireSave>) => void]
+
+/** A case's name, the error the send fails with, and the state it settles in. */
+export type SettledCase = [string, () => Error, 'failedReverted' | 'failedNotSent']
+
+/** A case's name, how the save ends, and whether the next arrival keeps the run. */
+export type KeptEndingCase = [string, Partial<SaveScript>, boolean]
+
+/** A case's name and the fee reading. */
+export type ReadingCase = [string, ReturnType<typeof feeReading>]
+
+/** The send, the receipt and the check of one save. */
+export type SaveEdges = Pick<SaveScript, 'send' | 'receipt' | 'confirm'>

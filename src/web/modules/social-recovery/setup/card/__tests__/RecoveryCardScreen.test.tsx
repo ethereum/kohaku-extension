@@ -21,7 +21,13 @@ import {
 } from '@web/modules/social-recovery/setup/card/__tests__/harness'
 import type {
   FakeClientState,
-  FakeSetupReads
+  FakeSetupReads,
+  BackgroundMock,
+  ErrorCase,
+  OtherCase,
+  PasswordQuery,
+  ReadHold,
+  SetupAnswer
 } from '@web/modules/social-recovery/setup/card/__tests__/harness'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 
@@ -82,7 +88,7 @@ jest.mock('@web/hooks/useKeystoreControllerState', () => {
 // in-memory store, whose reads a test can hold back and whose writes it keeps.
 const mockEntries = new Map<string, unknown>()
 const mockWrites: Record<string, unknown>[] = []
-const mockStorageGate: { current: Promise<void> | null } = { current: null }
+const mockStorageGate: ReadHold = { current: null }
 jest.mock('@web/constants/browserapi', () => ({
   ...jest.requireActual('@web/constants/browserapi'),
   browser: {
@@ -224,7 +230,7 @@ describe('the recovery card screen', () => {
   let container: HTMLDivElement
   let root: Root
   let dispatch: jest.Mock
-  let background: { dispatch: jest.Mock; windowId: undefined }
+  let background: BackgroundMock
   let downloads: number
   let setup: FakeSetupReads
   let retry: jest.Mock
@@ -338,7 +344,7 @@ describe('the recovery card screen', () => {
   }
   const savedSetup = () => setup.setupState.mockResolvedValue({ hasSetup: true })
   const opensBackup = (typed: string) =>
-    setup.getSetup.mockImplementation(async ({ password }: { password: string }) => {
+    setup.getSetup.mockImplementation(async ({ password }: PasswordQuery) => {
       if (password === typed) {
         return {}
       }
@@ -559,7 +565,7 @@ describe('the recovery card screen', () => {
       expect(byTestId('card-password-value')?.textContent).toBe(S.display.hiddenValue)
     })
 
-    const others: [string, () => void, string][] = [
+    const others: OtherCase[] = [
       ['no saved setup', () => {}, 'card-password-gone'],
       ['a saved setup', () => savedSetup(), 'card-recovery-password-ask']
     ]
@@ -619,7 +625,7 @@ describe('the recovery card screen', () => {
 
   describe('the recovery password asked again', () => {
     it('shows the row label with the line that looks up the setup, and keeps the carriers off while the setup read runs', async () => {
-      const read = deferred<{ hasSetup: boolean }>()
+      const read = deferred<SetupAnswer>()
       setup.setupState.mockReturnValue(read.promise)
       const account = newAccount()
       await mount(account)
@@ -938,7 +944,7 @@ describe('the recovery card screen', () => {
       expect(carriersDisabled()).toEqual([false, false])
     })
 
-    const failures: [string, () => Error][] = [
+    const failures: ErrorCase[] = [
       ['a refusal of another cause', () => restoreRefusalOf('restore.commitment-mismatch')],
       ['a thrown error', () => new Error('the node did not answer')]
     ]

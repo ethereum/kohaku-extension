@@ -41,7 +41,6 @@ import {
   advanceTimers,
   draftOf,
   ENDINGS,
-  HAPPY,
   landedReceipt,
   memoryStorage,
   nodeError,
@@ -54,13 +53,19 @@ import {
   START_BLOCK,
   TX_HASH,
   unawaited,
-  wireSave
+  wireSave,
+  HAPPY
 } from '@web/modules/social-recovery/setup/arm/__tests__/harness'
 import type {
   MemoryStorage,
   RequestsFake,
   SaveScript,
-  WiredSave
+  WiredSave,
+  FollowCase,
+  HashOption,
+  RestCase,
+  UnsentFailure,
+  WiredCase
 } from '@web/modules/social-recovery/setup/arm/__tests__/harness'
 
 const OPTIONS = { timeoutMs: SHORT_TIMEOUT_MS }
@@ -114,7 +119,7 @@ const offersSave = (store: ArmStore) => {
 const firstPageLeaves = async (
   storage: MemoryStorage,
   requests: RequestsFake,
-  { withHash }: { withHash: boolean }
+  { withHash }: HashOption
 ) => {
   const first = wireSave(account, script(), { storage, requests })
   if (withHash) {
@@ -1078,11 +1083,7 @@ describe('a follower checks with the draft the stored save sent', () => {
     return page
   }
 
-  const FOLLOWS: {
-    named: string
-    withHash: boolean
-    arrange: (requestId: string, page: WiredSave, requests: RequestsFake) => void
-  }[] = [
+  const FOLLOWS: FollowCase[] = [
     { named: 'under its hash', withHash: true, arrange: () => {} },
     {
       named: 'with no hash, broadcast',
@@ -1624,7 +1625,7 @@ describe('the block the send starts from', () => {
   const expectEndedNotSent = async (
     wired: WiredSave,
     store: ArmStore,
-    status: 'failedNotSent' | 'gasReadError' = 'failedNotSent'
+    status: UnsentFailure = 'failedNotSent'
   ) => {
     expect(store.state().write.status).toBe(status)
     expect(canRetry(store.state().write)).toBe(true)
@@ -1732,7 +1733,7 @@ describe('a hash write that fails', () => {
     return secondPage(storage, requests)
   }
 
-  const MARKS: [string, (page: WiredSave) => void][] = [
+  const MARKS: WiredCase[] = [
     [
       'fails',
       (page) => {
@@ -2253,7 +2254,7 @@ describe('a follow that starts after its screen left', () => {
     })
   )
 
-  const RESTS: [string, (requests: RequestsFake, requestId: string) => void][] = [
+  const RESTS: RestCase[] = [
     [
       'queued',
       (requests, requestId) => {

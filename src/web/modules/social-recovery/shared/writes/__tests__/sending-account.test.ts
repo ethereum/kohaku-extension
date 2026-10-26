@@ -36,6 +36,7 @@ import {
   submittingFor,
   TX_HASH
 } from '@web/modules/social-recovery/shared/writes/__tests__/harness'
+import type { DispatchArgs } from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 const CHAIN_ID = 11155111
 const SELECT = 'MAIN_CONTROLLER_SELECT_ACCOUNT'
@@ -60,7 +61,7 @@ const walletWith = (selected: string | undefined) => {
   const listeners = new Set<(update: SendRequestUpdate) => void>()
   const wallet: ScriptedWallet = {
     selected,
-    dispatch: jest.fn<void, [SendRequestAction]>(),
+    dispatch: jest.fn<void, DispatchArgs>(),
     push: (update: SendRequestUpdate) => [...listeners].forEach((listener) => listener(update)),
     /** The wallet selects `addr` and pushes its selection. */
     select: (addr: string) => {

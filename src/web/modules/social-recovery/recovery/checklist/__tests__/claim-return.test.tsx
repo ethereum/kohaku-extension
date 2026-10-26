@@ -18,7 +18,8 @@ import type {
   MockWorld,
   Mounted,
   ReportChannel,
-  TestRecords
+  TestRecords,
+  ChromeStubProps
 } from '@web/modules/social-recovery/recovery/checklist/__tests__/harness'
 import {
   ACCOUNT,
@@ -59,13 +60,7 @@ function mockFrame(name: string) {
   const R = jest.requireActual('react')
   return {
     __esModule: true,
-    default: ({
-      children,
-      counter
-    }: {
-      children?: unknown
-      counter?: { labelKey: string; step: number; total: number; testID?: string }
-    }) => {
+    default: ({ children, counter }: ChromeStubProps) => {
       const { t: translate } = jest.requireActual('@common/config/localization').default
       return R.createElement(
         'div',

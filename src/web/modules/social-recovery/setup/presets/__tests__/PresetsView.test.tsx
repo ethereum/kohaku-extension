@@ -19,6 +19,10 @@ import type {
   RecordStorage,
   WalletRecords
 } from '@web/modules/social-recovery/shared/records'
+import type {
+  PresetShapeCase,
+  StorageFaults
+} from '@web/modules/social-recovery/setup/presets/__fixtures__/types'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 // React only runs effects and state updates inside act() when this flag is set.
@@ -78,9 +82,7 @@ const THEME_CONTEXT: ThemeContextReturnType = {
 
 // Switches a test flips to make the storage refuse: `get` and `remove` while
 // on, `set` for the next number of writes.
-const makeStorage = (
-  faults: { get?: boolean; remove?: boolean; set?: number } = {}
-): RecordStorage => {
+const makeStorage = (faults: StorageFaults = {}): RecordStorage => {
   const raw = new Map<string, string>()
   return {
     get: async (key, defaultValue) => {
@@ -338,7 +340,7 @@ describe('the presets view', () => {
       expect((await setup().setupDraft.read()).status).toBe('absent')
     })
 
-    const SHAPES: [PresetId, number[], string[]][] = [
+    const SHAPES: PresetShapeCase[] = [
       ['deviceAndGuardians', [1, 2], ['passkey', 'ecdsa', 'ecdsa', 'ecdsa']],
       ['deviceAndId', [1, 1], ['passkey', 'zkpassport']],
       ['eitherOne', [1], ['passkey', 'zkpassport']],
@@ -478,11 +480,7 @@ describe('the presets view', () => {
   // Noon of the reader's own day, so the day and month are the same in every zone.
   const DRAFTED_AT = new Date(2026, 7, 12, 12, 0).getTime()
 
-  const storeOn = async (
-    faults: { get?: boolean; remove?: boolean; set?: number },
-    clauses: Clause[],
-    enrollments: Enrollment[]
-  ) => {
+  const storeOn = async (faults: StorageFaults, clauses: Clause[], enrollments: Enrollment[]) => {
     records = createWalletRecords({ storage: makeStorage(faults), now: () => DRAFTED_AT })
     await setup().setupDraft.write({
       wait: 172800,
@@ -948,7 +946,7 @@ describe('the presets view', () => {
 
     const storedRecords = () => Promise.all(SETUP_RECORD_NAMES.map((name) => setup()[name].read()))
 
-    const storeFullDraft = async (faults: { get?: boolean; remove?: boolean; set?: number }) => {
+    const storeFullDraft = async (faults: StorageFaults) => {
       await storeOn(
         faults,
         clausesOfShape([

@@ -38,6 +38,11 @@ import {
   thrownBy,
   track
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
+import type {
+  KeysCase,
+  MessageCase,
+  RouteCase
+} from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 const WALLET = new Wallet(`0x${'11'.repeat(32)}`)
 const KEY = WALLET.address as Address
@@ -109,11 +114,7 @@ describe('the account of a key handle', () => {
 })
 
 describe('signMessage', () => {
-  const MESSAGES: [
-    string,
-    Parameters<ReturnType<typeof accountFor>['signMessage']>[0]['message'],
-    Hex
-  ][] = [
+  const MESSAGES: MessageCase[] = [
     ['the UTF-8 bytes of a string', 'hello', '0x68656c6c6f'],
     ['raw hex bytes as given', { raw: BYTES }, BYTES],
     ['raw bytes in an array, as hex', { raw: hexToBytes(BYTES) }, BYTES]
@@ -246,7 +247,7 @@ describe("typed data whose primary type is 'EIP712Domain'", () => {
     { name: 'chainId', type: 'uint256' }
   ]
 
-  const ROUTES: [string, (q: QueueWorld) => Promise<Hex>][] = [
+  const ROUTES: RouteCase[] = [
     [
       'through the account',
       (q) =>
@@ -267,7 +268,7 @@ describe("typed data whose primary type is 'EIP712Domain'", () => {
         })
     ]
   ]
-  const KEYS: [string, Address[]][] = [
+  const KEYS: KeysCase[] = [
     ['a key the wallet lists', [KEY]],
     ['a key the queue cannot sign for', []]
   ]

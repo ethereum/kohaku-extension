@@ -13,13 +13,17 @@ import { TextDecoder, TextEncoder } from 'util'
 import type { Address } from 'viem'
 
 import type AccountPickerController from '@ambire-common/controllers/accountPicker/accountPicker'
-import type {
-  AccountOnPage,
-  ImportStatus as ImportStatusType
-} from '@ambire-common/interfaces/account'
+import type { AccountOnPage } from '@ambire-common/interfaces/account'
 import en from '@common/config/localization/translations/en.json'
 import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
+import type {
+  AccountOnPageOptions,
+  AddressArgs,
+  ListProps,
+  TooltipProps,
+  UsedAddressesMock
+} from '@web/modules/social-recovery/onboarding/create/__fixtures__/types'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -30,7 +34,7 @@ const mockNetworks = [
   { chainId: 10n, name: 'Optimism', selectedRpcUrl: 'http://rpc.invalid/10' }
 ]
 // The addresses the usage check finds used.
-const mockChain: { usedAddrs: string[] } = { usedAddrs: [] }
+const mockChain: UsedAddressesMock = { usedAddrs: [] }
 // The name the reverse lookup finds, per account address.
 const mockEnsNames: Record<string, string> = {}
 
@@ -48,7 +52,7 @@ jest.mock('@web/hooks/useAccountPickerControllerState', () => ({
 }))
 jest.mock('@common/hooks/useReverseLookup', () => ({
   __esModule: true,
-  default: ({ address }: { address: string }) => ({
+  default: ({ address }: AddressArgs) => ({
     isLoading: false,
     ens: mockEnsNames[address] ?? null
   })
@@ -69,7 +73,7 @@ jest.mock('@common/utils/clipboard', () => ({ setStringAsync: async () => true }
 // stand-in renders its content in place under the id its anchor names.
 jest.mock('@common/components/Tooltip', () => ({
   __esModule: true,
-  default: ({ id, content }: { id: string; content: string }) =>
+  default: ({ id, content }: TooltipProps) =>
     jest.requireActual('react').createElement('span', { 'data-tooltip-content-for': id }, content)
 }))
 // The intro steps' context loads a stylesheet; the row reads only its setter.
@@ -85,7 +89,7 @@ jest.mock('react-native-keyboard-aware-scroll-view', () => ({
 jest.mock('viem', () => ({
   ...jest.requireActual('viem'),
   createPublicClient: () => ({
-    getTransactionCount: async ({ address }: { address: string }) =>
+    getTransactionCount: async ({ address }: AddressArgs) =>
       mockChain.usedAddrs.includes(address) ? 1 : 0,
     getBalance: async () => 0n
   })
@@ -166,11 +170,7 @@ const otherKeyAccount = basic(OTHER_KEY, 'Account 4')
 
 const onPage = (
   account: AccountOnPage['account'],
-  {
-    slot = 1,
-    index = slot - 1,
-    importStatus = ImportStatus.NotImported
-  }: { slot?: number; index?: number; importStatus?: ImportStatusType } = {}
+  { slot = 1, index = slot - 1, importStatus = ImportStatus.NotImported }: AccountOnPageOptions = {}
 ): AccountOnPage => ({ account, isLinked: false, slot, index, importStatus })
 
 // The key entry the picker lists after the smart account of the same slot.
@@ -183,11 +183,7 @@ const pickerState = ({
   accountsOnPage,
   selectedAccounts = [],
   shouldSelectSmartAccountAutomatically
-}: {
-  accountsOnPage: AccountOnPage[]
-  selectedAccounts?: AccountOnPage[]
-  shouldSelectSmartAccountAutomatically?: boolean
-}): AccountPickerController =>
+}: ListProps): AccountPickerController =>
   ({
     isInitialized: true,
     accountsLoading: false,

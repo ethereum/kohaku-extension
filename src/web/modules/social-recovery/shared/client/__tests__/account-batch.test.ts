@@ -23,7 +23,6 @@ import {
   basicAccount,
   BATCH,
   CONTROLLING_KEY,
-  deploymentDescriptor,
   dispatched,
   KeyHandle,
   networkRecord,
@@ -33,8 +32,10 @@ import {
   SendRequestAction,
   SMART_ACCOUNT,
   smartAccount,
-  WALLET_RECOVERY_CHAIN
+  WALLET_RECOVERY_CHAIN,
+  deploymentDescriptor
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
+import type { FlagCase } from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 const ADD = 'REQUESTS_CONTROLLER_ADD_USER_REQUEST'
 
@@ -172,7 +173,7 @@ describe("the transaction the account's key sends for the batch", () => {
     network: NETWORK
   })
 
-  const VERSIONS: [string, boolean][] = [
+  const VERSIONS: FlagCase[] = [
     ['the current account version', true],
     ['the first account version', false]
   ]

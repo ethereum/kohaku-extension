@@ -1,10 +1,11 @@
 import i18n from '@common/config/localization'
 import { renderWaitLength } from '@web/modules/social-recovery/shared/display'
 import type { Translate } from '@web/modules/social-recovery/shared/display'
+import type { TranslateCall } from '@web/modules/social-recovery/shared/display/__fixtures__/types'
 
 describe('a waiting period length', () => {
   const recorded = () => {
-    const calls: [string, Record<string, unknown> | undefined][] = []
+    const calls: TranslateCall[] = []
     const t: Translate = (key, options) => {
       calls.push([key, options])
       return `<${key}>`

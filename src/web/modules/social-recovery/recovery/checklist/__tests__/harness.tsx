@@ -1083,3 +1083,57 @@ describeHarness('the checklist harness', () => {
     expect(await storage.get('k', undefined)).toBe(1)
   })
 })
+
+/** A guardian request that asks for an approval. */
+export type ApproverApproval = Extract<ApproverRequest, { purpose: 'approval' }>
+
+/** A case's name and the text it uses. */
+export type NamedText = [string, string]
+
+/** The props of the stand-in chrome: its children and its stage counter. */
+export type ChromeStubProps = {
+  children?: unknown
+  counter?: { labelKey: string; step: number; total: number; testID?: string }
+}
+
+/** A case's name and the recovery state the device is behind on. */
+export type BehindCase = [string, ReturnType<typeof recoveryStateOf>]
+
+/** The record storage the mocked hook answers; none until a test sets it. */
+export type StorageMock = { current: RecordStorage | null }
+
+/** The props of the stand-in chrome: its children and the counter's test id. */
+export type ChromeTestIdProps = { children?: unknown; counter?: { testID?: string } }
+
+/** A case's name and whether the session is claimed. */
+export type ClaimCase = { name: string; claimed: boolean }
+
+/** The mocked clipboard module: its one spy. */
+export type ClipboardMock = { setStringAsync: jest.Mock }
+
+/** A line the carriers never say: its name and the pattern that finds it. */
+export type BannedLine = [string, RegExp]
+
+/** The removed-key read that names the test's removed key. */
+export type RemovedKeyRead = { kind: 'named'; key: typeof REMOVED }
+
+/** A removed-key read that names a key. */
+export type NamedKeyRead = { kind: 'named'; key: Address }
+
+/** How a paste settles: the row took the approval, or kept the paste under an error. */
+export type PasteOutcome = 'added' | 'error'
+
+/** A case's name and the setup it reads. */
+export type NamedConfiguration = [string, Configuration]
+
+/** One paste: the row's place, the text and how it settles. */
+export type PasteStep = [number, string, 'added' | 'error']
+
+/** The chain's verdict on a pasted approval. */
+export type PasteVerdict = 'satisfied' | 'rejected'
+
+/** The props of the stand-in chrome: its children and the counter it draws. */
+export type ChromeCounterProps = {
+  children?: unknown
+  counter?: { testID?: string; step: number; total: number }
+}

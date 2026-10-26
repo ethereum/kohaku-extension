@@ -48,7 +48,6 @@ import {
   requestsPush,
   SEND_SETTLE_MS,
   SendRefusal,
-  SendRefusalReason,
   SendRequestAction,
   sendQueueOver,
   sendRequestPort,
@@ -63,6 +62,11 @@ import {
   waitingForSwitch,
   WINDOW_ID
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
+import type {
+  AccountsCase,
+  QueueRefusal,
+  RefusalWords
+} from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 const WALLET = new Wallet(`0x${'11'.repeat(32)}`)
 /** The sending key, a basic account the wallet lists. */
@@ -116,11 +120,7 @@ const SUBJECTS = [KEY_SUBJECT, BATCH_SUBJECT]
 const reasonOf = (value: unknown) => (value as SendRefusal).reason
 
 /** The three refusals the port reads from the queue, each brought about the way the holder or the wait brings it. */
-const QUEUE_REFUSALS: {
-  reason: SendRefusalReason
-  /** Brings the refusal about once the request is queued with its window open. */
-  bring: (q: SendWorld, id: string | number) => Promise<void>
-}[] = [
+const QUEUE_REFUSALS: QueueRefusal[] = [
   {
     reason: 'refused',
     bring: async (q) => {
@@ -359,7 +359,7 @@ describe('a gate that throws before it hands back a promise', () => {
 
 describe('a key that is not itself a basic account the wallet lists', () => {
   const controllingKey = addressOf('controlling-key-at-index-plus-100000')
-  const KEYS: [string, SendWorld['accounts']][] = [
+  const KEYS: AccountsCase[] = [
     [
       'the controlling key of a smart account',
       [smartAccount(addressOf('smart-account'), controllingKey)]
@@ -771,13 +771,7 @@ SUBJECTS.forEach(({ title: subject, names, sending, expectRefusal }) =>
     })
 
     describe('what each refusal says', () => {
-      const CASES: {
-        title: string
-        reason: SendRefusalReason
-        /** Whether the wallet listed an operation under the request. */
-        listed: boolean
-        bring: (q: SendWorld, id: string | number) => Promise<void>
-      }[] = [
+      const CASES: RefusalWords[] = [
         {
           title: 'the holder rejected the request',
           reason: 'refused',

@@ -49,7 +49,10 @@ import {
   VALID_UNTIL,
   wallet
 } from '@web/modules/social-recovery/guardian-page/__tests__/harness'
-import type { Mounted } from '@web/modules/social-recovery/guardian-page/__tests__/harness'
+import type {
+  Mounted,
+  TypedField
+} from '@web/modules/social-recovery/guardian-page/__tests__/harness'
 import { SELECT_ACCOUNT_LIMIT_MS } from '@web/modules/social-recovery/guardian-page/constants'
 
 const PAGE = 'socialRecovery.guardianPage'
@@ -117,10 +120,7 @@ const typedDataFromPayload = (text: string): TypedDataToSign => {
     primaryType: string
     message: Record<string, unknown>
   }
-  const revive = (
-    fields: { name: string; type: string }[],
-    value: Record<string, unknown>
-  ): Record<string, unknown> =>
+  const revive = (fields: TypedField[], value: Record<string, unknown>): Record<string, unknown> =>
     Object.fromEntries(
       Object.entries(value).map(([name, member]) => {
         const type = fields.find((field) => field.name === name)?.type ?? ''

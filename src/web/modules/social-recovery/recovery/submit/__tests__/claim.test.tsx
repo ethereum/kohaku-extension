@@ -36,11 +36,12 @@ import {
 } from '@web/modules/social-recovery/recovery/submit/__tests__/harness'
 import { SEND_SETTLE_MS } from '@web/modules/social-recovery/shared/client'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
+import type { SubmitPage } from '@web/modules/social-recovery/recovery/submit/__tests__/harness'
 
 const { isLanded, lookForClaim, startSubmission } = submit
 
 describe('the claim of the submission', () => {
-  const pages: { store: SubmitStore; steps: ReturnType<typeof stepsOf> }[] = []
+  const pages: SubmitPage[] = []
 
   beforeEach(() => {
     jest.useFakeTimers()

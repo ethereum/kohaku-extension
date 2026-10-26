@@ -21,6 +21,11 @@ import vm from 'vm'
 
 import type { WriteState } from '@web/modules/social-recovery/shared/writes'
 import type { WriteStateViewProps } from '@web/modules/social-recovery/shared/writes/components'
+import type {
+  ButtonProps,
+  LoadedWriteStateView,
+  TextProps
+} from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 // The waiting line's spinner needs a native module jsdom lacks; nothing stands in.
 jest.mock('@common/components/Spinner', () => ({ __esModule: true, default: () => null }))
@@ -46,10 +51,9 @@ const act: typeof React.act =
   (React as unknown as { unstable_act: typeof React.act }).unstable_act
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
-const StandInButton = ({ text: label, onPress }: { text: string; onPress: () => void }) =>
+const StandInButton = ({ text: label, onPress }: ButtonProps) =>
   React.createElement('button', { type: 'button', onClick: onPress }, label)
-const StandInText = ({ children }: { children?: React.ReactNode }) =>
-  React.createElement('p', null, children)
+const StandInText = ({ children }: TextProps) => React.createElement('p', null, children)
 const StandInSpinner = () => React.createElement('progress')
 /** Every style the view asks for is empty: the app's style modules load the native app config. */
 const noStyles = new Proxy({}, { get: () => ({}) })
@@ -74,7 +78,7 @@ const loadView = (): React.ComponentType<WriteStateViewProps> => {
   const load = (specifier: string): unknown =>
     STAND_INS[specifier] ??
     jest.requireActual(specifier.startsWith('.') ? path.resolve(VIEWS, specifier) : specifier)
-  const loaded: { exports: { default?: React.ComponentType<WriteStateViewProps> } } = {
+  const loaded: LoadedWriteStateView = {
     exports: {}
   }
   vm.compileFunction(outputText, ['require', 'module', 'exports'], { filename: file })(

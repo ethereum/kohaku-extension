@@ -19,6 +19,10 @@ import {
   PrivilegeReadsProvider,
   World
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
+import type {
+  CallArgs,
+  PartialCall
+} from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 const accountView = new Interface(['function privileges(address) view returns (bytes32)'])
 
@@ -37,7 +41,7 @@ const providerOf = (world: World): PrivilegeReadsProvider =>
 /** The world's account, deployed, whose `privileges` view marks `holders` non-zero. */
 const deployedWith = (world: World, holders: Address[]): void => {
   world.ethers.getCode.mockResolvedValue('0x6080')
-  world.ethers.call.mockImplementation(async (tx: { to?: string; data?: string }) => {
+  world.ethers.call.mockImplementation(async (tx: PartialCall) => {
     if (tx.to?.toLowerCase() !== world.account.toLowerCase()) {
       return '0x'
     }
@@ -48,7 +52,7 @@ const deployedWith = (world: World, holders: Address[]): void => {
 }
 
 const queriedKeys = (world: World): string[] =>
-  world.ethers.call.mock.calls.map(([tx]: [{ data: string }]) =>
+  world.ethers.call.mock.calls.map(([tx]: CallArgs) =>
     String(accountView.decodeFunctionData('privileges', tx.data)[0])
   )
 

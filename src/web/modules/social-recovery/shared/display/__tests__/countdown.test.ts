@@ -3,6 +3,7 @@ import {
   renderCountdown,
   renderCountdownTime
 } from '@web/modules/social-recovery/shared/display'
+import type { BadSpanCase } from '@web/modules/social-recovery/shared/display/__fixtures__/types'
 
 const REMAINING = (47 * 3600 + 12 * 60 + 6) * 1000 // 47:12:06
 
@@ -67,7 +68,7 @@ describe('attempt countdown', () => {
 })
 
 describe('a time left that is not finite', () => {
-  const BAD_SPANS: [number, string][] = [
+  const BAD_SPANS: BadSpanCase[] = [
     [NaN, 'Not a time: NaN'],
     [Infinity, 'Not a time: Infinity'],
     [-Infinity, 'Not a time: -Infinity']

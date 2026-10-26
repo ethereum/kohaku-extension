@@ -8,12 +8,13 @@ import {
   createCodeRead,
   isProviderReadFailure
 } from '@web/modules/social-recovery/shared/client/provider-adapter'
+import type { CodeReadArgs } from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 const ACCOUNT: Address = '0x1111111111111111111111111111111111111111'
 const CODE: Hex = '0x6080604052'
 
 const codeReadAnswering = (answer: () => Promise<string>) => {
-  const getCode = jest.fn<Promise<string>, [unknown, unknown?]>(() => answer())
+  const getCode = jest.fn<Promise<string>, CodeReadArgs>(() => answer())
   return { codeRead: createCodeRead({ getCode }), getCode }
 }
 

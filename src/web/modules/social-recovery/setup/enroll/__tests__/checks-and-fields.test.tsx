@@ -10,9 +10,7 @@ import type { Address, Clause, Hex } from '@kohaku-eth/social-recovery'
 import type {
   CheckTone,
   EnrollSearch,
-  GuardianChain,
-  GuardianChecks,
-  HeldKey
+  GuardianChain
 } from '@web/modules/social-recovery/setup/enroll/types'
 import type { FakeDeps, Mounted } from '@web/modules/social-recovery/setup/enroll/__tests__/harness'
 import {
@@ -27,6 +25,10 @@ import {
   t,
   THEME
 } from '@web/modules/social-recovery/setup/enroll/__tests__/harness'
+import type {
+  CheckToneCase,
+  SeedCase
+} from '@web/modules/social-recovery/setup/enroll/__fixtures__/types'
 
 // The spinner's animation needs a native module jsdom lacks; a plain view stands in.
 jest.mock('@common/components/Spinner', () => {
@@ -68,7 +70,7 @@ const contractCode: GuardianChain = {
 const sameSeed = [{ addr: LOWERCASE, type: 'internal' as const, fromSeedId: 'seed-1' }]
 
 describe('the tone of each check line', () => {
-  each<[string, GuardianChecks, string, CheckTone]>([
+  each<CheckToneCase>([
     ['a checksum that holds', { checksum: 'ok' }, 'checksumOk', 'good'],
     ['a checksum that fails', { checksum: 'failed' }, 'checksumFailed', 'risk'],
     [
@@ -113,7 +115,7 @@ describe('the tone of each check line', () => {
 
 describe('the seed check by the kind of key the wallet keeps at the address', () => {
   const OTHER: Address = '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC'
-  each<[string, HeldKey[], NonNullable<GuardianChecks['seed']>]>([
+  each<SeedCase>([
     ['no key at all', [], 'not'],
     [
       'a stored key at another address',

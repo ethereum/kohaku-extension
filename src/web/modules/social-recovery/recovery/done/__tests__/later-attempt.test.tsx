@@ -11,6 +11,8 @@
  * to the wait and changes nothing.
  */
 import {
+  consumedAttempt,
+  recoveryPrivileges,
   ADD_ACTION,
   addedAccountOf,
   attemptConsumed,
@@ -18,7 +20,6 @@ import {
   BOOK,
   CHAIN_ID,
   CONSUME_BLOCK,
-  consumedAttempt,
   dispatchedOf,
   GRANT_PRIV,
   guardianName,
@@ -30,7 +31,6 @@ import {
   OTHER_TX,
   PASSWORD,
   privilegeChanged,
-  recoveryPrivileges,
   REMOVED_KEY,
   t,
   tick,
@@ -38,9 +38,9 @@ import {
   usedLine
 } from '@web/modules/social-recovery/recovery/done/__tests__/harness'
 import type {
-  FakeChain,
   Mounted,
-  World
+  World,
+  LaterAttemptCase
 } from '@web/modules/social-recovery/recovery/done/__tests__/harness'
 import { ADD_LIMIT_MS } from '@web/modules/social-recovery/recovery/done'
 import { POLL_LIMIT_MS } from '@web/modules/social-recovery/recovery/checklist/constants'
@@ -218,7 +218,7 @@ describe('our landed attempt consumed while the manager holds a later attempt', 
 })
 
 describe('no consume of ours while the manager holds a later attempt', () => {
-  const cases: { name: string; change: (account: Address) => Partial<FakeChain> }[] = [
+  const cases: LaterAttemptCase[] = [
     {
       name: 'our attempt is not consumed and a later attempt waits',
       change: (account) => ({

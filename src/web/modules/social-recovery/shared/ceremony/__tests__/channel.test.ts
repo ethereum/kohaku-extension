@@ -6,11 +6,16 @@
  */
 import type { ReportIdentity } from '@web/modules/social-recovery/shared/ceremony'
 import { ceremony } from '@web/modules/social-recovery/shared/ceremony/__tests__/harness'
+import type {
+  NamedValue,
+  OtherReportCase,
+  UndeliveredCase
+} from '@web/modules/social-recovery/shared/ceremony/__fixtures__/types'
 
 const T0 = 1_790_000_000_000
 
 /** A storage double over a Map; every member is a spy. */
-const mapStore = (entries: [string, unknown][] = []) => {
+const mapStore = (entries: NamedValue[] = []) => {
   const map = new Map<string, unknown>(entries)
   return {
     map,
@@ -103,7 +108,7 @@ describe('a report a row reads and then removes', () => {
     expect(await readThenRemove(store, T0)).toBeNull()
   })
 
-  const OTHERS: [string, Partial<ReportIdentity>][] = [
+  const OTHERS: OtherReportCase[] = [
     ['another call', { call: 'testAccess' }],
     ['another method', { method: 'zkpassport' }],
     ['another id', { id: 'req-2' }]
@@ -175,7 +180,7 @@ describe('listenForCeremonyReport', () => {
     expect(subscribe.mock.calls[0][0]).toBe(key())
   })
 
-  const UNDELIVERED: [string, () => unknown][] = [
+  const UNDELIVERED: UndeliveredCase[] = [
     ['another call', () => reportAt(T0, { call: 'testAccess' })],
     ['another method', () => reportAt(T0, { method: 'aadhaar' })],
     ['another id', () => reportAt(T0, { id: 'req-9' })],

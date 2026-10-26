@@ -15,6 +15,7 @@ import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
 import type { Address } from '@kohaku-eth/social-recovery'
 import type { RecordStorage } from '@web/modules/social-recovery/shared/records'
+import type { SelectedAccountMock } from '@web/modules/social-recovery/setup/presets/__fixtures__/types'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 // React only runs effects and state updates inside act() when this flag is set.
@@ -22,10 +23,7 @@ Object.assign(globalThis, { TextEncoder, TextDecoder })
 
 // The selected account as an external store: the screen is memoised, so it
 // renders again only when the store tells it the account changed.
-const mockSelected: {
-  state: { account: { addr: string } | null }
-  listeners: Set<() => void>
-} = { state: { account: null }, listeners: new Set() }
+const mockSelected: SelectedAccountMock = { state: { account: null }, listeners: new Set() }
 const mockRaw = new Map<string, string>()
 const mockStorage: RecordStorage = {
   get: async (key, defaultValue) => {

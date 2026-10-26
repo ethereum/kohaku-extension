@@ -844,3 +844,9 @@ describeHarness('the approval page harness', () => {
     await expect(kit.verify(request, request.place, '0xabc')).resolves.toBe('rejected')
   })
 })
+
+/** A guardian request that asks for an approval. */
+export type ApproverApproval = Extract<ApproverRequest, { purpose: 'approval' }>
+
+/** One field of a typed-data type: its name and its type. */
+export type TypedField = { name: string; type: string }

@@ -1178,3 +1178,24 @@ describeHarness('the wait harness', () => {
     expect(state.block.timestamp).toBe(state.attempt.consumableAfter)
   })
 })
+
+/** A setup whose rule reads one line: the case's name, the setup and the line. */
+export type OneLineCase = [string, Configuration, () => string]
+
+/** A case's name and the setup it reads. */
+export type NamedConfiguration = [string, Configuration]
+
+/** A case's name, what ends the attempt, and the title and line the screen shows. */
+export type EndingCase = [string, (world: World) => void, string, string]
+
+/** A restart: the case's name and what happens between the two mounts. */
+export type RestartCase = { name: string; between: (world: World) => void }
+
+/** The block range a log fetch asks for, read by its first block. */
+export type BlockRange = { from: number }
+
+/** A case's name and how a rival attempt differs. */
+export type RivalAttempt = [string, Partial<Attempt>]
+
+/** A case's name and what it changes in the world. */
+export type WorldCase = [string, (world: World) => void]

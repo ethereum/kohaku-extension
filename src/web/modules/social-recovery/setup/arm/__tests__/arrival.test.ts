@@ -43,7 +43,10 @@ import {
   smartAccount,
   TX_HASH
 } from '@web/modules/social-recovery/setup/arm/__tests__/harness'
-import type { ArrivalCase } from '@web/modules/social-recovery/setup/arm/__tests__/harness'
+import type {
+  ArrivalCase,
+  SaveRefusal
+} from '@web/modules/social-recovery/setup/arm/__tests__/harness'
 
 const ALREADY_SET_UP = { kind: 'blocked', block: { kind: 'already-set-up' } }
 
@@ -350,7 +353,7 @@ describe('the lines the view reads', () => {
   })
 
   it("sets the save's own title and sentence over the shared write states", () => {
-    const refusedFor = (reason: 'not-a-transaction' | 'other-request-pending') =>
+    const refusedFor = (reason: SaveRefusal) =>
       writeReducer(writeReducer(initialWriteState('save'), { type: 'start' }), {
         type: 'error',
         run: 1,

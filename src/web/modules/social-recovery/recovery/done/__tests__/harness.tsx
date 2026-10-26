@@ -880,3 +880,31 @@ describeHarness('the done harness', () => {
     )
   })
 })
+
+/** A mounted done screen and the world it reads. */
+export type MountedWorld = { screen: Mounted; world: Awaited<ReturnType<typeof openWorld>> }
+
+/** What a check reads on a mounted screen: an element by test id, and the whole text. */
+export type TextQueries = {
+  byTestId: (id: string) => HTMLElement | null
+  text: () => string
+}
+
+/** A setup, the places a recovery used, and the names the screen gives them. */
+export type UsedNamesCase = { configuration: Configuration; places: number[]; names: string[] }
+
+/** A setup: the case's name, the configuration and the exit each row offers. */
+export type ExitShape = {
+  name: string
+  configuration: Configuration
+  exits: ('add-first' | 'whole-rule' | 'none')[]
+}
+
+/** A later attempt the manager holds: the case's name and the chain it changes. */
+export type LaterAttemptCase = { name: string; change: (account: Address) => Partial<FakeChain> }
+
+/** A rival consume: the case's name and the chain it changes. */
+export type RivalCase = { name: string; change: (world: World) => Partial<FakeChain> }
+
+/** The route guard a test mocks. */
+export type GuardName = 'unlocked' | 'authenticated'

@@ -14,6 +14,10 @@ import {
   PRINT_VIEW_ID,
   REVOKE_DELAY_MS
 } from '@web/modules/social-recovery/setup/card/carriers'
+import type {
+  LinkClick,
+  PrintPage
+} from '@web/modules/social-recovery/setup/card/__tests__/harness'
 
 // jsdom has no `TextEncoder`, which viem reads when the card's rows load, so
 // the test sets Node's before it loads the file writer.
@@ -53,7 +57,7 @@ describe('the file carrier', () => {
   const OBJECT_URL = 'blob:chrome-extension://card/1'
   let blobs: Blob[]
   let revoked: string[]
-  let clicks: { href: string; download: string; inPage: boolean; live: boolean }[]
+  let clicks: LinkClick[]
   const originalCreate = URL.createObjectURL
   const originalRevoke = URL.revokeObjectURL
 
@@ -130,14 +134,7 @@ describe('the file carrier', () => {
 
 describe('the print view style', () => {
   let style: HTMLStyleElement
-  let page: {
-    html: HTMLElement
-    body: HTMLElement
-    other: HTMLElement
-    view: HTMLElement
-    card: HTMLElement
-    line: HTMLElement
-  }
+  let page: PrintPage
 
   beforeEach(() => {
     style = document.createElement('style')

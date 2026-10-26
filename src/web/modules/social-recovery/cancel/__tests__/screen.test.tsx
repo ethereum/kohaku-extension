@@ -7,7 +7,12 @@
  * funds.
  */
 import type { Network } from '@ambire-common/interfaces/network'
-import type { Address } from '@kohaku-eth/social-recovery'
+import type {
+  AccountProbeProps,
+  CancelScreenMocks,
+  ChildrenProps,
+  KeystoreKey
+} from '@web/modules/social-recovery/cancel/__fixtures__/types'
 
 jest.mock('viem', () => {
   // eslint-disable-next-line global-require
@@ -23,15 +28,7 @@ jest.mock('viem/chains', () => {
 })
 jest.mock('@common/utils/clipboard', () => ({ setStringAsync: async () => true }))
 
-const mockWallet: {
-  navigate: jest.Mock
-  dispatch: jest.Mock
-  selected: string | null
-  client: Record<string, unknown>
-  facts: Record<string, unknown>
-  reads: unknown
-  storage: unknown
-} = {
+const mockWallet: CancelScreenMocks = {
   navigate: jest.fn(),
   dispatch: jest.fn(),
   selected: null,
@@ -88,7 +85,7 @@ jest.mock('@web/modules/social-recovery/shared/records/extensionStorage', () => 
 }))
 jest.mock('@web/modules/social-recovery/shared/chrome/RecoveryChrome', () => ({
   __esModule: true,
-  default: ({ children }: { children: unknown }) => children
+  default: ({ children }: ChildrenProps) => children
 }))
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
@@ -135,7 +132,7 @@ const readyClient = (prepareCancelByOwner: jest.Mock) => ({
   retry: jest.fn()
 })
 
-const readyFacts = (key?: { addr: Address; type: string }) => ({
+const readyFacts = (key?: KeystoreKey) => ({
   status: 'ready',
   facts: {
     account: { ...harness.listed(ACCOUNT), associatedKeys: [KEY] },
@@ -232,7 +229,7 @@ describe('moving funds', () => {
   let view: Awaited<ReturnType<typeof mount>> | undefined
   let latest: ReturnType<typeof useMoveFunds> | undefined
 
-  const Probe = ({ account }: { account: Address | null }) => {
+  const Probe = ({ account }: AccountProbeProps) => {
     latest = useMoveFunds(account)
     return null
   }

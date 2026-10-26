@@ -19,7 +19,10 @@ import type {
   ValidationResult
 } from '@kohaku-eth/social-recovery'
 
-import type { Root, Validate } from '@web/modules/social-recovery/setup/editor/__tests__/harness'
+import type {
+  Root,
+  RefusalsOptions
+} from '@web/modules/social-recovery/setup/editor/__tests__/harness'
 
 // The spinner's animation needs a native module jsdom lacks; a plain view stands in.
 jest.mock('@common/components/Spinner', () => {
@@ -143,7 +146,7 @@ const mount = async ({
   clauses,
   wait,
   validate = async () => NO_FINDING
-}: { clauses?: Clause[]; wait?: number; validate?: Validate } = {}) => {
+}: RefusalsOptions = {}) => {
   const { records, storage } = makeRecords()
   if (clauses) {
     await records.setupDraft.write(draftOf(clauses, wait))

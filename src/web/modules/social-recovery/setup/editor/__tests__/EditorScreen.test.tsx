@@ -17,19 +17,20 @@ import type { ThemeContextReturnType } from '@common/contexts/themeContext'
 import type { ThemeProps } from '@common/styles/themeConfig'
 import type { Address } from '@kohaku-eth/social-recovery'
 import type { RecordStorage } from '@web/modules/social-recovery/shared/records'
+import type {
+  ReadHold,
+  SelectedAccountMock
+} from '@web/modules/social-recovery/setup/editor/__tests__/harness'
 
 Object.assign(globalThis, { TextEncoder, TextDecoder })
 // React only runs effects and state updates inside act() when this flag is set.
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 // The selected account as an external store, so a test can switch it.
-const mockSelected: {
-  state: { account: { addr: string } | null }
-  listeners: Set<() => void>
-} = { state: { account: null }, listeners: new Set() }
+const mockSelected: SelectedAccountMock = { state: { account: null }, listeners: new Set() }
 const mockRaw = new Map<string, string>()
 // While set, every storage read waits for it to settle.
-const mockHeld: { current: Promise<void> | null } = { current: null }
+const mockHeld: ReadHold = { current: null }
 const waitWhileHeld = async () => {
   if (mockHeld.current) {
     await mockHeld.current

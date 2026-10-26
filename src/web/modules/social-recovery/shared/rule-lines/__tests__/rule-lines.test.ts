@@ -14,7 +14,12 @@ import {
   RULE_LINE_KEYS
 } from '@web/modules/social-recovery/shared/rule-lines'
 import type { RuleLinesOptions, Translate } from '@web/modules/social-recovery/shared/rule-lines'
-import type { Expected } from '@web/modules/social-recovery/shared/rule-lines/__tests__/harness'
+import type {
+  Expected,
+  LinedShape,
+  SilentShape,
+  SingleCase
+} from '@web/modules/social-recovery/shared/rule-lines/__tests__/harness'
 
 // One method address per family: the failure-domain line keys on the method
 // address.
@@ -72,7 +77,7 @@ const SINGLE_PASSKEY: Expected[] = [
 ]
 
 // Each shape the editor accepts, with the lines it earns in order.
-const SHAPES: { name: string; clauses: Clause[]; expected: Expected[] }[] = [
+const SHAPES: LinedShape[] = [
   {
     name: 'one row: the single-method warning with the offer of a second method of any kind',
     clauses: [row(PASSKEY)],
@@ -269,7 +274,7 @@ const SHAPES: { name: string; clauses: Clause[]; expected: Expected[] }[] = [
 // is below one, above its clause's size, above 255 or not a whole number, or
 // when the path holds one enrolled credential twice, in one clause or across
 // two.
-const REFUSED_SHAPES: { name: string; clauses: Clause[] }[] = [
+const REFUSED_SHAPES: SilentShape[] = [
   { name: 'an empty path', clauses: [] },
   // A duplicate is the same (method, config) pair anywhere on the path.
   {
@@ -383,7 +388,7 @@ const zeroMethodWith = (config: Hex, label?: string): Credential => ({
 // Paths whose members wait in empty slots read as the same shape of enrolled
 // methods would: slots never count as one method held twice, and slots of one
 // kind share one failure domain.
-const SLOT_SHAPES: { name: string; clauses: Clause[]; expected: Expected[] }[] = [
+const SLOT_SHAPES: LinedShape[] = [
   {
     name: 'a 2-of-3 group of three guardian slots: any 2 of these 3, and one failure domain',
     clauses: [slotGroup(2, [GUARDIAN_SLOT(), GUARDIAN_SLOT(), GUARDIAN_SLOT()])],
@@ -480,7 +485,7 @@ const SLOT_SHAPES: { name: string; clauses: Clause[]; expected: Expected[] }[] =
 // A clause with no member yet is a group the holder is still filling: a caller
 // that asks to skip such clauses reads the rest of the path as if it were not
 // there. Without that ask, each of these paths is silent.
-const MEMBERLESS_SHAPES: { name: string; clauses: Clause[]; expected: Expected[] }[] = [
+const MEMBERLESS_SHAPES: LinedShape[] = [
   {
     name: 'a group with no member beside a required row: the row alone earns the single-method warning',
     clauses: [row(PASSKEY), noMember(1)],
@@ -512,7 +517,7 @@ const MEMBERLESS_SHAPES: { name: string; clauses: Clause[]; expected: Expected[]
 ]
 
 // Paths that earn no line although slots or groups with no member stand in them.
-const SILENT_SLOT_SHAPES: { name: string; clauses: Clause[] }[] = [
+const SILENT_SLOT_SHAPES: SilentShape[] = [
   {
     name: 'an enrolled credential listed twice among guardian slots: still one method held twice',
     clauses: [
@@ -805,7 +810,7 @@ describe('getRuleLines: an enrolled method and a slot of one kind', () => {
     expect(keysOf(clauses)).toEqual(['eitherOneAlone', 'differentPlaces'])
   })
 
-  const SINGLE_CASES: [string, Clause[], Expected[]][] = [
+  const SINGLE_CASES: SingleCase[] = [
     [
       'one enrolled passkey',
       [{ threshold: 1, credentials: [enrolled('passkey')] }],

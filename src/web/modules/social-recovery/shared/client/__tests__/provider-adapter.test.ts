@@ -38,11 +38,22 @@ import {
   NODE_ANSWERS,
   nodeRevert,
   PLAIN_RPC_NETWORK,
-  ProviderRead,
   SEPOLIA,
   thrownBy,
   underlyingCalls
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
+import type {
+  BrokenLogCase,
+  CallCase,
+  CallSender,
+  ChecksumCase,
+  FeeAnswerCase,
+  NamedValue,
+  NodeRequest,
+  NumberCase,
+  ProviderAction,
+  TagCase
+} from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 const TO = '0x1111111111111111111111111111111111111111' as Address
 const GWEI = 1_000_000_000n
@@ -71,14 +82,14 @@ const world = (): AdapterWorld => {
   return { chain, ethers, adapter: adapterOver(ethers) }
 }
 
-const onlyCall = (ethers: EthersMock): [string, unknown[]] => {
+const onlyCall = (ethers: EthersMock): NodeRequest => {
   const calls = underlyingCalls(ethers)
   expect(calls).toHaveLength(1)
   return calls[0]
 }
 
 /** The CALL_EXCEPTION ethers' JSON-RPC provider builds from a node's revert. */
-const ethersRevert = (action: 'call' | 'estimateGas', data: Hex) =>
+const ethersRevert = (action: ProviderAction, data: Hex) =>
   AbiCoder.getBuiltinCallException(action, { to: TO, data: DATA }, data)
 
 /** The error Colibri's EIP-1193 `request` throws: an `Error` carrying the node's code and data. */
@@ -121,7 +132,7 @@ describe('the provider adapter, IProvider over the extension provider', () => {
   })
 
   describe('call(to, data, from, block)', () => {
-    const CALL_CASES: [string, Address, BlockTag][] = [
+    const CALL_CASES: CallCase[] = [
       ['a from address at latest', FROM, 'latest'],
       ['the zero from address at finalized', zeroAddress, 'finalized'],
       ['a from address at a block number', FROM, 1234]
@@ -152,7 +163,7 @@ describe('the provider adapter, IProvider over the extension provider', () => {
       })
     )
 
-    const REVERT_CASES: [string, unknown][] = [
+    const REVERT_CASES: NamedValue[] = [
       ['an ethers CALL_EXCEPTION', callException(REVERT)],
       ["the node's own JSON-RPC revert", nodeRevert(REVERT)]
     ]
@@ -356,7 +367,7 @@ describe('the balance and gas reads beside the adapter', () => {
     ])
   })
 
-  const NOT_FEE_ANSWERS: [string, unknown, unknown][] = [
+  const NOT_FEE_ANSWERS: FeeAnswerCase[] = [
     ['a base fee that is not a quantity', { number: '0x1', baseFeePerGas: 'soon' }, '0x1'],
     ['no block at all', null, '0x1'],
     ['a priority fee that is not a quantity', { number: '0x1', baseFeePerGas: '0x1' }, 'soon']
@@ -410,7 +421,7 @@ describe('the four reads on the typed members of the ethers provider', () => {
       expect(underlyingCalls(w.ethers)).toEqual([['send', ['eth_chainId', []]]])
     })
 
-    const ANSWERS: [string, number][] = [
+    const ANSWERS: NumberCase[] = [
       ['0x1', 1],
       ['0xaa36a7', SEPOLIA]
     ]
@@ -422,7 +433,7 @@ describe('the four reads on the typed members of the ethers provider', () => {
       })
     )
 
-    const NOT_CHAIN_IDS: [string, unknown][] = [
+    const NOT_CHAIN_IDS: NamedValue[] = [
       ['the empty quantity 0x', '0x'],
       ['a name', 'sepolia'],
       ['a number, not a quantity', SEPOLIA],
@@ -554,7 +565,7 @@ describe('the four reads on the typed members of the ethers provider', () => {
       })
     )
 
-    const NO_HEADER: [string, unknown][] = [
+    const NO_HEADER: NamedValue[] = [
       ['no block at the tag', null],
       ['a block without a hash, as a pending block is', { ...ethersBlock, hash: null }]
     ]
@@ -571,7 +582,7 @@ describe('the four reads on the typed members of the ethers provider', () => {
 })
 
 describe('the balance and gas reads on the typed members of the ethers provider', () => {
-  const TAGS: [string, BlockTag | undefined, BlockTag][] = [
+  const TAGS: TagCase[] = [
     ['no block, at latest', undefined, 'latest'],
     ['the finalized block', 'finalized', 'finalized'],
     ['a block number', 1234, 1234]
@@ -605,7 +616,7 @@ describe('the balance and gas reads on the typed members of the ethers provider'
     expect(caught).toMatchObject({ read: 'estimateGas', data: REVERT })
   })
 
-  const OTHER_FAILURES: [string, unknown][] = [
+  const OTHER_FAILURES: NamedValue[] = [
     [
       "ethers' INSUFFICIENT_FUNDS",
       makeError('insufficient funds', 'INSUFFICIENT_FUNDS', {
@@ -647,7 +658,7 @@ describe('the balance and gas reads on the typed members of the ethers provider'
     await expect(createChainReads(w.ethers).gasPrice()).resolves.toBe(NODE_ANSWERS.gasPrice)
   })
 
-  const NOT_PRICES: [string, unknown][] = [
+  const NOT_PRICES: NamedValue[] = [
     ['the empty quantity 0x', '0x'],
     ['a text', 'seven gwei'],
     ['a number, not a quantity', 7],
@@ -691,7 +702,7 @@ describe('through the ethers provider the extension builds for a network', () =>
       }
       return answer
     })
-    return { provider, requests: (): [string, unknown][] => send.mock.calls }
+    return { provider, requests: (): NamedValue[] => send.mock.calls }
   }
 
   const CHECKSUMMED = '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed' as Address
@@ -728,7 +739,7 @@ describe('through the ethers provider the extension builds for a network', () =>
   }
 
   /** The requests the node received, their parameters in lower case, as JSON-RPC compares them. */
-  const lowerCased = (requests: [string, unknown][]): [string, unknown][] =>
+  const lowerCased = (requests: NamedValue[]): NamedValue[] =>
     requests.map(([method, params]) => [
       method,
       JSON.parse(JSON.stringify(params), (_key, v) => (typeof v === 'string' ? v.toLowerCase() : v))
@@ -812,11 +823,7 @@ describe('through the ethers provider the extension builds for a network', () =>
     expect(node.requests()).toEqual([['eth_getBlockByNumber', ['0x3b6', false]]])
   })
 
-  const WITH_A_BAD_CHECKSUM: [
-    string,
-    ProviderRead,
-    (provider: ExtensionProvider) => Promise<unknown>
-  ][] = [
+  const WITH_A_BAD_CHECKSUM: ChecksumCase[] = [
     [
       'the target of a call',
       'call',
@@ -890,7 +897,7 @@ describe('through the ethers provider the extension builds for a network', () =>
   const withoutTransactionIndex = Object.fromEntries(
     Object.entries(NODE_LOG).filter(([field]) => field !== 'transactionIndex')
   )
-  const BROKEN_LOGS: [string, Record<string, unknown>][] = [
+  const BROKEN_LOGS: BrokenLogCase[] = [
     ['without a transaction index', withoutTransactionIndex],
     ["with the log index '0x'", { ...NODE_LOG, logIndex: '0x' }],
     ['with data of odd length', { ...NODE_LOG, data: '0xabc' }]
@@ -954,7 +961,7 @@ describe('through the ethers provider the extension builds for a network', () =>
 
 describe('gasCallOf, the transaction a key sends for a prepared call', () => {
   const block = { number: 1, hash: `0x${'00'.repeat(32)}` as Hex }
-  const prepared = (sender: 'account' | 'anyone'): PreparedCall => ({
+  const prepared = (sender: CallSender): PreparedCall => ({
     kind: 'call',
     target: TO,
     value: 7n,

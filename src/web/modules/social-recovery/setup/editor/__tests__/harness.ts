@@ -223,3 +223,24 @@ if (expect.getState().testPath === __filename) {
     })
   })
 }
+
+/** The selected account as an external store a test can switch. */
+export type SelectedAccountMock = {
+  state: { account: { addr: string } | null }
+  listeners: Set<() => void>
+}
+
+/** A hold every storage read waits for; none while null. */
+export type ReadHold = { current: Promise<void> | null }
+
+/** The stored draft and path, none where absent. */
+export type StoredEdit = { draft: SetupDraft | null; path: readonly Clause[] | null }
+
+/** A case's name and the label, if any. */
+export type FallbackCase = [string, string | undefined]
+
+/** A case's name and the enrollment. */
+export type EnrollmentCase = [string, Enrollment]
+
+/** How a test renders the refusals; each member has a default. */
+export type RefusalsOptions = { clauses?: Clause[]; wait?: number; validate?: Validate }

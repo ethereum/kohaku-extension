@@ -14,7 +14,9 @@ import { qrDataOfImage } from '@web/modules/social-recovery/shared/ceremony/qrIm
 import type {
   CanvasDraw,
   FakePicture,
-  QrCodeLibrary
+  QrCodeLibrary,
+  DrawCall,
+  DrawnImage
 } from '@web/modules/social-recovery/shared/ceremony/__fixtures__/types'
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require, import/no-extraneous-dependencies */
@@ -112,15 +114,9 @@ beforeEach(() => {
     if (noContext) {
       return null
     }
-    let drawn: { picture: FakePicture; width: number; height: number } | null = null
+    let drawn: DrawCall = null
     return {
-      drawImage: (
-        image: { picture: FakePicture },
-        _x: number,
-        _y: number,
-        w: number,
-        h: number
-      ) => {
+      drawImage: (image: DrawnImage, _x: number, _y: number, w: number, h: number) => {
         drawn = { picture: image.picture, width: w, height: h }
         draws.push({ width: w, height: h })
       },

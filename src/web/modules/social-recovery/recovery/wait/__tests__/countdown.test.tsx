@@ -30,8 +30,11 @@ import {
   useWaitClock,
   waiting
 } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
-import type { Mounted } from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
-import type { Configuration } from '@kohaku-eth/social-recovery'
+import type {
+  Mounted,
+  NamedConfiguration,
+  OneLineCase
+} from '@web/modules/social-recovery/recovery/wait/__tests__/harness'
 import { renderShortAddress } from '@web/modules/social-recovery/shared/display'
 import { recordKeys } from '@web/modules/social-recovery/shared/records'
 import { explorerTransactionUrlOf } from '@web/modules/social-recovery/setup/arm'
@@ -514,7 +517,7 @@ describe('the path line by shape', () => {
   const GUARDIAN = 'socialRecovery.display.nouns.guardian'
   const PASSPORT = 'socialRecovery.methodNames.passport'
 
-  const ONE_LINE: [string, Configuration, () => string][] = [
+  const ONE_LINE: OneLineCase[] = [
     [
       'any two of three guardians',
       configurationOf([
@@ -584,7 +587,7 @@ describe('the path line by shape', () => {
     })
   })
 
-  const RULE_LINES: [string, Configuration][] = [
+  const RULE_LINES: NamedConfiguration[] = [
     ['two required methods and a group', MIXED_PATH],
     ['one guardian alone', ONE_GUARDIAN],
     [

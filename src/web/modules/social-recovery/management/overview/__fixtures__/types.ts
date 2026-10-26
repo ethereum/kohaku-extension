@@ -44,3 +44,25 @@ export interface AdvancingFakeTimers {
 
 /** The send port of a write step's test, each send a mock. */
 export type StepSendPort = SendPort & { send: jest.Mock; sendAccountBatch: jest.Mock }
+
+/** The keys the mocked keystore lists; unread while undefined. */
+export type KeystoreMock = { keys: { addr: string; type: string }[] | undefined }
+
+/** What the overview's mocked hooks answer; a test sets each member. */
+export type OverviewMocks = {
+  account: string | undefined
+  facts: unknown
+  client: unknown
+  port: SendPort | null
+  storage: unknown
+  watched: unknown
+}
+
+/** An action a test sees dispatched, read by its type. */
+export type DispatchedAction = { type: string }
+
+/** The props of a stand-in that renders only its children. */
+export type ChildrenProps = { children: unknown }
+
+/** What the mocked hooks answer: the account facts and the send port. */
+export type WriteStepMocks = { facts: unknown; port: SendPort | null }

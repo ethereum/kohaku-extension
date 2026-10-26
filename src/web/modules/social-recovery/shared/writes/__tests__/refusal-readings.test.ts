@@ -29,6 +29,7 @@ import {
   WriteMachineState,
   WriteKind
 } from '@web/modules/social-recovery/shared/writes/__tests__/harness'
+import type { NamedValue } from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 const t = i18n.t
 /** A translation that answers the key path it was given. */
@@ -151,7 +152,7 @@ WRITE_KINDS.forEach((write) =>
 )
 
 describe('only a refusal of the send port reads its reason', () => {
-  const LOOKALIKES: [string, unknown][] = [
+  const LOOKALIKES: NamedValue[] = [
     [
       'a plain object with the name and the reason',
       { name: 'SendRefusal', reason: 'not-a-transaction' }
