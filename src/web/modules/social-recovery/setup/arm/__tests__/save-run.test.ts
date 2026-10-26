@@ -18,6 +18,7 @@ import {
 import {
   createWalletRecords,
   readRecoveryPassword,
+  sdkDraftOf,
   setRecoveryPassword,
   SETUP_RECORD_NAMES
 } from '@web/modules/social-recovery/shared/records'
@@ -161,6 +162,17 @@ describe('the gas check before the send', () => {
     )
     expect(wired.port.sendAccountBatch).not.toHaveBeenCalled()
     expect(wired.saveSetup).not.toHaveBeenCalled()
+  })
+
+  it("hands the SDK the draft without the editor's threshold flags", async () => {
+    const wired = wireSave(account, script({ thresholdsSet: [true] }))
+    await runSave(wired.steps)
+
+    const sent = (wired.prepareCommitSetup.mock.calls as unknown as unknown[][])[0][0]
+    expect(sent).not.toHaveProperty('thresholdsSet')
+    expect(sent).toEqual(sdkDraftOf(wired.draft))
+    const confirmed = (wired.confirmSetup.mock.calls as unknown as unknown[][])[0][0]
+    expect(confirmed).not.toHaveProperty('thresholdsSet')
   })
 
   it('checks the gas again from the deposit step on the same prepared save, and sends once the key holds enough', async () => {

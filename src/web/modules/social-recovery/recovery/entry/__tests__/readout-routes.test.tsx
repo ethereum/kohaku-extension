@@ -87,6 +87,16 @@ describe('the recovery entry record', () => {
     expect(page.has('readout')).toBe(false)
   })
 
+  it('sends the holder to the account step, never to the checklist, when the entry names the account as its own receiver', async () => {
+    const world = await commitLostSetup('public')
+    await storeLiveRecovery(LOST, { route: 'logged-in', receivingAccount: LOST })
+    await storeCache(await world.client.setup.setupState())
+    const page = await open()
+    expect(navigate).toHaveBeenCalledWith(ACCOUNT_STEP)
+    expect(navigatedTo().some((path) => path.includes('checklist'))).toBe(false)
+    expect(page.has('readout')).toBe(false)
+  })
+
   const unusable: [string, string][] = [
     ['no search', ''],
     ['a malformed account', '?account=0x1234']

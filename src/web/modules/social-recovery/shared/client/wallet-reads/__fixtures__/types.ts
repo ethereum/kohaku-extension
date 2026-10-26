@@ -1,4 +1,11 @@
-import type { Address, ClientConfiguration, Hex, RawLog } from '@kohaku-eth/social-recovery'
+import type {
+  Address,
+  ApproverRequest,
+  ClientConfiguration,
+  Hex,
+  RawLog,
+  Reply
+} from '@kohaku-eth/social-recovery'
 import type { PrivilegeAccount } from '@web/modules/social-recovery/shared/client/types'
 
 /** An account scripted on the provider, deployed unless its code is empty, with no creation record unless one is given. */
@@ -37,3 +44,12 @@ export interface AccountWorldOptions {
  * rejects with, and the check's answer.
  */
 export type ReplyCheckCase = [string, () => Hex | Error, 'reverted' | 'rejected']
+
+/** What each method module's `verify` view answers, the node's answer or the error the call rejects with; unscripted where absent. */
+export interface VerifyAnswers {
+  ecdsa?: () => Hex | Error
+  passkey?: () => Hex | Error
+}
+
+/** A reply that does not answer the request: the case's name, and the request and reply it builds. */
+export type MismatchedReplyCase = [string, () => [ApproverRequest, Reply]]

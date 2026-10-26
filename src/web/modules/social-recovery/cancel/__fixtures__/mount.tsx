@@ -87,9 +87,6 @@ export interface LastReadingCase {
   last: WatcherReading | null
 }
 
-/** A read of the watcher's last reading from storage, as the arrival read takes it. */
-export type LastReadingRead = () => Promise<WatcherReading | undefined>
-
 export interface Mounted {
   unmount: () => void
   byTestId: (id: string) => HTMLElement | null

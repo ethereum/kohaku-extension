@@ -174,9 +174,13 @@ const follow = (
       })
     )
     request.onReject(whileOpen(() => settle(stopped(dismissed('refused')))))
+    // An error the phone reports during an access test leaves the test unrun, never failed.
+    const phoneError = context.call === 'testAccess' ? unavailable : failed
     request.onError(
       whileOpen((message: string) =>
-        settle(stopped(failed('phone-error', typeof message === 'string' ? message : undefined)))
+        settle(
+          stopped(phoneError('phone-error', typeof message === 'string' ? message : undefined))
+        )
       )
     )
     request.onBridgeConnectionLost?.(

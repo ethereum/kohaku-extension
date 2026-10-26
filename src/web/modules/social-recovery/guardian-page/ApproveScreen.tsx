@@ -42,6 +42,7 @@ import {
   createSignerFacade,
   describeRequestOffline,
   descriptorOf,
+  isDeploymentRefusal,
   networkOf,
   signRequestPort,
   WALLET_RECOVERY_CHAIN
@@ -92,6 +93,7 @@ const ApproveScreen = () => {
 
   const clientState = useRecoveryClient(readable ? request?.account : undefined)
   const kit = clientState.status === 'ready' ? clientState.client : null
+  const clientError = clientState.status === 'failed' ? clientState.error : undefined
   const client = useMemo<ApprovalClient>(() => {
     if (kit) {
       return { status: 'ready', client: kit }
@@ -102,8 +104,12 @@ const ApproveScreen = () => {
     if (clientState.status === 'update-the-wallet') {
       return { status: 'refused' }
     }
+    // A deployment that refused its construction checks refuses again on every retry.
+    if (isDeploymentRefusal(clientError)) {
+      return { status: 'refused' }
+    }
     return { status: 'failed', retry: clientState.retry }
-  }, [kit, clientState.status, clientState.retry])
+  }, [kit, clientState.status, clientState.retry, clientError])
 
   // Undefined while no client stands; null where the client cannot describe the request.
   const fresh = useMemo(

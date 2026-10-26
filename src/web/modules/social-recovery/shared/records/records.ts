@@ -20,10 +20,10 @@ import { parse, stringify } from '@ambire-common/libs/richJson/richJson'
 import type {
   Address,
   ApproverRequest,
-  Credential,
   Gathering,
   GatheringPlace,
-  Hex
+  Hex,
+  SetupDraft
 } from '@kohaku-eth/social-recovery'
 
 import { RECOVERY_ROUTES, ROW_NOTES } from './constants'
@@ -33,7 +33,13 @@ import {
   recordDeploymentOf,
   isSessionOfDeployment
 } from './deployment'
-import { isDecimalString, isStoredAddress, isStoredSeconds } from './guards'
+import {
+  isDecimalString,
+  isPlainObject,
+  isStoredAddress,
+  isStoredCredential,
+  isStoredSeconds
+} from './guards'
 import { wipeRecoveryPassword } from './recoveryPassword'
 import { ABSENT, SETUP_RECORD_NAMES } from './types'
 import type {
@@ -51,6 +57,7 @@ import type {
   ExpectedRevision,
   LandedRecoverySession,
   LandedStoredSession,
+  LastAttempt,
   ListedRecord,
   ListedRecoveryEntry,
   LiveRecoverySession,
@@ -212,20 +219,6 @@ const isRecoveryEntry = (value: unknown): value is RecoveryEntryRecord => {
   )
 }
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
-
-/**
- * Whether a stored value is a credential: its method address, its config and,
- * where present, its label and salt.
- */
-const isStoredCredential = (value: unknown): value is Credential =>
-  isPlainObject(value) &&
-  isStoredAddress(value.method) &&
-  isHex(value.config) &&
-  (value.label === undefined || typeof value.label === 'string') &&
-  (value.salt === undefined || isHex(value.salt))
-
 /**
  * Whether a stored value is a ceremony request: its account, chain and method,
  * and what its call needs, an enrollment's method address and params, with the
@@ -328,6 +321,27 @@ const withWaitAsRead = <T extends { wait: StoredWait }>(value: T): T & { wait: n
   ...value,
   wait: waitAsRead(value.wait)
 })
+
+/** The SDK's own draft: the setup draft record without the editor's threshold flags. */
+export const sdkDraftOf = ({
+  wait,
+  clauses,
+  ignoresPause,
+  privacy
+}: SetupDraftRecord): SetupDraft => ({ wait, clauses, ignoresPause, privacy })
+
+/**
+ * A stored setup draft as read: its wait as a number, and its threshold flags
+ * only where they are one boolean per clause; any other value reads as none.
+ */
+const draftAsRead = (value: SetupDraftRecord): SetupDraftRecord => {
+  const { thresholdsSet, ...draft } = withWaitAsRead(value)
+  return Array.isArray(thresholdsSet) &&
+    thresholdsSet.length === draft.clauses.length &&
+    thresholdsSet.every((flag) => typeof flag === 'boolean')
+    ? { ...draft, thresholdsSet }
+    : draft
+}
 
 /**
  * Whether a stored credential holds code, read from a value the storage
@@ -674,7 +688,7 @@ export const createWalletRecords = ({
     const draftKey = recordKeys.setup('setupDraft', chainId, account)
     const pathKey = recordKeys.setup('path', chainId, account)
     return {
-      setupDraft: accessor<SetupDraftRecord>(draftKey, withWaitAsRead),
+      setupDraft: accessor<SetupDraftRecord>(draftKey, draftAsRead),
       inventory: accessor(recordKeys.setup('inventory', chainId, account)),
       path: accessor(pathKey),
       enrollments: accessor(recordKeys.setup('enrollments', chainId, account)),
@@ -1187,6 +1201,34 @@ export const createWalletRecords = ({
     expectedRevision: ExpectedRevision
   ): Promise<boolean> => removeSessionIn(chainId, account, 'landed', expectedRevision)
 
+  /**
+   * Removes the landed session of an attempt `last` shows over: one before the
+   * last attempt, or the last one consumed. Runs in the session's queue, so a
+   * countdown written meanwhile is judged as it stands.
+   */
+  const endPastCountdown = (
+    chainId: ChainId,
+    account: Address,
+    last: LastAttempt
+  ): Promise<boolean> =>
+    inSessionQueue(chainId, account, async (current, key) => {
+      if (
+        current.status !== 'present' ||
+        current.value.state !== 'landed' ||
+        current.value.attemptId === undefined
+      ) {
+        return false
+      }
+      const attemptId = BigInt(current.value.attemptId)
+      const over =
+        attemptId < last.attemptId || (attemptId === last.attemptId && last.state === 'Consumed')
+      if (!over) {
+        return false
+      }
+      await storage.remove(key)
+      return true
+    })
+
   // --- the countdown -------------------------------------------------------
 
   const asCountdown = (read: SessionRead): CountdownRead =>
@@ -1521,6 +1563,7 @@ export const createWalletRecords = ({
     landSubmission,
     clearWipedSession,
     endCountdown,
+    endPastCountdown,
     countdown,
     restoreCountdown,
     listCountdowns,

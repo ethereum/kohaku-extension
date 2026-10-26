@@ -27,6 +27,8 @@
  * holds that opens the landed backup. It then wipes the setup records, ends
  * the edit session and rewrites this device's opened setup with the
  * configuration and the nonce the landed commit holds.
+ * Either write's landing ends this device's countdown of an attempt the
+ * chain shows over: the recovery that brought the account here is done.
  *
  * The removal sends the clear and the zero write of the authorization as one
  * batch, prepared together and sent through the account's own door. Its
@@ -61,7 +63,7 @@ import {
   walletAccountRefOf
 } from '@web/modules/social-recovery/shared/writes'
 import type { ManageIntent } from '@web/modules/social-recovery/shared/writes'
-import { callsOf, saveStepsOf } from '@web/modules/social-recovery/setup/arm'
+import { callsOf, endPastCountdown, saveStepsOf } from '@web/modules/social-recovery/setup/arm'
 import type { PreparedSave, SaveSteps } from '@web/modules/social-recovery/setup/arm'
 
 import { configurationOfDraft } from './load'
@@ -248,6 +250,7 @@ export const editStepsOf = (input: EditStepsInput): SaveSteps => {
             })
           : cache.wipe()
       ])
+      await endPastCountdown(input)
     }
   }
 }
@@ -316,6 +319,7 @@ export const removalStepsOf = (input: EditorStepsInput): SaveSteps => {
         input.records.decryptedSetupCache(chainId, account).wipe(),
         input.session.wipe()
       ])
+      await endPastCountdown(input)
     }
   }
 }

@@ -100,7 +100,7 @@ const {
 const {
   ceremonyReport,
   ceremonyResultKey,
-  takeCeremonyReport
+  readCeremonyReport
 }: typeof import('@web/modules/social-recovery/shared/ceremony') = require('@web/modules/social-recovery/shared/ceremony')
 const {
   addressBookOf,
@@ -702,8 +702,8 @@ describeHarness('the enroll view harness', () => {
     const channel = reportChannel()
     await channel.report('a', 'enroll', { kind: 'dismissed', note: 'cancelled' }, 'zkpassport')
     const asPasskey = { id: 'a', call: 'enroll' as const, method: 'passkey' }
-    expect(await takeCeremonyReport(asPasskey, channel.store, NOW)).toBeNull()
-    const taken = await takeCeremonyReport(
+    expect(await readCeremonyReport(asPasskey, channel.store, NOW)).toBeNull()
+    const taken = await readCeremonyReport(
       { ...asPasskey, method: 'zkpassport' },
       channel.store,
       NOW

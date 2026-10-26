@@ -127,6 +127,24 @@ export interface DestinationAnswers {
 /** The reads after the confirmation, in the order they run. */
 export type ConfirmedStage = 'authorization' | 'fit' | 'destination'
 
+/**
+ * Why the account step refused the account as its own receiver: the holder
+ * named it, or a stored entry of an earlier build names it.
+ */
+export type SameAccountRefusal = 'asked' | 'stored'
+
+/**
+ * What a confirmation does with the stored entry: resume its live session,
+ * refuse it for naming the account as its own receiver, or write a new one.
+ */
+export type ResumeJudgement = 'resume' | 'same-account' | 'write'
+
+/** The account the holder confirmed and the account the holder chose to receive its control. */
+export interface ConfirmedAccounts {
+  confirmed: Address
+  receiving: Address
+}
+
 /** Each read after the confirmation; a read that has not started yet is absent. */
 export interface ConfirmedReads {
   authorization?: EntryRead<boolean>
@@ -147,7 +165,7 @@ export type RecoverRefusal =
   | 'removed-not-authority'
 
 /** Why the key a recovery installs cannot be installed on the account. */
-export type DestinationRefusal = 'already-a-key' | 'holds-privilege'
+export type DestinationRefusal = 'already-a-key' | 'holds-privilege' | 'same-account'
 
 /** Where the account step stands after the confirmation, the first that applies. */
 export type ConfirmedStep =
@@ -264,7 +282,12 @@ export interface ConfirmedReadsViewProps {
 /** The records the account step reads and writes. */
 export type AccountStepRecords = Pick<
   WalletRecords,
-  'recoveryEntry' | 'recoverySession' | 'listRecoveryEntries' | 'restoreCountdown'
+  | 'recoveryEntry'
+  | 'recoverySession'
+  | 'listRecoveryEntries'
+  | 'restoreCountdown'
+  | 'wipeRecoverySession'
+  | 'clearWipedSession'
 >
 
 /** The reads of the registry the running attempt's band makes. */

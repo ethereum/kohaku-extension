@@ -24,6 +24,7 @@ import type {
   EnrollmentFacts,
   EnrollmentLastTest,
   EnrollmentTestVerdict,
+  IdentityKind as SharedIdentityKind,
   SetupRecords,
   SlotKind,
   SlotPosition,
@@ -448,7 +449,7 @@ export interface RowNotesProps {
 }
 
 /** The two identity kinds: a passport through zkPassport, and an Aadhaar identity. */
-export type IdentityKind = Extract<SlotKind, 'zkpassport' | 'aadhaar'>
+export type IdentityKind = SharedIdentityKind
 
 /** The strings an identity row reads, and the prefix of its test ids. */
 export interface IdentityCopy extends DismissalNotes {

@@ -317,7 +317,7 @@ describe('every edit on screen', () => {
       { threshold: 2, credentials: [BOB] },
       { threshold: 1, credentials: [CAROL] },
       { threshold: 1, credentials: [ALICE] },
-      { threshold: 2, credentials: [] }
+      { threshold: 1, credentials: [] }
     ])
 
     await press('editor-group-1-remove')
@@ -325,14 +325,14 @@ describe('every edit on screen', () => {
       { threshold: 1, credentials: [PASSKEY] },
       { threshold: 1, credentials: [CAROL] },
       { threshold: 1, credentials: [ALICE] },
-      { threshold: 2, credentials: [] }
+      { threshold: 1, credentials: [] }
     ])
 
     await press('editor-row-0-remove')
     await expectPathMatchesDraft(stored, [
       { threshold: 1, credentials: [CAROL] },
       { threshold: 1, credentials: [ALICE] },
-      { threshold: 2, credentials: [] }
+      { threshold: 1, credentials: [] }
     ])
   })
 
@@ -351,7 +351,7 @@ describe('every edit on screen', () => {
     await press('editor-row-0-move-2')
     await expectPathMatchesDraft(stored, [
       { threshold: 2, credentials: [ALICE, BOB] },
-      { threshold: 1, credentials: [CAROL, PASSPORT, PASSKEY] }
+      { threshold: 2, credentials: [CAROL, PASSPORT, PASSKEY] }
     ])
   })
 
@@ -565,7 +565,15 @@ describe('continue', () => {
     await press('editor-member-1-2-remove')
     await press('editor-continue')
     const { draft } = await stored()
-    expect(validateSetup).toHaveBeenCalledWith(draft)
+    expect(draft).not.toBeNull()
+    // The check reads the draft as the SDK takes it, without the editor's threshold flags.
+    expect(validateSetup).toHaveBeenCalledWith({
+      wait: draft?.wait,
+      clauses: draft?.clauses,
+      ignoresPause: draft?.ignoresPause,
+      privacy: draft?.privacy
+    })
+    expect(validateSetup.mock.calls[0][0]).not.toHaveProperty('thresholdsSet')
     expect(draft?.clauses).toEqual([
       { threshold: 1, credentials: [PASSKEY] },
       { threshold: 2, credentials: [ALICE, BOB] }
@@ -627,9 +635,10 @@ describe('the first edit over no stored draft', () => {
     const { draft, path } = await stored()
     expect(draft).toEqual({
       wait: 48 * 60 * 60,
-      clauses: [{ threshold: 2, credentials: [] }],
+      clauses: [{ threshold: 1, credentials: [] }],
       ignoresPause: true,
-      privacy: { publicMetadata: '0x', backup: 'encrypted' }
+      privacy: { publicMetadata: '0x', backup: 'encrypted' },
+      thresholdsSet: [false]
     })
     expect(path).toEqual(draft?.clauses)
   })
@@ -820,6 +829,37 @@ describe('edits while the path check runs', () => {
   })
 })
 
+describe("a group's threshold the holder set", () => {
+  it('keeps a threshold set back to the suggestion through added members and a reopen', async () => {
+    const { stored, reopen } = await mount({
+      clauses: [{ threshold: 1, credentials: [ALICE, BOB] }]
+    })
+    await typeThreshold('editor-group-0-threshold', '2')
+    await typeThreshold('editor-group-0-threshold', '1')
+    await press('editor-group-0-add')
+    await press('editor-group-0-add-menu-passkey')
+    const added = await stored()
+    expect(added.draft?.clauses[0].threshold).toBe(1)
+    expect(added.draft?.thresholdsSet).toEqual([true])
+
+    await reopen()
+    await press('editor-group-0-add')
+    await press('editor-group-0-add-menu-ecdsa')
+    const again = await stored()
+    expect(again.draft?.clauses[0].credentials).toHaveLength(4)
+    expect(again.draft?.clauses[0].threshold).toBe(1)
+  })
+
+  it('raises a threshold the holder never set at the third member', async () => {
+    const { stored } = await mount({ clauses: [{ threshold: 1, credentials: [ALICE, BOB] }] })
+    await press('editor-group-0-add')
+    await press('editor-group-0-add-menu-passkey')
+    const { draft } = await stored()
+    expect(draft?.clauses[0].threshold).toBe(2)
+    expect(draft?.thresholdsSet).toEqual([false])
+  })
+})
+
 describe('a failed read or write of the draft', () => {
   it('renders the write failure when the draft write fails, holds continue, and a later write clears both', async () => {
     const { storage, stored } = await mount({ clauses: presetPath() })
@@ -834,8 +874,8 @@ describe('a failed read or write of the draft', () => {
     expect(isHeld('editor-continue')).toBe(false)
     await expectPathMatchesDraft(stored, [
       ...presetPath(),
-      { threshold: 2, credentials: [] },
-      { threshold: 2, credentials: [] }
+      { threshold: 1, credentials: [] },
+      { threshold: 1, credentials: [] }
     ])
   })
 
@@ -854,7 +894,7 @@ describe('a failed read or write of the draft', () => {
     await expectPathMatchesDraft(stored, [
       { threshold: 1, credentials: [PASSKEY] },
       { threshold: 2, credentials: [ALICE, BOB] },
-      { threshold: 2, credentials: [] }
+      { threshold: 1, credentials: [] }
     ])
   })
 

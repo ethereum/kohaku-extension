@@ -157,10 +157,11 @@ describe('in the extension, on storage.onChanged', () => {
     expect(onValue).not.toHaveBeenCalled()
   })
 
-  it('takes a report the store holds as richJson text, parsed once, with its bigint revived', async () => {
+  it('reads a report the store holds as richJson text, parsed once, with its bigint revived, and removes it', async () => {
     local.set(key(), reportTextWithBigint())
     const { browserReportStore } = browserDefaults()
-    const report = await ceremony().takeCeremonyReport(EXPECTED, browserReportStore, T0 + 1)
+    const report = await ceremony().readCeremonyReport(EXPECTED, browserReportStore, T0 + 1)
+    await browserReportStore.remove(key())
     expect({ id: report?.id, call: report?.call, method: report?.method }).toEqual(EXPECTED)
     const outcome = report?.outcome as { value?: { amount?: unknown } } | undefined
     expect(isBigint(outcome?.value?.amount, AMOUNT)).toBe(true)

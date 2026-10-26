@@ -99,7 +99,9 @@ export const useOverviewReads = ({
   const setup: SetupState | null = facts.status === 'answered' ? facts.value.setup : null
   // The setup the path is read under, for the path read now to keep its nonce.
   const pathSetup = useRef<SetupState | null>(setup)
-  pathSetup.current = setup
+  useEffect(() => {
+    pathSetup.current = setup
+  }, [setup])
 
   useEffect(() => {
     floor.current = undefined

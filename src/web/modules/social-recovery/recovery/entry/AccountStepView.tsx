@@ -5,7 +5,12 @@
  * before any of those reads runs; where the account already has an entry and
  * a live session, the confirmation resumes that recovery at the checklist and
  * writes nothing. Leaving a state that refuses the account clears the entry,
- * so a refused account never reads as a recovery in progress. Every read has
+ * so a refused account never reads as a recovery in progress. The account
+ * being recovered never receives its own control: a confirmation that names
+ * it as the receiving account is refused and writes nothing, and a stored
+ * entry that names it, which an earlier build could write, never resumes; it
+ * is refused the same way, and leaving that refusal removes the entry and its
+ * live session, which binds the account's own key and was never valid. Every read has
  * its loading state and its failed state with retry; none renders as the next
  * state before it answered. Where the setup read finds an attempt already
  * running and the account still authorizes the module, the band naming it
@@ -14,6 +19,7 @@
  */
 import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { View } from 'react-native'
+import { isAddressEqual } from 'viem'
 
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
@@ -41,12 +47,19 @@ import { receivingChoicesOf } from './receiving'
 import { confirmedStepOf } from './refusal'
 import { ownKeysOf, runningClaimOf } from './running'
 import RunningAttemptBand from './RunningAttemptBand'
-import type { AccountStepViewProps } from './types'
+import type {
+  AccountStepViewProps,
+  ConfirmedStep,
+  ResumeJudgement,
+  SameAccountRefusal
+} from './types'
 import { useConfirmedReads } from './useConfirmedReads'
 import { useRunningAttempt } from './useRunningAttempt'
 import { useSetupRead } from './useSetupRead'
 
 const LABELS = 'socialRecovery.entry.labels'
+
+const SAME_ACCOUNT: ConfirmedStep = { kind: 'destination', refusal: 'same-account' }
 
 const AccountStepView = ({
   records,
@@ -68,10 +81,11 @@ const AccountStepView = ({
   const [confirmed, setConfirmed] = useState(false)
   const [writing, setWriting] = useState(false)
   const [writeFailed, setWriteFailed] = useState(false)
+  const [sameAccount, setSameAccount] = useState<SameAccountRefusal | null>(null)
 
   const ready = client.status === 'ready' ? client.client : null
   const { setupState, retry: retrySetup } = useSetupRead(target ? ready : null)
-  const reads = useConfirmedReads(ready, destination, confirmed)
+  const reads = useConfirmedReads(ready, destination, confirmed && sameAccount === null)
 
   // The band of an attempt already running stands once the account still
   // authorizes the module; where it does not, the dormant reading wins.
@@ -111,19 +125,44 @@ const AccountStepView = ({
   const backToField = useCallback(() => {
     setConfirmed(false)
     setWriteFailed(false)
+    setSameAccount(null)
     onTarget(null)
   }, [onTarget])
 
-  /** Clears the entry this step wrote, then leaves; a failed clear does not hold the holder here. */
+  /** Removes a stored entry that names the account as its own receiver, and its live session. */
+  const dropSameAccountEntry = useCallback(
+    async (address: Address) => {
+      const session = await records.recoverySession(chainId, address).read()
+      if (session.status === 'present' && session.value.state === 'live') {
+        await records.wipeRecoverySession(chainId, address, 'recoverer-abandoned', session.revision)
+        const wiped = await records.recoverySession(chainId, address).read()
+        if (wiped.status === 'present' && wiped.value.state === 'wiped') {
+          await records.clearWipedSession(chainId, address, wiped.revision)
+        }
+      }
+      await records.recoveryEntry(chainId, address).clear()
+    },
+    [records, chainId]
+  )
+
+  /**
+   * Clears the entry this step wrote, or the stored entry it refused, then
+   * leaves; a refusal of the account named as its own receiver wrote nothing.
+   * A failed clear does not hold the holder here.
+   */
   const leave = useCallback(
     (next: () => void) => {
-      if (!confirmed || !target) {
+      if (!confirmed || !target || sameAccount === 'asked') {
         next()
         return
       }
-      records.recoveryEntry(chainId, target.address).clear().then(next, next)
+      const clear =
+        sameAccount === 'stored'
+          ? dropSameAccountEntry(target.address)
+          : records.recoveryEntry(chainId, target.address).clear()
+      clear.then(next, next)
     },
-    [confirmed, target, records, chainId]
+    [confirmed, target, sameAccount, dropSameAccountEntry, records, chainId]
   )
 
   const confirm = useCallback(() => {
@@ -131,30 +170,38 @@ const AccountStepView = ({
       return
     }
     const { address } = target
-    setWriting(true)
     setWriteFailed(false)
+    if (isAddressEqual(search.receivingAccount, address)) {
+      setSameAccount('asked')
+      setConfirmed(true)
+      return
+    }
+    setWriting(true)
     const entry = records.recoveryEntry(chainId, address)
     // An entry or a session of another deployment, or one that names none, is not resumed.
-    const resumes = async (): Promise<boolean> => {
+    const resumes = async (): Promise<ResumeJudgement> => {
       const held = await entry.read()
       if (
         !ready ||
         held.status !== 'present' ||
         !isOfDeployment(held.value.deployment, ready.descriptor)
       ) {
-        return false
+        return 'write'
+      }
+      if (isAddressEqual(held.value.receivingAccount, address)) {
+        return 'same-account'
       }
       const session = await records.recoverySession(chainId, address).read()
-      return (
-        session.status === 'present' &&
+      return session.status === 'present' &&
         session.value.state === 'live' &&
         isSessionOfDeployment(session.value, ready.descriptor)
-      )
+        ? 'resume'
+        : 'write'
     }
     resumes()
       .then(async (resume) => {
-        if (resume) {
-          return 'resume' as const
+        if (resume !== 'write') {
+          return resume
         }
         await entry.write({
           account: address,
@@ -169,9 +216,12 @@ const AccountStepView = ({
           setWriting(false)
           if (outcome === 'resume') {
             navigate(checklistPathOf(address))
-          } else {
-            setConfirmed(true)
+            return
           }
+          if (outcome === 'same-account') {
+            setSameAccount('stored')
+          }
+          setConfirmed(true)
         },
         () => {
           setWriting(false)
@@ -264,7 +314,14 @@ const AccountStepView = ({
           />
         )}
         <ConfirmedReadsView
-          step={confirmedStepOf(reads, destination)}
+          step={
+            sameAccount
+              ? SAME_ACCOUNT
+              : confirmedStepOf(reads, destination, {
+                  confirmed: target.address,
+                  receiving: search.receivingAccount
+                })
+          }
           route={search.route}
           networkName={networkName}
           attemptActive={found.attemptActive}

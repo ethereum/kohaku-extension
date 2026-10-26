@@ -42,3 +42,12 @@ export interface ScreensWorld {
 export interface ValidatingClientSeam {
   client: { setup: { validateSetup: jest.Mock } }
 }
+
+/** The two seams the edit screen's test sets before it mounts the screen. */
+export type ClientAndReadsSeams = Pick<ScreensWorld, 'client' | 'reads'>
+
+/** Whether the holder typed a new recovery password, and the value the review shows for it. */
+export interface PasswordValueCase {
+  changed: boolean
+  value: string
+}

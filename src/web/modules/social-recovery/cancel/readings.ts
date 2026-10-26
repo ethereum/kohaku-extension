@@ -7,8 +7,12 @@
  * attempt the last good reading holds, so the holder can still cancel it; a
  * record that cannot be read shows the failed look with its retry. An
  * attempt that ended by a cancel shows no banner. A recovery that executed
- * shows its notice until the holder dismisses that attempt.
+ * shows its notice until the holder dismisses that attempt, and only on a
+ * device whose keystore does not hold the key that controls the account since:
+ * the device that holds it got control, not lost it.
  */
+import type { Address } from '@kohaku-eth/social-recovery'
+import { sameAddress } from '@web/modules/social-recovery/shared/client'
 import type { AttemptAfterCancel } from '@web/modules/social-recovery/shared/writes'
 import { ATTEMPT_STILL_RUNNING } from '@web/modules/social-recovery/shared/writes'
 import type { CountdownAnchor } from '@web/modules/social-recovery/recovery/wait/types'
@@ -25,12 +29,14 @@ const openOf = (reading: WatcherReading | undefined): OpenAttempt | undefined =>
 
 /**
  * The banner of one account. `dismissed` is the record's list of dismissed
- * attempts, undefined while it is read; an executed notice waits for it, so a
- * dismissed notice never flashes.
+ * attempts and `heldKeys` every key the keystore holds, each undefined while
+ * it is read; an executed notice waits for both, so a notice that does not
+ * belong on this device never flashes.
  */
 export const bannerReadingOf = (
   state: WatchedAttemptState,
-  dismissed: readonly bigint[] | undefined
+  dismissed: readonly bigint[] | undefined,
+  heldKeys: readonly Address[] | undefined
 ): BannerReading => {
   if (state.status === 'failed') {
     return { kind: 'unreadable', retry: state.retry }
@@ -56,7 +62,9 @@ export const bannerReadingOf = (
     !reading?.attempt &&
     ended?.road === 'executed' &&
     dismissed !== undefined &&
-    !dismissed.includes(ended.attemptId)
+    !dismissed.includes(ended.attemptId) &&
+    heldKeys !== undefined &&
+    !heldKeys.some((key) => !!ended.controller && sameAddress(key, ended.controller))
   ) {
     return { kind: 'executed', ending: ended }
   }

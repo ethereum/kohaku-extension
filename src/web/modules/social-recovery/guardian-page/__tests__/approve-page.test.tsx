@@ -527,6 +527,20 @@ describe('the states in place of the sign action', () => {
     page.unmount()
   })
 
+  it('draws a client whose deployment refused its construction checks as another deployment, with no retry', async () => {
+    const refusal = Object.assign(new Error('the action is bound to another manager'), {
+      name: 'DeploymentRefusal',
+      check: 'action-manager'
+    })
+    setClient({ status: 'failed', error: refusal, retry: jest.fn() })
+    const page = await mountLive()
+    expect(page.textOf('guardian-other-deployment')).toContain(t(`${PAGE}.otherDeployment`))
+    expect(page.has('guardian-read-failed')).toBe(false)
+    expect(page.has('guardian-read-retry')).toBe(false)
+    expect(page.isDisabled('guardian-sign')).toBe(true)
+    page.unmount()
+  })
+
   it("draws the link's values above the failed read, sign held, where the client failed before it stood", async () => {
     const retry = jest.fn()
     setClient({ status: 'failed', error: new Error('rpc down'), retry })

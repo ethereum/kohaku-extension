@@ -13,7 +13,8 @@
 import { TextDecoder, TextEncoder } from 'util'
 
 import type {
-  ScreensWorld,
+  ClientAndReadsSeams,
+  PasswordValueCase,
   ValidatingClientSeam
 } from '@web/modules/social-recovery/management/editor/__fixtures__/types'
 import type { Configuration } from '@kohaku-eth/social-recovery'
@@ -37,7 +38,7 @@ jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
   sepoliaDeploymentVariable: () => undefined
 }))
 
-const mockWorld: Pick<ScreensWorld, 'client' | 'reads'> = { client: null, reads: null }
+const mockWorld: ClientAndReadsSeams = { client: null, reads: null }
 
 jest.mock('@common/utils/clipboard', () => ({ setStringAsync: async () => true }))
 jest.mock('@web/modules/social-recovery/management/overview/useHeldKeys', () => {
@@ -362,7 +363,7 @@ describe('the edit page', () => {
           onStage
         })
       )
-    const cases: { changed: boolean; value: string }[] = [
+    const cases: PasswordValueCase[] = [
       { changed: true, value: t(`${EDITOR}.values.passwordChanged`) },
       { changed: false, value: t(`${EDITOR}.values.passwordKept`) }
     ]

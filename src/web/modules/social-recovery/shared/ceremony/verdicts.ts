@@ -191,8 +191,9 @@ export const chipOfOutcome = (
  * - Passed: a test or a claim reads the passed note with its hash; a passed
  *   enrollment reads no note, the kind line takes its place.
  * - Not supported: the not-supported note.
- * - Unavailable: a hand-off that never connected reads unreachable, and a
- *   phone that stopped answering reads its own note; any other cause reads
+ * - Unavailable: a hand-off that never connected reads unreachable, a
+ *   phone that stopped answering reads its own note, and an error the phone
+ *   reported during a test reads that the test could not run; any other cause reads
  *   the test-unavailable line at a test, once (`lineKeyOfOutcome` adds none),
  *   and the unavailable note at an enrollment or a claim, which never shows a
  *   test line.
@@ -224,6 +225,9 @@ export const noteKeyOfOutcome = (
       }
       if (outcome.cause === 'phone-unanswered') {
         return 'socialRecovery.ceremony.phoneUnansweredNote'
+      }
+      if (outcome.cause === 'phone-error') {
+        return 'socialRecovery.ceremony.testPhoneErrorNote'
       }
       return call === 'testAccess'
         ? 'socialRecovery.ceremony.testUnavailableLine'

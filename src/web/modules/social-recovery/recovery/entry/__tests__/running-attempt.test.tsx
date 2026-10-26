@@ -8,6 +8,7 @@
  */
 import type { ActionState, Address, Hex } from '@kohaku-eth/social-recovery'
 import type { AttemptEvents, AttemptScan } from '@web/modules/social-recovery/shared/client'
+import type { RunningAttemptBandViewProps } from '@web/modules/social-recovery/recovery/entry/types'
 import {
   advanceClock,
   BASIC,
@@ -40,7 +41,8 @@ import {
 import type {
   FakeAttemptReads,
   HeldDecisionCase,
-  Mounted
+  Mounted,
+  UnreadableCase
 } from '@web/modules/social-recovery/recovery/entry/__tests__/harness'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
 
@@ -92,6 +94,23 @@ jest.mock('@web/modules/social-recovery/shared/client/watcher-reads', () => ({
     destroy: () => mockClose()
   })
 }))
+/** The band's two exits as the view last received them, so a test can call one the view holds disabled. */
+const mockBandExits = { onCancel: () => {}, onContinue: () => {} }
+
+jest.mock('@web/modules/social-recovery/recovery/entry/RunningAttemptBandView', () => {
+  const { createElement }: typeof import('react') = jest.requireActual('react')
+  const actual = jest.requireActual(
+    '@web/modules/social-recovery/recovery/entry/RunningAttemptBandView'
+  )
+  return {
+    __esModule: true,
+    default: (props: RunningAttemptBandViewProps) => {
+      mockBandExits.onCancel = props.onCancel
+      mockBandExits.onContinue = props.onContinue
+      return createElement(actual.default, props)
+    }
+  }
+})
 jest.mock('@web/modules/social-recovery/shared/client/extension-provider', () => ({
   ...jest.requireActual('@web/modules/social-recovery/shared/client/extension-provider'),
   networkOf: () =>
@@ -528,7 +547,7 @@ describe('the running attempt band', () => {
     page.unmount()
   })
 
-  const unreadable: [string, () => void][] = [
+  const unreadable: UnreadableCase[] = [
     [
       'the wallet holds no network for the chain',
       () => {
@@ -735,6 +754,28 @@ describe('the running attempt band while it stands', () => {
       expect(navigate).toHaveBeenCalledWith(path)
       page.unmount()
     })
+  })
+
+  it('neither navigates nor reads the registry again where an exit is called while a later read runs', async () => {
+    useLiveFakeClock()
+    attemptTo(SMART_KEY)
+    const page = await openRunning()
+    const held = deferred<ActionState>()
+    mockReads.stateOf.mockImplementationOnce(() => held.promise)
+    await advanceClock(POLL_MS)
+    expect(page.has('entry-running-refreshing')).toBe(true)
+    const navigations = navigate.mock.calls.length
+    const reads = mockReads.stateOf.mock.calls.length
+    await outside(() => {
+      mockBandExits.onCancel()
+      mockBandExits.onContinue()
+    })
+    expect(navigate.mock.calls.length).toBe(navigations)
+    await outside(() => held.resolve(waitingState()))
+    expect(navigate.mock.calls.length).toBe(navigations)
+    expect(mockReads.stateOf.mock.calls.length).toBe(reads)
+    expect((await records().countdown(CHAIN_ID, LOST).read()).status).toBe('absent')
+    page.unmount()
   })
 
   it('reads a later read from an older block with no attempt as failed, never as the end; a newer block with none ends it', async () => {

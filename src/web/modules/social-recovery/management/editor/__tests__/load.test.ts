@@ -19,7 +19,12 @@ import {
 import type { Configuration, SetupState } from '@kohaku-eth/social-recovery'
 import type { PrivacyLevel } from '@web/modules/social-recovery/shared/client'
 import { PRIVACY_LEVELS, privacyLevelOf } from '@web/modules/social-recovery/shared/client'
-import { renderRowChip, rowChipTone } from '@web/modules/social-recovery/setup/editor'
+import {
+  addMember,
+  renderRowChip,
+  rowChipTone,
+  thresholdsSetOf
+} from '@web/modules/social-recovery/setup/editor'
 import { recordTest } from '@web/modules/social-recovery/setup/enroll/writes'
 import { untestedInPath } from '@web/modules/social-recovery/setup/review'
 import { createWalletRecords } from '@web/modules/social-recovery/shared/records'
@@ -182,6 +187,32 @@ describe('the edit session', () => {
     expect(draft.status === 'present' && configurationOfDraft(draft.value)).toEqual(CONFIGURATION)
   })
 
+  it("keeps a committed group's threshold when the edit adds a member to it", () => {
+    const configuration: Configuration = {
+      ...CONFIGURATION,
+      clauses: [
+        { threshold: 1, credentials: [CONFIGURATION.clauses[0].credentials[0]] },
+        {
+          threshold: 1,
+          credentials: [
+            CONFIGURATION.clauses[0].credentials[1],
+            CONFIGURATION.clauses[0].credentials[2]
+          ]
+        }
+      ]
+    }
+    const { setupDraft } = recordsOfConfiguration(configuration, 'public')
+    const flags = thresholdsSetOf(setupDraft)
+    expect(flags).toEqual([false, true])
+    const added = addMember(
+      setupDraft.clauses,
+      1,
+      { method: '0x0000000000000000000000000000000000000009', config: '0x09' },
+      flags[1]
+    )
+    expect(added.status === 'applied' && added.clauses[1].threshold).toBe(1)
+  })
+
   it('reads a stored value it cannot read as a session as none', async () => {
     const world = worldOf()
     const key = editSessionKeyOf(CHAIN_ID, ACCOUNT)
@@ -189,6 +220,46 @@ describe('the edit session', () => {
     expect(await world.session.read()).toBeUndefined()
     expect(editSessionFrom(null)).toBeUndefined()
     expect(editSessionFrom({ value: { level: 'open' } })).toBeUndefined()
+  })
+
+  const storedSessionWith = (credential: unknown) => ({
+    value: {
+      configuration: {
+        ...CONFIGURATION,
+        clauses: [{ threshold: 1, credentials: [credential] }]
+      },
+      setupNonce: 4n,
+      setupCommitment: stateAt(4n).setupCommitment,
+      level: 'public',
+      password: 'kept'
+    },
+    savedAt: 1
+  })
+
+  it('reads a stored session whose credentials are well formed', () => {
+    expect(
+      editSessionFrom(
+        storedSessionWith({ method: '0x0000000000000000000000000000000000000002', config: '0x02' })
+      )
+    ).toBeDefined()
+  })
+
+  const MALFORMED_CREDENTIALS = [
+    {
+      name: 'a config that is not hex',
+      credential: { method: '0x0000000000000000000000000000000000000002', config: 'zz' }
+    },
+    { name: 'a method that is not an address', credential: { method: '0x02', config: '0x02' } },
+    {
+      name: 'a numeric label',
+      credential: { method: '0x0000000000000000000000000000000000000002', config: '0x02', label: 7 }
+    },
+    { name: 'an array', credential: ['0x0000000000000000000000000000000000000002', '0x02'] }
+  ]
+  MALFORMED_CREDENTIALS.forEach(({ name, credential }) => {
+    it(`reads a stored session holding a credential with ${name} as none`, () => {
+      expect(editSessionFrom(storedSessionWith(credential))).toBeUndefined()
+    })
   })
 
   it('wipes the session', async () => {

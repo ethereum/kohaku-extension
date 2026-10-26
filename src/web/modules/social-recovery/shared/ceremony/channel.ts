@@ -11,18 +11,24 @@
  * background controller is involved.
  *
  * A report of a passed claim carries the reply and its proof, approval
- * material that must not outlive its use. So a report lives only until taken
- * and never past its expiry, ten minutes from `reportedAt`:
+ * material that must not outlive its use. So a report lives only until its
+ * caller has applied it, and never past its expiry, ten minutes from
+ * `reportedAt`:
  *
- * - `takeCeremonyReport` and `listenForCeremonyReport` remove the report once
- *   they deliver it, and deliver it only where its id, call and method are the
- *   ones the caller expects and `reportedAt` is within the expiry;
+ * - `readCeremonyReport` and `listenForCeremonyReport` deliver it only where
+ *   its id, call and method are the ones the caller expects and `reportedAt`
+ *   is within the expiry. The read removes nothing; the listener removes the
+ *   report once it delivers it;
+ * - a caller of the read removes the report once it has applied it, except
+ *   the checklist's claim, which keeps a passed report until the claim
+ *   settles, so a reload finds its reply again, and hears a late report
+ *   through its own subscription;
  * - `sweepCeremonyReports` removes every report past its expiry, and every
  *   malformed one; the tab runs it on mount.
  *
- * The caller (the checklist row) files the reply into its session record at
- * once, which deletes it with the recovery it was gathered for, and keeps no
- * copy of the report.
+ * The checklist files a passed claim's reply into its session record, which
+ * deletes it with the recovery it was gathered for, and then removes the
+ * report.
  *
  * Storage and the listener are parameters, so the channel runs under node.
  * Both hand over values already parsed: the store's `get` reads its own
@@ -144,32 +150,6 @@ export const readCeremonyReport = async (
 ): Promise<CeremonyReport | null> => {
   const value = await storedReport(expected.id, store)
   return isCeremonyReport(value) && isReportFor(value, expected, now) ? value : null
-}
-
-/**
- * Takes the report for `expected` and removes it, so a row applies an outcome
- * once and no reply stays behind. A report past its expiry is removed and
- * reads null. A report for another call or method stays and reads null.
- */
-export const takeCeremonyReport = async (
-  expected: ReportIdentity,
-  store: ReportStore,
-  now: number = Date.now()
-): Promise<CeremonyReport | null> => {
-  const value = await storedReport(expected.id, store)
-  if (value === null || value === undefined) {
-    return null
-  }
-  const key = ceremonyResultKey(expected.id)
-  if (!isCeremonyReport(value) || !isWithinExpiry(value.reportedAt, now)) {
-    await store.remove(key)
-    return null
-  }
-  if (!isReportFor(value, expected, now)) {
-    return null
-  }
-  await store.remove(key)
-  return value
 }
 
 /**

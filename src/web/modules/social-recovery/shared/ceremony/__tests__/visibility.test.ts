@@ -195,8 +195,8 @@ describe('the report the tab writes', () => {
       gate.dispose()
     })
 
-    it('still delivers the report to takeCeremonyReport', async () => {
-      const { createVisibilityGate, passed, sendCeremonyReport, takeCeremonyReport } = ceremony()
+    it("still delivers the report to the row's read", async () => {
+      const { createVisibilityGate, passed, readCeremonyReport, sendCeremonyReport } = ceremony()
       setVisibility('hidden', false)
       const store = mapStore()
       const gate = createVisibilityGate(document)
@@ -207,20 +207,19 @@ describe('the report the tab writes', () => {
       setVisibility('visible')
       await flush()
 
-      // The row that opened the tab takes it a moment later.
+      // The row that opened the tab reads it a moment later.
       jest.advanceTimersByTime(5_000)
-      const report = await takeCeremonyReport(IDENTITY, store, Date.now())
+      const report = await readCeremonyReport(IDENTITY, store, Date.now())
       expect(report).toMatchObject({ ...IDENTITY, outcome: { verdict: 'passed' } })
-      expect(store.map.size).toBe(0)
       gate.dispose()
     })
 
     it('would have expired had it been stamped when the ceremony ended (the control)', async () => {
-      const { ceremonyReport, ceremonyResultKey, passed, takeCeremonyReport } = ceremony()
+      const { ceremonyReport, ceremonyResultKey, passed, readCeremonyReport } = ceremony()
       const store = mapStore()
       store.map.set(ceremonyResultKey('req-1'), ceremonyReport(IDENTITY, passed({}), T0))
       jest.advanceTimersByTime(ELEVEN_MINUTES)
-      expect(await takeCeremonyReport(IDENTITY, store, Date.now())).toBeNull()
+      expect(await readCeremonyReport(IDENTITY, store, Date.now())).toBeNull()
     })
   })
 })

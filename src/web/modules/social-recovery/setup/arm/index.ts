@@ -36,7 +36,7 @@ export {
   startSave
 } from './run'
 export { cardPathOf, explorerTransactionUrlOf } from './saved'
-export { callsOf, committedDraftOf, saveStepsOf } from './steps'
+export { callsOf, committedDraftOf, endPastCountdown, saveStepsOf } from './steps'
 export type {
   AfterLanding,
   ArmAccount,
@@ -62,6 +62,7 @@ export type {
   FollowReading,
   InFlightLookup,
   NewBlockWait,
+  PastCountdownInput,
   PreparedSave,
   SavedViewProps,
   SaveLoad,

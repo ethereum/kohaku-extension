@@ -2,8 +2,9 @@
  * Where the account step stands once the holder confirmed the account. The
  * reads run in order and each gates the next: the account must still
  * authorize the recovery module, then this release must be able to recover
- * the account, then the key a recovery installs must hold nothing on it yet.
- * A read that failed stops the step on its own failed state, never on a
+ * the account, then the account that receives control must be another one
+ * and the key a recovery installs must hold nothing on it yet. A read that
+ * failed stops the step on its own failed state, never on a
  * refusal.
  */
 import { isAddressEqual } from 'viem'
@@ -11,6 +12,7 @@ import { isAddressEqual } from 'viem'
 import type { Address } from '@kohaku-eth/social-recovery'
 
 import type {
+  ConfirmedAccounts,
   ConfirmedReads,
   ConfirmedStep,
   DestinationAnswers,
@@ -54,7 +56,11 @@ export const destinationRefusalOf = (
   return null
 }
 
-export const confirmedStepOf = (reads: ConfirmedReads, destination: Address): ConfirmedStep => {
+export const confirmedStepOf = (
+  reads: ConfirmedReads,
+  destination: Address,
+  accounts: ConfirmedAccounts
+): ConfirmedStep => {
   const { authorization, fit, destination: held } = reads
   if (!authorization || authorization.status === 'pending') {
     return { kind: 'reading', stage: 'authorization' }
@@ -74,6 +80,10 @@ export const confirmedStepOf = (reads: ConfirmedReads, destination: Address): Co
   const refusal = recoverRefusalOf(fit.value)
   if (refusal) {
     return { kind: 'cannot-recover', refusal }
+  }
+  // The account being recovered cannot receive its own control.
+  if (isAddressEqual(accounts.confirmed, accounts.receiving)) {
+    return { kind: 'destination', refusal: 'same-account' }
   }
   if (!held || held.status === 'pending') {
     return { kind: 'reading', stage: 'destination' }

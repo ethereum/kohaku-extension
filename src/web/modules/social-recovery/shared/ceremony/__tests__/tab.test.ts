@@ -232,13 +232,19 @@ const callerRecords = () => {
 }
 /* eslint-enable global-require, @typescript-eslint/no-var-requires */
 
-/** What the caller takes from the channel under the id, as a row does. */
-const takeReport = (call: CeremonyCall, method = 'passkey') =>
-  ceremony().takeCeremonyReport(
+/** What the caller reads from the channel under the id and then removes, as a row does. */
+const takeReport = async (call: CeremonyCall, method = 'passkey') => {
+  const { browserReportStore } = browserDefaults()
+  const report = await ceremony().readCeremonyReport(
     { id: ID, call, method },
-    browserDefaults().browserReportStore,
+    browserReportStore,
     Date.now()
   )
+  if (report) {
+    await browserReportStore.remove(ceremony().ceremonyResultKey(ID))
+  }
+  return report
+}
 
 /** Every report the extension's storage holds, read as the report store reads it. */
 const storedReports = async () => {
@@ -495,6 +501,14 @@ describe('the ceremony tab with no provider above it', () => {
       retry: false
     })
     expect(page.textContent).not.toContain(TRY_AGAIN)
+  })
+
+  it('reads a passkey prompt the holder dismissed as the cancelled note', async () => {
+    creds.create.mockRejectedValueOnce(new DOMException('dismissed', 'NotAllowedError'))
+    await callerRecords().ceremonyRequest(ID).write(recorded.enroll())
+    const page = await render(ENROLL)
+    expect(page.textContent).toContain(en.socialRecovery.ceremony.cancelledNote)
+    expect(page.textContent).not.toContain(en.socialRecovery.ceremony.stoppedNote)
   })
 
   it('runs no second ceremony once the request is older than a report may live, as after a reload or in a second tab', async () => {
@@ -943,6 +957,56 @@ describe('the ceremony tab for the identity bindings', () => {
     expect(servedOrchestrator.configFrom).not.toHaveBeenCalled()
     const report = await takeReport('enroll', 'zkpassport')
     expect(report?.outcome).toMatchObject({ kind: 'dismissed', note: 'cancelled' })
+  })
+
+  it('reads an identity ceremony the holder cancelled as stopped, never as a cancelled prompt', async () => {
+    const phone = phoneRequest()
+    serve('zkpassport', passportMethod(phone, 'external-app'))
+    await callerRecords().ceremonyRequest(ID).write(enrollRecord('zkpassport'))
+    const page = await render(`?call=enroll&method=zkpassport&id=${ID}`)
+    await press(page, STRINGS.cancelAction)
+    expect(page.textContent).toContain(STRINGS.stoppedNote)
+    expect(page.textContent).not.toContain(STRINGS.cancelledNote)
+  })
+
+  it('reads an identity ceremony cancelled while its resolve runs as stopped, before any binding resolves', async () => {
+    let fail: (error: Error) => void = () => undefined
+    buildClient.mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          fail = reject
+        })
+    )
+    await callerRecords().ceremonyRequest(ID).write(enrollRecord('zkpassport'))
+    const page = await render(`?call=enroll&method=zkpassport&id=${ID}`)
+    await press(page, STRINGS.cancelAction)
+    await act(async () => {
+      fail(new Error('the provider did not answer'))
+      await flush(20)
+    })
+    expect(page.textContent).toContain(STRINGS.stoppedNote)
+    expect(page.textContent).not.toContain(STRINGS.cancelledNote)
+    const report = await takeReport('enroll', 'zkpassport')
+    expect(report?.outcome).toMatchObject({ kind: 'dismissed', note: 'cancelled' })
+  })
+
+  it('says it opens the request while the phone request has not opened yet', async () => {
+    serve(
+      'zkpassport',
+      fakeMethod(
+        {
+          enrollInput: { kind: 'ceremony', openRequest: () => new Promise(() => {}) },
+          signingInput: { openRequest: () => new Promise(() => {}) }
+        },
+        'external-app'
+      )
+    )
+    await callerRecords().ceremonyRequest(ID).write(enrollRecord('zkpassport'))
+    const page = await render(`?call=enroll&method=zkpassport&id=${ID}`)
+    expect(
+      page.querySelector('[data-testid="ceremony-waiting"] [data-testid="loading-screen"]')
+        ?.textContent
+    ).toBe(en.socialRecovery.loading.request)
   })
 
   it('asks for the QR image, proves the decoded data and reads passed', async () => {

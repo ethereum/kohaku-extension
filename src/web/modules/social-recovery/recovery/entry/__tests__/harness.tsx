@@ -169,6 +169,9 @@ export interface CommittedWorld {
 /** A decision of the running attempt held during a later read: its name, its button, how the test arranges it, and the path it opens. */
 export type HeldDecisionCase = [name: string, button: string, arrange: () => void, path: string]
 
+/** A reason the running attempt cannot be read: its name and how the test arranges it. */
+export type UnreadableCase = [name: string, arrange: () => void]
+
 /** The parts of Jest's modern fake clock the installed typings do not declare. */
 interface LiveFakeTimers {
   useFakeTimers(config: { advanceTimers: boolean }): void

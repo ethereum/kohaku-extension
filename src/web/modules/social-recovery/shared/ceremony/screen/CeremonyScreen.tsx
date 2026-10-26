@@ -352,7 +352,8 @@ const CeremonyScreen = () => {
       <LoadingBlock
         variant="screen"
         message={
-          phase === 'resolving'
+          // The request opens until the first step past the host's own preparing.
+          phase === 'resolving' || step === 'preparing'
             ? t('socialRecovery.loading.request')
             : renderChip('method', 'inProgress', t)
         }

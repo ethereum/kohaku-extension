@@ -6,12 +6,12 @@ import type {
   Credential,
   Finding,
   ISetupClient,
-  SETUP_ERROR_CODES,
-  SetupDraft
+  SETUP_ERROR_CODES
 } from '@kohaku-eth/social-recovery'
 import type { AddressBook } from '@web/modules/social-recovery/shared/client'
 import type {
   Enrollment,
+  SetupDraftRecord,
   SetupRecords,
   SlotKind,
   SlotPosition
@@ -63,12 +63,14 @@ export type AddTarget =
 
 /**
  * The records the editor opened with, an absent draft opening the blank
- * editor, and the role each clause holds on screen while the holder edits.
+ * editor, the role each clause holds on screen while the holder edits, and
+ * whether the holder set each clause's threshold.
  */
 export interface EditorLoad {
-  draft: SetupDraft
+  draft: SetupDraftRecord
   enrollments: Enrollment[]
   roles: ClauseRole[]
+  thresholdsSet: boolean[]
 }
 
 /**

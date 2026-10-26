@@ -7,6 +7,7 @@
  */
 import { act } from 'react-dom/test-utils'
 
+import i18n from '@common/config/localization'
 import {
   basicAccount,
   byTestId,
@@ -45,9 +46,9 @@ const ADD_TEMP_SEED = 'KEYSTORE_CONTROLLER_ADD_TEMP_SEED'
 const SEND_TEMP_SEED = 'KEYSTORE_CONTROLLER_SEND_TEMP_SEED_TO_UI'
 const OTHER_PHRASE = 'legal winner thank year wave sausage worth useful legal winner thank yellow'
 const LIMIT_MS = 60_000
-const CREATING = 'Creating your new key…'
-const ADD_PENDING = 'The wallet is still adding your key. Wait, or go back and continue again.'
-const ADDING = 'Adding the account to this wallet…'
+const CREATING = i18n.t('socialRecovery.fastTrack.key.creating')
+const ADD_PENDING = i18n.t('socialRecovery.fastTrack.key.addPending')
+const ADDING = i18n.t('socialRecovery.loading.addingAccount')
 
 const types = () => dispatched().map(({ type }) => type)
 const LOGGED_IN_ENTRY = '/social-recovery/recovery'
@@ -152,7 +153,9 @@ describe('the key step', () => {
         (_, index) => byTestId(`fast-track-key-word-${index}`)?.textContent
       )
       expect(words).toEqual(PHRASE.split(' '))
-      expect(byTestId('fast-track-key-step')?.textContent).toBe('Set up this device · Step 3 of 3')
+      expect(byTestId('fast-track-key-step')?.textContent).toBe(
+        i18n.t('socialRecovery.fastTrack.stepCounter', { step: 3, total: 3 })
+      )
       expect(mockEdge.derived).toEqual([PHRASE])
       expect(byTestId('fast-track-key-address')?.textContent).toBe(ORDINARY_KEY)
       expect(text()).not.toContain(OFFSET_KEY)
@@ -174,10 +177,10 @@ describe('the key step', () => {
       expect(at('fast-track-key-acknowledge')).toBeGreaterThan(at('fast-track-key-only-backup'))
       expect(aside?.querySelector('[data-testid="fast-track-key-created"]')).not.toBeNull()
       expect(aside?.querySelector('[data-testid="fast-track-key-paper"]')?.textContent).toContain(
-        'Paper is safer than a screenshot'
+        i18n.t('socialRecovery.fastTrack.key.paper')
       )
       expect(aside?.querySelector('[data-testid="fast-track-key-paper"]')?.textContent).toContain(
-        'Where to keep it'
+        i18n.t('socialRecovery.fastTrack.key.whereToKeep')
       )
     })
 
@@ -198,7 +201,7 @@ describe('the key step', () => {
     it('calls the phrase a recovery phrase and never a seed', async () => {
       await atWords()
 
-      expect(text()).toContain('recovery phrase')
+      expect(text()).toContain(i18n.t('socialRecovery.fastTrack.key.title'))
       expect(text()).not.toMatch(/seed/i)
     })
 
@@ -228,7 +231,7 @@ describe('the key step', () => {
       })
 
       expect(byTestId('fast-track-key-create-failed')?.textContent).toContain(
-        'This device could not create the key. Nothing was saved.'
+        i18n.t('socialRecovery.fastTrack.key.createFailed')
       )
 
       await press('fast-track-key-retry')
@@ -448,7 +451,7 @@ describe('the key step', () => {
       expect(byTestId('fast-track-key-pending')?.textContent).toBe(ADD_PENDING)
       expect(byTestId('fast-track-key-add-failed')).toBeNull()
       expect(byTestId('fast-track-key-creating')).toBeNull()
-      expect(text()).not.toContain('Try again')
+      expect(text()).not.toContain(i18n.t('socialRecovery.writes.tryAgain'))
     })
 
     it('drops the still-adding line once the slot is listed', async () => {
@@ -761,7 +764,7 @@ describe('the key step', () => {
         await setController('picker', ends)
 
         expect(byTestId('fast-track-key-add-failed')?.textContent).toContain(
-          'This device could not create the key. Nothing was saved.'
+          i18n.t('socialRecovery.fastTrack.key.createFailed')
         )
         expect(mockEdge.made).toBe(0)
         expect(dispatched()).toEqual([])

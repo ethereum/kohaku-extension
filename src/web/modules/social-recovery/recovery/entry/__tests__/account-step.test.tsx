@@ -10,11 +10,13 @@ import {
   BASIC,
   CHAIN_ID,
   chip,
+  DAILY,
   confirmLost,
   dispatch,
   failedClient,
   forwardedCall,
   historyEntry,
+  keyOf,
   offchainFault,
   readyClient,
   reloadAccountStep,
@@ -39,8 +41,10 @@ import {
   searchOf,
   setClient,
   setupStateOf,
+  setWallet,
   SMART,
   SMART_KEY,
+  smartAccount,
   storage,
   storedEntry,
   storeEndedRecovery,
@@ -48,6 +52,7 @@ import {
   t,
   timedOut,
   valueLabel,
+  VAULT,
   VIEW_ONLY
 } from '@web/modules/social-recovery/recovery/entry/__tests__/harness'
 import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
@@ -834,6 +839,66 @@ describe('the destination key', () => {
     expectNoContinue(page)
     await page.press('entry-destination-choose-another')
     expect(navigate).toHaveBeenLastCalledWith('/social-recovery/recovery')
+  })
+
+  describe('the account being recovered named as its own receiver', () => {
+    // A past recovery left the account listed here with its key in the keystore.
+    const withLostListed = () =>
+      setWallet({
+        accounts: [DAILY, VAULT, smartAccount(LOST, LOST_KEY, 'Lost')],
+        keys: [keyOf(BASIC), keyOf(SMART_KEY), keyOf(LOST_KEY)]
+      })
+    const CHECKLIST = `/social-recovery/recovery/checklist?account=${LOST}`
+    const lostSession = async () => (await records().recoverySession(CHAIN_ID, LOST).read()).status
+
+    it('refuses it at the confirmation, with continue held, and writes no entry', async () => {
+      withLostListed()
+      const page = await open(searchOf('logged-in', LOST))
+      await confirmLost(page)
+      expect(page.textOf('entry-destination-refusal')).toBe(
+        t('socialRecovery.entry.refusal.sameAccount')
+      )
+      expect(page.has('entry-destination-same-account')).toBe(true)
+      expectNoContinue(page)
+      expect(await storedEntry(LOST)).toBeNull()
+      await page.press('entry-destination-choose-another')
+      expect(navigate).toHaveBeenLastCalledWith('/social-recovery/recovery')
+    })
+
+    const STORED = [
+      { name: 'another receiving account', to: BASIC },
+      { name: 'the recovered account itself', to: LOST }
+    ]
+    STORED.forEach(({ name, to }) =>
+      it(`never resumes a stored entry that names it, with a live session, where the search names ${name}`, async () => {
+        withLostListed()
+        await storeLiveRecovery(LOST, { route: 'logged-in', receivingAccount: LOST })
+        const page = await open(searchOf('logged-in', to))
+        await confirmLost(page)
+        expect(page.has('entry-destination-same-account')).toBe(true)
+        expectNoContinue(page)
+        expect(navigate).not.toHaveBeenCalledWith(CHECKLIST)
+        expect((await storedEntry(LOST))?.receivingAccount).toBe(LOST)
+      })
+    )
+
+    it('removes the stored entry and its live session once the refusal is left, so a confirm of another account goes on', async () => {
+      withLostListed()
+      await storeLiveRecovery(LOST, { route: 'logged-in', receivingAccount: LOST })
+      const refused = await open(searchOf('logged-in', BASIC))
+      await confirmLost(refused)
+      await refused.press('entry-destination-choose-another')
+      expect(await storedEntry(LOST)).toBeNull()
+      expect(await lostSession()).toBe('absent')
+      refused.unmount()
+
+      const page = await open(searchOf('logged-in', BASIC))
+      await confirmLost(page)
+      expect(navigate).not.toHaveBeenCalledWith(CHECKLIST)
+      expect(page.has('entry-destination-same-account')).toBe(false)
+      expect((await storedEntry(LOST))?.receivingAccount).toBe(BASIC)
+      expect(page.has('entry-continue')).toBe(true)
+    })
   })
 
   it('refuses a key that already holds a privilege, with the way back to choose another account', async () => {

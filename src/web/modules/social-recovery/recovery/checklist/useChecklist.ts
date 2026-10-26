@@ -444,7 +444,8 @@ const useChecklist = ({
   const {
     poll,
     polling,
-    retry: retryPoll
+    retry: retryPoll,
+    readsFrom: pollReadsFrom
   } = usePoll({
     kit,
     target,
@@ -511,6 +512,7 @@ const useChecklist = ({
     poll,
     polling,
     retryPoll,
+    pollReadsFrom,
     deathFailed,
     dying,
     busy

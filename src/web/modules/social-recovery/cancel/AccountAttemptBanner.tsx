@@ -38,6 +38,7 @@ const AccountAttemptBanner = ({
   name,
   useAttempt,
   useDismissed,
+  heldKeys,
   onCancel,
   onDismiss,
   onRetry,
@@ -47,7 +48,7 @@ const AccountAttemptBanner = ({
   const { theme } = useTheme()
   const state = useAttempt(account)
   const dismissed = useDismissed(account, state)
-  const reading = bannerReadingOf(state, dismissed)
+  const reading = bannerReadingOf(state, dismissed, heldKeys)
   const id = account.toLowerCase()
   const [busy, setBusy] = useState(false)
 

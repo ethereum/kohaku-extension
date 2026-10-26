@@ -307,6 +307,7 @@
       "stopAction": "Stop",
       "declinedNote": "Declined · you declined the request on the phone",
       "phoneErrorNote": "Failed · your phone reported an error · Try again",
+      "testPhoneErrorNote": "Could not run · your phone reported an error",
       "noMatchCause": "The result did not match the identifier recorded at setup.",
       "rejectedCause": "The result did not pass the method's own check. Try again with the same document.",
       "phoneRequestName": "Kohaku",
@@ -425,19 +426,15 @@
       "items": {
         "passkey": "your passkey",
         "passkeys": "your passkeys",
-        "passport": "your passport",
         "passportIdentifier": "the identifier your passport produces",
         "pair": "{{first}} and {{second}}",
-        "aadhaar": "your Aadhaar identity",
         "aadhaarIdentifier": "the identifier your Aadhaar produces",
         "triple": "{{first}}, {{second}} and {{third}}"
       },
       "itemsLead": {
         "passkey": "Your passkey",
         "passkeys": "Your passkeys",
-        "passport": "Your passport",
         "passportIdentifier": "The identifier your passport produces",
-        "aadhaar": "Your Aadhaar identity",
         "aadhaarIdentifier": "The identifier your Aadhaar produces"
       }
     },
@@ -958,7 +955,8 @@
         "removedUnknown": "This wallet cannot name the key a recovery would remove on this account.",
         "removedNotAuthority": "The key a recovery would remove does not hold control of this account.",
         "malformed": "This wallet could not build a valid recovery request for this account.",
-        "unnamed": "This wallet read a refusal it cannot name."
+        "unnamed": "This wallet read a refusal it cannot name.",
+        "sameAccount": "This is the account being recovered. Choose another account to receive control."
       },
       "destination": {
         "holdsPrivilege": "This key already holds a privilege on the account you are recovering, so this recovery cannot install it. Choose another account.",

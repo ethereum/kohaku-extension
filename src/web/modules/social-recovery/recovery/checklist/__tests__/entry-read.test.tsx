@@ -162,4 +162,18 @@ describe('the checklist route’s entry record read', () => {
     expect(mockNavigate).toHaveBeenCalledWith(accountStepPath(), { replace: true })
     expect(view.byTestId('checklist-view')).toBeNull()
   })
+
+  it('goes to the account step where the entry names the account as its own receiver', async () => {
+    const storage = makeStorage()
+    await seedEntry(createWalletRecords({ storage, now: () => NOW }), {
+      ...entryOf('logged-in'),
+      receivingAccount: ACCOUNT
+    })
+    mockStorage.current = storage
+
+    view = await mountChecklistScreen()
+
+    expect(mockNavigate).toHaveBeenCalledWith(accountStepPath(), { replace: true })
+    expect(view.byTestId('checklist-view')).toBeNull()
+  })
 })

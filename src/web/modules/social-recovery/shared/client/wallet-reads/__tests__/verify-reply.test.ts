@@ -15,7 +15,7 @@ import {
   POLICY_METHOD_VERIFY_ABI,
   VERDICT_MAGIC_VALUE
 } from '@kohaku-eth/social-recovery'
-import type { ApproverRequest, Reply } from '@kohaku-eth/social-recovery'
+import type { Reply } from '@kohaku-eth/social-recovery'
 import {
   concat,
   decodeFunctionData,
@@ -48,7 +48,11 @@ import type {
   ScriptedProvider
 } from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 import { providerReadFailure } from '@web/modules/social-recovery/shared/client/provider-adapter'
-import type { ReplyCheckCase } from '@web/modules/social-recovery/shared/client/wallet-reads/__fixtures__/types'
+import type {
+  MismatchedReplyCase,
+  ReplyCheckCase,
+  VerifyAnswers
+} from '@web/modules/social-recovery/shared/client/wallet-reads/__fixtures__/types'
 import {
   createReplyCheck,
   createReplyVerify
@@ -144,7 +148,7 @@ const verifyCallsOf = (node: ScriptedProvider) =>
 
 const answersWord = (word: Hex) => () => word
 
-const worldOf = (verdicts: { ecdsa?: () => Hex | Error; passkey?: () => Hex | Error } = {}) => {
+const worldOf = (verdicts: VerifyAnswers = {}) => {
   const node = scriptedProvider()
   node.setCode(METHOD_ECDSA, CONTRACT_CODE)
   node.setCode(METHOD_PASSKEY, CONTRACT_CODE)
@@ -289,7 +293,7 @@ describe('a reply that does not answer the request', () => {
   const without = <T extends object>(value: T, field: keyof T): T =>
     Object.fromEntries(Object.entries(value).filter(([key]) => key !== field)) as T
 
-  const CASES: [string, () => [ApproverRequest, Reply]][] = [
+  const CASES: MismatchedReplyCase[] = [
     [
       'a reply of another kind',
       () => [

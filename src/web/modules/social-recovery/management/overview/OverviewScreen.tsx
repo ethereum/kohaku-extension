@@ -286,6 +286,7 @@ const OverviewStage = ({ records, chainId, account, navigate }: OverviewStagePro
           account={account}
           useAttempt={useWatchedAttempt}
           useDismissed={useDismissed}
+          heldKeys={heldKeys}
           onCancel={onCancel}
           onDismiss={onDismiss}
           onRetry={onRetryPoll}

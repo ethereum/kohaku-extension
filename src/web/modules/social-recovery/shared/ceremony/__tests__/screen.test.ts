@@ -455,8 +455,8 @@ describe('the mount sweep of expired reports', () => {
 })
 
 describe('a hand-off that returns after eleven minutes', () => {
-  it('writes the report stamped on return, and the row still takes it', async () => {
-    const { takeCeremonyReport, CEREMONY_REPORT_TTL_MS } = ceremony()
+  it('writes the report stamped on return, and the row still reads it', async () => {
+    const { readCeremonyReport, CEREMONY_REPORT_TTL_MS } = ceremony()
     let clock = new Date('2026-09-24T12:00:00Z').getTime()
     const dateNow = jest.spyOn(Date, 'now').mockImplementation(() => clock)
     setVisibility('visible', false)
@@ -497,7 +497,7 @@ describe('a hand-off that returns after eleven minutes', () => {
     expect(written.expiresAt).toBe(shownAt + CEREMONY_REPORT_TTL_MS)
 
     clock += 5_000
-    const report = await takeCeremonyReport(
+    const report = await readCeremonyReport(
       { id: 'req-1', call: 'testAccess', method: 'passkey' },
       store,
       Date.now()
@@ -613,7 +613,7 @@ describe('a report the store fails to write', () => {
     expect(methodRunCount(method, orchestrator)).toBe(ran)
     expect(page.textContent).not.toContain(DELIVERY_FAILED)
 
-    const report = await ceremony().takeCeremonyReport(CLAIM_IDENTITY, store, Date.now())
+    const report = await ceremony().readCeremonyReport(CLAIM_IDENTITY, store, Date.now())
     expect(report?.outcome).toMatchObject({ kind: 'verdict', verdict: 'passed' })
     expect(report?.outcome).toEqual((store.set.mock.calls[0][1] as { outcome: unknown }).outcome)
   })

@@ -14,6 +14,7 @@
  * write renders its failure with retry.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { isAddressEqual } from 'viem'
 
 import { checklistPathOf } from '@web/modules/social-recovery/recovery/checklist/search'
 import type { Address, Configuration, SetupState } from '@kohaku-eth/social-recovery'
@@ -41,7 +42,11 @@ import type {
 const READING: ReadoutStep = { kind: 'reading' }
 const IDLE: UnlockState = { status: 'idle' }
 
-/** The recovery entry record of the account being recovered, with its retry. */
+/**
+ * The recovery entry record of the account being recovered, with its retry.
+ * An entry that names the account as its own receiver, which an earlier build
+ * could write, reads as absent: the account step refuses it.
+ */
 export const useReadoutEntry = (
   records: Pick<WalletRecords, 'recoveryEntry'>,
   chainId: ChainId,
@@ -63,7 +68,7 @@ export const useReadoutEntry = (
         (stored) => {
           if (live) {
             setRead(
-              stored.status === 'present'
+              stored.status === 'present' && !isAddressEqual(stored.value.receivingAccount, account)
                 ? { status: 'present', entry: stored.value }
                 : { status: 'absent' }
             )

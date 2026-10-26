@@ -7,13 +7,13 @@ import type { Network } from '@ambire-common/interfaces/network'
 import type { Address } from '@kohaku-eth/social-recovery'
 import type { CeremonyResolver, ChainVerdict } from '@web/modules/social-recovery/shared/ceremony'
 import { isWithinExpiry } from '@web/modules/social-recovery/shared/ceremony'
+import { IDENTITY_KINDS } from '@web/modules/social-recovery/shared/records/types'
 
 import { addressBookOf, sameAddress } from './addresses'
 import { buildRecoveryClient } from './build-client'
 import { CHAIN_IDS, recoveryChainOf, WALLET_RECOVERY_CHAIN } from './chains'
 import { deploymentOf } from './deployments'
 import { extensionProviderFor, networkOf } from './extension-provider'
-import { IDENTITY_SLUGS } from './identity-params'
 import { createProviderAdapter } from './provider-adapter'
 import type { CeremonyClientFor, CeremonyResolverOptions, RecoveryKitClient } from './types'
 import { createReplyCheck } from './wallet-reads/verify-reply'
@@ -63,7 +63,7 @@ export const createCeremonyResolver =
     const orchestrator = client.approving
     const serves = (module: Address) =>
       method.modules(client.descriptor).some((address) => sameAddress(address, module))
-    const identity = IDENTITY_SLUGS.includes(stored.method)
+    const identity = IDENTITY_KINDS.some((kind) => kind === stored.method)
     const identityParams = identity ? client.methodParamsFor(stored.method, stored.call) : undefined
     if (identity && stored.call !== 'healthCheck' && !identityParams) {
       return { refused: 'no-implementation' }

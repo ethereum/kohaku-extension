@@ -387,7 +387,8 @@ describe('a group\'s "Add member"', () => {
     expect(await storedClauses()).toEqual([
       row,
       first,
-      { ...second, credentials: [CAROL, PASSPORT, emptySlotOf('aadhaar')] }
+      // A third member raises the suggested any one of two to two of three.
+      { ...second, threshold: 2, credentials: [CAROL, PASSPORT, emptySlotOf('aadhaar')] }
     ])
     expect(enrollOpened(navigate).slot).toEqual({ kind: 'aadhaar', clause: '2', member: '2' })
   })

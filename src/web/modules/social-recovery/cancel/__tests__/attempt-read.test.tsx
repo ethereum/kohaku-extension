@@ -5,7 +5,6 @@
  * reading answers while the fresh read runs, and the fresh read alone
  * answers the read.
  */
-import type { LastReadingRead } from '@web/modules/social-recovery/cancel/__fixtures__/mount'
 import type { Arrival, AttemptReadResult } from '@web/modules/social-recovery/cancel/types'
 import type { WatcherReading } from '@web/modules/social-recovery/watcher'
 
@@ -61,26 +60,26 @@ describe("the cancel's arrival read", () => {
     view.unmount()
   })
 
-  it('answers no last reading where none is stored or its read fails', async () => {
-    const cases: LastReadingRead[] = [
-      async () => undefined,
-      async () => {
+  const NO_LAST_READING = [
+    { name: 'none is stored', readLast: async () => undefined },
+    {
+      name: 'its read fails',
+      readLast: async () => {
         throw new Error('storage refused')
       }
-    ]
-    const results = await Promise.all(
-      cases.map(async (readLast) => {
-        const seen: AttemptReadResult[] = []
-        const readArrival = () => new Promise<Arrival>(() => {})
-        const Probe = () => {
-          seen.push(useAttemptRead(readArrival, readLast))
-          return null
-        }
-        const view = await mount(<Probe />)
-        view.unmount()
-        return seen[seen.length - 1].last
-      })
-    )
-    expect(results).toEqual([null, null])
-  })
+    }
+  ]
+  NO_LAST_READING.forEach(({ name, readLast }) =>
+    it(`answers no last reading where ${name}`, async () => {
+      const seen: AttemptReadResult[] = []
+      const readArrival = () => new Promise<Arrival>(() => {})
+      const Probe = () => {
+        seen.push(useAttemptRead(readArrival, readLast))
+        return null
+      }
+      const view = await mount(<Probe />)
+      expect(seen[seen.length - 1].last).toBeNull()
+      view.unmount()
+    })
+  )
 })

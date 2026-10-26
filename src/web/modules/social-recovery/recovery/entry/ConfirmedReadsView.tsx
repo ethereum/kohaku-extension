@@ -38,7 +38,8 @@ const REFUSAL_REASONS: Record<RecoverRefusal, string> = {
 
 const DESTINATION_REFUSALS: Record<DestinationRefusal, string> = {
   'already-a-key': `${ENTRY}.destination.alreadyAKey`,
-  'holds-privilege': `${ENTRY}.destination.holdsPrivilege`
+  'holds-privilege': `${ENTRY}.destination.holdsPrivilege`,
+  'same-account': `${ENTRY}.refusal.sameAccount`
 }
 
 /** The line of a read that runs, by its stage. */

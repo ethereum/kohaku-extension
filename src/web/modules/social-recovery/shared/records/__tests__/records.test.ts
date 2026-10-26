@@ -2467,6 +2467,14 @@ describe('the ceremony request under its request id', () => {
       'an enrollment whose replaced credential has a salt that is no hex',
       stored({ ...ENROLL, replaces: { method: METHOD, config: '0xabcd', salt: 1 } })
     ],
+    [
+      'an enrollment whose replaced credential has a numeric label',
+      stored({ ...ENROLL, replaces: { method: METHOD, config: '0xabcd', label: 7 } })
+    ],
+    [
+      'an enrollment whose replaced credential is an array',
+      stored({ ...ENROLL, replaces: [METHOD, '0xabcd'] })
+    ],
     ['a test access with no request', stored({ ...target, call: 'testAccess' })],
     ['a claim whose request is null', stored({ ...target, call: 'createClaim', request: null })],
     [

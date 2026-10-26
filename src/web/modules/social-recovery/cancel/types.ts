@@ -85,6 +85,8 @@ export interface RecoveryAttemptBannerViewProps {
   accounts: readonly Account[]
   useAttempt: WatchedAttemptHook
   useDismissed: DismissedHook
+  /** Every key the keystore holds, undefined until the keystore is read. */
+  heldKeys: readonly Address[] | undefined
   /** Opens the cancel of one account in a full tab. */
   onCancel: (account: Address) => void
   /** Hides the warning for one attempt of one account. */
@@ -104,6 +106,8 @@ export interface AccountAttemptBannerProps {
   name?: string
   useAttempt: WatchedAttemptHook
   useDismissed: DismissedHook
+  /** Every key the keystore holds, undefined until the keystore is read. */
+  heldKeys: readonly Address[] | undefined
   onCancel: (account: Address) => void
   onDismiss: (account: Address, attemptId: bigint) => Promise<unknown>
   onRetry: (account: Address) => Promise<unknown>

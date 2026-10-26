@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { SetupDraft } from '@kohaku-eth/social-recovery'
+import { sdkDraftOf } from '@web/modules/social-recovery/shared/records'
 
 import { ACCOUNT_READ_NAMES } from './constants'
 import type {
@@ -35,7 +36,7 @@ const readersOf = (client: ReviewKitClient, draft: SetupDraft): AccountReaders =
   // configuration, so the check judges the code the account will carry.
   fitCheck: () => client.walletReads.fitCheck(),
   setupState: () => client.setup.setupState(),
-  description: () => client.setup.describeSetup(draft)
+  description: () => client.setup.describeSetup(sdkDraftOf(draft))
 })
 
 export const useAccountReads = (

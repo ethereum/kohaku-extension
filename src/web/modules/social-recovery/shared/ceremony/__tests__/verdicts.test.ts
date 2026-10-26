@@ -469,6 +469,12 @@ describe('what a row renders, by call', () => {
       NOTE('phoneUnansweredNote'),
       null
     ])
+    // An error the phone reported reads that the test could not run, with no line that it may never work.
+    expect(row(unavailable('phone-error', 'The chip did not answer.'), 'testAccess')).toEqual([
+      'method:testUnavailable',
+      NOTE('testPhoneErrorNote'),
+      null
+    ])
     expect(row(notSupported('method-unsupported'), 'testAccess')).toEqual([
       'method:notSupported',
       NOTE('notSupportedNote'),

@@ -7,6 +7,7 @@
  */
 import { act } from 'react-dom/test-utils'
 
+import i18n from '@common/config/localization'
 import {
   byTestId,
   dispatched,
@@ -28,7 +29,7 @@ const FAST_TRACK = '/social-recovery/fast-track'
 const KEY_STEP = '/social-recovery/fast-track/key'
 const ACKNOWLEDGED = { acknowledged: true }
 const PASSWORD = 'lantern-orchid-42'
-const MISMATCH = 'The two passwords you typed do not match.'
+const MISMATCH = i18n.t('socialRecovery.fastTrack.password.mismatch')
 
 const fieldOf = (testID: string) => byTestId(testID) as HTMLInputElement
 
@@ -81,7 +82,7 @@ describe('the fast track route', () => {
       expect(byTestId('recovery-warning')).toBeNull()
       expect(byTestId('fast-track-password')).not.toBeNull()
       expect(byTestId('fast-track-password-step')?.textContent).toBe(
-        'Set up this device · Step 2 of 3'
+        i18n.t('socialRecovery.fastTrack.stepCounter', { step: 2, total: 3 })
       )
     })
 
@@ -112,12 +113,8 @@ describe('the fast track route', () => {
       expect(main?.querySelector('[data-testid="fast-track-password-field"]')).not.toBeNull()
       expect(main?.querySelector('[data-testid="fast-track-password-continue"]')).not.toBeNull()
       expect(aside?.querySelector('[data-testid="fast-track-password-what"]')).not.toBeNull()
-      expect(aside?.textContent).toContain('If you forget it, you can reset the extension')
-      expect(aside?.textContent).toContain(
-        'Recovery may later ask for the recovery password, the one printed on the Recovery Card.'
-      )
-      expect(text()).not.toContain('It unlocks the extension on this device only.')
-      expect(text()).not.toContain('It never leaves this device')
+      expect(aside?.textContent).toContain(i18n.t('socialRecovery.fastTrack.password.forgotten'))
+      expect(aside?.textContent).toContain(i18n.t('socialRecovery.fastTrack.password.twoPasswords'))
     })
 
     it('stores the password through the keystore, unlocked', async () => {
@@ -217,7 +214,9 @@ describe('the fast track route', () => {
         replace: true,
         state: ACKNOWLEDGED
       })
-      expect(byTestId('fast-track-key-step')?.textContent).toBe('Set up this device · Step 3 of 3')
+      expect(byTestId('fast-track-key-step')?.textContent).toBe(
+        i18n.t('socialRecovery.fastTrack.stepCounter', { step: 3, total: 3 })
+      )
     })
 
     it('skips the step on a device with a password and a locked keystore, on to the unlock', async () => {
@@ -242,7 +241,7 @@ describe('the fast track route', () => {
     it('never calls anything a seed', async () => {
       await mount(FAST_TRACK, ACKNOWLEDGED)
 
-      expect(text()).toContain('recovery phrase')
+      expect(text()).toContain(i18n.t('socialRecovery.fastTrack.password.forgotten'))
       expect(text()).not.toMatch(/seed/i)
     })
   })

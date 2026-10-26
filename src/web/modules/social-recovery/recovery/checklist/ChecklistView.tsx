@@ -9,7 +9,7 @@
  * reads. A failed read never renders as an empty path, and a failed poll holds
  * every row until a poll succeeds.
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { View } from 'react-native'
 
 import Alert from '@common/components/Alert'
@@ -239,27 +239,30 @@ const ChecklistView = ({
   }, [pending, assessment, addReply, settle, deps])
   const isLive = load.phase === 'live'
   // The view's own clock, read when the deadline line reports the pass. Past
-  // the request's deadline one chain read lands or wipes the request. A first
-  // read that began past the deadline is that read, so no second one is
-  // asked; one that began before it judges by its own earlier clock, so the
-  // round asked here runs on its return.
-  const { retryPoll } = checklist
+  // the request's deadline one chain read lands or wipes the request. A read
+  // that began past the deadline, the first one about to start included, is
+  // that read, so no second one is asked; one that began before it judges by
+  // its own earlier clock, so the round asked here runs on its return. The
+  // session is read when the pass is reported, so a session record read
+  // again asks no second read.
+  const { retryPoll, pollReadsFrom } = checklist
   const { now } = deps
   const [passedAt, setPassedAt] = useState<number | null>(null)
-  const firstReadFrom = useRef<number | null>(null)
-  if (poll.status !== 'pending') {
-    firstReadFrom.current = null
-  } else if (firstReadFrom.current === null) {
-    firstReadFrom.current = now()
-  }
   const gathering = live?.session.gathering
+  const gatheringRef = useRef(gathering)
+  // A layout effect, so the deadline line's own effect reads the session it renders.
+  useLayoutEffect(() => {
+    gatheringRef.current = gathering
+  }, [gathering])
   const onDeadlinePassed = useCallback(() => {
-    setPassedAt(now())
-    const from = firstReadFrom.current
-    if (from === null || !gathering || !deadlinePassed(gathering, from)) {
+    const at = now()
+    setPassedAt(at)
+    const from = pollReadsFrom(at)
+    const current = gatheringRef.current
+    if (from === null || !current || !deadlinePassed(current, from)) {
       retryPoll()
     }
-  }, [now, retryPoll, gathering])
+  }, [now, retryPoll, pollReadsFrom])
   const pastDeadline =
     !!live && passedAt !== null && deadlinePassed(live.session.gathering, passedAt)
   // A poll that has not answered yet, a later poll still reading, a failed

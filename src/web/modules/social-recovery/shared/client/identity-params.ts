@@ -13,9 +13,6 @@ import type { CeremonyCall } from '@web/modules/social-recovery/shared/ceremony'
 import { deploymentOf } from './deployments'
 import type { DeploymentFacts, IdentityParams, IdentityParamsReading, RecoveryChain } from './types'
 
-/** The slugs of the methods whose parameters are build data rather than the caller's. */
-export const IDENTITY_SLUGS: readonly string[] = ['zkpassport', 'aadhaar']
-
 /** The parameters of the stand-in chain, where the scripted stacks read none of them. */
 export const STAND_IN_IDENTITY_PARAMS: IdentityParams = {
   zkPassport: { domain: 'kohaku.stand-in', scope: 'kohaku-recovery', testnetTree: false },

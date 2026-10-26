@@ -13,7 +13,7 @@ export {
   enrollmentOf,
   pathHolds
 } from './slots'
-export { isStoredAddress, isDecimalString } from './guards'
+export { isStoredAddress, isDecimalString, isStoredCredential } from './guards'
 export {
   recordDeploymentOf,
   recordDeploymentFrom,

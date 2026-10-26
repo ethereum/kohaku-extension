@@ -13,8 +13,8 @@
 import { isHex } from 'viem'
 
 import { PRIVACY_LEVELS } from '@web/modules/social-recovery/shared/client'
-import type { Address, Clause, Configuration, Credential } from '@kohaku-eth/social-recovery'
-import { isStoredAddress, RECORDS_KEY_PREFIX } from '@web/modules/social-recovery/shared/records'
+import type { Address, Clause, Configuration } from '@kohaku-eth/social-recovery'
+import { isStoredCredential, RECORDS_KEY_PREFIX } from '@web/modules/social-recovery/shared/records'
 import type { ChainId } from '@web/modules/social-recovery/shared/records'
 
 import { PASSWORD_MARKS } from './constants'
@@ -26,18 +26,11 @@ export const editSessionKeyOf = (chainId: ChainId, account: Address): string =>
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
-const isCredential = (value: unknown): value is Credential =>
-  isObject(value) &&
-  isStoredAddress(value.method) &&
-  isHex(value.config) &&
-  (value.label === undefined || typeof value.label === 'string') &&
-  (value.salt === undefined || isHex(value.salt))
-
 const isClause = (value: unknown): value is Clause =>
   isObject(value) &&
   Number.isSafeInteger(value.threshold) &&
   Array.isArray(value.credentials) &&
-  value.credentials.every(isCredential)
+  value.credentials.every(isStoredCredential)
 
 /** A stored wait in seconds: a number, or the bigint an earlier build stored. */
 const waitOf = (value: unknown): number | undefined => {

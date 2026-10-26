@@ -62,6 +62,7 @@ import type {
   ListedAccountFacts,
   ProviderTransactionReceipt,
   ReceiptReads,
+  RecoveryAttemptState,
   RemovedKeyReading,
   SendPort,
   SendRefusalReason,
@@ -74,7 +75,9 @@ import type {
 import { createWalletRecords } from '@web/modules/social-recovery/shared/records'
 import type {
   ChainId,
+  LastAttempt,
   RecordStorage,
+  SetupDraftRecord,
   SaveInFlightAccessor
 } from '@web/modules/social-recovery/shared/records'
 import { emptySlot } from '@web/modules/social-recovery/shared/records/slots'
@@ -307,6 +310,10 @@ export interface SaveScript {
   backup?: SetupDraft['privacy']['backup']
   publicMetadata?: Hex
   password?: string
+  /** The last attempt the manager holds; a read that fails where left out. */
+  lastAttempt?: LastAttempt
+  /** The editor's threshold flags the stored draft carries, where it carries any. */
+  thresholdsSet?: boolean[]
 }
 
 export const HAPPY: Omit<SaveScript, 'authorized' | 'deployed'> = {
@@ -638,7 +645,10 @@ export const wireSave = (
 ): WiredSave => {
   const address = account.addr as Address
   const facts = factsOf(account, { deployed: script.deployed })
-  const draft = draftOf(script.backup, script.publicMetadata)
+  const draft: SetupDraftRecord = {
+    ...draftOf(script.backup, script.publicMetadata),
+    ...(script.thresholdsSet ? { thresholdsSet: script.thresholdsSet } : {})
+  }
   const prepared = preparedOf(address, script.authorized)
   const prepareCommitSetup = jest.fn(async () => {
     if (script.prepare === 'refuses') {
@@ -659,9 +669,16 @@ export const wireSave = (
     }
     return setupStateOf(script.setup === 'set-up')
   })
+  const attemptState = jest.fn(async () => {
+    if (!script.lastAttempt) {
+      throw providerReadFailure('call', new Error('the node did not answer the attempt read'))
+    }
+    return { attempt: script.lastAttempt } as unknown as RecoveryAttemptState
+  })
   const client: ArmKitClient = {
     descriptor: DESCRIPTOR,
-    setup: { setupState, prepareCommitSetup, confirmSetup }
+    setup: { setupState, prepareCommitSetup, confirmSetup },
+    walletReads: { attemptState }
   }
   const chainReads = chainReadsFor(script.gas)
   const port = sendPortFor(script.send, address, script.estimation)
@@ -669,14 +686,14 @@ export const wireSave = (
   const writeDraftAndPath = jest.fn(async () => ({ draft, path: null }))
   const records = createWalletRecords({ storage })
   const saveSetup = jest.fn((chainId: ChainId, owner: Address) => records.saveSetup(chainId, owner))
-  const { saveInFlight } = records
+  const { saveInFlight, endPastCountdown } = records
   const steps = saveStepsOf({
     client,
     reads: chainReads,
     receipts,
     port,
     requests,
-    records: { saveSetup, saveInFlight },
+    records: { saveSetup, saveInFlight, endPastCountdown },
     setup: { writeDraftAndPath } as never,
     chainId: CHAIN_ID,
     account: address,

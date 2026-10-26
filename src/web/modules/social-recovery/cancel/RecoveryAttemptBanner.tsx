@@ -11,6 +11,7 @@ import useNavigation from '@common/hooks/useNavigation'
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import type { Address } from '@kohaku-eth/social-recovery'
+import { useHeldKeys } from '@web/modules/social-recovery/management/overview/useHeldKeys'
 import { CHAIN_IDS, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
 import { dismissAttempt, watchedNetworkOf } from '@web/modules/social-recovery/watcher'
 import { useWatchedAttempt } from '@web/modules/social-recovery/watcher/useWatchedAttempt'
@@ -26,6 +27,7 @@ const RecoveryAttemptBanner = () => {
   const { networks } = useNetworksControllerState()
   const timeZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
   const network = watchedNetworkOf(networks)
+  const heldKeys = useHeldKeys()
 
   const onCancel = useCallback((account: Address) => navigate(cancelPathOf(account)), [navigate])
   const onDismiss = useCallback(
@@ -43,6 +45,7 @@ const RecoveryAttemptBanner = () => {
       accounts={accounts}
       useAttempt={useWatchedAttempt}
       useDismissed={useDismissed}
+      heldKeys={heldKeys}
       onCancel={onCancel}
       onDismiss={onDismiss}
       onRetry={onRetry}

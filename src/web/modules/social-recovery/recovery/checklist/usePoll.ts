@@ -9,7 +9,9 @@
  * round its predecessor had in flight and reads again at once; until that
  * round returns, the poll stands as it was, as for any round in flight. An
  * answer older than the live request, from the manager it names, is a failed
- * round.
+ * round. The read that judges a pass at a moment runs from the clock of the
+ * round in flight or, before the session's first round returns, from that
+ * moment, since the round about to start reads no earlier.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -38,6 +40,8 @@ const usePoll = ({ kit, target, deps, after }: PollInput): PollHook => {
   const generation = useRef(0)
   const inFlight = useRef<number | null>(null)
   const again = useRef(false)
+  const roundClock = useRef<number | null>(null)
+  const returned = useRef(false)
 
   const run = useCallback(async () => {
     const current = kitRef.current
@@ -52,6 +56,7 @@ const usePoll = ({ kit, target, deps, after }: PollInput): PollHook => {
     const clock = depsRef.current.now()
     const asked = targetRef.current
     inFlight.current = id
+    roundClock.current = clock
     setPolling(true)
     const answer = await readPollFacts(current, POLL_LIMIT_MS)
     const facts =
@@ -60,10 +65,12 @@ const usePoll = ({ kit, target, deps, after }: PollInput): PollHook => {
         : answer
     if (inFlight.current === id) {
       inFlight.current = null
+      roundClock.current = null
     }
     if (id !== generation.current) {
       return
     }
+    returned.current = true
     setPolling(false)
     // A death the round reads holds the rows before the answer renders them.
     afterRef.current(facts, clock)
@@ -78,11 +85,13 @@ const usePoll = ({ kit, target, deps, after }: PollInput): PollHook => {
   const source = deps.visibility
   const session = kit ? key : null
   useEffect(() => {
+    returned.current = false
     setPoll(PENDING)
   }, [session])
   useEffect(() => {
     generation.current += 1
     inFlight.current = null
+    roundClock.current = null
     again.current = false
     setPolling(false)
     if (!kit || key === null) {
@@ -109,7 +118,12 @@ const usePoll = ({ kit, target, deps, after }: PollInput): PollHook => {
     run().catch(() => undefined)
   }, [run])
 
-  return { poll, polling, retry }
+  const readsFrom = useCallback(
+    (at: number) => roundClock.current ?? (returned.current ? null : at),
+    []
+  )
+
+  return { poll, polling, retry, readsFrom }
 }
 
 export default usePoll

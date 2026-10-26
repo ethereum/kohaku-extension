@@ -46,9 +46,17 @@ const OutcomeBlock = ({
   // The holder declined the request on the phone, which the app reports as its refusal.
   const declined =
     binding === 'external-app' && outcome.kind === 'dismissed' && outcome.note === 'refused'
-  const noteKey = declined
-    ? 'socialRecovery.ceremony.declinedNote'
-    : noteKeyOfOutcome(outcome, call)
+  // Only the passkey has a prompt to cancel; any other ceremony the holder ended
+  // was stopped, read from the request's method so it holds before the binding resolves.
+  const stopped =
+    params.method !== 'passkey' && outcome.kind === 'dismissed' && outcome.note === 'cancelled'
+  const noteKeyOf = () => {
+    if (declined) {
+      return 'socialRecovery.ceremony.declinedNote'
+    }
+    return stopped ? 'socialRecovery.ceremony.stoppedNote' : noteKeyOfOutcome(outcome, call)
+  }
+  const noteKey = noteKeyOf()
   const lineKey = lineKeyOfOutcome(outcome, call)
   const passedEnroll =
     outcome.kind === 'verdict' && outcome.verdict === 'passed' && call === 'enroll'

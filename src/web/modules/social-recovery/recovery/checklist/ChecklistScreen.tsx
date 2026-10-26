@@ -6,7 +6,7 @@
  * ceremony's report channel and this page's relying party. A search with no
  * account, or an account with no entry record, goes back to the account step.
  */
-import React, { useCallback, useMemo, useRef } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { isAddressEqual } from 'viem'
 
@@ -124,8 +124,21 @@ const ChecklistScreen = () => {
     []
   )
   const { reading, retry } = useRecoveryEntryRead(records, CHAIN_ID, account, toAccountStep)
+  // An entry that names the account as its own receiver goes back to the account step, which refuses it.
+  const ownReceiver =
+    reading.status === 'present' && isAddressEqual(reading.entry.receivingAccount, reading.account)
+  useEffect(() => {
+    if (ownReceiver) {
+      toAccountStep()
+    }
+  }, [ownReceiver, toAccountStep])
 
-  if (reading.status === 'present' && search && isAddressEqual(reading.account, search.account)) {
+  if (
+    reading.status === 'present' &&
+    !ownReceiver &&
+    search &&
+    isAddressEqual(reading.account, search.account)
+  ) {
     return (
       <RecoveryChrome
         route={reading.entry.route}

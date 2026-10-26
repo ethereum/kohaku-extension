@@ -9,7 +9,7 @@
  * The batch is the prepared calls in order and nothing else: for an account
  * with no code the account library deploys it in the same transaction.
  */
-import type { PreparedBatch, PreparedCall, SetupDraft } from '@kohaku-eth/social-recovery'
+import type { PreparedBatch, PreparedCall } from '@kohaku-eth/social-recovery'
 import {
   accountBatchTransactionOf,
   newSendRequestId,
@@ -26,8 +26,11 @@ import {
   walletAccountRefOf
 } from '@web/modules/social-recovery/shared/writes'
 
+import { sdkDraftOf } from '@web/modules/social-recovery/shared/records'
+import type { SetupDraftRecord } from '@web/modules/social-recovery/shared/records'
+
 import { blockOrNone, waitForNewBlock } from './block'
-import type { PreparedSave, SaveSteps, SaveStepsInput } from './types'
+import type { PastCountdownInput, PreparedSave, SaveSteps, SaveStepsInput } from './types'
 
 /** The calls of a prepared write, in order: a batch's own, or the one call. */
 export const callsOf = (prepared: PreparedCall | PreparedBatch): readonly PreparedCall[] =>
@@ -37,9 +40,9 @@ export const callsOf = (prepared: PreparedCall | PreparedBatch): readonly Prepar
  * The draft the save commits. At Shape visible the public note is rebuilt from
  * the draft's path and wait as they stand now, since the path may have changed
  * after the privacy step wrote the note. Any other level commits the draft as
- * it is.
+ * it is. The editor's threshold flags never reach the SDK.
  */
-export const committedDraftOf = (draft: SetupDraft): SetupDraft => {
+export const committedDraftOf = (draft: SetupDraftRecord): SetupDraftRecord => {
   if (privacyLevelOf(draft.privacy) !== 'shape-visible') {
     return draft
   }
@@ -48,6 +51,27 @@ export const committedDraftOf = (draft: SetupDraft): SetupDraft => {
   return publicMetadata === draft.privacy.publicMetadata
     ? draft
     : { ...draft, privacy: { ...draft.privacy, publicMetadata } }
+}
+
+/**
+ * Ends this device's countdown of an attempt the chain shows over, once a
+ * setup write on the account landed: the recovery that brought the account
+ * here is done. A waiting or due attempt's countdown stays, and a read that
+ * fails ends nothing.
+ */
+export const endPastCountdown = async ({
+  client,
+  records,
+  chainId,
+  account
+}: PastCountdownInput): Promise<void> => {
+  const last = await client.walletReads.attemptState().then(
+    (state) => state.attempt,
+    () => undefined
+  )
+  if (last) {
+    await records.endPastCountdown(chainId, account, last).catch(() => false)
+  }
 }
 
 export const saveStepsOf = (input: SaveStepsInput): SaveSteps => {
@@ -75,7 +99,7 @@ export const saveStepsOf = (input: SaveStepsInput): SaveSteps => {
         await input.setup.writeDraftAndPath(draft)
       }
       const password = draft.privacy.backup === 'encrypted' ? input.password : undefined
-      const prepared = await client.setup.prepareCommitSetup(draft, password)
+      const prepared = await client.setup.prepareCommitSetup(sdkDraftOf(draft), password)
       assertWriteDoor('save', prepared)
       return { draft, prepared, calls: callsOf(prepared) }
     },
@@ -177,8 +201,11 @@ export const saveStepsOf = (input: SaveStepsInput): SaveSteps => {
         dispatch({ type: 'error', run, error, transactionHash })
       }
     },
-    confirm: ({ draft, prepared }) => client.setup.confirmSetup(draft, prepared),
+    confirm: ({ draft, prepared }) => client.setup.confirmSetup(sdkDraftOf(draft), prepared),
     newBlock: (limitMs) => waitForNewBlock(() => input.receipts.blockNumber(), limitMs),
-    wipe: () => input.records.saveSetup(input.chainId, input.account)
+    async wipe() {
+      await input.records.saveSetup(input.chainId, input.account)
+      await endPastCountdown(input)
+    }
   }
 }

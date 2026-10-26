@@ -21,6 +21,7 @@
 import type { EditWorld } from '@web/modules/social-recovery/management/editor/__fixtures__/types'
 import type { AttemptRead, EditSession } from '@web/modules/social-recovery/management/editor/types'
 import type { PreparedSave, SaveSteps } from '@web/modules/social-recovery/setup/arm'
+import type { LastAttempt } from '@web/modules/social-recovery/shared/records'
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const fixture: typeof import('@web/modules/social-recovery/management/editor/__fixtures__/world') = require('@web/modules/social-recovery/management/editor/__fixtures__/world')
@@ -56,6 +57,7 @@ const {
 }: typeof import('@web/modules/social-recovery/setup/arm/__tests__/harness') = require('@web/modules/social-recovery/setup/arm/__tests__/harness')
 const {
   readRecoveryPassword,
+  recordDeploymentOf,
   setRecoveryPassword,
   SETUP_RECORD_NAMES
 }: typeof import('@web/modules/social-recovery/shared/records') = require('@web/modules/social-recovery/shared/records')
@@ -853,5 +855,60 @@ describe('two tabs, one write of the editor each', () => {
     const own = await claimedElsewhere(world, MANAGE_INTENT_MARKS.manageRemove)
     const read = await removalSteps(world).readInFlight()
     expect(read.status === 'present' && read.value.requestId).toBe(own)
+  })
+})
+
+describe("a landed write's end of a recovery countdown", () => {
+  /** Stores this device's countdown of attempt 4 and has the chain answer `last` as its last attempt. */
+  const withCountdown = async (world: EditWorld, last: LastAttempt) => {
+    await world.records.restoreCountdown(CHAIN_ID, world.account, {
+      attemptId: 4n,
+      setupNonce: 1n,
+      payloadHash: `0x${'aa'.repeat(32)}`,
+      openedAtMs: 1_699_990_000_000,
+      executableAt: 1_700_076_400,
+      deployment: recordDeploymentOf(world.client.descriptor)
+    })
+    jest
+      .spyOn(world.client.walletReads, 'attemptState')
+      .mockResolvedValue({ attempt: last } as never)
+  }
+  const countdownOf = async (world: EditWorld) =>
+    (await world.records.countdown(CHAIN_ID, world.account).read()).status
+
+  it("ends the countdown of a consumed attempt on the save's landing", async () => {
+    const world = await fixture.worldOf('lands')
+    setRecoveryPassword(CHAIN_ID, world.account, PASSWORD)
+    const baseline = await openAndEdit(world)
+    await withCountdown(world, { attemptId: 4n, state: 'Consumed' })
+    const { steps } = await editSteps(world, baseline)
+    const store = createArmStore()
+
+    await startSave(store, steps)
+
+    expect(isSaved(store.state())).toBe(true)
+    expect(await countdownOf(world)).toBe('absent')
+  })
+
+  it("ends the countdown of a consumed attempt on the removal's landing", async () => {
+    const world = await fixture.worldOf('lands')
+    await withCountdown(world, { attemptId: 4n, state: 'Consumed' })
+    const store = createArmStore('ownerWrite')
+
+    await startSave(store, removalSteps(world))
+
+    expect(isSaved(store.state())).toBe(true)
+    expect(await countdownOf(world)).toBe('absent')
+  })
+
+  it("keeps the countdown of a waiting attempt on the removal's landing", async () => {
+    const world = await fixture.worldOf('lands')
+    await withCountdown(world, { attemptId: 4n, state: 'Waiting' })
+    const store = createArmStore('ownerWrite')
+
+    await startSave(store, removalSteps(world))
+
+    expect(isSaved(store.state())).toBe(true)
+    expect(await countdownOf(world)).toBe('present')
   })
 })

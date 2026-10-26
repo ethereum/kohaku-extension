@@ -19,7 +19,7 @@ import { WEB_ROUTES } from '@common/modules/router/constants/common'
 import type { Clause, Finding, SetupDraft } from '@kohaku-eth/social-recovery'
 import { ActionsRow, TwoColumn } from '@web/modules/social-recovery/shared/chrome'
 import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
-import { defaultSetupDraft } from '@web/modules/social-recovery/shared/records'
+import { defaultSetupDraft, sdkDraftOf } from '@web/modules/social-recovery/shared/records'
 import type { SlotKind } from '@web/modules/social-recovery/shared/records'
 import { getRuleLines, RULE_LINE_KEYS } from '@web/modules/social-recovery/shared/rule-lines'
 import type { RuleLineKey } from '@web/modules/social-recovery/shared/rule-lines'
@@ -38,12 +38,14 @@ import {
   kindOf,
   makeItAGroup,
   makeItAGroupRoles,
+  makeItAGroupThresholdsSet,
   makeRequired,
   methodCountOf,
   methodKindOf,
   moveToGroup,
   offersMakeItAGroup,
   placeAt,
+  placedThresholdsSet,
   placedRoles,
   readThreshold,
   removeClause,
@@ -52,7 +54,11 @@ import {
   rolesOf,
   sameAddTarget,
   setThreshold,
+  thresholdsSetOf,
   withClauses,
+  withNewClause,
+  withoutThresholdSet,
+  withThresholdSet,
   withoutRole
 } from './operations'
 import { shapeRefusalsOf } from './refusals'
@@ -118,7 +124,8 @@ const EditorView = ({
         const next: EditorLoad = {
           draft: stored,
           enrollments: enrollments.status === 'present' ? enrollments.value : [],
-          roles: rolesOf(stored.clauses)
+          roles: rolesOf(stored.clauses),
+          thresholdsSet: thresholdsSetOf(stored)
         }
         loadRef.current = next
         if (mounted.current) {
@@ -175,13 +182,13 @@ const EditorView = ({
   // a threshold field's held text goes back to the path's threshold unless the
   // edit keeps it.
   const commit = useCallback(
-    (next: Clause[], roles: ClauseRole[], held: HeldThresholds = {}) => {
+    (next: Clause[], roles: ClauseRole[], thresholdsSet: boolean[], held: HeldThresholds = {}) => {
       const current = loadRef.current
       if (!current || checkingRef.current) {
         return
       }
-      const draft = withClauses(current.draft, next)
-      const updated = { ...current, draft, roles }
+      const draft = withClauses(current.draft, next, thresholdsSet)
+      const updated = { ...current, draft, roles, thresholdsSet }
       loadRef.current = updated
       setLoad(updated)
       setRefused(false)
@@ -197,7 +204,11 @@ const EditorView = ({
   )
 
   const apply = useCallback(
-    (result: EditResult, rolesAt: (at: SlotPosition) => ClauseRole[]) => {
+    (
+      result: EditResult,
+      rolesAt: (at: SlotPosition) => ClauseRole[],
+      thresholdsSetAt: (at: SlotPosition) => boolean[]
+    ) => {
       if (checkingRef.current) {
         return null
       }
@@ -205,7 +216,7 @@ const EditorView = ({
         setRefused(true)
         return null
       }
-      commit(result.clauses, rolesAt(result.at))
+      commit(result.clauses, rolesAt(result.at), thresholdsSetAt(result.at))
       return result.at
     },
     [commit]
@@ -214,6 +225,7 @@ const EditorView = ({
   const thresholdHeld = Object.keys(heldThresholds).length > 0
   const current = () => loadRef.current?.draft.clauses ?? []
   const currentRoles = () => loadRef.current?.roles ?? []
+  const currentThresholdsSet = () => loadRef.current?.thresholdsSet ?? []
 
   const closeMenu = useCallback(() => setMenu(null), [])
 
@@ -237,8 +249,10 @@ const EditorView = ({
       return
     }
     const target = menu
-    const at = apply(placeAt(current(), target, emptySlotOf(kind)), (placed) =>
-      placedRoles(currentRoles(), target, placed)
+    const at = apply(
+      placeAt(current(), target, emptySlotOf(kind), currentThresholdsSet()),
+      (placed) => placedRoles(currentRoles(), target, placed),
+      (placed) => placedThresholdsSet(currentThresholdsSet(), target, placed)
     )
     if (at) {
       openEnroll(kind, at)
@@ -276,12 +290,21 @@ const EditorView = ({
       setHeldThresholds({ ...rest, [group]: text })
       return
     }
-    commit(setThreshold(current(), group, threshold), currentRoles(), rest)
+    commit(
+      setThreshold(current(), group, threshold),
+      currentRoles(),
+      withThresholdSet(currentThresholdsSet(), group),
+      rest
+    )
   }
 
   const onMove = (row: number, group: number) => {
     setMenu(null)
-    return apply(moveToGroup(current(), row, group), () => withoutRole(currentRoles(), row))
+    return apply(
+      moveToGroup(current(), row, group, currentThresholdsSet()[group] ?? false),
+      () => withoutRole(currentRoles(), row),
+      () => withoutThresholdSet(currentThresholdsSet(), row)
+    )
   }
 
   // Every edit holds while the check runs, so the check runs on the draft
@@ -325,7 +348,7 @@ const EditorView = ({
         return
       }
       const draft = loadRef.current.draft
-      const result = await client.setup.validateSetup(draft)
+      const result = await client.setup.validateSetup(sdkDraftOf(draft))
       if (!mounted.current) {
         return
       }
@@ -417,17 +440,25 @@ const EditorView = ({
           onOpenGroupChoice={setRowChoosingGroup}
           onCloseGroupChoice={() => setRowChoosingGroup(null)}
           onRemove={(index) =>
-            commit(removeClause(current(), index), withoutRole(currentRoles(), index))
+            commit(
+              removeClause(current(), index),
+              withoutRole(currentRoles(), index),
+              withoutThresholdSet(currentThresholdsSet(), index)
+            )
           }
           onThresholdText={onThresholdText}
           onMakeRequired={(index, member) => {
             setMenu(null)
-            apply(makeRequired(current(), index, member), () => [...currentRoles(), 'required'])
+            apply(
+              makeRequired(current(), index, member),
+              () => [...currentRoles(), 'required'],
+              () => withNewClause(currentThresholdsSet())
+            )
           }}
           onRemoveMember={(index, member) => {
             if (!stillNeeded?.has(`${index}:${member}`)) {
               const remove = plainRemoval ? removeMember : removeMemberToFit
-              commit(remove(current(), index, member), currentRoles())
+              commit(remove(current(), index, member), currentRoles(), currentThresholdsSet())
             }
           }}
           onLowerAndRemove={(index, member) => {
@@ -435,21 +466,36 @@ const EditorView = ({
             if (stillNeeded?.has(`${index}:${member}`) && threshold > 1) {
               commit(
                 setThreshold(removeMember(current(), index, member), index, threshold - 1),
-                currentRoles()
+                currentRoles(),
+                withThresholdSet(currentThresholdsSet(), index)
               )
             }
           }}
           stillNeeded={stillNeeded}
           onRemoveGroup={(index) =>
-            commit(removeClause(current(), index), withoutRole(currentRoles(), index))
+            commit(
+              removeClause(current(), index),
+              withoutRole(currentRoles(), index),
+              withoutThresholdSet(currentThresholdsSet(), index)
+            )
           }
-          onAddGroup={() => commit(addGroup(current()), [...currentRoles(), 'group'])}
+          onAddGroup={() =>
+            commit(
+              addGroup(current()),
+              [...currentRoles(), 'group'],
+              withNewClause(currentThresholdsSet())
+            )
+          }
           offersSecondMethod={ruleLines.some(({ key }) => SECOND_METHOD_OFFERS.includes(key))}
           canMakeItAGroup={offersMakeItAGroup(clauses)}
           // The offer counts required rows by their stored shape, so the
           // press gathers every clause that shape reads as a row.
           onMakeItAGroup={() =>
-            commit(makeItAGroup(current()), makeItAGroupRoles(rolesOf(current())))
+            commit(
+              makeItAGroup(current()),
+              makeItAGroupRoles(rolesOf(current())),
+              makeItAGroupThresholdsSet(currentThresholdsSet(), rolesOf(current()))
+            )
           }
         />
 

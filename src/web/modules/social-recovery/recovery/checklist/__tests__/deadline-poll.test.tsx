@@ -287,6 +287,77 @@ describe('the checklist deadline and poll', () => {
     })
   })
 
+  describe('the read that judges the deadline', () => {
+    it('reads once and wipes where the client comes back past a deadline the screen last rendered before', async () => {
+      const wipe = jest.spyOn(world.records, 'wipeRecoverySession')
+      await seedCache(world.records, TWO_ROWS)
+      await seedSession(world.records, closingIn(TWO_ROWS, 40))
+      kit = fakeKit(TWO_ROWS)
+      const mounted = await mountSwappableChecklist({
+        records: world.records,
+        client: kit.state,
+        deps: depsOf({ now: () => Date.now(), visibility })
+      })
+      view = mounted
+      await settle()
+      expect(kit.recoveryState).toHaveBeenCalledTimes(1)
+
+      await mounted.swapClient({ status: 'loading' })
+      await settle(45_000)
+      const rebuilt = fakeKit(TWO_ROWS)
+      await mounted.swapClient(rebuilt.state)
+      await settle()
+
+      expect(rebuilt.recoveryState).toHaveBeenCalledTimes(1)
+      expect(wipe).toHaveBeenCalledTimes(1)
+      expect(wipe).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        'deadline-passed',
+        expect.anything()
+      )
+    })
+
+    it('asks no second read where the session record is read again past the deadline while its read runs', async () => {
+      const wipe = jest.spyOn(world.records, 'wipeRecoverySession')
+      await seedCache(world.records, TWO_ROWS)
+      await seedSession(world.records, closingIn(TWO_ROWS, 40))
+      kit = fakeKit(TWO_ROWS)
+      const mounted = await mountSwappableChecklist({
+        records: world.records,
+        client: kit.state,
+        deps: depsOf({ now: () => Date.now(), visibility })
+      })
+      view = mounted
+      await settle(CHECKLIST_POLL_MS + 1000)
+      const held = deferred<ReturnType<typeof recoveryStateOf>>()
+      kit.recoveryState.mockImplementationOnce(() => held.promise)
+      await settle(10_500)
+      expect(wipe).not.toHaveBeenCalled()
+
+      // A client rebuilt for the same session reads the session record again
+      // while its own round reads.
+      const rebuilt = fakeKit(TWO_ROWS)
+      const rebuiltRead = deferred<ReturnType<typeof recoveryStateOf>>()
+      rebuilt.recoveryState.mockImplementationOnce(() => rebuiltRead.promise)
+      await mounted.swapClient(rebuilt.state)
+      await settle()
+      expect(rebuilt.recoveryState).toHaveBeenCalledTimes(1)
+
+      await outside(async () => rebuiltRead.resolve(recoveryStateOf()))
+      await settle()
+
+      expect(rebuilt.recoveryState).toHaveBeenCalledTimes(1)
+      expect(wipe).toHaveBeenCalledTimes(1)
+      expect(wipe).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        'deadline-passed',
+        expect.anything()
+      )
+    })
+  })
+
   describe('past the deadline, while its one chain read runs', () => {
     const ROW_ACTIONS = [
       'checklist-row-0-answer-here',

@@ -319,6 +319,15 @@ export interface FollowAt {
 /** The part of the recovery client the save runs on. */
 export type ArmKitClient = Pick<RecoveryKitClient, 'descriptor'> & {
   setup: Pick<ISetupClient, 'setupState' | 'prepareCommitSetup' | 'confirmSetup'>
+  walletReads: Pick<RecoveryKitClient['walletReads'], 'attemptState'>
+}
+
+/** What a landed setup write reads to end this device's countdown of an attempt that is over. */
+export interface PastCountdownInput {
+  client: Pick<ArmKitClient, 'walletReads'>
+  records: Pick<WalletRecords, 'endPastCountdown'>
+  chainId: ChainId
+  account: Address
 }
 
 /** What the save's steps are built from. */
@@ -329,7 +338,7 @@ export interface SaveStepsInput {
   port: SendPort
   /** The wallet's queue and activity, read for a request another page queued. */
   requests: SendRequestPort
-  records: Pick<WalletRecords, 'saveSetup' | 'saveInFlight'>
+  records: Pick<WalletRecords, 'saveSetup' | 'saveInFlight' | 'endPastCountdown'>
   setup: Pick<SetupRecords, 'writeDraftAndPath'>
   chainId: ChainId
   account: Address

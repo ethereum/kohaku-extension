@@ -1,8 +1,7 @@
 import { zeroAddress } from 'viem'
 
 import type { PaymentOrder } from '@kohaku-eth/social-recovery'
-
-import type { IdentityClaimSlug } from './types'
+import { IDENTITY_KINDS } from '@web/modules/social-recovery/shared/records'
 
 /** The first release's order: no payment, to nobody. */
 export const NO_PAYMENT_ORDER: PaymentOrder = {
@@ -18,7 +17,7 @@ export const CHECKLIST_STAGE = 4
 export const PASSKEY_SLUG = 'passkey'
 
 /** The identity methods a checklist row claims through the ceremony tab, by their slugs. */
-export const IDENTITY_CLAIM_SLUGS: readonly IdentityClaimSlug[] = ['zkpassport', 'aadhaar']
+export const IDENTITY_CLAIM_SLUGS = IDENTITY_KINDS
 
 /** Every slug whose claim the checklist stores and reads back. */
 export const CLAIM_SLUGS: readonly string[] = [PASSKEY_SLUG, ...IDENTITY_CLAIM_SLUGS]

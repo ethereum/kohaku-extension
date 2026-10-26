@@ -39,6 +39,12 @@ export const deploymentRefusal = (check: DeploymentCheck, message: string): Depl
   return error
 }
 
+export const isDeploymentRefusal = (value: unknown): value is DeploymentRefusal =>
+  value instanceof Error &&
+  value.name === 'DeploymentRefusal' &&
+  'check' in value &&
+  DEPLOYMENT_CHECKS.some((check) => check === value.check)
+
 /**
  * One read of a deployment's contract. A revert, or an answer that does not
  * decode from an address with no code, is the deployment's refusal; a read

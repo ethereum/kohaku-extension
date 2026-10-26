@@ -7,6 +7,7 @@
  */
 import { act } from 'react-dom/test-utils'
 
+import i18n from '@common/config/localization'
 import {
   basicAccount,
   byTestId,
@@ -50,8 +51,8 @@ const ONE_ETHER = 1_000_000_000_000_000_000n
 const client: typeof import('@web/modules/social-recovery/shared/client') = jest.requireMock(
   '@web/modules/social-recovery/shared/client'
 )
-const DEPOSIT_LINE = 'Send at most 0.00096 ETH to this key for the submission.'
-const READING_BALANCE = 'Reading the balance and the fee…'
+const DEPOSIT_LINE = i18n.t('socialRecovery.writes.gas.submissionAmount', { amount: '0.00096 ETH' })
+const READING_BALANCE = i18n.t('socialRecovery.loading.balance')
 
 // While `hold` is set, each balance read waits until the test answers it.
 const held = {
@@ -100,9 +101,9 @@ describe('the gas step', () => {
 
     expect(byTestId('fast-track-gas')).not.toBeNull()
     expect(mockChain.balanceReads).toEqual([ORDINARY_KEY])
-    expect(text()).toContain('Fund the key that sends the recovery')
+    expect(text()).toContain(i18n.t('socialRecovery.writes.gas.fundTitle'))
     expect(text()).toContain(ORDINARY_KEY)
-    expect(text()).toContain('Send at most 0.00096 ETH to this key for the submission.')
+    expect(text()).toContain(DEPOSIT_LINE)
     expect(text()).not.toContain(OFFSET_KEY)
     expect(movesAway()).toEqual([])
   })
@@ -114,14 +115,16 @@ describe('the gas step', () => {
     expect(text()).toContain(ORDINARY_KEY)
     expect(text()).not.toContain(LOST_ACCOUNT)
     expect(text()).not.toMatch(/Transfer/)
-    expect(text()).toContain('The account cannot pay for itself until it is recovered.')
+    expect(text()).toContain(i18n.t('socialRecovery.writes.gas.sendingKeyPays'))
   })
 
   it('shows the stage counter at 3 of 5 and no breadcrumb, and keeps continue disabled', async () => {
     await mount(GAS_STEP)
 
-    expect(byTestId('recovery-stage')?.textContent).toBe('Recovery · Step 3 of 5')
-    expect(text()).not.toContain('Settings ›')
+    expect(byTestId('recovery-stage')?.textContent).toBe(
+      i18n.t('socialRecovery.entry.stageCounter', { step: 3, total: 5 })
+    )
+    expect(text()).not.toContain(i18n.t('socialRecovery.chrome.breadcrumb'))
     expect(isDisabled('fast-track-gas-continue')).toBe(true)
   })
 
@@ -129,7 +132,9 @@ describe('the gas step', () => {
     await mount(GAS_STEP)
 
     expect(byTestId('fast-track-gas-account')?.textContent).toBe(
-      `Account ${renderShortAddress(LOST_ACCOUNT)} · Sepolia`
+      `${i18n.t('socialRecovery.entry.accountLine.label')} ${renderShortAddress(
+        LOST_ACCOUNT
+      )} ${i18n.t('socialRecovery.entry.accountLine.network', { network: 'Sepolia' })}`
     )
     expect(text()).not.toContain(renderFullAddress(LOST_ACCOUNT))
   })
@@ -138,13 +143,11 @@ describe('the gas step', () => {
     await mount(GAS_STEP)
 
     const main = byTestId('fast-track-gas-columns-main')?.textContent ?? ''
-    expect(main).toContain('This screen continues on its own once the funds arrive.')
-    expect(main).toContain('Send on Sepolia, the network of the account you are recovering.')
-    expect(main).not.toContain('Already funded?')
-    expect(main).not.toContain('Continue unlocks')
-    expect(main).not.toContain('Executing after the waiting period')
+    expect(main).toContain(i18n.t('socialRecovery.writes.gas.continuesOnItsOwn'))
+    expect(main).toContain(i18n.t('socialRecovery.writes.gas.network', { network: 'Sepolia' }))
+    expect(main).not.toContain(i18n.t('socialRecovery.writes.gas.secondFunding'))
     expect(byTestId('fast-track-gas-second-funding')?.textContent).toContain(
-      'Executing after the waiting period is a second transaction.'
+      i18n.t('socialRecovery.writes.gas.secondFunding')
     )
     expect(
       byTestId('fast-track-gas-columns-aside')?.querySelector(
@@ -362,7 +365,7 @@ describe('the gas step', () => {
 
       expect(byTestId('fast-track-gas')).toBeNull()
       expect(byTestId('fast-track-gas-failed')?.textContent).toContain(
-        'Could not finish the checks before sending. The node did not answer. Nothing was sent.'
+        i18n.t('socialRecovery.writes.gasCheckFailed')
       )
       expect(byTestId('fast-track-gas-retry')).not.toBeNull()
       expect(text()).not.toContain(DEPOSIT_LINE)

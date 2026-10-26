@@ -1,7 +1,9 @@
+import type { IdentityKind } from '@web/modules/social-recovery/shared/records/types'
+
 /** What the identity row suites know of one kind: its slug, its test ids and the keys it reads. */
 export interface IdentityRowCase {
   /** The slot kind, which is also the ceremony route's method slug. */
-  slug: 'zkpassport' | 'aadhaar'
+  slug: IdentityKind
   /** The prefix of the row's test ids. */
   row: 'passport' | 'aadhaar'
   title: string

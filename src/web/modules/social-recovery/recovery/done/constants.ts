@@ -16,6 +16,3 @@ export const DONE_STAGE = 5
 
 /** How long the add of the recovered account may take before it reads as failed, in ms. */
 export const ADD_LIMIT_MS = 20_000
-
-/** The kinds of method that prove an identity, whose identifier stays the same across setups. */
-export const IDENTITY_KINDS = ['zkpassport', 'aadhaar'] as const

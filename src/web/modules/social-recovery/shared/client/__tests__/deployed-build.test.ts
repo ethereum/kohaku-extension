@@ -23,6 +23,7 @@ import {
   thrownBy,
   World
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
+import { isDeploymentRefusal } from '@web/modules/social-recovery/shared/client'
 import { sepoliaDeploymentVariable } from '@web/modules/social-recovery/shared/client/deployment-env'
 
 jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
@@ -31,9 +32,6 @@ jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
 }))
 
 const variable = sepoliaDeploymentVariable as jest.MockedFunction<typeof sepoliaDeploymentVariable>
-
-const isDeploymentRefusal = (caught: unknown): boolean =>
-  caught instanceof Error && caught.name === 'DeploymentRefusal'
 
 const ARMED: Hex = '0x0000000000000000000000000000000000000000000000000000000000000001'
 const ELSEWHERE: Address = '0x00000000000000000000000000000000000e15e0'
@@ -273,4 +271,27 @@ describe('a chain whose deployment record names the stand-in', () => {
     expect(world.ethers.call).not.toHaveBeenCalled()
     expect(world.ethers.getCode).not.toHaveBeenCalled()
   })
+})
+
+describe('the guard of a deployment refusal', () => {
+  const named = (fields: Record<string, unknown>) =>
+    Object.assign(new Error('refused'), { name: 'DeploymentRefusal', ...fields })
+
+  it('reads an error with the name and a check it names as a refusal', () => {
+    expect(isDeploymentRefusal(named({ check: 'binding' }))).toBe(true)
+  })
+
+  const NOT_REFUSALS = [
+    { name: 'an error with the name and no check', value: named({}) },
+    { name: 'an error with the name and a check it does not name', value: named({ check: 'gas' }) },
+    {
+      name: 'a plain object shaped as a refusal',
+      value: { name: 'DeploymentRefusal', check: 'binding' }
+    }
+  ]
+  NOT_REFUSALS.forEach(({ name, value }) =>
+    it(`never reads ${name} as a refusal`, () => {
+      expect(isDeploymentRefusal(value)).toBe(false)
+    })
+  )
 })

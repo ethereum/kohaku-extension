@@ -7,15 +7,22 @@
  *
  * A committed row is already part of the setup on chain, so its enrollment
  * reads as live; a test run on it in the edit moves it to that test's verdict.
+ * The holder committed every group's threshold, so each reads as set and a
+ * member the edit adds keeps it.
  */
 import {
   isReadUnder,
   reauthorizeDraftOf
 } from '@web/modules/social-recovery/management/overview/readings'
 import type { Configuration, SetupDraft } from '@kohaku-eth/social-recovery'
+import { roleOf } from '@web/modules/social-recovery/setup/editor/operations'
 import type { PrivacyLevel } from '@web/modules/social-recovery/shared/client'
 import { PASSWORD_SET } from '@web/modules/social-recovery/shared/records'
-import type { Enrollment, SetupRecords } from '@web/modules/social-recovery/shared/records'
+import type {
+  Enrollment,
+  SetupDraftRecord,
+  SetupRecords
+} from '@web/modules/social-recovery/shared/records'
 
 import type { EditSession, LoadedRecords, OpenEditInput } from './types'
 
@@ -30,7 +37,11 @@ export const recordsOfConfiguration = (
       credentials: credentials.map((credential) => ({ ...credential }))
     }))
   }
-  const setupDraft = reauthorizeDraftOf(copied, level)
+  const committed = reauthorizeDraftOf(copied, level)
+  const setupDraft: SetupDraftRecord = {
+    ...committed,
+    thresholdsSet: committed.clauses.map((clause) => roleOf(clause) === 'group')
+  }
   const enrollments: Enrollment[] = setupDraft.clauses.flatMap(({ credentials }) =>
     credentials.map((credential) => ({ credential, test: 'live' as const }))
   )

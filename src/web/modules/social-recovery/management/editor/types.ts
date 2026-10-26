@@ -27,6 +27,7 @@ import type {
   ChainId,
   Enrollment,
   RecordStorage,
+  SetupDraftRecord,
   SetupRecords,
   WalletRecords
 } from '@web/modules/social-recovery/shared/records'
@@ -85,7 +86,7 @@ export type EditSessionStorage = Pick<RecordStorage, 'get' | 'set' | 'remove'>
 
 /** The setup records a committed configuration loads into. */
 export interface LoadedRecords {
-  setupDraft: SetupDraft
+  setupDraft: SetupDraftRecord
   enrollments: Enrollment[]
   waitingPeriod: SetupDraft['wait']
   /** Whether the level hides the setup behind the recovery password. */
@@ -167,7 +168,10 @@ export interface EditorStepsInput {
   receipts: ReceiptReads
   port: SendPort
   requests: SendRequestPort
-  records: Pick<WalletRecords, 'saveSetup' | 'saveInFlight' | 'setup' | 'decryptedSetupCache'>
+  records: Pick<
+    WalletRecords,
+    'saveSetup' | 'saveInFlight' | 'setup' | 'decryptedSetupCache' | 'endPastCountdown'
+  >
   session: EditSessionAccessor
   chainId: ChainId
   account: Address

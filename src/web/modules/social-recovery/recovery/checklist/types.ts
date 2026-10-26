@@ -26,6 +26,7 @@ import type { CollectionChip } from '@web/modules/social-recovery/shared/display
 import type {
   ChainId,
   DirectWipeEvent,
+  IdentityKind,
   LiveRecoverySession,
   RecordDeployment,
   RecoveryEntryRecord,
@@ -319,6 +320,8 @@ export interface ChecklistState {
   /** A round is reading; the last answer stays on screen meanwhile. */
   polling: boolean
   retryPoll: () => void
+  /** The clock of the read that judges a pass at a moment, or null where no round reads. */
+  pollReadsFrom: (at: number) => number | null
   /** A death the poll read could not be wiped; the next poll tries again. */
   deathFailed: boolean
   /** A death or a landing the poll read is being written; nothing goes on meanwhile. */
@@ -383,6 +386,12 @@ export interface PollHook {
   /** A round is reading; the last answer stays on screen meanwhile. */
   polling: boolean
   retry: () => void
+  /**
+   * The clock of the read that judges a pass at `at`: the round in flight's,
+   * `at` itself before the session's first round returns, or null where no
+   * round reads.
+   */
+  readsFrom: (at: number) => number | null
 }
 
 // ---------------------------------------------------------------------------
@@ -390,7 +399,7 @@ export interface PollHook {
 // ---------------------------------------------------------------------------
 
 /** The identity methods a checklist row claims through the ceremony tab. */
-export type IdentityClaimSlug = 'zkpassport' | 'aadhaar'
+export type IdentityClaimSlug = IdentityKind
 
 /** What a claim runs: the method's slug, the params it receives, and whether the holder chose the phone. */
 export interface ClaimLaunch {

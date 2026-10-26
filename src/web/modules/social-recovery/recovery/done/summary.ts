@@ -15,9 +15,9 @@ import { isAddressEqual } from 'viem'
 
 import type { Address, Configuration } from '@kohaku-eth/social-recovery'
 import { methodKindIn } from '@web/modules/social-recovery/shared/client'
+import { IDENTITY_KINDS } from '@web/modules/social-recovery/shared/records/types'
 import type { SlotKind } from '@web/modules/social-recovery/shared/records/types'
 
-import { IDENTITY_KINDS } from './constants'
 import type { CleanupBlock, PathRow, RecoverySummary, RemovalExit, SummaryInput } from './types'
 
 const isIdentity = (kind: SlotKind | undefined): boolean =>

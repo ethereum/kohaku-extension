@@ -9,6 +9,7 @@ import type { Storage } from '@ambire-common/interfaces/storage'
 import type {
   Address,
   ApproverRequest,
+  Attempt,
   Configuration,
   Credential,
   Gathering,
@@ -59,8 +60,14 @@ export const ABSENT: AbsentRecord = Object.freeze({ status: 'absent' as const })
 // The six setup records
 // ---------------------------------------------------------------------------
 
-/** 1. The setup draft: the SDK's own record. */
-export type SetupDraftRecord = SetupDraft
+/**
+ * 1. The setup draft: the SDK's own record, with one flag per clause, aligned
+ * with the clauses, that says whether the holder set that clause's threshold.
+ * A threshold the holder did not set follows the suggestion as members join.
+ * The flags never reach the SDK; a draft stored without them reads with every
+ * flag unset.
+ */
+export type SetupDraftRecord = SetupDraft & { readonly thresholdsSet?: readonly boolean[] }
 
 /**
  * The draft every setup starts from until its later steps overwrite it: a wait
@@ -100,6 +107,14 @@ export type PathRecord = SetupDraft['clauses']
  */
 export const SLOT_KINDS = ['ecdsa', 'passkey', 'zkpassport', 'aadhaar'] as const
 export type SlotKind = typeof SLOT_KINDS[number]
+
+/**
+ * The kinds of method that prove an identity: a passport through zkPassport
+ * and an Aadhaar identity. Their identifier stays the same across setups, and
+ * their parameters are build data rather than the caller's.
+ */
+export const IDENTITY_KINDS = ['zkpassport', 'aadhaar'] as const
+export type IdentityKind = Extract<SlotKind, typeof IDENTITY_KINDS[number]>
 
 /**
  * The access test verdicts an enrollment carries: passed, one of the four
@@ -388,6 +403,9 @@ export type SessionRead = AbsentRecord | ({ status: 'present' } & StoredSession)
  * holds them, and the execution in flight where there is one.
  */
 export type CountdownRecord = Omit<LandedRecoverySession, 'state'>
+
+/** The last attempt the manager holds for an account, as far as a countdown's end reads it. */
+export type LastAttempt = Pick<Attempt, 'attemptId' | 'state'>
 
 /** A stored countdown, with the revision of the landed session it reads from. */
 export type StoredCountdown = StoredRecord<CountdownRecord> & { revision: SessionRevision }
@@ -783,6 +801,13 @@ export interface WalletRecords {
     account: Address,
     expectedRevision: ExpectedRevision
   ): Promise<boolean>
+  /**
+   * Ends the countdown of an attempt that is over by `last`, the last attempt
+   * the manager holds: an earlier attempt, or that attempt consumed. A
+   * countdown of a waiting or due attempt, or one that names no attempt,
+   * stays. Returns whether it ended one.
+   */
+  endPastCountdown(chainId: ChainId, account: Address, last: LastAttempt): Promise<boolean>
   countdown(chainId: ChainId, account: Address): CountdownAccessor
   /**
    * Keeps the countdown of an attempt found running on chain, holding the

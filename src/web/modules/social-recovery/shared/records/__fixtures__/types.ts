@@ -1,6 +1,7 @@
 import type { Gathering } from '@kohaku-eth/social-recovery'
 import type {
   ExpectedRevision,
+  LastAttempt,
   RecordStorage,
   WalletRecords
 } from '@web/modules/social-recovery/shared/records'
@@ -40,3 +41,6 @@ export type CountingStorageDouble = RecordStorage & {
 export type SessionUpdate = (records: WalletRecords, revision: ExpectedRevision) => Promise<unknown>
 
 export type HolderModule = typeof import('@web/modules/social-recovery/shared/records')
+
+/** The last attempt the manager holds, named for the test that reads it. */
+export type PastCountdownCase = [name: string, last: LastAttempt]

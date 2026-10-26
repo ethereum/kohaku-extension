@@ -76,11 +76,12 @@ describe('the recovery banner', () => {
   let onRetry: jest.Mock
   let view: Awaited<ReturnType<typeof mount>> | undefined
 
-  const render = (accounts: Account[]) =>
+  const render = (accounts: Account[], heldKeys: Address[] = []) =>
     mount(
       <RecoveryAttemptBannerView
         accounts={accounts}
         {...hooksOver(world)}
+        heldKeys={heldKeys}
         onCancel={onCancel}
         onDismiss={onDismiss}
         onRetry={onRetry}
@@ -305,6 +306,7 @@ describe('the recovery banner', () => {
         accounts={[smartAccount(ACCOUNT, 'Main')]}
         useAttempt={() => ({ status: 'failed', retry })}
         useDismissed={() => undefined}
+        heldKeys={[]}
         onCancel={onCancel}
         onDismiss={onDismiss}
         onRetry={onRetry}
@@ -342,6 +344,20 @@ describe('the recovery banner', () => {
 
     await view.press(`recovery-banner-${id}-executed-dismiss`)
     expect(onDismiss).toHaveBeenCalledWith(ACCOUNT, 4n)
+    expect(view.byTestId(`recovery-banner-${id}`)).toBeNull()
+  })
+
+  it('renders no executed notice on the device whose keystore holds the key that controls the account since', async () => {
+    await storeRecord(world, SEPOLIA, ACCOUNT, {
+      reading: {
+        ...openRecord().reading!,
+        attempt: undefined,
+        ended: { attemptId: 4n, road: 'executed', controller: NEW_KEY, at: ENDED_TIME }
+      },
+      dismissed: []
+    })
+    view = await render([smartAccount(ACCOUNT, 'Main')], [NEW_KEY.toLowerCase() as Address])
+
     expect(view.byTestId(`recovery-banner-${id}`)).toBeNull()
   })
 

@@ -180,16 +180,14 @@ describe("a group's threshold above its members, on the group's card", () => {
     expect(byTestId('editor-group-1-above-members')).toBeNull()
   })
 
-  it('reads nothing on a new group with no member, and the refusal once it holds one at its default of two', async () => {
+  it('reads nothing on a new group with no member, nor once it holds one at the suggested any one of one', async () => {
     await mount({ clauses: presetPath() })
     await press('editor-add-group')
     expect(byTestId('editor-group-2')).not.toBeNull()
     expect(byTestId('editor-group-2-above-members')).toBeNull()
     await press('editor-group-2-add')
     await press('editor-group-2-add-menu-passkey')
-    expect(byTestId('editor-group-2-above-members')?.textContent).toBe(
-      refusals.thresholdAboveMembers
-    )
+    expect(byTestId('editor-group-2-above-members')).toBeNull()
   })
 })
 

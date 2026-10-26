@@ -17,6 +17,7 @@ const RecoveryAttemptBannerView = ({
   accounts,
   useAttempt,
   useDismissed,
+  heldKeys,
   onCancel,
   onDismiss,
   onRetry,
@@ -39,6 +40,7 @@ const RecoveryAttemptBannerView = ({
             name={named ? listed?.preferences?.label ?? '' : undefined}
             useAttempt={useAttempt}
             useDismissed={useDismissed}
+            heldKeys={heldKeys}
             onCancel={onCancel}
             onDismiss={onDismiss}
             onRetry={onRetry}

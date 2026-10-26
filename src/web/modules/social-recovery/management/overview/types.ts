@@ -208,7 +208,10 @@ export interface OverviewStepsInput {
   receipts: ReceiptReads
   port: SendPort
   requests: SendRequestPort
-  records: Pick<WalletRecords, 'saveSetup' | 'saveInFlight' | 'setup' | 'decryptedSetupCache'>
+  records: Pick<
+    WalletRecords,
+    'saveSetup' | 'saveInFlight' | 'setup' | 'decryptedSetupCache' | 'endPastCountdown'
+  >
   chainId: ChainId
   account: Address
   facts: ListedAccountFacts

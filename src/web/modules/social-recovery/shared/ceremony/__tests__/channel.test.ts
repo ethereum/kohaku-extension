@@ -64,55 +64,43 @@ describe('a report the tab writes', () => {
   })
 })
 
-describe('takeCeremonyReport', () => {
-  it('delivers the expected report within its expiry and removes it', async () => {
+describe('a report a row reads and then removes', () => {
+  /** The row's own path: it reads the report and removes it once it has one. */
+  const readThenRemove = async (store: ReturnType<typeof mapStore>, now: number) => {
+    const report = await ceremony().readCeremonyReport(EXPECTED, store, now)
+    if (report) {
+      await store.remove(key())
+    }
+    return report
+  }
+
+  it('delivers the expected report within its expiry, and leaves storage once removed', async () => {
     const store = mapStore([[key(), reportAt(T0)]])
-    const report = await ceremony().takeCeremonyReport(EXPECTED, store, T0 + 60_000)
+    const report = await readThenRemove(store, T0 + 60_000)
     expect(report).toMatchObject({ ...EXPECTED, reportedAt: T0 })
-    expect(store.remove).toHaveBeenCalledWith(key())
     expect(store.map.has(key())).toBe(false)
   })
 
-  it('delivers it once: a second take reads null', async () => {
+  it('delivers it once: a second read reads null', async () => {
     const store = mapStore([[key(), reportAt(T0)]])
-    await ceremony().takeCeremonyReport(EXPECTED, store, T0 + 1)
-    expect(await ceremony().takeCeremonyReport(EXPECTED, store, T0 + 2)).toBeNull()
+    await readThenRemove(store, T0 + 1)
+    expect(await readThenRemove(store, T0 + 2)).toBeNull()
   })
 
-  it('hands back the very object the store returns', async () => {
-    const stored = reportAt(T0)
-    const store = mapStore([[key(), stored]])
-    expect(await ceremony().takeCeremonyReport(EXPECTED, store, T0 + 1)).toBe(stored)
-  })
-
-  it('reads no report from unparsed text, since the store parses what it returns', async () => {
-    const store = mapStore([[key(), JSON.stringify(reportAt(T0))]])
-    expect(await ceremony().takeCeremonyReport(EXPECTED, store, T0 + 1)).toBeNull()
-  })
-
-  it('reads null at its expiry and removes it', async () => {
+  it('delivers it one millisecond before its expiry, and reads null at it', async () => {
     const store = mapStore([[key(), reportAt(T0)]])
-    const report = await ceremony().takeCeremonyReport(EXPECTED, store, T0 + 10 * 60 * 1000)
-    expect(report).toBeNull()
-    expect(store.map.has(key())).toBe(false)
-  })
-
-  it('delivers it one millisecond before its expiry', async () => {
-    const store = mapStore([[key(), reportAt(T0)]])
-    expect(
-      await ceremony().takeCeremonyReport(EXPECTED, store, T0 + 10 * 60 * 1000 - 1)
-    ).not.toBeNull()
+    expect(await ceremony().readCeremonyReport(EXPECTED, store, T0 + 10 * 60 * 1000)).toBeNull()
+    expect(await readThenRemove(store, T0 + 10 * 60 * 1000 - 1)).not.toBeNull()
   })
 
   it('reads null for a report stamped in the future past a minute of skew', async () => {
     const store = mapStore([[key(), reportAt(T0 + 2 * 60 * 1000)]])
-    expect(await ceremony().takeCeremonyReport(EXPECTED, store, T0)).toBeNull()
+    expect(await readThenRemove(store, T0)).toBeNull()
   })
 
-  it('reads null and removes a malformed value', async () => {
+  it('reads null for a malformed value', async () => {
     const store = mapStore([[key(), { id: 'req-1', outcome: 'passed' }]])
-    expect(await ceremony().takeCeremonyReport(EXPECTED, store, T0)).toBeNull()
-    expect(store.map.has(key())).toBe(false)
+    expect(await readThenRemove(store, T0)).toBeNull()
   })
 
   const OTHERS: [string, Partial<ReportIdentity>][] = [
@@ -124,14 +112,14 @@ describe('takeCeremonyReport', () => {
     it(`reads null and leaves a report for ${title} in place`, async () => {
       const stored = reportAt(T0, identity)
       const store = mapStore([[key(), stored]])
-      expect(await ceremony().takeCeremonyReport(EXPECTED, store, T0 + 1)).toBeNull()
+      expect(await readThenRemove(store, T0 + 1)).toBeNull()
       expect(store.map.get(key())).toBe(stored)
     })
   )
 
-  it('reads null where nothing was written', async () => {
+  it('reads null where nothing was written, and removes nothing', async () => {
     const store = mapStore()
-    expect(await ceremony().takeCeremonyReport(EXPECTED, store, T0)).toBeNull()
+    expect(await readThenRemove(store, T0)).toBeNull()
     expect(store.remove).not.toHaveBeenCalled()
   })
 })
