@@ -196,6 +196,12 @@ export interface SaveGateInput extends AccountReads {
   backup: BackupChoice
   /** Whether the records hold a recovery password record. */
   passwordSet: boolean
+  /**
+   * Whether the wallet lists the account as a basic account, with no smart
+   * account behind it: this release cannot recover one, whatever the reads
+   * answer. False where the wallet does not list the account.
+   */
+  basicAccount: boolean
 }
 
 export interface SaveGate {
@@ -236,6 +242,8 @@ export interface ReviewViewProps {
   client: ReviewClient
   /** The label the wallet holds for the account, where it holds one. */
   accountLabel?: string
+  /** Whether the wallet lists the account as a basic account. */
+  basicAccount: boolean
   navigate: (to: string) => void
 }
 
@@ -276,6 +284,10 @@ export type SaveBlockerHandler = Exclude<keyof SaveBlockerProps, 'blocked'>
 
 /** The block of an account this release cannot recover. */
 export type CannotRecoverBlock = Extract<SaveBlock, { kind: 'cannot-recover' }>
+
+export interface CannotRecoverCardProps {
+  blocked: CannotRecoverBlock
+}
 
 /** The string keys a block renders beside Save, and the action that clears it where one does. */
 export interface SaveBlockCopy {

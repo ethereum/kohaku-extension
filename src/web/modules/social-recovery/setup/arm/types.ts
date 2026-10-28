@@ -388,6 +388,8 @@ export interface ArrivalInput {
   passwordHeld: boolean
   /** The read of a stored save in flight; undefined until it starts. */
   inFlight: InFlightLookup | undefined
+  /** Whether the wallet lists the account as a basic account, which this release cannot recover. */
+  basicAccount: boolean
 }
 
 /** Which retry clears an unavailable arrival, where one does. */

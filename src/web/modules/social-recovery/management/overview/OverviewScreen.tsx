@@ -12,15 +12,20 @@
  * watcher reads a new ending of the account's attempt and whenever the tab is
  * shown again, so an overview left open reaches what the chain now holds;
  * neither runs them while a write step is open, whose own end reads again.
+ * A basic account, which this release cannot recover, sees that refusal in
+ * place of the overview, before the client is built or any read runs.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Linking } from 'react-native'
+import { isAddress, isAddressEqual } from 'viem'
 
+import { isSmartAccount } from '@ambire-common/libs/account/account'
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
 import { useTranslation } from '@common/config/localization'
 import useNavigation from '@common/hooks/useNavigation'
 import spacings from '@common/styles/spacings'
+import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
 import AccountAttemptBanner from '@web/modules/social-recovery/cancel/AccountAttemptBanner'
 import { pollOnce } from '@web/modules/social-recovery/cancel/reads'
@@ -54,6 +59,7 @@ import { useTrustReads } from '@web/modules/social-recovery/setup/review/useTrus
 import { dismissAttempt, watchedNetworkOf } from '@web/modules/social-recovery/watcher'
 import { useWatchedAttempt } from '@web/modules/social-recovery/watcher/useWatchedAttempt'
 
+import CannotRecoverBlock from './CannotRecoverBlock'
 import { MANAGE_LINKS, SAVE_LINK } from './constants'
 import OverviewView from './OverviewView'
 import OverviewWriteStep from './OverviewWriteStep'
@@ -305,13 +311,23 @@ const OverviewStage = ({ records, chainId, account, navigate }: OverviewStagePro
 const OverviewScreen = () => {
   const { navigate } = useNavigation()
   const { account } = useSetupAccount()
+  const { accounts } = useAccountsControllerState()
   const records = useMemo(() => createWalletRecords({ storage: extensionRecordStorage }), [])
   const chainId = CHAIN_IDS[WALLET_RECOVERY_CHAIN]
 
+  // The wallet's own record of the tab's account, from the background's state push.
+  const listed = account
+    ? accounts?.find(
+        (candidate) => isAddress(candidate.addr) && isAddressEqual(candidate.addr, account)
+      )
+    : undefined
+  const basicAccount = !!listed && !isSmartAccount(listed)
+
   return (
     <SetupChrome testID="overview-screen">
+      {!!account && basicAccount && <CannotRecoverBlock navigate={navigate} />}
       {/* Another account mounts a new stage, so no read or step carries across. */}
-      {!!account && (
+      {!!account && !basicAccount && (
         <OverviewStage
           key={`${chainId}:${account}`}
           records={records}

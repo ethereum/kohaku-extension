@@ -117,8 +117,9 @@ jest.mock('@web/modules/social-recovery/watcher/useWatchedAttempt', () => ({
     return mockWallet.watched ?? { status: 'unwatched' }
   }
 }))
+const mockUseRecoveryClient = jest.fn(() => mockWallet.client)
 jest.mock('@web/modules/social-recovery/shared/client/useRecoveryClient', () => ({
-  useRecoveryClient: () => mockWallet.client
+  useRecoveryClient: () => mockUseRecoveryClient()
 }))
 jest.mock('@web/modules/social-recovery/shared/client/useAccountFacts', () => ({
   useAccountFacts: () => mockWallet.facts
@@ -713,5 +714,74 @@ describe("the overview's screen", () => {
     } finally {
       mockWallet.watched = undefined
     }
+  })
+})
+
+describe('the overview of an account the wallet lists, with no setup on the chain', () => {
+  let view: Awaited<ReturnType<typeof mount>> | undefined
+
+  /** A client over a fresh node, which holds no setup for the account. */
+  const noSetupWorld = async () => {
+    const storage = makeStorage()
+    mockWallet.storage = storage
+    const world = await worldAt('public', address, storage)
+    world.chain.clearSetup()
+    world.chain.setAuthorized(false)
+    mockWallet.client = readyOver(world.client)
+    mockUseRecoveryClient.mockClear()
+    mockState.navigation.navigate.mockClear()
+    return world
+  }
+
+  afterEach(() => {
+    view?.unmount()
+    view = undefined
+    mockState.accounts.accounts = []
+  })
+
+  it('refuses a basic account under the title, with the way to recover another account and no invitation to set up', async () => {
+    await noSetupWorld()
+    mockState.accounts.accounts = [{ ...account, creation: null }]
+
+    view = await mount(<OverviewScreen />)
+    await harness.settleReads()
+
+    expect(view.byTestId('overview-cannot-recover')).not.toBeNull()
+    expect(view.textOf('overview-title')).toBe(t(`${O}.title`))
+    expect(view.byTestId('review-blocked-cannot-recover')).not.toBeNull()
+    expect(view.textOf('review-blocked-body')).toBe(
+      t('socialRecovery.review.blocked.cannotRecover.reasonNotSupported')
+    )
+    expect(view.byTestId('recover')).not.toBeNull()
+    expect(view.byTestId('overview-empty')).toBeNull()
+    expect(view.byTestId('overview-set-up')).toBeNull()
+    expect(view.byTestId('overview-chips')).toBeNull()
+    expect(view.byTestId('overview-reading')).toBeNull()
+    expect(mockUseRecoveryClient).not.toHaveBeenCalled()
+  })
+
+  it("leads a basic account's link to the recovery of another account", async () => {
+    await noSetupWorld()
+    mockState.accounts.accounts = [{ ...account, creation: null }]
+
+    view = await mount(<OverviewScreen />)
+    await view.press('recover')
+
+    expect(mockState.navigation.navigate).toHaveBeenCalledWith(WEB_ROUTES.socialRecoveryRecovery)
+  })
+
+  it('still invites a smart account to set recovery up, over its read of the chain', async () => {
+    await noSetupWorld()
+    mockState.accounts.accounts = [account]
+
+    view = await mount(<OverviewScreen />)
+    await harness.settleReads()
+
+    expect(view.byTestId('overview-empty')).not.toBeNull()
+    expect(view.byTestId('overview-set-up')).not.toBeNull()
+    expect(view.byTestId('overview-cannot-recover')).toBeNull()
+    expect(view.byTestId('review-blocked-cannot-recover')).toBeNull()
+    expect(view.byTestId('recover')).toBeNull()
+    expect(mockUseRecoveryClient).toHaveBeenCalled()
   })
 })

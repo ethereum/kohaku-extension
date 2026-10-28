@@ -11,13 +11,16 @@
  */
 import React from 'react'
 import { View } from 'react-native'
+import { isAddress, isAddressEqual } from 'viem'
 
+import { isSmartAccount } from '@ambire-common/libs/account/account'
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
 import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
+import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import { ActionsRow, SectionCard } from '@web/modules/social-recovery/shared/chrome'
 import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
@@ -73,6 +76,12 @@ const ReviewArrival = ({
   run
 }: ReviewArrivalProps) => {
   const { t } = useTranslation()
+  const { accounts } = useAccountsControllerState()
+  // The wallet's own record of the account the edit saves, for its kind.
+  const listed = accounts?.find(
+    (candidate) => isAddress(candidate.addr) && isAddressEqual(candidate.addr, account)
+  )
+  const basicAccount = !!listed && !isSmartAccount(listed)
 
   if (run && load.status !== 'loaded') {
     return <View testID="manage-review-arrival">{run}</View>
@@ -119,7 +128,8 @@ const ReviewArrival = ({
       ),
       clauses,
       backup: draft.privacy.backup,
-      passwordSet: !passwordMissing
+      passwordSet: !passwordMissing,
+      basicAccount
     }),
     rows,
     added,
@@ -130,7 +140,7 @@ const ReviewArrival = ({
     trustRows
       .filter(({ contract }) => contract.status === 'unavailable')
       .forEach(({ method }) => trust.retry(method))
-    accountReads.retry(accountReadsToRetry(accountReads))
+    accountReads.retry(accountReadsToRetry(accountReads, basicAccount))
   }
   // Save waits on the client and on reads that have not answered; no block
   // shows until they settle, so a line beside the held Save says what runs.

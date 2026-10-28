@@ -246,8 +246,9 @@ const mount = async ({
   describeSetup = async () => descriptionOf(),
   accountLabel,
   storageRefuses = false,
-  storageHeld
-}: MountOptions = {}) => {
+  storageHeld,
+  basicAccount = false
+}: MountOptions & { basicAccount?: boolean } = {}) => {
   const storage = makeStorage(false)
   const records = createWalletRecords({ storage })
   const setup = records.setup(CHAIN_ID, ACCOUNT)
@@ -318,6 +319,7 @@ const mount = async ({
             account={ACCOUNT}
             client={reviewClient}
             accountLabel={label}
+            basicAccount={basicAccount}
             navigate={navigate}
           />
         </ThemeContext.Provider>
@@ -1656,6 +1658,121 @@ describe("the wallet's reading of the account's keys", () => {
 
     expect(byTestId('review-blocked-already-set-up')).not.toBeNull()
     expect(isDisabled('review-save')).toBe(true)
+  })
+})
+
+describe('a basic account the wallet lists', () => {
+  const BLOCKED = 'socialRecovery.review.blocked'
+  // The wallet's reads of a key with no smart account behind it.
+  const keyReads = {
+    removedKey: async (): Promise<RemovedKeyReading> => ({
+      kind: 'unavailable',
+      cause: 'no-source'
+    }),
+    fitCheck: async (): Promise<FitCheckReading> => ({
+      basis: 'code-to-be',
+      implementation: '0x8888888888888888888888888888888888888888',
+      fits: true
+    })
+  }
+
+  it('reads that this release cannot recover it, with the unsupported line and no retry', async () => {
+    await mount({ ...keyReads, basicAccount: true })
+
+    expect(byTestId('review-blocked-cannot-recover')).not.toBeNull()
+    expect(textOf('review-blocked-chip')).toBe(t('socialRecovery.status.recovery.cannotRecover'))
+    expect(textOf('review-blocked-title')).toBe(t(`${BLOCKED}.cannotRecover.title`))
+    expect(textOf('review-blocked-body')).toBe(t(`${BLOCKED}.cannotRecover.reasonNotSupported`))
+    expect(byTestId('review-blocked-removed-key-unreadable')).toBeNull()
+    expect(pageText()).not.toContain(t(`${BLOCKED}.removedKeyUnreadable.title`))
+    expect(byTestId('review-blocked-retry')).toBeNull()
+    expect(isDisabled('review-save')).toBe(true)
+  })
+
+  it('reads that this release cannot recover it even where every read names a key and fits', async () => {
+    await mount({ basicAccount: true })
+
+    expect(textOf('review-blocked-body')).toBe(t(`${BLOCKED}.cannotRecover.reasonNotSupported`))
+    expect(isDisabled('review-save')).toBe(true)
+  })
+
+  it('reads the same key reads as an unreadable removed key for an account not listed as basic', async () => {
+    await mount({ ...keyReads, basicAccount: false })
+
+    expect(byTestId('review-blocked-removed-key-unreadable')).not.toBeNull()
+    expect(byTestId('review-blocked-cannot-recover')).toBeNull()
+  })
+})
+
+describe('an untested method beside a refusal', () => {
+  const untestedPath = {
+    clauses: [required(ALICE)],
+    enrollments: [enrolled(ALICE, 'not-tested')]
+  }
+  const NOT_TESTED_TITLE = 'socialRecovery.review.blocked.notTested.title'
+  const REFUSALS = [
+    [
+      'a basic account the wallet lists',
+      {
+        basicAccount: true,
+        removedKey: async (): Promise<RemovedKeyReading> => ({
+          kind: 'unavailable',
+          cause: 'no-source'
+        })
+      }
+    ],
+    [
+      'an action that does not fit the account',
+      { fitCheck: async (): Promise<FitCheckReading> => ({ basis: 'deployed-code', fits: false }) }
+    ],
+    [
+      'two keys that hold authority',
+      {
+        describeSetup: async () =>
+          descriptionOf([
+            { key: REMOVED_KEY, isAuthority: true },
+            { key: OTHER_KEY, isAuthority: true }
+          ])
+      }
+    ],
+    [
+      'several keys the wallet reads',
+      {
+        removedKey: async (): Promise<RemovedKeyReading> => ({
+          kind: 'unavailable',
+          cause: 'several-key-entries'
+        })
+      }
+    ]
+  ] as const
+
+  REFUSALS.forEach(([named, options]) =>
+    it(`shows no untested warning beside the refusal for ${named}`, async () => {
+      await mount({ ...untestedPath, ...options })
+
+      expect(byTestId('review-blocked-cannot-recover')).not.toBeNull()
+      expect(byTestId('review-not-tested')).toBeNull()
+      expect(pageText()).not.toContain(t(NOT_TESTED_TITLE))
+      expect(pageText()).not.toContain(t('socialRecovery.review.blocked.notTested.body'))
+      expect(isDisabled('review-save')).toBe(true)
+    })
+  )
+
+  it('still warns beside the block of an account that already has a setup', async () => {
+    await mount({ ...untestedPath, setupState: async () => setupStateOf(true) })
+
+    expect(byTestId('review-blocked-already-set-up')).not.toBeNull()
+    expect(textOf('review-not-tested')).toContain(t(NOT_TESTED_TITLE))
+  })
+
+  it('still warns beside a removed key it could not read', async () => {
+    await mount({
+      ...untestedPath,
+      removedKey: async () => ({ kind: 'unavailable', cause: 'no-source' })
+    })
+
+    expect(byTestId('review-blocked-removed-key-unreadable')).not.toBeNull()
+    expect(textOf('review-not-tested')).toContain(t(NOT_TESTED_TITLE))
   })
 })
 

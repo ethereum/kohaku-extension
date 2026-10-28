@@ -3,11 +3,15 @@
  * path holds a method, an encrypted backup has its recovery password, the
  * client is ready, every trust list read answered, the key a recovery removes
  * is named, the action fits the account and no setup exists. The block shown
- * is the first that applies: the records' blocks (an empty slot, then the
- * missing password) before the reads' blocks (a read that did not answer, the
- * removed key unreadable, an account this release cannot recover because the
- * action does not fit it or it holds more than one key, a setup that already
- * exists). An untested method warns beside Save and never disables it.
+ * is the first that applies: a basic account, which this release cannot
+ * recover whatever else holds; then the records' blocks (an empty slot, then
+ * the missing password) before the reads' blocks (a read that did not answer,
+ * an account this release cannot recover because the action does not fit it
+ * or it holds more than one key, the removed key unreadable, a setup that
+ * already exists). A cannot-recover answer is final, so it comes before the
+ * unreadable removed key, whose retry could not change it. An untested method
+ * warns beside Save and never disables it, and never shows beside a
+ * cannot-recover answer.
  */
 import type { Address, Clause, SetupDescription } from '@kohaku-eth/social-recovery'
 import type { Enrollment } from '@web/modules/social-recovery/shared/records'
@@ -68,13 +72,18 @@ const removedKeyUnreadable = (reads: AccountReads): boolean =>
 
 /**
  * The account's reads a retry runs again: every read that threw, and the
- * removed key where it could not be named.
+ * removed key where it could not be named. A basic account has no removed key
+ * to name, so its removed key is never read again.
  */
-export const accountReadsToRetry = (reads: AccountReads): AccountReadName[] =>
-  ACCOUNT_READ_NAMES.filter(
-    (name) =>
-      reads[name].status === 'failed' || (name === 'removedKey' && removedKeyUnreadable(reads))
-  )
+export const accountReadsToRetry = (reads: AccountReads, basicAccount = false): AccountReadName[] =>
+  ACCOUNT_READ_NAMES.filter((name) => {
+    if (name === 'removedKey' && basicAccount) {
+      return false
+    }
+    return reads[name].status === 'failed' || (name === 'removedKey' && removedKeyUnreadable(reads))
+  })
+
+const NOT_SUPPORTED: SaveBlock = { kind: 'cannot-recover', reason: 'not-supported' }
 
 /**
  * The block on screen, once every read it depends on settled: until then no
@@ -95,11 +104,8 @@ const blockOf = (input: SaveGateInput): SaveBlock | null => {
   ) {
     return { kind: 'unavailable' }
   }
-  if (removedKeyUnreadable(input)) {
-    return { kind: 'removed-key-unreadable' }
-  }
   if (fitCheck.status === 'answered' && !fitCheck.value.fits) {
-    return { kind: 'cannot-recover', reason: 'not-supported' }
+    return NOT_SUPPORTED
   }
   const count =
     description.status === 'answered' ? authoritiesOf(description.value).length : undefined
@@ -108,6 +114,9 @@ const blockOf = (input: SaveGateInput): SaveBlock | null => {
   }
   if (holdsSeveralKeys(input)) {
     return { kind: 'cannot-recover', reason: 'key-count' }
+  }
+  if (removedKeyUnreadable(input)) {
+    return { kind: 'removed-key-unreadable' }
   }
   if (setupState.status === 'answered' && setupState.value.hasSetup) {
     return { kind: 'already-set-up' }
@@ -130,7 +139,7 @@ export const saveGateOf = (input: SaveGateInput): SaveGate => {
   const { recordsLoaded, clientReady, trustRows, removedKey, fitCheck, setupState } = input
   const recordsBlock = recordsLoaded ? recordsBlockOf(input) : null
   const readsBlock = recordsLoaded && clientReady ? blockOf(input) : null
-  const blocked = recordsBlock ?? readsBlock
+  const blocked = input.basicAccount ? NOT_SUPPORTED : recordsBlock ?? readsBlock
   const everyRead =
     trustReadsComplete(trustRows) &&
     removedKey.status === 'answered' &&
@@ -143,7 +152,10 @@ export const saveGateOf = (input: SaveGateInput): SaveGate => {
     canSave: recordsLoaded && clientReady && everyRead && blocked === null,
     blocked,
     notTested:
-      recordsLoaded && input.untested !== false && input.untested.length > 0
+      recordsLoaded &&
+      blocked?.kind !== 'cannot-recover' &&
+      input.untested !== false &&
+      input.untested.length > 0
         ? input.untested
         : false
   }

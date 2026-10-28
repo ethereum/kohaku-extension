@@ -962,6 +962,7 @@ export const gateFor = (gate: GateCase, clientReady = true): SaveGate => {
     clauses,
     backup: 'encrypted',
     passwordSet,
+    basicAccount: false,
     ...reads
   })
 }
@@ -1011,7 +1012,8 @@ export const arrivalFor = (
     gate: gateFor(input.gate, input.client === 'ready'),
     setupState: { status: 'answered', value: setupStateOf(input.gate === 'already-set-up') },
     passwordHeld: input.passwordHeld,
-    inFlight
+    inFlight,
+    basicAccount: false
   })
 
 /** Whether the holder starts the save a second time, and what the setup read answers then. */
@@ -1110,6 +1112,9 @@ export type SelectedAccountMock = {
   current: { addr: string; preferences: { label: string } } | null
   listeners: Set<() => void>
 }
+
+/** The accounts the wallet lists, as the mocked hook answers them. */
+export type AccountsMock = { current: Account[] }
 
 /** The client state the mocked hook answers. */
 export type ClientMock = { current: unknown }

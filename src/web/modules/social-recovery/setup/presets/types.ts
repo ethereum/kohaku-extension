@@ -70,3 +70,8 @@ export interface PresetsViewProps {
   /** Opens the recovery of another account. */
   onRecover: () => void
 }
+
+export interface RecoverLinkProps {
+  /** Opens the recovery of another account. */
+  onRecover: () => void
+}

@@ -81,6 +81,7 @@ const ReviewView = ({
   account,
   client,
   accountLabel,
+  basicAccount,
   navigate
 }: ReviewViewProps) => {
   const { t } = useTranslation()
@@ -218,7 +219,8 @@ const ReviewView = ({
     untested: untestedInPath(clauses, load.enrollments),
     clauses,
     backup: draft.privacy.backup,
-    passwordSet: load.passwordSet
+    passwordSet: load.passwordSet,
+    basicAccount
   })
 
   // Save waits on the client and on reads that have not answered; no block
@@ -232,7 +234,7 @@ const ReviewView = ({
     rows
       .filter(({ contract }) => contract.status === 'unavailable')
       .forEach(({ method }) => retry(method))
-    accountReads.retry(accountReadsToRetry(accountReads))
+    accountReads.retry(accountReadsToRetry(accountReads, basicAccount))
   }
 
   let clientRefusal: { title: string; body: string } | null = null

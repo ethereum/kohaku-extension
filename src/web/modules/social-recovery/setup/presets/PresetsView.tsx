@@ -6,16 +6,13 @@
  * here.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Pressable, View } from 'react-native'
+import { View } from 'react-native'
 
-import RightArrowIcon from '@common/assets/svg/RightArrowIcon'
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
 import { useTranslation } from '@common/config/localization'
-import useTheme from '@common/hooks/useTheme'
 import spacings from '@common/styles/spacings'
-import common from '@common/styles/utils/common'
 import flexbox from '@common/styles/utils/flexbox'
 import {
   ActionsRow,
@@ -34,6 +31,7 @@ import { isSaveInFlightRefusal } from '@web/modules/social-recovery/shared/recor
 import { startDraft } from './draft'
 import { cardRuleLines, shapeRowsOf } from './lines'
 import { PRESETS } from './presets'
+import RecoverLink from './RecoverLink'
 import {
   draftAgeLine,
   holdsPasskeyOf,
@@ -53,7 +51,6 @@ import type {
 
 const PresetsView = ({ records, chainId, account, onOpenEditor, onRecover }: PresetsViewProps) => {
   const { t } = useTranslation()
-  const { theme } = useTheme()
 
   // `undefined` until the stored draft is read, `null` when there is none.
   const [savedAt, setSavedAt] = useState<number | null | undefined>(undefined)
@@ -447,30 +444,7 @@ const PresetsView = ({ records, chainId, account, onOpenEditor, onRecover }: Pre
         {loadFailed && renderLoadFailed()}
         {!loadFailed && savedAt === null && renderGrid()}
         {!loadFailed && typeof savedAt === 'number' && renderResume(savedAt)}
-        <Pressable
-          testID="recover"
-          accessibilityRole="button"
-          onPress={onRecover}
-          style={[
-            flexbox.directionRow,
-            flexbox.alignCenter,
-            common.borderRadiusSecondary,
-            spacings.ph,
-            spacings.pv,
-            spacings.mtLg,
-            { borderWidth: 1, borderColor: theme.secondaryBorder }
-          ]}
-        >
-          <View style={[flexbox.flex1, spacings.mrSm]}>
-            <Text fontSize={16} weight="medium">
-              {t('socialRecovery.routes.recover')}
-            </Text>
-            <Text fontSize={12} appearance="secondaryText">
-              {t('socialRecovery.presets.recoverLine')}
-            </Text>
-          </View>
-          <RightArrowIcon />
-        </Pressable>
+        <RecoverLink onRecover={onRecover} />
       </View>
     </TwoColumn>
   )

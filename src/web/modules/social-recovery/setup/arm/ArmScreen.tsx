@@ -18,6 +18,7 @@ import { Linking, View } from 'react-native'
 import { useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { isAddress, isAddressEqual } from 'viem'
 
+import { isSmartAccount } from '@ambire-common/libs/account/account'
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
 import { useTranslation } from '@common/config/localization'
@@ -97,6 +98,11 @@ const ArmStep = ({ records, chainId, account, navigate }: StepViewProps) => {
     [clauses, enrollments, trust.reads, kit, addressBook]
   )
   const accountReads = useAccountReads(kit, draft)
+  // The wallet's own record of the account the step saves, for its name and its kind.
+  const listed = accounts?.find(
+    (candidate) => isAddress(candidate.addr) && isAddressEqual(candidate.addr, account)
+  )
+  const basicAccount = !!listed && !isSmartAccount(listed)
   const gate = saveGateOf({
     recordsLoaded: load.status === 'loaded',
     clientReady: !!kit,
@@ -109,7 +115,8 @@ const ArmStep = ({ records, chainId, account, navigate }: StepViewProps) => {
     untested: false,
     clauses,
     backup: draft?.privacy.backup ?? 'encrypted',
-    passwordSet: load.status === 'loaded' && load.passwordSet
+    passwordSet: load.status === 'loaded' && load.passwordSet,
+    basicAccount
   })
   const password = readRecoveryPassword(chainId, account)
 
@@ -182,10 +189,6 @@ const ArmStep = ({ records, chainId, account, navigate }: StepViewProps) => {
   const saveMayRun = overviewWrite.status === 'answered' && !overviewWrite.value
 
   const ready = facts.status === 'ready' ? facts.facts : null
-  // The wallet's own record of the account the step saves, for its name.
-  const listed = accounts?.find(
-    (candidate) => isAddress(candidate.addr) && isAddressEqual(candidate.addr, account)
-  )
   const steps = useMemo<SaveSteps | null>(() => {
     if (!saveMayRun || !kit || !chainReads || !receipts || !ready?.key || !draft) {
       return null
@@ -238,7 +241,8 @@ const ArmStep = ({ records, chainId, account, navigate }: StepViewProps) => {
     gate,
     setupState: accountReads.setupState,
     passwordHeld: password !== undefined,
-    inFlight: state.lookup
+    inFlight: state.lookup,
+    basicAccount
   })
   // A kept refusal whose operation may still land ends where the arrival's setup read finds it landed.
   const arrivalFoundSetup =
@@ -277,8 +281,8 @@ const ArmStep = ({ records, chainId, account, navigate }: StepViewProps) => {
     rows
       .filter(({ contract }) => contract.status === 'unavailable')
       .forEach(({ method }) => trust.retry(method))
-    accountReads.retry(accountReadsToRetry(accountReads))
-  }, [rows, trust, accountReads])
+    accountReads.retry(accountReadsToRetry(accountReads, basicAccount))
+  }, [rows, trust, accountReads, basicAccount])
 
   const retryArrival = useCallback(() => {
     if (arrival.kind === 'load-failed') {

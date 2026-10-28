@@ -24,6 +24,7 @@ import type {
   ManageIntent
 } from '@web/modules/social-recovery/management/editor/__fixtures__/types'
 import type { EditSession } from '@web/modules/social-recovery/management/editor/types'
+import type { Account } from '@ambire-common/interfaces/account'
 import type { Clause } from '@kohaku-eth/social-recovery'
 
 // The spinner's animation needs a native module jsdom lacks; a plain view stands in.
@@ -132,6 +133,9 @@ const {
 const {
   makeStorage
 }: typeof import('@web/modules/social-recovery/shared/records/__fixtures__/storage') = require('@web/modules/social-recovery/shared/records/__fixtures__/storage')
+const {
+  AccountsControllerStateContext
+}: typeof import('@web/contexts/accountsControllerStateContext') = require('@web/contexts/accountsControllerStateContext')
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
 
 const { ACCOUNT, ALICE, BOB, BOOK, CHAIN_ID, SHIPPED } = review
@@ -1032,6 +1036,87 @@ describe('the review and the removal once a recovery moved control away from thi
     expect(navigate).toHaveBeenCalledWith('social-recovery/manage')
     expect(view.byTestId('manage-review-reads')).toBeNull()
     expect(view.byTestId('manage-review-save')).toBeNull()
+    view.unmount()
+  })
+})
+
+describe('the review of an edit for an account the wallet lists as basic', () => {
+  const BLOCKED = 'socialRecovery.review.blocked'
+  // The wallet's reads of a key with no smart account behind it.
+  const KEY_READS = {
+    ...ACCOUNT_READS,
+    removedKey: { status: 'answered', value: { kind: 'unavailable', cause: 'no-source' } },
+    fitCheck: { status: 'answered', value: { basis: 'deployed-code', fits: true } },
+    retry: jest.fn()
+  }
+  const CREATION: Account['creation'] = {
+    factoryAddr: '0x3333333333333333333333333333333333333333',
+    bytecode: '0x00',
+    salt: `0x${'00'.repeat(32)}`
+  }
+  const listed = (smart: boolean): Account => ({
+    addr: ACCOUNT,
+    associatedKeys: [ACCOUNT],
+    initialPrivileges: [],
+    creation: smart ? CREATION : null,
+    preferences: { label: 'Account 1', pfp: ACCOUNT }
+  })
+
+  const reviewListed = async (smart: boolean) => {
+    const { records, session } = await given({
+      clauses: [review.group(1, ALICE, BOB)],
+      trustAnswered: true,
+      attemptOpen: false
+    })
+    KEY_READS.retry = jest.fn()
+    mockWorld.accountReads = KEY_READS
+    return mount(
+      React.createElement(
+        AccountsControllerStateContext.Provider,
+        { value: { accounts: [listed(smart)] } as never },
+        React.createElement(ReviewStageView, {
+          records,
+          session,
+          chainId: CHAIN_ID,
+          account: ACCOUNT,
+          navigate: jest.fn()
+        })
+      )
+    )
+  }
+
+  it('refuses the save with the unsupported line, not the unreadable removed key, and no retry', async () => {
+    const view = await reviewListed(false)
+    expect(view.byTestId('manage-review-arrival')).not.toBeNull()
+    expect(view.byTestId('review-blocked-cannot-recover')).not.toBeNull()
+    expect(view.textOf('review-blocked-title')).toBe(t(`${BLOCKED}.cannotRecover.title`))
+    expect(view.textOf('review-blocked-body')).toBe(
+      t(`${BLOCKED}.cannotRecover.reasonNotSupported`)
+    )
+    expect(view.byTestId('review-blocked-removed-key-unreadable')).toBeNull()
+    expect(view.text()).not.toContain(t(`${BLOCKED}.removedKeyUnreadable.title`))
+    expect(view.byTestId('review-blocked-retry')).toBeNull()
+    expect(view.isDisabled('manage-review-save')).toBe(true)
+    await view.press('manage-review-save')
+    expect(mockWorld.run.start).not.toHaveBeenCalled()
+    expect(KEY_READS.retry).not.toHaveBeenCalled()
+    view.unmount()
+  })
+
+  it('shows no untested warning for an added row beside the refusal', async () => {
+    const view = await reviewListed(false)
+    expect(view.byTestId('review-blocked-cannot-recover')).not.toBeNull()
+    expect(view.byTestId('manage-review-not-tested')).toBeNull()
+    view.unmount()
+  })
+
+  it('keeps the unreadable removed key and its retry of that read for a listed smart account', async () => {
+    const view = await reviewListed(true)
+    expect(view.byTestId('review-blocked-removed-key-unreadable')).not.toBeNull()
+    expect(view.byTestId('review-blocked-cannot-recover')).toBeNull()
+    expect(view.byTestId('manage-review-not-tested')).not.toBeNull()
+    await view.press('review-blocked-retry')
+    expect(KEY_READS.retry).toHaveBeenCalledWith(['removedKey'])
     view.unmount()
   })
 })
