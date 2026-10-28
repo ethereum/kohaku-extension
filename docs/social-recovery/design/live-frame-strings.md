@@ -231,7 +231,7 @@ Every string of every live frame of `surfaces/social-wireframes.pen` at commit 1
 - Guide me is a short guided setup. Customize builds the path yourself from an empty path.
 - DESIGN NOTE · NOT USER COPY
 - Guide me is the second release
-- The wizard ships in the second release; in the first release Customize opens the empty editor of C-04f, D-305. In the first release this screen renders without the Guide me action and without the line that names it: Customize stands alone above the presets, D-305 and D-321. No frame draws that form; this one draws the second release's.
+- The wizard ships in the second release; in the first release Customize opens the empty editor of C-04f, D-305. In the first release this screen renders without the Guide me action and without the line that names it: Customize sits beside Continue under the presets at the same height, D-305 and D-321 (the owner, 2026-10-27). No frame draws that form; this one draws the second release's.
 - Saving is one transaction your account's key pays.
 - A recovery is sent and paid for by the recoverer's own key. It costs the account nothing.
 - Cancelling a recovery is one transaction your account's key sends and pays for. That key needs gas it holds outside the account.
@@ -1626,12 +1626,13 @@ Every string of every live frame of `surfaces/social-wireframes.pen` at commit 1
 - Open your recovery path
 - Not enough gas
 - Not enough gas on your account's key
-- Your account's key holds too little to send this save. It needs 0.00X ETH more.
+- Your account's key holds too little to send this save. It needs at least 0.00X ETH more.
 - 0x3Fb2C4e8A19d07f6E5c3D1b8a24F9e7C60D1A2A2
 - Copy
-- Transfer 0.00X ETH from Account 1 to its key
+- Transfer at least 0.00X ETH from Account 1 to its key
 - One transaction from your smart account to its own key.
-- Or send 0.00X ETH to this key from outside this wallet.
+- Or send at least 0.00X ETH to this key from outside this wallet.
+- The network fee can change before the send, so the key may need a little more.
 - Save recovery path
 - AFTER YOU CONFIRM · THREE DRAWN STATES
 - Submitting
@@ -4547,7 +4548,7 @@ Every string of every live frame of `surfaces/social-wireframes.pen` at commit 1
 - This key transacts at once. It cannot sign ordinary typed data until this wallet wraps that data the way it wraps a plain message.
 - Removed
 - 0x3Fb2C4e8A19d07f6E5c3D1b8a24F9e7C60D1A2A2
-- The key the lost device held.
+- The key that controlled the account before this recovery.
 - WHAT THIS RECOVERY DID
 - Removed the key 0x3Fb2C4e8A19d07f6E5c3D1b8a24F9e7C60D1A2A2, the one the lost device held.
 - On chain in the clear: the whole path, the rule with its waiting period and every method in it. It used your passkey and two members of your path, which published their configuration too. Every guardian of your path is now discoverable, the ones that approved and the ones that did not.
@@ -4559,7 +4560,8 @@ Every string of every live frame of `surfaces/social-wireframes.pen` at commit 1
 - MacBook passkey
 - Not tested
 - On the device you lost
-- Secure your Apple account first by signing the lost device out. Then add a fresh method that does not sync to it. Then remove the old row.
+- If you lost one, secure your Apple account first by signing that device out. Then add a fresh method that does not sync to it. Then remove the old row.
+- If you still hold every device signed into that account, you do not need to remove this row.
 - Add a fresh method
 - Remove this row
 - 0x8Ab3…19Ce
@@ -4676,7 +4678,7 @@ Every string of every live frame of `surfaces/social-wireframes.pen` at commit 1
 - Controlled by
 - 0x7A19c3F0b41d8E5a90cC77b2E4f8135Aa62Cc204
 - The key of Account 1, now shared by two accounts. They share a key until one of them rotates it.
-- Your setup survived. If your Recovery Card was on the lost device, change the recovery password in the editor.
+- Your setup survived. If your Recovery Card was on a device you lost, change the recovery password in the editor.
 - DESIGN NOTE · NOT USER COPY
 - The first release's terminal, D-393
 - The done screen names the controlling key, what was removed, what was published and offers edit or replace. Where the path holds a synced passkey it states the repair order: platform account first, then a fresh credential, then the old row. The wallet names the detected platform; Apple is the example. The cleanup checklist of D-15 is the third release. Personas Sam, Carl, Diana and Bob. The main state is Sam's; the drawn readings carry Carl's, Diana's and Bob's shapes, and Bob's names the password change D-393 asks for when the card was on the lost device. The discoverability line is generated from the path's address rows, guardians for Carl and a key he keeps for Bob, and renders on no path that holds neither, D-393 and contracts D-110. Where the removal would leave one row the exit removes the row and the state carries the single-method warning, since a single method is a valid path and a group of one member is one method; the add a method first exit reaches only a removal that would leave the path with none, which is what the editor refuses, D-393 and D-305. The row carries no flagged chip and the overview carries no flagged banner, D-302, D-309 and D-312's entry of 2026-09-22; the repair order the block states is what the holder reads instead. The discoverability line reads every guardian of your path wherever the path holds an address row, and the every-key form leaves, D-393.

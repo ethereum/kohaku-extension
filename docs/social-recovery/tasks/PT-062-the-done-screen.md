@@ -42,3 +42,5 @@ The screen names what the recovery did not settle. It says authorities outside t
 ## Deltas against the chapter at `bd8780f`
 
 - Consistent with D-312 (2026-09-16 and 2026-09-23): the screen renders on the consume event and names the key as that event reports it.
+
+- 2026-10-27, the QA round (FU-BK): the done screen states no lost device as a fact; the Removed value names the key that controlled the account before the recovery, the synced-passkey block and the password line are conditional on a device the holder lost, and the block adds that a row whose devices the holder still holds still works (the chapter at D-393 amended).
