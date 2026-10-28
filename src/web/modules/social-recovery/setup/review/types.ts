@@ -289,6 +289,11 @@ export interface CannotRecoverCardProps {
   blocked: CannotRecoverBlock
 }
 
+export interface AlreadySetUpCardProps {
+  /** Opens the overview of the account's recovery path. */
+  onOpen: () => void
+}
+
 /** The string keys a block renders beside Save, and the action that clears it where one does. */
 export interface SaveBlockCopy {
   chip?: string

@@ -8,6 +8,7 @@ import spacings from '@common/styles/spacings'
 import flexbox from '@common/styles/utils/flexbox'
 import { SectionCard, StatusChip } from '@web/modules/social-recovery/shared/chrome'
 
+import AlreadySetUpCard from './AlreadySetUpCard'
 import CannotRecoverCard from './CannotRecoverCard'
 import type { SaveBlock, SaveBlockCopy, SaveBlockerProps } from './types'
 
@@ -20,7 +21,10 @@ const RETRY = {
 } as const
 
 /** What each block renders, in order: its chip, its title, its body and its action. */
-const BLOCKS: Record<Exclude<SaveBlock['kind'], 'cannot-recover'>, SaveBlockCopy> = {
+const BLOCKS: Record<
+  Exclude<SaveBlock['kind'], 'cannot-recover' | 'already-set-up'>,
+  SaveBlockCopy
+> = {
   'empty-slot': {
     body: `${BLOCKED}.emptySlot`,
     action: {
@@ -47,16 +51,6 @@ const BLOCKS: Record<Exclude<SaveBlock['kind'], 'cannot-recover'>, SaveBlockCopy
     title: `${BLOCKED}.removedKeyUnreadable.title`,
     body: `${BLOCKED}.removedKeyUnreadable.body`,
     action: RETRY
-  },
-  'already-set-up': {
-    chip: `${BLOCKED}.alreadySetUp.chip`,
-    title: `${BLOCKED}.alreadySetUp.title`,
-    body: `${BLOCKED}.alreadySetUp.body`,
-    action: {
-      label: `${BLOCKED}.alreadySetUp.open`,
-      handler: 'onOpen',
-      testID: 'review-blocked-open'
-    }
   }
 }
 
@@ -90,6 +84,9 @@ const SaveBlocker = ({ blocked, ...handlers }: SaveBlockerProps) => {
   const { t } = useTranslation()
   if (blocked.kind === 'cannot-recover') {
     return <CannotRecoverCard blocked={blocked} />
+  }
+  if (blocked.kind === 'already-set-up') {
+    return <AlreadySetUpCard onOpen={handlers.onOpen} />
   }
   const { chip, title, body, action } = BLOCKS[blocked.kind]
 

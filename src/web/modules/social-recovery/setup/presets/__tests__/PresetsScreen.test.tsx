@@ -74,6 +74,32 @@ const mockStorage: RecordStorage = {
   }
 }
 
+// The recovery client: one stable client per account, whose setup state
+// answers that no setup is committed unless a test gives the account its own
+// client or a client status other than ready. Every account the screen asks a
+// client for is kept, so a test can tell that a basic account is asked for none.
+const mockClients = new Map<string, { setup: { setupState: jest.Mock<Promise<unknown>, []> } }>()
+const mockClientStatus = new Map<string, 'loading' | 'failed' | 'update-the-wallet'>()
+const mockClientRetry = jest.fn()
+const mockClientAccounts: (string | undefined)[] = []
+jest.mock('@web/modules/social-recovery/shared/client/useRecoveryClient', () => ({
+  useRecoveryClient: (account: string | undefined) => {
+    mockClientAccounts.push(account)
+    if (!account) {
+      return { status: 'loading', retry: mockClientRetry }
+    }
+    const status = mockClientStatus.get(account)
+    if (status) {
+      return { status, retry: mockClientRetry }
+    }
+    if (!mockClients.has(account)) {
+      mockClients.set(account, {
+        setup: { setupState: jest.fn(async () => ({ hasSetup: false, isAuthorized: false })) }
+      })
+    }
+    return { status: 'ready', client: mockClients.get(account), retry: mockClientRetry }
+  }
+}))
 jest.mock('@web/hooks/useSelectedAccountControllerState', () => ({
   __esModule: true,
   default: () =>
@@ -100,6 +126,7 @@ jest.mock('@web/modules/settings/components/Sidebar', () => ({
   __esModule: true,
   default: () => null
 }))
+jest.mock('@common/components/Spinner', () => ({ __esModule: true, default: () => null }))
 jest.mock('@common/components/AmbireLogoHorizontal', () => ({
   __esModule: true,
   default: () => null
@@ -155,6 +182,10 @@ describe('the presets screen', () => {
   beforeEach(() => {
     mockRaw.clear()
     mockReads.length = 0
+    mockClients.clear()
+    mockClientStatus.clear()
+    mockClientRetry.mockClear()
+    mockClientAccounts.length = 0
     mockNavigate.mockClear()
     listAccounts([listedAccount(ACCOUNT, true), listedAccount(OTHER_ACCOUNT, true)])
     container = document.createElement('div')
@@ -464,6 +495,346 @@ describe('the presets screen', () => {
       await showAccount(OTHER_ACCOUNT)
       expect(byTestId('presets-grid')).not.toBeNull()
       expect(byTestId('presets-cannot-recover')).toBeNull()
+    })
+  })
+
+  describe('for the setup state the chain answers', () => {
+    const NO_SETUP = { hasSetup: false, isAuthorized: false }
+    const MIRROR = { hasSetup: false, isAuthorized: true }
+    const SET_UP = { hasSetup: true, isAuthorized: true }
+    const DORMANT = { hasSetup: true, isAuthorized: false }
+
+    const deferred = () => {
+      let resolve: (value: unknown) => void = () => {}
+      let reject: (reason: unknown) => void = () => {}
+      const promise = new Promise<unknown>((onResolve, onReject) => {
+        resolve = onResolve
+        reject = onReject
+      })
+      return { promise, resolve, reject }
+    }
+
+    // The account's client, whose setup state reads answer in turn with the given promises.
+    const clientAnswering = (account: Address, ...answers: (() => Promise<unknown>)[]) => {
+      const setupState = jest.fn<Promise<unknown>, []>()
+      answers.forEach((answer) => setupState.mockImplementationOnce(answer))
+      mockClients.set(account, { setup: { setupState } })
+      return setupState
+    }
+
+    const settle = async () => {
+      await act(async () => {
+        await new Promise((resolve) => {
+          setTimeout(resolve, 0)
+        })
+      })
+    }
+
+    const writeDraft = (account: Address) =>
+      createWalletRecords({ storage: mockStorage })
+        .setup(CHAIN_IDS[WALLET_RECOVERY_CHAIN], account)
+        .setupDraft.write({
+          wait: 172800,
+          clauses: [],
+          ignoresPause: true,
+          privacy: { backup: 'encrypted', publicMetadata: '0x' }
+        })
+
+    const expectNoPresets = () => {
+      expect(byTestId('presets-screen')).toBeNull()
+      expect(byTestId('presets-grid')).toBeNull()
+      expect(byTestId('presets-resume')).toBeNull()
+      expect(byTestId('recovery-status')).toBeNull()
+      expect(byTestId('continue')).toBeNull()
+      expect(byTestId('customize')).toBeNull()
+      expect(byTestId('resume')).toBeNull()
+      expect(container.textContent).not.toContain(S.status.recovery.notSetUp)
+    }
+
+    const clientMessagePrefix = S.loading.client.split('{{')[0]
+
+    it('shows the connecting block, and no presets, while the client connects', async () => {
+      mockClientStatus.set(ACCOUNT, 'loading')
+      await showAccount(ACCOUNT)
+
+      expect(byTestId('presets-entry-connecting')).not.toBeNull()
+      expect(byTestId('loading-block')).not.toBeNull()
+      expect(byTestId('loading-message')?.textContent).toContain(clientMessagePrefix)
+      expect(byTestId('presets-stage')?.textContent).toBe('Set up · Step 1 of 7')
+      expectNoPresets()
+    })
+
+    it('shows the lookup block, and no presets or draft, while the setup state reads', async () => {
+      await writeDraft(ACCOUNT)
+      mockReads.length = 0
+      const pending = deferred()
+      clientAnswering(ACCOUNT, () => pending.promise)
+      await showAccount(ACCOUNT)
+
+      expect(byTestId('presets-entry-reading')).not.toBeNull()
+      expect(byTestId('loading-block')).not.toBeNull()
+      expect(byTestId('loading-message')?.textContent).toBe(S.loading.lookup)
+      expect(byTestId('presets-entry-connecting')).toBeNull()
+      expectNoPresets()
+      expect(mockReads).toEqual([])
+    })
+
+    it('reads the setup state once on arrival', async () => {
+      const setupState = clientAnswering(ACCOUNT, async () => NO_SETUP)
+      await showAccount(ACCOUNT)
+      await settle()
+
+      expect(setupState).toHaveBeenCalledTimes(1)
+    })
+
+    it('shows the failed block for a failed read, never the presets, and draws them once a retry answers no setup', async () => {
+      const setupState = clientAnswering(
+        ACCOUNT,
+        async () => {
+          throw new Error('the node did not answer')
+        },
+        async () => NO_SETUP
+      )
+      await showAccount(ACCOUNT)
+      await settle()
+
+      const failed = byTestId('presets-entry-read-failed')
+      expect(failed).not.toBeNull()
+      expect(failed?.textContent).toContain(S.management.overview.reads.failedTitle)
+      expect(failed?.textContent).toContain(S.management.overview.reads.failedBody)
+      expectNoPresets()
+
+      await press('presets-entry-read-failed-retry')
+      await settle()
+
+      expect(setupState).toHaveBeenCalledTimes(2)
+      expect(byTestId('presets-entry-read-failed')).toBeNull()
+      expect(byTestId('presets-grid')).not.toBeNull()
+    })
+
+    it('shows the lookup block again while a retry reads', async () => {
+      const retried = deferred()
+      clientAnswering(
+        ACCOUNT,
+        async () => {
+          throw new Error('the node did not answer')
+        },
+        () => retried.promise
+      )
+      await showAccount(ACCOUNT)
+      await settle()
+      await press('presets-entry-read-failed-retry')
+
+      expect(byTestId('presets-entry-reading')).not.toBeNull()
+      expect(byTestId('presets-entry-read-failed')).toBeNull()
+      expectNoPresets()
+
+      await act(async () => retried.resolve(NO_SETUP))
+      await settle()
+      expect(byTestId('presets-grid')).not.toBeNull()
+    })
+
+    it('shows the failed block where the client did not build, and its retry builds the client again', async () => {
+      mockClientStatus.set(ACCOUNT, 'failed')
+      await showAccount(ACCOUNT)
+
+      expect(byTestId('presets-entry-read-failed')).not.toBeNull()
+      expectNoPresets()
+
+      await press('presets-entry-read-failed-retry')
+
+      expect(mockClientRetry).toHaveBeenCalledTimes(1)
+    })
+
+    it('shows the wallet-too-old alert, and no presets, where the wallet is too old for the deployment', async () => {
+      mockClientStatus.set(ACCOUNT, 'update-the-wallet')
+      await showAccount(ACCOUNT)
+
+      const alert = byTestId('presets-entry-update-the-wallet')
+      expect(alert).not.toBeNull()
+      expect(alert?.textContent).toContain(S.client.updateTheWalletTitle)
+      expect(byTestId('presets-entry-read-failed')).toBeNull()
+      expectNoPresets()
+    })
+
+    const alreadySetUpCases: [string, { hasSetup: boolean; isAuthorized: boolean }][] = [
+      ['a setup that is in force', SET_UP],
+      ['a setup that the account no longer authorizes', DORMANT]
+    ]
+    alreadySetUpCases.forEach(([name, answer]) => {
+      it(`refuses the presets for ${name} and opens the recovery path instead`, async () => {
+        await writeDraft(ACCOUNT)
+        clientAnswering(ACCOUNT, async () => answer)
+        await showAccount(ACCOUNT)
+        await settle()
+
+        const block = byTestId('presets-already-set-up')
+        expect(block).not.toBeNull()
+        expect(block?.contains(byTestId('review-blocked-already-set-up'))).toBe(true)
+        expect(byTestId('review-blocked-chip')?.textContent).toBe(
+          S.review.blocked.alreadySetUp.chip
+        )
+        expect(byTestId('review-blocked-title')?.textContent).toBe(
+          S.review.blocked.alreadySetUp.title
+        )
+        expect(byTestId('review-blocked-body')?.textContent).toBe(
+          S.review.blocked.alreadySetUp.body
+        )
+        expect(byTestId('review-blocked-open')?.textContent).toBe(
+          S.review.blocked.alreadySetUp.open
+        )
+        expectNoPresets()
+
+        await press('review-blocked-open')
+
+        expect(mockNavigate).toHaveBeenCalledWith(WEB_ROUTES.socialRecoveryManage)
+      })
+
+      it(`titles the refusal for ${name} with the recovery title, and counts no step of the setup`, async () => {
+        clientAnswering(ACCOUNT, async () => answer)
+        await showAccount(ACCOUNT)
+        await settle()
+
+        expect(byTestId('presets-entry')?.textContent?.startsWith(S.routes.root)).toBe(true)
+        expect(container.textContent).not.toContain(S.routes.setup)
+        expect(byTestId('presets-stage')).toBeNull()
+        expect(container.textContent).not.toContain('Step 1 of 7')
+      })
+
+      it(`offers, under the refusal for ${name}, the way to recover another account`, async () => {
+        clientAnswering(ACCOUNT, async () => answer)
+        await showAccount(ACCOUNT)
+        await settle()
+
+        expect(byTestId('presets-already-set-up')?.contains(byTestId('recover'))).toBe(true)
+        await press('recover')
+
+        expect(mockNavigate).toHaveBeenCalledTimes(1)
+        expect(mockNavigate).toHaveBeenCalledWith(WEB_ROUTES.socialRecoveryRecovery)
+      })
+    })
+
+    it('keeps the setup title and the first step counter while the setup state reads, and after it fails', async () => {
+      const retried = deferred()
+      clientAnswering(
+        ACCOUNT,
+        () => retried.promise,
+        async () => NO_SETUP
+      )
+      await showAccount(ACCOUNT)
+
+      expect(byTestId('presets-entry-reading')).not.toBeNull()
+      expect(byTestId('presets-stage')?.textContent).toBe('Set up · Step 1 of 7')
+      expect(byTestId('presets-entry')?.textContent?.startsWith(S.routes.setup)).toBe(true)
+      expect(byTestId('recover')).toBeNull()
+
+      await act(async () => retried.reject(new Error('the node did not answer')))
+      await settle()
+
+      expect(byTestId('presets-entry-read-failed')).not.toBeNull()
+      expect(byTestId('presets-stage')?.textContent).toBe('Set up · Step 1 of 7')
+      expect(byTestId('presets-entry')?.textContent?.startsWith(S.routes.setup)).toBe(true)
+      expect(byTestId('recover')).toBeNull()
+    })
+
+    it('counts the step again once a tab opens on an account with no setup after one with a setup', async () => {
+      clientAnswering(ACCOUNT, async () => SET_UP)
+      clientAnswering(OTHER_ACCOUNT, async () => NO_SETUP)
+      await showAccount(ACCOUNT)
+      await settle()
+      expect(byTestId('presets-stage')).toBeNull()
+
+      await showAccount(OTHER_ACCOUNT)
+      await settle()
+      expect(byTestId('presets-stage')?.textContent).toBe('Set up · Step 1 of 7')
+      expect(byTestId('presets-grid')).not.toBeNull()
+    })
+
+    it('draws the presets for an account that authorizes the action but has no setup', async () => {
+      clientAnswering(ACCOUNT, async () => MIRROR)
+      await showAccount(ACCOUNT)
+      await settle()
+
+      expect(byTestId('presets-grid')).not.toBeNull()
+      expect(byTestId('presets-entry')).toBeNull()
+      expect(byTestId('presets-already-set-up')).toBeNull()
+    })
+
+    it('draws the presets and the draft for an account with no setup', async () => {
+      await writeDraft(ACCOUNT)
+      clientAnswering(ACCOUNT, async () => NO_SETUP)
+      await showAccount(ACCOUNT)
+      await settle()
+
+      expect(byTestId('presets-resume')).not.toBeNull()
+      expect(byTestId('presets-entry')).toBeNull()
+    })
+
+    it("drops the late answer of the first account and draws the other account's own answer", async () => {
+      const firstRead = deferred()
+      clientAnswering(ACCOUNT, () => firstRead.promise)
+      clientAnswering(OTHER_ACCOUNT, async () => NO_SETUP)
+      await showAccount(ACCOUNT)
+      expect(byTestId('presets-entry-reading')).not.toBeNull()
+
+      await showAccount(OTHER_ACCOUNT)
+      await settle()
+      expect(byTestId('presets-grid')).not.toBeNull()
+
+      await act(async () => firstRead.resolve(SET_UP))
+      await settle()
+
+      expect(byTestId('presets-grid')).not.toBeNull()
+      expect(byTestId('presets-already-set-up')).toBeNull()
+    })
+
+    it('keeps the other account reading while the first account answers late, then lets its own answer decide', async () => {
+      const firstRead = deferred()
+      const otherRead = deferred()
+      clientAnswering(ACCOUNT, () => firstRead.promise)
+      clientAnswering(OTHER_ACCOUNT, () => otherRead.promise)
+      await showAccount(ACCOUNT)
+      await showAccount(OTHER_ACCOUNT)
+
+      await act(async () => firstRead.resolve(NO_SETUP))
+      await settle()
+
+      expect(byTestId('presets-entry-reading')).not.toBeNull()
+      expectNoPresets()
+
+      await act(async () => otherRead.resolve(SET_UP))
+      await settle()
+
+      expect(byTestId('presets-already-set-up')).not.toBeNull()
+      expectNoPresets()
+    })
+
+    it('drops the late failure of the first account', async () => {
+      const firstRead = deferred()
+      clientAnswering(ACCOUNT, () => firstRead.promise)
+      clientAnswering(OTHER_ACCOUNT, async () => NO_SETUP)
+      await showAccount(ACCOUNT)
+      await showAccount(OTHER_ACCOUNT)
+      await settle()
+
+      await act(async () => firstRead.reject(new Error('the node did not answer')))
+      await settle()
+
+      expect(byTestId('presets-grid')).not.toBeNull()
+      expect(byTestId('presets-entry-read-failed')).toBeNull()
+    })
+
+    it('asks no client for a basic account, and shows it the refusal', async () => {
+      listAccounts([listedAccount(ACCOUNT, false)])
+      await showAccount(ACCOUNT)
+      await settle()
+
+      expect(mockClientAccounts.length).toBeGreaterThan(0)
+      expect(mockClientAccounts.every((account) => account === undefined)).toBe(true)
+      expect(mockClients.has(ACCOUNT)).toBe(false)
+      expect(byTestId('presets-cannot-recover')).not.toBeNull()
+      expect(byTestId('presets-entry')).toBeNull()
+      expect(byTestId('presets-entry-connecting')).toBeNull()
     })
   })
 })

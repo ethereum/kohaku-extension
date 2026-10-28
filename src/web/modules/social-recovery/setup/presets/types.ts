@@ -1,4 +1,6 @@
-import type { Address } from '@kohaku-eth/social-recovery'
+import type { Address, SetupState } from '@kohaku-eth/social-recovery'
+import type { OverviewKind } from '@web/modules/social-recovery/management/overview/types'
+import type { RecoveryKitClient } from '@web/modules/social-recovery/shared/client'
 import type { ChainId, SlotKind, WalletRecords } from '@web/modules/social-recovery/shared/records'
 
 export type { SlotKind } from '@web/modules/social-recovery/shared/records'
@@ -67,6 +69,35 @@ export interface PresetsViewProps {
   account: Address
   /** Opens the editor, once the draft is written. */
   onOpenEditor: () => void
+  /** Opens the recovery of another account. */
+  onRecover: () => void
+}
+
+/**
+ * Where the setup of the tab's account stands before the presets open: the
+ * client connecting, the setup state being read, a read or a client that did
+ * not answer, a wallet too old for the deployment, or the kind of the
+ * answered setup state.
+ */
+export type SetupEntry =
+  | { status: 'connecting' }
+  | { status: 'reading' }
+  | { status: 'failed'; retry: () => void }
+  | { status: 'update-the-wallet' }
+  | { status: 'answered'; kind: OverviewKind }
+
+/** One answer of the setup state read: the client and the round it came from, and the state, or null where the read failed. */
+export interface SetupEntryRead {
+  kit: RecoveryKitClient
+  round: number
+  setup: SetupState | null
+}
+
+export interface SetupEntryBlockProps {
+  /** Every state of the entry but an answer that opens the presets. */
+  entry: SetupEntry
+  /** Opens the overview of the account's recovery path. */
+  onOpen: () => void
   /** Opens the recovery of another account. */
   onRecover: () => void
 }
