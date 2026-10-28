@@ -50,6 +50,7 @@ export const WRITES_KEYS = {
   submittingRecovery: `${WRITES}.submittingRecovery`,
   submittingBody: `${WRITES}.submittingBody`,
   notSent: `${WRITES}.notSent`,
+  notSentEdit: `${WRITES}.notSentEdit`,
   /**
    * A transaction another one from the same key replaced before it was mined
    * (ethers' `TRANSACTION_REPLACED`, `cancelled` or `replaced`): it reached no
@@ -144,6 +145,19 @@ export const revertedKeyOf = (write: WriteKind, cause: RevertCause): string =>
     ? WRITES_KEYS.revertedExecuteGone
     : REVERTED_KEYS[write]
 
+/**
+ * The not-sent sentence of each write: the management editor's save adds that
+ * the edits are still here; every other write reads the plain line.
+ */
+export const NOT_SENT_KEYS: { readonly [W in WriteKind]: string } = {
+  save: WRITES_KEYS.notSent,
+  edit: WRITES_KEYS.notSentEdit,
+  ownerWrite: WRITES_KEYS.notSent,
+  cancel: WRITES_KEYS.notSent,
+  submission: WRITES_KEYS.notSent,
+  execution: WRITES_KEYS.notSent
+}
+
 /** The key of the cause sentence of one kit error, `socialRecovery.writes.causes.<name>`. */
 export const causeKey = (name: KitErrorName): string => `${WRITES}.causes.${name}`
 
@@ -194,10 +208,11 @@ const renderAttemptGone = (
 }
 
 /**
- * The one line of the not-sent reading. A replaced transaction was sent: it
- * never ran, but it did not fail to reach the chain. A call that may still
- * reach the chain says so and nothing more, and a call refused for another
- * request of the account names that request.
+ * The one line of the not-sent reading, in the write's own words
+ * (`NOT_SENT_KEYS`). A replaced transaction was sent: it never ran, but it did
+ * not fail to reach the chain. A call that may still reach the chain says so
+ * and nothing more, and a call refused for another request of the account
+ * names that request.
  */
 const notSentKeyOf = (state: FailedNotSentState): string => {
   if (state.mayStillLand) {
@@ -206,7 +221,7 @@ const notSentKeyOf = (state: FailedNotSentState): string => {
   if (state.otherRequest) {
     return WRITES_KEYS.otherRequestPending
   }
-  return state.replaced ? WRITES_KEYS.replaced : WRITES_KEYS.notSent
+  return state.replaced ? WRITES_KEYS.replaced : NOT_SENT_KEYS[state.write]
 }
 
 /**

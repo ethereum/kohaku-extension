@@ -19,6 +19,7 @@ import {
   canRetry,
   KEY,
   mayStillLand,
+  NOT_SENT_KEYS,
   otherRequestPending,
   renderWriteState,
   submittingFor,
@@ -47,10 +48,15 @@ const REFUSALS = [
 ] as const
 
 describe('the line each refusal reads', () => {
-  it('the may-still-land line, the other-request line and the plain not-sent line are three keys', () => {
-    const lines = [WRITES_KEYS.mayStillLand, WRITES_KEYS.otherRequestPending, WRITES_KEYS.notSent]
-    expect(new Set(lines).size).toBe(3)
-    expect(new Set(lines.map((key) => t(key))).size).toBe(3)
+  it('the may-still-land line, the other-request line and the two not-sent lines are four keys', () => {
+    const lines = [
+      WRITES_KEYS.mayStillLand,
+      WRITES_KEYS.otherRequestPending,
+      WRITES_KEYS.notSent,
+      WRITES_KEYS.notSentEdit
+    ]
+    expect(new Set(lines).size).toBe(4)
+    expect(new Set(lines.map((key) => t(key))).size).toBe(4)
   })
 })
 
@@ -94,7 +100,7 @@ WRITE_KINDS.forEach((write) =>
           expect(rendered.title).toBeUndefined()
           expect(rendered.retry).toBeUndefined()
           expect(rendered.lines).toEqual([t(WRITES_KEYS.mayStillLand)])
-          expect(rendered.lines).not.toContain(t(WRITES_KEYS.notSent))
+          expect(rendered.lines).not.toContain(t(NOT_SENT_KEYS[write]))
         })
       })
 
@@ -117,7 +123,7 @@ WRITE_KINDS.forEach((write) =>
           })
           const rendered = renderWriteState(failed)
           expect(rendered.lines).toEqual([t(WRITES_KEYS.otherRequestPending)])
-          expect(rendered.lines).not.toContain(t(WRITES_KEYS.notSent))
+          expect(rendered.lines).not.toContain(t(NOT_SENT_KEYS[write]))
           expect(rendered.retry).toBe(t(WRITES_KEYS.tryAgain))
         })
 
@@ -144,7 +150,7 @@ WRITE_KINDS.forEach((write) =>
           expect(otherRequestPending(failed)).toBe(false)
           expect(canRetry(failed)).toBe(true)
           expect(renderWriteState(failed)).toEqual(renderWriteState(plain))
-          expect(renderWriteState(failed, keyPath).lines).toEqual(['socialRecovery.writes.notSent'])
+          expect(renderWriteState(failed, keyPath).lines).toEqual([NOT_SENT_KEYS[write]])
         })
       )
     })

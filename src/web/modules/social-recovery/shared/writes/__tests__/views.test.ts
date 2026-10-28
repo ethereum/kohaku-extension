@@ -29,6 +29,7 @@ import {
   kitError,
   landWithReceipt,
   NETWORK,
+  NOT_SENT_KEYS,
   renderDepositStep,
   renderGasAmount,
   renderGasBalance,
@@ -62,7 +63,7 @@ describe('WriteStateView: what renderWriteState answers', () => {
 
       it('the not-sent reading: its one line and the retry', () => {
         const r = renderWriteState(failBeforeHash(write, userRejected()))
-        expect(r.lines).toEqual([t(WRITES_KEYS.notSent)])
+        expect(r.lines).toEqual([t(NOT_SENT_KEYS[write])])
         expect(r.retry).toBe(t(WRITES_KEYS.tryAgain))
         expect(r.chip).toBeUndefined()
         expect(r.offersMoveFunds).toBe(write === 'cancel')

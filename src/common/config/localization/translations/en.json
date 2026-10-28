@@ -160,6 +160,7 @@
       "submittingRecovery": "Submitting the recovery…",
       "submittingBody": "Your key is sending one transaction. Do not close the wallet.",
       "notSent": "The transaction was rejected before it reached the chain. Nothing changed.",
+      "notSentEdit": "The transaction was rejected before it reached the chain. Nothing changed. Your edits are still here.",
       "reverted": "The transaction reached the chain and reverted. {{cause}} The gas it spent is gone.",
       "tryAgain": "Try again",
       "cancelRevertedTitle": "Nothing left to cancel",
