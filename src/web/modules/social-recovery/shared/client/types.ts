@@ -820,12 +820,15 @@ export interface QueuedRequest {
 
 /**
  * The part of the `requests` controller state the send port reads: the
- * requests in the queue and those waiting for an account switch, and the
+ * requests in the queue and those waiting for an account switch, the ids of
+ * the latest requests the user rejected while nothing signed, broadcast or
+ * awaited the end of a broadcast and no signed operation was held, and the
  * action window.
  */
 export interface SendQueueState extends RequestsState {
   userRequests?: QueuedRequest[]
   userRequestsWaitingAccountSwitch?: QueuedRequest[]
+  rejectedUserRequestIds?: QueuedRequest['id'][]
   actions?: ActionWindowState
 }
 

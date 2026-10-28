@@ -87,6 +87,14 @@ const CLOSE_SESSION = 'MAIN_CONTROLLER_ACTIVITY_RESET_ACC_OPS_FILTERS'
 
 const actionsOf = (dispatch: jest.Mock) => dispatched<SendRequestAction>(dispatch)
 const typesOf = (dispatch: jest.Mock) => actionsOf(dispatch).map((a) => a.type)
+/** A queue state with no request left in it, naming the requests the user rejected, its window open or closed. */
+const rejectedPush = (ids: (string | number)[], window: 'open' | 'closed' = 'open') =>
+  requestsPush({
+    userRequests: [],
+    userRequestsWaitingAccountSwitch: [],
+    rejectedUserRequestIds: ids,
+    actions: { actionWindow: { windowProps: window === 'open' ? { id: WINDOW_ID } : null } }
+  })
 const withdrew = (q: SendWorld, id: string | number) =>
   actionsOf(q.dispatch).some((a) => a.type === REMOVE && String(a.params.id) === String(id))
 
@@ -511,6 +519,224 @@ SUBJECTS.forEach(({ title: subject, names, sending, expectRefusal }) =>
         expect(send.status).toBe('pending')
         await advance(1)
         expectRefusal(send, 'timeout')
+      })
+    })
+
+    describe('a request the user rejected in the action window', () => {
+      /** The sign screen holding the operation of this request at a status. */
+      const signScreen = (id: string, status: SigningStatus) =>
+        signAccountOpPush({
+          accountOp: { accountAddr: names, calls: [{ fromUserRequestId: id }] },
+          status: { type: status }
+        })
+
+      it('refuses as refused at once, with no time passing, once the queue drops it and names it rejected', async () => {
+        const { q, send, id } = sending()
+        q.push(queuedWith('open', id))
+        q.push(rejectedPush([id]))
+        await flush()
+        expectRefusal(send, 'refused')
+        expect(typesOf(q.dispatch)).toEqual([OPEN_SESSION, ADD, CLOSE_SESSION])
+        expect(q.listeners()).toBe(0)
+      })
+
+      it('refuses at once where the window closed before the queue dropped the request, and withdraws nothing', async () => {
+        const { q, send, id } = sending()
+        q.push(queuedWith('open', id))
+        q.push(queuedWith('closed', id))
+        q.push(rejectedPush([id], 'closed'))
+        await flush()
+        expectRefusal(send, 'refused')
+        await advance(ABSENCE_GRACE_MS * 2)
+        expect(withdrew(q, id)).toBe(false)
+      })
+
+      it('refuses at once where the sign screen held the request without signing it', async () => {
+        const { q, send, id } = sending()
+        q.push(queuedWith('open', id))
+        q.push(signScreen(id, SigningStatus.ReadyToSign))
+        q.push(rejectedPush([id]))
+        await flush()
+        expectRefusal(send, 'refused')
+      })
+
+      const BUSY: BroadcastStatus[] = ['SIGNING', 'BROADCASTING']
+      BUSY.forEach((busy) =>
+        it(`waits while the wallet reads ${busy} and a full settle period after, and answers the hash the activity then lists`, async () => {
+          const { q, send, id } = sending()
+          q.push(queuedWith('open', id))
+          q.push(mainStatus(busy))
+          q.push(rejectedPush([id]))
+          await advance(SEND_SETTLE_MS * 10)
+          expect(send.status).toBe('pending')
+          q.push(mainStatus('SUCCESS'))
+          await advance(SEND_SETTLE_MS - 1)
+          expect(send.status).toBe('pending')
+          q.push(activityListing(id, operationFor(id, { hash: HASH })))
+          await flush()
+          expect(send).toEqual({ status: 'resolved', value: HASH })
+        })
+      )
+
+      it('refuses as refused only a full settle period after the wallet stopped broadcasting, where the activity lists nothing', async () => {
+        const { q, send, id } = sending()
+        q.push(queuedWith('open', id))
+        q.push(mainStatus('BROADCASTING'))
+        q.push(rejectedPush([id]))
+        q.push(mainStatus('SUCCESS'))
+        await advance(SEND_SETTLE_MS - 1)
+        expect(send.status).toBe('pending')
+        await advance(1)
+        expectRefusal(send, 'refused')
+      })
+      ;[SigningStatus.InProgress, SigningStatus.UpdatesPaused].forEach((status) =>
+        it(`waits the full settle period while the sign screen is at ${status}, and answers the hash the activity then lists`, async () => {
+          const { q, send, id } = sending()
+          q.push(queuedWith('open', id))
+          q.push(signScreen(id, status))
+          q.push(rejectedPush([id]))
+          await flush()
+          expect(send.status).toBe('pending')
+          await advance(SEND_SETTLE_MS - 1)
+          expect(send.status).toBe('pending')
+          q.push(activityListing(id, operationFor(id, { hash: HASH })))
+          await flush()
+          expect(send).toEqual({ status: 'resolved', value: HASH })
+        })
+      )
+
+      const NOT_LISTED: [string, (string | number)[]][] = [
+        ['an empty rejected list', []],
+        ["another request's id", ['dapp-request', 7]]
+      ]
+      NOT_LISTED.forEach(([title, ids]) =>
+        it(`keeps the settle period for a request that leaves with ${title} in the queue state`, async () => {
+          const { q, send, id } = sending()
+          q.push(queuedWith('open', id))
+          q.push(rejectedPush(ids))
+          await advance(SEND_SETTLE_MS - 1)
+          expect(send.status).toBe('pending')
+          await advance(1)
+          expectRefusal(send, 'refused')
+          expect(withdrew(q, id)).toBe(false)
+        })
+      )
+
+      it('keeps the settle period for a request that leaves under a queue state with no rejected list', async () => {
+        const { q, send, id } = sending()
+        q.push(queuedWith('open', id))
+        q.push(queuedWith('open'))
+        await flush()
+        expect(send.status).toBe('pending')
+        await advance(SEND_SETTLE_MS - 1)
+        expect(send.status).toBe('pending')
+        await advance(1)
+        expectRefusal(send, 'refused')
+      })
+
+      it("does not refuse a request that moves to the account-switch list within the settle period after a state naming another request's rejection", async () => {
+        const { q, send, id } = sending()
+        q.push(queuedWith('none', id))
+        q.push(rejectedPush(['dapp-request']))
+        await advance(SEND_SETTLE_MS - 1)
+        q.push(waitingForSwitch(id))
+        await advance(SEND_SETTLE_MS * 2)
+        expect(send.status).toBe('pending')
+      })
+
+      it('does not refuse a request the queue still holds although its state names it rejected', async () => {
+        const { q, send, id } = sending()
+        q.push(queuedWith('open', id))
+        q.push(
+          requestsPush({
+            userRequests: [{ id }],
+            userRequestsWaitingAccountSwitch: [],
+            rejectedUserRequestIds: [id]
+          })
+        )
+        await advance(SEND_SETTLE_MS * 2)
+        expect(send.status).toBe('pending')
+      })
+
+      it('still withdraws a request whose window stays closed for the grace, and refuses as window-closed one settle period after the queue shows it gone', async () => {
+        const { q, send, id } = sending()
+        q.push(queuedWith('open', id))
+        q.push(queuedWith('closed', id))
+        await advance(ABSENCE_GRACE_MS - 1)
+        expect(withdrew(q, id)).toBe(false)
+        await advance(1)
+        expect(withdrew(q, id)).toBe(true)
+        q.push(rejectedPush(['dapp-request'], 'closed'))
+        await advance(SEND_SETTLE_MS - 1)
+        expect(send.status).toBe('pending')
+        await advance(1)
+        expectRefusal(send, 'window-closed')
+      })
+
+      /** The ways the wallet shows it signs the request once the queue listed it. */
+      const SIGNED_BY: [string, (id: string) => ReturnType<typeof mainStatus>][] = [
+        ['the wallet reads SIGNING', () => mainStatus('SIGNING')],
+        ['the sign screen signs it', (id) => signScreen(id, SigningStatus.InProgress)]
+      ]
+      /** The wallet back at rest after the broadcast: SUCCESS then INITIAL, the sign screen reset. */
+      const atRest = (q: SendWorld) => {
+        q.push(mainStatus('SUCCESS'))
+        q.push(mainStatus('INITIAL'))
+        q.push(signAccountOpPush({}))
+      }
+
+      SIGNED_BY.forEach(([title, signed]) => {
+        it(`keeps the settle period for a request rejected after ${title} and the wallet came back to rest, and answers the hash the activity then lists`, async () => {
+          const { q, send, id } = sending()
+          q.push(queuedWith('open', id))
+          q.push(signed(id))
+          atRest(q)
+          q.push(rejectedPush([id]))
+          await flush()
+          expect(send.status).toBe('pending')
+          await advance(SEND_SETTLE_MS - 1)
+          expect(send.status).toBe('pending')
+          q.push(activityListing(id, operationFor(id, { hash: HASH })))
+          await flush()
+          expect(send).toEqual({ status: 'resolved', value: HASH })
+        })
+
+        it(`refuses as refused only a full settle period after a rejection that came after ${title}, where the activity lists nothing`, async () => {
+          const { q, send, id } = sending()
+          q.push(queuedWith('open', id))
+          q.push(signed(id))
+          atRest(q)
+          q.push(rejectedPush([id]))
+          await advance(SEND_SETTLE_MS - 1)
+          expect(send.status).toBe('pending')
+          await advance(1)
+          expectRefusal(send, 'refused')
+          expect(withdrew(q, id)).toBe(false)
+        })
+      })
+
+      it('refuses at once where the wallet was busy and back at rest before any queue state listed the request', async () => {
+        const { q, send, id } = sending()
+        q.push(mainStatus('SIGNING'))
+        q.push(mainStatus('INITIAL'))
+        q.push(queuedWith('open', id))
+        q.push(rejectedPush([id]))
+        await flush()
+        expectRefusal(send, 'refused')
+      })
+
+      it('keeps the settle period where the sign screen signed the request before any queue state listed it', async () => {
+        const { q, send, id } = sending()
+        q.push(signScreen(id, SigningStatus.InProgress))
+        q.push(signAccountOpPush({}))
+        q.push(queuedWith('open', id))
+        q.push(rejectedPush([id]))
+        await flush()
+        expect(send.status).toBe('pending')
+        await advance(SEND_SETTLE_MS - 1)
+        expect(send.status).toBe('pending')
+        await advance(1)
+        expectRefusal(send, 'refused')
       })
     })
 

@@ -23,7 +23,15 @@
  * comes at once. The port first waits until the wallet neither signs nor
  * broadcasts, then keeps its session open for `SEND_SETTLE_MS`: a broadcast
  * with a key the keystore holds cannot be stopped once it began, so an
- * operation that names the request still answers its hash in that time.
+ * operation that names the request still answers its hash in that time. The
+ * one exception is a request the wallet lists as rejected by the user, which
+ * it does only while nothing signs, broadcasts or awaits the end of a
+ * broadcast and no signed operation is held: that one is `refused` as soon as
+ * the queue shows it gone, provided the sign screen never signed it and the
+ * wallet never signed or broadcast while the port followed the request. A
+ * single push of either is enough to keep the settle period, since the
+ * wallet's status returns to idle before a sent operation reaches the
+ * activity.
  *
  * A request the port withdraws is not gone until the queue shows it gone and
  * the sign screen no longer holds it: the wallet drops a hidden tab's
@@ -650,6 +658,7 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
       let timedOut = false
       let busy = false
       let signing = false
+      let everBusy = false
       let held = false
       let inRequests = false
       let listed = false
@@ -668,6 +677,13 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
 
       const remove = () =>
         port.dispatch({ type: 'REQUESTS_CONTROLLER_REMOVE_USER_REQUEST', params: { id } })
+      // The wallet signs one operation at a time, so its status counts once
+      // the request is in the queue; the sign screen's names this request.
+      const noteBusy = () => {
+        if (signing || (seen && busy)) {
+          everBusy = true
+        }
+      }
       // The wallet compares the request's account with the selected one with
       // exact case, so both are its own addresses.
       const isSelected = (selected: string | undefined): boolean => selected === account
@@ -864,6 +880,7 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
         if (update.controller === 'signAccountOp') {
           const wasSigning = signing
           signing = signsRequest(update.state, id)
+          noteBusy()
           held = holdsRequest(update.state, id)
           confirmWithdrawal()
           // A failed signature or the end of a pause takes the sign screen back
@@ -910,6 +927,7 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
           const next = isBusy(update.state)
           if (next !== busy) {
             busy = next
+            noteBusy()
             armSettle()
           }
           return
@@ -963,12 +981,22 @@ export const createSendPort = (port: SendRequestPort, options: SendPortOptions):
           armSettle()
         }
         if (!inQueue && !waiting) {
-          if (seen) {
-            settle(timedOut ? 'timeout' : 'refused', false)
+          if (!seen) {
+            return
           }
+          // The wallet lists a request the user rejected only while nothing can
+          // have been sent; a request it ever signed or broadcast keeps the
+          // settle period, as the rejection can come after the broadcast.
+          const rejected = (update.state.rejectedUserRequestIds ?? []).includes(id)
+          if (rejected && !everBusy && !busy && !signing) {
+            fail('refused')
+            return
+          }
+          settle(timedOut ? 'timeout' : 'refused', false)
           return
         }
         seen = true
+        noteBusy()
         if (!inQueue) {
           return
         }
