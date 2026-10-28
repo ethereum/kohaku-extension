@@ -200,6 +200,27 @@ describe('the presets view', () => {
       (node) => node.textContent
     )
   const text = () => container.textContent ?? ''
+  const idsInOrder = () =>
+    Array.from(container.querySelectorAll('[data-testid]'), (node) =>
+      node.getAttribute('data-testid')
+    )
+  /** The innermost element that holds both nodes, which lays them out against each other. */
+  const sharedParent = (first: string, second: string) => {
+    const other = byTestId(second)
+    let node = byTestId(first)?.parentElement ?? null
+    while (node && other && !node.contains(other)) {
+      node = node.parentElement
+    }
+    return other ? node : null
+  }
+  const drawnSideBySide = (first: string, second: string) => {
+    const parent = sharedParent(first, second)
+    return !!parent && window.getComputedStyle(parent).flexDirection === 'row'
+  }
+  const heightOf = (id: string) => {
+    const node = byTestId(id)
+    return node ? window.getComputedStyle(node).height : null
+  }
 
   const press = async (id: string) => {
     const node = byTestId(id)
@@ -266,7 +287,7 @@ describe('the presets view', () => {
       )
     })
 
-    it('offers customize alone, with no guided setup and no line that names it', async () => {
+    it('offers customize with no guided setup and no line that names it', async () => {
       await mount()
       expect(byTestId('customize')?.textContent).toBe(S.presets.customize)
       expect(text()).not.toMatch(GUIDE_ME)
@@ -310,6 +331,63 @@ describe('the presets view', () => {
       await press('recover')
       expect(onRecover).toHaveBeenCalledTimes(1)
       expect(onOpenEditor).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('the actions under the cards', () => {
+    it('draws continue then customize side by side in one actions row, with the note under them', async () => {
+      await mount()
+      const row = byTestId('presets-actions')
+      expect(row?.contains(byTestId('continue'))).toBe(true)
+      expect(row?.contains(byTestId('customize'))).toBe(true)
+      expect(drawnSideBySide('continue', 'customize')).toBe(true)
+      expect(byTestId('continue-unlock')).not.toBeNull()
+      const ids = idsInOrder()
+      expect(ids.indexOf('continue')).toBeLessThan(ids.indexOf('customize'))
+      expect(ids.indexOf('customize')).toBeLessThan(ids.indexOf('continue-unlock'))
+      expect(sharedParent('continue', 'customize')?.contains(byTestId('continue-unlock'))).toBe(
+        false
+      )
+    })
+
+    it('drops the note once a card is picked, and keeps continue and customize in the actions row', async () => {
+      await mount()
+      await press('preset-eitherOne')
+      expect(byTestId('continue-unlock')).toBeNull()
+      const row = byTestId('presets-actions')
+      expect(row?.contains(byTestId('continue'))).toBe(true)
+      expect(row?.contains(byTestId('customize'))).toBe(true)
+    })
+
+    it('keeps the actions row after every card', async () => {
+      await mount()
+      const ids = idsInOrder()
+      const lastCard = Math.max(
+        ...ids.flatMap((id, index) => (id?.startsWith('preset-') ? [index] : []))
+      )
+      expect(lastCard).toBeGreaterThan(-1)
+      expect(ids.indexOf('presets-actions')).toBeGreaterThan(lastCard)
+    })
+
+    it('gives continue and customize the same height', async () => {
+      await mount()
+      expect(heightOf('continue')).toBeTruthy()
+      expect(heightOf('customize')).toBe(heightOf('continue'))
+    })
+
+    it('draws one customize, the one in the actions row, and it opens the editor', async () => {
+      await mount()
+      expect(container.querySelectorAll('[data-testid="customize"]')).toHaveLength(1)
+      const customize = byTestId('presets-actions')?.querySelector<HTMLElement>(
+        '[data-testid="customize"]'
+      )
+      if (!customize) {
+        throw new Error('no customize in the actions row')
+      }
+      await act(async () => {
+        customize.click()
+      })
+      expect(onOpenEditor).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -450,6 +528,19 @@ describe('the presets view', () => {
       expect(allByTestId('resume-row')).toEqual([
         `${S.methodNames.passkey}${S.ceremony.testFailedLine}${S.status.method.testFailed}`
       ])
+    })
+
+    it('draws resume and start over side by side in one actions row, at the same height', async () => {
+      await storeDraft(ENROLLMENTS)
+      await mount()
+      const row = byTestId('resume-actions')
+      expect(row?.contains(byTestId('resume'))).toBe(true)
+      expect(row?.contains(byTestId('start-over'))).toBe(true)
+      expect(drawnSideBySide('resume', 'start-over')).toBe(true)
+      const ids = idsInOrder()
+      expect(ids.indexOf('resume')).toBeLessThan(ids.indexOf('start-over'))
+      expect(heightOf('resume')).toBeTruthy()
+      expect(heightOf('start-over')).toBe(heightOf('resume'))
     })
 
     it('resume opens the editor and keeps the draft', async () => {

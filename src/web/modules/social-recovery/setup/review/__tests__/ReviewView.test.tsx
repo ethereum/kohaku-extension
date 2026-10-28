@@ -206,6 +206,19 @@ const isInside = (inner: string, outer: string) => {
   return !!node && !!byTestId(outer)?.contains(node)
 }
 const isDisabled = (id: string) => byTestId(id)?.getAttribute('aria-disabled') === 'true'
+/** Whether the innermost element holding both nodes lays them out in a row. */
+const drawnSideBySide = (first: string, second: string) => {
+  const other = byTestId(second)
+  let node = byTestId(first)?.parentElement ?? null
+  while (node && other && !node.contains(other)) {
+    node = node.parentElement
+  }
+  return !!node && !!other && window.getComputedStyle(node).flexDirection === 'row'
+}
+const heightOf = (id: string) => {
+  const node = byTestId(id)
+  return node ? window.getComputedStyle(node).height : null
+}
 
 const press = async (id: string) => {
   const node = byTestId(id)
@@ -1384,6 +1397,29 @@ describe('what the review cannot read', () => {
     })
     expect(byTestId('loading-screen')).toBeNull()
     expect(byTestId('review-save')).not.toBeNull()
+  })
+})
+
+describe("the client's retry beside Back", () => {
+  const CLIENT_REFUSALS: Array<'failed' | 'update-the-wallet'> = ['failed', 'update-the-wallet']
+  CLIENT_REFUSALS.forEach((client) => {
+    it(`sits before Back in one row at the same height, and retries, where the client is ${client}`, async () => {
+      const { retry } = await mount({ client })
+
+      expect(drawnSideBySide('review-client-retry', 'review-back')).toBe(true)
+      expect(isBefore('review-client-retry', 'review-back')).toBe(true)
+      expect(heightOf('review-back')).toBeTruthy()
+      expect(heightOf('review-client-retry')).toBe(heightOf('review-back'))
+
+      await press('review-client-retry')
+      expect(retry).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('draws no retry beside Back where the client is ready', async () => {
+    await mount()
+    expect(byTestId('review-client-retry')).toBeNull()
+    expect(byTestId('review-back')).not.toBeNull()
   })
 })
 

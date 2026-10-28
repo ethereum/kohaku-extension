@@ -252,7 +252,6 @@ const ReviewView = ({
     <Button
       testID="review-client-retry"
       type="secondary"
-      size="small"
       text={t('socialRecovery.writes.tryAgain')}
       onPress={client.retry}
       hasBottomSpacing={false}
