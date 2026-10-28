@@ -306,7 +306,7 @@ export const aadhaarCredential = (): Credential => ({
 
 /** The key the recovery installed, as the consume's transaction grants it. */
 export const NEW_KEY: Address = '0x00000000000000000000000000000000000abc01'
-/** The key the lost device held, which the consume's transaction removes. */
+/** The key that controlled the account before this recovery, which the consume's transaction removes. */
 export const REMOVED_KEY: Address = '0x00000000000000000000000000000000000dead1'
 /** A key the signer-state reads name, which no event of the consume names. */
 export const SIGNER_STATE_KEY: Address = '0x00000000000000000000000000000000000fa1e1'

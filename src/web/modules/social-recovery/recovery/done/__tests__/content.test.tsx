@@ -71,6 +71,7 @@ const expectSyncedRepairOnly = (screen: Mounted) => {
     expect(inBlock(block, 'done-synced-title')).toBe(t(`${DONE}.synced.title`))
     expect(inBlock(block, 'done-synced-follows')).toBe(t(`${DONE}.synced.follows`))
     expect(inBlock(block, 'done-synced-order')).toBe(t(`${DONE}.synced.order`))
+    expect(inBlock(block, 'done-synced-still-held')).toBe(t(`${DONE}.synced.stillHeld`))
     expect(inBlock(block, 'done-cannot-reach')).toContain(t(`${DONE}.synced.cannotReachTitle`))
     expect(inBlock(block, 'done-remove-in-editor')).toBe(t(`${DONE}.synced.removeInEditor`))
   })
@@ -94,6 +95,27 @@ const mountOver = async (
   const world = await openWorld({ route: 'logged-in', configuration, walletAdds: true, ...options })
   return { world, screen: await mountDone(world.account) }
 }
+
+/** The phrases that would tell a holder who lost no device that one was lost. */
+const LOST_DEVICE_PHRASES = ['lost device', 'the lost']
+
+/** No rendered text of the screen says that a device was lost. */
+const expectNoLostDevice = (screen: TextQueries) => {
+  const text = screen.text().toLowerCase()
+  LOST_DEVICE_PHRASES.forEach((phrase) => {
+    expect(text).not.toContain(phrase)
+  })
+}
+
+/** The texts the advice for a holder who may or may not have lost a device renders. */
+const ADVICE_KEYS = [
+  `${DONE}.removedLine`,
+  `${DONE}.passwordChange`,
+  `${DONE}.synced.title`,
+  `${DONE}.synced.follows`,
+  `${DONE}.synced.order`,
+  `${DONE}.synced.stillHeld`
+]
 
 /** The new key's one limit and what the recovery did sit beside the keys, the limit said once. */
 const expectLimitBeside = (screen: TextQueries) => {
@@ -481,6 +503,107 @@ describe('the cleanup block by the path passkeys', () => {
     const { screen } = await mountOver(path)
     expect(blocksOf(screen)).toHaveLength(0)
     expect(screen.has('done-synced-title')).toBe(false)
+    screen.unmount()
+  })
+})
+
+describe('the passkey advice for a holder who may still hold every device', () => {
+  it('renders each advice line from its own text, never the bare key', async () => {
+    const { screen } = await mountOver(MIXED_PATH)
+    ADVICE_KEYS.forEach((key) => {
+      expect(t(key)).not.toBe(key)
+      expect(screen.text()).toContain(t(key))
+    })
+    screen.unmount()
+  })
+
+  it('names the removed key and the password change in their new texts', async () => {
+    const { screen } = await mountOver(MIXED_PATH)
+    expect(screen.textOf('done-removed-line-0')).toBe(t(`${DONE}.removedLine`))
+    expect(screen.textOf('done-password-change')).toBe(t(`${DONE}.passwordChange`))
+    screen.unmount()
+  })
+
+  it('titles the synced block for a lost device and states its body and order', async () => {
+    const { screen } = await mountOver(MIXED_PATH)
+    expect(screen.textOf('done-synced-title')).toBe(t(`${DONE}.synced.title`))
+    expect(screen.textOf('done-synced-follows')).toBe(t(`${DONE}.synced.follows`))
+    expect(screen.textOf('done-synced-order')).toBe(t(`${DONE}.synced.order`))
+    expect(screen.before('done-synced-title', 'done-synced-follows')).toBe(true)
+    expect(screen.before('done-synced-follows', 'done-synced-order')).toBe(true)
+    screen.unmount()
+  })
+
+  it('says the row still works for a holder of every signed-in device, after the order and before the cannot-reach lines', async () => {
+    const { screen } = await mountOver(
+      configurationOf([
+        { threshold: 1, credentials: [LAPTOP] },
+        { threshold: 1, credentials: [PHONE] }
+      ])
+    )
+    const blocks = blocksOf(screen)
+    expect(blocks).toHaveLength(2)
+    blocks.forEach((block) => {
+      const still = block.querySelector('[data-testid="done-synced-still-held"]')
+      const order = block.querySelector('[data-testid="done-synced-order"]')
+      const cannotReach = block.querySelector('[data-testid="done-cannot-reach"]')
+      expect(still?.textContent).toBe(t(`${DONE}.synced.stillHeld`))
+      expect(
+        // eslint-disable-next-line no-bitwise
+        order!.compareDocumentPosition(still!) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy()
+      expect(
+        // eslint-disable-next-line no-bitwise
+        still!.compareDocumentPosition(cannotReach!) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy()
+      expect(cannotReach?.contains(still!)).toBe(false)
+    })
+    screen.unmount()
+  })
+
+  it('never states that a device was lost on any passkey path, on either route, with or without a path on this device', async () => {
+    const fastTrack = await openWorld({ route: 'fresh-install' })
+    const fresh = await mountDone(fastTrack.account)
+    await walletAddsIt()
+    expect(blocksOf(fresh)).toHaveLength(1)
+    expectNoLostDevice(fresh)
+    fresh.unmount()
+
+    const paths = [
+      MIXED_PATH,
+      configurationOf([{ threshold: 1, credentials: [LAPTOP] }]),
+      configurationOf([
+        { threshold: 1, credentials: [LAPTOP] },
+        { threshold: 1, credentials: [guardianCredential(GUARDIANS[0])] }
+      ]),
+      configurationOf([
+        { threshold: 1, credentials: [LAPTOP] },
+        { threshold: 1, credentials: [PHONE] }
+      ])
+    ]
+    // eslint-disable-next-line no-restricted-syntax
+    for (const path of paths) {
+      // eslint-disable-next-line no-await-in-loop
+      const { screen } = await mountOver(path)
+      expect(blocksOf(screen).length).toBeGreaterThan(0)
+      expectNoLostDevice(screen)
+      screen.unmount()
+    }
+
+    const world = await openWorld({ route: 'logged-in', cache: false, walletAdds: true })
+    world.kit.chain.attempt = consumedAttempt([BOOK.methods.passkey])
+    const noPath = await mountDone(world.account)
+    expect(blocksOf(noPath)).toHaveLength(1)
+    expectNoLostDevice(noPath)
+    noPath.unmount()
+  })
+
+  it('keeps Remove the row in the editor beside the still-held line, and it opens the editor', async () => {
+    const { screen } = await mountOver(MIXED_PATH)
+    expect(screen.textOf('done-remove-in-editor')).toBe(t(`${DONE}.synced.removeInEditor`))
+    expect(screen.before('done-synced-still-held', 'done-remove-in-editor')).toBe(true)
+    await screen.press('done-remove-in-editor')
+    expect(screen.paths()).toEqual(['/social-recovery/setup/editor'])
     screen.unmount()
   })
 })

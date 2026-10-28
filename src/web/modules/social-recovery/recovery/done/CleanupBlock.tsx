@@ -1,12 +1,14 @@
 /**
- * What one passkey of the path implies after the recovery. A passkey may still
- * follow the account that syncs it, so the block states the repair in its one
- * order (sign the lost device out of that account, add a fresh method that
- * does not sync to it, then remove the old row) and points a holder who
- * cannot reach that account at removing the row in the editor: with a method
- * added first where removing it would leave none, and with the method that
- * would remain as the whole rule, and its single-method warning, where one
- * would. Every passkey of the path gets this block.
+ * What one passkey of the path implies after the recovery. A passkey may
+ * still follow the account that syncs it, so the block states, for a holder
+ * who lost a device signed into that account, the repair in its one order
+ * (sign that device out of the account, add a fresh method that does not
+ * sync to it, then remove the old row), tells a holder who still holds every
+ * such device that the row still works, and points a holder who cannot reach
+ * that account at removing the row in the editor: with a method added first
+ * where removing it would leave none, and with the method that would remain
+ * as the whole rule, and its single-method warning, where one would. Every
+ * passkey of the path gets this block.
  */
 import React from 'react'
 import { View } from 'react-native'
@@ -60,6 +62,7 @@ const CleanupBlock = ({ block, row, disabled, onEdit }: CleanupBlockProps) => {
       {name}
       {line(t(`${DONE}.synced.follows`), 'done-synced-follows')}
       {line(t(`${DONE}.synced.order`), 'done-synced-order')}
+      {line(t(`${DONE}.synced.stillHeld`), 'done-synced-still-held')}
       <View style={spacings.mtSm} testID="done-cannot-reach">
         <Text fontSize={14} weight="medium" style={spacings.mbTy}>
           {t(`${DONE}.synced.cannotReachTitle`)}
