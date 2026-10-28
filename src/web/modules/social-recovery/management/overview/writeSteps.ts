@@ -97,11 +97,11 @@ export const overviewStepsOf = (input: OverviewStepsInput): SaveSteps => {
     },
     checkGas:
       intent === 'reauthorize'
-        ? async (prepared) => {
+        ? async (prepared, passBar) => {
             await refuseWhileAttemptOpen()
-            return save.checkGas(prepared)
+            return save.checkGas(prepared, passBar)
           }
-        : ({ prepared, calls }) =>
+        : ({ prepared, calls }, passBar) =>
             checkGas({
               write: 'ownerWrite',
               prepared,
@@ -109,7 +109,8 @@ export const overviewStepsOf = (input: OverviewStepsInput): SaveSteps => {
               reads: input.reads,
               network: facts.network,
               transaction: accountBatchTransactionOf(facts, key, calls),
-              operates: walletAccountRefOf(facts)
+              operates: walletAccountRefOf(facts),
+              passBar
             }),
     // An attempt may open while the claim waits: a won claim releases and refuses on one.
     claim:

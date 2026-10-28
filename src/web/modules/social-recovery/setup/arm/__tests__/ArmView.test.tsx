@@ -125,24 +125,26 @@ const STEP: DepositStep = {
     gas: 300_000n,
     gasPrice: 2_000_000_000n,
     cost: 600_000_000_000_000n,
-    required: 720_000_000_000_000n
+    asked: 900_000_000_000_000n,
+    required: 660_000_000_000_000n
   },
   balance: 0n,
-  shortfall: 720_000_000_000_000n,
+  shortfall: 900_000_000_000_000n,
   routes: [
     {
       kind: 'transfer',
       from: { address: ACCOUNT, name: 'Account 1', deployed: true },
       to: KEY,
-      amount: 800_000_000_000_000n,
+      amount: 1_080_000_000_000_000n,
       fee: {
         gas: 60_000n,
         gasPrice: 2_000_000_000n,
         cost: 120_000_000_000_000n,
-        required: 144_000_000_000_000n
+        asked: 180_000_000_000_000n,
+        required: 132_000_000_000_000n
       }
     },
-    { kind: 'outside', to: KEY, amount: 720_000_000_000_000n }
+    { kind: 'outside', to: KEY, amount: 900_000_000_000_000n }
   ]
 }
 

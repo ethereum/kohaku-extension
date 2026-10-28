@@ -56,7 +56,7 @@ export const CANCEL_CALL: PreparedCall = {
   block: { number: START_BLOCK, hash: zeroHash }
 }
 
-const ESTIMATE = { gas: 50_000n, gasPrice: 1n, cost: 50_000n, required: 60_000n }
+const ESTIMATE = { gas: 50_000n, gasPrice: 1n, cost: 50_000n, asked: 75_000n, required: 55_000n }
 
 export const ENOUGH: GasCheck = {
   kind: 'enough',

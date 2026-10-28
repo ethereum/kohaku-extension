@@ -40,13 +40,13 @@ const LAST_RUN = 3
 
 const SAVE: PreparedSave = { draft: draftOf(), prepared: COMMIT, calls: [COMMIT] }
 
-const ESTIMATE = { gas: 1n, gasPrice: 1n, cost: 1n, required: 2n }
+const ESTIMATE = { gas: 10n, gasPrice: 1n, cost: 10n, asked: 15n, required: 11n }
 const ENOUGH: GasCheck = {
   kind: 'enough',
   write: 'save',
   key: KEY.addr,
   estimate: ESTIMATE,
-  balance: 5n
+  balance: 15n
 }
 const STEP: DepositStep = {
   write: 'save',
@@ -56,8 +56,8 @@ const STEP: DepositStep = {
   network: { name: 'Sepolia', symbol: 'ETH' },
   estimate: ESTIMATE,
   balance: 0n,
-  shortfall: 2n,
-  routes: [{ kind: 'outside', to: KEY.addr, amount: 2n }]
+  shortfall: 15n,
+  routes: [{ kind: 'outside', to: KEY.addr, amount: 15n }]
 }
 const DEPOSIT: GasCheck = { kind: 'deposit', step: STEP }
 

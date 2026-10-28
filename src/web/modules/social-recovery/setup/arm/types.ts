@@ -36,6 +36,7 @@ import type {
 } from '@web/modules/social-recovery/shared/records'
 import type {
   GasCheck,
+  GasPassBar,
   UnknownReading,
   WriteEvent,
   WriteMachineState
@@ -219,8 +220,11 @@ export interface SaveSteps {
   hasSetup(): Promise<boolean>
   /** The draft as it is committed, the prepared write and its calls. */
   prepare(): Promise<PreparedSave>
-  /** The gas check of the batch the controlling key sends. */
-  checkGas(save: PreparedSave): Promise<GasCheck>
+  /**
+   * The gas check of the batch the controlling key sends, against the bar to
+   * pass, or against the amount asked with `passBar` at `asked`.
+   */
+  checkGas(save: PreparedSave, passBar?: GasPassBar): Promise<GasCheck>
   /** The account the save writes to. */
   account: Address
   /** A stored save as the run checks it: the draft and the prepared write it sent, and its calls. */

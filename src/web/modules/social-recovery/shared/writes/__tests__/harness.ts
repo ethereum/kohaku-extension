@@ -355,8 +355,8 @@ export const enoughCheck = (write: WriteKind): GasCheck => ({
   kind: 'enough',
   write,
   key: KEY.addr,
-  estimate: { gas: 1n, gasPrice: 1n, cost: 1n, required: 1n },
-  balance: 1n
+  estimate: { gas: 10n, gasPrice: 1n, cost: 10n, asked: 15n, required: 11n },
+  balance: 15n
 })
 
 /** The submitting state a new run enters from `from` once the check answers enough, through the machine. */

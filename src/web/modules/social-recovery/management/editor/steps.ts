@@ -219,9 +219,9 @@ export const editStepsOf = (input: EditStepsInput): SaveSteps => {
       own = await save.prepare()
       return own
     },
-    async checkGas(prepared: PreparedSave) {
+    async checkGas(prepared: PreparedSave, passBar) {
       await guardAttempt()
-      return save.checkGas(prepared)
+      return save.checkGas(prepared, passBar)
     },
     // Reads the attempt again after the claim, before the request is handed to the wallet.
     async send(...args) {
@@ -288,7 +288,7 @@ export const removalStepsOf = (input: EditorStepsInput): SaveSteps => {
       await guardAttempt()
       return save.send(...args)
     },
-    async checkGas({ prepared, calls }: PreparedSave) {
+    async checkGas({ prepared, calls }: PreparedSave, passBar) {
       await guardAttempt()
       return checkGas({
         write: 'ownerWrite',
@@ -297,7 +297,8 @@ export const removalStepsOf = (input: EditorStepsInput): SaveSteps => {
         reads: input.reads,
         network: facts.network,
         transaction: accountBatchTransactionOf(facts, key, calls),
-        operates: walletAccountRefOf(facts)
+        operates: walletAccountRefOf(facts),
+        passBar
       })
     },
     async confirm(): Promise<SetupConfirmation> {

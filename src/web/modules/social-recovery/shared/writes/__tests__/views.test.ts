@@ -140,6 +140,7 @@ describe('DepositStepView: what renderDepositStep answers', () => {
       expect(r.copyLabel).toBe(t(GAS_KEYS.copy))
       expect(r.routes.map((route) => route.kind)).toEqual(['transfer', 'outside'])
       expect(r.notes).toEqual([
+        t(GAS_KEYS.feeMayChange),
         t(GAS_KEYS.transferIsAnOperation),
         t(GAS_KEYS.networkOwner, { network: NETWORK.name })
       ])

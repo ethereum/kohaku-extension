@@ -52,7 +52,7 @@ const ONE_ETHER = 1_000_000_000_000_000_000n
 const client: typeof import('@web/modules/social-recovery/shared/client') = jest.requireMock(
   '@web/modules/social-recovery/shared/client'
 )
-const DEPOSIT_LINE = i18n.t('socialRecovery.writes.gas.submissionAmount', { amount: '0.00096 ETH' })
+const DEPOSIT_LINE = i18n.t('socialRecovery.writes.gas.submissionAmount', { amount: '0.0012 ETH' })
 const READING_BALANCE = i18n.t('socialRecovery.loading.balance')
 
 // While `hold` is set, each balance read waits until the test answers it.

@@ -23,8 +23,8 @@ import {
 const ONE_AND_A_HALF_ETHER = 1_500_000_000_000_000_000n
 const { nativeAssetSymbol: ETH } = NETWORK
 
-/** A check whose estimate with its headroom asks for 0.0015 ETH: 250,000 gas at 5 gwei, plus 20%. */
-const reads = (balance = 0n) => mockReads({ balance, gas: 250_000n, price: 5n * GWEI })
+/** A check whose estimate with its headroom asks for 0.0015 ETH: 200,000 gas at 5 gwei, plus 50%. */
+const reads = (balance = 0n) => mockReads({ balance, gas: 200_000n, price: 5n * GWEI })
 
 describe('the amount to send and the balance, in ether', () => {
   it('1.5 ether to send renders 1.50 with the native symbol', () => {
@@ -62,10 +62,10 @@ describe('the deposit step shows its amounts in ether', () => {
     const step = stepOf(await runGasCheck({ write: 'save', reads: reads() }))
     const rendered = renderDepositStep(step, {}, i18n.t)
     expect(rendered.lead).toEqual([i18n.t(GAS_KEYS.shortfallSave, { amount: '0.0015 ETH' })])
-    // The transfer's own 284,000 gas at 5 gwei, plus 20%, is 0.001704 ETH.
+    // The transfer's own 234,000 gas at 5 gwei, plus 50%, is 0.001755 ETH.
     expect(rendered.routes.map((route) => route.line)).toEqual([
       i18n.t(GAS_KEYS.transferRoute, {
-        amount: '0.003204 ETH',
+        amount: '0.003255 ETH',
         account: step.operates?.name
       }),
       i18n.t(GAS_KEYS.outsideRoute, { amount: '0.0015 ETH' })
@@ -73,12 +73,12 @@ describe('the deposit step shows its amounts in ether', () => {
   })
 
   it('a key that holds some: the balance rounds down and the amount it lacks rounds up', async () => {
-    const balance = 1_234_567_890_123_456n
+    const balance = 1_034_567_890_123_456n
     const step = stepOf(await runGasCheck({ write: 'submission', reads: reads(balance) }))
     const rendered = renderDepositStep(step, {}, i18n.t)
-    expect(rendered.waiting[0]).toBe(i18n.t(GAS_KEYS.balanceWaiting, { balance: '0.001234 ETH' }))
+    expect(rendered.waiting[0]).toBe(i18n.t(GAS_KEYS.balanceWaiting, { balance: '0.001034 ETH' }))
     expect(rendered.routes.find((route) => route.kind === 'outside')?.line).toBe(
-      i18n.t(GAS_KEYS.outsideRoute, { amount: '0.000266 ETH' })
+      i18n.t(GAS_KEYS.outsideRoute, { amount: '0.000466 ETH' })
     )
   })
 })

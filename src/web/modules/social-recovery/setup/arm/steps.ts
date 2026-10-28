@@ -103,7 +103,7 @@ export const saveStepsOf = (input: SaveStepsInput): SaveSteps => {
       assertWriteDoor('save', prepared)
       return { draft, prepared, calls: callsOf(prepared) }
     },
-    checkGas: ({ prepared, calls }) =>
+    checkGas: ({ prepared, calls }, passBar) =>
       checkGas({
         write: 'save',
         prepared,
@@ -111,7 +111,8 @@ export const saveStepsOf = (input: SaveStepsInput): SaveSteps => {
         reads: input.reads,
         network: facts.network,
         transaction: accountBatchTransactionOf(facts, key, calls),
-        operates: walletAccountRefOf(facts)
+        operates: walletAccountRefOf(facts),
+        passBar
       }),
     newRequestId: newSendRequestId,
     readInFlight: () => inFlight.read(),

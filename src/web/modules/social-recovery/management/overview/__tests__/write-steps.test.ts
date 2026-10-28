@@ -19,6 +19,7 @@ import type {
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const harness: typeof import('@web/modules/social-recovery/management/overview/__fixtures__/harness') = require('@web/modules/social-recovery/management/overview/__fixtures__/harness')
+const armHarness: typeof import('@web/modules/social-recovery/setup/arm/__tests__/harness') = require('@web/modules/social-recovery/setup/arm/__tests__/harness')
 const {
   overviewStepsOf
 }: typeof import('@web/modules/social-recovery/management/overview/writeSteps') = require('@web/modules/social-recovery/management/overview/writeSteps')
@@ -240,4 +241,46 @@ describe('the overview writes', () => {
     world.chain.setAuthorized(false)
     expect(await steps.hasSetup()).toBe(true)
   })
+})
+
+describe('the bar the gas check passes at', () => {
+  // The default reads: a fee of 0.0006 ETH, a bar to pass of 0.00066 ETH and an amount asked of 0.0009 ETH.
+  const BETWEEN = 700_000_000_000_000n
+  const ASKED = 900_000_000_000_000n
+  const { keyedAccount, factsOf, chainReadsFor } = armHarness
+
+  ;(['reauthorize', 'clear'] as const).forEach((intent) =>
+    it(`${intent}: enough at the bar to pass, the deposit step for the rest at the amount asked`, async () => {
+      const { account, key } = await keyedAccount(0x0bf + (intent === 'clear' ? 1 : 0))
+      const address = account.addr as `0x${string}`
+      const world = await worldAt('public', address)
+      world.chain.setAuthorized(false)
+      const reads = chainReadsFor('enough')
+      reads.nativeBalance.mockImplementation(async () => BETWEEN)
+      const steps = overviewStepsOf({
+        intent,
+        client: world.client,
+        reads,
+        receipts: {} as ReceiptReads,
+        port: {} as SendPort,
+        requests: {} as SendRequestPort,
+        records: world.records,
+        chainId: CHAIN_ID,
+        account: address,
+        facts: factsOf(account, { key }),
+        key,
+        draft:
+          intent === 'reauthorize' ? reauthorizeDraftOf(CONFIGURATION, 'public') : REMOVAL_DRAFT,
+        password: undefined,
+        onAttemptOpen: () => {}
+      })
+
+      const prepared = await steps.prepare()
+      const atBar = await steps.checkGas(prepared)
+      const atAsked = await steps.checkGas(prepared, 'asked')
+
+      expect(atBar.kind).toBe('enough')
+      expect(atAsked.kind === 'deposit' && atAsked.step.shortfall).toBe(ASKED - BETWEEN)
+    })
+  )
 })

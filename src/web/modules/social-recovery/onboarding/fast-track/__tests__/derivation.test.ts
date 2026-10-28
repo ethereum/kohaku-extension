@@ -236,7 +236,7 @@ describe("the fast track's gas check for the submission", () => {
     expect(check.step.operates).toBeUndefined()
     expect(check.step.routes.map((route) => route.kind)).toEqual(['outside'])
     expect(check.step.routes[0]).toMatchObject({ to: ORDINARY_KEY })
-    expect(check.step.shortfall).toBe(check.step.estimate.required)
+    expect(check.step.shortfall).toBe(check.step.estimate.asked)
   })
 
   it('rejects where a read fails, so the step never shows a stale answer', async () => {

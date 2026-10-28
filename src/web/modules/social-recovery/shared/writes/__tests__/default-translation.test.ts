@@ -47,7 +47,7 @@ describe('the renderers read en.json when the caller passes no t', () => {
       await runGasCheck({
         write: 'submission',
         fastTrack: true,
-        reads: mockReads({ balance: 0n, gas: 250_000n, price: 5n * GWEI })
+        reads: mockReads({ balance: 0n, gas: 200_000n, price: 5n * GWEI })
       })
     )
     const rendered = renderDepositStep(step)

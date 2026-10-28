@@ -161,8 +161,16 @@ describe('the deposit step, rendered through en.json', () => {
     })
   )
 
-  it('on the fast track at execution due, the amount follows the fee of that day', async () => {
-    expect(text(copyOfStep(await depositStepFor('execution', true)))).toMatch(FEE_OF_THAT_DAY)
+  it('on the fast track at execution due, the amount is a minimum with room for the fee to rise', async () => {
+    const rendered = text(copyOfStep(await depositStepFor('execution', true)))
+    expect(rendered).toMatch(/\bsend at least\b/i)
+    expect(rendered).toMatch(/\bnetwork fee to rise before you execute\b/i)
+  })
+
+  it('on the fast track before the submission, the amount is a minimum with room for the fee to rise', async () => {
+    const rendered = text(copyOfStep(await depositStepFor('submission', true)))
+    expect(rendered).toMatch(/\bsend at least\b/i)
+    expect(rendered).toMatch(/\bnetwork fee to rise before you submit\b/i)
   })
 
   FAST_TRACK_CASES.forEach(({ name, write }) =>

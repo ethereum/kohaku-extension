@@ -202,7 +202,8 @@ const {
 /** Ten minutes: far past any wait of a follow, for a screen that is away. */
 const FAR_MS = 10 * 60_000
 const {
-  DROPPED_AFTER_MS
+  DROPPED_AFTER_MS,
+  renderGasAmount
 }: typeof import('@web/modules/social-recovery/shared/writes') = require('@web/modules/social-recovery/shared/writes')
 const {
   providerReadFailure
@@ -1289,6 +1290,74 @@ describe('a save the wallet did not send', () => {
 
     expect(port.sendAccountBatch).toHaveBeenCalledTimes(2)
     expect(byTestId('arm-saved')).not.toBeNull()
+  })
+
+  // The default reads: a fee of 0.0006 ETH, a bar to pass of 0.00066 ETH and an amount asked of 0.0009 ETH.
+  it('after the sign screen read the key short, a key above the bar to pass but under the amount asked gets the blocker for the rest of the amount asked', async () => {
+    chain.send = 'refused'
+    chain.estimation = feeReading({ error: true })
+    await writeRecords(draftOf('encrypted'))
+    wireClient('ready')
+    reads.nativeBalance
+      .mockResolvedValueOnce(1_000_000_000_000_000_000n)
+      .mockResolvedValueOnce(700_000_000_000_000n)
+    await openByPush()
+
+    expect(byTestId('arm-gas-blocker')).not.toBeNull()
+    expect(byTestId('arm-write-failedNotSent')).toBeNull()
+    expect(byTestId('arm-gas-route-outside')?.textContent).toContain(
+      `at least ${renderGasAmount(200_000_000_000_000n, 'ETH')}`
+    )
+    expect(port.sendAccountBatch).toHaveBeenCalledTimes(1)
+  })
+
+  it('after the sign screen read the key short, a key that holds the amount asked stays on not sent with no blocker', async () => {
+    chain.send = 'refused'
+    chain.estimation = feeReading({ error: true })
+    await writeRecords(draftOf('encrypted'))
+    wireClient('ready')
+    reads.nativeBalance
+      .mockResolvedValueOnce(1_000_000_000_000_000_000n)
+      .mockResolvedValueOnce(900_000_000_000_000n)
+    await openByPush()
+
+    expect(byTestId('arm-write-failedNotSent')).not.toBeNull()
+    expect(byTestId('arm-gas-blocker')).toBeNull()
+    expect(port.sendAccountBatch).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('the bar a key must reach on the normal path', () => {
+  it('a key above the bar to pass but under the amount asked sends on Continue', async () => {
+    await writeRecords(draftOf('encrypted'))
+    wireClient('ready')
+    reads.nativeBalance.mockResolvedValueOnce(0n).mockResolvedValueOnce(700_000_000_000_000n)
+    await openByPush()
+    expect(byTestId('arm-gas-blocker')).not.toBeNull()
+    expect(byTestId('arm-gas-route-outside')?.textContent).toContain(
+      `at least ${renderGasAmount(900_000_000_000_000n, 'ETH')}`
+    )
+
+    await press('arm-gas-continue')
+
+    expect(byTestId('arm-gas-blocker')).toBeNull()
+    expect(port.sendAccountBatch).toHaveBeenCalledTimes(1)
+    expect(byTestId('arm-saved')).not.toBeNull()
+  })
+
+  it('a key one wei under the bar to pass gets the blocker again on Continue, for the amount asked less what it holds', async () => {
+    await writeRecords(draftOf('encrypted'))
+    wireClient('ready')
+    reads.nativeBalance.mockResolvedValueOnce(0n).mockResolvedValueOnce(659_999_999_999_999n)
+    await openByPush()
+
+    await press('arm-gas-continue')
+
+    expect(byTestId('arm-gas-blocker')).not.toBeNull()
+    expect(byTestId('arm-gas-route-outside')?.textContent).toContain(
+      `at least ${renderGasAmount(240_000_000_000_001n, 'ETH')}`
+    )
+    expect(port.sendAccountBatch).not.toHaveBeenCalled()
   })
 })
 

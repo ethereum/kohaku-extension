@@ -1185,9 +1185,11 @@ const shortAtSigning = (reading: FeeReading | undefined): boolean =>
 
 /**
  * After the sign screen read the batch short of gas and the save was not
- * sent: the gas check again on the same prepared save. Where the key is short,
- * a new run that reads the setup again shows the deposit step; where the
- * check reads enough, the not-sent state stays as it was.
+ * sent: the gas check again on the same prepared save, against the amount the
+ * step asks for rather than the lower bar to pass, since the sign screen's fee
+ * ran above the estimate. Where the key holds less than that amount, a new run
+ * that reads the setup again shows the deposit step with the shortfall to it;
+ * where the key holds it, the not-sent state stays as it was.
  */
 const recheckAfterShortSigning = async (
   store: ArmStore,
@@ -1195,7 +1197,7 @@ const recheckAfterShortSigning = async (
   run: number,
   prepared: PreparedSave
 ): Promise<void> => {
-  const check = await steps.checkGas(prepared).catch(() => null)
+  const check = await steps.checkGas(prepared, 'asked').catch(() => null)
   if (
     check?.kind !== 'deposit' ||
     !inRun(store.state(), run) ||

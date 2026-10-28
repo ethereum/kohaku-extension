@@ -912,3 +912,45 @@ describe("a landed write's end of a recovery countdown", () => {
     expect(await countdownOf(world)).toBe('present')
   })
 })
+
+describe('the bar the gas check passes at', () => {
+  // The default reads: a fee of 0.0006 ETH, a bar to pass of 0.00066 ETH and an amount asked of 0.0009 ETH.
+  const BETWEEN = 700_000_000_000_000n
+  const ASKED = 900_000_000_000_000n
+
+  const betweenTheBars = (world: EditWorld): EditWorld => {
+    const reads = chainReadsFor('enough')
+    reads.nativeBalance.mockImplementation(async () => BETWEEN)
+    return { ...world, reads }
+  }
+
+  const checksOf = async (steps: SaveSteps) => {
+    const prepared = await steps.prepare()
+    return {
+      atBar: await steps.checkGas(prepared),
+      atAsked: await steps.checkGas(prepared, 'asked')
+    }
+  }
+
+  it('the save of the changes: enough at the bar to pass, the deposit step for the rest at the amount asked', async () => {
+    const world = await fixture.worldOf('lands')
+    setRecoveryPassword(CHAIN_ID, world.account, PASSWORD)
+    const baseline = await openAndEdit(world)
+    const { steps } = await editSteps(betweenTheBars(world), baseline)
+
+    const { atBar, atAsked } = await checksOf(steps)
+
+    expect(atBar.kind).toBe('enough')
+    expect(atAsked.kind === 'deposit' && atAsked.step.shortfall).toBe(ASKED - BETWEEN)
+  })
+
+  it('the removal: enough at the bar to pass, the deposit step for the rest at the amount asked', async () => {
+    const world = await fixture.worldOf('lands')
+
+    const { atBar, atAsked } = await checksOf(removalSteps(betweenTheBars(world)))
+
+    expect(atBar.kind).toBe('enough')
+    expect(atAsked.kind === 'deposit' && atAsked.step.shortfall).toBe(ASKED - BETWEEN)
+    expect(atAsked.kind === 'deposit' && atAsked.step.write).toBe('ownerWrite')
+  })
+})

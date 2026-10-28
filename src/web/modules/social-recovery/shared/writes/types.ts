@@ -363,8 +363,22 @@ export interface GasEstimate {
   gasPrice: bigint
   /** `gas * gasPrice`, in wei. */
   cost: bigint
-  /** The cost with the fee headroom, in wei: what the key must hold. */
+  /** The cost with the headroom asked, in wei: what the step asks the key to hold. */
+  asked: bigint
+  /** The cost with the headroom to pass, in wei: the bar a balance must reach to skip the step. */
   required: bigint
+}
+
+/**
+ * The bar a balance must reach to pass the check: `required`, the estimate's
+ * bar to pass, or `asked`, the amount the step asks for.
+ */
+export type GasPassBar = 'required' | 'asked'
+
+/** The two headrooms over an estimated fee, in whole percent; `passPercent` never exceeds `askPercent`. */
+export interface FeeHeadroom {
+  askPercent: number
+  passPercent: number
 }
 
 export type DepositRouteKind = typeof DEPOSIT_ROUTES[number]
@@ -398,7 +412,7 @@ export interface DepositStep {
   estimate: GasEstimate
   /** The key's native balance when the check ran, in wei. */
   balance: bigint
-  /** `estimate.required - balance`, in wei, above zero. */
+  /** `estimate.asked - balance`, in wei, above zero. */
   shortfall: bigint
   /** The routes that fill the key, the transfer first where the step offers it. */
   routes: DepositRoute[]
@@ -449,8 +463,10 @@ export interface GasCheckInput {
   transferTransaction?: GasEstimateCall
   /** The fast track's step. Only a recovery call takes it. */
   fastTrack?: boolean
-  /** The fee headroom in percent, `FEE_HEADROOM_PERCENT` by default. */
-  feeHeadroomPercent?: number
+  /** The headrooms, `ASK_HEADROOM_PERCENT` and `PASS_HEADROOM_PERCENT` by default. */
+  feeHeadroom?: FeeHeadroom
+  /** The bar a balance must reach to pass, `required` by default. */
+  passBar?: GasPassBar
 }
 
 /** What the deposit step is built from: the check's estimate and a balance that falls short of it. */
@@ -463,6 +479,8 @@ export interface DepositStepInput {
   operates?: WalletAccountRef
   transferFee?: GasEstimate
   fastTrack?: boolean
+  /** The bar the balance falls short of, `required` by default. */
+  passBar?: GasPassBar
 }
 
 // ---------------------------------------------------------------------------

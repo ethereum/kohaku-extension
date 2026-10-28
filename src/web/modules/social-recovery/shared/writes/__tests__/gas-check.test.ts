@@ -75,7 +75,7 @@ describe('the gas check', () => {
             })
           )
           expect(step.balance).toBe(100_000n * GWEI)
-          expect(step.shortfall).toBe(step.estimate.required - step.balance)
+          expect(step.shortfall).toBe(step.estimate.asked - step.balance)
         })
 
         it('goes to the deposit step rather than to submitting', async () => {
@@ -176,7 +176,7 @@ describe('the gas check', () => {
         throw new Error('expected both routes')
       }
       expect(transfer.fee.gas).toBeGreaterThanOrEqual(40_000n)
-      expect(transfer.amount).toBeGreaterThanOrEqual(step.shortfall + transfer.fee.required)
+      expect(transfer.amount).toBeGreaterThanOrEqual(step.shortfall + transfer.fee.asked)
       expect(outside.amount).toBeGreaterThanOrEqual(step.shortfall)
       expect(outside.amount).toBeLessThan(transfer.amount)
     })

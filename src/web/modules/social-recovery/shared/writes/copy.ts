@@ -111,7 +111,9 @@ export const GAS_KEYS = {
   /** The blocker at execution due. */
   shortfallExecute: `${GAS}.shortfallExecute`,
   /** The network an owner write's key must be funded on. */
-  networkOwner: `${GAS}.networkOwner`
+  networkOwner: `${GAS}.networkOwner`,
+  /** The owner write's note under its amounts: the fee can rise before the send. */
+  feeMayChange: `${GAS}.feeMayChange`
 } as const
 
 /**
@@ -268,8 +270,9 @@ export const OWNER_SHORTFALL_KEYS: { readonly [W in OwnerWrite]: string } = {
  *
  * - An owner write (a save, another setup write, the owner's cancel) reads:
  *   not enough gas on the account's key, the shortfall, the key's address,
- *   both routes, that the transfer is itself an operation that key must send
- *   and pay for, and the network.
+ *   both routes, that the network fee can change before the send, that the
+ *   transfer is itself an operation that key must send and pay for, and the
+ *   network.
  * - A recovery call on the fast track reads: the key that sends the recovery
  *   pays its gas and the account cannot pay for itself until it is recovered;
  *   the key's address; the amount to send from outside; the network; and the
@@ -335,7 +338,7 @@ export const renderDepositStep = (
       copyLabel,
       copyFailed,
       routes,
-      notes: [...transferSentence, t(GAS_KEYS.networkOwner, { network })],
+      notes: [t(GAS_KEYS.feeMayChange), ...transferSentence, t(GAS_KEYS.networkOwner, { network })],
       aside: [],
       waiting: [],
       blocker: { title, line: shortfall }

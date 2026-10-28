@@ -32,8 +32,8 @@ const {
 /* eslint-enable @typescript-eslint/no-var-requires, global-require */
 
 const GAS = 'socialRecovery.writes.gas'
-/** The estimate with its headroom the step asks for at a balance of zero: 300000 gas at 2 gwei, plus 20%. */
-const OUTSIDE_AMOUNT = '0.00072 ETH'
+/** The estimate with its headroom the step asks for at a balance of zero: 300000 gas at 2 gwei, plus 50%. */
+const OUTSIDE_AMOUNT = '0.0009 ETH'
 
 describe('the deposit step', () => {
   let view: Mounted | undefined
