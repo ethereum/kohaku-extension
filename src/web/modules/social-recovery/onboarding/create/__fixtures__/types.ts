@@ -24,4 +24,5 @@ export type ListProps = {
   accountsOnPage: AccountOnPage[]
   selectedAccounts?: AccountOnPage[]
   shouldSelectSmartAccountAutomatically?: boolean
+  shouldListSmartAccountKeys?: boolean
 }

@@ -80,9 +80,9 @@ const AccountsOnPageList = ({
   //   [state.accountsOnPage]
   // )
 
-  // The smart accounts are listed only when the picker selects them by default
-  // (a newly created seed); the imports list basic accounts only.
-  const shouldDisplaySmartAccounts = !!state.shouldSelectSmartAccountAutomatically
+  // A seed (newly created or imported) lists each slot's smart account with the
+  // key that controls it; a private key lists basic accounts only.
+  const shouldDisplaySmartAccounts = !!state.shouldListSmartAccountKeys
 
   const smartAccounts = useMemo(() => {
     if (!shouldDisplaySmartAccounts) {
@@ -143,8 +143,6 @@ const AccountsOnPageList = ({
             }
           }, Promise.resolve(false))
 
-          console.log({ isUsed, address, acc })
-
           if (isUsed) results[address] = true
         })
       )
@@ -197,8 +195,35 @@ const AccountsOnPageList = ({
     const scan = scanStateRef.current
     if (scan.phase === 'done') return
 
+    // A smart account is selected with its key when either of them is used.
+    smartAccounts.forEach((acc) => {
+      const keyEntry = state.accountsOnPage.find(
+        (a) =>
+          a.slot === acc.slot &&
+          !isSmartAccount(a.account) &&
+          isDerivedForSmartAccountKeyOnly(a.index)
+      )
+      const isUsed =
+        !!accountUsageMap[acc.account.addr] ||
+        (!!keyEntry && !!accountUsageMap[keyEntry.account.addr])
+      if (!isUsed) {
+        return
+      }
+      const entries = keyEntry ? [acc, keyEntry] : [acc]
+      entries.forEach((entry) => {
+        const alreadySelected = state.selectedAccounts.some(
+          (s) => s.account.addr === entry.account.addr
+        )
+        if (!alreadySelected) {
+          handleSelectAccount(entry.account)
+        }
+      })
+    })
+
     const sortedAccounts = [...state.accountsOnPage]
-      .filter((a) => !a.isLinked && !a.account.creation)
+      .filter(
+        (a) => !a.isLinked && !a.account.creation && !isDerivedForSmartAccountKeyOnly(a.index)
+      )
       .sort((a, b) => a.slot - b.slot)
 
     if (scan.phase === 'scanning') {
