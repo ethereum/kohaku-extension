@@ -5,6 +5,7 @@ import DepositStatusBanner from '@common/modules/dashboard/components/DepositSta
 import DashboardPages from '@common/modules/dashboard/components/DashboardPages'
 import useNavigation from '@common/hooks/useNavigation'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
+import HomeRecoveryBand from '@web/modules/social-recovery/recovery/checklist/HomeRecoveryBand'
 import PPv1DashboardPages from '../components/DashboardPages'
 
 type ActiveView = 'public' | 'private'
@@ -25,6 +26,7 @@ const PageContentArea = ({ activeView, isLoadingPublicBalances }: Props) => {
   return (
     <>
       <DepositStatusBanner onWithdrawBack={onWithdrawBack} onDeposit={onDeposit} />
+      <HomeRecoveryBand />
       {activeView === 'public' && !isLoadingPublicBalances && (
         <DashboardPages
           onScroll={noop}

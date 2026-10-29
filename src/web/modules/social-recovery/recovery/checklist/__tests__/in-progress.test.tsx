@@ -3,8 +3,8 @@
  *
  * The recovery in progress lists the chain's live sessions with their state
  * line and its two actions, and sends the holder to the recovery's entry
- * where none is left. The home band renders a line for each live session and
- * nothing without one.
+ * where none is left. The home band renders a line for each live session, no
+ * wider than the content beside it, and nothing without one.
  */
 import type { Address } from '@kohaku-eth/social-recovery'
 
@@ -36,6 +36,10 @@ import {
 const {
   WEB_ROUTES
 }: typeof import('@common/modules/router/constants/common') = require('@common/modules/router/constants/common')
+const commonWebStyles: typeof import('@web/styles/utils/common').default =
+  require('@web/styles/utils/common').default
+const spacings: typeof import('@common/styles/spacings').default =
+  require('@common/styles/spacings').default
 const {
   renderDateTimeInZone
 }: typeof import('@web/modules/social-recovery/shared/display') = require('@web/modules/social-recovery/shared/display')
@@ -268,6 +272,27 @@ describe('the home band', () => {
     )
     await view.press(`home-recovery-${id}-open`)
     expect(view.lastPath()).toBe(`/${WEB_ROUTES.socialRecoveryRecoveryInProgress}`)
+  })
+
+  it('caps its width at the width of the content beside it', async () => {
+    await seedEntry(world.records)
+    await seedSession(world.records, gatheringOf(MIXED_PATH))
+    view = await mountBand({ records: world.records })
+
+    const { maxWidth, width, marginHorizontal } = commonWebStyles.contentContainer
+    const content = view.byTestId('home-recovery-band-content')
+    expect(content?.style.maxWidth).toBe(`${maxWidth}px`)
+    expect(content?.style.width).toBe(width)
+    expect(content?.style.marginLeft).toBe(marginHorizontal)
+    expect(content?.style.marginRight).toBe(marginHorizontal)
+    expect(content?.style.paddingLeft).toBe('')
+    expect(content?.style.paddingRight).toBe('')
+
+    const padding = `${spacings.phSm.paddingHorizontal}px`
+    const band = view.byTestId('home-recovery-band')
+    expect(content?.parentElement).toBe(band)
+    expect(band?.style.paddingLeft).toBe(padding)
+    expect(band?.style.paddingRight).toBe(padding)
   })
 
   it('renders nothing without a session', async () => {

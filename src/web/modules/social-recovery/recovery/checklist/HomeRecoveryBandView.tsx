@@ -11,6 +11,7 @@ import spacings from '@common/styles/spacings'
 import type { Address } from '@kohaku-eth/social-recovery'
 import { isOfDeployment, isSessionOfDeployment } from '@web/modules/social-recovery/shared/records'
 import WaitHomeLine from '@web/modules/social-recovery/recovery/wait/WaitHomeLine'
+import commonWebStyles from '@web/styles/utils/common'
 
 import HomeRecoveryLine from './HomeRecoveryLine'
 import { inProgressItemsOf } from './inProgress'
@@ -66,22 +67,24 @@ const HomeRecoveryBandView = ({
   }
   return (
     <View style={[spacings.phSm, spacings.mbSm]} testID="home-recovery-band">
-      {items.map((item) => (
-        <HomeRecoveryLine
-          key={item.account}
-          item={item}
-          timeZone={timeZone}
-          useHeadline={useHeadline}
-          onOpen={() => navigate(inProgressPath())}
-        />
-      ))}
-      {countdowns.map((account) => (
-        <WaitHomeLine
-          key={account}
-          account={account}
-          onOpen={() => navigate(waitPathOf(account))}
-        />
-      ))}
+      <View style={commonWebStyles.contentContainer} testID="home-recovery-band-content">
+        {items.map((item) => (
+          <HomeRecoveryLine
+            key={item.account}
+            item={item}
+            timeZone={timeZone}
+            useHeadline={useHeadline}
+            onOpen={() => navigate(inProgressPath())}
+          />
+        ))}
+        {countdowns.map((account) => (
+          <WaitHomeLine
+            key={account}
+            account={account}
+            onOpen={() => navigate(waitPathOf(account))}
+          />
+        ))}
+      </View>
     </View>
   )
 }
