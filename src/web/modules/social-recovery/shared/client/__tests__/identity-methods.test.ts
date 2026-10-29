@@ -18,8 +18,7 @@ import { getRpcProvider } from '@ambire-common/services/provider/getRpcProvider'
 import type {
   CeremonyStep,
   CeremonyView,
-  DeviceResult,
-  ZkPassportRequestWithResult
+  DeviceResult
 } from '@web/modules/social-recovery/shared/ceremony'
 import { externalAppDevice } from '@web/modules/social-recovery/shared/ceremony/externalAppDevice'
 import { inBrowserProverDevice } from '@web/modules/social-recovery/shared/ceremony/inBrowserProverDevice'
@@ -169,7 +168,7 @@ const deviceContext = (call: IdentityCall, followed: Followed) => ({
 })
 
 const identityWorld = async (): Promise<IdentityWorld> => {
-  const world = createWorld({ chain: 'sepolia' })
+  const world = createWorld({ chain: 'mainnet' })
   const client = await buildRecoveryClient(world.config)
   return {
     world,
@@ -276,7 +275,9 @@ describe('a zkPassport credential from enrollment to a claim the node accepts', 
     const identity = await identityWorld()
     const followed: Followed = { steps: [], views: [] }
     const config = asConfig(await enrollPassport(identity, followed))
-    const decoded = zkPassportMethod(createScriptedZkPassportStack()).codec.decodeConfig(config)
+    const decoded = zkPassportMethod({ stack: createScriptedZkPassportStack() }).codec.decodeConfig(
+      config
+    )
     expect(BigInt(decoded.uniqueIdentifier as string)).toBe(123n)
     expect(decoded).toMatchObject({ domain: 'kohaku.stand-in', scope: 'kohaku-recovery' })
     expect(followed.steps).toEqual([
@@ -318,7 +319,7 @@ describe('a zkPassport credential from enrollment to a claim the node accepts', 
 
   it('rejects the reply against a config of another identifier', async () => {
     const identity = await identityWorld()
-    const method = zkPassportMethod(createScriptedZkPassportStack())
+    const method = zkPassportMethod({ stack: createScriptedZkPassportStack() })
     const config = asConfig(await enrollPassport(identity, { steps: [], views: [] }))
     const request = requestFor(identity.client, identity.zkModule, config)
     const reply = replyOf(await claimPassport(identity, request, { steps: [], views: [] }))
@@ -337,7 +338,7 @@ describe('a zkPassport credential from enrollment to a claim the node accepts', 
 
   it('rejects a proof whose nullifier is not the non-salted one, and bytes that do not decode', async () => {
     const identity = await identityWorld()
-    const { codec } = zkPassportMethod(createScriptedZkPassportStack())
+    const { codec } = zkPassportMethod({ stack: createScriptedZkPassportStack() })
     const config = asConfig(await enrollPassport(identity, { steps: [], views: [] }))
     const request = requestFor(identity.client, identity.zkModule, config)
     const reply = replyOf(await claimPassport(identity, request, { steps: [], views: [] }))
@@ -604,12 +605,13 @@ describe('the scripted zkPassport stack', () => {
     expect(restored.heard.results).toEqual([expect.objectContaining({ uniqueIdentifier: '123' })])
   })
 
-  it('stops the answers still to come once a request is closed, and counts each close', async () => {
+  it('stops the answers still to come once a request is cancelled, and counts each cancel', async () => {
     const stack = createScriptedZkPassportStack({ stepMs: 20 })
     const { request, heard } = await listen(stack)
     expect(stack.closes()).toBe(0)
     await waitFor(30)
-    ;(request as ZkPassportRequestWithResult).close?.()
+    const client = await stack('kohaku.stand-in')
+    client.cancelRequest(request.requestId)
     await waitFor(100)
     expect(heard.events).toEqual(['received'])
     expect(stack.closes()).toBe(1)
@@ -626,7 +628,7 @@ describe('the scripted zkPassport stack', () => {
 
 describe('the zkPassport method over a scripted phone that fails', () => {
   const method = (stack: ReturnType<typeof createScriptedZkPassportStack>) =>
-    zkPassportMethod(stack)
+    zkPassportMethod({ stack })
   const PARAMS = { domain: 'kohaku.stand-in', scope: 'kohaku-recovery' }
   /** A screen that draws the request's code, which the device needs to run. */
   const SCREEN = { show: () => undefined }
@@ -876,6 +878,26 @@ describe('the Aadhaar method over a scripted prover that fails', () => {
     })
   })
 
+  it('refuses a claim over a QR code the script marks stale before proving, and proves a fresh one as before', async () => {
+    const stack = createScriptedAadhaarStack({ stepMs: 1 })
+    const { aadhaar, ctx, signing } = await enrolled(stack)
+    const generateArgs = jest.spyOn(stack, 'generateArgs')
+    const prove = jest.spyOn(stack, 'prove')
+
+    stack.script({ stale: true })
+    await expect(aadhaar.replyFrom(ctx, signing, { qrData: QR_DATA })).resolves.toEqual({
+      kind: 'reply-failure',
+      cause: 'material-rejected'
+    })
+    expect(generateArgs).not.toHaveBeenCalled()
+    expect(prove).not.toHaveBeenCalled()
+
+    stack.script({})
+    const proof = await aadhaar.replyFrom(ctx, signing, { qrData: QR_DATA })
+    expect(typeof proof).toBe('string')
+    expect(prove).toHaveBeenCalledTimes(1)
+  })
+
   it('hands a proof its local verifier could not run, which the method then does not judge', async () => {
     const stack = createScriptedAadhaarStack({ stepMs: 1 })
     const { aadhaar, ctx, signing } = await enrolled(stack)
@@ -887,7 +909,7 @@ describe('the Aadhaar method over a scripted prover that fails', () => {
 })
 
 describe('the chain verdict the ceremony tab reads', () => {
-  const SEPOLIA = networkRecord('sepolia')
+  const MAINNET = networkRecord('mainnet')
 
   it('judges a reply on the fake node where the chain runs the stand-in', async () => {
     jest.useFakeTimers()
@@ -897,9 +919,9 @@ describe('the chain verdict the ceremony tab reads', () => {
     const request = requestFor(identity.client, identity.zkModule, config)
     const reply = replyOf(await claimPassport(identity, request, { steps: [], views: [] }))
 
-    const approving = await extensionClientFor(() => [SEPOLIA])(
+    const approving = await extensionClientFor(() => [MAINNET])(
       identity.world.account,
-      CHAIN_IDS.sepolia
+      CHAIN_IDS.mainnet
     )
     if (!approving.chainVerdict) {
       throw new Error('no chain verdict')

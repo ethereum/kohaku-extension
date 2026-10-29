@@ -4,10 +4,10 @@
  *
  * `servedImplementation` is the one real address: it is the implementation
  * the account library already deploys behind every account proxy, so no
- * deployment of the kit changes it. Every other address is a placeholder, and
- * no contract is deployed at any of them. A chain whose deployment record
- * (deployments.ts) names a deployed kit reads that deployment's addresses
- * instead. Each placeholder reads as `c7`, one byte for the chain (`01`
+ * deployment of the kit changes it. Every other address is a placeholder the
+ * stand-in reads, and no contract is deployed at any of them. A chain whose
+ * deployment record (deployments.ts) names a deployed kit, Sepolia in the
+ * committed table, reads that deployment's addresses instead. Each placeholder reads as `c7`, one byte for the chain (`01`
  * Sepolia, `02` mainnet) and one byte for the field, behind seventeen zero
  * bytes, so nobody mistakes one for a deployment.
  */
@@ -22,7 +22,7 @@ import type { SlotKind } from '@web/modules/social-recovery/shared/records/types
 import { deploymentOf } from './deployments'
 import type { AddressBook, DeploymentAddresses, RecoveryChain } from './types'
 
-/** Both deployments' addresses by chain: placeholders to replace once deployed, and the real served implementation. */
+/** The stand-in's addresses by chain: placeholders, and the real served implementation. */
 export const PLACEHOLDER_ADDRESSES = {
   sepolia: {
     // Placeholder: the Sepolia policy manager.

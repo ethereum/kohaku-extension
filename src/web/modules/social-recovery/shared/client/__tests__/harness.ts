@@ -130,7 +130,6 @@ export const MAINNET = 1
 export const CLIENT_CONFIGURATION_KEYS: (keyof ClientConfiguration)[] = [
   'tokens',
   'candidateKeys',
-  'creation',
   'accountImplementation',
   'blockTags',
   'logChunkSize',
@@ -409,16 +408,19 @@ export interface World {
   account: Address
 }
 
+/** The chain the committed table runs the stand-in on. */
+export const STAND_IN_CHAIN: RecoveryChain = 'mainnet'
+
 /**
- * A world on the chain this build reads: the client's own address book and
- * descriptor, the stand-in's fake node for them (reset first), the
+ * A world on the stand-in chain unless another is given: the chain's address
+ * book and descriptor, the stand-in's fake node for them (reset first), the
  * extension provider mocked over it and the adapter the configuration names.
  */
 export const createWorld = (overrides: Partial<RecoveryClientConfiguration> = {}): World => {
   sdkStandIn.reset()
   const account = overrides.account ?? addressOf('account')
-  const addressBook = overrides.addressBook ?? addressBookOf(WALLET_RECOVERY_CHAIN)
-  const chainLabel = overrides.chain ?? WALLET_RECOVERY_CHAIN
+  const chainLabel = overrides.chain ?? STAND_IN_CHAIN
+  const addressBook = overrides.addressBook ?? addressBookOf(chainLabel)
   const descriptor = descriptorOf(chainLabel, addressBook)
   const chain = sdkStandIn.nodeFor(descriptor, account)
   const ethers = ethersOver(chain)

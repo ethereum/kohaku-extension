@@ -44,7 +44,14 @@ import {
   kitBinding,
   kitSlot,
   MANAGER_EVENTS_ABI,
+  METHOD_AADHAAR_DISCLOSURE_INPUTS,
+  METHOD_AADHAAR_MIN_FRESHNESS_WINDOW,
+  METHOD_AADHAAR_PUBLIC_INPUTS,
+  METHOD_AADHAAR_SIGNAL_HASH_SHIFT,
   METHOD_ECDSA_CONFIG_ABI,
+  METHOD_ZKPASSPORT_NON_SALTED_NULLIFIER,
+  METHOD_ZKPASSPORT_NULLIFIER_TYPE_FROM_END,
+  METHOD_ZKPASSPORT_SCOPED_NULLIFIER_FROM_END,
   passkeyMethod,
   POLICY_ACTION_INTERFACE_ID,
   POLICY_MANAGER_EIP712_DOMAIN_ABI,
@@ -131,18 +138,14 @@ const PROVIDER_READ_NAMES = ['chainId', 'call', 'logs', 'block', 'code', 'transa
 // Any non-empty code: the node answers the views itself.
 const CONTRACT_CODE: Hex = '0x6080604052'
 
-/** Where the zkPassport outer proof's nullifier type and scoped nullifier sit, from the end of its public inputs. */
-const NULLIFIER_TYPE_FROM_END = 3
-const SCOPED_NULLIFIER_FROM_END = 2
-
-/** Where the Aadhaar proof's nullifier, timestamp, disclosures, seed and signal hash sit among its nine public inputs. */
-const AADHAAR_NULLIFIER_INPUT = 1
-const AADHAAR_TIMESTAMP_INPUT = 2
-const AADHAAR_DISCLOSURE_INPUTS = [3, 4, 5, 6] as const
-const AADHAAR_SEED_INPUT = 7
-const AADHAAR_SIGNAL_HASH_INPUT = 8
-/** The shortest freshness window an Aadhaar config may carry, in seconds. */
-const AADHAAR_MIN_FRESHNESS_WINDOW = 3600n
+/** Where the Aadhaar proof's nullifier, timestamp, disclosures, seed and signal hash sit among its public inputs. */
+const AADHAAR_NULLIFIER_INPUT = METHOD_AADHAAR_PUBLIC_INPUTS.indexOf('nullifier')
+const AADHAAR_TIMESTAMP_INPUT = METHOD_AADHAAR_PUBLIC_INPUTS.indexOf('timestamp')
+const AADHAAR_DISCLOSURE_INPUTS = METHOD_AADHAAR_DISCLOSURE_INPUTS.map((name) =>
+  METHOD_AADHAAR_PUBLIC_INPUTS.indexOf(name)
+)
+const AADHAAR_SEED_INPUT = METHOD_AADHAAR_PUBLIC_INPUTS.indexOf('nullifierSeed')
+const AADHAAR_SIGNAL_HASH_INPUT = METHOD_AADHAAR_PUBLIC_INPUTS.indexOf('signalHash')
 
 const isFieldRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -252,7 +255,8 @@ export class ScriptedNode implements IProvider {
 
   private readonly passkeyCodec = passkeyMethod().codec
 
-  private readonly zkPassportCodec = zkPassportMethod(createScriptedZkPassportStack()).codec
+  private readonly zkPassportCodec = zkPassportMethod({ stack: createScriptedZkPassportStack() })
+    .codec
 
   private readonly aadhaarCodec = anonAadhaarMethod({ stack: createScriptedAadhaarStack() }).codec
 
@@ -678,8 +682,9 @@ export class ScriptedNode implements IProvider {
     }
     const identifier = BigInt(uniqueIdentifier)
     return identifier !== 0n &&
-      wordFromEnd(inputs, NULLIFIER_TYPE_FROM_END) === 0n &&
-      wordFromEnd(inputs, SCOPED_NULLIFIER_FROM_END) === identifier
+      wordFromEnd(inputs, METHOD_ZKPASSPORT_NULLIFIER_TYPE_FROM_END) ===
+        METHOD_ZKPASSPORT_NON_SALTED_NULLIFIER &&
+      wordFromEnd(inputs, METHOD_ZKPASSPORT_SCOPED_NULLIFIER_FROM_END) === identifier
       ? 'satisfied'
       : 'rejected'
   }
@@ -694,11 +699,13 @@ export class ScriptedNode implements IProvider {
     const now = BigInt(this.head.timestamp)
     const fresh =
       typeof signedAt === 'bigint' && !(signedAt < now && now - signedAt > freshnessWindow)
-    return freshnessWindow >= AADHAAR_MIN_FRESHNESS_WINDOW &&
+    // eslint-disable-next-line no-bitwise
+    const signalHash = BigInt(keccak256(digest)) >> METHOD_AADHAAR_SIGNAL_HASH_SHIFT
+    return freshnessWindow >= METHOD_AADHAAR_MIN_FRESHNESS_WINDOW &&
       inputs[AADHAAR_NULLIFIER_INPUT] === nullifier &&
       inputs[AADHAAR_SEED_INPUT] === nullifierSeed &&
       AADHAAR_DISCLOSURE_INPUTS.every((index) => inputs[index] === 0n) &&
-      inputs[AADHAAR_SIGNAL_HASH_INPUT] === BigInt(keccak256(digest)) / 8n &&
+      inputs[AADHAAR_SIGNAL_HASH_INPUT] === signalHash &&
       fresh
       ? 'satisfied'
       : 'rejected'

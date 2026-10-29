@@ -40,16 +40,6 @@ module.exports = {
       '<rootDir>/src/web/modules/social-recovery/__tests__/stubs/safeAreaContext.ts',
     '^react-native-svg$': 'react-native-svg/lib/commonjs/ReactNativeSVG.web.js',
     '^nanoid$': '<rootDir>/src/web/modules/social-recovery/__tests__/stubs/nanoid.ts',
-    // The social recovery SDK ships ES modules only and its exports map has no CommonJS
-    // condition, so Jest loads its built entry by path and Babel transforms it
-    '^@kohaku-eth/social-recovery$': path.join(
-      path.dirname(require.resolve('@kohaku-eth/social-recovery/package.json')),
-      'dist/index.js'
-    ),
-    '^@kohaku-eth/social-recovery/recovery-methods$': path.join(
-      path.dirname(require.resolve('@kohaku-eth/social-recovery/package.json')),
-      'dist/recovery-methods.js'
-    ),
     // The path aliases of tsconfig.json, so a unit test imports like the code it tests
     '^@ambire-common/(.*)$': '<rootDir>/src/ambire-common/src/$1',
     '^@contracts/(.*)$': '<rootDir>/src/ambire-common/contracts/$1',

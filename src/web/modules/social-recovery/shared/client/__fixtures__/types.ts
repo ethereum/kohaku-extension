@@ -8,6 +8,10 @@ import type {
   RawLog,
   BackupChoice
 } from '@kohaku-eth/social-recovery'
+import type {
+  AnonAadhaarMethodOptions,
+  ZkPassportMethodOptions
+} from '@kohaku-eth/social-recovery/recovery-methods'
 import type { CeremonyStep, CeremonyView } from '@web/modules/social-recovery/shared/ceremony'
 import type {
   World,
@@ -189,6 +193,12 @@ export type GapCase = [string, (keyof DeploymentFacts)[], 'zkPassport' | 'aadhaa
 
 /** A method and the deployment fact it lacks. */
 export type UndeployedCase = ['zkPassport' | 'aadhaar', keyof DeploymentFacts]
+
+/** The options each identity method factory was called with, in call order. */
+export interface IdentityFactoryCalls {
+  zkPassport: ZkPassportMethodOptions[]
+  aadhaar: AnonAadhaarMethodOptions[]
+}
 
 /** A case's name and the queue that blocks the account. */
 export type BlockingCase = [string, (a: Address) => ReturnType<typeof queueHolding>]

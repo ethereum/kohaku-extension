@@ -6,9 +6,10 @@
  * action only through `auditedActionsOn` and `auditedActionOf`, and the
  * descriptors' `auditedActions` sets are read from it.
  *
- * The action addresses are placeholders to replace once deployed (addresses.ts).
- * A chain whose deployment record (deployments.ts) names a deployed kit takes
- * its audited actions from that deployment instead of this table.
+ * The action addresses are the stand-in's placeholders (addresses.ts). A chain
+ * whose deployment record (deployments.ts) names a deployed kit, Sepolia in
+ * the committed table, takes its audited actions from that deployment instead
+ * of this table.
  */
 import { PLACEHOLDER_ADDRESSES, sameAddress } from './addresses'
 import { RECOVERY_CHAINS } from './chains'
@@ -20,14 +21,14 @@ export const AUDITED_ACTIONS = [
   {
     kind: 'audited',
     chain: 'sepolia',
-    // Placeholder address, to replace once deployed.
+    // Placeholder address the stand-in reads.
     action: PLACEHOLDER_ADDRESSES.sepolia.action,
     publisher: 'ethereumFoundation'
   },
   {
     kind: 'audited',
     chain: 'mainnet',
-    // Placeholder address, to replace once deployed.
+    // Placeholder address the stand-in reads.
     action: PLACEHOLDER_ADDRESSES.mainnet.action,
     publisher: 'ethereumFoundation'
   }

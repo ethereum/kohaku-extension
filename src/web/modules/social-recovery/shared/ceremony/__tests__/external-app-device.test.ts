@@ -52,11 +52,11 @@ const phoneRequest = ({ withResult = true, withBridge = true }: PhoneRequestOffe
   const on = (name: string) => (callback: Callback) => {
     handlers.set(name, [...(handlers.get(name) ?? []), callback])
   }
-  const close = jest.fn()
+  const cancel = jest.fn()
   const request = {
     url: URL,
     requestId: 'request-1',
-    close,
+    cancel,
     onRequestReceived: on('received'),
     onGeneratingProof: on('generating'),
     onProofGenerated: on('generated'),
@@ -71,7 +71,7 @@ const phoneRequest = ({ withResult = true, withBridge = true }: PhoneRequestOffe
   return {
     request,
     fire,
-    close,
+    cancel,
     listening: (name: string) => (handlers.get(name) ?? []).length
   }
 }
@@ -163,7 +163,7 @@ describe('the external-app device at an enrollment', () => {
     expect(run.views).toEqual([])
     expect(run.steps).toEqual([])
     expect(phone.listening('success')).toBe(0)
-    expect(phone.close).toHaveBeenCalledTimes(1)
+    expect(phone.cancel).toHaveBeenCalledTimes(1)
   })
 
   it('never builds the result from the success callback, whatever proofs it delivers', async () => {
@@ -277,7 +277,7 @@ describe('the external-app device at a claim', () => {
       await tick()
       expect(watch.views).toEqual([])
       expect(phone.listening('success')).toBe(0)
-      expect(phone.close).toHaveBeenCalledTimes(1)
+      expect(phone.cancel).toHaveBeenCalledTimes(1)
     })
 
     it('answers cancelled at once for an abort while the opener hangs, and closes a request that opens later without following it', async () => {
@@ -299,7 +299,7 @@ describe('the external-app device at a claim', () => {
       expect(watch.steps).toEqual([])
       expect(phone.listening('success')).toBe(0)
       expect(phone.listening('result')).toBe(0)
-      expect(phone.close).toHaveBeenCalledTimes(1)
+      expect(phone.cancel).toHaveBeenCalledTimes(1)
     })
 
     it('answers cancelled at once for an abort while the opener hangs, and consumes its later rejection', async () => {
@@ -617,9 +617,9 @@ const startOnFakeClock = async (
       phone.fire('received')
       controller.abort()
       await expect(run.running).resolves.toEqual(CANCELLED)
-      expect(phone.close).not.toHaveBeenCalled()
+      expect(phone.cancel).not.toHaveBeenCalled()
       await tick()
-      expect(phone.close).toHaveBeenCalledTimes(1)
+      expect(phone.cancel).toHaveBeenCalledTimes(1)
     })
 
     it('closes it once after the result, a task after the last callback', async () => {
@@ -629,10 +629,10 @@ const startOnFakeClock = async (
       phone.fire('generated', OUTER)
       phone.fire('success', { proofs: [OUTER], result: {} })
       phone.fire('result', { verified: true, uniqueIdentifier: '456', proofs: [OUTER] })
-      expect(phone.close).not.toHaveBeenCalled()
+      expect(phone.cancel).not.toHaveBeenCalled()
       await run.running
       await tick()
-      expect(phone.close).toHaveBeenCalledTimes(1)
+      expect(phone.cancel).toHaveBeenCalledTimes(1)
     })
 
     it('closes it once after the phone declined', async () => {
@@ -642,7 +642,7 @@ const startOnFakeClock = async (
       phone.fire('reject')
       await expect(run.running).resolves.toEqual(REFUSED)
       await tick()
-      expect(phone.close).toHaveBeenCalledTimes(1)
+      expect(phone.cancel).toHaveBeenCalledTimes(1)
     })
 
     it('never closes it twice, whatever arrives after the first answer', async () => {
@@ -656,17 +656,7 @@ const startOnFakeClock = async (
       await expect(run.running).resolves.toEqual(REFUSED)
       await tick()
       await tick()
-      expect(phone.close).toHaveBeenCalledTimes(1)
-    })
-
-    it('settles as usual where the library offers no close', async () => {
-      const phone = phoneRequest()
-      const { close, ...withoutClose } = phone.request
-      const run = await start(call, { ...phone, request: withoutClose as typeof phone.request })
-      phone.fire('reject')
-      await expect(run.running).resolves.toEqual(REFUSED)
-      await tick()
-      expect(close).not.toHaveBeenCalled()
+      expect(phone.cancel).toHaveBeenCalledTimes(1)
     })
   })
 )

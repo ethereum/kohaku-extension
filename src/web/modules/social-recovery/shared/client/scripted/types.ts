@@ -125,7 +125,7 @@ export interface ScriptedZkPassportOptions {
 export type ScriptedZkPassportStack = ZkPassportStack & {
   /** Sets how every request from now on is answered; an empty script restores the defaults. */
   script(next: ScriptedZkPassportScript): void
-  /** How many times a request of this stack was closed. */
+  /** How many times a request of this stack was cancelled. */
   closes(): number
 }
 
@@ -138,7 +138,7 @@ export interface ScriptedAadhaarScript {
   prove?: ScriptedProverAnswer
   /** The nullifier the proof carries; 22 by default. */
   nullifier?: bigint
-  /** Stamps the proof with a QR code older than a day instead of the device clock; false by default. */
+  /** Reads a QR code signed two days ago instead of at the device clock's time; false by default. */
   stale?: boolean
   /** The local verifier's answer, or a throw; true by default. */
   verify?: boolean | 'throw'

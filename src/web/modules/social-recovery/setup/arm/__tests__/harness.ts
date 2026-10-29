@@ -834,6 +834,7 @@ export const descriptionOf = (
   reveals: { suppliedSaltPlaces: [] },
   cancel: { cancelByVeto: true },
   upgrade: {},
+  action: { address: zeroAddress, info: { answered: false }, shipped: true, audited: true },
   pause: { ignoresPause: true, methods: [] }
 })
 

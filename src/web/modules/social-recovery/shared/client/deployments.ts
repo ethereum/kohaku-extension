@@ -2,19 +2,20 @@
  * What each recovery chain runs: the scripted stand-in, or a deployed kit and
  * its facts.
  *
- * The committed table names the stand-in for both chains until a public
- * deployment lands; that chain's row then becomes `deployed` here. A
- * developer's build overrides Sepolia through the build-time variable
- * `SOCIAL_RECOVERY_SEPOLIA_DEPLOYMENT`, a JSON object of the deployment's
+ * The committed table names the published Sepolia deployment for Sepolia and
+ * the stand-in for mainnet, which has no public deployment yet. A developer's
+ * build overrides Sepolia through the build-time variable
+ * `SOCIAL_RECOVERY_SEPOLIA_DEPLOYMENT`, a JSON object of another deployment's
  * facts. A malformed value throws at first use with the field it got wrong,
- * and never falls back to the stand-in. With no variable, every chain answers
- * the committed row.
+ * and never falls back to the committed row. With no variable, every chain
+ * answers the committed row.
  */
 import { isAddress, isAddressEqual, zeroAddress } from 'viem'
 
 import type { Address } from '@kohaku-eth/social-recovery'
 
 import { SEPOLIA_DEPLOYMENT_VARIABLE, sepoliaDeploymentVariable } from './deployment-env'
+import { SEPOLIA_DEPLOYMENT } from './deployments-sepolia'
 import type {
   DeployedAuditedAction,
   Deployment,
@@ -33,7 +34,7 @@ export const PUBLISHERS = ['ethereumFoundation'] as const
 
 /** The committed table: what each chain runs in a build that sets no variable. */
 export const DEPLOYMENTS: Readonly<Record<RecoveryChain, Deployment>> = {
-  sepolia: { kind: 'stand-in' },
+  sepolia: { kind: 'deployed', facts: SEPOLIA_DEPLOYMENT },
   mainnet: { kind: 'stand-in' }
 }
 
@@ -47,6 +48,7 @@ const FIELDS: readonly string[] = [
   'zkPassportTestnetTree',
   'aadhaarNullifierSeed',
   'aadhaarCertificate',
+  'aadhaarTestMode',
   'deployedAt',
   'digestVersion',
   'managerVersion',
@@ -222,6 +224,9 @@ export const deploymentFactsFrom = (raw: string): DeploymentFacts => {
   }
   if (parsed.aadhaarCertificate !== undefined) {
     facts.aadhaarCertificate = certificateAt(parsed.aadhaarCertificate)
+  }
+  if (parsed.aadhaarTestMode !== undefined) {
+    facts.aadhaarTestMode = flagAt(parsed.aadhaarTestMode, 'aadhaarTestMode')
   }
   if (parsed.explorerUrl !== undefined) {
     facts.explorerUrl = explorerUrlAt(parsed.explorerUrl)

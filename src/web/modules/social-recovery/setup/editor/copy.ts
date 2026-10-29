@@ -52,9 +52,10 @@ const REFUSAL_KEYS: Record<RefusalKey, string> = {
   tooLarge: 'socialRecovery.editor.refusals.tooLarge'
 }
 
-// A backup too wide for its padding and an action that cannot serve the
-// account are the SDK's findings alone: this wallet never judges either shape
-// itself, so each has a sentence of its own outside the editor's refusals.
+// A backup too wide for its padding, an action that cannot serve the account
+// and an account with no code are the SDK's findings alone: this wallet never
+// judges those shapes itself, so each has a sentence of its own outside the
+// editor's refusals.
 const SETUP_ERROR_KEYS: Record<SetupErrorCode, string> = {
   'rule.empty': REFUSAL_KEYS.noMethod,
   'clause.empty': REFUSAL_KEYS.emptyGroup,
@@ -63,9 +64,11 @@ const SETUP_ERROR_KEYS: Record<SetupErrorCode, string> = {
   'clause.threshold-too-wide': REFUSAL_KEYS.thresholdAboveField,
   'rule.too-wide': REFUSAL_KEYS.tooLarge,
   'credential.duplicate': 'socialRecovery.editor.duplicate',
+  'credential.config-malformed': 'socialRecovery.editor.refusals.credentialConfigMalformed',
   'wait.field-width': REFUSAL_KEYS.waitFieldWidth,
   'wait.above-maximum': REFUSAL_KEYS.waitCeiling,
   'action.unsupported': 'socialRecovery.editor.refusals.actionUnsupported',
+  'account.not-deployed': 'socialRecovery.editor.refusals.accountNotDeployed',
   'backup.too-wide': 'socialRecovery.editor.refusals.backupTooWide'
 }
 

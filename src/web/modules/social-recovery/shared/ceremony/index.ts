@@ -73,6 +73,5 @@ export type {
   UnavailableOutcome,
   VisibilityGate,
   VisibilitySource,
-  WebAuthnCall,
-  ZkPassportRequestWithResult
+  WebAuthnCall
 } from './types'

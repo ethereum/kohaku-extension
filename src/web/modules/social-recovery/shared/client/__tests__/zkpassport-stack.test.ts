@@ -1,15 +1,12 @@
 /**
  * The installed zkPassport stack builds the app library's client for the
- * domain the method names, as the SDK's own default does, and changes one
- * thing: a request opens in the library's dev mode exactly where the chain's
- * parameters ask for the test certificate tree. The verifier parameters pass
- * through unchanged. The library is a fake module here, so the peer never
- * loads.
+ * domain the method names, as the SDK's own default does. A request and the
+ * verifier parameters reach the library with the dev mode the method asks
+ * for. The library is a fake module here, so the peer never loads.
  */
 import type { ZkPassportRequestArgs } from '@kohaku-eth/social-recovery'
 import { __importStar } from 'tslib'
 
-import type { ZkPassportRequestWithResult } from '@web/modules/social-recovery/shared/ceremony'
 import { zkPassportStackFor } from '@web/modules/social-recovery/shared/client/zkpassport-stack'
 
 const mockLibrary = {
@@ -82,71 +79,49 @@ const ARGS: ZkPassportRequestArgs = {
 
 describe('the installed zkPassport stack', () => {
   it('builds no library client until the method asks for one, then one for the domain it names', async () => {
-    const stack = zkPassportStackFor({ testnetTree: true })
+    const stack = zkPassportStackFor()
     expect(mockLibrary.constructed).toEqual([])
     await stack('kohaku.example')
     expect(mockLibrary.constructed).toEqual(['kohaku.example'])
   })
-  ;[true, false].forEach((testnetTree) =>
-    it(`opens every request with dev mode ${testnetTree} where the chain's test-tree switch is ${testnetTree}, and changes nothing else`, async () => {
-      const client = await zkPassportStackFor({ testnetTree })('kohaku.example')
-      ;[false, true].forEach((asked) => {
-        // The SDK asks for dev mode off; the switch decides either way.
-        client
-          .request({ ...ARGS, devMode: asked } as unknown as ZkPassportRequestArgs)
-          .catch(() => undefined)
-      })
-      await Promise.resolve()
-      expect(mockLibrary.requests).toEqual([
-        { domain: 'kohaku.example', args: { ...ARGS, devMode: testnetTree } },
-        { domain: 'kohaku.example', args: { ...ARGS, devMode: testnetTree } }
-      ])
-    })
-  )
+  it('opens every request with the dev mode the method asks for, and changes nothing else', async () => {
+    const client = await zkPassportStackFor()('kohaku.example')
+    await client.request({ ...ARGS, devMode: false })
+    await client.request({ ...ARGS, devMode: true })
+    expect(mockLibrary.requests).toEqual([
+      { domain: 'kohaku.example', args: { ...ARGS, devMode: false } },
+      { domain: 'kohaku.example', args: { ...ARGS, devMode: true } }
+    ])
+  })
 
-  it("hands back the library's own request, whose close cancels that request in the library", async () => {
-    const client = await zkPassportStackFor({ testnetTree: true })('kohaku.example')
-    const request: ZkPassportRequestWithResult = (await client.request(ARGS)).done()
+  it("hands back the library's own request, and cancels a request in the library", async () => {
+    const client = await zkPassportStackFor()('kohaku.example')
+    const request = (await client.request(ARGS)).done()
     expect(request).toMatchObject({
       url: 'https://zkpassport.example/r?id=request-1',
       requestId: 'request-1'
     })
     expect(mockLibrary.cancelled).toEqual([])
-    request.close?.()
+    client.cancelRequest(request.requestId)
     expect(mockLibrary.cancelled).toEqual([{ domain: 'kohaku.example', requestId: 'request-1' }])
   })
 
-  it('keeps the close on a request built after a bind, and passes the bind through', async () => {
-    const client = await zkPassportStackFor({ testnetTree: true })('kohaku.example')
-    const request: ZkPassportRequestWithResult = (await client.request(ARGS))
-      .bind('custom_data', '0xabc')
-      .done()
+  it('passes the bind through', async () => {
+    const client = await zkPassportStackFor()('kohaku.example')
+    ;(await client.request(ARGS)).bind('custom_data', '0xabc').done()
     expect(mockLibrary.bound).toEqual([['custom_data', '0xabc']])
-    request.close?.()
-    expect(mockLibrary.cancelled).toEqual([{ domain: 'kohaku.example', requestId: 'request-1' }])
   })
-  ;[true, false].forEach((testnetTree) =>
-    it(`passes the verifier parameters through unchanged with the switch ${testnetTree}`, async () => {
-      const client = await zkPassportStackFor({ testnetTree })('kohaku.example')
+  ;[true, false].forEach((devMode) =>
+    it(`passes the verifier parameters through unchanged with dev mode ${devMode}`, async () => {
+      const client = await zkPassportStackFor()('kohaku.example')
       const asked = {
         proof: { name: 'outer_evm_count_4' },
         domain: 'kohaku.example',
         scope: 'kohaku-recovery',
-        devMode: false as const
+        devMode
       }
       expect(client.getSolidityVerifierParameters(asked)).toBe(mockLibrary.answer)
       expect(mockLibrary.parameters).toEqual([{ domain: 'kohaku.example', args: asked }])
     })
   )
-
-  it("does not leak one stack's switch into another's", async () => {
-    const test = await zkPassportStackFor({ testnetTree: true })('a.example')
-    const production = await zkPassportStackFor({ testnetTree: false })('b.example')
-    await production.request(ARGS)
-    await test.request(ARGS)
-    expect(mockLibrary.requests).toEqual([
-      { domain: 'b.example', args: { ...ARGS, devMode: false } },
-      { domain: 'a.example', args: { ...ARGS, devMode: true } }
-    ])
-  })
 })

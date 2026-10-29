@@ -437,7 +437,7 @@ describe('the client builder the ceremony tab uses', () => {
   const MAINNET = networkRecord('mainnet')
 
   it('builds the client for the account over the provider of the chain network, then destroys that provider', async () => {
-    const world = createWorld()
+    const world = createDeployedWorld()
     buildProvider.mockReturnValue(world.ethers)
     const clientFor = extensionClientFor(() => [MAINNET, SEPOLIA])
     const client = await clientFor(world.account, CHAIN_ID)
@@ -455,17 +455,19 @@ describe('the client builder the ceremony tab uses', () => {
   })
 
   it('takes the chain id as a number as well as a bigint', async () => {
-    const world = createWorld()
+    const world = createDeployedWorld()
     buildProvider.mockReturnValue(world.ethers)
     const client = await extensionClientFor(() => [SEPOLIA])(world.account, CHAIN_IDS.sepolia)
     expect(client.methodFor('passkey')).toBeDefined()
   })
 
   it('destroys the provider and rejects with the refusal where the build is refused', async () => {
-    const world = createWorld()
-    world.chain.setChainId(1)
+    const world = createWorld({ chain: 'mainnet' })
+    world.chain.setChainId(CHAIN_IDS.sepolia)
     buildProvider.mockReturnValue(world.ethers)
-    const caught = await thrownBy(extensionClientFor(() => [SEPOLIA])(world.account, CHAIN_ID))
+    const caught = await thrownBy(
+      extensionClientFor(() => [MAINNET])(world.account, CHAIN_IDS.mainnet)
+    )
     expect(caught).toBeInstanceOf(Error)
     expect(caught).toMatchObject({ message: expect.stringMatching(/chain/i) })
     expect(world.ethers.destroy).toHaveBeenCalledTimes(1)
@@ -509,7 +511,7 @@ describe('the client builder the ceremony tab uses', () => {
   )
 
   it('reads the networks at each build, so a network added later serves the next build', async () => {
-    const world = createWorld()
+    const world = createDeployedWorld()
     buildProvider.mockReturnValue(world.ethers)
     const held: ReturnType<typeof networkRecord>[] = []
     const clientFor = extensionClientFor(() => held)
@@ -525,7 +527,7 @@ describe('a request for a method the page serves no device for, on the client th
   OTHER_SLUGS.forEach((slug) =>
     (['enroll', 'testAccess'] as const).forEach((call) =>
       it(`ends the ${call} of ${slug} as not supported with no retry, since the page serves only the browser authenticator`, async () => {
-        const world = createWorld()
+        const world = createDeployedWorld()
         buildProvider.mockReturnValue(world.ethers)
         const { records } = recordsInMemory()
         const resolve = createCeremonyResolver({
@@ -672,6 +674,7 @@ describe("the chain's verdict the resolver hands the tab", () => {
 
 describe("the chain's verdict of the client builder the ceremony tab uses", () => {
   const SEPOLIA = networkRecord('sepolia')
+  const MAINNET = networkRecord('mainnet')
   const PROOF: Hex = '0x01'
 
   /** A request of the world's account and deployment for `method` and `config`, and its reply. */
@@ -791,9 +794,9 @@ describe("the chain's verdict of the client builder the ceremony tab uses", () =
 
   it("reads the same page's fake node on the stand-in chain, through no provider of its own", async () => {
     deploymentVariable.mockReturnValue(undefined)
-    const world = createWorld({ chain: 'sepolia' })
+    const world = createWorld({ chain: 'mainnet' })
     buildProvider.mockReturnValue(world.ethers)
-    const client = await extensionClientFor(() => [SEPOLIA])(world.account, CHAIN_ID)
+    const client = await extensionClientFor(() => [MAINNET])(world.account, CHAIN_IDS.mainnet)
     const config: Hex = `0x${'b2'.repeat(96)}`
     const { request, reply } = exchangeFor(world, world.descriptor.methodPasskey, config)
 

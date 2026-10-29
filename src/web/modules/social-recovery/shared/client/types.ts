@@ -32,7 +32,6 @@ import type {
   BlockTag,
   BlockTags,
   Configuration,
-  CreationRecord,
   DeploymentDescriptor,
   Handover,
   Hex,
@@ -131,6 +130,8 @@ export interface DeploymentFacts {
   aadhaarNullifierSeed?: string
   /** The PEM certificate the Aadhaar QR code's signature is checked against. */
   aadhaarCertificate?: string
+  /** Whether the Aadhaar module trusts Anon Aadhaar's test key, set by a test deployment alone. */
+  aadhaarTestMode?: boolean
   action: Address
   /** The block the manager was deployed at, where event reads start. */
   deployedAt: number
@@ -165,12 +166,13 @@ export type Deployment = { kind: 'stand-in' } | { kind: 'deployed'; facts: Deplo
  * The parameters each identity method takes at enrollment and at every claim,
  * identical on every device for the life of a credential: the zkPassport
  * domain and scope the identifier is derived under, and whether the phone
- * proves against the test certificate tree; the Aadhaar nullifier seed and the
- * issuer certificate the QR code's signature is checked against.
+ * proves against the test certificate tree; the Aadhaar nullifier seed, the
+ * issuer certificate the QR code's signature is checked against, and whether
+ * the QR code is signed by Anon Aadhaar's test key.
  */
 export interface IdentityParams {
   zkPassport: { domain: string; scope: string; testnetTree: boolean }
-  aadhaar: { nullifierSeed: bigint; issuerCertificate: string }
+  aadhaar: { nullifierSeed: bigint; issuerCertificate: string; testMode: boolean }
 }
 
 /** The identity parameters a chain carries: a method its deployment names none for is absent. */
@@ -179,6 +181,14 @@ export type IdentityParamsReading = Partial<IdentityParams>
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
+
+/** How and in which block a smart account was created: its factory, bytecode and salt. */
+export interface CreationRecord {
+  readonly factory: Address
+  readonly bytecode: Hex
+  readonly salt: Hex
+  readonly block: number
+}
 
 /** The account facts the client configuration carries where the wallet has them. */
 export interface AccountFacts {
@@ -197,7 +207,7 @@ export interface RecoveryClientConfiguration extends AccountFacts {
   chain: RecoveryChain
   /** The account the client binds. */
   account: Address
-  /** The deployed manager, methods and action (placeholders until deployment). */
+  /** The deployed manager, methods and action (placeholders on the stand-in). */
   addressBook: AddressBook
   /** The provider adapter over the extension's own provider (`createProviderAdapter`). */
   provider: IProvider

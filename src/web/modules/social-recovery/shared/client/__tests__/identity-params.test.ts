@@ -17,6 +17,7 @@ import {
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
 import { addressOf } from '@web/modules/social-recovery/shared/client/__fixtures__/addresses'
 import { sepoliaDeploymentVariable } from '@web/modules/social-recovery/shared/client/deployment-env'
+import { SEPOLIA_DEPLOYMENT } from '@web/modules/social-recovery/shared/client/deployments-sepolia'
 import {
   identityParamsOf,
   methodParamsOf
@@ -28,8 +29,27 @@ import {
 import type { DeploymentFacts } from '@web/modules/social-recovery/shared/client/types'
 import type {
   GapCase,
+  IdentityFactoryCalls,
   UndeployedCase
 } from '@web/modules/social-recovery/shared/client/__fixtures__/types'
+
+const mockFactoryCalls: IdentityFactoryCalls = { zkPassport: [], aadhaar: [] }
+
+// The SDK's own factories, recording the options the build hands them.
+jest.mock('@kohaku-eth/social-recovery/recovery-methods', () => {
+  const actual = jest.requireActual('@kohaku-eth/social-recovery/recovery-methods')
+  return {
+    ...actual,
+    zkPassportMethod: (options: IdentityFactoryCalls['zkPassport'][number]) => {
+      mockFactoryCalls.zkPassport.push(options)
+      return actual.zkPassportMethod(options)
+    },
+    anonAadhaarMethod: (options: IdentityFactoryCalls['aadhaar'][number]) => {
+      mockFactoryCalls.aadhaar.push(options)
+      return actual.anonAadhaarMethod(options)
+    }
+  }
+})
 
 jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
   ...jest.requireActual('@web/modules/social-recovery/shared/client/deployment-env'),
@@ -55,7 +75,8 @@ const IDENTITY_FACTS: DeploymentFacts = {
   zkPassportScope: 'kohaku-recovery-sepolia',
   zkPassportTestnetTree: true,
   aadhaarNullifierSeed: SEED,
-  aadhaarCertificate: CERTIFICATE
+  aadhaarCertificate: CERTIFICATE,
+  aadhaarTestMode: true
 }
 
 const without = (...fields: (keyof DeploymentFacts)[]): DeploymentFacts => {
@@ -70,31 +91,54 @@ const STAND_IN = {
   zkPassport: { domain: 'kohaku.stand-in', scope: 'kohaku-recovery', testnetTree: false },
   aadhaar: {
     nullifierSeed: 1n,
-    issuerCertificate: '-----BEGIN CERTIFICATE-----\nstand-in\n-----END CERTIFICATE-----'
+    issuerCertificate: '-----BEGIN CERTIFICATE-----\nstand-in\n-----END CERTIFICATE-----',
+    testMode: false
   }
 }
 
 const CALLS: CeremonyCall[] = ['enroll', 'testAccess', 'createClaim', 'healthCheck']
 
 describe('the identity parameters of a chain', () => {
-  ;(['sepolia', 'mainnet'] as const).forEach((chain) =>
-    it(`reads the fixed stand-in values on ${chain} while it runs the stand-in`, () => {
-      variable.mockReturnValue(undefined)
-      expect(identityParamsOf(chain)).toEqual(STAND_IN)
+  it('reads the fixed stand-in values on mainnet, which runs the stand-in', () => {
+    variable.mockReturnValue(undefined)
+    expect(identityParamsOf('mainnet')).toEqual(STAND_IN)
+  })
+
+  it("reads the committed Sepolia deployment's values where no variable is set", () => {
+    variable.mockReturnValue(undefined)
+    expect(identityParamsOf('sepolia')).toEqual({
+      zkPassport: {
+        domain: 'social-recovery.kohaku.test',
+        scope: 'kohaku-social-recovery',
+        testnetTree: true
+      },
+      aadhaar: {
+        nullifierSeed: 11155111n,
+        issuerCertificate: SEPOLIA_DEPLOYMENT.aadhaarCertificate,
+        testMode: false
+      }
     })
-  )
+  })
 
   it("reads a deployed chain's facts, the seed as a number", () => {
     variable.mockReturnValue(JSON.stringify(IDENTITY_FACTS))
     expect(identityParamsOf('sepolia')).toEqual({
       zkPassport: { domain: 'kohaku.example', scope: 'kohaku-recovery-sepolia', testnetTree: true },
-      aadhaar: { nullifierSeed: BigInt(SEED), issuerCertificate: CERTIFICATE }
+      aadhaar: { nullifierSeed: BigInt(SEED), issuerCertificate: CERTIFICATE, testMode: true }
     })
   })
 
   it('reads the facts it is handed over those of the chain', () => {
     variable.mockReturnValue(undefined)
     expect(identityParamsOf('sepolia', IDENTITY_FACTS).zkPassport?.domain).toBe('kohaku.example')
+  })
+
+  it('reads the Aadhaar test mode as off where the facts do not name it', () => {
+    expect(identityParamsOf('sepolia', without('aadhaarTestMode')).aadhaar).toEqual({
+      nullifierSeed: BigInt(SEED),
+      issuerCertificate: CERTIFICATE,
+      testMode: false
+    })
   })
 
   it('proves against the production tree where the facts do not name the test tree', () => {
@@ -195,7 +239,7 @@ describe('the params an identity method takes for one call', () => {
   })
 
   it("is taken as it is by the SDK's own zkPassport method, which carries the phone's name and purpose", () => {
-    const method = zkPassportMethod(createScriptedZkPassportStack())
+    const method = zkPassportMethod({ stack: createScriptedZkPassportStack() })
     CALLS.forEach((call) => {
       const params = methodParamsOf(STAND_IN, 'zkpassport', call)
       if (!params) {
@@ -224,7 +268,7 @@ describe('the params an identity method takes for one call', () => {
 describe("the client's params for an identity method", () => {
   it('hands the stand-in values on a chain with no deployment', async () => {
     variable.mockReturnValue(undefined)
-    const client = await buildRecoveryClient(createWorld({ chain: 'sepolia' }).config)
+    const client = await buildRecoveryClient(createWorld({ chain: 'mainnet' }).config)
     expect(client.methodParamsFor('zkpassport', 'createClaim')).toEqual({
       domain: 'kohaku.stand-in',
       scope: 'kohaku-recovery',
@@ -276,4 +320,42 @@ describe("the client's params for an identity method", () => {
       expect(client.methodParamsFor(other, 'enroll')).toBeDefined()
     })
   )
+})
+
+describe('the identity methods a built client constructs', () => {
+  beforeEach(() => {
+    mockFactoryCalls.zkPassport = []
+    mockFactoryCalls.aadhaar = []
+  })
+
+  const lastOptions = () => ({
+    zkPassport: mockFactoryCalls.zkPassport[mockFactoryCalls.zkPassport.length - 1],
+    aadhaar: mockFactoryCalls.aadhaar[mockFactoryCalls.aadhaar.length - 1]
+  })
+
+  it("hands a deployed chain's test-tree fact to zkPassport as dev mode and its Aadhaar test-mode fact as test mode", async () => {
+    variable.mockReturnValue(JSON.stringify(IDENTITY_FACTS))
+    await buildRecoveryClient(createDeployedWorld().config)
+    const { zkPassport, aadhaar } = lastOptions()
+    expect(zkPassport).toMatchObject({ devMode: true })
+    expect(aadhaar).toMatchObject({ testMode: true })
+  })
+
+  it('turns both modes off on a deployed chain whose facts name neither', async () => {
+    variable.mockReturnValue(JSON.stringify(without('zkPassportTestnetTree', 'aadhaarTestMode')))
+    await buildRecoveryClient(createDeployedWorld().config)
+    const { zkPassport, aadhaar } = lastOptions()
+    expect(zkPassport).toMatchObject({ devMode: false })
+    expect(aadhaar).toMatchObject({ testMode: false })
+  })
+
+  it('hands neither mode on the stand-in chain, only its scripted stacks', async () => {
+    variable.mockReturnValue(undefined)
+    await buildRecoveryClient(createWorld({ chain: 'mainnet' }).config)
+    const { zkPassport, aadhaar } = lastOptions()
+    expect(zkPassport?.stack).toBeDefined()
+    expect(zkPassport).not.toHaveProperty('devMode')
+    expect(aadhaar?.stack).toBeDefined()
+    expect(aadhaar).not.toHaveProperty('testMode')
+  })
 })

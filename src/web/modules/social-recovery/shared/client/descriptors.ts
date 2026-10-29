@@ -2,10 +2,10 @@
  * The two deployment descriptors the SDK ships, Sepolia and Ethereum mainnet,
  * as plain data this build carries.
  *
- * Every field of both is a placeholder until each deployment lands: the
- * addresses (addresses.ts), the deployment block, the digest version and the
- * release string. A chain whose deployment record (deployments.ts) names a
- * deployed kit reads that deployment's facts instead. The digest version is
+ * Every field of both is a placeholder the stand-in reads: the addresses
+ * (addresses.ts), the deployment block, the digest version and the release
+ * string. A chain whose deployment record (deployments.ts) names a deployed
+ * kit, Sepolia in the committed table, reads that deployment's facts instead. The digest version is
  * the domain version this build derives typed data under, the manager
  * contract's `DIGEST_VERSION`; `buildRecoveryClient` refuses a manager that
  * publishes another one.
@@ -25,14 +25,14 @@ import { CHAIN_IDS } from './chains'
 import { deploymentOf } from './deployments'
 import type { AddressBook, RecoveryChain } from './types'
 
-/** The fields of a shipped descriptor that are not addresses, all placeholders until deployment. */
+/** The fields of a shipped descriptor that are not addresses, placeholders for a chain that runs the stand-in. */
 export const DEPLOYMENT_FACTS = {
   sepolia: {
-    // Placeholder until the Sepolia deployment lands.
+    // Placeholder for a build that runs the stand-in on Sepolia.
     deployedAt: 0,
     // The digest version this build derives under; a placeholder until the contract's is final.
     digestVersion: '1',
-    // Placeholder release string until the Sepolia deployment lands.
+    // Placeholder release string for a build that runs the stand-in on Sepolia.
     managerVersion: '1.0.0'
   },
   mainnet: {

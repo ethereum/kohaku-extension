@@ -54,8 +54,8 @@ describe('the audited-actions table', () => {
     })
   })
 
-  it('answers the table row for an address in the table, whatever its letter case', () => {
-    AUDITED_ACTIONS.forEach((row) => {
+  it('answers the table row for an address in the table on the stand-in chain, whatever its letter case', () => {
+    AUDITED_ACTIONS.filter((row) => row.chain === 'mainnet').forEach((row) => {
       const upper = `0x${row.action.slice(2).toUpperCase()}`
       const lower = `0x${row.action.slice(2).toLowerCase()}`
       expect(upper).not.toBe(lower)
@@ -79,13 +79,13 @@ describe('the audited-actions table', () => {
   })
 
   it('hands a screen copies, so no screen can edit the table through a lookup', () => {
-    const offered = auditedActionsOn('sepolia')
+    const offered = auditedActionsOn('mainnet')
     ;(offered[0] as { publisher: string }).publisher = 'someoneElse'
-    expect(auditedActionsOn('sepolia')[0].publisher).toBe('ethereumFoundation')
-    const found = auditedActionOf(PLACEHOLDER_ADDRESSES.sepolia.action) as { publisher: string }
+    expect(auditedActionsOn('mainnet')[0].publisher).toBe('ethereumFoundation')
+    const found = auditedActionOf(PLACEHOLDER_ADDRESSES.mainnet.action) as { publisher: string }
     found.publisher = 'someoneElse'
     expect(
-      (auditedActionOf(PLACEHOLDER_ADDRESSES.sepolia.action) as { publisher: string }).publisher
+      (auditedActionOf(PLACEHOLDER_ADDRESSES.mainnet.action) as { publisher: string }).publisher
     ).toBe('ethereumFoundation')
   })
 

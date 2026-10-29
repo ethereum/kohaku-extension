@@ -21,6 +21,7 @@ import {
   isProviderReadFailure,
   RecoveryClientConfiguration,
   sdkStandIn,
+  SEPOLIA,
   spyOnBuilder,
   spyOnPrepares,
   thrownBy
@@ -111,7 +112,7 @@ describe('the digest-version check', () => {
   describe('runs after the provider chain check and the domain check', () => {
     it('reads a provider on another chain as the chain-id refusal, even where the version also differs', async () => {
       const world = createWorld()
-      world.chain.setChainId(1)
+      world.chain.setChainId(SEPOLIA)
       world.chain.setDomain({ version: 'other' })
       const caught = await thrownBy(buildRecoveryClient(world.config))
       expect(isDigestVersionRefusal(caught)).toBe(false)
@@ -120,7 +121,7 @@ describe('the digest-version check', () => {
 
     it('reads a manager on another chain as a construction refusal, not as update the wallet', async () => {
       const world = createWorld()
-      world.chain.setDomain({ chainId: 1n, version: 'other' })
+      world.chain.setDomain({ chainId: BigInt(SEPOLIA), version: 'other' })
       const caught = await thrownBy(buildRecoveryClient(world.config))
       expect(isDigestVersionRefusal(caught)).toBe(false)
       expect(caught).toMatchObject({ message: BUILDER_DOMAIN_CHAIN_MESSAGE })

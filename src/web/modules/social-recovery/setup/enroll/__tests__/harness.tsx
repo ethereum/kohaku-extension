@@ -357,7 +357,7 @@ export const readyClient = (options: ReadyClientOptions = {}): FakeClient => {
   const signingInputs: ApproverRequest[] = []
   const enrollParams: unknown[] = []
   const ecdsa = walletMethod()
-  const zkPassport = zkPassportMethod(createScriptedZkPassportStack())
+  const zkPassport = zkPassportMethod({ stack: createScriptedZkPassportStack() })
   const aadhaar = anonAadhaarMethod({ stack: createScriptedAadhaarStack() })
   const bySlug = new Map<string, IRecoveryMethod>([
     ['ecdsa', ecdsa],

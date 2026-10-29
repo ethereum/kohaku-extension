@@ -14,7 +14,7 @@ import type { Address } from '@kohaku-eth/social-recovery'
 import {
   createPrivilegeReads,
   createWorld,
-  MAINNET,
+  SEPOLIA,
   PrivilegeAccount,
   PrivilegeReadsProvider,
   World
@@ -150,7 +150,7 @@ describe('the privilege holders read', () => {
 
   it('answers unreadable when the provider is on another chain, before it reads the account', async () => {
     const world = createWorld()
-    world.ethers.answeredChainId = MAINNET
+    world.ethers.answeredChainId = SEPOLIA
     const account: PrivilegeAccount = {
       addr: world.account,
       associatedKeys: [keyA],

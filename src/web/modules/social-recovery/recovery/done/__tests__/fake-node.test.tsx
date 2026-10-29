@@ -23,10 +23,15 @@ import {
 } from '@web/modules/social-recovery/shared/client'
 import { sdkStandIn } from '@web/modules/social-recovery/shared/client/stand-in'
 
-jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
-  ...jest.requireActual('@web/modules/social-recovery/shared/client/deployment-env'),
-  sepoliaDeploymentVariable: () => undefined
-}))
+// Sepolia runs the stand-in here, as a build with no deployment would.
+jest.mock('@web/modules/social-recovery/shared/client/deployments', () => {
+  const actual = jest.requireActual('@web/modules/social-recovery/shared/client/deployments')
+  return {
+    ...actual,
+    deploymentOf: (chain: string) =>
+      chain === 'sepolia' ? { kind: 'stand-in' } : actual.deploymentOf(chain)
+  }
+})
 
 useDoneClock()
 

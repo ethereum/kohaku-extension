@@ -13,8 +13,10 @@ import {
 } from '@web/modules/social-recovery/shared/client/__fixtures__/scripted-provider'
 
 const passport = () =>
-  zkPassportMethod(async () => {
-    throw new Error('no stack')
+  zkPassportMethod({
+    stack: async () => {
+      throw new Error('no stack')
+    }
   })
 
 const aadhaar = () =>

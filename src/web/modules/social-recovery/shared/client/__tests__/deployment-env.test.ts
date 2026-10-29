@@ -1,17 +1,15 @@
 /**
  * The Sepolia deployment variable is read from the environment, and an empty
- * or blank value counts as no variable, so the chain runs the stand-in. Every
- * address set here is made up, and the variable is restored after each test.
+ * or blank value counts as no variable, so the chain runs the committed
+ * Sepolia deployment. Every address set here is made up, and the variable is
+ * restored after each test.
  */
-import {
-  addressBookOf,
-  deploymentOf,
-  PLACEHOLDER_ADDRESSES
-} from '@web/modules/social-recovery/shared/client'
+import { addressBookOf, deploymentOf } from '@web/modules/social-recovery/shared/client'
 import {
   SEPOLIA_DEPLOYMENT_VARIABLE,
   sepoliaDeploymentVariable
 } from '@web/modules/social-recovery/shared/client/deployment-env'
+import { SEPOLIA_DEPLOYMENT } from '@web/modules/social-recovery/shared/client/deployments-sepolia'
 
 const NAME = 'SOCIAL_RECOVERY_SEPOLIA_DEPLOYMENT'
 const FACTS = {
@@ -44,7 +42,7 @@ describe('the Sepolia deployment variable', () => {
   it('is not set where the environment holds none', () => {
     delete process.env[NAME]
     expect(sepoliaDeploymentVariable()).toBeUndefined()
-    expect(deploymentOf('sepolia')).toEqual({ kind: 'stand-in' })
+    expect(deploymentOf('sepolia')).toEqual({ kind: 'deployed', facts: SEPOLIA_DEPLOYMENT })
   })
 
   const BLANK = ['', '   ', '\n\t ']
@@ -52,8 +50,8 @@ describe('the Sepolia deployment variable', () => {
     it(`is not set where the value is ${JSON.stringify(raw)}`, () => {
       process.env[NAME] = raw
       expect(sepoliaDeploymentVariable()).toBeUndefined()
-      expect(deploymentOf('sepolia')).toEqual({ kind: 'stand-in' })
-      expect(addressBookOf('sepolia').manager).toBe(PLACEHOLDER_ADDRESSES.sepolia.manager)
+      expect(deploymentOf('sepolia')).toEqual({ kind: 'deployed', facts: SEPOLIA_DEPLOYMENT })
+      expect(addressBookOf('sepolia').manager).toBe(SEPOLIA_DEPLOYMENT.manager)
     })
   )
 

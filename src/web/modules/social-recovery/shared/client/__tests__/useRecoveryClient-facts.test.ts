@@ -16,13 +16,14 @@ import { getBasicAccount, getSmartAccount } from '@ambire-common/libs/account/ac
 import { getRpcProvider } from '@ambire-common/services/provider/getRpcProvider'
 import useAccountsControllerState from '@web/hooks/useAccountsControllerState'
 import useNetworksControllerState from '@web/hooks/useNetworksControllerState'
-import type { Address, CreationRecord } from '@kohaku-eth/social-recovery'
+import type { Address } from '@kohaku-eth/social-recovery'
+import type { CreationRecord } from '@web/modules/social-recovery/shared/client'
 import * as buildClient from '@web/modules/social-recovery/shared/client/build-client'
 import { useRecoveryClient } from '@web/modules/social-recovery/shared/client/useRecoveryClient'
 
 import {
   CONTROLLING_KEY,
-  createWorld,
+  createDeployedWorld,
   creationRecordOf,
   HookState,
   lastArg,
@@ -81,10 +82,10 @@ const Probe = ({ account, facts }: FactsProbeProps) => {
   return null
 }
 
-/** Renders the hook for `account`, the stand-in's chain for it holding one key entry: the controlling key. */
+/** Renders the hook for `account`, the deployed chain's node for it holding one key entry: the controlling key. */
 const render = async (account: Address, facts?: Parameters<typeof useRecoveryClient>[1]) => {
   if (!world || world.account !== account) {
-    world = createWorld({ account })
+    world = createDeployedWorld({ account })
     world.chain.setPrivilege(CONTROLLING_KEY)
   }
   await act(async () => {

@@ -1,7 +1,7 @@
 /**
- * What each recovery chain runs. With no deployment variable, both chains run
- * the stand-in and every address, fact and audited row is the committed
- * placeholder. With a Sepolia variable, Sepolia's address book, descriptor
+ * What each recovery chain runs. With no deployment variable, Sepolia runs
+ * the committed deployment and mainnet the stand-in, whose every address,
+ * fact and audited row is the committed placeholder. With a Sepolia variable, Sepolia's address book, descriptor
  * and audited set come from it and mainnet stays as it was. A malformed
  * variable throws, naming the field. The variable is read through its one
  * module, mocked here; every address in it is made up.
@@ -24,6 +24,7 @@ import {
   UNKNOWN_ACTION
 } from '@web/modules/social-recovery/shared/client'
 import { sepoliaDeploymentVariable } from '@web/modules/social-recovery/shared/client/deployment-env'
+import { SEPOLIA_DEPLOYMENT } from '@web/modules/social-recovery/shared/client/deployments-sepolia'
 import type { MalformedCase } from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 
 jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
@@ -98,7 +99,8 @@ const IDENTITY_FIELDS = {
   zkPassportScope: 'social-recovery',
   zkPassportTestnetTree: true,
   aadhaarNullifierSeed: '1234567890',
-  aadhaarCertificate: CERTIFICATE
+  aadhaarCertificate: CERTIFICATE,
+  aadhaarTestMode: true
 }
 
 const json = (value: unknown): string => JSON.stringify(value)
@@ -112,20 +114,29 @@ const badChecksum = (address: Address): string => {
   return `${checksummed.slice(0, at)}${flipped}${checksummed.slice(at + 1)}`
 }
 
-const SEPOLIA_STAND_IN_DESCRIPTOR = {
+const SEPOLIA_ADDRESSES = {
+  manager: '0xF7Fd795C47025abda8dC4264Bf4Cdec22aC56A62',
+  methodEcdsa: '0x87AcC5584c2aAd5Ede60c2a4730765C0d015b907',
+  methodPasskey: '0x342B1e6CeB3f6ADD8122862FA3095D127DDecAc9',
+  methodAadhaar: '0x12982d4764ecc891c846088Dc6e9ce5fDb81e7b3',
+  methodZkpassport: '0x7eFbe568CAc60CDa42E3e2B978e13aeA66cEca1D',
+  action: '0x445C094570362885dE43aD8FeDE2bA25C04B8A7a'
+} as const
+
+const SEPOLIA_COMMITTED_DESCRIPTOR = {
   chainId: 11155111,
-  ...SEPOLIA_PLACEHOLDERS,
+  ...SEPOLIA_ADDRESSES,
   servedImplementation: PROXY_AMBIRE_ACCOUNT,
-  deployedAt: 0,
+  deployedAt: 12019037,
   digestVersion: '1',
   managerVersion: '1.0.0',
   shippedMethods: [
-    SEPOLIA_PLACEHOLDERS.methodEcdsa,
-    SEPOLIA_PLACEHOLDERS.methodPasskey,
-    SEPOLIA_PLACEHOLDERS.methodAadhaar,
-    SEPOLIA_PLACEHOLDERS.methodZkpassport
+    SEPOLIA_ADDRESSES.methodEcdsa,
+    SEPOLIA_ADDRESSES.methodPasskey,
+    SEPOLIA_ADDRESSES.methodAadhaar,
+    SEPOLIA_ADDRESSES.methodZkpassport
   ],
-  auditedActions: [SEPOLIA_PLACEHOLDERS.action]
+  auditedActions: [SEPOLIA_ADDRESSES.action]
 }
 
 const MAINNET_STAND_IN_DESCRIPTOR = {
@@ -161,36 +172,39 @@ beforeEach(() => {
 })
 
 describe('a build with no deployment variable', () => {
-  it('runs the stand-in on both chains', () => {
-    expect(DEPLOYMENTS).toEqual({ sepolia: { kind: 'stand-in' }, mainnet: { kind: 'stand-in' } })
-    expect(deploymentOf('sepolia')).toEqual({ kind: 'stand-in' })
+  it('runs the committed deployment on Sepolia and the stand-in on mainnet', () => {
+    expect(DEPLOYMENTS).toEqual({
+      sepolia: { kind: 'deployed', facts: SEPOLIA_DEPLOYMENT },
+      mainnet: { kind: 'stand-in' }
+    })
+    expect(deploymentOf('sepolia')).toEqual({ kind: 'deployed', facts: SEPOLIA_DEPLOYMENT })
     expect(deploymentOf('mainnet')).toEqual({ kind: 'stand-in' })
   })
 
-  it('names the placeholder addresses on both chains', () => {
+  it('names the committed addresses on Sepolia and the placeholders on mainnet', () => {
     expect(deploymentAddressesOf('sepolia')).toEqual({
-      ...SEPOLIA_PLACEHOLDERS,
+      ...SEPOLIA_ADDRESSES,
       servedImplementation: PROXY_AMBIRE_ACCOUNT
     })
     expect(deploymentAddressesOf('mainnet')).toEqual({
       ...MAINNET_PLACEHOLDERS,
       servedImplementation: PROXY_AMBIRE_ACCOUNT
     })
-    expect(addressBookOf('sepolia')).toEqual(bookOf(SEPOLIA_PLACEHOLDERS))
+    expect(addressBookOf('sepolia')).toEqual(bookOf(SEPOLIA_ADDRESSES))
     expect(addressBookOf('mainnet')).toEqual(bookOf(MAINNET_PLACEHOLDERS))
   })
 
-  it('describes both chains with the placeholder facts', () => {
-    expect(deploymentDescriptor('sepolia')).toEqual(SEPOLIA_STAND_IN_DESCRIPTOR)
+  it('describes Sepolia with the committed facts and mainnet with the placeholder facts', () => {
+    expect(deploymentDescriptor('sepolia')).toEqual(SEPOLIA_COMMITTED_DESCRIPTOR)
     expect(deploymentDescriptor('mainnet')).toEqual(MAINNET_STAND_IN_DESCRIPTOR)
   })
 
-  it('lists the committed audited row of each chain', () => {
+  it('lists the committed audited action of each chain', () => {
     expect(auditedActionsOn('sepolia')).toEqual([
       {
         kind: 'audited',
         chain: 'sepolia',
-        action: SEPOLIA_PLACEHOLDERS.action,
+        action: SEPOLIA_ADDRESSES.action,
         publisher: 'ethereumFoundation'
       }
     ])
@@ -202,20 +216,25 @@ describe('a build with no deployment variable', () => {
         publisher: 'ethereumFoundation'
       }
     ])
-    expect(auditedActionsOn('sepolia')).toEqual(
-      AUDITED_ACTIONS.filter((row) => row.chain === 'sepolia')
+    expect(auditedActionsOn('mainnet')).toEqual(
+      AUDITED_ACTIONS.filter((row) => row.chain === 'mainnet')
     )
   })
 
   it('looks the committed rows up by address and chain', () => {
-    expect(auditedActionOf(SEPOLIA_PLACEHOLDERS.action)).toEqual(auditedActionsOn('sepolia')[0])
+    expect(auditedActionOf(SEPOLIA_ADDRESSES.action)).toEqual(auditedActionsOn('sepolia')[0])
     expect(auditedActionOf(MAINNET_PLACEHOLDERS.action, 'mainnet')).toEqual(
       auditedActionsOn('mainnet')[0]
     )
-    expect(auditedActionOf(SEPOLIA_PLACEHOLDERS.action, 'mainnet')).toBe(UNKNOWN_ACTION)
+    expect(auditedActionOf(SEPOLIA_ADDRESSES.action, 'mainnet')).toBe(UNKNOWN_ACTION)
+    expect(auditedActionOf(SEPOLIA_PLACEHOLDERS.action, 'sepolia')).toBe(UNKNOWN_ACTION)
     expect(auditedActionOf(ACTION)).toBe(UNKNOWN_ACTION)
-    expect(isAuditedAction(SEPOLIA_PLACEHOLDERS.action, 'sepolia')).toBe(true)
+    expect(isAuditedAction(SEPOLIA_ADDRESSES.action, 'sepolia')).toBe(true)
     expect(isAuditedAction(ACTION, 'sepolia')).toBe(false)
+  })
+
+  it('commits Sepolia facts that the variable parser takes as they are', () => {
+    expect(deploymentFactsFrom(JSON.stringify(SEPOLIA_DEPLOYMENT))).toEqual(SEPOLIA_DEPLOYMENT)
   })
 })
 
@@ -341,11 +360,17 @@ describe('a build with a Sepolia deployment variable', () => {
     expect(facts?.zkPassportTestnetTree).toBeUndefined()
     expect(facts?.aadhaarNullifierSeed).toBeUndefined()
     expect(facts?.aadhaarCertificate).toBeUndefined()
+    expect(facts?.aadhaarTestMode).toBeUndefined()
   })
 
   it('takes a testnet tree flag of false', () => {
     const deployment = deploymentFactsFrom(json({ ...FACTS, zkPassportTestnetTree: false }))
     expect(deployment.zkPassportTestnetTree).toBe(false)
+  })
+
+  it('takes an Aadhaar test mode flag of false', () => {
+    const deployment = deploymentFactsFrom(json({ ...FACTS, aadhaarTestMode: false }))
+    expect(deployment.aadhaarTestMode).toBe(false)
   })
 
   it('takes the largest nullifier seed below the proving field', () => {
@@ -375,8 +400,8 @@ describe('a build with a Sepolia deployment variable', () => {
     expect(addressBookOf('sepolia').manager).toBe(SECOND_ACTION)
     expect(deploymentDescriptor('sepolia').deployedAt).toBe(7)
     variable.mockReturnValue(undefined)
-    expect(deploymentOf('sepolia')).toEqual({ kind: 'stand-in' })
-    expect(addressBookOf('sepolia')).toEqual(bookOf(SEPOLIA_PLACEHOLDERS))
+    expect(deploymentOf('sepolia')).toEqual({ kind: 'deployed', facts: SEPOLIA_DEPLOYMENT })
+    expect(addressBookOf('sepolia')).toEqual(bookOf(SEPOLIA_ADDRESSES))
   })
 })
 
@@ -506,6 +531,11 @@ describe('a malformed deployment variable', () => {
       /zkPassportTestnetTree must be true or false/
     ],
     [
+      'an Aadhaar test mode flag as text',
+      json({ ...FACTS, aadhaarTestMode: 'true' }),
+      /aadhaarTestMode must be true or false/
+    ],
+    [
       'a nullifier seed as a number',
       json({ ...FACTS, aadhaarNullifierSeed: 1234 }),
       /aadhaarNullifierSeed must be a decimal number/
@@ -605,7 +635,7 @@ describe('a malformed deployment variable', () => {
     })
   )
 
-  it('never falls back to the stand-in on Sepolia', () => {
+  it('never falls back to the committed row on Sepolia', () => {
     variable.mockReturnValue(json({ ...FACTS, action: zeroAddress }))
     expect(() => deploymentDescriptor('sepolia')).toThrow(/action/)
     expect(() => auditedActionsOn('sepolia')).toThrow(/action/)

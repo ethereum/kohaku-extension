@@ -105,23 +105,24 @@ const providerOf = (
 
 /**
  * The two identity methods of a chain: over the installed proving libraries
- * where the chain is deployed, the zkPassport request opened against the test
- * certificate tree where its parameters ask for it; over the stand-in's
- * scripted stacks otherwise.
+ * where the chain is deployed, the zkPassport method in the library's dev mode
+ * where the chain's parameters ask for the test certificate tree and the
+ * Aadhaar method in test mode where they say its module trusts the test key;
+ * over the stand-in's scripted stacks otherwise.
  */
 const identityMethodsOf = (
   chain: RecoveryChain,
   descriptor: DeploymentDescriptor
 ): IRecoveryMethod[] => {
   if (deploymentOf(chain).kind === 'deployed') {
-    const testnetTree = identityParamsOf(chain).zkPassport?.testnetTree ?? false
+    const { zkPassport, aadhaar } = identityParamsOf(chain)
     return [
-      zkPassportMethod(zkPassportStackFor({ testnetTree })),
-      anonAadhaarMethod({ artifacts: AADHAAR_ARTIFACTS })
+      zkPassportMethod({ stack: zkPassportStackFor(), devMode: zkPassport?.testnetTree ?? false }),
+      anonAadhaarMethod({ artifacts: AADHAAR_ARTIFACTS, testMode: aadhaar?.testMode ?? false })
     ]
   }
   return [
-    zkPassportMethod(sdkStandIn.zkPassportStackFor(descriptor)),
+    zkPassportMethod({ stack: sdkStandIn.zkPassportStackFor(descriptor) }),
     anonAadhaarMethod({ stack: sdkStandIn.aadhaarStackFor(descriptor) })
   ]
 }

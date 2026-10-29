@@ -1,7 +1,8 @@
 /**
- * The one client build follows the chain's deployment record. With no
- * deployment variable, the client is built over the stand-in's fake node and
- * the extension's provider is never read. With one, the build reads through
+ * The one client build follows the chain's deployment record. On mainnet,
+ * which runs the stand-in, the client is built over the stand-in's fake node
+ * and the extension's provider is never read. With a deployment variable for
+ * Sepolia, the build reads through
  * the extension's provider: the deployed manager and action are checked
  * before any client exists, in the SDK's order and then the deployment's
  * own, and the SDK's client is built over the chain. The variable is read
@@ -270,7 +271,7 @@ describe('a chain whose deployment record names the stand-in', () => {
   })
 
   it("builds over the stand-in's fake node and reads nothing through the extension's provider", async () => {
-    const world = createWorld({ account: addressOf('account') })
+    const world = createWorld({ account: addressOf('account'), chain: 'mainnet' })
     const client = await buildRecoveryClient(world.config)
     expect(client.descriptor).toEqual(world.descriptor)
     expect(world.ethers.send).not.toHaveBeenCalled()

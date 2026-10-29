@@ -18,7 +18,8 @@ export const STAND_IN_IDENTITY_PARAMS: IdentityParams = {
   zkPassport: { domain: 'kohaku.stand-in', scope: 'kohaku-recovery', testnetTree: false },
   aadhaar: {
     nullifierSeed: 1n,
-    issuerCertificate: '-----BEGIN CERTIFICATE-----\nstand-in\n-----END CERTIFICATE-----'
+    issuerCertificate: '-----BEGIN CERTIFICATE-----\nstand-in\n-----END CERTIFICATE-----',
+    testMode: false
   }
 }
 
@@ -60,7 +61,8 @@ export const identityParamsOf = (
   ) {
     reading.aadhaar = {
       nullifierSeed: BigInt(facts.aadhaarNullifierSeed),
-      issuerCertificate: facts.aadhaarCertificate
+      issuerCertificate: facts.aadhaarCertificate,
+      testMode: facts.aadhaarTestMode ?? false
     }
   }
   return reading

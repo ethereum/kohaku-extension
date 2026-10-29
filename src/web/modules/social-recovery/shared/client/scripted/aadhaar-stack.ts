@@ -6,12 +6,22 @@
  * The prover reports its states on a timer, honours the abort signal, and
  * returns the known-answer vector's proof with the seed it was given and the
  * signal hash of the signal it was given, computed as the library does, so the
- * proof binds the digest the method signs. The proof is stamped with the
- * device clock at prove time and discloses nothing. Its local verifier answers
- * true. `script` makes the prover fail, hang until aborted, prove another
- * nullifier or stamp a QR code older than a day, and the verifier answer false
- * or throw.
+ * proof binds the digest the method signs. The QR code is signed at the
+ * device clock's time, which `signedAt` reads before proving and the proof
+ * carries, and the proof discloses nothing. Its local verifier answers true.
+ * `script` makes the prover fail, hang until aborted, prove another nullifier
+ * or read a QR code signed two days ago, which the method then refuses before
+ * proving, and the verifier answer false or throw.
  */
+import {
+  METHOD_AADHAAR_FRESHNESS_WINDOW,
+  METHOD_AADHAAR_G1_PROJECTIVE,
+  METHOD_AADHAAR_G2_PROJECTIVE,
+  METHOD_AADHAAR_GROTH16_CURVE,
+  METHOD_AADHAAR_GROTH16_PROTOCOL,
+  METHOD_AADHAAR_MILLISECONDS_PER_SECOND,
+  METHOD_AADHAAR_SIGNAL_HASH_SHIFT
+} from '@kohaku-eth/social-recovery/recovery-methods'
 import type {
   AadhaarArgsOptions,
   AadhaarPcd,
@@ -24,13 +34,16 @@ import type { ScriptedAadhaarOptions, ScriptedAadhaarScript, ScriptedAadhaarStac
 
 const DEFAULT_STEP_MS = 400
 const DEFAULT_NULLIFIER = 22n
-// Older than the one-day window the method enrolls with.
-const STALE_AGE_SECONDS = 2 * 24 * 3600
+// Older than the window the method enrolls with.
+const STALE_AGE_SECONDS = 2 * Number(METHOD_AADHAAR_FRESHNESS_WINDOW)
 const PROGRESS = ['fetching-wasm', 'fetching-zkey', 'proving', 'completed'] as const
 
-/** The circuit's signal hash: keccak256 of the signal as a 32-byte word, shifted right by three. */
-const signalHashOf = (signal: string | undefined): bigint =>
-  BigInt(keccak256(numberToHex(BigInt(signal ?? '1'), { size: 32 }))) / 8n
+/** The circuit's signal hash: keccak256 of the signal as a 32-byte word, shifted right into the field. */
+const signalHashOf = (signal: string | undefined): bigint => {
+  const hash = BigInt(keccak256(numberToHex(BigInt(signal ?? '1'), { size: 32 })))
+  // eslint-disable-next-line no-bitwise
+  return hash >> METHOD_AADHAAR_SIGNAL_HASH_SHIFT
+}
 
 const abortError = (): Error => {
   const error = new Error('The proof was stopped.')
@@ -38,20 +51,20 @@ const abortError = (): Error => {
   return error
 }
 
-const nowInSeconds = (): number => Math.floor(Date.now() / 1000)
+const nowInSeconds = (): number => Math.floor(Date.now() / METHOD_AADHAAR_MILLISECONDS_PER_SECOND)
+
+/** The time the scripted QR code was signed at, in Unix seconds. */
+const signedAtOf = (script: ScriptedAadhaarScript): number =>
+  nowInSeconds() - (script.stale ? STALE_AGE_SECONDS : 0)
 
 const pcdOf = (options: AadhaarArgsOptions, nullifier: bigint, timestamp: number): AadhaarPcd => ({
   proof: {
     groth16Proof: {
-      pi_a: ['1', '2', '1'],
-      pi_b: [
-        ['3', '4'],
-        ['5', '6'],
-        ['1', '0']
-      ],
-      pi_c: ['7', '8', '1'],
-      protocol: 'groth16',
-      curve: 'bn128'
+      pi_a: ['1', '2', METHOD_AADHAAR_G1_PROJECTIVE],
+      pi_b: [['3', '4'], ['5', '6'], [...METHOD_AADHAAR_G2_PROJECTIVE]],
+      pi_c: ['7', '8', METHOD_AADHAAR_G1_PROJECTIVE],
+      protocol: METHOD_AADHAAR_GROTH16_PROTOCOL,
+      curve: METHOD_AADHAAR_GROTH16_CURVE
     },
     pubkeyHash: '99',
     nullifier: nullifier.toString(),
@@ -117,8 +130,9 @@ export const createScriptedAadhaarStack = (
             finish(() => reject(new Error('The QR code did not prove.')))
             return
           }
-          const timestamp = nowInSeconds() - (script.stale ? STALE_AGE_SECONDS : 0)
-          finish(() => resolve(pcdOf(kept, script.nullifier ?? DEFAULT_NULLIFIER, timestamp)))
+          finish(() =>
+            resolve(pcdOf(kept, script.nullifier ?? DEFAULT_NULLIFIER, signedAtOf(script)))
+          )
         }, stepMs * (states.length + 1))
       )
     })
@@ -131,6 +145,7 @@ export const createScriptedAadhaarStack = (
       return args
     },
     prove,
+    signedAt: async () => BigInt(signedAtOf(current)),
     verify: async () => {
       const { verify = true } = current
       if (verify === 'throw') {

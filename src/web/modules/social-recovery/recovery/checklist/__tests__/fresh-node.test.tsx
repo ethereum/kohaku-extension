@@ -64,7 +64,9 @@ describe('a live gathering over a fake node that starts afresh', () => {
         )
       }
       const before = await storedSession(world.records)
-      const client = await buildRecoveryClient(createWorld({ account: ACCOUNT }).config)
+      const client = await buildRecoveryClient(
+        createWorld({ account: ACCOUNT, chain: 'sepolia' }).config
+      )
       // The rows are assessed as the harness's gatherings are; every chain read is the node's.
       jest.spyOn(client.recovery, 'assess').mockImplementation(fakeKit(MIXED_PATH).assess)
 

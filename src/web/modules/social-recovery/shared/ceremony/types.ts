@@ -12,8 +12,7 @@ import type {
   Params,
   Reply,
   ReplyFailureCause,
-  Verdict,
-  ZkPassportRequest
+  Verdict
 } from '@kohaku-eth/social-recovery'
 import type { CollectionChip, MethodChip } from '@web/modules/social-recovery/shared/display'
 
@@ -197,20 +196,6 @@ export interface DeviceCallContext {
   show?: (view: CeremonyView) => void
   /** Asks the holder for an input and resolves with the answer. */
   ask?: (ask: CeremonyAsk) => Promise<CeremonyAnswer>
-}
-
-/**
- * A zkPassport request as the installed app library delivers it: the SDK's
- * request, the result callback the library still fires, which carries the
- * verified flag and the unique identifier an enrollment needs, the
- * callbacks of the bridge that connects the phone, and the close of that
- * bridge, which the extension's stack adds.
- */
-export type ZkPassportRequestWithResult = ZkPassportRequest & {
-  onResult?: (callback: (response: unknown) => void) => void
-  onBridgeConnect?: (callback: () => void) => void
-  onBridgeConnectionLost?: (callback: () => void) => void
-  close?: () => void
 }
 
 /**

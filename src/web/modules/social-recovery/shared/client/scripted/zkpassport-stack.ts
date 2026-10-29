@@ -10,9 +10,14 @@
  * unique identifier the proof was generated with, so an enrollment and a
  * claim of one identifier agree and a claim of another does not. `script`
  * makes the phone decline, err, never answer, or prove another identifier.
- * Closing a request stops the phone's answers still to come, as the library
- * drops a cancelled request's callbacks, and counts the close.
+ * Cancelling a request stops the phone's answers still to come, as the
+ * library drops a cancelled request's callbacks, and counts the cancel. The
+ * bridge callbacks are kept and never fired: the stand-in has no bridge.
  */
+import {
+  METHOD_ZKPASSPORT_CUSTOM_DATA_KEY,
+  METHOD_ZKPASSPORT_NON_SALTED_NULLIFIER
+} from '@kohaku-eth/social-recovery'
 import type {
   ZkPassportClient,
   ZkPassportQueryBuilder,
@@ -35,13 +40,14 @@ const DEFAULT_STEP_MS = 400
 const PHONE_ERROR = 'The phone could not read the document.'
 const OUTER_PROOF_NAME = 'outer_evm_count_4'
 const VALIDITY_SECONDS = 86400
-const CUSTOM_DATA_KEY = 'custom_data'
 
 const word = (value: bigint): Hex => numberToHex(value, { size: 32 })
 
 /** The outer proof's public inputs: the vector's words, the non-salted type, the identifier. */
 const publicInputsOf = (identifier: bigint): Hex[] =>
-  [0x0an, 0x0bn, 0x0cn, 0x0dn, 0x0en, 0n, identifier, 0n].map(word)
+  [0x0an, 0x0bn, 0x0cn, 0x0dn, 0x0en, METHOD_ZKPASSPORT_NON_SALTED_NULLIFIER, identifier, 0n].map(
+    word
+  )
 
 /** The callbacks one request holds, each a list the phone fires in order. */
 const callbackLists = () => ({
@@ -49,9 +55,11 @@ const callbackLists = () => ({
   generating: [] as (() => void)[],
   generated: [] as ((proof: ZkPassportStackProof) => void)[],
   success: [] as ((response: { proofs: ZkPassportStackProof[]; result: unknown }) => unknown)[],
-  result: [] as ((response: unknown) => void)[],
+  result: [] as Parameters<ZkPassportRequest['onResult']>[0][],
   reject: [] as (() => void)[],
-  error: [] as ((error: string) => void)[]
+  error: [] as ((error: string) => void)[],
+  bridgeConnect: [] as (() => void)[],
+  bridgeLost: [] as (() => void)[]
 })
 
 export const createScriptedZkPassportStack = (
@@ -62,10 +70,21 @@ export const createScriptedZkPassportStack = (
   let current: ScriptedZkPassportScript = {}
   let requests = 0
   let closes = 0
+  // The pending answers of each open request, stopped by its cancel.
+  const pendingOf = new Map<string, ReturnType<typeof setTimeout>[]>()
   // The identifier each proof this stack generated carries, read back by the verifier parameters.
   const identifiers = new WeakMap<ZkPassportStackProof, bigint>()
 
-  const open = (args: ZkPassportRequestArgs, customData: string | undefined): ZkPassportRequest => {
+  const cancelRequest = (requestId: string) => {
+    closes += 1
+    pendingOf.get(requestId)?.forEach(clearTimeout)
+    pendingOf.delete(requestId)
+  }
+
+  const open = (
+    args: ZkPassportRequestArgs,
+    customData: string | undefined
+  ): Omit<ZkPassportRequest, 'cancel'> => {
     requests += 1
     const requestId = `stand-in-${requests}`
     const script = current
@@ -108,7 +127,10 @@ export const createScriptedZkPassportStack = (
           ]
       }
     }
-    const pending = answered().map((answer, index) => setTimeout(answer, stepMs * (index + 1)))
+    pendingOf.set(
+      requestId,
+      answered().map((answer, index) => setTimeout(answer, stepMs * (index + 1)))
+    )
 
     const query = new URLSearchParams({ id: requestId, scope: args.scope })
     const request = {
@@ -134,12 +156,14 @@ export const createScriptedZkPassportStack = (
       onError: (callback: (error: string) => void) => {
         callbacks.error.push(callback)
       },
-      onResult: (callback: (response: unknown) => void) => {
+      onResult: (callback: Parameters<ZkPassportRequest['onResult']>[0]) => {
         callbacks.result.push(callback)
       },
-      close: () => {
-        closes += 1
-        pending.forEach(clearTimeout)
+      onBridgeConnect: (callback: () => void) => {
+        callbacks.bridgeConnect.push(callback)
+      },
+      onBridgeConnectionLost: (callback: () => void) => {
+        callbacks.bridgeLost.push(callback)
       }
     }
     return request
@@ -149,7 +173,8 @@ export const createScriptedZkPassportStack = (
     args: ZkPassportRequestArgs,
     customData?: string
   ): ZkPassportQueryBuilder => ({
-    bind: (key, value) => builderFor(args, key === CUSTOM_DATA_KEY ? value : customData),
+    bind: (key, value) =>
+      builderFor(args, key === METHOD_ZKPASSPORT_CUSTOM_DATA_KEY ? value : customData),
     done: () => open(args, customData)
   })
 
@@ -164,7 +189,8 @@ export const createScriptedZkPassportStack = (
       },
       committedInputs: '0x1234',
       serviceConfig: { validityPeriodInSeconds: VALIDITY_SECONDS, domain, scope, devMode: false }
-    })
+    }),
+    cancelRequest
   }
 
   return Object.assign(async () => client, {

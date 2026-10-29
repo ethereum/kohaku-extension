@@ -9,7 +9,7 @@ import { isAddress } from 'viem'
 import type { Account } from '@ambire-common/interfaces/account'
 import type { Key } from '@ambire-common/interfaces/keystore'
 import { isSmartAccount } from '@ambire-common/libs/account/account'
-import type { Address, CreationRecord, Hex } from '@kohaku-eth/social-recovery'
+import type { Address, Hex } from '@kohaku-eth/social-recovery'
 
 import { sameAddress } from './addresses'
 import { CHAIN_IDS, WALLET_RECOVERY_CHAIN } from './chains'
@@ -19,6 +19,7 @@ import type {
   AccountFactsReading,
   AccountFactsSources,
   AccountStateRefresh,
+  CreationRecord,
   KeyHandle,
   ListedAccountFacts
 } from './types'

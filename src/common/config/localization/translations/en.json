@@ -514,6 +514,8 @@
         "emptyRequired": "This wallet cannot save a required method that is not enrolled yet. Enroll it or remove the row.",
         "backupTooWide": "This wallet cannot save a path whose hidden details are too large for the setup's backup. Remove members or groups.",
         "actionUnsupported": "This release cannot recover this account yet, so this wallet cannot save a setup for it.",
+        "accountNotDeployed": "This wallet cannot save a setup for an account that is not on chain yet. Deploy the account first.",
+        "credentialConfigMalformed": "This wallet cannot save a credential whose configuration its method cannot read. Remove it and add it again.",
         "thresholdWholeNumber": "This wallet cannot save a threshold that is not a whole number. Type how many members must answer."
       }
     },
