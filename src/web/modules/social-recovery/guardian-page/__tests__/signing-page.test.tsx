@@ -13,8 +13,16 @@ import type { SignOptions, TypedDataToSign } from '@web/modules/social-recovery/
 
 import {
   ACCOUNT,
+  ACCOUNT_CHECK_LIMIT_MS,
   advance,
   approvalOf,
+  CONTROLLER,
+  CONTROLLER_ACCOUNT,
+  holdSmartAccount,
+  queuedRequests,
+  SMART_ACCOUNT,
+  smartRequestOf,
+  wrappedBy,
   GUARDIAN,
   GUARDIAN_ACCOUNT,
   CREATED_AT,
@@ -273,14 +281,105 @@ describe('the signing step', () => {
     page.unmount()
   })
 
-  it('passes a signature by another key, which the approving side cannot judge', async () => {
+  it('asks the chain nothing about a signature the approving side finds satisfied', async () => {
+    const page = await mountTicked()
+    await page.press('guardian-sign')
+    await finish()
+    expect(page.has('guardian-signed')).toBe(true)
+    expect(kit.verifyReply).not.toHaveBeenCalled()
+    page.unmount()
+  })
+
+  it("keeps a signature the approving side cannot judge where the chain's verdict accepts it", async () => {
+    const request = requestOf()
+    const signature = await signatureBy(STRANGER_ACCOUNT, typedDataFor(request))
+    wallet.signTypedData.mockImplementation((_key, typedData) =>
+      signatureBy(STRANGER_ACCOUNT, typedData)
+    )
+    kit.verifyReply.mockResolvedValueOnce('satisfied')
+    const page = await mountTicked()
+    await page.press('guardian-sign')
+    await finish()
+    expect(kit.verifyReply).toHaveBeenCalledWith(request, replyOf(request, signature))
+    expect(page.has('guardian-signed')).toBe(true)
+    expect(page.textOf('guardian-signed-line')).toBe(approvalOf(signature))
+    page.unmount()
+  })
+
+  it("keeps nothing for a signature the approving side cannot judge where the chain's verdict refuses it", async () => {
     wallet.signTypedData.mockImplementation((_key, typedData) =>
       signatureBy(STRANGER_ACCOUNT, typedData)
     )
     const page = await mountTicked()
     await page.press('guardian-sign')
     await finish()
+    expect(kit.verifyReply).toHaveBeenCalledTimes(1)
+    expect(page.has('guardian-signed')).toBe(false)
+    expect(page.textOf('guardian-sign-wrongKey')).toContain(t(`${SIGNING}.wrongKey`))
+    expect(page.has('guardian-sign-retry')).toBe(true)
+    page.unmount()
+  })
+
+  it('reads a chain verdict that could not be read as unread, keeps nothing, and Try again signs again', async () => {
+    wallet.signTypedData.mockImplementation((_key, typedData) =>
+      signatureBy(STRANGER_ACCOUNT, typedData)
+    )
+    kit.verifyReply.mockRejectedValueOnce(new Error('the node did not answer'))
+    kit.verifyReply.mockResolvedValueOnce('satisfied')
+    const page = await mountTicked()
+    await page.press('guardian-sign')
+    await finish()
+    expect(page.has('guardian-signed')).toBe(false)
+    expect(page.textOf('guardian-sign-unread')).toContain(t(`${SIGNING}.unread`))
+    await page.press('guardian-sign-retry')
+    await finish()
+    expect(wallet.signTypedData).toHaveBeenCalledTimes(2)
     expect(page.has('guardian-signed')).toBe(true)
+    page.unmount()
+  })
+
+  it('keeps nothing where the chain cannot judge the approval either, and reads it as unread', async () => {
+    wallet.signTypedData.mockImplementation((_key, typedData) =>
+      signatureBy(STRANGER_ACCOUNT, typedData)
+    )
+    kit.verifyReply.mockResolvedValueOnce('not-judged')
+    const page = await mountTicked()
+    await page.press('guardian-sign')
+    await finish()
+    expect(kit.verifyReply).toHaveBeenCalledTimes(1)
+    expect(page.has('guardian-signed')).toBe(false)
+    expect(page.textOf('guardian-sign-unread')).toContain(t(`${SIGNING}.unread`))
+    expect(page.has('guardian-sign-retry')).toBe(true)
+    page.unmount()
+  })
+
+  it('reads a chain verdict that never answers as unread once the wait passes, and a late answer changes nothing', async () => {
+    wallet.signTypedData.mockImplementation((_key, typedData) =>
+      signatureBy(STRANGER_ACCOUNT, typedData)
+    )
+    const answers: ((verdict: 'satisfied') => void)[] = []
+    kit.verifyReply.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          answers.push(resolve)
+        })
+    )
+    const page = await mountTicked()
+    await page.press('guardian-sign')
+    await finish()
+    expect(kit.verifyReply).toHaveBeenCalledTimes(1)
+    await advance(ACCOUNT_CHECK_LIMIT_MS - 1)
+    expect(page.has('guardian-sign-busy')).toBe(true)
+    expect(page.has('guardian-sign-unread')).toBe(false)
+    await advance(1)
+    await finish()
+    expect(page.textOf('guardian-sign-unread')).toContain(t(`${SIGNING}.unread`))
+    expect(page.has('guardian-sign-busy')).toBe(false)
+
+    answers[0]('satisfied')
+    await finish()
+    expect(page.has('guardian-signed')).toBe(false)
+    expect(page.has('guardian-sign-unread')).toBe(true)
     page.unmount()
   })
 
@@ -985,6 +1084,168 @@ describe('another link opened in the same tab', () => {
     await openOther()
     expect(page.has('guardian-declined-copy-message')).toBe(false)
     expect(page.has('guardian-sign-block')).toBe(true)
+    page.unmount()
+  })
+})
+
+describe('a smart account the wallet controls', () => {
+  beforeEach(holdSmartAccount)
+
+  /** The page on a request that names the smart account, with the acknowledgment ticked. */
+  const mountSmart = async (request = smartRequestOf()): Promise<Mounted> => {
+    const page = await mountLive(request)
+    await page.press('guardian-acknowledge')
+    return page
+  }
+
+  /** The node's isValidSignature calls, by the address they asked. */
+  const accountChecks = () => wallet.nodeCall.mock.calls.map(([call]) => call.to)
+
+  it('reads as the smart account the wallet controls, in full, and lets the ticked page sign', async () => {
+    const page = await mountLive(smartRequestOf())
+    expect(page.textOf('guardian-key-address')).toBe(SMART_ACCOUNT)
+    expect(page.textOf('guardian-key-smart-account')).toBe(t(`${SIGNING}.smartAccountHeld`))
+    expect(page.has('guardian-key-missing')).toBe(false)
+    expect(page.has('guardian-key-smart-account-undeployed')).toBe(false)
+    expect(page.isDisabled('guardian-sign')).toBe(true)
+    await page.press('guardian-acknowledge')
+    expect(page.isDisabled('guardian-sign')).toBe(false)
+    page.unmount()
+  })
+
+  it('queues the sign request under the smart account and keeps the approval the account accepts', async () => {
+    const request = smartRequestOf()
+    const signature = await wrappedBy(CONTROLLER_ACCOUNT, typedDataFor(request))
+    const page = await mountSmart(request)
+    await page.press('guardian-sign')
+    await finish()
+    const requests = queuedRequests()
+    expect(requests).toHaveLength(1)
+    expect(requests[0].meta.accountAddr).toBe(SMART_ACCOUNT)
+    expect(wallet.signTypedData.mock.calls[0][0].addr).toBe(SMART_ACCOUNT)
+    expect(accountChecks()).toEqual([SMART_ACCOUNT])
+    expect(kit.verify).toHaveBeenCalledWith(request, request.place, signature)
+    expect(kit.verifyReply).toHaveBeenCalledWith(request, replyOf(request, signature))
+    expect(page.has('guardian-signed')).toBe(true)
+    expect(page.textOf('guardian-signed-line')).toBe(approvalOf(signature))
+    await page.press('guardian-signed-copy')
+    expect(wallet.copied).toHaveBeenLastCalledWith(lineOf(replyOf(request, signature)))
+    page.unmount()
+  })
+
+  it('selects the smart account itself where another account is selected, and signs once the wallet reports it', async () => {
+    selectAccount(CONTROLLER)
+    const page = await mountSmart()
+    await page.press('guardian-sign')
+    expect(selections()).toEqual([
+      { type: 'MAIN_CONTROLLER_SELECT_ACCOUNT', params: { accountAddr: SMART_ACCOUNT } }
+    ])
+    expect(queuedRequests()).toEqual([])
+    selectAccount(SMART_ACCOUNT)
+    await finish()
+    expect(queuedRequests()).toHaveLength(1)
+    expect(page.has('guardian-signed')).toBe(true)
+    page.unmount()
+  })
+
+  it('reads an answer the account refuses as the wrong key, and keeps nothing', async () => {
+    wallet.signTypedData.mockImplementation((_key, typedData) =>
+      wrappedBy(STRANGER_ACCOUNT, typedData)
+    )
+    const page = await mountSmart()
+    await page.press('guardian-sign')
+    await finish()
+    expect(accountChecks()).toEqual([SMART_ACCOUNT])
+    expect(kit.replyFrom).not.toHaveBeenCalled()
+    expect(page.has('guardian-signed')).toBe(false)
+    expect(page.textOf('guardian-sign-wrongKey')).toContain(t(`${SIGNING}.wrongKey`))
+    expect(page.has('guardian-sign-retry')).toBe(true)
+    page.unmount()
+  })
+
+  it('reads an account check the node did not answer as unread, and Try again signs again', async () => {
+    wallet.nodeCall.mockRejectedValueOnce(new Error('the node did not answer'))
+    const page = await mountSmart()
+    await page.press('guardian-sign')
+    await finish()
+    expect(page.has('guardian-signed')).toBe(false)
+    expect(kit.replyFrom).not.toHaveBeenCalled()
+    expect(page.textOf('guardian-sign-unread')).toContain(t(`${SIGNING}.unread`))
+    await page.press('guardian-sign-retry')
+    await finish()
+    expect(queuedRequests()).toHaveLength(2)
+    expect(page.has('guardian-signed')).toBe(true)
+    page.unmount()
+  })
+
+  it('reads an account check that never answers as unread once its time limit passes, and not before', async () => {
+    wallet.nodeCall.mockImplementationOnce(() => new Promise<string>(() => {}))
+    const page = await mountSmart()
+    await page.press('guardian-sign')
+    await finish()
+    expect(page.has('guardian-sign-busy')).toBe(true)
+    await advance(ACCOUNT_CHECK_LIMIT_MS - 1)
+    expect(page.has('guardian-sign-busy')).toBe(true)
+    expect(page.has('guardian-sign-unread')).toBe(false)
+    await advance(1)
+    await finish()
+    expect(page.has('guardian-sign-busy')).toBe(false)
+    expect(page.textOf('guardian-sign-unread')).toContain(t(`${SIGNING}.unread`))
+    await page.press('guardian-sign-retry')
+    await finish()
+    expect(page.has('guardian-signed')).toBe(true)
+    page.unmount()
+  })
+
+  it('reads as not yet deployed where the request reads no code at the account, keeps sign disabled and queues nothing', async () => {
+    const page = await mountSmart(smartRequestOf({ credentialHoldsCode: false }))
+    expect(page.textOf('guardian-key-address')).toBe(SMART_ACCOUNT)
+    expect(page.textOf('guardian-key-smart-account-undeployed')).toBe(
+      t(`${SIGNING}.smartAccountUndeployed`)
+    )
+    expect(page.has('guardian-key-smart-account')).toBe(false)
+    expect(page.isDisabled('guardian-sign')).toBe(true)
+    await page.press('guardian-sign')
+    await finish()
+    expect(selections()).toEqual([])
+    expect(queuedRequests()).toEqual([])
+    expect(wallet.signTypedData).not.toHaveBeenCalled()
+    page.unmount()
+  })
+
+  it('reads as missing where the wallet does not hold the key that controls the account', async () => {
+    wallet.keystore.keys = [{ addr: STRANGER_ACCOUNT.address, type: 'internal' }]
+    const page = await mountSmart()
+    expect(page.textOf('guardian-key-missing')).toBe(
+      t(`${SIGNING}.keyMissing`, { address: SMART_ACCOUNT })
+    )
+    expect(page.has('guardian-key-smart-account')).toBe(false)
+    expect(page.isDisabled('guardian-sign')).toBe(true)
+    page.unmount()
+  })
+
+  it('says in the offline block that the account signs on the page, and takes no pasted envelope', async () => {
+    const request = smartRequestOf()
+    const page = await mountLive(request)
+    await page.press('guardian-offline-open')
+    expect(page.textOf('guardian-offline-smart-account')).toBe(t(`${OFFLINE}.smartAccountOnPage`))
+    const signature = await wrappedBy(CONTROLLER_ACCOUNT, typedDataFor(request))
+    await page.press('guardian-acknowledge')
+    await page.type('guardian-offline-signature', signature)
+    await page.press('guardian-offline-add')
+    await finish()
+    expect(kit.verifyReply).not.toHaveBeenCalled()
+    expect(page.textOf('guardian-offline-wrongSigner')).toBe(t(`${OFFLINE}.wrongSigner`))
+    expect(page.has('guardian-signed')).toBe(false)
+    page.unmount()
+  })
+
+  it('says nothing of a smart account in the offline block of a request that names a key', async () => {
+    resetEdges()
+    const page = await mountLive()
+    await page.press('guardian-offline-open')
+    expect(page.has('guardian-offline-title')).toBe(true)
+    expect(page.has('guardian-offline-smart-account')).toBe(false)
     page.unmount()
   })
 })

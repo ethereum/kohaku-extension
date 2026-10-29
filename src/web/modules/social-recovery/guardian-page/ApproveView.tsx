@@ -99,6 +99,7 @@ const ApproveView = ({
             acknowledged={acknowledged}
             onAcknowledged={setAcknowledged}
             enabled={gatesHold}
+            smartAccount={keyReading.kind === 'smartAccount'}
             busy={signing.busy}
             failure={signing.offlineFailure}
             onAdd={add}

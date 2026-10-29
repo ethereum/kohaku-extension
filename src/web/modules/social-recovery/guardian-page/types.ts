@@ -4,6 +4,7 @@ import type {
   DeploymentDescriptor,
   Hex,
   IMethodsOrchestrator,
+  Reply,
   RequestDescription,
   Verdict
 } from '@kohaku-eth/social-recovery'
@@ -204,6 +205,8 @@ export interface OfflineBlockProps {
   onAcknowledged: (value: boolean) => void
   /** Whether every gate of the sign action other than the held key holds. */
   enabled: boolean
+  /** Whether the request names a smart account, which signs on the page and never offline. */
+  smartAccount: boolean
   busy: boolean
   failure: OfflineFailure | null
   onAdd: (text: string) => void
@@ -261,12 +264,18 @@ export interface CopyFeedbackLineProps {
 /**
  * The key the request names, as this wallet holds it:
  * - held: the keystore holds it and is unlocked, so the sign action can ask for it;
+ * - smartAccount: the address is a smart account the wallet lists and the
+ *   unlocked keystore holds a key that controls it, so the wallet signs as
+ *   that account; the handle names the account with the held key's type, and
+ *   `deployed` says whether the request reads code at the account, without
+ *   which no approval from it can count;
  * - locked: the keystore is locked, so the sign action goes to the unlock first;
  * - missing: the keystore does not hold it, or there is no keystore at all;
  * - unreadable: the request's credential names no key this page reads.
  */
 export type KeyReading =
   | { kind: 'held'; key: KeyHandle }
+  | { kind: 'smartAccount'; key: KeyHandle; deployed: boolean }
   | { kind: 'locked'; address: Address }
   | { kind: 'missing'; address: Address }
   | { kind: 'unreadable' }
@@ -278,8 +287,11 @@ export interface KeystoreFacts {
   hasPasswordSecret: boolean
 }
 
-/** Why the wallet's own signature brought no approval. */
-export type SigningFailure = 'refused' | 'failed' | 'wrongKey'
+/**
+ * Why the wallet's own signature brought no approval; `unread` where the
+ * chain's check of a smart account's approval could not be read.
+ */
+export type SigningFailure = 'refused' | 'failed' | 'wrongKey' | 'unread'
 
 /** Why a pasted signature brought no approval. */
 export type OfflineFailure = 'notASignature' | 'wrongSigner'
@@ -292,9 +304,12 @@ export interface SignedApproval {
 
 /**
  * What the approving side made of a signature: the approval with its verdict
- * for the request's place, or a signature it could not package into a reply.
+ * for the request's place and the reply it packaged, or a signature it could
+ * not package into a reply.
  */
-export type ApprovalOutcome = { approval: SignedApproval; verdict: Verdict } | 'unpackaged'
+export type ApprovalOutcome =
+  | { approval: SignedApproval; verdict: Verdict; reply: Reply }
+  | 'unpackaged'
 
 /** The approving side's three calls the page signs through. */
 export type ApprovingCalls = Pick<IMethodsOrchestrator, 'signingInput' | 'replyFrom' | 'verify'>
@@ -309,14 +324,22 @@ export interface KeyAccountSelectionInput {
 }
 
 /**
- * Selects the key's listed basic account in the wallet, and settles once the
- * wallet reports it selected. It rejects where the selection does not land in
+ * Selects the handle's listed account in the wallet, the key's basic account
+ * or the smart account itself, and settles once the wallet reports it selected. It rejects where the selection does not land in
  * time or the signal aborts first.
  */
 export type SelectKeyAccount = (key: KeyHandle, signal?: AbortSignal) => Promise<void>
 
+/** The chain's own verdict over a reply, read where the approving side could not judge it. */
+export type ReplyChainVerdict = (request: ApproverRequest, reply: Reply) => Promise<Verdict>
+
 export interface GuardianSigningInput {
   approving: ApprovingCalls | null
+  /**
+   * The chain's verdict, taken for the wallet's own signature where the
+   * approving side answers not judged; null while no client stands.
+   */
+  chainVerdict: ReplyChainVerdict | null
   request: ApproverRequest | null
   signTypedData: (key: KeyHandle, typedData: TypedDataToSign, options?: SignOptions) => Promise<Hex>
   /**

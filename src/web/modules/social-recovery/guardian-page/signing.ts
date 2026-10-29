@@ -8,8 +8,16 @@ import { isAddress } from 'viem'
 
 import type { Address, ApproverRequest, Verdict } from '@kohaku-eth/social-recovery'
 import { isObject } from '@web/modules/social-recovery/recovery/checklist/codec'
-import { isSignFlowFailure, sameAddress } from '@web/modules/social-recovery/shared/client'
-import type { RecoveryKitClient, TypedDataToSign } from '@web/modules/social-recovery/shared/client'
+import {
+  isSignFlowFailure,
+  listedSmartAccountOf,
+  sameAddress
+} from '@web/modules/social-recovery/shared/client'
+import type {
+  ListedAccount,
+  RecoveryKitClient,
+  TypedDataToSign
+} from '@web/modules/social-recovery/shared/client'
 import type { Translate } from '@web/modules/social-recovery/shared/display'
 
 import { ECDSA_SLUG } from './constants'
@@ -42,9 +50,16 @@ export const requestKeyOf = (
 /**
  * How this wallet holds the key: a wallet with no keystore reads as missing,
  * a locked one as locked, then held where the keystore has an entry for the
- * address and missing where it has none.
+ * address. An address the wallet lists as a smart account, one of whose
+ * associated keys the keystore holds, reads as that smart account, deployed
+ * where the request reads code at it. Any other address reads as missing.
  */
-export const keyReadingOf = (address: Address | null, keystore: KeystoreFacts): KeyReading => {
+export const keyReadingOf = (
+  address: Address | null,
+  keystore: KeystoreFacts,
+  accounts: readonly ListedAccount[] = [],
+  credentialHoldsCode = false
+): KeyReading => {
   if (!address) {
     return { kind: 'unreadable' }
   }
@@ -54,15 +69,35 @@ export const keyReadingOf = (address: Address | null, keystore: KeystoreFacts): 
   if (!keystore.isUnlocked) {
     return { kind: 'locked', address }
   }
-  const held = (keystore.keys ?? []).find((key) => sameAddress(key.addr, address))
-  return held
-    ? { kind: 'held', key: { addr: address, type: held.type } }
-    : { kind: 'missing', address }
+  const keys = keystore.keys ?? []
+  const held = keys.find((key) => sameAddress(key.addr, address))
+  if (held) {
+    return { kind: 'held', key: { addr: address, type: held.type } }
+  }
+  const smart = listedSmartAccountOf(accounts, address)
+  const controlling = smart
+    ? keys.find((key) =>
+        smart.associatedKeys.some((associated) => sameAddress(associated, key.addr))
+      )
+    : undefined
+  if (smart && controlling) {
+    return {
+      kind: 'smartAccount',
+      key: { addr: smart.addr as Address, type: controlling.type },
+      deployed: credentialHoldsCode
+    }
+  }
+  return { kind: 'missing', address }
 }
 
-/** Whether the sign action can be pressed for this key reading: a held key, or a locked one to unlock. */
+/**
+ * Whether the sign action can be pressed for this key reading: a held key, a
+ * smart account the request reads code at, or a locked wallet to unlock.
+ */
 export const keyAllowsSign = (reading: KeyReading): boolean =>
-  reading.kind === 'held' || reading.kind === 'locked'
+  reading.kind === 'held' ||
+  reading.kind === 'locked' ||
+  (reading.kind === 'smartAccount' && reading.deployed)
 
 /**
  * The typed data the approving side hands over for the request, or null
@@ -93,7 +128,8 @@ export const typedDataOf = (
 /**
  * Why the wallet's sign request brought no signature: the guardian refused
  * it in the sign window, the signature the window returned recovers to
- * another key, or anything else that stopped it.
+ * another key or the smart account refused it, the smart account's check
+ * could not be read, or anything else that stopped it.
  */
 export const signingFailureOf = (error: unknown): SigningFailure => {
   if (isSignFlowFailure(error)) {
@@ -102,6 +138,9 @@ export const signingFailureOf = (error: unknown): SigningFailure => {
     }
     if (error.reason === 'signer-mismatch') {
       return 'wrongKey'
+    }
+    if (error.reason === 'unverified') {
+      return 'unread'
     }
   }
   return 'failed'

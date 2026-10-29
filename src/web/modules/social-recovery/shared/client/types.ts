@@ -788,6 +788,28 @@ export interface SignerFacadeOptions {
   /** The chain the request signs on, the recovery chain's id. */
   chainId: number | bigint
   timeoutMs?: number
+  /**
+   * The contract account's own check of a signature made for it. Where it is
+   * given, a handle that names a smart account the wallet lists signs as that
+   * account, and its answer is accepted only where this check accepts it.
+   * Where it is absent, such a handle is refused as not wired.
+   */
+  accountSignatures?: AccountSignatureCheck
+}
+
+/**
+ * Whether the contract account accepts the signature over the digest:
+ * resolves false for a refusal and rejects for a read the node did not answer.
+ */
+export type AccountSignatureCheck = (
+  account: Address,
+  digest: Hex,
+  signature: Hex
+) => Promise<boolean>
+
+/** The provider member the EIP-1271 read uses: one static call. */
+export interface ContractCallProvider {
+  call(transaction: { to: Address; data: Hex }): Promise<string>
 }
 
 // ---------------------------------------------------------------------------

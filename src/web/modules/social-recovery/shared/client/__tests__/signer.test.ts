@@ -17,7 +17,7 @@
  * `KEYSTORE_CONTROLLER_SIGN_WITH_KEY`.
  */
 import { getBytes, Signature, Wallet } from 'ethers'
-import { hashTypedData } from 'viem'
+import { hashMessage, hashTypedData } from 'viem'
 
 import type { Key } from '@ambire-common/interfaces/keystore'
 import type { TypedMessage } from '@ambire-common/interfaces/userRequest'
@@ -29,6 +29,7 @@ import type { Address, ApproverRequest, Hex } from '@kohaku-eth/social-recovery'
 
 import {
   ABSENCE_GRACE_MS,
+  ACCOUNT_CHECK_LIMIT_MS,
   addedRequest,
   advance,
   basicAccount,
@@ -1164,6 +1165,120 @@ describe('the known limit: a key that is not itself a listed basic account', () 
   it('refuses a key whose account the wallet does not list the same way', async () => {
     const q = queueOver([])
     const caught = await thrownBy(q.signer.signBytes(HANDLE, BYTES))
+    expect(isSignerNotWired(caught)).toBe(true)
+    expect(q.dispatch).not.toHaveBeenCalled()
+  })
+})
+
+describe('signing as a smart account the wallet lists', () => {
+  const SMART = addressOf('smart-account')
+  const SMART_HANDLE: KeyHandle = { addr: SMART, type: 'internal' }
+  /** The controlling key's signature in the account's own envelope: one more byte. */
+  const wrapped = (signature: Hex): Hex => `${signature}01` as Hex
+  /** The signing with a handler attached at once, so an early refusal fails its case and not the run. */
+  const handled = <T>(signing: Promise<T>): Promise<T> => {
+    signing.catch(() => undefined)
+    return signing
+  }
+
+  /** A facade that lists the smart account and its basic controlling key, with an account check. */
+  const smartQueue = (check: jest.Mock) =>
+    queueOver([basicAccount(KEY), smartAccount(SMART, KEY)], { accountSignatures: check })
+
+  it('queues the request under the smart account and resolves once the account accepts the answer', async () => {
+    const check = jest.fn(async () => true)
+    const q = smartQueue(check)
+    const signing = handled(q.signer.signTypedData(SMART_HANDLE, TYPED))
+    const { userRequest } = addedRequest(q.dispatch)
+    expect(userRequest.meta).toMatchObject({ accountAddr: SMART, keyType: 'internal' })
+    q.push(queued(userRequest.id))
+    q.push(signedFor(userRequest.id, wrapped(SIG.typed)))
+    await expect(signing).resolves.toBe(wrapped(SIG.typed))
+    expect(check).toHaveBeenCalledTimes(1)
+    expect(check).toHaveBeenCalledWith(
+      SMART,
+      hashTypedData(TYPED as Parameters<typeof hashTypedData>[0]),
+      wrapped(SIG.typed)
+    )
+  })
+
+  it('asks the account about the EIP-191 digest of raw bytes', async () => {
+    const check = jest.fn(async () => true)
+    const q = smartQueue(check)
+    const signing = handled(q.signer.signBytes(SMART_HANDLE, BYTES))
+    const { userRequest } = addedRequest(q.dispatch)
+    q.push(signedFor(userRequest.id, wrapped(SIG.bytes)))
+    await expect(signing).resolves.toBe(wrapped(SIG.bytes))
+    expect(check).toHaveBeenCalledWith(SMART, hashMessage({ raw: BYTES }), wrapped(SIG.bytes))
+  })
+
+  it('refuses an answer the account does not accept as signed by another signer', async () => {
+    const q = smartQueue(jest.fn(async () => false))
+    const signing = handled(q.signer.signTypedData(SMART_HANDLE, TYPED))
+    const { userRequest } = addedRequest(q.dispatch)
+    q.push(signedFor(userRequest.id, wrapped(SIG.otherKeyTyped)))
+    const caught = await thrownBy(signing)
+    expect(isSignFlowFailure(caught)).toBe(true)
+    expect((caught as SignFlowFailure).reason).toBe('signer-mismatch')
+  })
+
+  it('fails as unverified where the account check throws', async () => {
+    const q = smartQueue(
+      jest.fn(async () => {
+        throw new Error('the node did not answer')
+      })
+    )
+    const signing = handled(q.signer.signTypedData(SMART_HANDLE, TYPED))
+    const { userRequest } = addedRequest(q.dispatch)
+    q.push(signedFor(userRequest.id, wrapped(SIG.typed)))
+    const caught = await thrownBy(signing)
+    expect(isSignFlowFailure(caught)).toBe(true)
+    expect((caught as SignFlowFailure).reason).toBe('unverified')
+  })
+
+  it('fails as unverified once the account check outlasts its time limit, and not before', async () => {
+    const q = smartQueue(jest.fn(() => new Promise<boolean>(() => {})))
+    const signing = track(q.signer.signTypedData(SMART_HANDLE, TYPED))
+    const { userRequest } = addedRequest(q.dispatch)
+    q.push(signedFor(userRequest.id, wrapped(SIG.typed)))
+    await advance(ACCOUNT_CHECK_LIMIT_MS - 1)
+    expect(signing.status).toBe('pending')
+    await advance(1)
+    expect(signing.status).toBe('rejected')
+    expect(isSignFlowFailure(signing.value)).toBe(true)
+    expect((signing.value as SignFlowFailure).reason).toBe('unverified')
+  })
+
+  it('refuses a handle naming the smart account as not wired where the facade has no account check', async () => {
+    const q = queueOver([basicAccount(KEY), smartAccount(SMART, KEY)])
+    const caught = await thrownBy(q.signer.signTypedData(SMART_HANDLE, TYPED))
+    expect(isSignerNotWired(caught)).toBe(true)
+    expect((caught as SignerNotWired).key).toEqual(SMART_HANDLE)
+    expect(q.dispatch).not.toHaveBeenCalled()
+  })
+
+  it('signs for a key on the key path, recovered in the page, with the account check present', async () => {
+    const check = jest.fn(async () => true)
+    const q = smartQueue(check)
+    const own = handled(q.signer.signTypedData(HANDLE, TYPED))
+    const first = addedRequest(q.dispatch).userRequest
+    expect(first.meta.accountAddr).toBe(KEY)
+    q.push(signedFor(first.id, SIG.typed))
+    await expect(own).resolves.toBe(SIG.typed)
+
+    q.dispatch.mockClear()
+    const other = handled(q.signer.signTypedData(HANDLE, TYPED))
+    q.push(signedFor(addedRequest(q.dispatch).userRequest.id, SIG.otherKeyTyped))
+    const caught = await thrownBy(other)
+    expect((caught as SignFlowFailure).reason).toBe('signer-mismatch')
+    expect(check).not.toHaveBeenCalled()
+  })
+
+  it('refuses a controlling key that is no listed basic account as not wired, with the account check present', async () => {
+    const q = queueOver([smartAccount(SMART, OTHER_KEY)], { accountSignatures: jest.fn() })
+    const caught = await thrownBy(
+      q.signer.signTypedData({ addr: OTHER_KEY, type: 'internal' }, TYPED)
+    )
     expect(isSignerNotWired(caught)).toBe(true)
     expect(q.dispatch).not.toHaveBeenCalled()
   })

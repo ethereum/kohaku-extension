@@ -15,6 +15,7 @@ import {
   approvalValuesOf,
   deadlineViewOf,
   describedRequestOf,
+  keyAllowsSign,
   keyReadingOf,
   readingOf,
   readingOfFacts,
@@ -25,9 +26,11 @@ import type {
   ApprovalReading,
   ApprovalValues,
   DeadlineView,
-  DomainOfBuild
+  DomainOfBuild,
+  KeystoreFacts
 } from '@web/modules/social-recovery/guardian-page'
 import type { ApproverApproval } from '@web/modules/social-recovery/guardian-page/__tests__/harness'
+import type { ListedAccount } from '@web/modules/social-recovery/shared/client'
 
 const t = (key: string, values?: Record<string, unknown>): string => i18n.t(key, values)
 
@@ -441,5 +444,89 @@ describe('the key the request names', () => {
       hasPasswordSecret: true
     })
     expect(reading).toEqual({ kind: 'held', key: { addr: NEW_KEY, type: 'internal' } })
+  })
+
+  const SMART = getAddress('0x9c1e7a3b5d2f4e6a8c0b1d3f5e7a9c2b4d6f8e01')
+  const CONTROLLER = getAddress('0x41d6b2e8c3a5f7091e2d4c6b8a0f1e3d5c7b9a12')
+  const STRANGER = getAddress('0x8e2a4c6b0d1f3e5a7c9b2d4f6e8a0c1b3d5f7e23')
+  const creation = {
+    factoryAddr: getAddress('0xfac7000000000000000000000000000000000001'),
+    bytecode: '0x00',
+    salt: `0x${'00'.repeat(32)}`
+  } as ListedAccount['creation']
+  const accounts: readonly ListedAccount[] = [
+    { addr: CONTROLLER, associatedKeys: [CONTROLLER], creation: null },
+    { addr: SMART, associatedKeys: [CONTROLLER], creation }
+  ]
+  const unlocked: KeystoreFacts = {
+    keys: [{ addr: CONTROLLER, type: 'internal' }],
+    isUnlocked: true,
+    hasPasswordSecret: true
+  }
+
+  it('reads a listed smart account whose controlling key the wallet holds as that account, deployed where the request reads code at it', () => {
+    expect(keyReadingOf(SMART, unlocked, accounts, true)).toEqual({
+      kind: 'smartAccount',
+      key: { addr: SMART, type: 'internal' },
+      deployed: true
+    })
+    expect(keyReadingOf(SMART, unlocked, accounts, false)).toEqual({
+      kind: 'smartAccount',
+      key: { addr: SMART, type: 'internal' },
+      deployed: false
+    })
+  })
+
+  it('takes the controlling key type the keystore holds for the smart account', () => {
+    const trezor: KeystoreFacts = { ...unlocked, keys: [{ addr: CONTROLLER, type: 'trezor' }] }
+    expect(keyReadingOf(SMART, trezor, accounts, true)).toEqual({
+      kind: 'smartAccount',
+      key: { addr: SMART, type: 'trezor' },
+      deployed: true
+    })
+  })
+
+  it('reads a listed smart account whose controlling key the wallet does not hold as missing', () => {
+    const otherKey: KeystoreFacts = { ...unlocked, keys: [{ addr: STRANGER, type: 'internal' }] }
+    expect(keyReadingOf(SMART, otherKey, accounts, true)).toEqual({
+      kind: 'missing',
+      address: SMART
+    })
+  })
+
+  it('reads an address the wallet lists nowhere as missing, even with keys held', () => {
+    expect(keyReadingOf(STRANGER, unlocked, accounts, true)).toEqual({
+      kind: 'missing',
+      address: STRANGER
+    })
+  })
+
+  it('reads a listed basic account with the same address as a held key, not as a smart account', () => {
+    expect(keyReadingOf(CONTROLLER, unlocked, accounts, true)).toEqual({
+      kind: 'held',
+      key: { addr: CONTROLLER, type: 'internal' }
+    })
+  })
+
+  it('reads a locked wallet as locked before it looks at the smart accounts', () => {
+    const locked: KeystoreFacts = { ...unlocked, isUnlocked: false }
+    expect(keyReadingOf(SMART, locked, accounts, true)).toEqual({
+      kind: 'locked',
+      address: SMART
+    })
+  })
+
+  it('lets the sign action be pressed for a held key, a locked wallet and a deployed smart account only', () => {
+    const cases = [
+      { reading: keyReadingOf(CONTROLLER, unlocked, accounts, false), allows: true },
+      { reading: keyReadingOf(SMART, { ...unlocked, isUnlocked: false }, accounts), allows: true },
+      { reading: keyReadingOf(SMART, unlocked, accounts, true), allows: true },
+      { reading: keyReadingOf(SMART, unlocked, accounts, false), allows: false },
+      { reading: keyReadingOf(STRANGER, unlocked, accounts, true), allows: false },
+      { reading: keyReadingOf(null, unlocked, accounts, true), allows: false }
+    ]
+    cases.forEach(({ reading, allows }) => {
+      expect({ reading, allows: keyAllowsSign(reading) }).toEqual({ reading, allows })
+    })
   })
 })

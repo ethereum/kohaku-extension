@@ -20,8 +20,9 @@
  * 3. The facade takes the signature from the `signMessage` controller state
  *    whose `signedMessage` carries its request's id, and accepts it only if
  *    it recovers, in this page, to the key's address over the facade's own
- *    content. A request that leaves the queue with no such signature (the
- *    holder rejected it or closed the window) is refused. A request with no
+ *    content, or, for a smart account, only if the account's own EIP-1271
+ *    check accepts it. A request that leaves the queue with no such
+ *    signature (the holder rejected it or closed the window) is refused. A request with no
  *    answer in time, or whose caller aborts it before the answer, is
  *    withdrawn.
  *
@@ -32,9 +33,19 @@
  * controlling key at the slot's index plus 100000, cannot sign through it, and
  * the facade refuses such a key with `SignerNotWired`. Raw bytes always carry
  * the EIP-191 prefix: the queue has no request that signs a bare digest.
+ *
+ * A facade built with an account check also signs as a smart account the
+ * wallet lists, for a handle that names that account: the request carries the
+ * account, the wallet signs with the key that controls it and wraps the
+ * signature in the account's own format, and the answer counts only where the
+ * account's `isValidSignature` accepts it over the facade's own digest. A
+ * check that fails, or does not answer in time, fails as unverified. A
+ * facade built without one refuses such a handle as not wired, so a caller
+ * that signs only with keys keeps the key path whatever the wallet lists.
  */
 import { v4 as uuidv4 } from 'uuid'
 import {
+  hashMessage,
   hashTypedData,
   isHex,
   recoverMessageAddress,
@@ -51,6 +62,7 @@ import type {
 import type { Address, Hex } from '@kohaku-eth/social-recovery'
 
 import { sameAddress } from './addresses'
+import { within } from './limits'
 import type {
   KeyHandle,
   ListedAccount,
@@ -89,15 +101,17 @@ export const isSignerNotWired = (value: unknown): value is SignerNotWired =>
  * (the holder rejected it or closed the action window), no answer came in
  * time (the facade then withdraws it), the caller aborted it before the
  * answer came (the facade then withdraws it), the answer was not a hex
- * signature, or the signature does not recover to the key's address over the
- * facade's own content.
+ * signature, the signature does not recover to the key's address over the
+ * facade's own content or the smart account refused it, or the smart
+ * account's check could not be read.
  */
 export const SIGN_FLOW_FAILURE_REASONS = [
   'refused',
   'timeout',
   'withdrawn',
   'malformed-signature',
-  'signer-mismatch'
+  'signer-mismatch',
+  'unverified'
 ] as const
 
 export const signFlowFailure = (
@@ -137,6 +151,9 @@ export const DEFAULT_SIGN_TIMEOUT_MS = 10 * 60 * 1000
 
 /** How long the request must stay out of the queue, with no signature, before it counts as refused. */
 export const ABSENCE_GRACE_MS = 3000
+
+/** How long the facade waits for a smart account's check of a signature before it fails as unverified. */
+export const ACCOUNT_CHECK_LIMIT_MS = 30 * 1000
 
 const DOMAIN_MEMBERS = [
   { name: 'name', type: 'string' },
@@ -206,6 +223,16 @@ export const listedBasicAccountOf = (
       account.associatedKeys.some((associated) => sameAddress(associated, key.addr))
   )
 
+/**
+ * The smart account the wallet lists at the address: an account with
+ * creation code. Undefined for any other address.
+ */
+export const listedSmartAccountOf = (
+  accounts: readonly ListedAccount[],
+  address: Address
+): ListedAccount | undefined =>
+  accounts.find((account) => sameAddress(account.addr, address) && !!account.creation)
+
 /** Whether a key is itself a basic account the wallet lists, the one case the queue signs as the key. */
 export const isListedBasicAccountKey = (
   accounts: readonly ListedAccount[],
@@ -247,6 +274,12 @@ export const recoveredSignerOf = async (
   }
 }
 
+/** The digest a contract account checks a signature against: EIP-712 over the typed message, EIP-191 over the bytes. */
+const digestOf = (content: PlainTextMessage | TypedMessage): Hex =>
+  content.kind === 'typedMessage'
+    ? hashTypedData(eip712Of(content))
+    : hashMessage({ raw: content.message as Hex })
+
 /**
  * The sign request the facade adds to the queue for one key and one content.
  * `meta.keyType` carries the handle's key type beside the account address, so
@@ -283,7 +316,11 @@ export const createSignerFacade = (
     content: PlainTextMessage | TypedMessage,
     signal: AbortSignal | undefined
   ): Promise<Hex> => {
-    const listed = listedBasicAccountOf(port.accounts(), key)
+    const accounts = port.accounts()
+    const basic = listedBasicAccountOf(accounts, key)
+    const smart =
+      !basic && options.accountSignatures ? listedSmartAccountOf(accounts, key.addr) : undefined
+    const listed = basic ?? smart
     if (!listed) {
       return Promise.reject(signerNotWired(member, key))
     }
@@ -433,6 +470,27 @@ export const createSignerFacade = (
             clearTimeout(absence)
           }
           absence = undefined
+          const check = smart ? options.accountSignatures : undefined
+          if (smart && check) {
+            // Verified on chain: the smart account itself must accept the
+            // signature over the facade's own digest.
+            within(
+              () => check(smart.addr as Address, digestOf(content), signature),
+              ACCOUNT_CHECK_LIMIT_MS
+            ).then(
+              (accepted) => {
+                if (accepted === undefined) {
+                  fail('unverified')
+                } else if (!accepted) {
+                  fail('signer-mismatch')
+                } else {
+                  succeed(signature)
+                }
+              },
+              () => fail('unverified')
+            )
+            return
+          }
           // Verified in this page: the signature must recover to the key over
           // the facade's own content, whatever the background reports.
           recoveredSignerOf(content, signature).then((recovered) => {

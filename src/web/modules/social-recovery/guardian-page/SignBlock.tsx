@@ -4,8 +4,10 @@
  * it, and the sign action. The heading asks to sign the approval until the
  * box is ticked and reads ready once it is. Sign stays disabled until every
  * gate holds; under it, while the box is not ticked, the line that asks for
- * the tick. While a signature is asked for, the action is busy beside a line
- * that says the wallet's sign screen is awaited. A signing that brought no approval reads why,
+ * the tick. A smart account the wallet controls reads as such, and one that
+ * has sent no transaction yet reads why it cannot sign. While a signature is
+ * asked for, the action is busy beside a line that says the wallet's sign
+ * screen is awaited. A signing that brought no approval reads why,
  * with a retry. The step also offers the offline block and keeps decline
  * open.
  */
@@ -52,13 +54,39 @@ const SignBlock = ({
         </Text>
       )
     }
-    const address = reading.kind === 'held' ? reading.key.addr : reading.address
+    const address =
+      reading.kind === 'held' || reading.kind === 'smartAccount'
+        ? reading.key.addr
+        : reading.address
     const full = fullAddressOf(address) ?? address
     if (reading.kind === 'missing') {
       return (
         <Text fontSize={14} appearance="errorText" testID="guardian-key-missing">
           {t(`${SIGNING}.keyMissing`, { address: full })}
         </Text>
+      )
+    }
+    if (reading.kind === 'smartAccount') {
+      return (
+        <>
+          <Text fontSize={14} weight="number_medium" selectable testID="guardian-key-address">
+            {full}
+          </Text>
+          {reading.deployed ? (
+            <Text fontSize={14} style={spacings.mtTy} testID="guardian-key-smart-account">
+              {t(`${SIGNING}.smartAccountHeld`)}
+            </Text>
+          ) : (
+            <Text
+              fontSize={14}
+              appearance="errorText"
+              style={spacings.mtTy}
+              testID="guardian-key-smart-account-undeployed"
+            >
+              {t(`${SIGNING}.smartAccountUndeployed`)}
+            </Text>
+          )}
+        </>
       )
     }
     return (

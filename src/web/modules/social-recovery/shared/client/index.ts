@@ -53,10 +53,12 @@ export {
   SIGN_FLOW_FAILURE_REASONS,
   DEFAULT_SIGN_TIMEOUT_MS,
   ABSENCE_GRACE_MS,
+  ACCOUNT_CHECK_LIMIT_MS,
   createSignerFacade,
   signRequestOf,
   typedMessageOf,
   listedBasicAccountOf,
+  listedSmartAccountOf,
   isListedBasicAccountKey,
   recoveredSignerOf,
   signerNotWired,
@@ -64,6 +66,7 @@ export {
   signFlowFailure,
   isSignFlowFailure
 } from './signer'
+export { isValidAccountSignature } from './account-signature'
 export { accountFor } from './signer-account'
 export { signRequestPort } from './signer-port'
 export {
@@ -148,6 +151,8 @@ export type {
   SignerFacade,
   SignerMember,
   SignerFacadeOptions,
+  AccountSignatureCheck,
+  ContractCallProvider,
   SignOptions,
   SignRequestAction,
   SignRequestPort,

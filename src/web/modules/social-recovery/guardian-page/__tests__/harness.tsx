@@ -11,6 +11,11 @@
  * packages a signature as the reply's proof and judges it as the deployed
  * method does: satisfied for a signature by the named key, not judged for
  * any other well-formed signature, rejected for bytes that are none. The guardian's key is a throwaway key that signs in the test.
+ * The chain's own verdict over a reply recovers the signer and then asks the
+ * named address's EIP-1271 check, which the node answers for a smart account
+ * the wallet lists: it accepts its envelope around a signature by one of its
+ * associated keys. A test may swap the facade for the real one over a
+ * scripted request queue, whose sign window is the same scripted signer.
  * The logo is a stub. jsdom has no `TextEncoder`, which viem reads when it
  * loads, so the harness sets Node's before it loads the modules.
  */
@@ -35,10 +40,15 @@ import type {
 } from '@kohaku-eth/social-recovery'
 import type {
   KeyHandle,
+  ListedAccount,
   RecoveryAttemptState,
   RemovedKeyReading,
+  SignerFacadeOptions,
   SignFlowFailureReason,
   SignOptions,
+  SignRequestAction,
+  SignRequestPort,
+  SignRequestUpdate,
   TypedDataToSign
 } from '@web/modules/social-recovery/shared/client'
 import type { RecoveryClientState } from '@web/modules/social-recovery/shared/client/useRecoveryClient'
@@ -65,6 +75,8 @@ export interface KitScript {
   signingInput: jest.Mock<unknown, [ApproverRequest]>
   replyFrom: jest.Mock<Promise<Reply | ReplyFailure>, [ApproverRequest, unknown, unknown]>
   verify: jest.Mock<Promise<Verdict>, [ApproverRequest, number, Hex]>
+  /** The chain's own verdict over a reply, the method module's answer. */
+  verifyReply: jest.Mock<Promise<Verdict>, [ApproverRequest, Reply]>
 }
 
 /** The keystore as the page reads it. */
@@ -85,13 +97,35 @@ export interface SavedFile {
 export interface ListedAccountScript {
   addr: string
   associatedKeys: string[]
-  creation: null
+  /** Null for a basic account; a smart account's creation otherwise. */
+  creation: null | { factoryAddr: string; bytecode: string; salt: string }
+}
+
+/** A network the wallet holds, as the page reads it. */
+export interface NetworkScript {
+  chainId: bigint
+  name: string
+}
+
+/** A static call the page sends the node. */
+export interface CallScript {
+  to: string
+  data: Hex
 }
 
 /** The wallet's edges the signing half reads. */
 export interface WalletScript {
   keystore: KeystoreScript
   accounts: ListedAccountScript[]
+  networks: NetworkScript[]
+  /**
+   * Whether the page's signer facade is the real one over the scripted
+   * request queue, whose sign window is `signTypedData`; otherwise the
+   * facade is `signTypedData` itself.
+   */
+  realFacade: boolean
+  /** The node's answer to a static call over the page's provider. */
+  nodeCall: jest.Mock<Promise<string>, [CallScript]>
   /** The address the wallet's selected-account state reports. */
   selected: string | undefined
   selectedListeners: Set<() => void>
@@ -133,9 +167,15 @@ const mockClient: {
   listeners: Set<() => void>
 } = { state: null, accounts: [], listeners: new Set() }
 const mockLoading: ClientState = { status: 'loading', retry: () => {} }
+const mockQueue: { listeners: Set<(update: SignRequestUpdate) => void> } = {
+  listeners: new Set()
+}
 const mockWallet: WalletScript = {
   keystore: { keys: [], isUnlocked: true, hasPasswordSecret: true },
   accounts: [],
+  networks: [],
+  realFacade: false,
+  nodeCall: jest.fn(),
   selected: undefined,
   selectedListeners: new Set(),
   dispatch: jest.fn(),
@@ -172,7 +212,7 @@ jest.mock('@web/modules/social-recovery/shared/client/useRecoveryClient', () => 
 }))
 jest.mock('@web/hooks/useNetworksControllerState', () => ({
   __esModule: true,
-  default: () => ({ networks: [] })
+  default: () => ({ networks: mockWallet.networks })
 }))
 jest.mock('@web/hooks/useKeystoreControllerState', () => ({
   __esModule: true,
@@ -204,14 +244,43 @@ jest.mock('@common/hooks/useNavigation', () => {
   const navigate = (...args: [string, NavigateOptions?]) => mockWallet.navigate(...args)
   return { __esModule: true, default: () => ({ navigate }) }
 })
-jest.mock('@web/modules/social-recovery/shared/client', () => ({
-  ...jest.requireActual('@web/modules/social-recovery/shared/client'),
-  createSignerFacade: () => ({
-    signTypedData: (key: KeyHandle, typedData: TypedDataToSign, options?: SignOptions) =>
-      mockWallet.signTypedData(key, typedData, options),
-    signBytes: () => Promise.reject(new Error('no bytes are signed here'))
-  })
-}))
+jest.mock('@web/modules/social-recovery/shared/client', () => {
+  const actual: typeof import('@web/modules/social-recovery/shared/client') = jest.requireActual(
+    '@web/modules/social-recovery/shared/client'
+  )
+  return {
+    ...actual,
+    // The request queue's pushes come from the scripted background below.
+    signRequestPort: (
+      dispatch: SignRequestPort['dispatch'],
+      accounts: () => readonly ListedAccount[] | undefined,
+      windowId?: number
+    ): SignRequestPort => ({
+      dispatch,
+      subscribe(listener) {
+        mockQueue.listeners.add(listener)
+        return () => mockQueue.listeners.delete(listener)
+      },
+      accounts: () => accounts() ?? [],
+      windowId: () => windowId
+    }),
+    createSignerFacade: (port: SignRequestPort, options: SignerFacadeOptions) =>
+      mockWallet.realFacade
+        ? actual.createSignerFacade(port, options)
+        : {
+            signTypedData: (
+              key: KeyHandle,
+              typedData: TypedDataToSign,
+              signOptions?: SignOptions
+            ) => mockWallet.signTypedData(key, typedData, signOptions),
+            signBytes: () => Promise.reject(new Error('no bytes are signed here'))
+          },
+    extensionProviderFor: () => ({
+      call: (transaction: CallScript) => mockWallet.nodeCall(transaction),
+      destroy: () => {}
+    })
+  }
+})
 jest.mock('@common/utils/clipboard', () => ({
   setStringAsync: (text: string) => mockWallet.copied(text)
 }))
@@ -254,13 +323,19 @@ jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
 const React: typeof import('react') = require('react')
 const {
   decodeAbiParameters,
+  decodeFunctionData,
   encodeAbiParameters,
+  encodeFunctionData,
+  encodeFunctionResult,
   getAddress,
   hashTypedData,
   isAddressEqual,
   keccak256,
+  parseAbi,
+  recoverAddress,
   recoverTypedDataAddress,
   size,
+  slice,
   zeroAddress
 }: typeof import('viem') = require('viem')
 const {
@@ -283,6 +358,7 @@ const {
   WEB_ROUTES
 }: typeof import('@common/modules/router/constants/common') = require('@common/modules/router/constants/common')
 const {
+  ACCOUNT_CHECK_LIMIT_MS: accountCheckLimitMs,
   addressBookOf,
   descriptorOf,
   signFlowFailure,
@@ -317,6 +393,15 @@ export const GUARDIAN_ACCOUNT = privateKeyToAccount(generatePrivateKey())
 export const GUARDIAN: Address = GUARDIAN_ACCOUNT.address
 /** Another throwaway key, one the request does not name. */
 export const STRANGER_ACCOUNT = privateKeyToAccount(generatePrivateKey())
+/** The throwaway key that controls the guardian's smart account. */
+export const CONTROLLER_ACCOUNT = privateKeyToAccount(generatePrivateKey())
+export const CONTROLLER: Address = CONTROLLER_ACCOUNT.address
+/** The guardian's smart account, which the wallet lists beside its controlling key. */
+export const SMART_ACCOUNT: Address = getAddress('0x5a17000000000000000000000000000000000c0d')
+/** How long the signer facade waits for a smart account's check of a signature. */
+export const ACCOUNT_CHECK_LIMIT_MS = accountCheckLimitMs
+/** The extension's network for the recovery chain. */
+export const RECOVERY_NETWORK: NetworkScript = { chainId: 11155111n, name: 'Sepolia' }
 
 /** A credential config naming an address, as the wallet method encodes it. */
 export const configOf = (address: Address): Hex =>
@@ -555,6 +640,155 @@ const walletVerdict = async (request: ApproverRequest, proof: Hex): Promise<Verd
   }
 }
 
+/** The controlling key's signature in the smart account's own envelope: one more byte. */
+export const wrappedBy = async (
+  account: SigningAccount,
+  typedData: TypedDataToSign
+): Promise<Hex> => `${await signatureBy(account, typedData)}01` as Hex
+
+const EIP1271_ABI = parseAbi([
+  'function isValidSignature(bytes32 hash, bytes signature) view returns (bytes4)'
+])
+export const EIP1271_MAGIC: Hex = '0x1626ba7e'
+
+/**
+ * The smart account's own check, as the deployed account answers it: a
+ * signature in its envelope whose first 65 bytes one of its associated keys
+ * made over the digest. Only a smart account the wallet lists holds code.
+ */
+const accountAccepts = async (account: string, digest: Hex, signature: Hex): Promise<boolean> => {
+  const smart = mockWallet.accounts.find(
+    (listed) => !!listed.creation && isAddressEqual(listed.addr as Address, account as Address)
+  )
+  if (!smart || size(signature) !== SIGNATURE_BYTES + 1) {
+    return false
+  }
+  try {
+    const signer = await recoverAddress({
+      hash: digest,
+      signature: slice(signature, 0, SIGNATURE_BYTES)
+    })
+    return smart.associatedKeys.some((key) => isAddressEqual(key as Address, signer))
+  } catch {
+    return false
+  }
+}
+
+/** The node's answer to the account's `isValidSignature`; an address with no code answers empty. */
+const nodeAnswer = async ({ to, data }: CallScript): Promise<string> => {
+  const { args } = decodeFunctionData({ abi: EIP1271_ABI, data })
+  const [digest, signature] = args
+  const holdsCode = mockWallet.accounts.some(
+    (listed) => !!listed.creation && isAddressEqual(listed.addr as Address, to as Address)
+  )
+  if (!holdsCode) {
+    return '0x'
+  }
+  return encodeFunctionResult({
+    abi: EIP1271_ABI,
+    functionName: 'isValidSignature',
+    result: (await accountAccepts(to, digest, signature)) ? EIP1271_MAGIC : '0xffffffff'
+  })
+}
+
+/**
+ * The chain's verdict over a reply, as the method module gives it: ecrecover
+ * to the address the config names, then that address's own EIP-1271 check.
+ */
+const chainVerdict = async (request: ApproverRequest, reply: Reply): Promise<Verdict> => {
+  const [named] = decodeAbiParameters([{ type: 'address' }], request.config)
+  if (size(reply.proof) === SIGNATURE_BYTES) {
+    try {
+      const signer = await recoverAddress({ hash: reply.digest, signature: reply.proof })
+      if (isAddressEqual(signer, named)) {
+        return 'satisfied'
+      }
+    } catch {
+      return 'rejected'
+    }
+  }
+  return (await accountAccepts(named, reply.digest, reply.proof)) ? 'satisfied' : 'rejected'
+}
+
+/**
+ * The background behind the real facade: the request the facade adds is
+ * queued, and the sign window, `signTypedData`, answers it under the
+ * request's account; a refusal takes the request out of the queue.
+ */
+const backgroundOf = (dispatched: { type: string; params?: unknown }) => {
+  const action = dispatched as SignRequestAction
+  if (!mockWallet.realFacade || action.type !== 'REQUESTS_CONTROLLER_ADD_USER_REQUEST') {
+    return
+  }
+  const { userRequest } = action.params
+  const push = (update: SignRequestUpdate) =>
+    [...mockQueue.listeners].forEach((listener) => listener(update))
+  const queueOf = (ids: string[]): SignRequestUpdate => ({
+    controller: 'requests',
+    state: {
+      userRequests: ids.map((id) => ({ id })),
+      userRequestsWaitingAccountSwitch: []
+    }
+  })
+  push(queueOf([String(userRequest.id)]))
+  const { domain, types, primaryType, message } = userRequest.action as unknown as TypedDataToSign
+  mockWallet
+    .signTypedData({ addr: userRequest.meta.accountAddr as Address, type: 'internal' }, {
+      domain,
+      types,
+      primaryType,
+      message
+    } as TypedDataToSign)
+    .then(
+      (signature) =>
+        push({
+          controller: 'signMessage',
+          state: { signedMessage: { fromActionId: userRequest.id, signature } as never }
+        }),
+      () => push(queueOf([]))
+    )
+}
+
+/** The requests the real facade added to the queue, in order. */
+export const queuedRequests = () =>
+  mockWallet.dispatch.mock.calls
+    .map(([action]) => action as SignRequestAction)
+    .flatMap((action) =>
+      action.type === 'REQUESTS_CONTROLLER_ADD_USER_REQUEST' ? [action.params.userRequest] : []
+    )
+
+/**
+ * The wallet of a guardian whose smart account the request names: it holds
+ * the controlling key, lists that key and the smart account, has the smart
+ * account selected and signs for it in the account's envelope, over the real
+ * facade and the network of the recovery chain.
+ */
+export const holdSmartAccount = () => {
+  mockWallet.keystore.keys = [{ addr: CONTROLLER, type: 'internal' }]
+  mockWallet.accounts = [
+    { addr: CONTROLLER, associatedKeys: [CONTROLLER], creation: null },
+    {
+      addr: SMART_ACCOUNT,
+      associatedKeys: [CONTROLLER],
+      creation: {
+        factoryAddr: getAddress('0xfac7000000000000000000000000000000000001'),
+        bytecode: '0x00',
+        salt: `0x${'00'.repeat(32)}`
+      }
+    }
+  ]
+  mockWallet.selected = SMART_ACCOUNT
+  mockWallet.networks = [RECOVERY_NETWORK]
+  mockWallet.realFacade = true
+  mockWallet.signTypedData.mockImplementation((_key, typedData) =>
+    wrappedBy(CONTROLLER_ACCOUNT, typedData)
+  )
+}
+
+/** The approval request a guardian's smart account answers. */
+export const smartRequestOf = (overrides: Partial<ApprovalRequest> = {}): ApprovalRequest =>
+  requestOf({ config: configOf(SMART_ACCOUNT), credentialHoldsCode: true, ...overrides })
+
 /**
  * The wallet method the client's registry hands out under its slug, decoding
  * a config with the SDK's own wallet codec. The SDK builds a TextEncoder when
@@ -579,7 +813,8 @@ export const kit: KitScript = {
   isAuthorized: jest.fn(),
   signingInput: jest.fn(),
   replyFrom: jest.fn(),
-  verify: jest.fn()
+  verify: jest.fn(),
+  verifyReply: jest.fn()
 }
 
 /** The wallet's edges each test scripts. */
@@ -603,7 +838,8 @@ export const readyClient = (descriptor = DESCRIPTOR): ClientState =>
       recovery: { recoveryState: () => kit.recoveryState() },
       walletReads: {
         attemptState: () => kit.attemptState(),
-        removedKey: () => kit.removedKey()
+        removedKey: () => kit.removedKey(),
+        verifyReply: (request: ApproverRequest, reply: Reply) => kit.verifyReply(request, reply)
       },
       action: { isAuthorized: () => kit.isAuthorized() }
     },
@@ -677,6 +913,13 @@ export const resetEdges = () => {
   })
   kit.verify.mockReset()
   kit.verify.mockImplementation((request, _place, proof) => walletVerdict(request, proof))
+  kit.verifyReply.mockReset()
+  kit.verifyReply.mockImplementation(chainVerdict)
+  mockWallet.networks = []
+  mockWallet.realFacade = false
+  mockWallet.nodeCall.mockReset()
+  mockWallet.nodeCall.mockImplementation(nodeAnswer)
+  mockQueue.listeners.clear()
   mockWallet.keystore = {
     keys: [{ addr: GUARDIAN, type: 'internal' }],
     isUnlocked: true,
@@ -685,6 +928,7 @@ export const resetEdges = () => {
   mockWallet.accounts = [{ addr: GUARDIAN, associatedKeys: [GUARDIAN], creation: null }]
   mockWallet.selected = GUARDIAN
   mockWallet.dispatch.mockReset()
+  mockWallet.dispatch.mockImplementation(backgroundOf)
   mockWallet.navigate.mockReset()
   mockWallet.signTypedData.mockReset()
   mockWallet.signTypedData.mockImplementation((_key, typedData) =>
@@ -842,6 +1086,34 @@ describeHarness('the approval page harness', () => {
       'rejected'
     )
     await expect(kit.verify(request, request.place, '0xabc')).resolves.toBe('rejected')
+  })
+
+  it("answers the smart account's check for its controlling key's envelope only, and the chain's verdict with it", async () => {
+    holdSmartAccount()
+    const request = smartRequestOf()
+    const typedData = typedDataFor(request)
+    const digest = hashOf(typedData)
+    const own = await wrappedBy(CONTROLLER_ACCOUNT, typedData)
+    const other = await wrappedBy(STRANGER_ACCOUNT, typedData)
+    const magicOf = (to: string, signature: Hex) =>
+      mockWallet.nodeCall({
+        to,
+        data: encodeFunctionData({
+          abi: EIP1271_ABI,
+          functionName: 'isValidSignature',
+          args: [digest, signature]
+        })
+      })
+    expect((await magicOf(SMART_ACCOUNT, own)).slice(0, 10)).toBe(EIP1271_MAGIC)
+    expect((await magicOf(SMART_ACCOUNT, other)).slice(0, 10)).not.toBe(EIP1271_MAGIC)
+    expect(await magicOf(GUARDIAN, own)).toBe('0x')
+    await expect(kit.verifyReply(request, replyOf(request, own))).resolves.toBe('satisfied')
+    await expect(kit.verifyReply(request, replyOf(request, other))).resolves.toBe('rejected')
+    const guardianRequest = requestOf()
+    const guardianSignature = await signatureBy(GUARDIAN_ACCOUNT, typedDataFor(guardianRequest))
+    await expect(
+      kit.verifyReply(guardianRequest, replyOf(guardianRequest, guardianSignature))
+    ).resolves.toBe('satisfied')
   })
 })
 

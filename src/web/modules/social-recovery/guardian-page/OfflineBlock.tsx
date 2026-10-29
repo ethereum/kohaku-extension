@@ -5,7 +5,8 @@
  * and sentence as the signing step, with the setup and attempt numbers, and
  * its add action stays under the same acknowledgment as the sign action,
  * since a signature made off the page is still an approval the page hands
- * over.
+ * over. A smart account signs on the page and never offline, and the block
+ * says so where the request names one.
  */
 import React, { useMemo, useState } from 'react'
 import { View } from 'react-native'
@@ -42,6 +43,7 @@ const OfflineBlock = ({
   acknowledged,
   onAcknowledged,
   enabled,
+  smartAccount,
   busy,
   failure,
   onAdd,
@@ -72,6 +74,11 @@ const OfflineBlock = ({
       <Text fontSize={14} style={spacings.mbSm}>
         {t(`${OFFLINE}.lead`)}
       </Text>
+      {smartAccount && (
+        <Text fontSize={14} style={spacings.mbSm} testID="guardian-offline-smart-account">
+          {t(`${OFFLINE}.smartAccountOnPage`)}
+        </Text>
+      )}
       <ValueBlock values={values} deadline={deadline} testID="guardian-offline-values" />
       <SectionCard testID="guardian-offline-numbers">
         {row(
