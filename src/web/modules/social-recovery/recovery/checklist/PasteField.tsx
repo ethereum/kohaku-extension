@@ -2,7 +2,10 @@
  * A guardian row's paste field: the one line the guardian sent back, and
  * "Add approval". The paste counts or fails at once: an added approval clears
  * the field, and every failure renders its written error with the paste kept
- * for a retry. While the check runs a line beside the held button says so.
+ * for a retry. An approval counts on its signer's row, never on the row it was
+ * pasted into; one that lands on another row leaves a line under the field
+ * until the next edit. While the check runs a line beside the held button says
+ * so.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
@@ -25,6 +28,7 @@ const PasteField = ({ place, busy, paste, addReply }: PasteFieldProps) => {
   const [text, setText] = useState('')
   const [checking, setChecking] = useState(false)
   const [error, setError] = useState<PasteError | null>(null)
+  const [elsewhere, setElsewhere] = useState(false)
   const mounted = useRef(true)
   useEffect(
     () => () => {
@@ -39,6 +43,7 @@ const PasteField = ({ place, busy, paste, addReply }: PasteFieldProps) => {
     }
     setChecking(true)
     setError(null)
+    setElsewhere(false)
     try {
       const outcome = await paste(text, addReply)
       if (!mounted.current) {
@@ -46,6 +51,7 @@ const PasteField = ({ place, busy, paste, addReply }: PasteFieldProps) => {
       }
       if (outcome.kind === 'added') {
         setText('')
+        setElsewhere(outcome.place !== place)
       } else {
         setError(outcome.error)
       }
@@ -58,7 +64,7 @@ const PasteField = ({ place, busy, paste, addReply }: PasteFieldProps) => {
         setChecking(false)
       }
     }
-  }, [paste, checking, busy, text, addReply])
+  }, [paste, checking, busy, text, addReply, place])
 
   const lines = error ? pasteErrorLinesOf(error, t) : []
 
@@ -73,8 +79,19 @@ const PasteField = ({ place, busy, paste, addReply }: PasteFieldProps) => {
         onChangeText={(next: string) => {
           setText(next)
           setError(null)
+          setElsewhere(false)
         }}
       />
+      {elsewhere && (
+        <Text
+          testID={`checklist-row-${place}-paste-elsewhere`}
+          fontSize={12}
+          appearance="secondaryText"
+          style={spacings.mbSm}
+        >
+          {t(`${GUARDIAN}.pastedElsewhere`)}
+        </Text>
+      )}
       {lines.length > 0 && (
         <View style={spacings.mbSm} testID={`checklist-row-${place}-paste-error`}>
           {lines.map((line, index) => (

@@ -392,6 +392,102 @@ describe('the guardian paste', () => {
     expect(view?.byTestId(id(1, 'paste'))).not.toBeNull()
     expect(view?.byTestId(id(1, 'paste-error'))).toBeNull()
     expect(view?.valueOf(id(1, 'paste-input'))).toBe('')
+    expect(view?.byTestId(id(1, 'paste-elsewhere'))?.textContent).toBe(
+      t(`${GUARDIAN}.pastedElsewhere`)
+    )
+    expect(view?.byTestId(id(2, 'chip'))?.textContent).toBe(
+      t('socialRecovery.status.collection.complete')
+    )
+  })
+
+  describe('a paste that lands on another row', () => {
+    const elsewhereRows = () =>
+      [0, 1, 2, 3, 4].filter((row) => view?.byTestId(id(row, 'paste-elsewhere')))
+
+    it('says so only under the field it was pasted into', async () => {
+      await open()
+
+      await paste(3, lineOf(replyOf(gathering, 1)))
+
+      expect(elsewhereRows()).toEqual([3])
+      expect(view?.byTestId(id(1, 'verified'))).not.toBeNull()
+      expect(view?.byTestId(id(3, 'verified'))).toBeNull()
+    })
+
+    it('clears the line when the field is edited', async () => {
+      await open()
+      await paste(1, lineOf(replyOf(gathering, 2)))
+      expect(view?.byTestId(id(1, 'paste-elsewhere'))).not.toBeNull()
+
+      await view?.type(id(1, 'paste-input'), 'x')
+
+      expect(view?.byTestId(id(1, 'paste-elsewhere'))).toBeNull()
+      expect(view?.valueOf(id(1, 'paste-input'))).toBe('x')
+    })
+
+    it('leaves no line after an edit and a new add, which reads its own outcome', async () => {
+      await open()
+      await paste(1, lineOf(replyOf(gathering, 2)))
+
+      await paste(1, 'not a reply')
+
+      expect(view?.byTestId(id(1, 'paste-elsewhere'))).toBeNull()
+      expect(errorLines(1)).toEqual([
+        t(`${PASTE}.notAnApproval`),
+        t(`${PASTE}.notAnApprovalRepair`)
+      ])
+    })
+
+    it('says so again for a second approval from another guardian', async () => {
+      await open()
+      await paste(1, lineOf(replyOf(gathering, 2)))
+
+      await paste(1, lineOf(replyOf(gathering, 3)))
+
+      expect(view?.byTestId(id(1, 'paste-elsewhere'))?.textContent).toBe(
+        t(`${GUARDIAN}.pastedElsewhere`)
+      )
+      expect((await repliesHeld()).map((reply) => reply.place)).toEqual([2, 3])
+    })
+
+    it('shows no line for an approval pasted into its own row', async () => {
+      await open()
+
+      await paste(1, lineOf(replyOf(gathering, 1)))
+
+      expect(view?.byTestId(id(1, 'verified'))).not.toBeNull()
+      expect(elsewhereRows()).toEqual([])
+    })
+
+    it('shows no line for a failed paste', async () => {
+      await open()
+      kit.verify.mockResolvedValue('rejected')
+
+      await paste(1, lineOf(replyOf(gathering, 2)))
+
+      expect(errorLines(1)).toEqual(NO_MATCH)
+      expect(elsewhereRows()).toEqual([])
+    })
+
+    it('reads a duplicate of another row as counted for its guardian, with no line', async () => {
+      await open()
+      const line = lineOf(replyOf(gathering, 2))
+      await paste(2, line)
+
+      await paste(1, line)
+
+      expect(errorLines(1)).toEqual([t(`${PASTE}.duplicate`), t(`${PASTE}.duplicateDetail`)])
+      expect(elsewhereRows()).toEqual([])
+    })
+  })
+
+  it("tells the holder that any guardian's approval can go in any field", async () => {
+    await open()
+    ;[1, 2, 3, 4].forEach((row) => {
+      const input = view?.byTestId(id(row, 'paste-input'))
+      const field = input instanceof HTMLInputElement ? input : input?.querySelector('input')
+      expect(field?.placeholder).toBe(t(`${GUARDIAN}.pasteHint`))
+    })
   })
 
   const addRefusals: AddRefusalCause[] = [
