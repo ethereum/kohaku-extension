@@ -12,9 +12,12 @@
  * bytes, so nobody mistakes one for a deployment.
  */
 import { isAddress, isAddressEqual, zeroAddress } from 'viem'
+import type { Address } from 'viem'
 
 import type { Credential } from '@kohaku-eth/social-recovery'
 import { PROXY_AMBIRE_ACCOUNT } from '@ambire-common/consts/deploy'
+import type { Account } from '@ambire-common/interfaces/account'
+import { isSmartAccount } from '@ambire-common/libs/account/account'
 import { isEmptySlot, slotKindOf } from '@web/modules/social-recovery/shared/records/slots'
 import { SLOT_KINDS } from '@web/modules/social-recovery/shared/records/types'
 import type { SlotKind } from '@web/modules/social-recovery/shared/records/types'
@@ -108,6 +111,24 @@ export const sameAddress = (a: string | undefined, b: string | undefined): boole
   isAddress(a, { strict: false }) &&
   isAddress(b, { strict: false }) &&
   isAddressEqual(a, b)
+
+/**
+ * The wallet's own record of an account, found by its address. A listed
+ * address in mixed case with a bad checksum matches nothing.
+ */
+export const listedAccountOf = <A extends Account>(
+  accounts: readonly A[] | undefined,
+  address: Address | undefined
+): A | undefined =>
+  address
+    ? accounts?.find(
+        (candidate) => isAddress(candidate.addr) && isAddressEqual(candidate.addr, address)
+      )
+    : undefined
+
+/** A listed account that is a basic account, not a smart account. */
+export const isBasicAccount = (listed: Account | undefined): boolean =>
+  !!listed && !isSmartAccount(listed)
 
 /**
  * The kind of method a module address serves among a deployment's method

@@ -212,14 +212,14 @@ describe('the account picker page list', () => {
 
   const mount = async (
     state: AccountPickerController,
-    { isScanComplete = true, onScanComplete = () => {} } = {}
+    { isScanComplete = true, onScanComplete = () => {}, setPage = () => {} } = {}
   ) => {
     await act(async () => {
       root.render(
         <ThemeContext.Provider value={THEME_CONTEXT}>
           <AccountsOnPageList
             state={state}
-            setPage={() => {}}
+            setPage={setPage}
             subType="seed"
             isLoading={false}
             isScanComplete={isScanComplete}
@@ -376,12 +376,118 @@ describe('the account picker page list', () => {
       expect(caption(SECOND_BASIC)).toBeNull()
     })
 
-    it('selects a used smart account and then its key', async () => {
+    const selectedAddresses = () =>
+      dispatchedSelections()
+        .filter(({ type }) => type === 'MAIN_CONTROLLER_ACCOUNT_PICKER_SELECT_ACCOUNT')
+        .map(({ params }) => params.account.addr)
+
+    it('selects a used smart account and then its key, and goes on to the next page', async () => {
       mockChain.usedAddrs = [SMART]
       const onScanComplete = jest.fn()
-      await mount(importedSeedPage(), { isScanComplete: false, onScanComplete })
+      const setPage = jest.fn()
+      await mount(importedSeedPage(), { isScanComplete: false, onScanComplete, setPage })
 
       expect(dispatchedSelections()).toEqual(selectionsOf([SMART, KEY]))
+      expect(setPage).toHaveBeenCalledTimes(1)
+      expect(setPage).toHaveBeenCalledWith(2)
+      expect(onScanComplete).not.toHaveBeenCalled()
+    })
+
+    it('goes on to the next page when only the key is used, with no basic account selected', async () => {
+      mockChain.usedAddrs = [KEY]
+      const onScanComplete = jest.fn()
+      const setPage = jest.fn()
+      await mount(importedSeedPage(), { isScanComplete: false, onScanComplete, setPage })
+
+      expect(dispatchedSelections()).toEqual(selectionsOf([SMART, KEY]))
+      expect(selectedAddresses()).not.toContain(BASIC)
+      expect(selectedAddresses()).not.toContain(SECOND_BASIC)
+      expect(setPage).toHaveBeenCalledWith(2)
+      expect(onScanComplete).not.toHaveBeenCalled()
+    })
+
+    it('goes on to the next page when a basic account is used', async () => {
+      mockChain.usedAddrs = [BASIC]
+      const onScanComplete = jest.fn()
+      const setPage = jest.fn()
+      await mount(importedSeedPage(), { isScanComplete: false, onScanComplete, setPage })
+
+      expect(setPage).toHaveBeenCalledTimes(1)
+      expect(setPage).toHaveBeenCalledWith(2)
+      expect(onScanComplete).not.toHaveBeenCalled()
+    })
+
+    it('finishes the scan on the first page when nothing on it is used', async () => {
+      const onScanComplete = jest.fn()
+      const setPage = jest.fn()
+      await mount(importedSeedPage(), { isScanComplete: false, onScanComplete, setPage })
+
+      expect(setPage).not.toHaveBeenCalled()
+      expect(onScanComplete).toHaveBeenCalledTimes(1)
+    })
+
+    it('scans past a first page used only through its smart account to a later used basic account, and finishes back on that page', async () => {
+      const onScanComplete = jest.fn()
+      const setPage = jest.fn()
+      mockChain.usedAddrs = [SMART]
+      await mount(importedSeedPage(), { isScanComplete: false, onScanComplete, setPage })
+      expect(dispatchedSelections()).toEqual(selectionsOf([SMART, KEY]))
+      expect(setPage).toHaveBeenLastCalledWith(2)
+
+      mockChain.usedAddrs = [BASIC]
+      mockDispatch.mockClear()
+      await mount(importedSeedPage([], { page: 2 }), {
+        isScanComplete: false,
+        onScanComplete,
+        setPage
+      })
+      expect(selectedAddresses()).toContain(BASIC)
+      expect(setPage).toHaveBeenLastCalledWith(3)
+
+      mockChain.usedAddrs = []
+      await mount(importedSeedPage([], { page: 3 }), {
+        isScanComplete: false,
+        onScanComplete,
+        setPage
+      })
+      expect(setPage).toHaveBeenLastCalledWith(2)
+      expect(onScanComplete).not.toHaveBeenCalled()
+
+      mockChain.usedAddrs = [BASIC]
+      mockDispatch.mockClear()
+      await mount(importedSeedPage([], { page: 2 }), {
+        isScanComplete: false,
+        onScanComplete,
+        setPage
+      })
+
+      expect(dispatchedSelections()).toEqual(selectionsOf([BASIC]))
+      expect(setPage).toHaveBeenCalledTimes(3)
+      expect(onScanComplete).toHaveBeenCalledTimes(1)
+    })
+
+    it('scans past a page used only through its smart account, then finishes back on it with the pair selected and no basic account', async () => {
+      const onScanComplete = jest.fn()
+      const setPage = jest.fn()
+      mockChain.usedAddrs = [SMART]
+      await mount(importedSeedPage(), { isScanComplete: false, onScanComplete, setPage })
+      expect(setPage).toHaveBeenLastCalledWith(2)
+
+      mockChain.usedAddrs = []
+      await mount(importedSeedPage([], { page: 2 }), {
+        isScanComplete: false,
+        onScanComplete,
+        setPage
+      })
+      expect(setPage).toHaveBeenLastCalledWith(1)
+      expect(onScanComplete).not.toHaveBeenCalled()
+
+      mockChain.usedAddrs = [SMART]
+      mockDispatch.mockClear()
+      await mount(importedSeedPage(), { isScanComplete: false, onScanComplete, setPage })
+
+      expect(dispatchedSelections()).toEqual(selectionsOf([SMART, KEY]))
+      expect(setPage).toHaveBeenCalledTimes(2)
       expect(onScanComplete).toHaveBeenCalledTimes(1)
     })
 

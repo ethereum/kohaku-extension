@@ -11,9 +11,7 @@
  */
 import React from 'react'
 import { View } from 'react-native'
-import { isAddress, isAddressEqual } from 'viem'
 
-import { isSmartAccount } from '@ambire-common/libs/account/account'
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
 import Text from '@common/components/Text'
@@ -25,6 +23,7 @@ import { ActionsRow, SectionCard } from '@web/modules/social-recovery/shared/chr
 import LoadingBlock from '@web/modules/social-recovery/shared/chrome/LoadingBlock'
 import ReadFailedBlock from '@web/modules/social-recovery/shared/chrome/ReadFailedBlock'
 import RefreshingLine from '@web/modules/social-recovery/shared/chrome/RefreshingLine'
+import { isBasicAccount, listedAccountOf } from '@web/modules/social-recovery/shared/client'
 import { renderFullAddress } from '@web/modules/social-recovery/shared/display'
 import { sameCredential } from '@web/modules/social-recovery/shared/records'
 import {
@@ -78,10 +77,8 @@ const ReviewArrival = ({
   const { t } = useTranslation()
   const { accounts } = useAccountsControllerState()
   // The wallet's own record of the account the edit saves, for its kind.
-  const listed = accounts?.find(
-    (candidate) => isAddress(candidate.addr) && isAddressEqual(candidate.addr, account)
-  )
-  const basicAccount = !!listed && !isSmartAccount(listed)
+  const listed = listedAccountOf(accounts, account)
+  const basicAccount = isBasicAccount(listed)
 
   if (run && load.status !== 'loaded') {
     return <View testID="manage-review-arrival">{run}</View>

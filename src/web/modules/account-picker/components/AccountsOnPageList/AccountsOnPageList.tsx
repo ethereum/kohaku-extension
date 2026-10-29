@@ -196,6 +196,7 @@ const AccountsOnPageList = ({
     if (scan.phase === 'done') return
 
     // A smart account is selected with its key when either of them is used.
+    let hasUsedSmartAccountPair = false
     smartAccounts.forEach((acc) => {
       const keyEntry = state.accountsOnPage.find(
         (a) =>
@@ -209,6 +210,7 @@ const AccountsOnPageList = ({
       if (!isUsed) {
         return
       }
+      hasUsedSmartAccountPair = true
       const entries = keyEntry ? [acc, keyEntry] : [acc]
       entries.forEach((entry) => {
         const alreadySelected = state.selectedAccounts.some(
@@ -230,6 +232,9 @@ const AccountsOnPageList = ({
       if (scan.pageAdvanceInitiated) return
 
       const hasUsed = sortedAccounts.some((a) => accountUsageMap[a.account.addr])
+      // A page counts as used when a basic row, a smart account or its key is used,
+      // so a seed used only through its smart accounts still reaches the next page.
+      const isPageUsed = hasUsed || hasUsedSmartAccountPair
 
       if (hasUsed) {
         sortedAccounts.forEach((acc) => {
@@ -238,6 +243,9 @@ const AccountsOnPageList = ({
           )
           if (!alreadySelected) handleSelectAccount(acc.account)
         })
+      }
+
+      if (isPageUsed) {
         scan.lastUsedPage = state.page
         scan.pageAdvanceInitiated = true
         setPage(state.page + 1)

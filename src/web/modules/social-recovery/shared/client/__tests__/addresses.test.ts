@@ -6,12 +6,21 @@
  * A method module address reads as the kind of method it serves, by the same
  * comparison; the zero address a deployment leaves for a method it omits
  * serves no kind.
+ *
+ * The wallet's own record of an account is found by its address; a listed
+ * record whose address is in mixed case with a bad checksum names nothing. A
+ * listed account is basic when it has no creation data.
  */
 import { zeroAddress } from 'viem'
+import type { Address } from 'viem'
+
+import type { Account } from '@ambire-common/interfaces/account'
 
 import {
   addressBookOf,
   credentialKindIn,
+  isBasicAccount,
+  listedAccountOf,
   methodKindIn,
   sameAddress
 } from '@web/modules/social-recovery/shared/client/__tests__/harness'
@@ -56,6 +65,69 @@ describe('sameAddress', () => {
       expect(sameAddress(CHECKSUMMED, text)).toBe(false)
     })
   )
+})
+
+const listed = (addr: string, creation: Account['creation'] = null): Account => ({
+  addr,
+  associatedKeys: [addr],
+  initialPrivileges: [],
+  creation,
+  preferences: { label: 'Account', pfp: addr }
+})
+const SMART_CREATION = {
+  factoryAddr: `0x${'5'.repeat(40)}`,
+  bytecode: '0x00',
+  salt: `0x${'0'.repeat(64)}`
+}
+
+describe('listedAccountOf', () => {
+  const basic = listed(CHECKSUMMED)
+  const smart = listed(OTHER, SMART_CREATION)
+  const accounts = [basic, smart]
+
+  it('finds the listed account by its address, whatever its case', () => {
+    expect(listedAccountOf(accounts, CHECKSUMMED)).toBe(basic)
+    expect(listedAccountOf(accounts, LOWER as Address)).toBe(basic)
+    expect(listedAccountOf(accounts, OTHER.toLowerCase() as Address)).toBe(smart)
+  })
+
+  it('finds nothing for an address the wallet does not list', () => {
+    expect(listedAccountOf(accounts, '0x1111111111111111111111111111111111111111')).toBeUndefined()
+  })
+
+  it('finds nothing when there is no address or no list', () => {
+    expect(listedAccountOf(accounts, undefined)).toBeUndefined()
+    expect(listedAccountOf(undefined, CHECKSUMMED)).toBeUndefined()
+    expect(listedAccountOf([], CHECKSUMMED)).toBeUndefined()
+  })
+
+  it('does not match a listed address in mixed case with a bad checksum', () => {
+    const badlyListed = [listed(BAD_CHECKSUM)]
+
+    expect(listedAccountOf(badlyListed, LOWER as Address)).toBeUndefined()
+    expect(listedAccountOf(badlyListed, CHECKSUMMED)).toBeUndefined()
+  })
+
+  it('finds the well-formed record among the listed ones', () => {
+    const correct = listed(LOWER)
+
+    expect(listedAccountOf([listed(BAD_CHECKSUM), correct], CHECKSUMMED)).toBe(correct)
+  })
+})
+
+describe('isBasicAccount', () => {
+  it('reads a listed account with no creation data as basic', () => {
+    expect(isBasicAccount(listed(CHECKSUMMED))).toBe(true)
+  })
+
+  it('does not read a smart account as basic', () => {
+    expect(isBasicAccount(listed(OTHER, SMART_CREATION))).toBe(false)
+  })
+
+  it('does not read an account the wallet does not list as basic', () => {
+    expect(isBasicAccount(undefined)).toBe(false)
+    expect(isBasicAccount(listedAccountOf([], CHECKSUMMED))).toBe(false)
+  })
 })
 
 describe('methodKindIn', () => {

@@ -16,9 +16,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Linking, View } from 'react-native'
 import { useLocation, useNavigate, useNavigationType } from 'react-router-dom'
-import { isAddress, isAddressEqual } from 'viem'
 
-import { isSmartAccount } from '@ambire-common/libs/account/account'
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
 import { useTranslation } from '@common/config/localization'
@@ -35,6 +33,8 @@ import {
   addressBookOf,
   auditedActionOf,
   createSendPort,
+  isBasicAccount,
+  listedAccountOf,
   recoveryChainOf,
   sendRequestPort,
   WALLET_RECOVERY_CHAIN
@@ -99,10 +99,8 @@ const ArmStep = ({ records, chainId, account, navigate }: StepViewProps) => {
   )
   const accountReads = useAccountReads(kit, draft)
   // The wallet's own record of the account the step saves, for its name and its kind.
-  const listed = accounts?.find(
-    (candidate) => isAddress(candidate.addr) && isAddressEqual(candidate.addr, account)
-  )
-  const basicAccount = !!listed && !isSmartAccount(listed)
+  const listed = listedAccountOf(accounts, account)
+  const basicAccount = isBasicAccount(listed)
   const gate = saveGateOf({
     recordsLoaded: load.status === 'loaded',
     clientReady: !!kit,

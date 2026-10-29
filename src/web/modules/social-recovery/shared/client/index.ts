@@ -14,6 +14,8 @@ export {
   addressBookOf,
   credentialKindIn,
   deploymentAddressesOf,
+  isBasicAccount,
+  listedAccountOf,
   methodKindIn,
   sameAddress
 } from './addresses'

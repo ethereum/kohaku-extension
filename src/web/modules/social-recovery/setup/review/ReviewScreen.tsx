@@ -6,9 +6,7 @@
  */
 import React, { useMemo } from 'react'
 import { View } from 'react-native'
-import { isAddress, isAddressEqual } from 'viem'
 
-import { isSmartAccount } from '@ambire-common/libs/account/account'
 import Button from '@common/components/Button'
 import { useTranslation } from '@common/config/localization'
 import useNavigation from '@common/hooks/useNavigation'
@@ -21,7 +19,12 @@ import {
 } from '@web/modules/social-recovery/shared/chrome/constants'
 import SetupChrome from '@web/modules/social-recovery/shared/chrome/SetupChrome'
 import useSetupAccount from '@web/modules/social-recovery/shared/chrome/useSetupAccount'
-import { CHAIN_IDS, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
+import {
+  CHAIN_IDS,
+  isBasicAccount,
+  listedAccountOf,
+  WALLET_RECOVERY_CHAIN
+} from '@web/modules/social-recovery/shared/client'
 import { useRecoveryClient } from '@web/modules/social-recovery/shared/client/useRecoveryClient'
 import {
   createWalletRecords,
@@ -41,13 +44,9 @@ const ReviewScreen = () => {
   const records = useMemo(() => createWalletRecords({ storage: extensionRecordStorage }), [])
 
   // The wallet's own record of the tab's account, from the background's state push.
-  const listed = account
-    ? accounts?.find(
-        (candidate) => isAddress(candidate.addr) && isAddressEqual(candidate.addr, account)
-      )
-    : undefined
+  const listed = listedAccountOf(accounts, account)
   const accountLabel = listed?.preferences?.label || undefined
-  const basicAccount = !!listed && !isSmartAccount(listed)
+  const basicAccount = isBasicAccount(listed)
   // Only the review reads through the client, so a refused basic account builds none.
   const clientState = useRecoveryClient(basicAccount ? undefined : account)
 

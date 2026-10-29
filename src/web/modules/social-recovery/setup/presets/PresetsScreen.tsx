@@ -8,9 +8,7 @@
  */
 import React, { useCallback, useMemo } from 'react'
 import { View } from 'react-native'
-import { isAddress, isAddressEqual } from 'viem'
 
-import { isSmartAccount } from '@ambire-common/libs/account/account'
 import { useTranslation } from '@common/config/localization'
 import useNavigation from '@common/hooks/useNavigation'
 import { WEB_ROUTES } from '@common/modules/router/constants/common'
@@ -22,7 +20,12 @@ import {
 } from '@web/modules/social-recovery/shared/chrome/constants'
 import SetupChrome from '@web/modules/social-recovery/shared/chrome/SetupChrome'
 import useSetupAccount from '@web/modules/social-recovery/shared/chrome/useSetupAccount'
-import { CHAIN_IDS, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
+import {
+  CHAIN_IDS,
+  isBasicAccount,
+  listedAccountOf,
+  WALLET_RECOVERY_CHAIN
+} from '@web/modules/social-recovery/shared/client'
 import { useRecoveryClient } from '@web/modules/social-recovery/shared/client/useRecoveryClient'
 import {
   createWalletRecords,
@@ -42,12 +45,8 @@ const PresetsScreen = () => {
   const { accounts } = useAccountsControllerState()
 
   // The wallet's own record of the tab's account, from the background's state push.
-  const listed = address
-    ? accounts?.find(
-        (candidate) => isAddress(candidate.addr) && isAddressEqual(candidate.addr, address)
-      )
-    : undefined
-  const basicAccount = !!listed && !isSmartAccount(listed)
+  const listed = listedAccountOf(accounts, address)
+  const basicAccount = isBasicAccount(listed)
   const entry = useSetupEntry(useRecoveryClient(basicAccount ? undefined : address))
   const opensPresets =
     entry.status === 'answered' && (entry.kind === 'not-set-up' || entry.kind === 'mirror')

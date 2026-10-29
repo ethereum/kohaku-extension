@@ -17,9 +17,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Linking } from 'react-native'
-import { isAddress, isAddressEqual } from 'viem'
 
-import { isSmartAccount } from '@ambire-common/libs/account/account'
 import Alert from '@common/components/Alert'
 import Button from '@common/components/Button'
 import { useTranslation } from '@common/config/localization'
@@ -41,6 +39,8 @@ import useSetupAccount from '@web/modules/social-recovery/shared/chrome/useSetup
 import {
   addressBookOf,
   CHAIN_IDS,
+  isBasicAccount,
+  listedAccountOf,
   networkOf,
   sameAddress,
   WALLET_RECOVERY_CHAIN
@@ -316,12 +316,8 @@ const OverviewScreen = () => {
   const chainId = CHAIN_IDS[WALLET_RECOVERY_CHAIN]
 
   // The wallet's own record of the tab's account, from the background's state push.
-  const listed = account
-    ? accounts?.find(
-        (candidate) => isAddress(candidate.addr) && isAddressEqual(candidate.addr, account)
-      )
-    : undefined
-  const basicAccount = !!listed && !isSmartAccount(listed)
+  const listed = listedAccountOf(accounts, account)
+  const basicAccount = isBasicAccount(listed)
 
   return (
     <SetupChrome testID="overview-screen">
