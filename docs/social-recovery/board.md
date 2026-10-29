@@ -1,5 +1,56 @@
 # Social recovery board
 
+The state of the work after the SDK pin move of 2026-10-29: defi-wonderland/kohaku-extension#153 moved the SDK pin to the fork's `wonderland/dev` 616efa1, adopted the identity methods' dev and test modes and committed the Sepolia deployment, and merged as 191bd8dccc on `dev/wonderland`. The freeze `dev-wonderland-m12` moved to 191bd8dccc on ethereum/kohaku-extension and the fork; ethereum/kohaku-extension#258 follows it.
+
+## The board (the SDK pin at 616efa1)
+
+| Column | What is in it |
+| --- | --- |
+| Walked | No identity walk on the committed deployment: the owner's word of 2026-10-29 ("no need for the walks"); the README's "Manual test on Sepolia" section is how the two walks run. |
+| Reviewed | Five implementation rounds, each verified read-only by an independent agent; the owner's review and approval; CodeRabbit's three threads and the independent reviewer's one Low (its body: 12 of 14 applicable cells walked, no High, no Medium), all four verified, confirmed and fixed. |
+| Merged | #153 on `dev/wonderland` at 191bd8dccc (2026-10-29, "move the SDK pin to 616efa1, adopt its dev and test modes, and commit the Sepolia deployment"), after the merge gate on the lane with the QA round merged in: 293 suites, 7778 tests, tsc 499 pre-existing errors and 0 under the module, eslint the one pre-existing error, the sweep 0, the build green. It carries: the SDK pin at 616efa1 (after 08480f5: c3cf8dd the dev and test modes of the identity methods, e762781 the extension follow-ups, 1a3b36d the digest place as uint256 and `ClientConfiguration.creation` dropped, 26519bf the Aadhaar artifacts from the bucket by default and `credential.config-malformed`, 616efa1 the ordering verdict and `SetupDescription.action`); the zkPassport factory's `devMode` from the chain's testnet-tree fact; `cancel()` on the SDK's request record; the deployment-line field `aadhaarTestMode`; `account.not-deployed` and `credential.config-malformed` with their sentences in the editor's refusals (an undeployed account whose implementation-to-be does not fit reads as unsupported, never "deploy first"); the Jest module mapper for the package gone (the package's `default` export condition); the scripted Aadhaar stack's `signedAt`, so a stale QR is refused before proving; the committed Sepolia deployment (`shared/client/deployments-sepolia.ts`); the README's "Manual test on Sepolia" section with everything a tester needs for the two identity walks; `docs/social-recovery/manual-test/gen-test-qr.js`. |
+
+## Rulings of the pin move (2026-10-29)
+
+- The Sepolia deployment is committed in the table ("I don't care about previous users").
+- The README carries everything for the walks in #153; no second PR.
+- No identity walk is needed now ("no need for the walks").
+- The planned rows FU-AP, FU-AQ, FU-AR and FU-AS are dismissed.
+- FU-AB, FU-AL and FU-AO are done and FU-M is moot; a read-only verifier confirmed each against the code at 121d2dee43: the recoverer's record and the row notes exist in `shared/records`; the submission in flight is kept on the live session with its request id, start block and hash and dropped by a new gathering, every wipe and the landing; the SDK at 08480f5 already encodes the attempt id and the setup nonce and part E's removal landed with the two-argument form; the privilege replay finds the creation block itself and no create-door badge exists.
+
+## Open with the owner
+
+Nothing new; the QA round's rows below stand.
+
+## Open with others
+
+| Question | Owner | What the code does meanwhile |
+| --- | --- | --- |
+| The review of ethereum/kohaku-commons#81 and ethereum/kohaku-extension#258 | ethereum team | The extension's submodule URL points at the fork |
+| The two GitGuardian incidents on #258 | owner (his GitGuardian dashboard) | Nothing |
+| An alpha.1 of `@kohaku-eth/social-recovery` from `wonderland/dev` (the ask of 2026-10-29: merge `wonderland/dev` into master so the changesets cut alpha.1) | sdk team | The pin at the fork's `wonderland/dev` 616efa1; the alpha swap (FU-AN) waits |
+
+Nothing is open with the contracts team: the key move and the deployment are done.
+
+## Recorded, not started
+
+- The page-side comparison of the passport reply's circuit version with the module's trusted key (the SDK's `zkPassportVersionOf` is there).
+- `ceremony.noMatchCause` has no caller until the SDK gives a separate mismatch cause.
+- The two identity walks on the committed deployment: not needed now by the owner's word; the README is how they run.
+- The submodule URL move back to ethereum/kohaku-commons after ethereum/kohaku-commons#81 merges.
+
+## Facts the next session should not rediscover
+
+- The committed Sepolia deployment (`shared/client/deployments-sepolia.ts`) holds the six contracts of ethereum/kohaku-contracts#15 (deployed 2026-10-29, the zkPassport method's trusted keys at circuit 0.21.1, the Aadhaar method trusting UIDAI's current "DS UIDAI 06" key; read back from the chain the same day; the manager at block 12019037, version 1.0.0, typed-data domain version 1) and this wallet's own identity parameters (the zkPassport domain `social-recovery.kohaku.test` and scope `kohaku-social-recovery` on the testnet certificate tree, the Aadhaar nullifier seed 11155111, the DS UIDAI 06 certificate whose public-key hash a unit test checks against the module's key).
+- A build with no variable runs Sepolia on the committed deployment and mainnet on the stand-in; the variable `SOCIAL_RECOVERY_SEPOLIA_DEPLOYMENT` is an override, and the `.env-sample` and the README say an empty variable means the committed deployment.
+- The contracts team moved the zkPassport route to 0.21.1 in ethereum/kohaku-contracts (its #6) and deployed Sepolia again (#15, every address new, the implementation unchanged). The record ships no test-only Aadhaar module; the 2026-10-21 test-only module is standalone, and a test build names it through the override variable with `aadhaarTestMode: true`. Every setup of the earlier walks lives on a retired manager.
+- `docs/social-recovery/manual-test/gen-test-qr.js` turns the official UIDAI V1 sample into a fresh V2 code signed with Anon Aadhaar's public test key pair, taken by path, with one fixed other identity for the mismatch test. The previous fixture through the peer's helper made codes the circuit refuses (a double `V2` prefix), which walk B had hit on 2026-10-22; CodeRabbit found it again and it is fixed.
+- The peer `@anon-aadhaar/core` 2.4.3 knows UIDAI's 2021 key only, so a real QR signed by the current key reads `not-judged` locally and the chain decides; the SDK's local verdict is `satisfied` only in test mode with a test QR.
+- The SDK release `@kohaku-eth/social-recovery@0.0.1-alpha.0` (ethereum/kohaku master 3f5960b, 2026-10-28) is the tree of `wonderland/dev` 4e3cc94, before e762781: no `default` export condition, no `account.not-deployed`, no `signedAt`, no `zkPassportVersionOf`, the `METHOD_AADHAAR_*` constants on the core entry only, and the Aadhaar local check still refusing a real QR signed by UIDAI's current key. The swap to the published package (FU-AN) waits for an alpha that carries `wonderland/dev`.
+- Of the nine items sent to the SDK team on 2026-10-26: 1, 2, 3, 4, 6 (the decoder `zkPassportVersionOf`; the page-side comparison is ours) and 8 landed in c3cf8dd and e762781; 5 (a separate mismatch cause; the timestamp check before the prover, which e762781 gave through `signedAt`) half; 7 upstream with zkPassport; 9 answered by alpha.0 without EXT-1.
+
+---
+
 The state of the work after the QA round of 2026-10-27, which followed milestone M-12 (delivered 2026-10-23, frozen as `dev-wonderland-m12` at b51e7f0498, the upstream draft ethereum/kohaku-extension#258). The QA team's nine findings (Linear EFI-1038, EFI-1039 to EFI-1047, plus EFI-1048 filed during the round) each became a follow-up task, FU-BB to FU-BK, with one pull request per finding against `dev/wonderland` (515da91b1c at the round's start). The round's log, briefs, investigations, reviews and the walk report live in the coordinator's worktree `.claude/worktrees/social-recovery-bugs-0e439b` under `docs/social-recovery/briefs/qa/`.
 
 ## The board (the QA round)
@@ -38,20 +89,20 @@ The state of the work after the QA round of 2026-10-27, which followed milestone
 | Question | Owner | What the code does meanwhile |
 | --- | --- | --- |
 | The eight upstream PRs: ethereum/kohaku-commons#81 first, then ethereum/kohaku-extension #251, #253, #254, #255, #256, #257, #258 in order | ethereum team | The extension's submodule URL points at the fork |
-| The zkPassport method's Safe moves its trusted keys to circuit 0.21.1 (part C; passed by the owner on 2026-10-23) | contracts team | Every passport access test and recovery is refused on Sepolia and mainnet |
+| The zkPassport method's Safe moves its trusted keys to circuit 0.21.1 (part C; passed by the owner on 2026-10-23) | contracts team | Done 2026-10-29: the contracts team deployed Sepolia again at 0.21.1 (ethereum/kohaku-contracts#15) |
 | A standing watch on zkPassport's registry root on both chains (zkPassport ships circuits about monthly; each release blocks the passport method until the Safe moves) | contracts team | Nothing; the check runs before a deployment only |
-| A repeat chain read of the Aadhaar modules' trusted keys and the zkPassport method's accepted version before the showcase (the owner took the showcase date off his list on 2026-10-26; the read stays with the contracts team) | contracts team | The 2026-10-21 read stands |
-| 1. `onResult`, `onBridgeConnect`, `onBridgeConnectionLost` and a cancel declared on `ZkPassportRequest` | sdk team | A local widening of the request type; the identifier read from `onResult`; the bridge closed through `cancelRequest` |
-| 2. A `devMode` option on `zkPassportMethod` and a test-mode option on `anonAadhaarMethod`, one later task | sdk team | The stack wrapper passes the testnet-tree flag to the request; the chain's verify view decides a not-judged access test |
-| 3. The `METHOD_AADHAAR_*` constants exported from the `recovery-methods` entry | sdk team | The extension carries its own copies |
-| 4. `validateSetup` refuses a counterfactual account with its own cause | sdk team | The wallet's own fit check reads the future code and skips that refusal |
-| 5. A distinct cause for an Aadhaar nullifier mismatch, and the timestamp check before the prover | sdk team | One material-rejected cause reads the method's own check; `ceremony.noMatchCause` waits unused; a stale QR is proved, then refused |
-| 6. The proof's circuit version on the reply or the material, and a decoder of the accepted version, or a typed unsupported-version refusal | sdk team | A revert of the verify view reads as its own line; no version comparison before the call |
-| 7. The peer's bridge refuses a second handshake by a reference comparison (to report upstream), and the SDK subscribes the bridge's error | sdk team | The wait ends 180 s after the handshake with retry; the scan-once line |
-| 8. A `default` condition on both entries of the exports map | sdk team | The Jest config maps the package and transforms it with Babel |
-| 9. The publish of 0.0.2-alpha.0 from `wonderland/dev` at 08480f5, with a date | sdk team | The packed local build at 08480f5; the alpha swap (FU-AN) waits |
-| The part C rerun after the Safe move (the access test, the save, the claim, the submission and the execution with a real passport; whether a testnet-tree request passes the Sepolia verifier) | sdk owner | The passport path is unwalked past the enrollment on a real chain |
-| The freeze `dev-wonderland-m12` (at b51e7f0498) and ethereum/kohaku-commons#81 (at c163fd9fb2) moved to the new heads, aca263344b and 5cf1d8d9f6 | owner | #258 carries FU-AZ but not FU-BA |
+| A repeat chain read of the Aadhaar modules' trusted keys and the zkPassport method's accepted version before the showcase (the owner took the showcase date off his list on 2026-10-26; the read stays with the contracts team) | contracts team | Done: read 2026-10-29 |
+| 1. `onResult`, `onBridgeConnect`, `onBridgeConnectionLost` and a cancel declared on `ZkPassportRequest` | sdk team | Landed in c3cf8dd and e762781; `cancel()` on the SDK's request record since #153 |
+| 2. A `devMode` option on `zkPassportMethod` and a test-mode option on `anonAadhaarMethod`, one later task | sdk team | Landed in c3cf8dd and e762781; the zkPassport factory's `devMode` from the chain's testnet-tree fact and the deployment-line field `aadhaarTestMode` since #153 |
+| 3. The `METHOD_AADHAAR_*` constants exported from the `recovery-methods` entry | sdk team | Landed in c3cf8dd and e762781 |
+| 4. `validateSetup` refuses a counterfactual account with its own cause | sdk team | Landed in c3cf8dd and e762781; `account.not-deployed` in the editor's refusals since #153 |
+| 5. A distinct cause for an Aadhaar nullifier mismatch, and the timestamp check before the prover | sdk team | Half: the timestamp check before the prover landed in e762781 through `signedAt`, so a stale QR is refused before proving; the separate mismatch cause is still open and `ceremony.noMatchCause` waits unused |
+| 6. The proof's circuit version on the reply or the material, and a decoder of the accepted version, or a typed unsupported-version refusal | sdk team | Landed in c3cf8dd and e762781 (the decoder `zkPassportVersionOf`); the page-side comparison is ours, recorded, not started |
+| 7. The peer's bridge refuses a second handshake by a reference comparison (to report upstream), and the SDK subscribes the bridge's error | sdk team | Upstream with zkPassport; the wait ends 180 s after the handshake with retry; the scan-once line |
+| 8. A `default` condition on both entries of the exports map | sdk team | Landed in c3cf8dd and e762781; the Jest module mapper for the package gone since #153 |
+| 9. The publish of 0.0.2-alpha.0 from `wonderland/dev` at 08480f5, with a date | sdk team | Answered by alpha.0 (2026-10-28) without EXT-1; the pin at 616efa1; the alpha swap (FU-AN) waits for an alpha that carries `wonderland/dev` |
+| The part C rerun after the Safe move (the access test, the save, the claim, the submission and the execution with a real passport; whether a testnet-tree request passes the Sepolia verifier) | sdk owner | Closed by the owner's word of 2026-10-29 (no walks) |
+| The freeze `dev-wonderland-m12` (at b51e7f0498) and ethereum/kohaku-commons#81 (at c163fd9fb2) moved to the new heads, aca263344b and 5cf1d8d9f6 | owner | Done: `dev-wonderland-m12` at 191bd8dccc (2026-10-29); ethereum/kohaku-commons#81's head `dev-wonderland` at 211a00f526, which equals the fork's current commons head (the pointer `dev/wonderland` carries), so the commons part is moved too; its review by the ethereum team stays open (the first row) |
 
 ## Recorded, not started
 
