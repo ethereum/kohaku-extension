@@ -48,7 +48,7 @@ Round is the half-day in which the task can start, from `depends_on` alone. With
 
 A follow-up task is work the cut did not hold: a seam a task or a review found, an owner's ruling, or a library change a task needs. It has an id `FU-<letter>`, one pull request of its own (or one in `kohaku-commons` where the change is in the library), and the same method as a task. The coordinator adds a row here when a follow-up is named and updates it when its pull request opens and merges. Pull request numbers are those of `defi-wonderland/kohaku-extension` unless a row says `kohaku-commons`.
 
-| Id | Follow-up | Follows | Where the code lives | Pull request | State on 2026-10-29 |
+| Id | Follow-up | Follows | Where the code lives | Pull request | State |
 | --- | --- | --- | --- | --- | --- |
 | (M-6) | The ceremony tab resolves a recorded request through the client | PT-041, PT-038 | `shared/ceremony`, `shared/client` | #15 | merged |
 | (M-6) | A send path for the writes through the request queue | PT-039, PT-038 | `shared/client`, `shared/writes` | #16 | merged |
@@ -98,6 +98,10 @@ A follow-up task is work the cut did not hold: a seam a task or a review found, 
 | FU-BJ | After a reinstall, a seed import restores neither the smart account nor its controlling key, so funds on the key are unreachable with no warning (Linear EFI-1047; the probe of 2026-10-27 found the import lists basic indices only) | PT-042 | `src/ambire-common/src/controllers/accountPicker`, `src/web/modules/account-picker` | #150, kohaku-commons#14 | merged 2026-10-28 |
 | FU-BK | The done screen's passkey advice is conditional on a device the holder lost; no lost device stated as a fact (Linear EFI-1048) | PT-062 | `recovery/done` | #151 | merged 2026-10-28 |
 | FU-BL | The management editor's not-sent line carries the frame's "Your edits are still here." (the owner's ruling of 2026-10-27 on a Low of the Sepolia walk) | PT-068 | `shared/writes`, one string | #154 | merged 2026-10-28 |
+| FU-BM | The import scan goes on past a page used only through its smart account or key, and one helper reads the listed account's kind in the five screens (the owner's rulings of 2026-10-29 on the review pass's small items) | FU-BJ, FU-BE | `account-picker` (the page list), `shared/client` | #156 | merged on `dev/wonderland` at bd17a55ed5 (2026-10-29) |
+| FU-BN | The paste field says any guardian's approval can go there, and a paste that counted on another guardian's row says so (Linear EFI-1049) | PT-058 | `recovery/checklist` | #155 | merged on `dev/wonderland` at 1e34f353da (2026-10-29) |
+| FU-BO | A deployed smart-account guardian this wallet controls signs on the approval page through its own wallet, checked by the account's ERC-1271; an undeployed one is refused with the reason (Linear EFI-1050; the owner's option A of 2026-10-29) | PT-064, PT-058 | `guardian-page`, `shared/client` | #158 | merged on `dev/wonderland` at fcdd88cb13 (2026-10-29) |
+| FU-BP | The recoverer's band on both views of main-dashboard and in the popup, capped at the content width (Linear EFI-1051) | PT-057, PT-061 | `recovery/checklist`, one mount line in the PPv1 dashboard | #157 | merged on `dev/wonderland` at 2e3f7a221b (2026-10-29) |
 
 ## Open questions
 
