@@ -1,0 +1,674 @@
+/**
+ * The editor's operations over a path's clauses, as pure functions: each
+ * returns new clauses and leaves its input as it was, a move keeps the
+ * credential object it moves, and one enrolled credential is refused at a
+ * second place in the path while empty slots never count as one.
+ */
+import { getAddress, zeroAddress } from 'viem'
+
+import i18n from '@common/config/localization'
+import en from '@common/config/localization/translations/en.json'
+import { SETUP_ERROR_CODES } from '@web/modules/social-recovery/shared/client'
+import type {
+  Clause,
+  ErrorCode,
+  SetupDraft,
+  ValidationError,
+  ValidationWarning,
+  WarningCode
+} from '@kohaku-eth/social-recovery'
+
+import {
+  renderFailedTestLine,
+  renderFinding,
+  rowChipTone
+} from '@web/modules/social-recovery/setup/editor/copy'
+import {
+  addGroup,
+  addMember,
+  addRequired,
+  blocksContinue,
+  editorErrorsOf,
+  emptySlotOf,
+  enrollSearchOf,
+  fillOf,
+  fillSlot,
+  guardianAddressOf,
+  isEmptySlot,
+  kindOf,
+  makeItAGroup,
+  makeRequired,
+  methodKindOf,
+  moveToGroup,
+  placeAt,
+  readThreshold,
+  removeClause,
+  removeMember,
+  removeMemberToFit,
+  setThreshold,
+  thresholdsSetOf,
+  withClauses,
+  withNewClause,
+  withThresholdSet
+} from '@web/modules/social-recovery/setup/editor/operations'
+import { refusalsOf } from '@web/modules/social-recovery/setup/editor/refusals'
+import {
+  defaultSetupDraft,
+  pathHolds,
+  sameCredential
+} from '@web/modules/social-recovery/shared/records'
+import { withSlotFilled } from '@web/modules/social-recovery/setup/enroll/slot'
+import {
+  AADHAAR,
+  ALICE,
+  BOB,
+  BOOK,
+  CAROL,
+  DAVE,
+  enrolled,
+  guardianAddress,
+  PASSKEY,
+  PASSPORT,
+  presetPath,
+  twoGroupPath
+} from '@web/modules/social-recovery/setup/editor/__tests__/harness'
+
+const t = i18n.t
+
+const DRAFT: SetupDraft = {
+  wait: 259200,
+  clauses: [],
+  ignoresPause: false,
+  privacy: { publicMetadata: '0x', backup: 'encrypted' }
+}
+
+/** Freezes the clauses and their credential lists, so an operation that mutates its input throws. */
+const frozen = (clauses: Clause[]): Clause[] =>
+  Object.freeze(
+    clauses.map((clause) =>
+      Object.freeze({ ...clause, credentials: Object.freeze([...clause.credentials]) })
+    )
+  ) as unknown as Clause[]
+
+const applied = (result: ReturnType<typeof addRequired>) => {
+  if (result.status !== 'applied') {
+    throw new Error(`expected applied, got ${result.status}`)
+  }
+  return result
+}
+
+describe("a guardian's address", () => {
+  it('is decoded from its one-word config, and a config the codec did not write gives none', () => {
+    expect(guardianAddressOf(ALICE)).toBe(getAddress(guardianAddress('a1')))
+    expect(guardianAddressOf({ ...ALICE, config: '0x1234' })).toBeUndefined()
+  })
+})
+
+describe('the empty slot', () => {
+  it('is the zero method with empty config, labelled with its kind', () => {
+    const slot = emptySlotOf('passkey')
+    expect(slot).toEqual({ method: zeroAddress, config: '0x', label: 'passkey' })
+    expect(isEmptySlot(slot)).toBe(true)
+    expect(isEmptySlot(PASSKEY)).toBe(false)
+  })
+
+  it('reads its kind from its label, and an enrolled credential reads its kind from the address book', () => {
+    expect(kindOf(emptySlotOf('ecdsa'), BOOK)).toBe('ecdsa')
+    expect(kindOf(emptySlotOf('aadhaar'), BOOK)).toBe('aadhaar')
+    expect(kindOf({ method: zeroAddress, config: '0x', label: 'Alice' }, BOOK)).toBeUndefined()
+    expect(kindOf(ALICE, BOOK)).toBe('ecdsa')
+    expect(kindOf(PASSKEY, BOOK)).toBe('passkey')
+    expect(kindOf(PASSPORT, BOOK)).toBe('zkpassport')
+    expect(kindOf(AADHAAR, BOOK)).toBe('aadhaar')
+    expect(kindOf({ ...ALICE, method: BOOK.manager }, BOOK)).toBeUndefined()
+  })
+
+  it('gives the zero address no kind where the deployment omits a method, and keeps the empty slot of that kind', () => {
+    const omitted = { ...BOOK, methods: { ...BOOK.methods, aadhaar: zeroAddress } }
+    expect(methodKindOf(zeroAddress, omitted)).toBeUndefined()
+    expect(
+      kindOf({ method: zeroAddress, config: '0x01', label: 'aadhaar' }, omitted)
+    ).toBeUndefined()
+    expect(kindOf(emptySlotOf('aadhaar'), omitted)).toBe('aadhaar')
+    expect(kindOf(PASSKEY, omitted)).toBe('passkey')
+  })
+})
+
+describe('one enrolled credential', () => {
+  it('is the same method whatever the case of its method address and config', () => {
+    const shouted = {
+      method: ALICE.method.toUpperCase().replace('0X', '0x') as typeof ALICE.method,
+      config: ALICE.config.toUpperCase().replace('0X', '0x') as typeof ALICE.config
+    }
+    expect(sameCredential(ALICE, shouted)).toBe(true)
+    expect(sameCredential(ALICE, { ...ALICE, label: 'Someone else' })).toBe(true)
+  })
+
+  it('differs from another credential of its kind and from an empty slot, and an empty slot matches nothing', () => {
+    expect(sameCredential(ALICE, BOB)).toBe(false)
+    expect(sameCredential(ALICE, { ...ALICE, method: BOOK.methods.passkey })).toBe(false)
+    expect(sameCredential(emptySlotOf('ecdsa'), emptySlotOf('ecdsa'))).toBe(false)
+    expect(sameCredential(ALICE, emptySlotOf('ecdsa'))).toBe(false)
+  })
+
+  it('is held by the path anywhere but the position left out', () => {
+    const clauses = presetPath()
+    expect(pathHolds(clauses, BOB)).toBe(true)
+    expect(pathHolds(clauses, BOB, { clause: 1, member: 1 })).toBe(false)
+    expect(pathHolds(clauses, CAROL)).toBe(false)
+  })
+})
+
+describe('a required row', () => {
+  it('is added at the end over an empty slot of a picked kind, the input untouched', () => {
+    const clauses = frozen(presetPath())
+    const result = applied(addRequired(clauses, emptySlotOf('aadhaar')))
+    expect(result.clauses).toEqual([
+      ...presetPath(),
+      { threshold: 1, credentials: [emptySlotOf('aadhaar')] }
+    ])
+    expect(result.at).toEqual({ clause: 2, member: 0 })
+    expect(clauses).toEqual(presetPath())
+  })
+
+  it('is added over an enrolled credential the path does not hold', () => {
+    const result = applied(addRequired(presetPath(), CAROL))
+    expect(result.clauses[2]).toEqual({ threshold: 1, credentials: [CAROL] })
+    expect(result.clauses[2].credentials[0]).toBe(CAROL)
+  })
+
+  it('is removed with its credential, the rest of the path kept in order', () => {
+    const clauses = frozen(twoGroupPath())
+    expect(removeClause(clauses, 0)).toEqual(twoGroupPath().slice(1))
+    expect(clauses).toEqual(twoGroupPath())
+  })
+})
+
+describe('a group', () => {
+  it('is added with no member and a threshold of one', () => {
+    const clauses = frozen(presetPath())
+    expect(addGroup(clauses)).toEqual([...presetPath(), { threshold: 1, credentials: [] }])
+    expect(clauses).toEqual(presetPath())
+  })
+
+  it('suggests any one of one or two members and two of three, as its members are added', () => {
+    const one = applied(addMember(addGroup([]), 0, ALICE))
+    expect(one.clauses[0]).toEqual({ threshold: 1, credentials: [ALICE] })
+    const two = applied(addMember(one.clauses, 0, BOB))
+    expect(two.clauses[0]).toEqual({ threshold: 1, credentials: [ALICE, BOB] })
+    const three = applied(addMember(two.clauses, 0, CAROL))
+    expect(three.clauses[0]).toEqual({ threshold: 2, credentials: [ALICE, BOB, CAROL] })
+  })
+
+  it('keeps a threshold the holder set as its members are added', () => {
+    const set = setThreshold([{ threshold: 1, credentials: [ALICE] }], 0, 2)
+    const two = applied(addMember(set, 0, BOB, true))
+    expect(two.clauses[0]).toEqual({ threshold: 2, credentials: [ALICE, BOB] })
+    const three = applied(addMember(two.clauses, 0, CAROL, true))
+    expect(three.clauses[0]).toEqual({ threshold: 2, credentials: [ALICE, BOB, CAROL] })
+  })
+
+  /** A new group with two members, its threshold set by the holder to each of `set` in turn. */
+  const twoMembersSetTo = (set: number[]) => {
+    let flags = withNewClause([])
+    const one = applied(addMember(addGroup([]), 0, ALICE, flags[0]))
+    let clauses = applied(addMember(one.clauses, 0, BOB, flags[0])).clauses
+    set.forEach((threshold) => {
+      clauses = setThreshold(clauses, 0, threshold)
+      flags = withThresholdSet(flags, 0)
+    })
+    return { clauses, flags }
+  }
+
+  it('keeps a threshold the holder set to the suggestion itself when a third member joins', () => {
+    const { clauses, flags } = twoMembersSetTo([2, 1])
+    const three = applied(addMember(clauses, 0, CAROL, flags[0]))
+    expect(three.clauses[0]).toEqual({ threshold: 1, credentials: [ALICE, BOB, CAROL] })
+  })
+
+  it('keeps a threshold of two the holder set at two members when a third joins', () => {
+    const { clauses, flags } = twoMembersSetTo([2])
+    const three = applied(addMember(clauses, 0, CAROL, flags[0]))
+    expect(three.clauses[0].threshold).toBe(2)
+  })
+
+  it('raises a threshold the holder never set from one to two at the third member', () => {
+    const { clauses, flags } = twoMembersSetTo([])
+    expect(clauses[0].threshold).toBe(1)
+    expect(flags).toEqual([false])
+    const three = applied(addMember(clauses, 0, CAROL, flags[0]))
+    expect(three.clauses[0].threshold).toBe(2)
+  })
+
+  it('follows the suggestion for a row moved into a group whose threshold the holder never set, and keeps one the holder set', () => {
+    const path: Clause[] = [
+      { threshold: 1, credentials: [CAROL] },
+      { threshold: 1, credentials: [ALICE, BOB] }
+    ]
+    expect(applied(moveToGroup(path, 0, 1, false)).clauses).toEqual([
+      { threshold: 2, credentials: [ALICE, BOB, CAROL] }
+    ])
+    expect(applied(moveToGroup(path, 0, 1, true)).clauses).toEqual([
+      { threshold: 1, credentials: [ALICE, BOB, CAROL] }
+    ])
+  })
+
+  it('reads a draft of an earlier build, with no flags, as having no threshold set', () => {
+    const draft = { ...defaultSetupDraft(), clauses: presetPath() }
+    expect(thresholdsSetOf(draft)).toEqual([false, false])
+    expect(thresholdsSetOf({ ...draft, thresholdsSet: [true] })).toEqual([false, false])
+    expect(thresholdsSetOf({ ...draft, thresholdsSet: [false, true] })).toEqual([false, true])
+  })
+
+  it('keeps the flags through the enrollment that fills a slot', () => {
+    const draft = withClauses(
+      { ...defaultSetupDraft(), clauses: [] },
+      [{ threshold: 1, credentials: [ALICE, emptySlotOf('passkey')] }],
+      [true]
+    )
+    const filled = withSlotFilled(draft, { clause: 0, member: 1 }, BOB)
+    expect(thresholdsSetOf(filled)).toEqual([true])
+  })
+
+  it('is removed with every member', () => {
+    expect(removeClause(twoGroupPath(), 1)).toEqual([
+      { threshold: 1, credentials: [PASSKEY] },
+      { threshold: 1, credentials: [CAROL, PASSPORT] }
+    ])
+  })
+
+  it('takes a member at its end, an empty slot or an enrolled credential, and reports where it went', () => {
+    const clauses = frozen(presetPath())
+    const slot = applied(addMember(clauses, 1, emptySlotOf('passkey')))
+    expect(slot.clauses[1]).toEqual({
+      threshold: 2,
+      credentials: [ALICE, BOB, PASSPORT, emptySlotOf('passkey')]
+    })
+    expect(slot.at).toEqual({ clause: 1, member: 3 })
+    const member = applied(addMember(clauses, 1, CAROL))
+    expect(member.clauses[1].credentials[3]).toBe(CAROL)
+    expect(member.clauses[0]).toEqual(presetPath()[0])
+    expect(clauses).toEqual(presetPath())
+  })
+
+  it('grows past three to four and five members, its threshold kept', () => {
+    const four = applied(addMember(presetPath(), 1, CAROL))
+    expect(four.clauses[1].credentials).toEqual([ALICE, BOB, PASSPORT, CAROL])
+    const five = applied(addMember(four.clauses, 1, DAVE))
+    expect(five.clauses[1]).toEqual({
+      threshold: 2,
+      credentials: [ALICE, BOB, PASSPORT, CAROL, DAVE]
+    })
+    expect(five.at).toEqual({ clause: 1, member: 4 })
+  })
+
+  it('loses one member, the others kept in order', () => {
+    const clauses = frozen(presetPath())
+    expect(removeMember(clauses, 1, 1)).toEqual([
+      presetPath()[0],
+      { threshold: 2, credentials: [ALICE, PASSPORT] }
+    ])
+    expect(clauses).toEqual(presetPath())
+  })
+
+  it('stays as an empty group when it loses its last member', () => {
+    const clauses = [{ threshold: 2, credentials: [ALICE] }]
+    expect(removeMember(clauses, 0, 0)).toEqual([{ threshold: 2, credentials: [] }])
+  })
+
+  it("on the holder's Remove, leaves an emptied group at a threshold of one", () => {
+    const clauses = [{ threshold: 2, credentials: [ALICE] }]
+    expect(removeMemberToFit(clauses, 0, 0)).toEqual([{ threshold: 1, credentials: [] }])
+  })
+
+  it("on the holder's Remove, brings a threshold left above the members down to their count", () => {
+    const clauses = frozen([{ threshold: 2, credentials: [ALICE, BOB] }])
+    expect(removeMemberToFit(clauses, 0, 1)).toEqual([{ threshold: 1, credentials: [ALICE] }])
+    expect(clauses).toEqual([{ threshold: 2, credentials: [ALICE, BOB] }])
+  })
+
+  it("on the holder's Remove, keeps a threshold left within the members", () => {
+    const clauses = frozen([{ threshold: 1, credentials: [ALICE, BOB, CAROL] }])
+    expect(removeMemberToFit(clauses, 0, 2)).toEqual([{ threshold: 1, credentials: [ALICE, BOB] }])
+  })
+
+  it('leaves a threshold set by hand above the members to the refusals', () => {
+    const removed = removeMemberToFit([{ threshold: 2, credentials: [ALICE, BOB, CAROL] }], 0, 2)
+    const raised = setThreshold(removed, 0, 3)
+    expect(raised).toEqual([{ threshold: 3, credentials: [ALICE, BOB] }])
+    expect(refusalsOf(withClauses(DRAFT, raised, [true])).map(({ key }) => key)).toContain(
+      'thresholdAboveMembers'
+    )
+  })
+
+  it('takes any whole threshold, bounds left to the refusals', () => {
+    const clauses = frozen(presetPath())
+    expect(setThreshold(clauses, 1, 3)[1]).toEqual({
+      threshold: 3,
+      credentials: [ALICE, BOB, PASSPORT]
+    })
+    expect(setThreshold(clauses, 1, 0)[1].threshold).toBe(0)
+    expect(setThreshold(clauses, 1, 9)[1].threshold).toBe(9)
+    expect(setThreshold(clauses, 1, 3)[0]).toEqual(presetPath()[0])
+    expect(clauses).toEqual(presetPath())
+  })
+})
+
+describe('moving a member', () => {
+  it('moves a required row into a group with one action, the credential object kept and the row gone', () => {
+    const clauses = frozen(presetPath())
+    const result = applied(moveToGroup(clauses, 0, 1))
+    expect(result.clauses).toEqual([{ threshold: 2, credentials: [ALICE, BOB, PASSPORT, PASSKEY] }])
+    expect(result.clauses[0].credentials[3]).toBe(clauses[0].credentials[0])
+    expect(result.at).toEqual({ clause: 0, member: 3 })
+    expect(clauses).toEqual(presetPath())
+  })
+
+  it('moves a row into a group that stands before it, the group keeping its place', () => {
+    const clauses: Clause[] = [
+      { threshold: 1, credentials: [ALICE, BOB] },
+      { threshold: 1, credentials: [PASSKEY] },
+      { threshold: 1, credentials: [PASSPORT] }
+    ]
+    const result = applied(moveToGroup(clauses, 2, 0))
+    expect(result.clauses).toEqual([
+      { threshold: 2, credentials: [ALICE, BOB, PASSPORT] },
+      { threshold: 1, credentials: [PASSKEY] }
+    ])
+    expect(result.clauses[0].credentials[2]).toBe(PASSPORT)
+    expect(result.at).toEqual({ clause: 0, member: 2 })
+  })
+
+  it('moves a row into an empty group', () => {
+    const result = applied(moveToGroup(addGroup([{ threshold: 1, credentials: [ALICE] }]), 0, 1))
+    expect(result.clauses).toEqual([{ threshold: 1, credentials: [ALICE] }])
+    expect(result.clauses[0].credentials[0]).toBe(ALICE)
+  })
+
+  it('makes a group member a required row at the end, the credential object kept and the group one short', () => {
+    const clauses = frozen(presetPath())
+    const result = applied(makeRequired(clauses, 1, 2))
+    expect(result.clauses).toEqual([
+      { threshold: 1, credentials: [PASSKEY] },
+      { threshold: 2, credentials: [ALICE, BOB] },
+      { threshold: 1, credentials: [PASSPORT] }
+    ])
+    expect(result.clauses[2].credentials[0]).toBe(clauses[1].credentials[2])
+    expect(result.at).toEqual({ clause: 2, member: 0 })
+    expect(clauses).toEqual(presetPath())
+  })
+
+  it('moves an empty slot too, and a round trip brings the same object back', () => {
+    const slot = emptySlotOf('zkpassport')
+    const out = applied(makeRequired([{ threshold: 2, credentials: [ALICE, slot] }], 0, 1))
+    expect(out.clauses[1].credentials[0]).toBe(slot)
+    const back = applied(moveToGroup(out.clauses, 1, 0, true))
+    expect(back.clauses).toEqual([{ threshold: 2, credentials: [ALICE, slot] }])
+    expect(back.clauses[0].credentials[1]).toBe(slot)
+  })
+
+  it("turns every required row into one group of any one, in the first row's place, objects kept", () => {
+    const clauses: Clause[] = [
+      { threshold: 2, credentials: [ALICE, BOB] },
+      { threshold: 1, credentials: [PASSKEY] },
+      { threshold: 1, credentials: [PASSPORT] }
+    ]
+    const result = makeItAGroup(clauses)
+    expect(result).toEqual([
+      { threshold: 2, credentials: [ALICE, BOB] },
+      { threshold: 1, credentials: [PASSKEY, PASSPORT] }
+    ])
+    expect(result[1].credentials[0]).toBe(PASSKEY)
+    expect(makeItAGroup([clauses[0]])).toEqual([clauses[0]])
+  })
+})
+
+describe('filling and placing', () => {
+  it('fills an empty slot with the enrolled credential, the slot keeping its place', () => {
+    const clauses = frozen([{ threshold: 2, credentials: [ALICE, emptySlotOf('ecdsa'), BOB] }])
+    const result = applied(fillSlot(clauses, { clause: 0, member: 1 }, CAROL))
+    expect(result.clauses).toEqual([{ threshold: 2, credentials: [ALICE, CAROL, BOB] }])
+    expect(result.at).toEqual({ clause: 0, member: 1 })
+  })
+
+  it('places a picked credential where the picker was opened for', () => {
+    const clauses = presetPath()
+    expect(applied(placeAt(clauses, { place: 'required' }, CAROL)).clauses).toEqual(
+      applied(addRequired(clauses, CAROL)).clauses
+    )
+    expect(applied(placeAt(clauses, { place: 'member', clause: 1 }, CAROL)).clauses).toEqual(
+      applied(addMember(clauses, 1, CAROL)).clauses
+    )
+    const withSlot = applied(addMember(clauses, 1, emptySlotOf('ecdsa'))).clauses
+    expect(
+      applied(placeAt(withSlot, { place: 'slot', clause: 1, member: 3 }, CAROL)).clauses[1]
+        .credentials
+    ).toEqual([ALICE, BOB, PASSPORT, CAROL])
+  })
+
+  it('keeps every field of the draft but its clauses', () => {
+    const draft: SetupDraft = {
+      wait: 604800,
+      clauses: presetPath(),
+      ignoresPause: true,
+      privacy: { publicMetadata: '0x01', backup: 'clear' }
+    }
+    const next = withClauses(draft, [{ threshold: 1, credentials: [ALICE] }], [false])
+    expect(next).toEqual({
+      ...draft,
+      clauses: [{ threshold: 1, credentials: [ALICE] }],
+      thresholdsSet: [false]
+    })
+    expect(draft.clauses).toEqual(presetPath())
+  })
+})
+
+describe('the duplicate refusal', () => {
+  const unchanged = (clauses: Clause[], expected: Clause[]) => expect(clauses).toEqual(expected)
+
+  it('refuses a group member added as a member of a second group, the path unchanged', () => {
+    const clauses = frozen(twoGroupPath())
+    expect(addMember(clauses, 2, ALICE)).toEqual({ status: 'refused', reason: 'duplicate' })
+    expect(addMember(clauses, 2, { ...ALICE, label: 'Alice again' })).toEqual({
+      status: 'refused',
+      reason: 'duplicate'
+    })
+    unchanged(clauses, twoGroupPath())
+  })
+
+  it('refuses a group member added as a required row', () => {
+    const clauses = frozen(presetPath())
+    expect(addRequired(clauses, BOB)).toEqual({ status: 'refused', reason: 'duplicate' })
+    expect(placeAt(clauses, { place: 'required' }, BOB)).toEqual({
+      status: 'refused',
+      reason: 'duplicate'
+    })
+    unchanged(clauses, presetPath())
+  })
+
+  it('refuses a member added twice to one group', () => {
+    const clauses = frozen(presetPath())
+    expect(addMember(clauses, 1, ALICE)).toEqual({ status: 'refused', reason: 'duplicate' })
+    unchanged(clauses, presetPath())
+  })
+
+  it("refuses a required row's credential added to a group", () => {
+    const clauses = frozen(presetPath())
+    expect(addMember(clauses, 1, PASSKEY)).toEqual({ status: 'refused', reason: 'duplicate' })
+    unchanged(clauses, presetPath())
+  })
+
+  it("refuses to fill an empty slot with a credential another place holds, but not the slot's own", () => {
+    const clauses = frozen([
+      { threshold: 1, credentials: [PASSKEY] },
+      { threshold: 2, credentials: [ALICE, emptySlotOf('ecdsa')] }
+    ])
+    expect(fillSlot(clauses, { clause: 1, member: 1 }, ALICE)).toEqual({
+      status: 'refused',
+      reason: 'duplicate'
+    })
+    const own = [{ threshold: 2, credentials: [ALICE, BOB] }]
+    expect(applied(fillSlot(own, { clause: 0, member: 1 }, BOB)).clauses).toEqual(own)
+  })
+
+  it('refuses a move or a make required whose credential another place already holds', () => {
+    const doubled: Clause[] = [
+      { threshold: 1, credentials: [ALICE] },
+      { threshold: 2, credentials: [ALICE, BOB] }
+    ]
+    expect(moveToGroup(doubled, 0, 1)).toEqual({ status: 'refused', reason: 'duplicate' })
+    expect(makeRequired(doubled, 1, 0)).toEqual({ status: 'refused', reason: 'duplicate' })
+  })
+
+  it('takes two empty slots of one kind, in one group and across the path', () => {
+    const first = applied(addMember([{ threshold: 2, credentials: [] }], 0, emptySlotOf('ecdsa')))
+    const second = applied(addMember(first.clauses, 0, emptySlotOf('ecdsa')))
+    expect(second.clauses[0].credentials).toEqual([emptySlotOf('ecdsa'), emptySlotOf('ecdsa')])
+    const row = applied(addRequired(second.clauses, emptySlotOf('ecdsa')))
+    expect(row.clauses).toHaveLength(2)
+  })
+
+  it('takes two different credentials of one kind', () => {
+    const one = applied(addMember([{ threshold: 2, credentials: [] }], 0, ALICE))
+    const two = applied(addMember(one.clauses, 0, BOB))
+    expect(two.clauses[0].credentials).toEqual([ALICE, BOB])
+    expect(applied(addRequired(two.clauses, CAROL)).clauses).toHaveLength(2)
+  })
+
+  it('names the wallet as the party that refuses, never the chain, and offers no way around it', () => {
+    const line = renderFinding(
+      { code: 'credential.duplicate', subject: 'credential', values: {} },
+      t
+    )
+    expect(line).toBe(en.socialRecovery.editor.duplicate)
+    expect(line).toMatch(/\bThis wallet\b/)
+    expect(line).not.toMatch(/chain|network|contract|kit/i)
+  })
+})
+
+describe('the enroll search', () => {
+  it('opens the enroll screen with the kind and the slot to fill in the search', () => {
+    const params = new URLSearchParams(enrollSearchOf('ecdsa', { clause: 1, member: 3 }))
+    expect(Object.fromEntries(params)).toEqual({ kind: 'ecdsa', clause: '1', member: '3' })
+  })
+})
+
+describe('the path check at continue', () => {
+  const finding = (code: ErrorCode): ValidationError => ({ code, subject: 'setup', values: {} })
+  const warning = (code: WarningCode): ValidationWarning => ({
+    code,
+    subject: 'setup',
+    values: {}
+  })
+
+  it('blocks on an error finding and never on warnings alone', () => {
+    expect(blocksContinue({ errors: [finding('clause.empty')], warnings: [] })).toBe(true)
+    expect(blocksContinue({ errors: [], warnings: [warning('clause.shared-failure')] })).toBe(false)
+    expect(blocksContinue({ errors: [], warnings: [] })).toBe(false)
+  })
+
+  it('keeps every error but the wait findings, which the waiting period step answers', () => {
+    const errors = SETUP_ERROR_CODES.map(finding)
+    const kept = editorErrorsOf({ errors, warnings: [] }).map((error) => error.code)
+    expect(kept).toEqual(
+      SETUP_ERROR_CODES.filter(
+        (code) => code !== 'wait.field-width' && code !== 'wait.above-maximum'
+      )
+    )
+  })
+
+  it('lets continue through when the wait findings are the only errors', () => {
+    const waitOnly = {
+      errors: [finding('wait.field-width'), finding('wait.above-maximum')],
+      warnings: []
+    }
+    expect(editorErrorsOf(waitOnly)).toEqual([])
+    expect(blocksContinue(waitOnly)).toBe(false)
+    expect(
+      blocksContinue({
+        errors: [finding('wait.field-width'), finding('clause.empty')],
+        warnings: []
+      })
+    ).toBe(true)
+  })
+
+  it('renders a finding through its refusal sentence, or its code where none maps', () => {
+    expect(renderFinding(finding('clause.empty'), t)).toBe(
+      en.socialRecovery.editor.refusals.emptyGroup
+    )
+    expect(renderFinding(finding('rule.empty'), t)).toBe(en.socialRecovery.editor.refusals.noMethod)
+    expect(renderFinding(finding('clause.threshold-above-count'), t)).toBe(
+      en.socialRecovery.editor.refusals.thresholdAboveMembers
+    )
+    expect(renderFinding(warning('clause.single-point'), t)).toBe('clause.single-point')
+  })
+})
+
+describe("a threshold field's text", () => {
+  it('reads as the whole number its digits write', () => {
+    expect(readThreshold('0')).toBe(0)
+    expect(readThreshold('3')).toBe(3)
+    expect(readThreshold('007')).toBe(7)
+  })
+
+  it('reads empty text, a fraction, a sign, an exponent, a space, a word or a number past the safe range as none', () => {
+    ;['', ' ', '1.5', '2.', '-1', '+2', '1e2', ' 2', 'two', '99999999999999999999'].forEach(
+      (text) => expect(readThreshold(text)).toBeUndefined()
+    )
+  })
+})
+
+describe('the line of a failed access test', () => {
+  const failed = (cause?: string) => ({ credential: PASSKEY, test: 'failed' as const, cause })
+
+  it('gives the no-match sentence for a check that did not match, with or without a detail', () => {
+    ;['check-rejected', 'check-rejected: wrong signer'].forEach((cause) =>
+      expect(renderFailedTestLine(failed(cause), t)).toBe(
+        en.socialRecovery.ceremony.testFailedNoMatch
+      )
+    )
+  })
+
+  it('gives the reverted sentence for a check the chain refused to judge', () => {
+    expect(renderFailedTestLine(failed('check-reverted'), t)).toBe(
+      en.socialRecovery.ceremony.testFailedReverted
+    )
+  })
+
+  it('gives only the may-never-work line for any other cause or none', () => {
+    ;[
+      undefined,
+      'browser-error: NotAllowedError',
+      'relying-party-mismatch: SecurityError',
+      'timeout',
+      'timeout: check-rejected'
+    ].forEach((cause) =>
+      expect(renderFailedTestLine(failed(cause), t)).toBe(en.socialRecovery.ceremony.testFailedLine)
+    )
+  })
+
+  it('gives nothing for a test that passed or was not run', () => {
+    expect(renderFailedTestLine(enrolled(PASSKEY), t)).toBeNull()
+    expect(renderFailedTestLine({ credential: PASSKEY, test: 'not-tested' }, t)).toBeNull()
+  })
+})
+
+describe('how far the path is filled', () => {
+  it('reads an empty path, a path with an empty slot, and a path whose every slot holds a method', () => {
+    expect(fillOf([])).toBe('empty')
+    expect(fillOf([{ threshold: 1, credentials: [] }])).toBe('empty')
+    expect(fillOf([{ threshold: 2, credentials: [ALICE, emptySlotOf('ecdsa')] }])).toBe('open')
+    expect(fillOf(presetPath())).toBe('filled')
+  })
+})
+
+describe("a row chip's tone", () => {
+  it('reads as a success only for a method that passed its access test or is live', () => {
+    expect(rowChipTone(PASSKEY, [enrolled(PASSKEY)])).toBe('success')
+    expect(rowChipTone(PASSKEY, [{ credential: PASSKEY, test: 'live' }])).toBe('success')
+    expect(rowChipTone(PASSKEY, [{ credential: PASSKEY, test: 'not-tested' }])).toBe('default')
+    expect(rowChipTone(PASSKEY, [{ credential: PASSKEY, test: 'failed' }])).toBe('default')
+    expect(rowChipTone(emptySlotOf('passkey'), [])).toBe('default')
+    expect(rowChipTone(PASSKEY, [])).toBe('default')
+  })
+})

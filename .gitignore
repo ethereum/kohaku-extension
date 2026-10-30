@@ -10,7 +10,8 @@
 # Icon must end with two \r
 Icon
 
-.claude
+.claude/*
+!.claude/commands/
 
 src/web/assets/circuits
 

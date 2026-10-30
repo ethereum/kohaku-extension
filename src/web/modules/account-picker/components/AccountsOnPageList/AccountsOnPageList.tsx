@@ -5,23 +5,23 @@ import { NativeScrollEvent, View } from 'react-native'
 import { createPublicClient, http } from 'viem'
 
 import AccountPickerController from '@ambire-common/controllers/accountPicker/accountPicker'
+import { Account as AccountInterface, AccountOnPage } from '@ambire-common/interfaces/account'
 import {
-  Account as AccountInterface,
-  AccountOnPage
-  // ImportStatus
-} from '@ambire-common/interfaces/account'
+  isDerivedForSmartAccountKeyOnly,
+  isSmartAccount
+} from '@ambire-common/libs/account/account'
+import shortenAddress from '@ambire-common/utils/shortenAddress'
 // import WarningFilledIcon from '@common/assets/svg/WarningFilledIcon'
 import Alert from '@common/components/Alert'
 // import Badge from '@common/components/Badge'
 import Pagination from '@common/components/Pagination'
 import ScrollableWrapper from '@common/components/ScrollableWrapper'
 import Spinner from '@common/components/Spinner'
-// import Text from '@common/components/Text'
-// import Tooltip from '@common/components/Tooltip'
-// import { useTranslation } from '@common/config/localization'
+import Text from '@common/components/Text'
+import { useTranslation } from '@common/config/localization'
 import useTheme from '@common/hooks/useTheme'
 import spacings from '@common/styles/spacings'
-// import { THEME_TYPES } from '@common/styles/themeConfig'
+import { THEME_TYPES } from '@common/styles/themeConfig'
 import flexbox from '@common/styles/utils/flexbox'
 import useAccountPickerControllerState from '@web/hooks/useAccountPickerControllerState'
 import useBackgroundService from '@web/hooks/useBackgroundService'
@@ -56,23 +56,21 @@ const AccountsOnPageList = ({
   onScanComplete,
   children
 }: Props) => {
-  // const { t } = useTranslation()
+  const { t } = useTranslation()
   const { dispatch } = useBackgroundService()
   const { networks } = useNetworksControllerState()
   const accountPickerState = useAccountPickerControllerState()
   const [hasReachedBottom, setHasReachedBottom] = useState<null | boolean>(null)
   const [containerHeight, setContainerHeight] = useState(0)
   const [contentHeight, setContentHeight] = useState(0)
-  const {
-    styles
-    // theme,
-    // themeType
-  } = useTheme(getStyles)
+  const { styles, themeType } = useTheme(getStyles)
 
   const slots = useMemo(() => {
-    // Only basic accounts.
+    // Only basic accounts; a smart account's controlling key is drawn under it.
     return groupBy(
-      state.accountsOnPage.filter((a) => !a.isLinked && !a.account.creation),
+      state.accountsOnPage.filter(
+        (a) => !a.isLinked && !a.account.creation && !isDerivedForSmartAccountKeyOnly(a.index)
+      ),
       'slot'
     )
   }, [state.accountsOnPage])
@@ -81,6 +79,18 @@ const AccountsOnPageList = ({
   //   () => state.accountsOnPage.some((a) => a.isLinked),
   //   [state.accountsOnPage]
   // )
+
+  // A seed (newly created or imported) lists each slot's smart account with the
+  // key that controls it; a private key lists basic accounts only.
+  const shouldDisplaySmartAccounts = !!state.shouldListSmartAccountKeys
+
+  const smartAccounts = useMemo(() => {
+    if (!shouldDisplaySmartAccounts) {
+      return []
+    }
+
+    return state.accountsOnPage.filter((a) => !a.isLinked && isSmartAccount(a.account))
+  }, [shouldDisplaySmartAccounts, state.accountsOnPage])
 
   const [accountUsageMap, setAccountUsageMap] = useState<Record<string, boolean>>({})
   const [usageCheckComplete, setUsageCheckComplete] = useState(false)
@@ -133,8 +143,6 @@ const AccountsOnPageList = ({
             }
           }, Promise.resolve(false))
 
-          console.log({ isUsed, address, acc })
-
           if (isUsed) results[address] = true
         })
       )
@@ -177,18 +185,56 @@ const AccountsOnPageList = ({
   useEffect(() => {
     if (!usageCheckComplete || state.accountsLoading || isLoading) return
     if (subType === 'private-key') return
+    // On a newly created seed the picker has already chosen what to add; a used
+    // basic account is never selected on its own.
+    if (state.shouldSelectSmartAccountAutomatically) {
+      if (scanStateRef.current.phase !== 'done') finishScan()
+      return
+    }
 
     const scan = scanStateRef.current
     if (scan.phase === 'done') return
 
+    // A smart account is selected with its key when either of them is used.
+    let hasUsedSmartAccountPair = false
+    smartAccounts.forEach((acc) => {
+      const keyEntry = state.accountsOnPage.find(
+        (a) =>
+          a.slot === acc.slot &&
+          !isSmartAccount(a.account) &&
+          isDerivedForSmartAccountKeyOnly(a.index)
+      )
+      const isUsed =
+        !!accountUsageMap[acc.account.addr] ||
+        (!!keyEntry && !!accountUsageMap[keyEntry.account.addr])
+      if (!isUsed) {
+        return
+      }
+      hasUsedSmartAccountPair = true
+      const entries = keyEntry ? [acc, keyEntry] : [acc]
+      entries.forEach((entry) => {
+        const alreadySelected = state.selectedAccounts.some(
+          (s) => s.account.addr === entry.account.addr
+        )
+        if (!alreadySelected) {
+          handleSelectAccount(entry.account)
+        }
+      })
+    })
+
     const sortedAccounts = [...state.accountsOnPage]
-      .filter((a) => !a.isLinked && !a.account.creation)
+      .filter(
+        (a) => !a.isLinked && !a.account.creation && !isDerivedForSmartAccountKeyOnly(a.index)
+      )
       .sort((a, b) => a.slot - b.slot)
 
     if (scan.phase === 'scanning') {
       if (scan.pageAdvanceInitiated) return
 
       const hasUsed = sortedAccounts.some((a) => accountUsageMap[a.account.addr])
+      // A page counts as used when a basic row, a smart account or its key is used,
+      // so a seed used only through its smart accounts still reaches the next page.
+      const isPageUsed = hasUsed || hasUsedSmartAccountPair
 
       if (hasUsed) {
         sortedAccounts.forEach((acc) => {
@@ -197,6 +243,9 @@ const AccountsOnPageList = ({
           )
           if (!alreadySelected) handleSelectAccount(acc.account)
         })
+      }
+
+      if (isPageUsed) {
         scan.lastUsedPage = state.page
         scan.pageAdvanceInitiated = true
         setPage(state.page + 1)
@@ -360,24 +409,11 @@ const AccountsOnPageList = ({
             </View>
           ) : (
             <>
-              <View style={[spacings.ph, spacings.pbLg]}>
-                {Object.keys(slots).map((key, i) => {
-                  return (
-                    <View key={key}>
-                      {getAccounts({
-                        accounts: slots[key],
-                        isLastSlot: i === Object.keys(slots).length - 1,
-                        slotIndex: 1
-                      })}
-                    </View>
-                  )
-                })}
-              </View>
-              {/* Smart accounts section - commented out
-              {!!Object.keys(slots).length && (
+              {!!smartAccounts.length && (
                 <View
                   style={[
                     styles.smartAccountWrapper,
+                    spacings.mbLg,
                     {
                       borderWidth: themeType === THEME_TYPES.DARK ? 0 : 1,
                       // @ts-ignore
@@ -392,65 +428,77 @@ const AccountsOnPageList = ({
                     <Text fontSize={16} weight="medium" style={spacings.mrMd}>
                       {t('Smart accounts')}
                     </Text>
-                    <View
-                      style={[
-                        flexbox.directionRow,
-                        flexbox.justifySpaceBetween,
-                        flexbox.alignCenter
-                      ]}
-                    >
-                      {lookingForLinkedAccounts && (
-                        <View style={[flexbox.alignCenter, flexbox.directionRow]}>
-                          <Spinner style={{ width: 16, height: 16 }} />
-                          <Text appearance="primary" style={[spacings.mlTy]} fontSize={14}>
-                            {t('Looking for linked smart accounts')}
-                          </Text>
-                        </View>
-                      )}
-                      {!lookingForLinkedAccounts && hasLinkedAccounts && (
-                        <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-                          <Badge
-                            type="info"
-                            size="md"
-                            withRightSpacing
-                            text={`Linked Smart Account (found on page ${state.page})`}
-                            tooltipText="Linked smart accounts are accounts that were not created with a given key originally, but this key was authorized for that given account on any supported network."
-                          />
-                          <WarningFilledIcon data-tooltip-id="linked-accounts-warning" />
-                          <Tooltip
-                            id="linked-accounts-warning"
-                            border={`1px solid ${theme.warningDecorative as any}`}
-                            style={{
-                              backgroundColor:
-                                themeType === THEME_TYPES.DARK
-                                  ? theme.warningDecorative
-                                  : (theme.warningBackground as any),
-                              color:
-                                themeType === THEME_TYPES.DARK
-                                  ? theme.primaryBackground
-                                  : (theme.warningText as any)
-                            }}
-                            content="Do not add linked accounts you are not aware of!"
-                          />
-                        </View>
-                      )}
-                    </View>
                   </View>
-                  {Object.keys(slots).map((key, i) => {
+                  {smartAccounts.map((acc, i) => {
+                    const keyEntry = state.accountsOnPage.find(
+                      (a) =>
+                        a.slot === acc.slot &&
+                        !isSmartAccount(a.account) &&
+                        isDerivedForSmartAccountKeyOnly(a.index)
+                    )
+                    const isLast = i === smartAccounts.length - 1
+                    const isAccountSelected = (addr: string) =>
+                      state.selectedAccounts.some(
+                        (selectedAcc) => selectedAcc.account.addr === addr
+                      )
+
+                    const isSmartAccountSelected = isAccountSelected(acc.account.addr)
+                    const isKeySelected = !!keyEntry && isAccountSelected(keyEntry.account.addr)
+
                     return (
-                      <View key={key}>
-                        {getAccounts({
-                          accounts: slots[key],
-                          isLastSlot: i === Object.keys(slots).length - 1,
-                          slotIndex: 1,
-                          byType: ['smart', 'linked']
-                        })}
+                      <View key={acc.account.addr} style={!isLast && spacings.mbTy}>
+                        {/* A switch keeps the position it was drawn with, so each row is
+                            drawn again when its selection changes. */}
+                        <Account
+                          key={`${acc.account.addr}-${isSmartAccountSelected ? 'on' : 'off'}`}
+                          account={acc.account}
+                          type="smart"
+                          withBottomSpacing={!!keyEntry}
+                          unused={!accountUsageMap[acc.account.addr]}
+                          isSelected={isSmartAccountSelected}
+                          importStatus={acc.importStatus}
+                          onSelect={handleSelectAccount}
+                          onDeselect={handleDeselectAccount}
+                          displayTypeBadge={false}
+                          shouldBeDisplayedAsNew={false}
+                        />
+                        {!!keyEntry && (
+                          <Account
+                            key={`${keyEntry.account.addr}-${isKeySelected ? 'on' : 'off'}`}
+                            account={keyEntry.account}
+                            type="basic"
+                            withBottomSpacing={false}
+                            unused={!accountUsageMap[keyEntry.account.addr]}
+                            isSelected={isKeySelected}
+                            importStatus={keyEntry.importStatus}
+                            onSelect={handleSelectAccount}
+                            onDeselect={handleDeselectAccount}
+                            displayTypeBadge={false}
+                            displayTypePill={false}
+                            shouldBeDisplayedAsNew={false}
+                            caption={t('socialRecovery.create.controllingKeyRow', {
+                              account: shortenAddress(acc.account.addr, 16)
+                            })}
+                          />
+                        )}
                       </View>
                     )
                   })}
                 </View>
               )}
-              */}
+              <View style={[spacings.ph, spacings.pbLg]}>
+                {Object.keys(slots).map((key, i) => {
+                  return (
+                    <View key={key}>
+                      {getAccounts({
+                        accounts: slots[key],
+                        isLastSlot: i === Object.keys(slots).length - 1,
+                        slotIndex: 1
+                      })}
+                    </View>
+                  )
+                })}
+              </View>
             </>
           )}
         </ScrollableWrapper>

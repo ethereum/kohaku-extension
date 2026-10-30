@@ -30,7 +30,7 @@ import useBackgroundService from '@web/hooks/useBackgroundService'
 import EstimationSkeleton from './components/EstimationSkeleton'
 import PayOption from './components/PayOption'
 import { NO_FEE_OPTIONS } from './consts'
-import { getDefaultFeeOption, mapFeeOptions, sortFeeOptions } from './helpers'
+import { getDefaultFeeOption, isFeeSpeedDisabled, mapFeeOptions, sortFeeOptions } from './helpers'
 import getStyles from './styles'
 import { Props } from './types'
 
@@ -112,7 +112,9 @@ const Estimation = ({
 
     return signAccountOpState.estimation.availableFeeOptions
       .filter((feeOption) => feeOption.paidBy === signAccountOpState.accountOp.accountAddr)
-      .sort((a: FeePaymentOption, b: FeePaymentOption) => sortFeeOptions(a, b, signAccountOpState))
+      .sort((a: FeePaymentOption, b: FeePaymentOption) =>
+        sortFeeOptions(a, b, signAccountOpState, signAccountOpState.account.associatedKeys)
+      )
       .map((feeOption) => mapFeeOptions(feeOption, signAccountOpState))
   }, [hasEstimation, signAccountOpState])
 
@@ -121,7 +123,9 @@ const Estimation = ({
 
     return signAccountOpState.estimation.availableFeeOptions
       .filter((feeOption) => feeOption.paidBy !== signAccountOpState.accountOp.accountAddr)
-      .sort((a: FeePaymentOption, b: FeePaymentOption) => sortFeeOptions(a, b, signAccountOpState))
+      .sort((a: FeePaymentOption, b: FeePaymentOption) =>
+        sortFeeOptions(a, b, signAccountOpState, signAccountOpState.account.associatedKeys)
+      )
       .map((feeOption) => mapFeeOptions(feeOption, signAccountOpState))
   }, [hasEstimation, signAccountOpState])
 
@@ -235,7 +239,7 @@ const Estimation = ({
       ),
       value: speed.type,
       speed,
-      disabled: speed.disabled
+      disabled: isFeeSpeedDisabled(speed, payValue?.speedCoverage)
     }))
   }, [feeSpeeds, feeTokenPriceUnavailableWarning, payValue])
 

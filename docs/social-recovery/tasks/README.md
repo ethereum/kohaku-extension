@@ -1,0 +1,152 @@
+# Social recovery ux tasks
+
+One file per task, cut from `design-context/spec-v1/cut-provisional.yaml` at `352f91a` of `defi-wonderland/mast-social-recovery-2` (PR #47), which is not copied here. Ids are provisional; the cut was never materialized, so a task is named by id and title together. Bodies are verbatim, with `src/ux/...` rewritten to `src/web/modules/social-recovery/...`. Each file ends with the deltas found against the chapter at `bd8780f`; where a body and the chapter differ, the chapter is the rule.
+
+Round is the half-day in which the task can start, from `depends_on` alone. Within one round every module path is distinct, so a round runs in parallel. The longest chain is eight half-days: PT-035, PT-041, PT-057, PT-058, PT-059, PT-060, PT-061, PT-062. The M-7 tasks (PT-042 to PT-051) wait on the proof of concept D-316 schedules.
+
+| Round | Task | Milestone | Readiness | File |
+| --- | --- | --- | --- | --- |
+| 0 | PT-035 The SDK doubles | M-6 | risky | [PT-035-the-sdk-doubles.md](PT-035-the-sdk-doubles.md) |
+| 0 | PT-036 Display rules and the status vocabulary | M-6 | free | [PT-036-display-rules-and-the-status-vocabulary.md](PT-036-display-rules-and-the-status-vocabulary.md) |
+| 0 | PT-037 The rule lines | M-6 | free | [PT-037-the-rule-lines.md](PT-037-the-rule-lines.md) |
+| 0 | PT-040 The wallet's records | M-6 | free | [PT-040-the-wallet-s-records.md](PT-040-the-wallet-s-records.md) |
+| 0 | PT-075 The recovered key's typed-data signing in the extension | M-8 | blocked | [PT-075-the-recovered-key-s-typed-data-signing-in-the-extension.md](PT-075-the-recovered-key-s-typed-data-signing-in-the-extension.md) |
+| 1 | PT-038 The client, the provider and the signer | M-6 | risky | [PT-038-the-client-the-provider-and-the-signer.md](PT-038-the-client-the-provider-and-the-signer.md) |
+| 1 | PT-041 The ceremony tab and the method hosts | M-6 | risky | [PT-041-the-ceremony-tab-and-the-method-hosts.md](PT-041-the-ceremony-tab-and-the-method-hosts.md) |
+| 1 | PT-043 The presets and the blank start | M-7 | free | [PT-043-the-presets-and-the-blank-start.md](PT-043-the-presets-and-the-blank-start.md) |
+| 1 | PT-044 The path editor's operations | M-7 | free | [PT-044-the-path-editor-s-operations.md](PT-044-the-path-editor-s-operations.md) |
+| 1 | PT-047 The waiting period and the privacy step | M-7 | blocked in part | [PT-047-the-waiting-period-and-the-privacy-step.md](PT-047-the-waiting-period-and-the-privacy-step.md) |
+| 1 | PT-048 The Recovery Card | M-7 | free | [PT-048-the-recovery-card.md](PT-048-the-recovery-card.md) |
+| 1 | PT-052 The recover door and the warning gate | M-8 | free | [PT-052-the-recover-door-and-the-warning-gate.md](PT-052-the-recover-door-and-the-warning-gate.md) |
+| 2 | PT-039 The shared write states and the gas step | M-6 | free | [PT-039-the-shared-write-states-and-the-gas-step.md](PT-039-the-shared-write-states-and-the-gas-step.md) |
+| 2 | PT-042 The create door's picker and the settings entry | M-7 | blocked | [PT-042-the-create-door-s-picker-and-the-settings-entry.md](PT-042-the-create-door-s-picker-and-the-settings-entry.md) |
+| 2 | PT-045 The editor's refusals and the rules panel | M-7 | risky | [PT-045-the-editor-s-refusals-and-the-rules-panel.md](PT-045-the-editor-s-refusals-and-the-rules-panel.md) |
+| 2 | PT-046 The passkey row and the guardian row | M-7 | risky | [PT-046-the-passkey-row-and-the-guardian-row.md](PT-046-the-passkey-row-and-the-guardian-row.md) |
+| 2 | PT-049 The review's lead and its trust list | M-7 | risky | [PT-049-the-review-s-lead-and-its-trust-list.md](PT-049-the-review-s-lead-and-its-trust-list.md) |
+| 2 | PT-054 The recovery entry and the account step | M-8 | risky | [PT-054-the-recovery-entry-and-the-account-step.md](PT-054-the-recovery-entry-and-the-account-step.md) |
+| 2 | PT-057 The checklist's rows | M-8 | risky | [PT-057-the-checklist-s-rows.md](PT-057-the-checklist-s-rows.md) |
+| 2 | PT-063 The approval page's reading | M-9 | risky | [PT-063-the-approval-page-s-reading.md](PT-063-the-approval-page-s-reading.md) |
+| 2 | PT-065 The watcher | M-10 | risky | [PT-065-the-watcher.md](PT-065-the-watcher.md) |
+| 3 | PT-050 The review's doors, stop block and save gate | M-7 | blocked in part | [PT-050-the-review-s-doors-stop-block-and-save-gate.md](PT-050-the-review-s-doors-stop-block-and-save-gate.md) |
+| 3 | PT-053 The fast track's three steps | M-8 | free | [PT-053-the-fast-track-s-three-steps.md](PT-053-the-fast-track-s-three-steps.md) |
+| 3 | PT-056 The readout by privacy level | M-8 | blocked in part | [PT-056-the-readout-by-privacy-level.md](PT-056-the-readout-by-privacy-level.md) |
+| 3 | PT-058 The guardian row, its message and the paste check | M-8 | blocked | [PT-058-the-guardian-row-its-message-and-the-paste-check.md](PT-058-the-guardian-row-its-message-and-the-paste-check.md) |
+| 3 | PT-064 The approval page's signing and reply | M-9 | blocked | [PT-064-the-approval-page-s-signing-and-reply.md](PT-064-the-approval-page-s-signing-and-reply.md) |
+| 3 | PT-066 The banner and the owner's cancel | M-10 | free | [PT-066-the-banner-and-the-owner-s-cancel.md](PT-066-the-banner-and-the-owner-s-cancel.md) |
+| 3 | PT-067 The overview and the dormant states | M-11 | free | [PT-067-the-overview-and-the-dormant-states.md](PT-067-the-overview-and-the-dormant-states.md) |
+| 3 | PT-069 The passport and Aadhaar rows at enrollment | M-12 | risky | [PT-069-the-passport-and-aadhaar-rows-at-enrollment.md](PT-069-the-passport-and-aadhaar-rows-at-enrollment.md) |
+| 4 | PT-051 The arming save | M-7 | blocked | [PT-051-the-arming-save.md](PT-051-the-arming-save.md) |
+| 4 | PT-055 The running-attempt band | M-10 | free | [PT-055-the-running-attempt-band.md](PT-055-the-running-attempt-band.md) |
+| 4 | PT-059 The deadline, the polls and the deaths | M-8 | risky | [PT-059-the-deadline-the-polls-and-the-deaths.md](PT-059-the-deadline-the-polls-and-the-deaths.md) |
+| 4 | PT-068 The management editor and the review of changes | M-11 | free | [PT-068-the-management-editor-and-the-review-of-changes.md](PT-068-the-management-editor-and-the-review-of-changes.md) |
+| 5 | PT-060 The submission confirmation | M-8 | risky | [PT-060-the-submission-confirmation.md](PT-060-the-submission-confirmation.md) |
+| 5 | PT-070 The identity rows at recovery | M-12 | risky | [PT-070-the-identity-rows-at-recovery.md](PT-070-the-identity-rows-at-recovery.md) |
+| 6 | PT-061 The wait and its endings | M-8 | free | [PT-061-the-wait-and-its-endings.md](PT-061-the-wait-and-its-endings.md) |
+| 7 | PT-062 The done screen | M-8 | free | [PT-062-the-done-screen.md](PT-062-the-done-screen.md) |
+
+## Follow-up tasks
+
+A follow-up task is work the cut did not hold: a seam a task or a review found, an owner's ruling, or a library change a task needs. It has an id `FU-<letter>`, one pull request of its own (or one in `kohaku-commons` where the change is in the library), and the same method as a task. The coordinator adds a row here when a follow-up is named and updates it when its pull request opens and merges. Pull request numbers are those of `defi-wonderland/kohaku-extension` unless a row says `kohaku-commons`.
+
+| Id | Follow-up | Follows | Where the code lives | Pull request | State |
+| --- | --- | --- | --- | --- | --- |
+| (M-6) | The ceremony tab resolves a recorded request through the client | PT-041, PT-038 | `shared/ceremony`, `shared/client` | #15 | merged |
+| (M-6) | A send path for the writes through the request queue | PT-039, PT-038 | `shared/client`, `shared/writes` | #16 | merged |
+| FU-C | The built extension no longer crashes at load on a bigint exponent | the M-7 setup | `sdk-doubles`, `shared/writes` | #20 | merged |
+| FU-D | The rule lines read an empty slot as a member of its kind, and the records' shared pieces | PT-043, PT-044 | `shared/rule-lines`, `shared/records`, `shared/client` | #25 | merged |
+| FU-E | The recovery password kept in memory between the privacy step, the save and the card | PT-047, PT-048, PT-051 | `shared/records` | #21 | merged |
+| FU-F | The send path for a listed smart account's batch | PT-051, the proof of concept | `shared/client`, `shared/writes` | #29 | merged |
+| FU-G | The sign screen allows the account's own privilege grant and warns on a grant to a stranger | PT-051, the proof of concept | the library's sign controller and humanizer | kohaku-commons#3 | merged |
+| FU-H | The seams of the Shape visible level in the shared lanes | PT-047 | `shared/rule-lines`, `shared/client` and the other shared lanes | #32 | merged |
+| FU-I | The passkey doubles take the browser's credential and assertion | PT-046 | `sdk-doubles`, `shared/webauthn`, `shared/ceremony` | #36 | merged |
+| FU-J | A queued signing request can be withdrawn by its caller | PT-046, PT-041 | `shared/client` | #35 | merged |
+| FU-K | The enrollment record keeps the passkey's facts and credential id | PT-046 | `shared/records` | #37 | merged |
+| FU-L | The client's account implementation and the privilege holders read | PT-049, PT-050 | `shared/client` | #38 | merged |
+| FU-M | The privilege holders read derives the keys from the account's privilege events | PT-050 | `shared/client`, the create door's picker badge | none yet | moot (the privilege replay finds the creation block itself; no create-door badge exists since the create door is basic only) |
+| FU-N | The wallet's own request carries the recovery kit's mark, and the self-call exemption belongs to that request | PT-051 | the library's requests and sign controllers | kohaku-commons#5 | merged |
+| FU-O | The client seams the arming save needs: the kit mark, the account batch, the account facts, the gas check for an account with no code, the save in flight, the request's state, the refusal for another waiting request, the may-still-land reading | PT-051 | `shared/client`, `shared/writes`, `shared/records` | #40 | merged |
+| FU-P | The smart account's own key as the fee payer: the estimation reads it, and the sign screen labels and prefers it | PT-051 | the library's estimation; the wallet's sign screen | kohaku-commons#6, #43 | merged |
+| FU-Q | "Start over" is refused while a save is pending | PT-043, PT-051 | `shared/records` (in #40), `setup/presets` | #40 for the records part, #47 for the presets screen | merged |
+| FU-R | A save the network dropped: after one hour with the transaction unknown to the node, the save screen offers to save again | PT-051 | `setup/arm`, `shared/records`, `shared/client` | #57 | merged |
+| FU-S | Before the Recovery Card, the wallet asks for the recovery password again when it is not in memory | PT-048, PT-051 | `setup/card` | #58 | merged |
+| FU-T | The module-wide test pass: test imports through the aliases, braces on the inherited single-statement branches, test-only types in the harnesses, each harness's self-check anchored to its own file | every M-6 and M-7 task | every `__tests__` folder of the module | #49 | merged; the pass did not cover setup/arm and setup/presets, whose pull requests were open then (braces hold there by lint since #50; the sweep of the two folders is in FU-Z) |
+| FU-U | The SDK adoption: the extension imports `@kohaku-eth/social-recovery` and deletes `sdk-interfaces`, `sdk-doubles` and `shared/client/kit`; a fake node implementing the SDK's provider interface serves the build with no deployment and the unit tests; the records scoped to one deployment | PT-035, PT-038 | `shared/client`, every screen's imports | #130 | merged 2026-10-21 (dev/wonderland 226dcf1437) |
+| FU-V | The styling pass of the setup flow's screens, with its screen walk | PT-042 to PT-051 | `setup/**`, `onboarding/create` | #54, #62, #64 | merged: the chrome and the screens (#54), the presets screen (#62), the save step and the saved screen (#64) |
+| FU-W | Small repairs recorded in review: the card's unused re-download string (removed in setup round 13), a safe-integer guard on the stored chain id | PT-048, PT-040 | `setup/card`, `shared/records` | #48 for the string, #61 for the guard | merged |
+| FU-X | The middle privacy level ships (the owner's ruling of 2026-10-02: three levels): the privacy step always offers three radios, and the review and the saved screen get their own lines at Shape visible | PT-047, PT-049, PT-051 | `setup/privacy`, `setup/review`, `setup/arm`, `sdk-interfaces` (a comment) | #56 | merged |
+| FU-Y | The extension's own real client for the setup flow, built against the deployed contracts' ABIs while no SDK package exists; the doubles stay for the unit tests | PT-035, PT-038, PT-051 | `shared/client`, the library's sign controller for the commit's signature | kohaku-commons#8 and #52 for the library, #53, #59, #55, #60, #63 | merged for the setup flow; the recovery side of the client is FU-AA |
+| FU-Z | Small repairs recorded at the end of M-7: the save path decodes a landing revert, so a wrong setup nonce and an invalid commitment are told apart; a malformed deployment variable reads as unavailable instead of throwing during render; the two refs written during render move to a layout effect; the setup chrome's spacer sidebar is hidden from accessibility tools; a heading on the gas card and a title on the resume block's last row; one pinned block for the module reads; the test pass's sweep of `setup/arm` and `setup/presets` | PT-043, PT-048, PT-051, FU-T, FU-V, FU-Y | `setup/arm`, `setup/card`, `setup/presets`, `shared/chrome`, `shared/writes`, `shared/client` | none yet | planned for M-8: the gas card's heading and the pinned block ride the first M-8 lanes that use them, the rest is one small pull request |
+| FU-AA | The extension's own real client for the recover flow, built against the deployed contracts' ABIs while no SDK package exists: the setup and attempt reads, the fit and authorization reads, the request and its approvals with their check, the start of an attempt, the wait's reads, the handover's execution, and the approving side's method modules; a design note first, each encoding settled by read and simulation calls on the fork; the doubles stay for the unit tests | PT-054, PT-056 to PT-062, FU-Y | `shared/client` | none yet | planned; starts once the M-8 screens run on the doubles |
+| FU-AB | The recoverer's side of the records: one record for the account being recovered, the route (the fresh install or the logged-in wallet) and the wallet's account whose key receives control, kept from the account's confirmation to the done screen; and a guardian row's declined or unanswered note on the live session | PT-053, PT-054, PT-057, PT-058, PT-061, PT-062 | `shared/records` | none yet | done by the M-9 and M-10 records lanes |
+| FU-AK | The removed-key read and the fit check for an account the wallet does not list: the doubles answer from the seed's authorities; the kit derives the candidates from the account's privilege events (from the creation block stand-in to the pinned block) and confirms each by its privilege; a key written only by the creation code emits no event and stays open with the sdk owner | PT-054, PT-056 | `shared/client` | none yet | merged in the kit, then replaced by the SDK's removed-key inference in #130 |
+| FU-AL | The submission in flight on the live session: the claim under a request id with the block read before the send, its hash once known, and its release; dropped by a new gathering, every wipe and the landing | PT-060, PT-061 | `shared/records` | none yet | done by the M-9 and M-10 records lanes |
+| FU-AM | The overview's terminal state after an executed recovery: control reads as moved where the last attempt is consumed and no key the keystore holds is an authority; the notice with the date, the new key and the transaction link; the path read-only; the editor gated | PT-067, PT-068, the Sepolia walk's B3 | `management/overview`, `management/editor`, `watcher` | #131 | merged 2026-10-21 (dev/wonderland daddc48eeb) |
+| FU-AN | The alpha swap: the published `@kohaku-eth/social-recovery` version in `package.json` and `yarn.lock` for the 0.0.1 placeholder, the README note on the local build removed, the two optional Lows of round 9 | FU-U | `package.json`, `yarn.lock`, `docs/social-recovery/README.md`, `watcher` | none yet | planned; waits for an alpha that carries wonderland/dev (alpha.0 of 2026-10-28 is the tree before e762781) |
+| FU-AO | The attempt id on the owner's cancel and the clear: the deployed `cancelByOwner(address,uint64)` and `clearSetup(address,uint64)` against the SDK's `(address)` encoding; the cancel, the clear and the removal revert on Sepolia until the SDK encodes the attempt id, then the screens pass the attempt the read names | FU-U | `shared/client`, `cancel`, `management/editor` | none yet | done by the SDK pin at 08480f5 in #137, confirmed on Sepolia by part E on 2026-10-23 |
+| FU-AP | Two passkeys of one path: the checklist's passkey claim collides where two passkey rows of one path share a device (walk A's N2) | PT-058 | `recovery/checklist` | none yet | dismissed on the owner's rule of 2026-10-29: two passkeys of one path on one device is accepted |
+| FU-AQ | The fake node per page: a reload or a second tab starts a fresh node, so a seeded state does not survive the page (walk A's H3); a node shared across the build's pages, or a seed the walk can replay | FU-U | `shared/client/scripted` | none yet | dismissed on the owner's rule of 2026-10-29: the fake node per page is a design limit of the build with no deployment, and Sepolia now runs on the committed deployment |
+| FU-AR | The watcher on the build with no deployment: the watcher does not start without a deployment, so the holder's surfaces read no attempt there (walk A's M2); the watcher over the fake node's manager | PT-065 | `watcher` | none yet | dismissed on the owner's rule of 2026-10-29: the watcher without a deployment is a design limit of the build with no deployment, and Sepolia now runs on the committed deployment |
+| FU-AS | The passkey names: the default name of an enrolled passkey and the passkey rows' names on the overview and the editor (walk A's L4 and L5) | PT-044, PT-067 | `setup/enroll`, `management/overview` | none yet | dismissed on the owner's rule of 2026-10-29: the default passkey names stay |
+| FU-BB | The password setup form grows with its content instead of scrolling inside the panel (Linear EFI-1039) | the wallet's keystore setup, outside the module | `src/web/modules/keystore/components/KeyStoreSetupForm` | none (held) | held on the owner's rule of 2026-10-27: pre-existing wallet behaviour; the lane `fix/FU-BB-keystore-setup-scroll` kept locally |
+| FU-BC | The terms of service name Kohaku under the Kohaku logo, version 2.0.0; the Ambire terms URL constant removed (Linear EFI-1040) | the wallet's keystore setup and settings, outside the module | `src/web/modules/terms`, `src/web/modules/keystore/screens/KeyStoreSetupScreen`, `src/web/modules/settings/screens/AboutSettingsScreen` | none (held) | dismissed on the owner's rule of 2026-10-27 (EFI-1040 canceled); the lane `fix/FU-BC-kohaku-terms` kept locally |
+| FU-BD | The setup screens' paired buttons share one size and one row: Customize beside Continue after the cards, the resume pair, the review's client retry (Linear EFI-1041; a delta against the chapter's "above the grid" line) | PT-043, PT-050 | `setup/presets`, `setup/review` | defi-wonderland/kohaku-extension#145 | merged 2026-10-28 |
+| FU-BE | A basic account is refused at step 1 of the setup and by every save gate with the cannot-recover line; the gate's cannot-recover verdicts come before the unreadable removed key (Linear EFI-1042) | PT-043, PT-050, PT-051, PT-068 | `setup/presets`, `setup/review`, `setup/arm`, `management/editor` | #147 | merged 2026-10-28 |
+| FU-BF | The gas step keeps two headrooms, the amount asked (50 %) and the bar to pass (10 %); the amount lines say "at least" with a note that the fee can change; the recheck after a short signing passes at the amount asked (Linear EFI-1043) | PT-039, PT-051 | `shared/writes`, `setup/arm` | #146 | merged 2026-10-28 |
+| FU-BG | A send the holder rejected in the action window fails at once: the requests controller records the user-rejected ids (kohaku-commons) and the port refuses a seen request gone with its id listed while nothing signs (Linear EFI-1044) | PT-038, PT-039 | `shared/client`; kohaku-commons `src/controllers/requests`, `src/controllers/main` | #148, kohaku-commons #13 | merged 2026-10-28 |
+| FU-BH | Step 1 of the setup reads the setup state and blocks an account that already has a path with the "Already set up" card; the loading and failed states as the overview's (Linear EFI-1045) | PT-043, PT-050, PT-067 | `setup/presets`, `setup/review` | #149 (stacked on #147) | merged 2026-10-28 |
+| FU-BI | The uninstall opens no Ambire survey: the uninstall URL cleared (Linear EFI-1046) | the wallet's background, outside the module | `src/web/extension-services/background` | none (held) | dismissed on the owner's rule of 2026-10-27 (EFI-1046 canceled); the lane `fix/FU-BI-uninstall-url` kept locally |
+| FU-BJ | After a reinstall, a seed import restores neither the smart account nor its controlling key, so funds on the key are unreachable with no warning (Linear EFI-1047; the probe of 2026-10-27 found the import lists basic indices only) | PT-042 | `src/ambire-common/src/controllers/accountPicker`, `src/web/modules/account-picker` | #150, kohaku-commons#14 | merged 2026-10-28 |
+| FU-BK | The done screen's passkey advice is conditional on a device the holder lost; no lost device stated as a fact (Linear EFI-1048) | PT-062 | `recovery/done` | #151 | merged 2026-10-28 |
+| FU-BL | The management editor's not-sent line carries the frame's "Your edits are still here." (the owner's ruling of 2026-10-27 on a Low of the Sepolia walk) | PT-068 | `shared/writes`, one string | #154 | merged 2026-10-28 |
+| FU-BM | The import scan goes on past a page used only through its smart account or key, and one helper reads the listed account's kind in the five screens (the owner's rulings of 2026-10-29 on the review pass's small items) | FU-BJ, FU-BE | `account-picker` (the page list), `shared/client` | #156 | merged on `dev/wonderland` at bd17a55ed5 (2026-10-29) |
+| FU-BN | The paste field says any guardian's approval can go there, and a paste that counted on another guardian's row says so (Linear EFI-1049) | PT-058 | `recovery/checklist` | #155 | merged on `dev/wonderland` at 1e34f353da (2026-10-29) |
+| FU-BO | A deployed smart-account guardian this wallet controls signs on the approval page through its own wallet, checked by the account's ERC-1271; an undeployed one is refused with the reason (Linear EFI-1050; the owner's option A of 2026-10-29) | PT-064, PT-058 | `guardian-page`, `shared/client` | #158 | merged on `dev/wonderland` at fcdd88cb13 (2026-10-29) |
+| FU-BP | The recoverer's band on both views of main-dashboard and in the popup, capped at the content width (Linear EFI-1051) | PT-057, PT-061 | `recovery/checklist`, one mount line in the PPv1 dashboard | #157 | merged on `dev/wonderland` at 2e3f7a221b (2026-10-29) |
+| FU-BQ | Every loading line of the module reads in the primary text colour, and five inputs show a placeholder: the guardian address field, the account lookup, and the recovery password on the recovery entry, the Recovery Card and the management overview's locked path (Linear EFI-1052; the sidebar's grey and the logo's contrast are the wallet's own and dismissed) | PT-046, PT-054, PT-056, PT-048, PT-067 | `shared/chrome`, five placeholder props, five strings | #161 | merged on `dev/wonderland` at ea99530470 (2026-10-30) |
+
+## Open questions
+
+Questions the tasks leave open, with the owner of the answer. They are not answered here, except where a row says it was answered or ruled, and by what. The ux owner is @FiboApe; the sdk owner is @0xAaCE.
+
+| # | Tasks | Question | Owner |
+| --- | --- | --- | --- |
+| 1 | PT-035 | Which interfaces the doubles imitate: the cut lists eight, `sdk.md` D-201 declares twelve, and the builder never hands out `IPolicyManagerInteractor` or `IRecoveryActionArming`; `IMethodModuleReads` and `IRecoveryMethod` are missing from the eight | sdk owner with ux owner |
+| 2 | PT-035 | Which commit of `sdk.md` the doubles freeze against, since every TypeScript block is illustrative | sdk owner |
+| 3 | PT-047, PT-056, PT-035, PT-048, I-25 | cut-q-23: whether a middle privacy level exists. Ruled by the owner on 2026-10-02: three levels ship, as I-25 says; the byte format of the public shape note still waits for the sdk owner | sdk owner |
+| 4 | PT-050, PT-051, PT-054, PT-058, PT-060 | cut-q-22: the verify per pasted reply, the removed-key read and the fit check on code-to-be, none an SDK member today | sdk owner |
+| 5 | PT-050 | The "other doors" privilege read has no SDK member and `sdk.md` declines the list; extension-derived or dropped | sdk owner and ux owner |
+| 6 | PT-058, PT-060 | `addApproverReply` shape (typed result with five refusals in `sdk.md` D-207, three thrown errors in D-374) and the nonexistent uncertified-key warning | sdk owner |
+| 7 | PT-042 and every M-7 task | The four questions of the proof of concept D-316 schedules; the shipped create flow auto-adds an EOA and never shows the picker. Answered on 2026-09-29 by the proof of concept, and built in M-7: the create flow selects the slot's smart account (kohaku-commons#4); an imported recovery phrase still gets basic accounts only. | ux owner |
+| 8 | PT-051 | Which account-library call prepends the deployment, and whether the SDK fit check accepts a code-less account (FR13-ARMING-BATCH). Answered in M-7: the account library wraps the batch in the factory's deploy-and-execute, the extension prepends nothing, and the fit check for an account with no code compares its implementation with the action's. | sdk owner, design owner confirms |
+| 9 | PT-038 | cut-q-7: the addresses of the manager, methods and action on the test network. Answered for the fork of 2026-10-02: the four addresses are in the README's section on the manual test; no deployment on public Sepolia yet. | contracts owner and design owner |
+| 10 | PT-047, PT-045 | cut-q-13: the waiting-period numbers of contracts D-107 | contracts owner |
+| 11 | PT-064 | Which WalletConnect package, none being a dependency; typed data over MetaMask's port and WalletConnect from an extension origin are untested | ux owner |
+| 12 | PT-041, PT-046, PT-057 | The iPhone hybrid routes are untested, 1Password refused the extension relying party, and who normalizes a high `s` | ux owner and sdk owner |
+| 13 | PT-041, PT-046 | Which manifest key is "the store listing's", with three extension ids in play today | ux owner with the publisher |
+| 14 | PT-036 and every screen | The i18n table as the copy-lint surface: `en.json` holds five keys and the UI uses literals as keys | ux owner |
+| 15 | PT-050, 051, 053, 054, 058, 059, 061, 064, 065, 066, 067 | What `check: fuzz, budget: deep` and `check: build` run for the extension; the budgets were Foundry profiles | ux owner |
+| 16 | every task | Jest (node, no alias mapper, not run in CI) or Playwright (needs a prod build and secrets) per test seat, and how the persona replay is recorded | ux owner |
+| 17 | PT-075 | The file lives in the kohaku-commons submodule; the `recovered-signing-wrapper` vector row has no blessed producer (cut-q-5) | ux owner and sdk owner |
+| 18 | PT-041 | Whether the health-check host is built now, for a third-release feature | ux owner |
+| 19 | PT-059 | The second-release "watch offer" in its done entry | ux owner |
+| 20 | PT-069, PT-070 | Q-22's re-check party and date; the four zkPassport facts `sdk.md` hands to the integrator | sdk owner for the facts, design owner for Q-22 |
+| 21 | PT-063 | Which object the page's three chain reads go through, when the builder hands out `IMethodModuleReads` alone | sdk owner |
+| 22 | all | The task bodies predate the chapter by three rounds (the cut consumed R-29); the deltas in each file are the reconciliation and need the ux owner's confirmation | ux owner |
+| 23 | setup | The setup task that owns the shared files: the interfaces file mirroring D-201, the module folder, routes, string keys, the Jest alias mapper, `.gitmodules` pointed at the fork | ux owner |
+
+## Which sdk task builds each interface
+
+From the same cut, for the doubles of PT-035 and the client layer of PT-038. The sdk milestones are M-3 (the pure core), M-4 (the approving side) and M-5 (the chain-facing parts and clients).
+
+| Interface | Real implementation | Sdk task |
+| --- | --- | --- |
+| all twelve declarations | `sdk/interfaces` | PT-017 (M-3), value records PT-071 |
+| `ISetupClient` | `SetupClient` | PT-025 (M-5); validation PT-021, description PT-073, encryption PT-019 (M-3) |
+| `IRecoveryClient` | `RecoveryClient` | PT-026 and PT-074 (M-5); gathering arithmetic PT-020, formats PT-018 and PT-072 (M-3) |
+| `IMethodsOrchestrator` | `MethodsOrchestrator` | PT-027 (M-4) |
+| `IRecoveryMethod` | wallet, passkey, zkPassport, Aadhaar methods | PT-028, PT-029, PT-031, PT-032 (M-4) |
+| `IPolicyManagerInteractor`, `IMethodModuleReads` | `PolicyManager` | PT-022 (M-5) |
+| `IRecoveryActionInteractor`, `IRecoveryActionArming`, `IActionCodec` | `AmbireRecoveryAction` and its codec | PT-024 (M-5) |
+| `IEventManager` | `EventManager` | PT-023 (M-5) |
+| `IProvider` | none in the SDK; the extension's adapter (PT-038) | declared in PT-017 |
+| the builder and deployment descriptors (D-208) | `RecoveryKitBuilder` | PT-030 (M-5) |

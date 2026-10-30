@@ -1,0 +1,360 @@
+/**
+ * Copy lint over the social recovery strings of en.json. It guards the banned
+ * terms, the case-sensitive ban on the label "Protected" (anywhere in en.json),
+ * the closed chip vocabulary of the status block, the i18next key separators,
+ * the placeholders inside {{...}}, the word "signature" outside the offline
+ * signing block, raw links and addresses written into the copy, and the four
+ * errors a pasted approval can raise.
+ */
+import fs from 'fs'
+import path from 'path'
+
+import type {
+  JsonObject,
+  JsonValue,
+  StringEntry
+} from '@web/modules/social-recovery/__tests__/stubs/types'
+import type { BannedTerm } from '@web/modules/social-recovery/__fixtures__/types'
+
+const EN_JSON_PATH = path.resolve(
+  __dirname,
+  '../../../../common/config/localization/translations/en.json'
+)
+
+const enRaw = fs.readFileSync(EN_JSON_PATH, 'utf8')
+const en = JSON.parse(enRaw) as JsonObject
+
+const isObject = (value: JsonValue | undefined): value is JsonObject =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+// Walks every string value below `node`, depth first, keeping the key path.
+const collectStrings = (
+  node: JsonValue,
+  keyPath: string,
+  out: StringEntry[] = []
+): StringEntry[] => {
+  if (typeof node === 'string') {
+    out.push({ keyPath, value: node })
+  } else if (Array.isArray(node)) {
+    node.forEach((item, i) => collectStrings(item, `${keyPath}[${i}]`, out))
+  } else if (isObject(node)) {
+    Object.entries(node).forEach(([k, v]) => collectStrings(v, `${keyPath}/${k}`, out))
+  }
+  return out
+}
+
+// Walks every key below `node`, keeping the key path.
+const collectKeys = (node: JsonValue, keyPath: string, out: StringEntry[] = []): StringEntry[] => {
+  if (Array.isArray(node)) {
+    node.forEach((item, i) => collectKeys(item, `${keyPath}[${i}]`, out))
+  } else if (isObject(node)) {
+    Object.entries(node).forEach(([k, v]) => {
+      out.push({ keyPath: `${keyPath}/${k}`, value: k })
+      collectKeys(v, `${keyPath}/${k}`, out)
+    })
+  }
+  return out
+}
+
+// Whole-word bans. "Word-bounded" means a longer word that merely contains the
+// term (proofread, waterproof, relayed) is not a hit, but the plural of
+// the banned word is, since the ban names the term and its plural is the term.
+const CASE_INSENSITIVE_BANS: BannedTerm[] = [
+  { term: 'policy', pattern: /\bpolic(?:y|ies)\b/i },
+  { term: 'proof', pattern: /\bproofs?\b/i },
+  { term: 'relayer', pattern: /\brelayers?\b/i },
+  // Hyphen, space or nothing between EIP and 712.
+  { term: 'EIP-712', pattern: /\bEIP[-\s]?712\b/i },
+  { term: 'atomic', pattern: /\batomic(?:ally)?\b/i },
+  { term: 'your people', pattern: /\byour\s+people\b/i },
+  { term: 'full wallet password', pattern: /\bfull\s+wallet\s+passwords?\b/i }
+]
+
+// The label Protected is banned: case-sensitive, whole word.
+const PROTECTED_BAN = /\bProtected\b/
+
+// The closed chip vocabulary: the status block must hold every chip below.
+const CHIP_VOCABULARY = [
+  // a method in setup
+  'not started',
+  'in progress',
+  'tested',
+  'not tested',
+  'test failed',
+  'test unavailable',
+  'not supported',
+  'not yet active',
+  'saved',
+  'live',
+  // a row in collection
+  'not asked',
+  'waiting',
+  'declined',
+  'unanswered',
+  'complete',
+  'not needed',
+  'did not answer',
+  'stopped',
+  // an attempt
+  'recovery in progress',
+  'execution due',
+  'cancelled',
+  // the recovery status and the three extra chips
+  'set up',
+  'not set up',
+  'path locked',
+  'not active',
+  'cannot recover'
+]
+
+const socialRecovery = en.socialRecovery
+const strings = isObject(socialRecovery) ? collectStrings(socialRecovery, 'socialRecovery') : []
+const keys = isObject(socialRecovery) ? collectKeys(socialRecovery, 'socialRecovery') : []
+
+describe('socialRecovery strings in en.json', () => {
+  it('has a non-empty socialRecovery block', () => {
+    expect(isObject(socialRecovery)).toBe(true)
+    expect(Object.keys(socialRecovery as JsonObject).length).toBeGreaterThan(0)
+    expect(strings.length).toBeGreaterThan(0)
+  })
+
+  it('uses no ":" and no "." in any key (i18next separators)', () => {
+    const offenders = keys
+      .filter(({ value }) => value.includes('.') || value.includes(':'))
+      .map(({ keyPath }) => keyPath)
+    expect(offenders).toEqual([])
+  })
+
+  CASE_INSENSITIVE_BANS.forEach(({ term, pattern }) =>
+    it(`carries no banned term "${term}"`, () => {
+      const offenders = strings
+        .filter(({ value }) => pattern.test(value))
+        .map(({ keyPath, value }) => `${keyPath}: ${value}`)
+      expect(offenders).toEqual([])
+    })
+  )
+
+  it('carries no banned label "Protected" (case-sensitive)', () => {
+    const offenders = strings
+      .filter(({ value }) => PROTECTED_BAN.test(value))
+      .map(({ keyPath, value }) => `${keyPath}: ${value}`)
+    expect(offenders).toEqual([])
+  })
+
+  it('has "Protected" nowhere in en.json, as a key or a value', () => {
+    const all = [...collectStrings(en, ''), ...collectKeys(en, '')]
+    const offenders = all
+      .filter(({ value }) => PROTECTED_BAN.test(value))
+      .map(({ keyPath, value }) => `${keyPath}: ${value}`)
+    expect(offenders).toEqual([])
+  })
+
+  it('holds the whole chip vocabulary among the values of socialRecovery.status', () => {
+    const status = isObject(socialRecovery) ? socialRecovery.status : undefined
+    expect(isObject(status)).toBe(true)
+    const statusValues = new Set(
+      collectStrings(status as JsonValue, 'status').map(({ value }) => value.trim().toLowerCase())
+    )
+    const missing = CHIP_VOCABULARY.filter((chip) => !statusValues.has(chip))
+    expect(missing).toEqual([])
+  })
+})
+
+// i18next interpolation: every {{...}} in a value. The rule-line counts use
+// n, m and spare (spare = M minus N); any other placeholder must be a plain
+// identifier that starts with a lowercase letter (no formatter, no nesting,
+// no spaces).
+const PLACEHOLDER = /\{\{([^}]*)\}\}/g
+const COUNT_PLACEHOLDERS = ['n', 'm', 'spare']
+const LOWERCASE_IDENTIFIER = /^[a-z][a-zA-Z0-9]*$/
+
+const placeholdersOf = (value: string): string[] =>
+  Array.from(value.matchAll(PLACEHOLDER), (match) => match[1])
+
+const isAllowedPlaceholder = (name: string) =>
+  COUNT_PLACEHOLDERS.includes(name) || LOWERCASE_IDENTIFIER.test(name)
+
+describe('socialRecovery placeholders', () => {
+  it('uses only n, m, spare or a lowercase identifier inside {{...}}', () => {
+    const offenders = strings.flatMap(({ keyPath, value }) =>
+      placeholdersOf(value)
+        .filter((name) => !isAllowedPlaceholder(name))
+        .map((name) => `${keyPath}: {{${name}}}`)
+    )
+    expect(offenders).toEqual([])
+  })
+
+  it('leaves no unbalanced braces in a value', () => {
+    const offenders = strings
+      .filter(({ value }) => {
+        const stripped = value.replace(PLACEHOLDER, '')
+        return stripped.includes('{{') || stripped.includes('}}')
+      })
+      .map(({ keyPath, value }) => `${keyPath}: ${value}`)
+    expect(offenders).toEqual([])
+  })
+
+  // A single brace is no i18next placeholder: "{deadline}" would reach the
+  // screen as written.
+  it('leaves no single brace outside a {{...}} placeholder', () => {
+    const offenders = strings
+      .filter(({ value }) => /[{}]/.test(value.replace(PLACEHOLDER, '')))
+      .map(({ keyPath, value }) => `${keyPath}: ${value}`)
+    expect(offenders).toEqual([])
+  })
+
+  it('carries {{n}}, {{m}} and {{spare}} in the rule lines', () => {
+    const ruleLines = isObject(socialRecovery) ? socialRecovery.ruleLines : undefined
+    expect(isObject(ruleLines)).toBe(true)
+    const used = new Set(
+      collectStrings(ruleLines as JsonValue, 'ruleLines').flatMap(({ value }) =>
+        placeholdersOf(value)
+      )
+    )
+    expect(COUNT_PLACEHOLDERS.filter((name) => !used.has(name))).toEqual([])
+  })
+})
+
+// Keys that must exist: the gas shortfall lines of save, submit and cancel,
+// and the ceremony's passed note. The walk above already lints them; this
+// block proves they exist, so the lint covers them.
+const REQUIRED_KEYS = [
+  'socialRecovery/writes/gas/shortfallSave',
+  'socialRecovery/writes/gas/shortfallSubmit',
+  'socialRecovery/writes/gas/shortfallCancel',
+  'socialRecovery/ceremony/passedNote'
+]
+
+describe('socialRecovery required keys', () => {
+  REQUIRED_KEYS.forEach((keyPath) =>
+    it(`${keyPath} exists, passes every ban and uses allowed placeholders`, () => {
+      const entry = strings.find((candidate) => candidate.keyPath === keyPath)
+      expect(entry).toBeDefined()
+      const { value } = entry as StringEntry
+      expect(value.trim().length).toBeGreaterThan(0)
+      expect(CASE_INSENSITIVE_BANS.filter(({ pattern }) => pattern.test(value))).toEqual([])
+      expect(PROTECTED_BAN.test(value)).toBe(false)
+      expect(placeholdersOf(value).filter((name) => !isAllowedPlaceholder(name))).toEqual([])
+    })
+  )
+})
+
+// The artefact a guardian returns is an approval everywhere; only an offline
+// signing block, a key path with an offline segment, names the signature the
+// offline signer hands back.
+const OFFLINE_SEGMENT = '/offline/'
+const SIGNATURE = /\bsignatures?\b/i
+
+const isOfflineBlock = (keyPath: string) => keyPath.includes(OFFLINE_SEGMENT)
+
+// A link, a store page or an address is an interpolation the screen fills,
+// never text fixed in the copy.
+const RAW_LINK = /\b[a-z][a-z0-9+.-]*:\/\/|\bwww\.|\b[a-z0-9-]+(?:\.[a-z0-9-]+)+\/[^\s]/i
+const RAW_HEX = /\b0x[0-9a-f]{4,}/i
+
+const PASTE_ERROR_KEYS = [
+  'socialRecovery/checklist/paste/notAnApproval',
+  'socialRecovery/checklist/paste/noMatch',
+  'socialRecovery/checklist/paste/duplicate',
+  'socialRecovery/checklist/paste/expired'
+]
+
+describe('socialRecovery copy rules', () => {
+  it('says "signature" only inside the offline signing block', () => {
+    const offenders = strings
+      .filter(({ keyPath, value }) => SIGNATURE.test(value) && !isOfflineBlock(keyPath))
+      .map(({ keyPath, value }) => `${keyPath}: ${value}`)
+    expect(offenders).toEqual([])
+  })
+
+  it('writes no raw link and no address into a value', () => {
+    const offenders = strings
+      .filter(({ value }) => RAW_LINK.test(value) || RAW_HEX.test(value))
+      .map(({ keyPath, value }) => `${keyPath}: ${value}`)
+    expect(offenders).toEqual([])
+  })
+
+  it('gives the four paste errors four distinct one-sentence values ending with a full stop', () => {
+    const values = PASTE_ERROR_KEYS.map(
+      (keyPath) => strings.find((candidate) => candidate.keyPath === keyPath)?.value
+    )
+    expect(values.every((value) => typeof value === 'string')).toBe(true)
+    const sentences = values as string[]
+    expect(new Set(sentences).size).toBe(PASTE_ERROR_KEYS.length)
+    sentences.forEach((value) => {
+      expect(value).toMatch(/^[A-Z][^.]*\.$/)
+    })
+  })
+})
+
+describe('copy-lint patterns (self-check)', () => {
+  const hits = (text: string) => CASE_INSENSITIVE_BANS.filter(({ pattern }) => pattern.test(text))
+
+  it('flags each banned term, its plural and its casing variants', () => {
+    ;[
+      'Policy',
+      'policies',
+      'PROOF',
+      'proofs',
+      'Relayer',
+      'relayers',
+      'EIP-712',
+      'eip712',
+      'Atomic',
+      'atomically',
+      'Your people',
+      'Full wallet password'
+    ].forEach((text) => expect(hits(text).length).toBe(1))
+  })
+
+  it('does not flag longer words that only contain a banned term', () => {
+    ;['proofread', 'waterproof', 'relayed', 'atomicity-free', 'people', 'wallet password'].forEach(
+      (text) => {
+        const found = hits(text).map(({ term }) => term)
+        expect(found).toEqual([])
+      }
+    )
+  })
+
+  it('accepts the count placeholders and lowercase identifiers only', () => {
+    expect(
+      ['n', 'm', 'spare', 'count', 'deadline', 'setupNumber'].every(isAllowedPlaceholder)
+    ).toBe(true)
+    expect(['N', 'M', 'Spare', 'value, number', ' n ', '', '1n'].some(isAllowedPlaceholder)).toBe(
+      false
+    )
+    expect(placeholdersOf('{{n}} of {{m}}, {{spare}} left')).toEqual(['n', 'm', 'spare'])
+  })
+
+  it('flags a raw link or address and passes a name or an empty hex hint', () => {
+    ;[
+      'Open https://kohaku.test/approve',
+      'Open chrome-extension://abcdefgh/approve',
+      'See www.example.org',
+      'Install from chromewebstore.google.com/detail/kohaku',
+      'Send to 0x2bA9c0ffee'
+    ].forEach((text) => expect(RAW_LINK.test(text) || RAW_HEX.test(text)).toBe(true))
+    ;['Type a name such as bluejay.eth.', '0x…', 'Install it from {{source}}.'].forEach((text) =>
+      expect(RAW_LINK.test(text) || RAW_HEX.test(text)).toBe(false)
+    )
+  })
+
+  it('reads "signature" as a whole word', () => {
+    expect(SIGNATURE.test('Paste the signature')).toBe(true)
+    expect(SIGNATURE.test('Signatures')).toBe(true)
+    expect(SIGNATURE.test('signaturePlaceholder')).toBe(false)
+    expect(SIGNATURE.test('signed it')).toBe(false)
+  })
+
+  it('allows "signature" under any offline segment and nowhere else', () => {
+    expect(isOfflineBlock('socialRecovery/approve/offline/x')).toBe(true)
+    expect(isOfflineBlock('socialRecovery/enroll/offline/x')).toBe(true)
+    expect(isOfflineBlock('socialRecovery/approve/x')).toBe(false)
+  })
+
+  it('reads Protected case-sensitively', () => {
+    expect(PROTECTED_BAN.test('Protected')).toBe(true)
+    expect(PROTECTED_BAN.test('protected')).toBe(false)
+    expect(PROTECTED_BAN.test('Unprotected')).toBe(false)
+  })
+})

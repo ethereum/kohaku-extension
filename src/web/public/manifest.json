@@ -4,7 +4,7 @@
   "author": "https://ethereum.foundation/",
   "version": "SYNCED_WITH_THE_APP_VERSION_VIA_THE_WEBPACK_CONFIG",
   "manifest_version": 3,
-  "permissions": ["storage", "tabs", "unlimitedStorage", "activeTab", "notifications"],
+  "permissions": ["storage", "tabs", "unlimitedStorage", "activeTab", "notifications", "clipboardRead"],
   "background": {
     "service_worker": "background.js"
   },

@@ -1,0 +1,155 @@
+/**
+ * The address book of the kit's two deployments: the manager, the four method
+ * modules, the action and the account implementation the action serves.
+ *
+ * `servedImplementation` is the one real address: it is the implementation
+ * the account library already deploys behind every account proxy, so no
+ * deployment of the kit changes it. Every other address is a placeholder the
+ * stand-in reads, and no contract is deployed at any of them. A chain whose
+ * deployment record (deployments.ts) names a deployed kit, Sepolia in the
+ * committed table, reads that deployment's addresses instead. Each placeholder reads as `c7`, one byte for the chain (`01`
+ * Sepolia, `02` mainnet) and one byte for the field, behind seventeen zero
+ * bytes, so nobody mistakes one for a deployment.
+ */
+import { isAddress, isAddressEqual, zeroAddress } from 'viem'
+import type { Address } from 'viem'
+
+import type { Credential } from '@kohaku-eth/social-recovery'
+import { PROXY_AMBIRE_ACCOUNT } from '@ambire-common/consts/deploy'
+import type { Account } from '@ambire-common/interfaces/account'
+import { isSmartAccount } from '@ambire-common/libs/account/account'
+import { isEmptySlot, slotKindOf } from '@web/modules/social-recovery/shared/records/slots'
+import { SLOT_KINDS } from '@web/modules/social-recovery/shared/records/types'
+import type { SlotKind } from '@web/modules/social-recovery/shared/records/types'
+
+import { deploymentOf } from './deployments'
+import type { AddressBook, DeploymentAddresses, RecoveryChain } from './types'
+
+/** The stand-in's addresses by chain: placeholders, and the real served implementation. */
+export const PLACEHOLDER_ADDRESSES = {
+  sepolia: {
+    // Placeholder: the Sepolia policy manager.
+    manager: '0x0000000000000000000000000000000000c70101',
+    // Placeholder: the Sepolia guardian (ECDSA) method.
+    methodEcdsa: '0x0000000000000000000000000000000000c70102',
+    // Placeholder: the Sepolia passkey method.
+    methodPasskey: '0x0000000000000000000000000000000000c70103',
+    // Placeholder: the Sepolia Anon Aadhaar method.
+    methodAadhaar: '0x0000000000000000000000000000000000c70104',
+    // Placeholder: the Sepolia zkPassport method.
+    methodZkpassport: '0x0000000000000000000000000000000000c70105',
+    // Placeholder: the Sepolia recovery action.
+    action: '0x0000000000000000000000000000000000c70106',
+    // The account library's implementation, the one the Sepolia action serves.
+    servedImplementation: PROXY_AMBIRE_ACCOUNT
+  },
+  mainnet: {
+    // Placeholder: the mainnet policy manager.
+    manager: '0x0000000000000000000000000000000000c70201',
+    // Placeholder: the mainnet guardian (ECDSA) method.
+    methodEcdsa: '0x0000000000000000000000000000000000c70202',
+    // Placeholder: the mainnet passkey method.
+    methodPasskey: '0x0000000000000000000000000000000000c70203',
+    // Placeholder: the mainnet Anon Aadhaar method.
+    methodAadhaar: '0x0000000000000000000000000000000000c70204',
+    // Placeholder: the mainnet zkPassport method.
+    methodZkpassport: '0x0000000000000000000000000000000000c70205',
+    // Placeholder: the mainnet recovery action.
+    action: '0x0000000000000000000000000000000000c70206',
+    // The account library's implementation, the one the mainnet action serves.
+    servedImplementation: PROXY_AMBIRE_ACCOUNT
+  }
+} as const
+
+/**
+ * The addresses of what a chain runs, as a fresh record: the placeholders for
+ * the stand-in, or the deployment's own. An identity method the deployment
+ * does not serve is the zero address: the SDK serves no module there, where a
+ * placeholder would be served as a live one. The served implementation is the
+ * account library's either way.
+ */
+export const deploymentAddressesOf = (chain: RecoveryChain): DeploymentAddresses => {
+  const placeholders = PLACEHOLDER_ADDRESSES[chain]
+  const deployment = deploymentOf(chain)
+  if (deployment.kind === 'stand-in') {
+    return { ...placeholders }
+  }
+  const { facts } = deployment
+  return {
+    manager: facts.manager,
+    methodEcdsa: facts.methodEcdsa,
+    methodPasskey: facts.methodPasskey,
+    methodAadhaar: facts.methodAadhaar ?? zeroAddress,
+    methodZkpassport: facts.methodZkpassport ?? zeroAddress,
+    action: facts.action,
+    servedImplementation: placeholders.servedImplementation
+  }
+}
+
+/** The address book of one chain's deployment, as a fresh record. */
+export const addressBookOf = (chain: RecoveryChain): AddressBook => {
+  const a = deploymentAddressesOf(chain)
+  return {
+    manager: a.manager,
+    methods: {
+      ecdsa: a.methodEcdsa,
+      passkey: a.methodPasskey,
+      aadhaar: a.methodAadhaar,
+      zkpassport: a.methodZkpassport
+    },
+    action: a.action
+  }
+}
+
+/**
+ * Two addresses name the same account or contract, whatever their case. A
+ * value that is not an address matches nothing.
+ */
+export const sameAddress = (a: string | undefined, b: string | undefined): boolean =>
+  !!a &&
+  !!b &&
+  isAddress(a, { strict: false }) &&
+  isAddress(b, { strict: false }) &&
+  isAddressEqual(a, b)
+
+/**
+ * The wallet's own record of an account, found by its address. A listed
+ * address in mixed case with a bad checksum matches nothing.
+ */
+export const listedAccountOf = <A extends Account>(
+  accounts: readonly A[] | undefined,
+  address: Address | undefined
+): A | undefined =>
+  address
+    ? accounts?.find(
+        (candidate) => isAddress(candidate.addr) && isAddressEqual(candidate.addr, address)
+      )
+    : undefined
+
+/** A listed account that is a basic account, not a smart account. */
+export const isBasicAccount = (listed: Account | undefined): boolean =>
+  !!listed && !isSmartAccount(listed)
+
+/**
+ * The kind of method a module address serves among a deployment's method
+ * modules, matched whatever its case; a value that is not an address, or a
+ * module the deployment does not hold, has none. The zero address a
+ * deployment leaves for a method it omits is no module, so it matches nothing.
+ */
+export const methodKindIn = (
+  methods: AddressBook['methods'],
+  module: string
+): SlotKind | undefined =>
+  SLOT_KINDS.find(
+    (kind) => !sameAddress(methods[kind], zeroAddress) && sameAddress(methods[kind], module)
+  )
+
+/**
+ * The kind of method a credential holds: the kind an empty slot waits for, or
+ * the kind of an enrolled credential's method module.
+ */
+export const credentialKindIn = (
+  credential: Credential,
+  methods: AddressBook['methods']
+): SlotKind | undefined =>
+  isEmptySlot(credential) ? slotKindOf(credential) : methodKindIn(methods, credential.method)

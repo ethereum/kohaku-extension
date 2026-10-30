@@ -3,7 +3,8 @@ import { formatUnits } from 'ethers'
 import { getFeeSpeedIdentifier } from '@ambire-common/controllers/signAccountOp/helper'
 import {
   FeeSpeed,
-  SignAccountOpController
+  SignAccountOpController,
+  SpeedCalc
 } from '@ambire-common/controllers/signAccountOp/signAccountOp'
 import { FeePaymentOption } from '@ambire-common/libs/estimate/interfaces'
 
@@ -29,15 +30,22 @@ const sortBasedOnUSDValue = (a: FeePaymentOption, b: FeePaymentOption) => {
   return 0
 }
 
+const isPaidByOwnKey = (feeOption: FeePaymentOption, ownKeyAddrs: string[]) =>
+  ownKeyAddrs.some((addr) => addr.toLowerCase() === feeOption.paidBy.toLowerCase())
+
 /**
  * Sorts fee options by the following criteria:
+ * - Options that can cover the fee first
  * - Gas tank options first
+ * - Native options second, those paid by one of the account's own keys
+ *   before those paid by other accounts
  * - USD value
  */
 const sortFeeOptions = (
   a: FeePaymentOption,
   b: FeePaymentOption,
-  signAccountOpState: SignAccountOpController
+  signAccountOpState: SignAccountOpController,
+  ownKeyAddrs: string[] = []
 ) => {
   const aId = getFeeSpeedIdentifier(
     a,
@@ -68,6 +76,18 @@ const sortFeeOptions = (
   // native second
   if (a.token.address === ZERO_ADDRESS && b.token.address !== ZERO_ADDRESS) return -1
   if (a.token.address !== ZERO_ADDRESS && b.token.address === ZERO_ADDRESS) return 1
+
+  // among native options that can cover the fee, the account's own key first
+  if (aCanCoverFee && a.token.address === ZERO_ADDRESS) {
+    const aIsOwnKey = isPaidByOwnKey(a, ownKeyAddrs)
+    const bIsOwnKey = isPaidByOwnKey(b, ownKeyAddrs)
+    if (aIsOwnKey && !bIsOwnKey) {
+      return -1
+    }
+    if (!aIsOwnKey && bIsOwnKey) {
+      return 1
+    }
+  }
 
   // based on value after
   return sortBasedOnUSDValue(a, b)
@@ -125,6 +145,22 @@ const mapFeeOptions = (
   }
 }
 
+/**
+ * A speed is disabled when the selected option's own balance cannot cover it.
+ * The speeds of several payers can share one calculation, so their own
+ * disabled flag may come from another payer's balance.
+ */
+const isFeeSpeedDisabled = (
+  speed: Pick<SpeedCalc, 'type' | 'disabled'>,
+  selectedSpeedCoverage: FeeSpeed[] | undefined
+) => {
+  if (!selectedSpeedCoverage) {
+    return speed.disabled
+  }
+
+  return !selectedSpeedCoverage.includes(speed.type)
+}
+
 const getDefaultFeeOption = (
   payOptionsPaidByUsOrGasTank: FeeOption[],
   payOptionsPaidByEOA: FeeOption[]
@@ -142,4 +178,4 @@ const getDefaultFeeOption = (
   return NO_FEE_OPTIONS as FeeOption
 }
 
-export { getDefaultFeeOption, mapFeeOptions, sortFeeOptions }
+export { getDefaultFeeOption, isFeeSpeedDisabled, mapFeeOptions, sortFeeOptions }

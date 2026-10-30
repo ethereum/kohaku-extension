@@ -1,0 +1,149 @@
+/**
+ * shared/writes: the submitting and failed states every social recovery write
+ * shares, the gas check with its deposit step, and the driver that feeds the
+ * machine a send's answers.
+ *
+ * The two React components live in `./components`, imported by path, so this
+ * module loads in a Node test without the UI.
+ */
+export {
+  WRITE_KINDS,
+  OWNER_WRITES,
+  RECOVERY_CALLS,
+  PAYERS,
+  isOwnerWrite,
+  isRecoveryCall,
+  payerOf,
+  assertWriteDoor
+} from './kinds'
+export {
+  WRITE_STATUSES,
+  FAILED_STATUSES,
+  isFailedState,
+  canRetry,
+  offersMoveFunds,
+  mayStillLand,
+  otherRequestPending
+} from './states'
+export {
+  ATTEMPT_ENDS,
+  ATTEMPT_STILL_RUNNING,
+  REPLACED_REASONS,
+  REVERT_CAUSE_KINDS,
+  EXECUTION_STILL_READY_CAUSES,
+  NO_RETRY_CAUSES,
+  receiptOf,
+  writeFailureOf,
+  kitErrorNameOf,
+  revertCauseOf,
+  retryCanFix,
+  leavesAttemptReady,
+  gasSpentOf,
+  classifyFailure,
+  settleReceipt
+} from './classify'
+export { WRITE_EVENT_TYPES, WRITE_ANSWER_TYPES, initialWriteState, writeReducer } from './machine'
+export { driveSend, driveAccountBatch } from './send'
+export { sameHash } from './hashes'
+export {
+  DROPPED_AFTER_MS,
+  DROPPED_RECHECK_MS,
+  OVERVIEW_INTENTS,
+  MANAGE_INTENT_MARKS
+} from './constants'
+export { apartFrom, coversHashes } from './dropped'
+export {
+  claimReadingOf,
+  requestHoldOf,
+  requestIdOf,
+  intentOfRequest,
+  overviewIntentOf
+} from './claims'
+export {
+  ASK_HEADROOM_PERCENT,
+  PASS_HEADROOM_PERCENT,
+  GAS_DISPLAY_DECIMALS,
+  ACCOUNT_FACTORY,
+  accountFactoryOf,
+  walletAccountRefOf,
+  VALUE_TRANSFER_GAS,
+  DEPOSIT_ROUTES,
+  roundUpForDisplay,
+  roundDownForDisplay,
+  gasEstimateOf,
+  gasTransactionOf,
+  transferTransactionOf,
+  transferEstimateCallOf,
+  transferFeeOf,
+  holdsEnough,
+  reachesBar,
+  depositStepOf,
+  checkGas
+} from './gas'
+export {
+  WRITES_KEYS,
+  GAS_KEYS,
+  REVERTED_KEYS,
+  NOT_SENT_KEYS,
+  revertedKeyOf,
+  UNNAMED_CAUSE_KEY,
+  causeKey,
+  cancelGoneRoadKey,
+  OWNER_SHORTFALL_KEYS,
+  renderGasAmount,
+  renderGasBalance,
+  renderRevertCause,
+  renderWriteState,
+  renderDepositStep
+} from './copy'
+export type {
+  WriteKind,
+  OwnerWrite,
+  RecoveryCall,
+  Payer,
+  WriteStatus,
+  FailedStatus,
+  IdleState,
+  CheckingGasState,
+  GasReadErrorState,
+  NeedsDepositState,
+  SubmittingState,
+  LandedState,
+  FailedNotSentState,
+  FailedRevertedState,
+  FailedState,
+  WriteState,
+  ReplacedReason,
+  WriteReceipt,
+  WriteFailure,
+  AttemptEnd,
+  AttemptAfterCancel,
+  RevertCause,
+  FailureContext,
+  WriteEvent,
+  WriteRun,
+  WriteMachineState,
+  DriveRun,
+  SendDrive,
+  AccountBatchDrive,
+  GasNetwork,
+  WalletAccountRef,
+  FeeHeadroom,
+  GasPassBar,
+  GasEstimate,
+  DepositRouteKind,
+  DepositRoute,
+  DepositStep,
+  GasCheck,
+  GasCheckInput,
+  RenderedWriteState,
+  RenderedRoute,
+  RenderedDepositStep,
+  UnknownReading,
+  StoredClaim,
+  ClaimReading,
+  RequestHold,
+  OverviewIntent,
+  ManageIntent,
+  ManagementIntent
+} from './types'

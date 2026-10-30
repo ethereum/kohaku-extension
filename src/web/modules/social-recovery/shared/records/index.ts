@@ -1,0 +1,25 @@
+/**
+ * The wallet's records. This folder holds no React component and no hook: a
+ * hook belongs to the screen that needs it.
+ */
+export * from './types'
+export * from './constants'
+export * from './records'
+export {
+  emptySlot,
+  isEmptySlot,
+  slotKindOf,
+  sameCredential,
+  enrollmentOf,
+  pathHolds
+} from './slots'
+export { isStoredAddress, isDecimalString, isStoredCredential } from './guards'
+export {
+  recordDeploymentOf,
+  recordDeploymentFrom,
+  isOfDeployment,
+  isSessionOfDeployment,
+  countdownOfDeployment
+} from './deployment'
+export { extensionRecordStorage } from './extensionStorage'
+export { readRecoveryPassword, setRecoveryPassword, wipeRecoveryPassword } from './recoveryPassword'

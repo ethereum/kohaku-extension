@@ -3,6 +3,7 @@ import { View } from 'react-native'
 
 import { BannerType } from '@ambire-common/interfaces/banner'
 import DashboardBanner from '@common/modules/dashboard/components/DashboardBanners/DashboardBanner/DashboardBanner'
+import RecoveryAttemptBanner from '@web/modules/social-recovery/cancel/RecoveryAttemptBanner'
 import useBanners from '../../hooks/useBanners'
 
 const DashboardBanners = () => {
@@ -10,6 +11,7 @@ const DashboardBanners = () => {
 
   return (
     <View>
+      <RecoveryAttemptBanner />
       {controllerBanners.map((banner) => (
         <DashboardBanner key={banner.id} banner={{ ...banner, type: banner.type as BannerType }} />
       ))}

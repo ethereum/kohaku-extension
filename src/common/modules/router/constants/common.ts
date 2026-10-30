@@ -79,7 +79,38 @@ const WEB_ROUTES = {
   pp2Home: 'PPv2Home',
   pp2Deposit: 'PPv2Deposit',
   pp2Transfer: 'PPv2Transfer',
-  pp2Import: 'PPv2Import'
+  pp2Import: 'PPv2Import',
+
+  // Account recovery (social recovery) routes
+  socialRecovery: 'social-recovery',
+  socialRecoveryCeremony: 'social-recovery/ceremony',
+  socialRecoverySetup: 'social-recovery/setup',
+  socialRecoveryCreate: 'social-recovery/create',
+  socialRecoveryRecover: 'social-recovery/recover',
+  socialRecoveryFastTrack: 'social-recovery/fast-track',
+  socialRecoveryRecovery: 'social-recovery/recovery',
+  socialRecoveryApprove: 'social-recovery/approve',
+  socialRecoveryCancel: 'social-recovery/cancel',
+  socialRecoveryManage: 'social-recovery/manage',
+  socialRecoverySetupEditor: 'social-recovery/setup/editor',
+  socialRecoverySetupEnroll: 'social-recovery/setup/enroll',
+  socialRecoverySetupWaitingPeriod: 'social-recovery/setup/waiting-period',
+  socialRecoverySetupPrivacy: 'social-recovery/setup/privacy',
+  socialRecoverySetupReview: 'social-recovery/setup/review',
+  socialRecoverySetupSave: 'social-recovery/setup/save',
+  socialRecoverySetupCard: 'social-recovery/setup/card',
+  socialRecoveryFastTrackKey: 'social-recovery/fast-track/key',
+  socialRecoveryFastTrackGas: 'social-recovery/fast-track/gas',
+  socialRecoveryRecoveryAccount: 'social-recovery/recovery/account',
+  socialRecoveryRecoveryReadout: 'social-recovery/recovery/readout',
+  socialRecoveryRecoveryChecklist: 'social-recovery/recovery/checklist',
+  socialRecoveryRecoveryInProgress: 'social-recovery/recovery/in-progress',
+  socialRecoveryRecoverySubmit: 'social-recovery/recovery/submit',
+  socialRecoveryRecoveryWait: 'social-recovery/recovery/wait',
+  socialRecoveryRecoveryDone: 'social-recovery/recovery/done',
+  socialRecoveryManageEdit: 'social-recovery/manage/edit',
+  socialRecoveryManageReview: 'social-recovery/manage/review',
+  socialRecoveryManageRemove: 'social-recovery/manage/remove'
 }
 
 const ROUTES = { ...MOBILE_ROUTES, ...WEB_ROUTES }
