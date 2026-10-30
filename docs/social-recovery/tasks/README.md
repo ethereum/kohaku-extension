@@ -102,6 +102,7 @@ A follow-up task is work the cut did not hold: a seam a task or a review found, 
 | FU-BN | The paste field says any guardian's approval can go there, and a paste that counted on another guardian's row says so (Linear EFI-1049) | PT-058 | `recovery/checklist` | #155 | merged on `dev/wonderland` at 1e34f353da (2026-10-29) |
 | FU-BO | A deployed smart-account guardian this wallet controls signs on the approval page through its own wallet, checked by the account's ERC-1271; an undeployed one is refused with the reason (Linear EFI-1050; the owner's option A of 2026-10-29) | PT-064, PT-058 | `guardian-page`, `shared/client` | #158 | merged on `dev/wonderland` at fcdd88cb13 (2026-10-29) |
 | FU-BP | The recoverer's band on both views of main-dashboard and in the popup, capped at the content width (Linear EFI-1051) | PT-057, PT-061 | `recovery/checklist`, one mount line in the PPv1 dashboard | #157 | merged on `dev/wonderland` at 2e3f7a221b (2026-10-29) |
+| FU-BQ | Every loading line of the module reads in the primary text colour, and five inputs show a placeholder: the guardian address field, the account lookup, and the recovery password on the recovery entry, the Recovery Card and the management overview's locked path (Linear EFI-1052; the sidebar's grey and the logo's contrast are the wallet's own and dismissed) | PT-046, PT-054, PT-056, PT-048, PT-067 | `shared/chrome`, five placeholder props, five strings | #161 | merged on `dev/wonderland` at ea99530470 (2026-10-30) |
 
 ## Open questions
 
