@@ -152,6 +152,7 @@ export interface Mounted {
   text: () => string
   press: (id: string) => Promise<void>
   type: (id: string, value: string) => Promise<void>
+  inputOf: (id: string) => HTMLInputElement | null
   isDisabled: (id: string) => boolean
   isChecked: (id: string) => boolean
   /** Whether the first node comes after the second in the page, as a reader meets them. */
@@ -847,6 +848,7 @@ const mount = async (element: React.ReactElement): Promise<Mounted> => {
       })
       await settle()
     },
+    inputOf,
     isDisabled: (id) => byTestId(id)?.getAttribute('aria-disabled') === 'true',
     isChecked: (id) => byTestId(id)?.getAttribute('aria-checked') === 'true',
     comesAfter: (later, earlier) => {

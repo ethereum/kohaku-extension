@@ -32,16 +32,19 @@ jest.mock('@common/components/Spinner', () => {
 // React only runs effects and state updates inside act() when this flag is set.
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
-const THEME = Object.fromEntries(
-  Object.entries(themeConfig).map(([name, byType]) => [name, byType[THEME_TYPES.LIGHT]])
-) as ThemeProps
+const themeOf = (type: THEME_TYPES.LIGHT | THEME_TYPES.DARK) =>
+  Object.fromEntries(
+    Object.entries(themeConfig).map(([name, byType]) => [name, byType[type]])
+  ) as ThemeProps
 
-const THEME_CONTEXT: ThemeContextReturnType = {
-  theme: THEME,
-  themeType: THEME_TYPES.LIGHT,
-  selectedThemeType: THEME_TYPES.LIGHT,
+const contextOf = (type: THEME_TYPES.LIGHT | THEME_TYPES.DARK): ThemeContextReturnType => ({
+  theme: themeOf(type),
+  themeType: type,
+  selectedThemeType: type,
   setThemeType: () => {}
-}
+})
+
+const THEME_CONTEXT = contextOf(THEME_TYPES.LIGHT)
 
 let container: HTMLDivElement
 let root: Root
@@ -57,10 +60,17 @@ afterEach(() => {
   container.remove()
 })
 
-const mount = (element: React.ReactElement) =>
+const mount = (element: React.ReactElement, context: ThemeContextReturnType = THEME_CONTEXT) =>
   act(() => {
-    root.render(<ThemeContext.Provider value={THEME_CONTEXT}>{element}</ThemeContext.Provider>)
+    root.render(<ThemeContext.Provider value={context}>{element}</ThemeContext.Provider>)
   })
+
+/** A colour as the browser writes it once it has parsed it. */
+const parsedColour = (value: string) => {
+  const probe = document.createElement('span')
+  probe.style.color = value
+  return probe.style.color
+}
 
 const byTestId = (id: string) => container.querySelector<HTMLElement>(`[data-testid="${id}"]`)
 
@@ -106,6 +116,35 @@ describe('the waiting block', () => {
     expect(children).toHaveLength(2)
     expect(children[0].getAttribute('data-testid')).toBe('spinner')
     expect(children[1].getAttribute('data-testid')).toBe('loading-message')
+  })
+})
+
+describe('the colour of the waiting line', () => {
+  const THEMES = [THEME_TYPES.LIGHT, THEME_TYPES.DARK] as const
+  THEMES.forEach((type) => {
+    const context = contextOf(type)
+    VARIANTS.forEach((variant) => {
+      it(`draws the line in the primary text colour in the ${variant} variant, ${type} theme`, () => {
+        mount(<LoadingBlock variant={variant} message="Reading your accounts…" />, context)
+
+        const line = byTestId(`loading-${variant}`)?.querySelector<HTMLElement>(
+          '[data-testid="loading-message"]'
+        )
+        if (!line) {
+          throw new Error('the block drew no line')
+        }
+        const colour = getComputedStyle(line).color
+        expect(colour).toBe(parsedColour(String(context.theme.primaryText)))
+        expect(colour).not.toBe(parsedColour(String(context.theme.secondaryText)))
+      })
+    })
+  })
+
+  it('draws the refreshing line in the primary text colour', () => {
+    mount(<RefreshingLine />)
+
+    const line = byTestId('loading-message') as HTMLElement
+    expect(getComputedStyle(line).color).toBe(parsedColour(String(THEME_CONTEXT.theme.primaryText)))
   })
 })
 

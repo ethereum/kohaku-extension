@@ -233,6 +233,13 @@ describe('the guardian row', () => {
       expect(view!.text()).toContain(t(`${GUARDIAN}.lead`))
     })
 
+    it('shows what the address field takes before anything is typed', async () => {
+      await open()
+      expect(view!.inputOf('guardian-address')?.placeholder).toBe(
+        t('socialRecovery.enroll.guardian.addressPlaceholder')
+      )
+    })
+
     it('holds Add while the field names no address', async () => {
       await open()
       expect(view!.isDisabled('guardian-add')).toBe(true)

@@ -545,6 +545,7 @@
         "title": "Add your guardians",
         "lead": "A guardian approves your recovery by signing with their own wallet.",
         "pasteHint": "Paste the address, or type a name such as bluejay.eth.",
+        "addressPlaceholder": "Address or ENS name",
         "checksHeader": "What the wallet checked",
         "checksumOk": "The checksum looks right.",
         "checksumFailed": "This address fails its checksum. Check it character by character.",
@@ -796,6 +797,7 @@
       "passwordGoneAction": "Set the recovery password again",
       "carrierAsks": "The first download or print runs now. Every later one asks your extension password.",
       "passwordAsk": "Enter your recovery password to show your Recovery Card. This is not your extension password.",
+      "passwordPlaceholder": "Recovery password",
       "passwordAskAction": "Show the card",
       "wrongRecoveryPassword": "That is not your recovery password. Try again.",
       "passwordUnchecked": "This wallet could not check your recovery password. Try again.",
@@ -877,6 +879,7 @@
         "title": "Which account do you want to recover?",
         "lead": "You do not need the key you lost.",
         "fieldLabel": "Account address or ENS name",
+        "placeholder": "Address or ENS name of the account",
         "networkFixed": "Network · {{network}}",
         "hint": "The address is printed on your Recovery Card.",
         "whereTitle": "Where do I find the address?",
@@ -977,6 +980,7 @@
         "notExtensionPassword": "This is not your extension password."
       },
       "unlock": "Unlock",
+      "passwordPlaceholder": "Recovery password",
       "shapePreview": "The structure is visible. Enter the recovery password to reveal the method details and collect approvals.",
       "publicLine": "No recovery password is set. You can continue without one.",
       "wrongPassword": {
@@ -1577,6 +1581,7 @@
           "body": "This wallet cannot show your setup on this device yet. Enter the recovery password from your Recovery Card.",
           "action": "Enter the recovery password",
           "field": "Recovery password",
+          "passwordPlaceholder": "Recovery password",
           "wrong": "That is not the recovery password of this setup.",
           "unlock": "Show the path"
         },

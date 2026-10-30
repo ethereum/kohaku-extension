@@ -33,6 +33,7 @@ const GuardianAddressField = ({
         testID="guardian-address"
         value={value}
         onChangeText={setValue}
+        placeholder={t('socialRecovery.enroll.guardian.addressPlaceholder')}
         button={canPaste ? t('socialRecovery.actions.paste') : null}
         onButtonPress={paste}
       />

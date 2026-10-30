@@ -80,6 +80,7 @@ const RecoveryPasswordAsk = ({ check }: RecoveryPasswordAskProps) => {
         value={typed}
         onChangeText={setTyped}
         onSubmitEditing={submit}
+        placeholder={t('socialRecovery.card.passwordPlaceholder')}
         containerStyle={spacings.mb0}
       />
       {line === 'wrong' && (

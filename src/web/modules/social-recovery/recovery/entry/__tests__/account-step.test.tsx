@@ -160,6 +160,13 @@ describe('the account field', () => {
     })
   })
 
+  it('shows what the account field takes before anything is typed', async () => {
+    const page = await open(LOGGED_IN)
+    expect(page.inputOf('entry-account-input')?.placeholder).toBe(
+      t('socialRecovery.entry.account.placeholder')
+    )
+  })
+
   it('names the one network with no switch', async () => {
     const page = await open(LOGGED_IN)
     expect(page.textOf('entry-network')).toBe(

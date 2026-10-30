@@ -192,6 +192,18 @@ describe('the overview', () => {
     expect(view.byTestId('overview-locked-field')).not.toBeNull()
   })
 
+  it("shows what the locked path's password field takes before anything is typed", async () => {
+    view = await render(
+      viewPropsOf({
+        reads: readsOf({ facts: answered({}), path: { kind: 'locked', level: 'private' } })
+      })
+    )
+    await view.press('overview-locked-action')
+    expect(view.byTestId('overview-locked-field')?.getAttribute('placeholder')).toBe(
+      t('socialRecovery.management.overview.locked.passwordPlaceholder')
+    )
+  })
+
   it('reads the wrong password on the locked path', async () => {
     view = await render(
       viewPropsOf({

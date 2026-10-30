@@ -665,6 +665,12 @@ describe('the recovery card screen', () => {
       expect(carriersDisabled()).toEqual([true, true])
     })
 
+    it('shows what the recovery password field takes before anything is typed', async () => {
+      savedSetup()
+      await mount(newAccount())
+      expect(recoveryField()?.placeholder).toBe(t('socialRecovery.card.passwordPlaceholder'))
+    })
+
     it('keeps the gone line and asks nothing when the account has no saved setup', async () => {
       await mount(newAccount())
       expect(byTestId('card-password-gone')?.textContent).toBe(

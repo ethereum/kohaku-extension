@@ -134,6 +134,7 @@ const LookupField = ({
           value={value}
           onChangeText={edit}
           onSubmitEditing={lookUp}
+          placeholder={t(`${ACCOUNT}.placeholder`)}
           disabled={resolving}
           autoCapitalize="none"
           autoCorrect={false}

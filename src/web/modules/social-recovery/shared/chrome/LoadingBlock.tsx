@@ -24,7 +24,7 @@ const LoadingBlock = ({ message, variant }: LoadingBlockProps) => {
         <Text
           testID="loading-message"
           fontSize={12}
-          appearance="secondaryText"
+          appearance="primaryText"
           numberOfLines={1}
           style={spacings.mlTy}
         >
@@ -47,7 +47,7 @@ const LoadingBlock = ({ message, variant }: LoadingBlockProps) => {
       <Text
         testID="loading-message"
         fontSize={14}
-        appearance="secondaryText"
+        appearance="primaryText"
         style={[spacings.mtSm, { textAlign: 'center' }]}
       >
         {message}

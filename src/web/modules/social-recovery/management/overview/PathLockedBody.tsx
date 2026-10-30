@@ -80,6 +80,7 @@ const PathLockedBody = ({
         value={typed}
         onChangeText={onChange}
         onSubmitEditing={onSubmit}
+        placeholder={t(`${LOCKED}.passwordPlaceholder`)}
         containerStyle={spacings.mb0}
       />
       <ActionsRow

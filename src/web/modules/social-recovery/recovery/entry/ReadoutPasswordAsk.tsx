@@ -123,6 +123,7 @@ const ReadoutPasswordAsk = ({
           value={typed}
           onChangeText={setTyped}
           onSubmitEditing={submit}
+          placeholder={t(`${READOUT}.passwordPlaceholder`)}
           containerStyle={spacings.mb0}
         />
         <Text fontSize={12} appearance="secondaryText" style={spacings.mtTy}>

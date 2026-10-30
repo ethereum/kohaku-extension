@@ -143,6 +143,14 @@ describe('the readout at Private', () => {
     expectConfigured(page)
   })
 
+  it('shows what the password field takes before anything is typed', async () => {
+    await commitLostSetup('private')
+    const page = await open()
+    expect(page.inputOf('readout-password-field')?.placeholder).toBe(
+      t('socialRecovery.readout.passwordPlaceholder')
+    )
+  })
+
   it('keeps unlock off while the field is empty', async () => {
     const world = await commitLostSetup('private')
     const getSetup = jest.spyOn(world.client.setup, 'getSetup')
