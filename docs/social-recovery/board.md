@@ -37,6 +37,7 @@ The state of the work after the QA round's fourth pass of 2026-11-02: three more
 - An `eth_call` node error reaches the module through ethers as a CALL_EXCEPTION with the node's message under `info.error.message`; the history refusal reads the nested messages, now also "historical state is not available".
 - The Colibri prover answers 503 ("must be updated to v3 to verify Glamsterdam blocks"), so a build whose `.env` selects the Colibri provider fails every read; a walk sets the throwaway profile's Sepolia network to unverified. The public node without a key prunes two of three `eth_getLogs` over the 10,000-block range and refuses old state; the readout needed up to 35 retries.
 - The gate removes `build/` at its end, so a walk's build is made in the lane worktree after the gate. The gate queue can consume a line and run nothing; start a gate directly when none runs.
+- ethereum/kohaku-extension#258's base moved from `dev-wonderland` to `main` on 2026-11-02: `dev-wonderland` was a branch we created from `main` on 2026-09-28, never advanced, still identical to `main` (72922ab25c), and the ethereum team merges every pull request into `main`; the PR keeps its number, comments and head.
 
 ---
 
