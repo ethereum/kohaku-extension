@@ -35,12 +35,7 @@ import {
   SocialRecoveryBuilder,
   walletMethod
 } from '@kohaku-eth/social-recovery'
-import type {
-  DeploymentDescriptor,
-  IProvider,
-  IRecoveryMethod,
-  ISignerRecovery
-} from '@kohaku-eth/social-recovery'
+import type { DeploymentDescriptor, IProvider, IRecoveryMethod } from '@kohaku-eth/social-recovery'
 import { anonAadhaarMethod, zkPassportMethod } from '@kohaku-eth/social-recovery/recovery-methods'
 
 import { PROXY_AMBIRE_ACCOUNT } from '@ambire-common/consts/deploy'
@@ -53,6 +48,7 @@ import { descriptorOf } from './descriptors'
 import { AADHAAR_ARTIFACTS } from './identity-artifacts'
 import { identityParamsOf, methodParamsOf } from './identity-params'
 import { createRecoverySetupClient } from './setup-client'
+import { createSignerRecovery } from './signer-recovery'
 import { sdkStandIn } from './stand-in'
 import type {
   DigestVersionRefusal,
@@ -84,11 +80,6 @@ export const digestVersionRefusal = (
 
 export const isDigestVersionRefusal = (value: unknown): value is DigestVersionRefusal =>
   value instanceof Error && value.name === 'DigestVersionRefusal'
-
-/** The key that sent an account's own transaction: the account's keys send it themselves. */
-const SIGNER_RECOVERY: ISignerRecovery = {
-  recoverSigner: async (transaction) => transaction.from
-}
 
 /** The provider a chain's client reads: the extension's for a deployment, the fake node's otherwise. */
 const providerOf = (
@@ -179,7 +170,7 @@ export const buildRecoveryClient = async (
     .withPolicyManager(policyManager)
     .withCodec(codec)
     .withEventManager({ logChunkSize: configuration.logChunkSize })
-    .withSignerRecovery(SIGNER_RECOVERY)
+    .withSignerRecovery(createSignerRecovery(descriptor.chainId, provider))
   methods.forEach((method) => builder.withMethod(method))
 
   await readManagerDomain(policyManager, descriptor.manager, provider)

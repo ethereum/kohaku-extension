@@ -6,11 +6,14 @@ import type {
   RawLog,
   Reply
 } from '@kohaku-eth/social-recovery'
+import type { TransactionShape } from '@web/modules/social-recovery/shared/client/__fixtures__/types'
 import type { PrivilegeAccount } from '@web/modules/social-recovery/shared/client/types'
 import type { worldOf } from '@web/modules/social-recovery/shared/client/wallet-reads/__fixtures__/world'
 
 /** An account scripted on the provider, deployed unless its code is empty, with no creation record unless one is given. */
 export interface AccountWorldOptions {
+  /** The account's address on the chain; the scripted provider's account by default. */
+  account?: Address
   /** The account record's address as the wallet stores it; the world's account by default. */
   addr?: string
   /** The account's code; deployed code by default. */
@@ -20,8 +23,11 @@ export interface AccountWorldOptions {
   /** The block the manager was deployed at; the harness's by default. */
   deployedAt?: number
   logs?: RawLog[]
-  /** The sender each transaction hash names, or the error its read rejects with. */
-  senders?: [Hex, Address | Error][]
+  /**
+   * The sender each transaction hash names, or the error its read rejects
+   * with, and where given what else the transaction carries.
+   */
+  senders?: [Hex, Address | Error, TransactionShape?][]
   /** The keys the account's `privileges` view answers a value for. */
   holders?: Address[]
   /** The keys the action's `isAuthority` answers true for. */

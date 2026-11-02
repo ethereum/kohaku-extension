@@ -680,6 +680,21 @@ export type RecoveryClientState =
   | { status: 'failed'; error: unknown }
 
 // ---------------------------------------------------------------------------
+// The signer recovery
+// ---------------------------------------------------------------------------
+
+/** One batch of calls a transaction runs on an account, with the signature that authorised it. */
+export interface SignedBatch {
+  calls: Call[]
+  signature: Hex
+}
+
+/** A signed batch with the account nonce it ran at. */
+export interface NoncedBatch extends SignedBatch {
+  nonce: bigint
+}
+
+// ---------------------------------------------------------------------------
 // The signer facade
 // ---------------------------------------------------------------------------
 

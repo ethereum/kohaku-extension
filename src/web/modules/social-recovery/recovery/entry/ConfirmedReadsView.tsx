@@ -36,6 +36,14 @@ const REFUSAL_REASONS: Record<RecoverRefusal, string> = {
   'removed-not-authority': `${ENTRY}.refusal.removedNotAuthority`
 }
 
+/** The headline of a refusal: one shared, and its own where no key could be named. */
+const REFUSAL_TITLES: Record<RecoverRefusal, string> = {
+  'not-supported': `${CANNOT_RECOVER}.title`,
+  'several-keys': `${CANNOT_RECOVER}.title`,
+  'removed-unknown': `${ENTRY}.refusal.removedUnknownTitle`,
+  'removed-not-authority': `${CANNOT_RECOVER}.title`
+}
+
 const DESTINATION_REFUSALS: Record<DestinationRefusal, string> = {
   'already-a-key': `${ENTRY}.destination.alreadyAKey`,
   'holds-privilege': `${ENTRY}.destination.holdsPrivilege`,
@@ -150,7 +158,7 @@ const ConfirmedReadsView = ({
             style={spacings.mrSm}
           />
           <Text fontSize={16} weight="medium" testID="entry-cannot-recover-title">
-            {t(`${CANNOT_RECOVER}.title`)}
+            {t(REFUSAL_TITLES[step.refusal])}
           </Text>
         </View>
         <Text fontSize={14} appearance="secondaryText" testID="entry-cannot-recover-reason">

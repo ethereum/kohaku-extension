@@ -35,7 +35,13 @@ import {
 import { PROXY_AMBIRE_ACCOUNT } from '@ambire-common/consts/deploy'
 import { revertedCall } from '@web/modules/social-recovery/shared/client/provider-adapter'
 
-import type { CommittedFields, ProviderCall, ScriptedProvider, ScriptedState } from './types'
+import type {
+  CommittedFields,
+  ProviderCall,
+  ScriptedProvider,
+  ScriptedState,
+  TransactionShape
+} from './types'
 
 export const ACCOUNT: Address = '0x1111111111111111111111111111111111111111'
 export const MANAGER: Address = '0xa1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1'
@@ -84,6 +90,7 @@ export const scriptedProvider = (): ScriptedProvider => {
   const codes = new Map<string, { code: Hex; from: number }>()
   const logs: RawLog[] = []
   const senders = new Map<string, Address | Error>()
+  const shapes = new Map<string, TransactionShape>()
   const calls: ProviderCall[] = []
   const head = { number: HEAD, timestamp: HEAD_TIMESTAMP, hash: pad(`0x${HEAD.toString(16)}`) }
   const keyOf = (to: Address, data: Hex) => `${to.toLowerCase()}:${data.toLowerCase()}`
@@ -135,7 +142,8 @@ export const scriptedProvider = (): ScriptedProvider => {
         to: MANAGER,
         input: '0x',
         blockNumber: head.number,
-        blockHash: head.hash
+        blockHash: head.hash,
+        ...shapes.get(hash.toLowerCase())
       }
     })
   }
@@ -154,8 +162,9 @@ export const scriptedProvider = (): ScriptedProvider => {
     addLog: (log) => {
       logs.push(log)
     },
-    setSender: (hash, sender) => {
+    setSender: (hash, sender, shape = {}) => {
       senders.set(hash.toLowerCase(), sender)
+      shapes.set(hash.toLowerCase(), shape)
     },
     calls
   }
@@ -231,19 +240,20 @@ const logAt = (topics: Hex[], data: Hex, blockNumber: number): RawLog => {
 
 const managerTopics = (
   eventName: 'SetupCommitted' | 'AttemptStarted' | 'AttemptConsumed',
-  action: Address
+  action: Address,
+  account: Address = ACCOUNT
 ): Hex[] =>
   encodeEventTopics({
     abi: MANAGER_EVENTS_ABI,
     eventName,
-    args: { account: ACCOUNT, action }
+    args: { account, action }
   }) as Hex[]
 
 const [, , ATTEMPT_STARTED] = MANAGER_EVENTS_ABI
 
 export const committedLog = (fields: CommittedFields, blockNumber: number): RawLog =>
   logAt(
-    managerTopics('SetupCommitted', fields.action ?? ACTION),
+    managerTopics('SetupCommitted', fields.action ?? ACTION, fields.account),
     encodeAbiParameters(
       [{ type: 'uint64' }, { type: 'bytes32' }, { type: 'bytes' }, { type: 'bytes' }],
       [

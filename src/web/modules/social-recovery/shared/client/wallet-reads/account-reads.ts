@@ -14,10 +14,11 @@
  *
  * - the keys the wallet knows for the account: its creation privileges, its
  *   associated keys and the keys the wallet holds for it;
- * - the sender of the transaction that carried the account's latest setup
- *   commit at the action, since a setup is saved by the key that controls
- *   the account (a save a relayer sent names the relayer, which the checks
- *   below drop);
+ * - the key that signed the transaction that carried the account's latest
+ *   setup commit at the action, since a setup is saved by the key that
+ *   controls the account: the signer the account's own signature in the
+ *   transaction names, for a save a relayer sent, and the transaction's
+ *   sender, for a save the key sent itself;
  * - the new key of the account's latest handover the manager consumed, its
  *   attempt's payload decoded through the action's codec;
  * - the addresses the account's `LogPrivilegeChanged` writes name.
@@ -52,6 +53,7 @@ import {
 import { ACCOUNT_PRIVILEGES_ABI } from '../abi'
 import { notificationsInChunks } from '../events'
 import type { FitCheckReading, RecoveryAttemptState, RemovedKeyReading } from '../types'
+import { recoveredSignersOf } from '../signer-recovery'
 import { readAttemptState } from './attempt-state'
 import { historyRefused } from './history-refusal'
 import { distinctKeys, holdsPrivilege } from './privilege-reads'
@@ -106,7 +108,11 @@ export const createWalletReads = ({
       return []
     }
     const transaction = await provider.transaction(commit.at.transactionHash)
-    return transaction ? [getAddress(transaction.from)] : []
+    if (!transaction) {
+      return []
+    }
+    const signers = await recoveredSignersOf(transaction, addressOf(), descriptor.chainId, provider)
+    return distinctKeys([...signers, getAddress(transaction.from)])
   }
 
   const handedToOf = (notifications: readonly KitNotification[]): Address[] => {

@@ -768,7 +768,11 @@ describe('the fit reads', () => {
       script()
       const page = await open(LOGGED_IN)
       await confirmLost(page)
-      expect(page.textOf('entry-cannot-recover-title')).toBe(CANNOT_RECOVER)
+      expect(page.textOf('entry-cannot-recover-title')).toBe(
+        reason === t('socialRecovery.entry.refusal.removedUnknown')
+          ? t('socialRecovery.entry.refusal.removedUnknownTitle')
+          : CANNOT_RECOVER
+      )
       expect(page.textOf('entry-cannot-recover-reason')).toBe(reason)
       expectNoContinue(page)
       expect(kit.holdsAnyPrivilege).not.toHaveBeenCalled()
@@ -779,13 +783,28 @@ describe('the fit reads', () => {
     kit.removedKey.mockResolvedValueOnce({ kind: 'unavailable', cause: 'no-source' })
     const page = await open(LOGGED_IN)
     await confirmLost(page)
-    expect(page.textOf('entry-cannot-recover-title')).toBe(CANNOT_RECOVER)
+    expect(page.textOf('entry-cannot-recover-title')).toBe(
+      t('socialRecovery.entry.refusal.removedUnknownTitle')
+    )
     expect(page.textOf('entry-cannot-recover-reason')).toBe(
       t('socialRecovery.entry.refusal.removedUnknown')
     )
     expect(page.has('entry-reads-fit-failed')).toBe(false)
     expectNoRetry()
     expectNoContinue(page)
+  })
+
+  it('heads an unnamed removed key with a title of its own, never the shared one', async () => {
+    kit.removedKey.mockResolvedValueOnce({ kind: 'unavailable', cause: 'not-a-key' })
+    const page = await open(LOGGED_IN)
+    await confirmLost(page)
+    const title = page.textOf('entry-cannot-recover-title')
+    expect(title).toBe(t('socialRecovery.entry.refusal.removedUnknownTitle'))
+    expect(title).not.toBe(CANNOT_RECOVER)
+    expect(title).not.toBe('socialRecovery.entry.refusal.removedUnknownTitle')
+    expect(page.textOf('entry-cannot-recover-reason')).toBe(
+      t('socialRecovery.entry.refusal.removedUnknown')
+    )
   })
 
   it('refuses an account with no code and no creation record under its full address, with no retry', async () => {

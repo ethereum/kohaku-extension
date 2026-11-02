@@ -499,6 +499,20 @@ describe('a node that refuses code reads at past blocks for its pruned history',
     [
       "a geth node's missing trie node",
       providerReadFailure('code', new Error('missing trie node 5a3c9e1f (path ) <nil>'))
+    ],
+    [
+      'a node with no historical state, the node error ethers keeps',
+      providerReadFailure(
+        'code',
+        Object.assign(new Error('could not coalesce error'), {
+          info: {
+            error: {
+              code: -32000,
+              message: `historical state 0x${'73'.repeat(32)} is not available`
+            }
+          }
+        })
+      )
     ]
   ]
 

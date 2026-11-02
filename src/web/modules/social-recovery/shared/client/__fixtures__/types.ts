@@ -6,6 +6,7 @@ import type {
   Hex,
   IProvider,
   RawLog,
+  RawTransaction,
   BackupChoice
 } from '@kohaku-eth/social-recovery'
 import type {
@@ -76,11 +77,18 @@ export interface ScriptedProvider {
   /** Gives `address` its code from block `from` on (block 0 by default); a read at a named tag sees it. */
   setCode(address: Address, code: Hex, from?: number): void
   addLog(log: RawLog): void
-  /** Scripts the sender of one transaction, or the error its read rejects with. */
-  setSender(hash: Hex, sender: Address | Error): void
+  /**
+   * Scripts the sender of one transaction, or the error its read rejects
+   * with, and where given its recipient, input and block (the manager, no
+   * input and the head by default).
+   */
+  setSender(hash: Hex, sender: Address | Error, shape?: TransactionShape): void
   /** Every call answered or refused, in order. */
   calls: ProviderCall[]
 }
+
+/** What a scripted transaction carries beside its sender. */
+export type TransactionShape = Partial<Pick<RawTransaction, 'to' | 'input' | 'blockNumber'>>
 
 /** The setup state the scripted manager answers for the account and the action. */
 export interface ScriptedState {
@@ -97,6 +105,8 @@ export interface ScriptedState {
 /** What a setup commit log carries; the action is the world's by default. */
 export interface CommittedFields {
   action?: Address
+  /** The account the commit is for; the world's by default. */
+  account?: Address
   nonce: bigint
   setupCommitment: Hex
   publicMetadata?: Hex
@@ -377,3 +387,17 @@ export type LettingGoCase = [string, (q: SendWorld) => void, (q: SendWorld) => v
 
 /** A case's name and the push that lets the request go. */
 export type LetGoCase = [string, (id: string) => SendRequestUpdate]
+
+/** A smart account a relayer deploys: its address, and the factory, code and salt that create it. */
+export interface RelayedAccount {
+  addr: Address
+  factory: Address
+  code: Hex
+  salt: bigint
+}
+
+/**
+ * How a key signs an account's batch: the typed operation, the bare hash with
+ * the mode byte `00`, or the bare hash with no mode byte.
+ */
+export type SignatureMode = 'standard' | 'unprotected' | 'plain'

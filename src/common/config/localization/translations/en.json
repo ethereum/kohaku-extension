@@ -940,7 +940,8 @@
         "cardBody": "It carries the exact account address. Nothing printed on it can move money."
       },
       "refusal": {
-        "removedUnknown": "This wallet cannot name the key a recovery would remove on this account.",
+        "removedUnknownTitle": "This wallet could not find the key that controls this account",
+        "removedUnknown": "The chain does not show which key saved this account's recovery path, and a recovery has to name the key it removes. This wallet cannot start one for this account.",
         "removedNotAuthority": "The key a recovery would remove does not hold control of this account.",
         "sameAccount": "This is the account being recovered. Choose another account to receive control."
       },
