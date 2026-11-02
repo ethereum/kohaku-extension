@@ -1,5 +1,47 @@
 # Social recovery board
 
+The state of the work after the alpha swap of 2026-11-02: defi-wonderland/kohaku-extension#163 swapped the SDK to the published package `@kohaku-eth/social-recovery@0.0.1-alpha.1` (FU-AN) and merged as 86dba6613c on `dev/wonderland`. The freeze `dev-wonderland-m12` moved to 86dba6613c on ethereum/kohaku-extension and the fork; ethereum/kohaku-extension#258 follows it.
+
+## The board (the published SDK package)
+
+| Column | What is in it |
+| --- | --- |
+| Reviewed | One implementation round, verified read-only by an independent agent (every item passed; one Low, a docblock line longer than its neighbours, left as is); CodeRabbit approved with no thread; the owner approved. |
+| Merged | #163 on `dev/wonderland` at 86dba6613c (2026-11-02, "FU-AN the published SDK package 0.0.1-alpha.1 for the local build"), after the gate on the lane worktree with the npm tarball installed: 7852 tests, tsc 499 pre-existing errors and 0 under the module, eslint the one pre-existing error, the sweep 0, the build green. It carries: `package.json` pins `@kohaku-eth/social-recovery` at 0.0.1-alpha.1 (the placeholder 0.0.1 is gone); `yarn.lock` carries the package's entry, written by hand (the registry's `resolved` and `integrity`, the dependencies `ox ^0.12.0` and `viem ^2.51.3`, the latter resolving to the 2.54.1 copy the repository already holds), because a `yarn install` rewrites this repository's lockfile wholesale; the README's rule on building the package from a local checkout is gone (the package comes from npm at the pinned version and `yarn install` brings it; the manual-test build step says so); the two optional Lows of the SDK-adoption review: the watcher's hook answers the failed state for a stored reading of another deployment whose record carries a `failed` mark, so the banner shows the failure the badge already counted (one hook test), and the `restoreCountdown` docblock names the deployment it keeps a live session for. No code under the module changed for the swap itself. |
+
+## Rulings of the alpha swap (2026-11-02)
+
+- The swap PR carries the two optional Lows.
+- #163 merged on the owner's word after his review and CodeRabbit's approval.
+- The board PR merges once CodeRabbit approves it.
+
+## Open with the owner
+
+Nothing new; the QA round's rows below stand.
+
+## Open with others
+
+| Question | Owner | What the code does meanwhile |
+| --- | --- | --- |
+| The review of ethereum/kohaku-commons#81 and ethereum/kohaku-extension#258 | ethereum team | The extension's submodule URL points at the fork |
+| The two GitGuardian incidents on #258 | owner (his GitGuardian dashboard) | Nothing |
+
+Nothing is open with the SDK team or the contracts team.
+
+## Recorded, not started
+
+The four rows of the pin section stand: the page-side comparison of the passport reply's circuit version; `ceremony.noMatchCause`; the two identity walks, not needed now by the owner's word; the submodule URL move back after ethereum/kohaku-commons#81.
+
+## Facts the next session should not rediscover
+
+- `@kohaku-eth/social-recovery@0.0.1-alpha.1` was published on 2026-10-30 from ethereum/kohaku#371, which cherry-picked the four `wonderland/dev` commits after alpha.0 (e762781, 1a3b36d, 26519bf, 616efa1) onto master with their five changesets; the "Version Packages (alpha)" PR #372 cut the version.
+- A branch merge of `wonderland/dev` into master does not work: ethereum/kohaku#338 landed as a squash, so git sees the package as two independent additions and reports add/add conflicts in 71 files; later `wonderland/dev` commits reach master the same way, by cherry-pick.
+- The release's `dist` is byte-identical to the local build of `wonderland/dev` at 616efa1, both entries carry the `default` export condition, and the peers are `@anon-aadhaar/core` 2.4.3 and `@zkpassport/sdk` 0.17.1 (the versions the repository pins).
+- Every name the module imports (179 from the core entry, 18 from `recovery-methods`, across 398 files at 0b55d2e43a) exists in the release's declarations; `CreationRecord` is absent, as intended, since the extension owns that type.
+- The shared install of the lanes (the `chore-social-recovery-setup` worktree's `node_modules`) now holds the npm tarball of 0.0.1-alpha.1; a lane that links it tests against the published package.
+
+---
+
 The state of the work after the SDK pin move of 2026-10-29: defi-wonderland/kohaku-extension#153 moved the SDK pin to the fork's `wonderland/dev` 616efa1, adopted the identity methods' dev and test modes and committed the Sepolia deployment, and merged as 191bd8dccc on `dev/wonderland`. The freeze `dev-wonderland-m12` moved to 191bd8dccc on ethereum/kohaku-extension and the fork; ethereum/kohaku-extension#258 follows it.
 
 ## The board (the SDK pin at 616efa1)
@@ -28,7 +70,7 @@ Nothing new; the QA round's rows below stand.
 | --- | --- | --- |
 | The review of ethereum/kohaku-commons#81 and ethereum/kohaku-extension#258 | ethereum team | The extension's submodule URL points at the fork |
 | The two GitGuardian incidents on #258 | owner (his GitGuardian dashboard) | Nothing |
-| An alpha.1 of `@kohaku-eth/social-recovery` from `wonderland/dev` (the ask of 2026-10-29: merge `wonderland/dev` into master so the changesets cut alpha.1) | sdk team | The pin at the fork's `wonderland/dev` 616efa1; the alpha swap (FU-AN) waits |
+| An alpha.1 of `@kohaku-eth/social-recovery` from `wonderland/dev` (the ask of 2026-10-29: merge `wonderland/dev` into master so the changesets cut alpha.1) | sdk team | Done: alpha.1 published 2026-10-30 from ethereum/kohaku#371 (cherry-picks, since #338 was a squash); FU-AN swapped to it in #163 |
 
 Nothing is open with the contracts team: the key move and the deployment are done.
 
@@ -46,7 +88,7 @@ Nothing is open with the contracts team: the key move and the deployment are don
 - The contracts team moved the zkPassport route to 0.21.1 in ethereum/kohaku-contracts (its #6) and deployed Sepolia again (#15, every address new, the implementation unchanged). The record ships no test-only Aadhaar module; the 2026-10-21 test-only module is standalone, and a test build names it through the override variable with `aadhaarTestMode: true`. Every setup of the earlier walks lives on a retired manager.
 - `docs/social-recovery/manual-test/gen-test-qr.js` turns the official UIDAI V1 sample into a fresh V2 code signed with Anon Aadhaar's public test key pair, taken by path, with one fixed other identity for the mismatch test. The previous fixture through the peer's helper made codes the circuit refuses (a double `V2` prefix), which walk B had hit on 2026-10-22; CodeRabbit found it again and it is fixed.
 - The peer `@anon-aadhaar/core` 2.4.3 knows UIDAI's 2021 key only, so a real QR signed by the current key reads `not-judged` locally and the chain decides; the SDK's local verdict is `satisfied` only in test mode with a test QR.
-- The SDK release `@kohaku-eth/social-recovery@0.0.1-alpha.0` (ethereum/kohaku master 3f5960b, 2026-10-28) is the tree of `wonderland/dev` 4e3cc94, before e762781: no `default` export condition, no `account.not-deployed`, no `signedAt`, no `zkPassportVersionOf`, the `METHOD_AADHAAR_*` constants on the core entry only, and the Aadhaar local check still refusing a real QR signed by UIDAI's current key. The swap to the published package (FU-AN) waits for an alpha that carries `wonderland/dev`.
+- The SDK release `@kohaku-eth/social-recovery@0.0.1-alpha.0` (ethereum/kohaku master 3f5960b, 2026-10-28) is the tree of `wonderland/dev` 4e3cc94, before e762781: no `default` export condition, no `account.not-deployed`, no `signedAt`, no `zkPassportVersionOf`, the `METHOD_AADHAAR_*` constants on the core entry only, and the Aadhaar local check still refusing a real QR signed by UIDAI's current key. Alpha.1 (2026-10-30) carries them, and FU-AN swapped to it (#163, 2026-11-02).
 - Of the nine items sent to the SDK team on 2026-10-26: 1, 2, 3, 4, 6 (the decoder `zkPassportVersionOf`; the page-side comparison is ours) and 8 landed in c3cf8dd and e762781; 5 (a separate mismatch cause; the timestamp check before the prover, which e762781 gave through `signedAt`) half; 7 upstream with zkPassport; 9 answered by alpha.0 without EXT-1.
 
 ---
@@ -113,7 +155,7 @@ The state of the work after the QA round of 2026-10-27, which followed milestone
 | 6. The proof's circuit version on the reply or the material, and a decoder of the accepted version, or a typed unsupported-version refusal | sdk team | Landed in c3cf8dd and e762781 (the decoder `zkPassportVersionOf`); the page-side comparison is ours, recorded, not started |
 | 7. The peer's bridge refuses a second handshake by a reference comparison (to report upstream), and the SDK subscribes the bridge's error | sdk team | Upstream with zkPassport; the wait ends 180 s after the handshake with retry; the scan-once line |
 | 8. A `default` condition on both entries of the exports map | sdk team | Landed in c3cf8dd and e762781; the Jest module mapper for the package gone since #153 |
-| 9. The publish of 0.0.2-alpha.0 from `wonderland/dev` at 08480f5, with a date | sdk team | Answered by alpha.0 (2026-10-28) without EXT-1; the pin at 616efa1; the alpha swap (FU-AN) waits for an alpha that carries `wonderland/dev` |
+| 9. The publish of 0.0.2-alpha.0 from `wonderland/dev` at 08480f5, with a date | sdk team | Answered by alpha.0 (2026-10-28) without EXT-1; the pin at 616efa1; the alpha swap (FU-AN) waits for an alpha that carries `wonderland/dev`; alpha.1 of 2026-10-30 carries EXT-1, and FU-AN swapped to it in #163 |
 | The part C rerun after the Safe move (the access test, the save, the claim, the submission and the execution with a real passport; whether a testnet-tree request passes the Sepolia verifier) | sdk owner | Closed by the owner's word of 2026-10-29 (no walks) |
 | The freeze `dev-wonderland-m12` (at b51e7f0498) and ethereum/kohaku-commons#81 (at c163fd9fb2) moved to the new heads, aca263344b and 5cf1d8d9f6 | owner | Done: `dev-wonderland-m12` at 191bd8dccc (2026-10-29); ethereum/kohaku-commons#81's head `dev-wonderland` at 211a00f526, which equals the fork's current commons head (the pointer `dev/wonderland` carries), so the commons part is moved too; its review by the ethereum team stays open (the first row) |
 
@@ -154,10 +196,10 @@ The state of the work after the QA round of 2026-10-27, which followed milestone
 
 | Column | What is in it |
 | --- | --- |
-| Ready | M-12 on the owner's word; the alpha swap (FU-AN) once `@kohaku-eth/social-recovery` is on npm; the follow-ups recorded below. |
+| Ready | M-12 delivered; the alpha swap (FU-AN) done in #163 (2026-11-02); the follow-ups recorded below. |
 | Running | Nothing. |
 | Awaiting review | This board's docs PR (`docs/social-recovery-sdk-adoption`). |
-| Blocked | The owner's cancel, the clear and the removal on Sepolia: the deployed `cancelByOwner` and `clearSetup` take an attempt id and the SDK at 479252c still encodes the address alone, so the three writes revert until the SDK changes (FU-AO). |
+| Blocked | Nothing: FU-AO was done by the SDK pin at 08480f5 in #137 and confirmed on Sepolia by part E on 2026-10-23 (the rulings of 2026-10-29). |
 | Walked | Part A twice on the headless build over the fake node (the passkey enrollment, the approval page's key and the fake node's attempt wait found and fixed; the per-page node and the watcher's need of a deployment recorded) and part B on Sepolia on the 2026-10-20 deployment (the setup, the waiting-period edit, the attempt's start from a second wallet with the guardian's reply verified locally, the 10-minute wait, the execution and the done screen; the holder's notice, band and watcher banner; four transactions signed by the owner; two High findings fixed in round 9, B3 built as FU-AM). Part C on the fake node for FU-AM (the terminal state with and without the watcher's ending, the editor gates, the transaction link, the moved-keys notice; one Medium fixed in round 4). |
 | Merged | #130 the SDK adoption on `dev/wonderland` at 226dcf1437 (2026-10-21, one train after the owner's approval): the extension imports `@kohaku-eth/social-recovery` (the builder, the policy manager, the action, the event manager, the setup and recovery clients, the methods orchestrator, the backup, the revert decoder) and deletes `sdk-interfaces/`, `sdk-doubles/` and `shared/client/kit/`; the host adapters, the records and the screens stay; a fake node implementing the SDK's provider interface serves the build with no deployment and the unit tests; viem 2.54.1; ten rounds, three independent-review passes (ten threads, all fixed or ruled), the CodeRabbit review waived (542 files over its limit). #131 FU-AM on `dev/wonderland` at daddc48eeb (2026-10-21, one train after #130): the overview's terminal state after an executed recovery, the editor gated behind it, the consume transaction's hash on the watcher's ending; five rounds, verified, gated, walked on the fake node (part C); CodeRabbit approved; the independent review's one Medium (the open overview did not re-read on the watcher's ending or a tab return) fixed in round 5. |
 
@@ -177,7 +219,7 @@ The state of the work after the QA round of 2026-10-27, which followed milestone
 | Question | Owner | What the code does meanwhile |
 | --- | --- | --- |
 | The attempt-id ABI of `cancelByOwner` and `clearSetup` and its schedule (asked 2026-10-20) | sdk owner | The owner's cancel, the clear and the removal revert on Sepolia; the screens show the reverted state |
-| The npm alpha publish with a `default` export condition, the viem range note | sdk owner | The placeholder 0.0.1 and the local build (the module's README) |
+| The npm alpha publish with a `default` export condition, the viem range note | sdk owner | Published as alpha.1 on 2026-10-30 with the `default` condition and `viem ^2.51.3`; swapped in #163 |
 | The pin move's schedule, the parameter order of `PolicyManager_ActionDoesNotServeAccount`, `logChunkSize`'s default | sdk owner | The SDK's values at 479252c |
 
 ## Recorded, not started
