@@ -136,6 +136,22 @@ describe('the watched attempt hook', () => {
     expect(latest()).toEqual({ status: 'unwatched' })
   })
 
+  it('reads a failed poll beside a reading of a retired deployment as failed, without the reading', async () => {
+    const retired = {
+      ...OPEN,
+      reading: OPEN.reading && { ...OPEN.reading, deployment: RETIRED_DEPLOYMENT },
+      failed: { at: 2, message: 'node down' }
+    }
+    const sources = sourcesOver({ [watcherKeyOf(SEPOLIA, ACCOUNT)]: recordWith(retired) })
+    await mount(sources)
+
+    expect(latest()).toEqual({
+      status: 'watched',
+      failed: { at: 2, message: 'node down' },
+      attemptDismissed: false
+    })
+  })
+
   it('reads an account the watcher has not polled as unwatched', async () => {
     await mount(sourcesOver({}))
 

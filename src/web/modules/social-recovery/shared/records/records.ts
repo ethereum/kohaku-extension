@@ -1333,7 +1333,7 @@ export const createWalletRecords = ({
    * Keeps the countdown of an attempt found running on chain where the wait
    * reads it, so a recoverer whose own session is gone follows the attempt
    * the chain holds. It holds the session's key and then the recovery entry's,
-   * the order the recoverer's abandon takes them. A live session is kept and
+   * the order the recoverer's abandon takes them. A live session of the countdown's deployment is kept and
    * so is the entry beside it. A landed session of the same deployment is
    * kept where it holds an execution in flight, where it is of the same
    * attempt (its id, its setup nonce and its payload's hash) or where it is of

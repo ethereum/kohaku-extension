@@ -27,7 +27,7 @@ Only the files the implementation reads are here. The personas, the requirements
 
 - The extension consumes the SDK as the package `@kohaku-eth/social-recovery`, its runtime through the extension's own client layer, and keeps a fake node in that layer for a chain with no deployment and for the unit tests.
 - The committed deployment table (`shared/client/deployments.ts`) names the published Sepolia deployment for Sepolia and the stand-in over the fake node for mainnet. The build-time variable `SOCIAL_RECOVERY_SEPOLIA_DEPLOYMENT` overrides the Sepolia row; a malformed value stops the build's first recovery read and never falls back.
-- Until the package is published, the build needs it from a local checkout of `defi-wonderland/kohaku` on its branch `wonderland/dev` (at 616efa1): `pnpm install --filter @kohaku-eth/social-recovery...` and `pnpm --filter @kohaku-eth/social-recovery build` in that checkout, then `pnpm pack` in `packages/social-recovery` and the tarball's contents extracted into this repository's `node_modules/@kohaku-eth/social-recovery` (a packed copy, not a symlink: Jest's transform and Babel resolve a symlink to its real path). `package.json` names the placeholder version 0.0.1 until the alpha is on npm. When it is, swap the version in `package.json` and `yarn.lock` and remove this note.
+- The package is installed from npm at the exact version `package.json` pins (0.0.1-alpha.1, the tree of `defi-wonderland/kohaku` on its branch `wonderland/dev` at 616efa1), and `yarn install` brings it; nothing is packed by hand any more.
 - Records live in the extension's local storage and never in a background controller (D-310).
 - Ceremonies that die on focus loss run in a full tab, never in the action popup (D-316).
 - Every holder-facing build carries one manifest public key (D-312, 2026-09-23), since the passkey relying party is the extension's own origin.
@@ -45,7 +45,7 @@ A tester with this repository, a Mac, a phone and some Sepolia ETH can run the t
 4. Set `SEPOLIA_RPC_URL` to a Sepolia node that serves `eth_getLogs` over 10,000-block ranges and answers `eth_getCode` at old blocks. The public gateway `https://sepolia.gateway.tenderly.co` did on 2026-10-29. A node that prunes history fails the manager's log reads.
 5. Set `SOCIAL_RECOVERY_WAIT_FLOOR_MINUTES=5`, so the setup accepts a waiting period of 5 minutes.
 6. Leave `SOCIAL_RECOVERY_SEPOLIA_DEPLOYMENT` empty to use the committed deployment below.
-7. Install the SDK from the local checkout, as the rule on the package above says.
+7. Run `yarn install`.
 8. Run `yarn build:web:webkit`.
 9. Load `build/webkit-prod` unpacked in Chrome or Chromium (`chrome://extensions`, developer mode, Load unpacked).
 10. Keep exactly one Kohaku tab open during onboarding; two tabs race the onboarding state.

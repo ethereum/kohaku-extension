@@ -6,7 +6,7 @@
  * that is not a watcher record, reads as failed with a retry, never as an
  * account the watcher has not polled. A reading of another deployment than
  * the one this build reads is not shown: the account reads as not polled
- * until the watcher polls it.
+ * until the watcher polls it, or as failed where the last poll failed.
  */
 import { useCallback, useEffect, useState } from 'react'
 
@@ -59,7 +59,9 @@ export const useWatchedAttempt = (
         record.reading &&
         !isOfDeployment(record.reading.deployment, addressBookOf(WALLET_RECOVERY_CHAIN))
       ) {
-        return { status: 'unwatched' }
+        return record.failed
+          ? { status: 'watched', failed: record.failed, attemptDismissed: false }
+          : { status: 'unwatched' }
       }
       return {
         status: 'watched',
