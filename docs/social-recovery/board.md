@@ -1,5 +1,47 @@
 # Social recovery board
 
+The state of the work after the QA round's fourth pass of 2026-11-02: three more pull requests merged on `dev/wonderland`, which stands at 36df338ed4 (submodule 211a00f526): #165 FU-BR (the preset copy on the identity methods, from reviewer feedback), #166 FU-BT (Linear EFI-1049, reopened: the paste field's helper line) and #167 FU-BS (Linear EFI-1054: the key a relayed save signed). Every report under Linear EFI-1038 is Done or Canceled. The freeze `dev-wonderland-m12` moves to this board's merge commit on ethereum/kohaku-extension and the fork; ethereum/kohaku-extension#258 follows it.
+
+## The board (the QA round, fourth pass)
+
+| Column | What is in it |
+| --- | --- |
+| Reviewed | Each PR by a fresh reviewer, every taken finding fixed in a round and confirmed (FU-BR: six Lows, five taken, the card's publication sentence declined since the disclosure sits on the enrollment row and the review step; FU-BT: two Lows in the test file; FU-BS: one Medium, the history refusal missing the "historical state is not available" wording, and two Lows in round 2). The owner's thread on #167 (the refusal's remedy is useless to a recoverer, who has no access to the account) taken as round 3. The independent review pass of 2026-11-02 on #167 (98 of 98 cells; High 0, Medium 2, Low 0): the bare 65-byte unprotected signature taken as round 4; the SDK adapter's single answer declined with evidence and recorded below. CodeRabbit's one thread on #166 (an accessible description linking the helper line to the input) verified and not confirmed: no input in the module or the wallet links a helper line, and the React Native types lack the prop. Every thread answered, none resolved by the coordinator. |
+| Merged | On `dev/wonderland`, one squash per PR after a fresh gate with the integration branch merged in, each on the owner's approval and CodeRabbit's: #165 FU-BR 66b35bd076 (gate at f1640ef324: 7862 tests, tsc 499 pre-existing errors and 0 under the module, eslint the one pre-existing error, the sweep 0, the build green), #166 FU-BT 818c71a32b (gate at 8c9f6a374f: 7867 tests, the rest the same), #167 FU-BS 36df338ed4 (gate at 465dc1e2df: 7906 tests, the rest the same). The owner's docs #164 (f1bafde1a2) sits between them. Linear EFI-1049 and EFI-1054 Done with a comment each. |
+| Walked | FU-BR on both builds (before 0b55d2e43a, after 5411900bec): the two identity cards show the line after the rule line, the three others do not, the passport lead and the disclosure read as merged; the screenshots went to the owner. FU-BT and FU-BS: the checklist was not reached, since the tester's public account keeps a private setup and its readout asks the recovery password, and no recorded throwaway wallet has a path on the deployment in force; the relayed-save case needs a fresh smart account whose save the relayer sends (a Sepolia send, not made); both PR bodies carry the human walkthrough. The FU-BS recipe was checked read-only on Sepolia against the tester's save transaction: the recovered key is the one whose privilege the creation code wrote. |
+| Held | FU-BB, FU-BC and FU-BI as before (the QA round's rows below). |
+| Blocked | Nothing. |
+
+## Rulings of the fourth pass (2026-10-30 to 2026-11-02)
+
+- The preset copy says the ID details stay on the device that reads them, on every card with an identity method (reviewer feedback the owner took on 2026-11-02); the publication disclosure stays on the enrollment row and the review step.
+- EFI-1054 is the feature's own defect and fixed in `shared/client`: the recovery entry recovers the signing key from the relayed save's own signature. A typed-key field on the account step (the SDK's supplied route) is a design change and stays the owner's question below.
+- The refusal for an account whose key cannot be named offers no remedy, since a recoverer has no access to the account (the owner, 2026-11-02).
+- EFI-1049's reopened point taken: the guidance moves to a helper line under the paste field and the placeholder is short.
+- EFI-1053 (the OS notification's Ambire icon) is the wallet's own notification helper, there before the recovery work; Canceled as pre-existing (the owner, 2026-10-30).
+- The editor's no-members message with unenrolled guardian slots, and the Sepolia walk with a smart-account guardian, dismissed by the owner on 2026-10-30.
+- #166 merged on the owner's word with CodeRabbit's review recorded as a comment, its one thread answered.
+
+## Open with the owner
+
+| Question | What the code does meanwhile |
+| --- | --- |
+| A typed-key field on the account step for a recoverer whose key the chain does not name (the SDK's supplied route; a design change) | The entry refuses with the no-remedy text |
+| An accessibility pass over the module's helper lines (the lookup hint, the privacy mismatch line, the threshold line, the paste field's lines, the wallet Input's bottom labels), a task of its own | No input links a helper line, as in the wallet |
+| The SDK adapter answers the first recovered signer only, so the SDK's own inference can lose a second signer, or the sender where the first signer lost authority; no wallet screen reads that inference (the independent reviewer, 2026-11-02) | The checklist supplies the wallet's named key |
+| A Sepolia send (a fresh smart account with a relayed save) to show FU-BS on a real build | The Sepolia read probe and the fake-node tests cover it |
+
+## Facts the next session should not rediscover
+
+- The wallet's relayer sends a first save as the factory's `deployAndExecute`; the signature is the wallet's standard envelope (the typed data of `getSignableHash` with the mode byte 01). The deployed Sepolia implementation accepted it although the submodule's `AmbireAccount.sol` at 211a00f526 checks `execute` against a newer hash.
+- An `eth_call` node error reaches the module through ethers as a CALL_EXCEPTION with the node's message under `info.error.message`; the history refusal reads the nested messages, now also "historical state is not available".
+- The Colibri prover answers 503 ("must be updated to v3 to verify Glamsterdam blocks"), so a build whose `.env` selects the Colibri provider fails every read; a walk sets the throwaway profile's Sepolia network to unverified. The public node without a key prunes two of three `eth_getLogs` over the 10,000-block range and refuses old state; the readout needed up to 35 retries.
+- The gate removes `build/` at its end, so a walk's build is made in the lane worktree after the gate. The gate queue can consume a line and run nothing; start a gate directly when none runs.
+
+---
+
+# Social recovery board
+
 The state of the work after the alpha swap of 2026-11-02: defi-wonderland/kohaku-extension#163 swapped the SDK to the published package `@kohaku-eth/social-recovery@0.0.1-alpha.1` (FU-AN) and merged as 86dba6613c on `dev/wonderland`. The freeze `dev-wonderland-m12` moved to 86dba6613c on ethereum/kohaku-extension and the fork; ethereum/kohaku-extension#258 follows it.
 
 ## The board (the published SDK package)
@@ -117,7 +159,6 @@ The state of the work after the QA round of 2026-10-27, which followed milestone
 - EFI-1050: option A, the chapter's promise for a deployed smart account (it signs through its own wallet on the approval page); a counterfactual smart-account guardian cannot approve in this release, a limit of the implementation rather than of the versioned contract design: ERC-1271 needs code at the address, and the SDK reads the guardian's code flag once when the recovery starts, so the page refuses it with the reason and the paste repair says the request must be started again.
 - The one mount line of the recoverer's band in the main-dashboard page area follows the owner's precedent for the attempt banner (M-10).
 - The module's status lines keep no live region (CodeRabbit's point on #155's paste notice): no status line of the module or the wallet declares one, and the convention stays as it is.
-- Not checked in this round and recorded on #158: the deployed recovery contract accepting an ERC-1271 answer, and the Ambire sign window with a smart account selected over the approval's typed data; a Sepolia walk with a smart-account guardian covers both and needs one signed approval.
 - Recorded, pre-existing: the recoverer's band reads storage at mount only, so an ended session's line stays until a remount; a cross-row paste that completes the guardian group turns the pasted-into row to "Not needed" with no line.
 
 ## Rulings of the round (2026-10-27)
@@ -131,7 +172,6 @@ The state of the work after the QA round of 2026-10-27, which followed milestone
 
 | Question | What the code does meanwhile |
 | --- | --- |
-| With the "Guardians only" preset and three guardian slots not yet enrolled, Continue on the setup editor says the group has no members while the rows read "Not yet active" (seen on FU-BQ's walk, 2026-10-29) | As built; the owner says whether the message gets a lane |
 | A Sepolia deposit of the asked amount then Continue for FU-BF's full path, and the sign window's fee against the module's estimate (the owner, 2026-10-27: skipped; the unit tests cover both; his manual test may run one send) | Unit tests cover it |
 | The cross-icon close of the action window still takes about 6 s (the wallet keeps a calls request on a window close; the owner, 2026-10-27: keep it) | As before |
 | The done screen's question "did you lose a device" (option (b) of FU-BK) would lift D-393's unconditional block and touch the ruling that defers the question to the cleanup release (the owner, 2026-10-27: the copy hedge stays; the question is a design item of the cleanup release) | The copy hedge of FU-BK |
