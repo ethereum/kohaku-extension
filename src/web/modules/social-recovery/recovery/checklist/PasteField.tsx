@@ -82,6 +82,14 @@ const PasteField = ({ place, busy, paste, addReply }: PasteFieldProps) => {
           setElsewhere(false)
         }}
       />
+      <Text
+        testID={`checklist-row-${place}-paste-help`}
+        fontSize={12}
+        appearance="secondaryText"
+        style={spacings.mbSm}
+      >
+        {t(`${GUARDIAN}.pasteHelp`)}
+      </Text>
       {elsewhere && (
         <Text
           testID={`checklist-row-${place}-paste-elsewhere`}

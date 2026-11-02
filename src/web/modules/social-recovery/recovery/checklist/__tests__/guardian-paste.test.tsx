@@ -481,12 +481,89 @@ describe('the guardian paste', () => {
     })
   })
 
-  it("tells the holder that any guardian's approval can go in any field", async () => {
+  it('shows the short placeholder in every field', async () => {
     await open()
     ;[1, 2, 3, 4].forEach((row) => {
       const input = view?.byTestId(id(row, 'paste-input'))
       const field = input instanceof HTMLInputElement ? input : input?.querySelector('input')
       expect(field?.placeholder).toBe(t(`${GUARDIAN}.pasteHint`))
+    })
+  })
+
+  describe('the helper line under the field', () => {
+    const helper = (place: number) => view?.byTestId(id(place, 'paste-help'))
+
+    /** The helper sits after the field and before every line the paste leaves under it. */
+    const expectHelperUnderField = (place: number, below: string[] = []) => {
+      const node = helper(place)
+      expect(node?.textContent).toBe(t(`${GUARDIAN}.pasteHelp`))
+      const field = view?.byTestId(id(place, 'paste-input'))
+      expect(field).not.toBeNull()
+      expect(
+        field &&
+          node &&
+          // eslint-disable-next-line no-bitwise
+          field.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy()
+      below.forEach((name) => {
+        const line = view?.byTestId(id(place, name))
+        expect(line).not.toBeNull()
+        expect(
+          node &&
+            line &&
+            // eslint-disable-next-line no-bitwise
+            node.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING
+        ).toBeTruthy()
+      })
+    }
+
+    it('reads the guidance under every field before anything is typed', async () => {
+      await open()
+      ;[1, 2, 3, 4].forEach((row) => {
+        expect(view?.valueOf(id(row, 'paste-input'))).toBe('')
+        expectHelperUnderField(row)
+      })
+    })
+
+    it('keeps the guidance while the field holds text', async () => {
+      await open()
+
+      await view?.type(id(1, 'paste-input'), 'half a line')
+
+      expect(view?.valueOf(id(1, 'paste-input'))).toBe('half a line')
+      expectHelperUnderField(1)
+    })
+
+    it('keeps the guidance above the line a paste counted on another row leaves', async () => {
+      await open()
+
+      await paste(1, lineOf(replyOf(gathering, 2)))
+
+      expect(view?.valueOf(id(1, 'paste-input'))).toBe('')
+      expectHelperUnderField(1, ['paste-elsewhere'])
+    })
+
+    it('keeps the guidance above the error lines of a failed paste', async () => {
+      await open()
+
+      await paste(1, 'not a reply')
+
+      expect(errorLines(1)).toEqual([
+        t(`${PASTE}.notAnApproval`),
+        t(`${PASTE}.notAnApprovalRepair`)
+      ])
+      expectHelperUnderField(1, ['paste-error'])
+    })
+
+    it('reads a short placeholder and a separate guidance line', async () => {
+      await open()
+      const input = view?.byTestId(id(1, 'paste-input'))
+      const field = input instanceof HTMLInputElement ? input : input?.querySelector('input')
+
+      expect(field?.placeholder).toBe(t(`${GUARDIAN}.pasteHint`))
+      expect(helper(1)?.textContent).toBe(t(`${GUARDIAN}.pasteHelp`))
+      expect(t(`${GUARDIAN}.pasteHint`)).not.toBe(t(`${GUARDIAN}.pasteHelp`))
+      expect(t(`${GUARDIAN}.pasteHelp`)).not.toBe(`${GUARDIAN}.pasteHelp`)
     })
   })
 
