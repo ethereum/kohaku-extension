@@ -416,7 +416,7 @@
       "guardianPublicationHeader": "What a recovery publishes",
       "guardianPublication": "A recovery publishes the whole recovery path on chain in the clear, every method in it and not only the ones it used. Even unused, anyone who can guess a guardian's address can find it.",
       "smartAccount": "If this address is a smart account, whoever controls it can approve for it.",
-      "identity": "This method shows the details on the document, not that you are the one using it now.",
+      "identity": "This method checks the document, not that you are the one using it now.",
       "passportPublication": "If a recovery ever uses this method, the identifier your passport produces goes on chain in the clear, beside your account. Any later setup with the same passport can be linked to it.",
       "aadhaarPublication": "If a recovery ever uses this method, the identifier your Aadhaar produces goes on chain in the clear, beside your account. Any later setup with the same Aadhaar can be linked to it.",
       "items": {
@@ -471,6 +471,7 @@
         }
       },
       "continueUnlock": "Continue unlocks when you pick one.",
+      "identityLine": "Your ID details stay on the device that reads them. The wallet keeps only the identifier your ID produces.",
       "resume": {
         "action": "Resume setup",
         "startOver": "Start over",
@@ -574,7 +575,7 @@
       },
       "passport": {
         "title": "Passport",
-        "lead": "Your phone reads the chip in your passport with the zkPassport app. The result is an identifier only your passport produces.",
+        "lead": "Your phone reads the chip in your passport with the zkPassport app. The details never leave your phone. The result is an identifier only your passport produces.",
         "needsApp": "You need the zkPassport app on a phone that can read the chip. The document must be a passport or an identity card with a chip.",
         "noneYet": "No passport enrolled yet",
         "scanAction": "Scan with your phone",

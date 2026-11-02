@@ -320,6 +320,53 @@ describe('the presets view', () => {
       })
     })
 
+    it('says on each card whose shape holds an ID that the ID details stay on the device', async () => {
+      await mount()
+      const line = t('socialRecovery.presets.identityLine')
+      ;(['deviceAndId', 'eitherOne'] as PresetId[]).forEach((id) => {
+        expect(allByTestId(`identity-line-${id}`)).toEqual([line])
+        expect(byTestId(`preset-${id}`)?.contains(byTestId(`identity-line-${id}`))).toBe(true)
+      })
+    })
+
+    it('says nothing of ID details on a card whose shape holds no ID', async () => {
+      await mount()
+      const line = t('socialRecovery.presets.identityLine')
+      ;(['deviceAndGuardians', 'guardiansOnly', 'fromScratch'] as PresetChoice[]).forEach((id) => {
+        expect(byTestId(`identity-line-${id}`)).toBeNull()
+        expect(byTestId(`preset-${id}`)?.textContent).not.toContain(line)
+      })
+      expect(container.querySelectorAll('[data-testid^="identity-line-"]')).toHaveLength(2)
+    })
+
+    it('puts the ID line after the rule line and before the tagline', async () => {
+      await mount()
+      const textsOf = (id: PresetId) => {
+        const card = byTestId(`preset-${id}`)
+        if (!card) {
+          throw new Error(`no card: ${id}`)
+        }
+        const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT)
+        const texts: string[] = []
+        while (walker.nextNode()) {
+          texts.push(walker.currentNode.nodeValue ?? '')
+        }
+        return texts
+      }
+      const line = t('socialRecovery.presets.identityLine')
+      const ruleLine = (id: PresetId) => byTestId(`rule-line-${id}`)?.textContent ?? ''
+
+      const withTagline = textsOf('deviceAndId')
+      const tagline = t('socialRecovery.presets.cards.deviceAndId.tagline')
+      expect(withTagline.indexOf(ruleLine('deviceAndId'))).toBeGreaterThan(-1)
+      expect(withTagline.indexOf(line)).toBe(withTagline.indexOf(ruleLine('deviceAndId')) + 1)
+      expect(withTagline.indexOf(tagline)).toBe(withTagline.indexOf(line) + 1)
+
+      const withoutTagline = textsOf('eitherOne')
+      expect(withoutTagline.indexOf(ruleLine('eitherOne'))).toBeGreaterThan(-1)
+      expect(withoutTagline.slice(-2)).toEqual([ruleLine('eitherOne'), line])
+    })
+
     it('stores nothing and opens nothing while the holder only reads', async () => {
       await mount()
       expect(await storedStatuses()).toEqual(SETUP_RECORD_NAMES.map(() => 'absent'))

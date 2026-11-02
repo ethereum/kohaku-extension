@@ -5,7 +5,7 @@
 export { PRESETS, presetOf, draftOf, clausesOfShape } from './presets'
 export { emptySlot, slotKindOf } from '@web/modules/social-recovery/shared/records'
 export { startDraft } from './draft'
-export { cardRuleLines, shapeRowsOf } from './lines'
+export { cardRuleLines, identityLineOf, shapeRowsOf } from './lines'
 export { resumeRowsOf, notYetActiveOf, notStartedRowsOf, draftAgeLine } from './resume'
 export type {
   Preset,

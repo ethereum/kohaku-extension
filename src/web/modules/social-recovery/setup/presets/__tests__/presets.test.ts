@@ -16,6 +16,7 @@ import {
   clausesOfShape,
   draftAgeLine,
   draftOf,
+  identityLineOf,
   notStartedRowsOf,
   notYetActiveOf,
   presetOf,
@@ -25,7 +26,12 @@ import {
   startDraft,
   emptySlot
 } from '@web/modules/social-recovery/setup/presets'
-import type { PresetChoice, PresetId, SlotKind } from '@web/modules/social-recovery/setup/presets'
+import type {
+  Preset,
+  PresetChoice,
+  PresetId,
+  SlotKind
+} from '@web/modules/social-recovery/setup/presets'
 import { addressBookOf, WALLET_RECOVERY_CHAIN } from '@web/modules/social-recovery/shared/client'
 import { DEADLINE_LOCALE, renderShortAddress } from '@web/modules/social-recovery/shared/display'
 import {
@@ -245,6 +251,55 @@ describe('a card', () => {
       [{ kind: 'group', count: 'Any 1 of 2', members: ['Passkey', 'Passport'] }],
       [{ kind: 'group', count: 'Any 2 of 3 guardians', members: [] }]
     ])
+  })
+
+  describe('the line that the ID details stay on the device', () => {
+    const IDENTITY_LINE = t('socialRecovery.presets.identityLine')
+    const WITH_ID: PresetId[] = ['deviceAndId', 'eitherOne']
+    const WITHOUT_ID: PresetId[] = ['deviceAndGuardians', 'guardiansOnly']
+
+    WITH_ID.forEach((id) =>
+      it(`${id} shows it, since its shape holds an ID`, () => {
+        expect(identityLineOf(presetOf(id), t)).toBe(IDENTITY_LINE)
+      })
+    )
+
+    WITHOUT_ID.forEach((id) =>
+      it(`${id} shows none, since its shape holds no ID`, () => {
+        expect(identityLineOf(presetOf(id), t)).toBeNull()
+      })
+    )
+
+    it('reads the slots, not the preset: an Aadhaar member beside guardians shows it', () => {
+      const preset: Preset = {
+        ...presetOf('guardiansOnly'),
+        shape: [{ threshold: 2, slots: ['ecdsa', 'ecdsa', 'aadhaar'] }]
+      }
+      expect(identityLineOf(preset, t)).toBe(IDENTITY_LINE)
+    })
+
+    it('reads the slots, not the preset: an ID preset whose shape lost its ID shows none', () => {
+      const preset: Preset = {
+        ...presetOf('deviceAndId'),
+        shape: [
+          { threshold: 1, slots: ['passkey'] },
+          { threshold: 2, slots: ['ecdsa', 'ecdsa', 'ecdsa'] }
+        ]
+      }
+      expect(identityLineOf(preset, t)).toBeNull()
+    })
+
+    it('shows it for an ID in any clause, a passport in the last of three', () => {
+      const preset: Preset = {
+        ...presetOf('deviceAndGuardians'),
+        shape: [
+          { threshold: 1, slots: ['passkey'] },
+          { threshold: 2, slots: ['ecdsa', 'ecdsa', 'ecdsa'] },
+          { threshold: 1, slots: ['zkpassport'] }
+        ]
+      }
+      expect(identityLineOf(preset, t)).toBe(IDENTITY_LINE)
+    })
   })
 })
 

@@ -29,7 +29,7 @@ import { renderChip } from '@web/modules/social-recovery/shared/display'
 import { isSaveInFlightRefusal } from '@web/modules/social-recovery/shared/records'
 
 import { startDraft } from './draft'
-import { cardRuleLines, shapeRowsOf } from './lines'
+import { cardRuleLines, identityLineOf, shapeRowsOf } from './lines'
 import { PRESETS } from './presets'
 import RecoverLink from './RecoverLink'
 import {
@@ -167,6 +167,7 @@ const PresetsView = ({ records, chainId, account, onOpenEditor, onRecover }: Pre
   const renderPreset = (preset: Preset) => {
     const rows = shapeRowsOf(preset, t)
     const members = rows.flatMap((row) => (row.kind === 'group' ? row.members : []))
+    const identityLine = identityLineOf(preset, t)
     return (
       <RadioCard
         key={preset.id}
@@ -218,6 +219,16 @@ const PresetsView = ({ records, chainId, account, onOpenEditor, onRecover }: Pre
             {line}
           </Text>
         ))}
+        {!!identityLine && (
+          <Text
+            testID={`identity-line-${preset.id}`}
+            fontSize={12}
+            appearance="secondaryText"
+            style={spacings.mtTy}
+          >
+            {identityLine}
+          </Text>
+        )}
         {!!preset.taglineKey && (
           <Text fontSize={12} appearance="secondaryText" style={spacings.mtTy}>
             {t(preset.taglineKey)}
