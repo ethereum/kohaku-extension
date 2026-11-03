@@ -85,6 +85,7 @@ const PasswordStepView = ({ setup, onBack }: PasswordStepViewProps) => {
           render={({ field: { onChange, onBlur, value } }) => (
             <InputPassword
               label={t('socialRecovery.display.passwords.extensionPassword')}
+              placeholder={t(`${PASSWORD}.placeholder`)}
               testID="fast-track-password-field"
               onBlur={onBlur}
               onChangeText={onChange}
@@ -112,6 +113,7 @@ const PasswordStepView = ({ setup, onBack }: PasswordStepViewProps) => {
           render={({ field: { onChange, onBlur, value } }) => (
             <InputPassword
               label={t(`${PASSWORD}.repeatLabel`)}
+              placeholder={t(`${PASSWORD}.repeatPlaceholder`)}
               testID="fast-track-password-repeat"
               onBlur={onBlur}
               onChangeText={onChange}

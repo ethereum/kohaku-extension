@@ -20,6 +20,8 @@ import {
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const en: typeof import('@common/config/localization/translations/en.json') = require('@common/config/localization/translations/en.json')
+const i18n: typeof import('@common/config/localization').default =
+  require('@common/config/localization').default
 const {
   WEB_ROUTES
 }: typeof import('@common/modules/router/constants/common') = require('@common/modules/router/constants/common')
@@ -467,6 +469,16 @@ describe('the privacy step', () => {
       expect(field).toContain(S.display.passwords.recoveryPassword)
       expect(field).not.toContain(S.display.passwords.extensionPassword)
       expect(h.text()).not.toContain(S.display.passwords.extensionPassword)
+    })
+
+    it('shows what each password field takes before anything is typed', async () => {
+      await h.mount(recordsOn())
+      expect(h.inputOf('password')?.placeholder).toBe(
+        i18n.t('socialRecovery.privacy.level.passwordPlaceholder')
+      )
+      expect(h.inputOf('password-confirmation')?.placeholder).toBe(
+        i18n.t('socialRecovery.privacy.level.confirmPlaceholder')
+      )
     })
 
     it('holds continue until the password is typed twice', async () => {

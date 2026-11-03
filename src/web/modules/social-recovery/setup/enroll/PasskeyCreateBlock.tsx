@@ -36,6 +36,7 @@ const PasskeyCreateBlock = ({
       <FieldInput
         testID="passkey-name"
         label={t('socialRecovery.enroll.passkey.nameLabel')}
+        placeholder={t('socialRecovery.enroll.passkey.namePlaceholder')}
         value={name}
         maxLength={NAME_MAX_LENGTH}
         onChangeText={(text: string) => setName(clipName(text))}

@@ -91,6 +91,7 @@ const ExtensionPasswordAsk = ({ onConfirmed, onCancel }: PasswordAskAnswer) => {
       <InputPassword
         testID="card-extension-password"
         label={renderPasswordName('extensionPassword', t)}
+        placeholder={t('socialRecovery.card.extensionPasswordPlaceholder')}
         value={password}
         onChangeText={change}
         onSubmitEditing={submit}

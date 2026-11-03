@@ -117,6 +117,17 @@ describe('the fast track route', () => {
       expect(aside?.textContent).toContain(i18n.t('socialRecovery.fastTrack.password.twoPasswords'))
     })
 
+    it('shows what each password field takes before anything is typed', async () => {
+      await mount(FAST_TRACK, ACKNOWLEDGED)
+
+      expect(fieldOf('fast-track-password-field').placeholder).toBe(
+        i18n.t('socialRecovery.fastTrack.password.placeholder')
+      )
+      expect(fieldOf('fast-track-password-repeat').placeholder).toBe(
+        i18n.t('socialRecovery.fastTrack.password.repeatPlaceholder')
+      )
+    })
+
     it('stores the password through the keystore, unlocked', async () => {
       await mount(FAST_TRACK, ACKNOWLEDGED)
       await typePasswords(PASSWORD, PASSWORD)

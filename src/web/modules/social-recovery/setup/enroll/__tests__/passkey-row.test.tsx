@@ -201,6 +201,13 @@ describe('the passkey row', () => {
       expect(view!.inputOf('passkey-name')?.value).toBe(DEFAULT_NAME)
     })
 
+    it('shows what the name field takes once it is emptied', async () => {
+      await open()
+      await view!.type('passkey-name', '')
+      expect(view!.inputOf('passkey-name')?.value).toBe('')
+      expect(view!.inputOf('passkey-name')?.placeholder).toBe(t(`${PASSKEY}.namePlaceholder`))
+    })
+
     it('opens and closes the explainer under Learn more', async () => {
       await open()
       expect(view!.byTestId('passkey-explainer')).toBeNull()

@@ -36,6 +36,7 @@ const PasswordChange = ({ onDone, onCancel }: PasswordChangeProps) => {
           testID="manage-password-field"
           label={t(`${PASSWORD}.field`)}
           accessibilityLabel={t(`${PASSWORD}.field`)}
+          placeholder={t(`${PASSWORD}.fieldPlaceholder`)}
           value={password}
           onChangeText={setPassword}
         />
@@ -43,6 +44,7 @@ const PasswordChange = ({ onDone, onCancel }: PasswordChangeProps) => {
           testID="manage-password-confirm"
           label={t(`${PASSWORD}.confirmField`)}
           accessibilityLabel={t(`${PASSWORD}.confirmField`)}
+          placeholder={t(`${PASSWORD}.confirmPlaceholder`)}
           value={confirmation}
           onChangeText={setConfirmation}
           containerStyle={spacings.mb0}

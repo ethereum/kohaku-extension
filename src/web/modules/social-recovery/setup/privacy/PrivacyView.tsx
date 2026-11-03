@@ -217,6 +217,7 @@ const PrivacyView = ({ records, chainId, account, navigate }: PrivacyViewProps) 
               <InputPassword
                 testID="password"
                 label={t(`${LEVEL}.passwordLabel`)}
+                placeholder={t(`${LEVEL}.passwordPlaceholder`)}
                 value={password}
                 disabled={!loaded}
                 onChangeText={setPassword}
@@ -224,6 +225,7 @@ const PrivacyView = ({ records, chainId, account, navigate }: PrivacyViewProps) 
               <InputPassword
                 testID="password-confirmation"
                 label={t(`${LEVEL}.confirmLabel`)}
+                placeholder={t(`${LEVEL}.confirmPlaceholder`)}
                 value={confirmation}
                 disabled={!loaded}
                 onChangeText={setConfirmation}

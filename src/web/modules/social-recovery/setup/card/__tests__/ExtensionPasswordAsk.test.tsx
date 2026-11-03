@@ -41,6 +41,8 @@ jest.mock('@web/hooks/useKeystoreControllerState', () => {
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const React: typeof import('react') = require('react')
 const en: typeof import('@common/config/localization/translations/en.json') = require('@common/config/localization/translations/en.json')
+const i18n: typeof import('@common/config/localization').default =
+  require('@common/config/localization').default
 const {
   ThemeContext
 }: typeof import('@common/contexts/themeContext') = require('@common/contexts/themeContext')
@@ -153,6 +155,11 @@ describe('the extension password ask', () => {
   it('leads with the line that a later carrier asks the extension password', async () => {
     await render()
     expect(container.textContent?.startsWith(S.card.carrierAsks)).toBe(true)
+  })
+
+  it('shows what the password field takes before anything is typed', async () => {
+    await render()
+    expect(input().placeholder).toBe(i18n.t('socialRecovery.card.extensionPasswordPlaceholder'))
   })
 
   it('sends one unlock on Enter and ignores Enter while the unlock runs', async () => {
