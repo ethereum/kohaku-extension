@@ -5,6 +5,7 @@ import { BannerType } from '@ambire-common/interfaces/banner'
 import DashboardBanner from '@common/modules/dashboard/components/DashboardBanners/DashboardBanner/DashboardBanner'
 import MarketingBanner from '@common/modules/dashboard/components/DashboardBanners/MarketingBanner/MarketingBanner'
 import useBanners from '@common/modules/dashboard/hooks/useBanners'
+import RecoveryAttemptBanner from '@web/modules/social-recovery/cancel/RecoveryAttemptBanner'
 
 const DashboardBanners = () => {
   const [controllerBanners, marketingBanners] = useBanners()
@@ -14,6 +15,7 @@ const DashboardBanners = () => {
       {marketingBanners.map((banner) => (
         <MarketingBanner key={banner.id} banner={banner} />
       ))}
+      <RecoveryAttemptBanner />
       {controllerBanners.map((banner) => (
         <DashboardBanner key={banner.id} banner={{ ...banner, type: banner.type as BannerType }} />
       ))}

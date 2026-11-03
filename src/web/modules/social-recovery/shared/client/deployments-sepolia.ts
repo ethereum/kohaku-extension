@@ -1,0 +1,80 @@
+/**
+ * The Sepolia contracts of the published deployment record
+ * ethereum/kohaku-contracts#15. The identity parameters are this wallet's
+ * own: a different zkPassport domain or scope derives a different identifier
+ * for the same document, and a different Aadhaar seed a different nullifier,
+ * so they must never change on a chain that holds credentials.
+ */
+import type { DeploymentFacts } from './types'
+
+/**
+ * UIDAI's offline e-KYC signing certificate "DS UIDAI 06", valid from
+ * 2026-02-03 to 2029-02-03, whose key the Aadhaar module trusts.
+ */
+export const UIDAI_DS_06_CERTIFICATE = `-----BEGIN CERTIFICATE-----
+MIIHzTCCBrWgAwIBAgIEYkxPUDANBgkqhkiG9w0BAQsFADCBkTELMAkGA1UEBhMC
+SU4xQTA/BgNVBAoTOEd1amFyYXQgTmFybWFkYSBWYWxsZXkgRmVydGlsaXplcnMg
+YW5kIENoZW1pY2FscyBMaW1pdGVkMQ8wDQYDVQQLEwZTdWItQ0ExLjAsBgNVBAMT
+JShuKUNvZGUgU29sdXRpb25zIFN1Yi1DQSBmb3IgRFNDIDIwMjIwHhcNMjYwMjAz
+MDk1NjEyWhcNMjkwMjAzMTcyODM2WjCCAQYxCzAJBgNVBAYTAklOMTEwLwYDVQQK
+EyhVTklRVUUgSURFTlRJRklDQVRJT04gQVVUSE9SSVRZIE9GIElORElBMQ8wDQYD
+VQQREwYxMTAwMDExDjAMBgNVBAgTBURlbGhpMUMwQQYDVQQJEzpCQU5HTEEgU0FI
+SUIgUk9BRCBCRUhJTkQgS0FMSSBNQU5ESVIgR09MRSBNQVJLRVQgTkVXIERFTEhJ
+MSUwIwYDVQQzExw0VEggRkxPT1IgVUlEQUkgSEVBRFFVQVJURVJTMTcwNQYDVQQD
+Ey5EUyBVbmlxdWUgSWRlbnRpZmljYXRpb24gQXV0aG9yaXR5IG9mIEluZGlhIDA2
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAh1+zYnvbcEm0Yz73s5u4
+2odpUJMr9wv5bVw7sOE5nFNbrB+U++5I0f8cL2HoHnJOkwvLZzrD0jG/vxAKi6vi
+i/gjEzUEgrkdIHxMP3D6GJs0MSQHiEXvIGOwPIH3BLtBOc3m28NVNT6Q9iq0gUwu
+xnlhV38UdNhCllqNYhWmAMPJkImgaKrRZvY2pWNs6gd+PlAF/9SO69x3+1meA8kP
+k2ZvQanZlx9tfaExeOe9or3NQiKy2+UbtXrpcoAfYbbWi1OUzXi5bJdhbGp239c1
+fX6UKyUM5IUMY+m3I7wu2WQ7lmeO2n/vwzQz/PKHXPWYu3bydWMLdCi07vOQBqzC
+KwIDAQABo4IDszCCA68wDgYDVR0PAQH/BAQDAgbAMCoGA1UdJQQjMCEGCCsGAQUF
+BwMEBgorBgEEAYI3CgMMBgkqhkiG9y8BAQUwggECBgNVHSAEgfowgfcwgYYGBmCC
+ZGQCAjB8MHoGCCsGAQUFBwICMG4MbENsYXNzIDIgY2VydGlmaWNhdGVzIGFyZSB1
+c2VkIGZvciBmb3JtIHNpZ25pbmcsIGZvcm0gYXV0aGVudGljYXRpb24gYW5kIHNp
+Z25pbmcgb3RoZXIgbG93IHJpc2sgdHJhbnNhY3Rpb25zLjBsBgZggmRkCgEwYjBg
+BggrBgEFBQcCAjBUDFJUaGlzIGNlcnRpZmljYXRlIHByb3ZpZGVzIGhpZ2hlciBs
+ZXZlbCBvZiBhc3N1cmFuY2UgZm9yIGRvY3VtZW50IHNpZ25pbmcgZnVuY3Rpb24u
+MIGsBggrBgEFBQcBAQSBnzCBnDA+BggrBgEFBQcwAYYyaHR0cDovL29jc3AubmNv
+ZGUuaW4vbkNvZGVTb2x1dGlvbnNTdWJDQWZvckRTQzIwMjIwWgYIKwYBBQUHMAKG
+Tmh0dHBzOi8vd3d3Lm5jb2Rlc29sdXRpb25zLmNvbS9yZXBvc2l0b3J5L0NBLVNl
+cnZpY2VzLTIwMjIvbmNvZGVjYTIyU3ViY2ExLmRlcjAMBgNVHRMBAf8EAjAAMCIG
+A1UdEQQbMBmBF2Rpci5jcm0taHFAdWlkYWkubmV0LmluMIIBAAYDVR0fBIH4MIH1
+MEKgQKA+hjxodHRwOi8vd3d3Lm5jb2Rlc29sdXRpb25zLmNvbS9yZXBvc2l0b3J5
+L25jb2RlY2EyMnN1YmNhMS5jcmwwga6ggauggaikgaUwgaIxCzAJBgNVBAYTAklO
+MUEwPwYDVQQKEzhHdWphcmF0IE5hcm1hZGEgVmFsbGV5IEZlcnRpbGl6ZXJzIGFu
+ZCBDaGVtaWNhbHMgTGltaXRlZDEPMA0GA1UECxMGU3ViLUNBMS4wLAYDVQQDEyUo
+bilDb2RlIFNvbHV0aW9ucyBTdWItQ0EgZm9yIERTQyAyMDIyMQ8wDQYDVQQDEwZD
+Ukw0MTIwKwYDVR0QBCQwIoAPMjAyNjAyMDMwOTU2MTJagQ8yMDI5MDIwMzE3Mjgz
+NlowHwYDVR0jBBgwFoAURsE2obZEOWzewDFm8UhoheJjvzswHQYDVR0OBBYEFGZ+
+DVgYpnloELJVhydpAEQE3qV7MBkGCSqGSIb2fQdBAAQMMAobBFY4LjMDAgMoMA0G
+CSqGSIb3DQEBCwUAA4IBAQACmoprnogLK9HqtpDeMPGuTN98tA7ZSOKqs9S+PGIi
+z8h8MnxnlNuUr6HVfe4wWImEeDcfIHWUCPjx/QWy0XeqC09+cwnhdRoQA20CnUMY
+vWoOE9zkOzeks0dEzUD9ENeyG6ToxwHrzSogVO6AZ25dDrgpMtqKLlL0DYkNtZke
+zT3OnRSVeYCKhvaLlDS9SlwaVKjMzIxDQu190lRwqSXyKC7U8LWVkniB7+rEeiaD
+A+9M0jnYvUAj5Jzdp6DuEU94m2RglS3zoHq88OKm/QnayZNBVWYRSrprEMKW3urG
+Xm5JdIO8PkWeSc0JbZJUNg2MBNqzhFDzCjqnf4DIOJdE
+-----END CERTIFICATE-----`
+
+export const SEPOLIA_DEPLOYMENT: DeploymentFacts = {
+  manager: '0xF7Fd795C47025abda8dC4264Bf4Cdec22aC56A62',
+  methodEcdsa: '0x87AcC5584c2aAd5Ede60c2a4730765C0d015b907',
+  methodPasskey: '0x342B1e6CeB3f6ADD8122862FA3095D127DDecAc9',
+  action: '0x445C094570362885dE43aD8FeDE2bA25C04B8A7a',
+  methodAadhaar: '0x12982d4764ecc891c846088Dc6e9ce5fDb81e7b3',
+  methodZkpassport: '0x7eFbe568CAc60CDa42E3e2B978e13aeA66cEca1D',
+  zkPassportDomain: 'social-recovery.kohaku.test',
+  zkPassportScope: 'kohaku-social-recovery',
+  // The Sepolia root registry accepts the testnet certificate tree, which
+  // holds every real certificate.
+  zkPassportTestnetTree: true,
+  aadhaarNullifierSeed: '11155111',
+  aadhaarCertificate: UIDAI_DS_06_CERTIFICATE,
+  deployedAt: 12019037,
+  digestVersion: '1',
+  managerVersion: '1.0.0',
+  auditedActions: [
+    { action: '0x445C094570362885dE43aD8FeDE2bA25C04B8A7a', publisher: 'ethereumFoundation' }
+  ],
+  explorerUrl: 'https://sepolia.etherscan.io'
+}

@@ -1,0 +1,8 @@
+{
+  "phrase": "test test test test test test test test test test test junk",
+  "ordinaryKey": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "offsetKey": "0xCC2bA0B70b1FFAe6a70Ac50E90D8EB484a8CD548",
+  "smartAccount": "0x8c5b13DdBdAC176a4716a8Ba9c3e321Db1ED1aDB",
+  "lostAccount": "0x1111111111111111111111111111111111111111",
+  "seedId": "seed-of-the-new-key"
+}

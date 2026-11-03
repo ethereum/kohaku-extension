@@ -40,13 +40,21 @@ const SwitchAccountScreen = () => {
     [state.currentAction]
   )
 
+  const switchAccountAction = useMemo(
+    () => (state.currentAction?.type === 'switchAccount' ? state.currentAction : null),
+    [state.currentAction]
+  )
+  const requestAction = dAppAction || switchAccountAction
+
   const userRequest = useMemo(() => {
     if (dAppAction?.userRequest?.action?.kind !== 'switchAccount') return null
 
     return dAppAction.userRequest
   }, [dAppAction])
 
-  const nextAccount = userRequest?.action.params?.switchToAccountAddr
+  const nextAccount =
+    userRequest?.action.params?.switchToAccountAddr ||
+    switchAccountAction?.userRequest.meta.switchToAccountAddr
   const nextRequestType = userRequest?.action.params?.nextRequestType
   const nextAccountData = useMemo(() => {
     if (!nextAccount) return null
@@ -63,16 +71,20 @@ const SwitchAccountScreen = () => {
   const dAppData = useMemo(() => userRequest?.session, [userRequest?.session])
 
   const handleDenyButtonPress = useCallback(() => {
-    if (!dAppAction) return
+    if (!requestAction) {
+      return
+    }
 
     dispatch({
       type: 'REQUESTS_CONTROLLER_REJECT_USER_REQUEST',
-      params: { err: t('User rejected the request.'), id: dAppAction.id }
+      params: { err: t('User rejected the request.'), id: requestAction.id }
     })
-  }, [dAppAction, t, dispatch])
+  }, [requestAction, t, dispatch])
 
   const handleAuthorizeButtonPress = useCallback(() => {
-    if (!dAppAction) return
+    if (!requestAction) {
+      return
+    }
 
     if (!nextAccount) {
       addToast(
@@ -92,7 +104,7 @@ const SwitchAccountScreen = () => {
       type: 'MAIN_CONTROLLER_SELECT_ACCOUNT',
       params: { accountAddr: nextAccount }
     })
-  }, [addToast, dAppAction, dispatch, nextAccount, t])
+  }, [addToast, requestAction, dispatch, nextAccount, t])
 
   const responsiveSizeMultiplier = useMemo(() => {
     if (minHeightSize('s')) return 0.85
@@ -103,13 +115,15 @@ const SwitchAccountScreen = () => {
 
   // Resolve the request
   useEffect(() => {
-    if (account?.addr !== nextAccount || !userRequest || !dAppAction) return
+    if (account?.addr !== nextAccount || (!userRequest && !switchAccountAction) || !requestAction) {
+      return
+    }
 
     dispatch({
       type: 'REQUESTS_CONTROLLER_RESOLVE_USER_REQUEST',
-      params: { data: null, id: dAppAction.id }
+      params: { data: null, id: requestAction.id }
     })
-  }, [account?.addr, dAppAction, dispatch, nextAccount, userRequest])
+  }, [account?.addr, requestAction, dispatch, nextAccount, switchAccountAction, userRequest])
 
   return (
     <TabLayoutContainer

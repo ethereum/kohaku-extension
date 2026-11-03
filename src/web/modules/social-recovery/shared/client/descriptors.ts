@@ -1,0 +1,89 @@
+/**
+ * The two deployment descriptors the SDK ships, Sepolia and Ethereum mainnet,
+ * as plain data this build carries.
+ *
+ * Every field of both is a placeholder the stand-in reads: the addresses
+ * (addresses.ts), the deployment block, the digest version and the release
+ * string. A chain whose deployment record (deployments.ts) names a deployed
+ * kit, Sepolia in the committed table, reads that deployment's facts instead. The digest version is
+ * the domain version this build derives typed data under, the manager
+ * contract's `DIGEST_VERSION`; `buildRecoveryClient` refuses a manager that
+ * publishes another one.
+ *
+ * The two audited sets are the kit's claim, not the address fields read back:
+ * `shippedMethods` are the shipped modules the chain serves, an identity
+ * method its deployment omits left out, and `auditedActions` come from the one
+ * audited-actions table (audited-actions.ts).
+ */
+import { isAddressEqual, zeroAddress } from 'viem'
+
+import type { DeploymentDescriptor } from '@kohaku-eth/social-recovery'
+
+import { deploymentAddressesOf } from './addresses'
+import { auditedActionsOn } from './audited-actions'
+import { CHAIN_IDS } from './chains'
+import { deploymentOf } from './deployments'
+import type { AddressBook, RecoveryChain } from './types'
+
+/** The fields of a shipped descriptor that are not addresses, placeholders for a chain that runs the stand-in. */
+export const DEPLOYMENT_FACTS = {
+  sepolia: {
+    // Placeholder for a build that runs the stand-in on Sepolia.
+    deployedAt: 0,
+    // The digest version this build derives under; a placeholder until the contract's is final.
+    digestVersion: '1',
+    // Placeholder release string for a build that runs the stand-in on Sepolia.
+    managerVersion: '1.0.0'
+  },
+  mainnet: {
+    // Placeholder until the mainnet deployment lands.
+    deployedAt: 0,
+    // The digest version this build derives under; a placeholder until the contract's is final.
+    digestVersion: '1',
+    // Placeholder release string until the mainnet deployment lands.
+    managerVersion: '1.0.0'
+  }
+} as const
+
+/**
+ * The shipped descriptor of one chain, as a fresh record every call: the
+ * placeholders for the stand-in, or a deployed kit's addresses and facts.
+ */
+export const deploymentDescriptor = (chain: RecoveryChain): DeploymentDescriptor => {
+  const a = deploymentAddressesOf(chain)
+  const deployment = deploymentOf(chain)
+  const facts = deployment.kind === 'deployed' ? deployment.facts : DEPLOYMENT_FACTS[chain]
+  return {
+    chainId: CHAIN_IDS[chain],
+    manager: a.manager,
+    methodEcdsa: a.methodEcdsa,
+    methodPasskey: a.methodPasskey,
+    methodAadhaar: a.methodAadhaar,
+    methodZkpassport: a.methodZkpassport,
+    action: a.action,
+    servedImplementation: a.servedImplementation,
+    deployedAt: facts.deployedAt,
+    digestVersion: facts.digestVersion,
+    managerVersion: facts.managerVersion,
+    shippedMethods: [a.methodEcdsa, a.methodPasskey, a.methodAadhaar, a.methodZkpassport].filter(
+      (method) => !isAddressEqual(method, zeroAddress)
+    ),
+    auditedActions: auditedActionsOn(chain).map((row) => row.action)
+  }
+}
+
+/**
+ * The descriptor a client is built with: the chain's shipped descriptor with
+ * the configuration's address book in its address fields. The two audited
+ * sets stay the shipped ones, so an address book naming another action or
+ * method gets the unaudited and unshipped warnings rather than silencing them.
+ */
+export const descriptorOf = (chain: RecoveryChain, book: AddressBook): DeploymentDescriptor => ({
+  ...deploymentDescriptor(chain),
+  manager: book.manager,
+  methodEcdsa: book.methods.ecdsa,
+  methodPasskey: book.methods.passkey,
+  methodAadhaar: book.methods.aadhaar,
+  methodZkpassport: book.methods.zkpassport,
+  action: book.action
+})

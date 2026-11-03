@@ -12,6 +12,7 @@ import Button from '@common/components/Button'
 import Input from '@common/components/Input'
 import Text from '@common/components/Text'
 import { isWeb } from '@common/config/env'
+import useNavigation from '@common/hooks/useNavigation'
 import useTheme from '@common/hooks/useTheme'
 import Header from '@common/modules/header/components/Header'
 import { SPACING_3XL, SPACING_LG } from '@common/styles/spacings'
@@ -26,11 +27,12 @@ import useEmailVaultControllerState from '@web/hooks/useEmailVaultControllerStat
 import useKeystoreControllerState from '@web/hooks/useKeystoreControllerState'
 import EmailConfirmation from '@web/modules/keystore/components/EmailConfirmation'
 import KeyStoreLogo from '@web/modules/keystore/components/KeyStoreLogo'
+import ResetEntryGate from '@web/modules/social-recovery/onboarding/recover/ResetEntryGate'
 
 import KeystoreResetForm from '../../components/KeyStoreResetForm'
 import styles from './styles'
 
-const KeyStoreResetScreen = () => {
+const KeyStoreResetContent = () => {
   const { t } = useTranslation()
 
   const {
@@ -241,6 +243,24 @@ const KeyStoreResetScreen = () => {
         </BottomSheet>
       </TabLayoutWrapperMainContent>
     </TabLayoutContainer>
+  )
+}
+
+const KeyStoreResetScreen = () => {
+  const { canGoBack, goBack, navigate } = useNavigation()
+
+  const leave = useCallback(() => {
+    if (canGoBack) {
+      goBack()
+      return
+    }
+    navigate('/')
+  }, [canGoBack, goBack, navigate])
+
+  return (
+    <ResetEntryGate onLeave={leave}>
+      <KeyStoreResetContent />
+    </ResetEntryGate>
   )
 }
 

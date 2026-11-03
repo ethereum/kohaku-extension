@@ -1,0 +1,152 @@
+/**
+ * @jest-environment jsdom
+ *
+ * The setup chrome mounted with the app's own components and the real en.json.
+ * The settings sidebar and the logo are stubs: the sidebar reads the wallet's
+ * controllers, and Jest does not load the logo's image.
+ */
+import React from 'react'
+import { createRoot, Root } from 'react-dom/client'
+import { act } from 'react-dom/test-utils'
+import { Text, View } from 'react-native'
+
+import i18n from '@common/config/localization'
+import { ThemeContext } from '@common/contexts/themeContext'
+import type { ThemeContextReturnType } from '@common/contexts/themeContext'
+import themeConfig, { THEME_TYPES } from '@common/styles/themeConfig'
+import type { ThemeProps } from '@common/styles/themeConfig'
+import {
+  SETUP_STAGE_COUNTER_KEY,
+  SETUP_STAGES
+} from '@web/modules/social-recovery/shared/chrome/constants'
+import SetupChrome from '@web/modules/social-recovery/shared/chrome/SetupChrome'
+
+// React only runs effects and state updates inside act() when this flag is set.
+Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+
+jest.mock('@web/modules/settings/components/Sidebar', () => ({
+  __esModule: true,
+  default: () => null
+}))
+jest.mock('@common/components/AmbireLogoHorizontal', () => ({
+  __esModule: true,
+  default: () => null
+}))
+// The wallet selects the account the tab sets up, so no notice shows.
+jest.mock('@web/modules/social-recovery/shared/chrome/useSetupAccount')
+jest.mock('@web/modules/social-recovery/shared/chrome/OtherAccountNotice', () => ({
+  __esModule: true,
+  default: () => null
+}))
+jest.mock('@common/hooks/useNavigation', () => ({
+  __esModule: true,
+  default: () => ({ navigate: () => {} })
+}))
+
+const THEME = Object.fromEntries(
+  Object.entries(themeConfig).map(([name, byType]) => [name, byType[THEME_TYPES.LIGHT]])
+) as ThemeProps
+
+const THEME_CONTEXT: ThemeContextReturnType = {
+  theme: THEME,
+  themeType: THEME_TYPES.LIGHT,
+  selectedThemeType: THEME_TYPES.LIGHT,
+  setThemeType: () => {}
+}
+
+const BREADCRUMB = i18n.t('socialRecovery.chrome.breadcrumb')
+
+let container: HTMLDivElement
+let root: Root
+
+beforeEach(() => {
+  container = document.createElement('div')
+  document.body.appendChild(container)
+  root = createRoot(container)
+})
+
+afterEach(() => {
+  act(() => root.unmount())
+  container.remove()
+})
+
+const mount = (element: React.ReactElement) =>
+  act(() => {
+    root.render(<ThemeContext.Provider value={THEME_CONTEXT}>{element}</ThemeContext.Provider>)
+  })
+
+const byTestId = (id: string) => container.querySelector<HTMLElement>(`[data-testid="${id}"]`)
+
+describe('the setup chrome', () => {
+  it('shows the breadcrumb above the view it holds', () => {
+    mount(
+      <SetupChrome testID="chrome">
+        <Text testID="view">The view</Text>
+      </SetupChrome>
+    )
+    expect(BREADCRUMB).not.toBe('')
+    expect(byTestId('view')).not.toBeNull()
+    // The breadcrumb comes first in the document, then the view.
+    expect(byTestId('chrome')?.textContent).toBe(`${BREADCRUMB}The view`)
+  })
+
+  it('puts its test id on its outermost element, with the view inside it', () => {
+    mount(
+      <SetupChrome testID="chrome">
+        <View testID="view" />
+      </SetupChrome>
+    )
+    const chrome = byTestId('chrome')
+    expect(container.firstElementChild).toBe(chrome)
+    expect(chrome?.contains(byTestId('view'))).toBe(true)
+  })
+
+  it('adds a given tail after the breadcrumb, and nothing when none is given', () => {
+    mount(
+      <SetupChrome testID="chrome" breadcrumbTail="Recover an account">
+        {false}
+      </SetupChrome>
+    )
+    expect(byTestId('chrome')?.textContent).toBe(`${BREADCRUMB} › Recover an account`)
+
+    mount(<SetupChrome testID="chrome">{false}</SetupChrome>)
+    expect(byTestId('chrome')?.textContent).not.toContain('Recover an account')
+    expect(byTestId('chrome')?.textContent).toBe(BREADCRUMB)
+  })
+
+  it('shows the stage counter between the breadcrumb and the view when given one', () => {
+    const counter = i18n.t(SETUP_STAGE_COUNTER_KEY, { step: 3, total: SETUP_STAGES })
+    mount(
+      <SetupChrome
+        testID="chrome"
+        counter={{
+          labelKey: SETUP_STAGE_COUNTER_KEY,
+          step: 3,
+          total: SETUP_STAGES,
+          testID: 'stage'
+        }}
+      >
+        <Text>The view</Text>
+      </SetupChrome>
+    )
+    expect(counter).toContain('3')
+    expect(byTestId('stage')).not.toBeNull()
+    expect(byTestId('chrome')?.textContent).toBe(`${BREADCRUMB}${counter}The view`)
+  })
+
+  it('shows the breadcrumb when it holds no view', () => {
+    mount(<SetupChrome testID="chrome">{false}</SetupChrome>)
+    expect(byTestId('chrome')?.textContent).toBe(BREADCRUMB)
+  })
+
+  it("lets the view it holds grow to the panel's height, so a wait can centre in it", () => {
+    mount(
+      <SetupChrome testID="chrome" skipAccountLatch>
+        <View testID="view" />
+      </SetupChrome>
+    )
+    const column = byTestId('view')?.parentElement as HTMLElement
+    expect(getComputedStyle(column).flexGrow).toBe('1')
+    expect(getComputedStyle(column.parentElement as HTMLElement).flexGrow).toBe('1')
+  })
+})
