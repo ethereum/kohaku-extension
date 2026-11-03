@@ -1,5 +1,48 @@
 # Social recovery board
 
+The state of the work after the QA round's fifth pass of 2026-11-03: two more pull requests merged on `dev/wonderland`, which stands at 58323f8db4 (submodule 211a00f526): #170 FU-BU (Linear EFI-1052, re-tested: every text input of the module shows a placeholder) and #171 FU-BV (Linear EFI-1054, re-tested: the gas check accepts an account that can pay its own write, the owner's option 1). The QA tester's re-tests of 2026-11-03 opened no new card; EFI-1049's re-test passed. The freeze `dev-wonderland-m12` and ethereum/kohaku-extension#258 move to this pass's last commit on the owner's word. Nothing is in flight.
+
+## The board (the QA round, fifth pass)
+
+| Column | What is in it |
+| --- | --- |
+| Reviewed | FU-BU: props and strings only, the diff inspected by the coordinator, CodeRabbit approved with no thread. FU-BV: a fresh reviewer over seven rounds (one Medium: after the sign screen read the account short, the check again passed on the account and the run looped with no deposit step; six Lows, every one taken and confirmed), the independent review pass of 2026-11-03 at 4544c7a885 (three Mediums and one Low: the re-check's swallowed read failure, the cancel's missing key-only re-check and a test group's name taken in rounds 6 and 7; no time limit on the owner writes' gas check verified as older than the lane and recorded below), CodeRabbit's note on the re-check's discard taken as a comment-only round. |
+| Merged | On `dev/wonderland`, one squash per PR after a fresh gate with the integration branch merged in, each on the owner's approval and CodeRabbit's: #170 FU-BU 3e8a0a784d (gate at 4aa7178cd9: 7911 tests, tsc 499 pre-existing errors and 0 under the module, eslint the one pre-existing error, the sweep empty, the build green; the integration branch beneath it was docs only); #171 FU-BV 58323f8db4 (train gate at 083f401dde with FU-BU merged in: 7991 tests, the same tsc, eslint, sweep and build). |
+| Walked | FU-BU on the lane build: the fast track's two password fields, the passkey name once cleared and the privacy step's two fields show their placeholders read from the DOM, nothing overflows; the editor's change-password fields and the Recovery Card's extension password need a saved path and rest on their tests. FU-BV on the lane build with a fresh wallet whose account has no code and both balances at zero: the save step's blocker reads its eight lines in order and the three cost lines on the save step; Continue at zero brings the blocker back with no signing window; the account paying at the sign screen and the deposit step after a short signing need Sepolia funds and rest on their tests. |
+| Held | FU-BB, FU-BC and FU-BI as before (the QA round's rows below). |
+| Blocked | Nothing. |
+
+## Rulings of the fifth pass (2026-11-03)
+
+- EFI-1052's re-test: every text input of the module shows a placeholder in the form of the five from #161; the two numeric fields (the group threshold, the custom waiting period) keep none, since a number there would read as a default; a field whose label and placeholder read the same stays, as #161's locked-path field does.
+- EFI-1054's re-test, the owner's option 1 of three (accept an account that can pay; a note at the deposit step that the key must hold gas; the sign screen stops offering the account): the gas check before a write the account's controlling key sends on the account's behalf reads both balances and passes when either reaches the bar. The chapter's "one landing route" premise and its "no sponsor is offered for a setup write" (D-319 and the cost paragraphs), PT-051's blocker lines and the presets cost sentence are amended in this docs PR to the ruling; the recovery calls and the fast track keep the key-only rule.
+- After the sign screen read every fee option short, the check again reads the key alone and passes only on the key; that deposit step names the key alone and shows no account note; Continue and the retry keep the key-only reading, through a failed setup or attempt read too; a failed read of that check lands in the read error with retry, never in the not-sent state; a failure of that check that is not a failed read keeps the not-sent state with its retry (the reviewer's and the independent review's findings, taken 2026-11-03).
+- The cancel gets the same key-only re-check as the save, with the attempt read first (the owner's ruling names the cancel; the round 2 brief's exclusion of the cancel was wrong).
+- No time limit on the owner writes' gas check (the independent review's thread, verified older than FU-BV: the base awaited its three reads unbounded, only the recovery calls bound theirs through `readWithin`): recorded as a follow-up for the owner, not folded into #171, since it changes the arm and the cancel runners beyond the finding.
+
+## Open with the owner
+
+| Question | What the code does meanwhile |
+| --- | --- |
+| A follow-up lane that bounds the owner writes' gas check in the arm and the cancel runs with `readWithin`, the timeout read as a provider read failure, as the recovery calls do | A balance, estimate or gas-price read that never answers keeps the write in `checkingGas` with no retry (older than FU-BV) |
+| The save blocker never renders its "Not enough gas" eyebrow: the blocker variant of `shared/writes/components/DepositStepView.tsx` draws only the title and the line (older than FU-BV) | The title and the line show |
+| The account note's amount is the key route's amount asked, which for an account with no code sits under the account's own fee route (the deployment and the route's overhead) | The key-only check after a short signing covers the gap |
+| A typed-key field on the account step for a recoverer whose key the chain does not name (the SDK's supplied route; a design change) | The entry refuses with the no-remedy text |
+| An accessibility pass over the module's helper lines, a task of its own | No input links a helper line, as in the wallet |
+| A Sepolia send to show the relayed save and the account paying its own save on a real build | The unit tests and the read-only Sepolia check cover them |
+
+## Facts the next session should not rediscover
+
+- The wallet's sign screen keeps the account's own native balance as a fee option for every smart account (`ambire-common/src/libs/account/V2.ts` line 67), sent through the relayer, and the extension picks it first when the account can pay (`sign-account-op/components/Estimation/helpers.tsx`); Sepolia's `hasRelayer: false` does not hide it. For an account with no code that route adds the deployment gas plus 35000 and the user-operation overhead, so it costs more than the key route the module estimates.
+- The module's gas check runs before the request reaches the sign screen; the re-check after a short signing is the only caller at the `asked` bar and always reads the key alone.
+- A node failure of the setup read arrives as a `ProviderReadFailure` (the adapter's `attemptRead` and `callFailureOf`), so the read-error path is reachable in production; a reverted call and a malformed header take other shapes.
+- The lane's `.env` points at a public node that prunes old logs, so the editor's Continue refuses with "This wallet could not reach the recovery kit" on a walk; the later steps are reached by their routes.
+- A gate is superseded by the next commit of its lane; stop it by pid and its children, and start one gate per lane head.
+
+---
+
+# Social recovery board
+
 The state of the work after the QA round's fourth pass of 2026-11-02: three more pull requests merged on `dev/wonderland`, which stands at 36df338ed4 (submodule 211a00f526): #165 FU-BR (the preset copy on the identity methods, from reviewer feedback), #166 FU-BT (Linear EFI-1049, reopened: the paste field's helper line) and #167 FU-BS (Linear EFI-1054: the key a relayed save signed). Every report under Linear EFI-1038 is Done or Canceled. The freeze `dev-wonderland-m12` moves to this board's merge commit on ethereum/kohaku-extension and the fork; ethereum/kohaku-extension#258 follows it.
 
 ## The board (the QA round, fourth pass)
