@@ -12,6 +12,8 @@ import type {
 import type {
   AddGate,
   ChainReads,
+  EstimationListener,
+  FeeReading,
   KeyHandle,
   ListedAccountFacts,
   ProviderTransactionReceipt,
@@ -25,6 +27,7 @@ import type {
 import type { ChainId, RecordDeployment } from '@web/modules/social-recovery/shared/records/types'
 import type {
   GasCheck,
+  GasPassBar,
   RequestHold,
   WriteEvent,
   WriteMachineState
@@ -336,6 +339,8 @@ export interface CancelSendInput {
   requestId: string
   startBlock: number
   canAdd: AddGate
+  /** Hears each reading of the sign screen's estimation for the cancel. */
+  onEstimation: EstimationListener
 }
 
 /** The run's seams over the wallet: the reads, the prepare, the gas check, the send and the stored claim. */
@@ -343,7 +348,13 @@ export interface CancelSteps {
   readAttempt: AttemptReader
   readLanding: LandingReader
   prepare(): Promise<PreparedCall>
-  checkGas(prepared: PreparedCall): Promise<GasCheck>
+  /**
+   * The gas check of the cancel the controlling key sends, against the bar to
+   * pass, or against the amount asked with `passBar` at `asked`. It reads the
+   * key's balance and the account's, since the account may pay its own fee;
+   * with `accountPays` at `false` it reads the key's alone.
+   */
+  checkGas(prepared: PreparedCall, passBar?: GasPassBar, accountPays?: boolean): Promise<GasCheck>
   newRequestId(): string
   blockNumber(): Promise<number>
   claims: CancelClaims
@@ -394,6 +405,8 @@ export interface CancelState {
   followGone?: WatcherReading
   /** The receipt wait of the sent cancel failed; check again waits once more. */
   stalled?: boolean
+  /** The sign screen's last estimation of the run's cancel. */
+  estimation?: FeeReading
   /** The request the run's cancel is queued under, once the run claimed it or follows it. */
   requestId?: string
 }

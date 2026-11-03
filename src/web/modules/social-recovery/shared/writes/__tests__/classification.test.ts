@@ -115,6 +115,33 @@ describe('a call the wallet never sent, the first reading', () => {
         expect(rendered(readFailed)).not.toMatch(REVERTED)
       })
 
+      it('a failed read of a check that read the key alone is gasReadError that keeps the key-only reading for its retry', () => {
+        const checking = writeReducer(initialWriteState(write), { type: 'start' })
+        const readFailed = writeReducer(checking, {
+          type: 'error',
+          run: checking.run,
+          error: providerReadFailure('nativeBalance', new Error('node down')),
+          accountPays: false
+        })
+        expect(readFailed.status).toBe('gasReadError')
+        expect(readFailed.status === 'gasReadError' && readFailed.accountPays).toBe(false)
+        expect(canRetry(readFailed)).toBe(true)
+      })
+
+      it('a failed read of a check that read the account too is gasReadError whose retry reads the account too', () => {
+        const checking = writeReducer(initialWriteState(write), { type: 'start' })
+        const failure = providerReadFailure('nativeBalance', new Error('node down'))
+        const unsaid = writeReducer(checking, { type: 'error', run: checking.run, error: failure })
+        const said = writeReducer(checking, {
+          type: 'error',
+          run: checking.run,
+          error: failure,
+          accountPays: true
+        })
+        expect(unsaid.status === 'gasReadError' && unsaid.accountPays).toBe(true)
+        expect(said.status === 'gasReadError' && said.accountPays).toBe(true)
+      })
+
       it('a read refused after the gas check and before the wallet answered a hash is gasReadError, with the retry', () => {
         const submitting = submittingFor(write)
         const readFailed = writeReducer(submitting, {

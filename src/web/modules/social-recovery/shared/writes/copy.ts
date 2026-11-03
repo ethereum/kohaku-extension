@@ -114,7 +114,13 @@ export const GAS_KEYS = {
   /** The network an owner write's key must be funded on. */
   networkOwner: `${GAS}.networkOwner`,
   /** The owner write's note under its amounts: the fee can rise before the send. */
-  feeMayChange: `${GAS}.feeMayChange`
+  feeMayChange: `${GAS}.feeMayChange`,
+  /** The owner write's note: the account can pay the fee itself once it holds the amount asked. */
+  accountCanPay: `${GAS}.accountCanPay`,
+  /** The owner write's title where the check read the key alone: the account could not pay at signing. */
+  notEnoughGasKeyAlone: `${GAS}.notEnoughGasKeyAlone`,
+  /** The owner write's lead where the check read the key alone. */
+  shortfallKeyAlone: `${GAS}.shortfallKeyAlone`
 } as const
 
 /**
@@ -284,10 +290,14 @@ export const OWNER_SHORTFALL_KEYS: { readonly [W in OwnerWrite]: string } = {
  * The copy of the deposit step, by variant:
  *
  * - An owner write (a save, another setup write, the owner's cancel) reads:
- *   not enough gas on the account's key, the shortfall, the key's address,
- *   both routes, that the network fee can change before the send, that the
- *   transfer is itself an operation that key must send and pay for, and the
- *   network.
+ *   not enough gas on the account or its key, and the shortfall; where the
+ *   check read the key alone, since the account could not pay when the wallet
+ *   tried to send, not enough gas on the account's key and that shortfall
+ *   instead. Then the key's address, both routes, that the network fee can
+ *   change before the send, that the account can pay the fee itself once it
+ *   holds the amount asked (only where the check read the account's balance
+ *   too), that the transfer is itself an operation that key must send and pay
+ *   for, and the network.
  * - A recovery call on the fast track reads: the key that sends the recovery
  *   pays its gas and the account cannot pay for itself until it is recovered;
  *   the key's address; the amount to send from outside; the network; and the
@@ -343,8 +353,13 @@ export const renderDepositStep = (
 
   const { write } = step
   if (isOwnerWrite(write)) {
-    const shortfall = t(OWNER_SHORTFALL_KEYS[write], { amount })
-    const title = t(GAS_KEYS.notEnoughGasAccountKey)
+    const shortfall = t(
+      step.accountPays ? OWNER_SHORTFALL_KEYS[write] : GAS_KEYS.shortfallKeyAlone,
+      { amount }
+    )
+    const title = t(
+      step.accountPays ? GAS_KEYS.notEnoughGasAccountKey : GAS_KEYS.notEnoughGasKeyAlone
+    )
     return {
       ...(write === 'save' ? { eyebrow: t(GAS_KEYS.notEnoughGas) } : {}),
       title,
@@ -353,7 +368,14 @@ export const renderDepositStep = (
       copyLabel,
       copyFailed,
       routes,
-      notes: [t(GAS_KEYS.feeMayChange), ...transferSentence, t(GAS_KEYS.networkOwner, { network })],
+      notes: [
+        t(GAS_KEYS.feeMayChange),
+        ...(step.accountPays
+          ? [t(GAS_KEYS.accountCanPay, { amount: renderGasAmount(step.estimate.asked, symbol) })]
+          : []),
+        ...transferSentence,
+        t(GAS_KEYS.networkOwner, { network })
+      ],
       aside: [],
       waiting: [],
       blocker: { title, line: shortfall }

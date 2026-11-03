@@ -28,12 +28,16 @@ import {
   KEY,
   kitError,
   landWithReceipt,
+  mockReads,
   NETWORK,
   NOT_SENT_KEYS,
+  OWNER_SHORTFALL_KEYS,
   renderDepositStep,
   renderGasAmount,
   renderGasBalance,
   renderWriteState,
+  runGasCheck,
+  stepOf,
   STEP_CASES,
   submittingFor,
   userRejected,
@@ -132,16 +136,24 @@ describe('WriteStateView: what renderWriteState answers', () => {
 
 describe('DepositStepView: what renderDepositStep answers', () => {
   ;(['save', 'edit', 'ownerWrite', 'cancel'] as const).forEach((write) =>
-    it(`${write}: the account key's blocker, the key in full, both routes, the transfer sentence and the network`, async () => {
+    it(`${write}: the blocker for the account and its key, the key in full, both routes, the amount the account can pay itself, the transfer sentence and the network`, async () => {
       const step = await depositStepFor(write, false)
       const r = renderDepositStep(step)
       expect(r.title).toBe(t(GAS_KEYS.notEnoughGasAccountKey))
+      expect(r.lead).toEqual([
+        t(OWNER_SHORTFALL_KEYS[write], {
+          amount: renderGasAmount(step.shortfall, NETWORK.nativeAssetSymbol)
+        })
+      ])
       expect(r.eyebrow).toBe(write === 'save' ? t(GAS_KEYS.notEnoughGas) : undefined)
       expect(r.keyAddress.toLowerCase()).toBe(KEY.addr.toLowerCase())
       expect(r.copyLabel).toBe(t(GAS_KEYS.copy))
       expect(r.routes.map((route) => route.kind)).toEqual(['transfer', 'outside'])
       expect(r.notes).toEqual([
         t(GAS_KEYS.feeMayChange),
+        t(GAS_KEYS.accountCanPay, {
+          amount: renderGasAmount(step.estimate.asked, NETWORK.nativeAssetSymbol)
+        }),
         t(GAS_KEYS.transferIsAnOperation),
         t(GAS_KEYS.networkOwner, { network: NETWORK.name })
       ])
@@ -150,6 +162,35 @@ describe('DepositStepView: what renderDepositStep answers', () => {
       expect(r.waiting).toEqual([])
       expect(r.blocker.title).toBe(r.title)
       expect(r.blocker.line).toBe(r.lead[0])
+    })
+  )
+  ;(['save', 'edit', 'ownerWrite', 'cancel'] as const).forEach((write) =>
+    it(`${write}: the key alone in the title and the lead, and no line that the account can pay itself, where the check read the key alone`, async () => {
+      const step = stepOf(
+        await runGasCheck({
+          write,
+          accountPays: false,
+          reads: mockReads({
+            balance: 0n,
+            accountBalance: 1_000_000_000_000_000_000n,
+            gas: 240_000n
+          })
+        })
+      )
+      const r = renderDepositStep(step)
+      expect(r.title).toBe(t(GAS_KEYS.notEnoughGasKeyAlone))
+      expect(r.lead).toEqual([
+        t(GAS_KEYS.shortfallKeyAlone, {
+          amount: renderGasAmount(step.shortfall, NETWORK.nativeAssetSymbol)
+        })
+      ])
+      expect(r.blocker).toEqual({ title: r.title, line: r.lead[0] })
+      expect(r.eyebrow).toBe(write === 'save' ? t(GAS_KEYS.notEnoughGas) : undefined)
+      expect(r.notes).toEqual([
+        t(GAS_KEYS.feeMayChange),
+        t(GAS_KEYS.transferIsAnOperation),
+        t(GAS_KEYS.networkOwner, { network: NETWORK.name })
+      ])
     })
   )
 

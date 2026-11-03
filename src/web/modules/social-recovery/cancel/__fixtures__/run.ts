@@ -5,22 +5,29 @@
  * port, the receipt wait and the wallet's reading and withdrawal of a queued
  * request.
  */
-import { getAddress, zeroHash } from 'viem'
+import { getAddress, isAddressEqual, zeroAddress, zeroHash } from 'viem'
 
 import type { Address, CancelledBy, Hex, PreparedCall } from '@kohaku-eth/social-recovery'
 import { accountBatchRefusal } from '@web/modules/social-recovery/shared/client'
 import type {
+  EstimationListener,
+  FeeReading,
   ProviderTransactionReceipt,
   SendPort
 } from '@web/modules/social-recovery/shared/client'
-import type { GasCheck } from '@web/modules/social-recovery/shared/writes'
-import { depositStepOf, driveAccountBatch } from '@web/modules/social-recovery/shared/writes'
+import type { GasCheck, GasPassBar } from '@web/modules/social-recovery/shared/writes'
+import {
+  checkGas as cancelGasCheck,
+  depositStepOf,
+  driveAccountBatch
+} from '@web/modules/social-recovery/shared/writes'
 import {
   attemptReaderOf,
   cancelClaimsOf,
   landingReaderOf
 } from '@web/modules/social-recovery/cancel'
 import type { CancelHold, CancelLog, CancelSteps } from '@web/modules/social-recovery/cancel'
+import type { CancelBalances } from '@web/modules/social-recovery/cancel/__fixtures__/types'
 import {
   ACCOUNT,
   DEPLOYMENT,
@@ -75,9 +82,43 @@ export const SHORT: GasCheck = {
     estimate: ESTIMATE,
     balance: 0n,
     operates: { address: ACCOUNT, name: 'Account 1', deployed: true },
-    transferFee: ESTIMATE
+    transferFee: ESTIMATE,
+    accountPays: true
   })
 }
+
+/** The deposit step of a check that read the key alone. */
+export const KEY_ALONE_SHORT: GasCheck = {
+  kind: 'deposit',
+  step: depositStepOf({
+    write: 'cancel',
+    key: KEY,
+    network: { name: 'Sepolia', nativeAssetSymbol: 'ETH' },
+    estimate: ESTIMATE,
+    balance: 0n,
+    operates: { address: ACCOUNT, name: 'Account 1', deployed: true },
+    transferFee: ESTIMATE,
+    accountPays: false
+  })
+}
+
+/** A balance far above any cancel's fee. */
+export const RICH = 1_000_000_000_000_000_000n
+
+/** The sign screen's estimation where no fee option can be paid, with its error. */
+export const shortReading = (): FeeReading => ({
+  options: [
+    {
+      paidBy: ACCOUNT,
+      token: { address: zeroAddress, symbol: 'ETH', decimals: 18 },
+      balance: 0n,
+      amount: 1_000_000_000_000_000n,
+      available: false,
+      selected: true
+    }
+  ],
+  error: { title: 'Insufficient funds to cover the fee', code: 'insufficient-funds' }
+})
 
 /** ethers' receipt is a class bound to its provider; the run reads its hash, status and block alone. */
 export const landedReceipt = (hash: Hex = TX_HASH): ProviderTransactionReceipt =>
@@ -173,7 +214,7 @@ export const runWorld = (chain: Chain = openChain(), now: () => number = Date.no
     async (
       account: Address,
       _calls: PreparedCall[],
-      _onEstimation?: unknown,
+      _onEstimation?: EstimationListener,
       _kit?: unknown,
       _requestId?: string,
       options?: { canAdd?: () => Promise<boolean> }
@@ -229,7 +270,8 @@ export const runWorld = (chain: Chain = openChain(), now: () => number = Date.no
         account: ACCOUNT,
         calls: [input.prepared],
         requestId: input.requestId,
-        canAdd: input.canAdd
+        canAdd: input.canAdd,
+        onEstimation: input.onEstimation
       }),
     wait: (hash, from) => wait(hash, from),
     receiptCancel,
@@ -247,6 +289,54 @@ export const runWorld = (chain: Chain = openChain(), now: () => number = Date.no
     receiptCancel,
     withdrawRequest
   }
+}
+
+/**
+ * The next send hands the sign screen's reading that no fee option can be
+ * paid to the run, and the wallet then refuses it: nothing sent.
+ */
+export const signsShort = (world: RunWorld) =>
+  world.sendAccountBatch.mockImplementationOnce(
+    async (account: Address, _calls: PreparedCall[], onEstimation?: EstimationListener) => {
+      onEstimation?.(shortReading())
+      throw accountBatchRefusal('refused', account)
+    }
+  )
+
+/**
+ * The run's gas check as the cancel's own: the real check over scripted
+ * balances of the key and of the account it operates, each answering its
+ * values in turn, the last repeating. Answers the balance reads' mock.
+ */
+export const checkOnBalances = (world: RunWorld, balances: CancelBalances) => {
+  const answered = { key: 0, account: 0 }
+  const answer = (who: 'key' | 'account') => {
+    const values = balances[who]
+    const value = values[Math.min(answered[who], values.length - 1)]
+    answered[who] += 1
+    if (value instanceof Error) {
+      throw value
+    }
+    return value
+  }
+  const nativeBalance = jest.fn(async (address: Address) =>
+    answer(isAddressEqual(address, KEY) ? 'key' : 'account')
+  )
+  world.checkGas.mockImplementation(
+    (prepared: PreparedCall, passBar?: GasPassBar, accountPays?: boolean) =>
+      cancelGasCheck({
+        write: 'cancel',
+        prepared,
+        key: { addr: KEY, type: 'internal' },
+        reads: { nativeBalance, estimateGas: async () => 50_000n, gasPrice: async () => 1n },
+        network: { name: 'Sepolia', nativeAssetSymbol: 'ETH' },
+        transaction: { from: KEY, to: ACCOUNT, data: prepared.data },
+        operates: { address: ACCOUNT, name: 'Account 1', deployed: true },
+        passBar,
+        accountPays
+      })
+  )
+  return nativeBalance
 }
 
 export { ACCOUNT, NEW_KEY, SEPOLIA }

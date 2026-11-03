@@ -1,7 +1,8 @@
 /**
- * The save's cost line: one transaction the account's key pays, and for an
- * account with no code yet, that the same transaction deploys it and costs
- * more gas. The lines on what a recovery and its cancel cost follow it.
+ * The save's cost line: one transaction whose fee the account pays, or its
+ * controlling key does, and for an account with no code yet, that the same
+ * transaction deploys it and costs more gas. The lines on what a recovery and
+ * its cancel cost follow it.
  */
 const COST_LINES = 'socialRecovery.costLines'
 

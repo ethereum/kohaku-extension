@@ -26,3 +26,9 @@ export type KeystoreKey = { addr: Address; type: string }
 
 /** The props of the probe: the account it reads, or none. */
 export type AccountProbeProps = { account: Address | null }
+
+/** The balances a cancel's gas check reads in turn: the key's and the account's; an Error fails that read. */
+export type CancelBalances = {
+  key: readonly (bigint | Error)[]
+  account: readonly (bigint | Error)[]
+}

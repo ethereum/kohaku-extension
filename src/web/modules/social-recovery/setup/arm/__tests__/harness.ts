@@ -20,7 +20,7 @@
  * so the batch's transaction is the one the library builds. Nothing reaches a
  * network and nothing imports the SDK doubles.
  */
-import { getAddress, zeroAddress, zeroHash } from 'viem'
+import { getAddress, isAddressEqual, zeroAddress, zeroHash } from 'viem'
 
 import { Session } from '@ambire-common/classes/session'
 import type { Account } from '@ambire-common/interfaces/account'
@@ -385,16 +385,60 @@ export type MockChainReads = ChainReads & {
   gasPrice: jest.Mock
 }
 
-export const chainReadsFor = (gas: GasCase): MockChainReads => ({
-  nativeBalance: jest.fn(async () => {
+/** The balances one address answers, one per read in turn, the last repeating; an Error is thrown. */
+export interface ScriptedBalances {
+  address: Address
+  balances: readonly (bigint | Error)[]
+}
+
+/**
+ * The gas check's reads. The balance read answers by address: the account
+ * given, the one the key operates, holds nothing; every other address, the
+ * key, holds far more than any write's gas, or nothing for `deposit`. Where no
+ * account is given every address answers as the key. For `read-fails` every
+ * balance read fails.
+ */
+export const chainReadsFor = (gas: GasCase, account?: Address): MockChainReads => ({
+  nativeBalance: jest.fn(async (address: Address) => {
     if (gas === 'read-fails') {
       throw providerReadFailure('nativeBalance', new Error('node down'))
+    }
+    if (account && isAddressEqual(address, account)) {
+      return 0n
     }
     return gas === 'deposit' ? 0n : 1_000_000_000_000_000_000n
   }),
   estimateGas: jest.fn(async () => 300_000n),
   gasPrice: jest.fn(async () => 2n * GWEI)
 })
+
+/**
+ * Scripts the balance reads by address: each address answers its own values
+ * in turn, the last repeating. An address with no script fails the test.
+ */
+export const answerBalances = (
+  reads: MockChainReads,
+  scripts: readonly ScriptedBalances[]
+): void => {
+  const answered = new Map<ScriptedBalances, number>()
+  reads.nativeBalance.mockImplementation(async (address: Address) => {
+    const script = scripts.find((entry) => isAddressEqual(entry.address, address))
+    if (!script) {
+      throw new Error(`no balance scripted for ${address}`)
+    }
+    const read = answered.get(script) ?? 0
+    answered.set(script, read + 1)
+    const value = script.balances[Math.min(read, script.balances.length - 1)]
+    if (value instanceof Error) {
+      throw value
+    }
+    return value
+  })
+}
+
+/** The addresses of the balance reads made so far, lowercased, in order. */
+export const balanceReadsOf = (reads: MockChainReads): string[] =>
+  reads.nativeBalance.mock.calls.map(([address]) => String(address).toLowerCase())
 
 /** One fee option of the sign screen, paid by `KEY` in the chain's native token. */
 export const feeOption = (available: boolean): FeeOption => ({
@@ -682,7 +726,7 @@ export const wireSave = (
     setup: { setupState, prepareCommitSetup, confirmSetup },
     walletReads: { attemptState }
   }
-  const chainReads = chainReadsFor(script.gas)
+  const chainReads = chainReadsFor(script.gas, address)
   const port = sendPortFor(script.send, address, script.estimation)
   const receipts = receiptsFor(script.receipt)
   const writeDraftAndPath = jest.fn(async () => ({ draft, path: null }))

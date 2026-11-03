@@ -12,6 +12,8 @@
  *                                                 └─ its own ─▶ the attempt read again
  *                                                               ├─ gone ─▶ idle with the gone reading (the claim released)
  *                                                               └─ open ─▶ submitting ─▶ landed | failedNotSent | failedReverted
+ *   failedNotSent after a short estimation of the sign screen ──▶ the gas check again on the key
+ *              alone ──▶ a new run with the deposit step, or the read error where a read failed
  *   landed ──▶ the receipt's own cancel log names the attempt it ended; where the receipt's logs
  *              cannot be read, reads from the receipt's block ──▶ cancelled | otherRoad | unread
  *   failedReverted ──▶ reads until the attempt read names how it had ended (attemptRead)
@@ -62,10 +64,15 @@ import {
   canRetry,
   initialWriteState,
   receiptOf,
+  shortAtSigning,
   writeReducer
 } from '@web/modules/social-recovery/shared/writes'
-import type { WriteEvent, WriteMachineState } from '@web/modules/social-recovery/shared/writes'
-import type { Hex } from '@kohaku-eth/social-recovery'
+import type {
+  GasCheck,
+  WriteEvent,
+  WriteMachineState
+} from '@web/modules/social-recovery/shared/writes'
+import type { Hex, PreparedCall } from '@kohaku-eth/social-recovery'
 import type { WatcherReading } from '@web/modules/social-recovery/watcher'
 
 import {
@@ -588,15 +595,95 @@ const watchOwnSend = (
   }
 }
 
-/** The attempt read, the gas check, the claim, the read again and the send of one run. */
+/**
+ * After the sign screen read the cancel short of gas and the cancel was not
+ * sent: the gas check again on the same prepared cancel, against the amount
+ * the step asks for, on the key's balance alone, since the sign screen already
+ * read the account short at its own fee. Where the key holds less, a new run
+ * shows the deposit step with the shortfall to it; where the key holds it, the
+ * not-sent state stays as it was. A read of that check that fails is never
+ * shown as the not-sent state: a new run shows the read error, and its retry
+ * reads the key alone. The new run reads the attempt first, since it may have
+ * ended while the check ran: an attempt no longer open shows that reading and
+ * nothing else, and a read of it that fails shows the read error. Any other
+ * failure of the gas check again keeps the not-sent state with its retry, as
+ * before the check ran.
+ */
+const recheckAfterShortSigning = async (
+  store: CancelStore,
+  steps: CancelSteps,
+  run: number,
+  target: bigint,
+  prepared: PreparedCall
+): Promise<void> => {
+  const notSent = () => inRun(store, run) && store.state().write.status === 'failedNotSent'
+  const nextRun = async (): Promise<number | undefined> => {
+    store.update((state) => ({ ...applyWrite(state, { type: 'start' }), target }))
+    const next = store.state().write.run
+    if (next !== run + 1) {
+      return undefined
+    }
+    let reading: WatcherReading
+    try {
+      reading = await steps.readAttempt()
+    } catch (error: unknown) {
+      dispatchTo(store)({
+        type: 'error',
+        run: next,
+        error: asReadFailure(error),
+        accountPays: false
+      })
+      return undefined
+    }
+    if (!inRun(store, next)) {
+      return undefined
+    }
+    const standing = standingOf(reading, target)
+    if (standing.kind !== 'open') {
+      changeInRun(store, next, (state) => ({
+        ...applyWrite(state, { type: 'reset' }),
+        gone: reading
+      }))
+      return undefined
+    }
+    changeInRun(store, next, (state) => ({ ...state, targetAttempt: standing.attempt }))
+    return next
+  }
+  let check: GasCheck
+  try {
+    check = await steps.checkGas(prepared, 'asked', false)
+  } catch (error: unknown) {
+    if (!isProviderReadFailure(error) || !notSent()) {
+      return
+    }
+    const next = await nextRun()
+    if (next !== undefined) {
+      dispatchTo(store)({ type: 'error', run: next, error, accountPays: false })
+    }
+    return
+  }
+  if (check.kind !== 'deposit' || !notSent()) {
+    return
+  }
+  const next = await nextRun()
+  if (next !== undefined) {
+    dispatchTo(store)({ type: 'gasChecked', run: next, check })
+  }
+}
+
+/**
+ * The attempt read, the gas check, the claim, the read again and the send of
+ * one run. With `accountPays` at `false` the gas check reads the key alone.
+ */
 const checkAndSend = async (
   store: CancelStore,
   steps: CancelSteps,
   run: number,
-  target: bigint
+  target: bigint,
+  accountPays?: boolean
 ): Promise<void> => {
   const dispatch = dispatchTo(store)
-  const fail = (error: unknown) => dispatch({ type: 'error', run, error })
+  const fail = (error: unknown) => dispatch({ type: 'error', run, error, accountPays })
   const gone = (reading: WatcherReading) =>
     changeInRun(store, run, (state) => ({ ...applyWrite(state, { type: 'reset' }), gone: reading }))
 
@@ -618,7 +705,7 @@ const checkAndSend = async (
   changeInRun(store, run, (state) => ({ ...state, targetAttempt: standing.attempt }))
   try {
     const prepared = await steps.prepare()
-    const check = await steps.checkGas(prepared)
+    const check = await steps.checkGas(prepared, undefined, accountPays)
     dispatch({ type: 'gasChecked', run, check })
     const checked = store.state().write
     if (checked.run !== run || checked.status !== 'submitting') {
@@ -667,6 +754,10 @@ const checkAndSend = async (
         requestId,
         startBlock,
         canAdd: () => steps.claims.canStillSend(requestId),
+        onEstimation: (estimation) =>
+          changeInRun(store, run, (state) =>
+            state.write.status === 'submitting' ? { ...state, estimation } : state
+          ),
         dispatch: (event) => {
           dispatch(event)
           if (event.type === 'sent' && event.run === run) {
@@ -686,13 +777,29 @@ const checkAndSend = async (
           ? { ...applyWrite(state, { type: 'reset' }), gone: ending }
           : state
       )
+      return
+    }
+    const after = store.state()
+    if (
+      inRun(store, run) &&
+      after.write.status === 'failedNotSent' &&
+      !after.write.replaced &&
+      !after.write.mayStillLand &&
+      shortAtSigning(after.estimation)
+    ) {
+      await recheckAfterShortSigning(store, steps, run, target, prepared)
     }
   } catch (error: unknown) {
     fail(error)
   }
 }
 
-/** Starts the cancel of `target`: from idle, or from a state that offers the retry. */
+/**
+ * Starts the cancel of `target`: from idle, or from a state that offers the
+ * retry. The retry of a read that failed in a check that read the key alone
+ * reads the key alone again; every other start runs the check that reads the
+ * account too.
+ */
 export const startCancel = async (
   store: CancelStore,
   steps: CancelSteps,
@@ -702,13 +809,14 @@ export const startCancel = async (
   if (write.status !== 'idle' && !canRetry(write)) {
     return
   }
+  const accountPays = write.status === 'gasReadError' && !write.accountPays ? false : undefined
   store.update((state) => ({ ...applyWrite(state, { type: 'start' }), target }))
   const { run } = store.state().write
   let held: CancelClaim | undefined
   try {
     held = await steps.claims.read()
   } catch (error: unknown) {
-    dispatchTo(store)({ type: 'error', run, error: asReadFailure(error) })
+    dispatchTo(store)({ type: 'error', run, error: asReadFailure(error), accountPays })
     return
   }
   if (held) {
@@ -717,17 +825,23 @@ export const startCancel = async (
     }
     return
   }
-  await checkAndSend(store, steps, run, target)
+  await checkAndSend(store, steps, run, target, accountPays)
 }
 
-/** From the deposit step: the attempt read and the gas check again, in the same run. */
+/**
+ * From the deposit step: the attempt read and the gas check again, in the
+ * same run. A step that read the key alone, since the account could not pay
+ * when the wallet tried to send, keeps that reading: the check again reads
+ * the key alone too and passes only once the key holds enough.
+ */
 export const recheckCancel = async (store: CancelStore, steps: CancelSteps): Promise<void> => {
   const { write, target } = store.state()
   if (write.status !== 'needsDeposit' || target === undefined) {
     return
   }
+  const accountPays = write.step.accountPays ? undefined : false
   dispatchTo(store)({ type: 'recheck' })
-  await checkAndSend(store, steps, write.run, target)
+  await checkAndSend(store, steps, write.run, target, accountPays)
 }
 
 /**

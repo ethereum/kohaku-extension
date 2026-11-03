@@ -59,7 +59,7 @@ jest.mock('@web/modules/social-recovery/shared/client/deployment-env', () => ({
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const React: typeof import('react') = require('react')
-const { getAddress }: typeof import('viem') = require('viem')
+const { getAddress, isAddressEqual }: typeof import('viem') = require('viem')
 const {
   walletMethod
 }: typeof import('@kohaku-eth/social-recovery') = require('@kohaku-eth/social-recovery')
@@ -269,9 +269,13 @@ export const freshClientOf = async (account: Address = ACCOUNT): Promise<Recover
 export const useAdvancingFakeTimers = (): void =>
   (jest as unknown as AdvancingFakeTimers).useFakeTimers({ advanceTimers: true })
 
-/** The gas check's reads: the key holds far more than any write's gas. */
+/**
+ * The gas check's reads, the balance by address: the key holds far more than
+ * any write's gas, the account it operates nothing.
+ */
 export const GAS_READS = {
-  nativeBalance: async () => 1_000_000_000_000_000_000n,
+  nativeBalance: async (address: Address) =>
+    isAddressEqual(address, ACCOUNT) ? 0n : 1_000_000_000_000_000_000n,
   estimateGas: async () => 300_000n,
   gasPrice: async () => 2_000_000_000n
 } as unknown as ChainReads

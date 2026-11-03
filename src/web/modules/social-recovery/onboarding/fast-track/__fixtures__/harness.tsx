@@ -153,7 +153,8 @@ export const mockStorage = {
   failReads: false
 }
 
-// The gas step's chain reads, scripted by the test.
+// The gas step's chain reads, scripted by the test. `balance` is the sending
+// key's; any other address holds nothing.
 export const mockChain = {
   gasPrice: 1_000_000_000n,
   balance: 0n,
@@ -311,7 +312,11 @@ jest.mock('@web/modules/social-recovery/shared/client', () => ({
       if (mockChain.fail) {
         throw new Error('node down')
       }
-      return mockChain.balance
+      // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
+      const viem: typeof import('viem') = require('viem')
+      return viem.isAddressEqual(address as Address, mockSlot.ordinaryKey as Address)
+        ? mockChain.balance
+        : 0n
     }
   })
 }))

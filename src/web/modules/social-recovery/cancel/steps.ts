@@ -33,7 +33,7 @@ export const cancelStepsOf = (input: CancelStepsInput): CancelSteps => {
       assertWriteDoor('cancel', prepared)
       return prepared
     },
-    checkGas: (prepared) =>
+    checkGas: (prepared, passBar, accountPays) =>
       checkGas({
         write: 'cancel',
         prepared,
@@ -41,12 +41,14 @@ export const cancelStepsOf = (input: CancelStepsInput): CancelSteps => {
         reads: input.chainReads,
         network: facts.network,
         transaction: accountBatchTransactionOf(facts, key, [prepared]),
-        operates: walletAccountRefOf(facts)
+        operates: walletAccountRefOf(facts),
+        passBar,
+        accountPays
       }),
     newRequestId: newSendRequestId,
     blockNumber: () => receipts.blockNumber(),
     claims: cancelClaimsOf(input.storage, chainId, account),
-    send: ({ prepared, dispatch, run, requestId, startBlock, canAdd }) =>
+    send: ({ prepared, dispatch, run, requestId, startBlock, canAdd, onEstimation }) =>
       driveAccountBatch({
         dispatch,
         run,
@@ -60,7 +62,8 @@ export const cancelStepsOf = (input: CancelStepsInput): CancelSteps => {
         account,
         calls: [prepared],
         requestId,
-        canAdd
+        canAdd,
+        onEstimation
       }),
     wait: (transactionHash, startBlock) => receipts.wait(transactionHash, startBlock),
     async receiptCancel(transactionHash, startBlock) {

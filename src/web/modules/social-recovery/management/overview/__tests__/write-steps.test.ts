@@ -284,3 +284,53 @@ describe('the bar the gas check passes at', () => {
     })
   )
 })
+
+describe("the check again that leaves the account's balance out", () => {
+  const RICH = 1_000_000_000_000_000_000n
+  const { keyedAccount, factsOf, chainReadsFor } = armHarness
+
+  ;(['reauthorize', 'clear'] as const).forEach((intent) =>
+    it(`${intent}: passes on the account's balance, and shows the key's deposit step where the key is read alone`, async () => {
+      const { account, key } = await keyedAccount(0x0c1 + (intent === 'clear' ? 1 : 0))
+      const address = account.addr as `0x${string}`
+      const world = await worldAt('public', address)
+      world.chain.setAuthorized(false)
+      const reads = chainReadsFor('enough')
+      reads.nativeBalance.mockImplementation(async (read: string) =>
+        read.toLowerCase() === key.addr.toLowerCase() ? 0n : RICH
+      )
+      const steps = overviewStepsOf({
+        intent,
+        client: world.client,
+        reads,
+        receipts: {} as ReceiptReads,
+        port: {} as SendPort,
+        requests: {} as SendRequestPort,
+        records: world.records,
+        chainId: CHAIN_ID,
+        account: address,
+        facts: factsOf(account, { key }),
+        key,
+        draft:
+          intent === 'reauthorize' ? reauthorizeDraftOf(CONFIGURATION, 'public') : REMOVAL_DRAFT,
+        password: undefined,
+        onAttemptOpen: () => {}
+      })
+
+      const prepared = await steps.prepare()
+      const withAccount = await steps.checkGas(prepared, 'asked')
+      const keyAlone = await steps.checkGas(prepared, 'asked', false)
+      const balanceReads = reads.nativeBalance.mock.calls.map(([read]) =>
+        String(read).toLowerCase()
+      )
+
+      expect(withAccount.kind).toBe('enough')
+      expect(keyAlone.kind).toBe('deposit')
+      expect(keyAlone.kind === 'deposit' && keyAlone.step.balance).toBe(0n)
+      expect(keyAlone.kind === 'deposit' && keyAlone.step.accountPays).toBe(false)
+      // Two reads for the check with the account, then the key's alone.
+      expect(balanceReads).toHaveLength(3)
+      expect(balanceReads[2]).toBe(key.addr.toLowerCase())
+    })
+  )
+})

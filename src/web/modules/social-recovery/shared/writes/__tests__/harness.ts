@@ -21,7 +21,7 @@
  * - Nothing else is mocked. The strings come from the real en.json through
  *   the app's own i18next instance (the renderers' default `t`).
  */
-import { numberToHex } from 'viem'
+import { isAddressEqual, numberToHex } from 'viem'
 
 import en from '@common/config/localization/translations/en.json'
 import type {
@@ -55,6 +55,7 @@ import {
   classifyFailure,
   DepositStep,
   GasCheck,
+  GasPassBar,
   initialWriteState,
   renderDepositStep,
   renderWriteState,
@@ -200,19 +201,28 @@ export type MockReads = ChainReads & {
 }
 
 /**
- * The provider reads as `jest.fn` members. `gas` answers each estimate, as a
- * constant or per transaction; every call is recorded.
+ * The provider reads as `jest.fn` members. The balance read answers by
+ * address: `accountBalance` for `account` (the account the key operates,
+ * `ACCOUNT` by default, empty unless given), `balance` for any other address,
+ * the sending key's. `gas` answers each estimate, as a constant or per
+ * transaction; every call is recorded.
  */
 export const mockReads = ({
   balance,
+  accountBalance = 0n,
+  account = ACCOUNT,
   gas,
   price = 2n * GWEI
 }: {
   balance: bigint
+  accountBalance?: bigint
+  account?: Address
   gas: bigint | ((call: GasEstimateCall) => bigint)
   price?: bigint
 }): MockReads => ({
-  nativeBalance: jest.fn(async () => balance),
+  nativeBalance: jest.fn(async (address: Address) =>
+    isAddressEqual(address, account) ? accountBalance : balance
+  ),
   estimateGas: jest.fn(async (call: GasEstimateCall) =>
     typeof gas === 'function' ? gas(call) : gas
   ),
@@ -232,6 +242,10 @@ export const runGasCheck = (args: {
   operates?: WalletAccountRef
   /** The transaction the key sends for the transfer route, where the caller builds it. */
   transferTransaction?: GasEstimateCall
+  /** The bar a balance must reach to pass; the check's default where left out. */
+  passBar?: GasPassBar
+  /** Whether the account the key operates may pay the fee; the check's default where left out. */
+  accountPays?: boolean
 }): Promise<GasCheck> => {
   const key = args.key ?? KEY
   const prepared = args.prepared ?? preparedFor(args.write)
@@ -245,6 +259,8 @@ export const runGasCheck = (args: {
     network: NETWORK,
     ...(ownerWrite ? { transaction } : {}),
     ...(args.transferTransaction ? { transferTransaction: args.transferTransaction } : {}),
+    ...(args.passBar ? { passBar: args.passBar } : {}),
+    ...(args.accountPays !== undefined ? { accountPays: args.accountPays } : {}),
     ...(args.fastTrack ? { fastTrack: true } : { operates: args.operates ?? ACCOUNT_REF })
   })
 }
@@ -674,12 +690,24 @@ if (expect.getState().testPath === __filename) {
   })
 }
 
-/** The balance and gas a test scripts, and whether the account has a factory or the estimate reverts. */
+/**
+ * The balances and gas a test scripts, and whether the account has a factory
+ * or the estimate reverts: `balance` is the sending key's, `accountBalance`
+ * the account's (empty unless given).
+ */
 export type GasWorld = {
   balance: bigint
+  accountBalance?: bigint
   gas: bigint
   factory?: Address
   reverts?: boolean
+}
+
+/** A recovery call, named, and whether it runs on the fast track. */
+export type RecoveryCallCase = {
+  name: string
+  write: 'submission' | 'execution'
+  fastTrack: boolean
 }
 
 /** A call the estimate was asked for. */

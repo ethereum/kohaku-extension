@@ -52,7 +52,11 @@ export interface IdleState {
   write: WriteKind
 }
 
-/** The gas check runs: the estimate, the gas price and the sending key's balance. */
+/**
+ * The gas check runs: the estimate, the gas price, the sending key's balance
+ * and, for a write the key sends on the account's behalf where the account may
+ * pay the fee, the account's balance.
+ */
 export interface CheckingGasState {
   status: 'checkingGas'
   write: WriteKind
@@ -68,6 +72,12 @@ export interface GasReadErrorState {
   status: 'gasReadError'
   write: WriteKind
   error: ProviderReadFailure
+  /**
+   * Whether the check the retry runs may read the account's balance too: true
+   * unless the check that failed read the key alone. A retry after a key-only
+   * check keeps the key-only reading.
+   */
+  accountPays: boolean
 }
 
 /** The sending key holds too little: the deposit step, rather than a failed transaction. */
@@ -272,7 +282,11 @@ export type WriteEvent =
       cause?: KitError
       attemptAfter?: AttemptAfterCancel
     }
-  /** The gas check or the send threw; the hash is the one the wallet holds, where it holds one. */
+  /**
+   * The gas check or the send threw; the hash is the one the wallet holds,
+   * where it holds one. `accountPays` is `false` where the check that failed
+   * read the key alone, so the retry of a read that failed reads it alone too.
+   */
   | {
       type: 'error'
       run: number
@@ -280,6 +294,7 @@ export type WriteEvent =
       transactionHash?: Hex
       cause?: KitError
       attemptAfter?: AttemptAfterCancel
+      accountPays?: boolean
     }
   /** The attempt read after a cancel's revert returned. */
   | { type: 'attemptRead'; run: number; attemptAfter: AttemptAfterCancel }
@@ -418,6 +433,12 @@ export interface DepositStep {
   routes: DepositRoute[]
   /** The account this wallet holds that the key operates, off the fast track. */
   operates?: WalletAccountRef
+  /**
+   * Whether the account the key operates may still pay this fee itself, once
+   * it holds the amount asked: true where the check read the account's balance
+   * too, false for a recovery call and for the check that read the key alone.
+   */
+  accountPays: boolean
 }
 
 /** What the gas check answers: enough, so the step is skipped, or the deposit step. */
@@ -467,6 +488,14 @@ export interface GasCheckInput {
   feeHeadroom?: FeeHeadroom
   /** The bar a balance must reach to pass, `required` by default. */
   passBar?: GasPassBar
+  /**
+   * Whether the account the key operates may pay the fee itself. By default an
+   * owner write off the fast track reads the account's balance too, and passes
+   * where it reaches the bar. The check run again after the sign screen read
+   * the account short at its fee passes `false`, and the check then reads the
+   * key's balance alone.
+   */
+  accountPays?: boolean
 }
 
 /** What the deposit step is built from: the check's estimate and a balance that falls short of it. */
@@ -481,6 +510,8 @@ export interface DepositStepInput {
   fastTrack?: boolean
   /** The bar the balance falls short of, `required` by default. */
   passBar?: GasPassBar
+  /** Whether the account the key operates may still pay this fee itself, false by default. */
+  accountPays?: boolean
 }
 
 // ---------------------------------------------------------------------------

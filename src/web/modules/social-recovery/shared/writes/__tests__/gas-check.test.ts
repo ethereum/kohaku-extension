@@ -3,25 +3,37 @@
  * provider (the SDK estimates nothing), names the sending key's address, the
  * amount and the network, and offers a transfer from another account this
  * wallet holds and a deposit from outside. The step is skipped when the key
- * already holds enough.
+ * already holds enough, and, for a write the key sends on the account's
+ * behalf, when the account holds enough to pay the fee itself.
  */
+import i18n from '@common/config/localization'
+import type { Address } from '@kohaku-eth/social-recovery'
+import { providerReadFailure } from '@web/modules/social-recovery/shared/client'
 import {
   ACCOUNT,
   EXECUTION,
+  GAS_KEYS,
   GWEI,
+  initialWriteState,
   KEY,
   mockReads,
   NETWORK,
   OTHER_KEY,
   ownerTransaction,
+  renderDepositStep,
+  renderGasAmount,
   runGasCheck,
   stateAfterGasCheck,
   stepOf,
   SUBMISSION,
   transferTransactionOf,
-  WRITE_KINDS
+  WRITE_KINDS,
+  writeReducer
 } from '@web/modules/social-recovery/shared/writes/__tests__/harness'
-import type { DataCall } from '@web/modules/social-recovery/shared/writes/__tests__/harness'
+import type {
+  DataCall,
+  RecoveryCallCase
+} from '@web/modules/social-recovery/shared/writes/__tests__/harness'
 
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
 
@@ -226,5 +238,178 @@ describe('the gas check', () => {
       expect(small.kind).toBe('enough')
       expect(large.kind).toBe('deposit')
     })
+  })
+})
+
+describe("the gas check of a write the key sends on the account's behalf", () => {
+  const OWNER_WRITES = ['save', 'edit', 'ownerWrite', 'cancel'] as const
+  const GAS = 200_000n
+  const PRICE = 3n * GWEI
+  /** The bar to pass for this estimate: 0.00066 ETH; the amount asked: 0.0009 ETH. */
+  const REQUIRED = 660_000_000_000_000n
+  const ASKED = 900_000_000_000_000n
+  /** A balance above the bar to pass and below the amount asked. */
+  const BETWEEN = 700_000_000_000_000n
+  /** A balance far above any fee. */
+  const RICH = 1_000_000_000_000_000_000n
+
+  const readsOf = (key: bigint, account: bigint) =>
+    mockReads({ balance: key, accountBalance: account, gas: GAS, price: PRICE })
+  const balanceReadsOf = (reads: ReturnType<typeof readsOf>) =>
+    reads.nativeBalance.mock.calls.map(([address]) => String(address).toLowerCase())
+
+  OWNER_WRITES.forEach((write) =>
+    describe(write, () => {
+      it("passes with the key at zero where the account holds the bar to pass, and the write goes on to the sign request with the key's balance", async () => {
+        const reads = readsOf(0n, REQUIRED)
+        const check = await runGasCheck({ write, reads })
+
+        expect(check).toMatchObject({ kind: 'enough', write, balance: 0n })
+        expect(check.kind === 'enough' && same(check.key, KEY.addr)).toBe(true)
+        expect(stateAfterGasCheck(check).status).toBe('submitting')
+        expect(reads.estimateGas).toHaveBeenCalledTimes(1)
+      })
+
+      it('passes with the account at zero where the key holds the bar to pass', async () => {
+        const check = await runGasCheck({ write, reads: readsOf(REQUIRED, 0n) })
+
+        expect(check).toMatchObject({ kind: 'enough', balance: REQUIRED })
+        expect(stateAfterGasCheck(check).status).toBe('submitting')
+      })
+
+      it("shows the key's deposit step where both hold less than the bar, with the note that the account can pay once it holds the amount asked", async () => {
+        const held = REQUIRED - 1n
+        const check = await runGasCheck({ write, reads: readsOf(held, held) })
+        const step = stepOf(check)
+
+        expect(stateAfterGasCheck(check).status).toBe('needsDeposit')
+        expect(same(step.key, KEY.addr)).toBe(true)
+        expect(step.balance).toBe(held)
+        expect(step.shortfall).toBe(ASKED - held)
+        expect(step.routes.map((route) => route.kind)).toEqual(['transfer', 'outside'])
+        expect(step.accountPays).toBe(true)
+        expect(renderDepositStep(step).notes).toContain(
+          i18n.t(GAS_KEYS.accountCanPay, {
+            amount: renderGasAmount(ASKED, NETWORK.nativeAssetSymbol)
+          })
+        )
+      })
+
+      it("reads the key's balance alone where the account is left out of paying, and shows the key's deposit step with no note that the account can pay, however much the account holds", async () => {
+        const reads = readsOf(0n, RICH)
+        const check = await runGasCheck({ write, reads, accountPays: false })
+        const step = stepOf(check)
+
+        expect(balanceReadsOf(reads)).toEqual([KEY.addr.toLowerCase()])
+        expect(stateAfterGasCheck(check).status).toBe('needsDeposit')
+        expect(same(step.key, KEY.addr)).toBe(true)
+        expect(step.balance).toBe(0n)
+        expect(step.shortfall).toBe(ASKED)
+        expect(step.accountPays).toBe(false)
+        expect(renderDepositStep(step).notes).not.toContain(
+          i18n.t(GAS_KEYS.accountCanPay, {
+            amount: renderGasAmount(ASKED, NETWORK.nativeAssetSymbol)
+          })
+        )
+      })
+
+      it('passes on the key alone where the account is left out of paying and the key holds the bar to pass', async () => {
+        const reads = readsOf(REQUIRED, 0n)
+        const check = await runGasCheck({ write, reads, accountPays: false })
+
+        expect(check).toMatchObject({ kind: 'enough', balance: REQUIRED })
+        expect(balanceReadsOf(reads)).toEqual([KEY.addr.toLowerCase()])
+      })
+
+      it("reads the key's balance and the balance of the account the key operates", async () => {
+        const reads = readsOf(0n, 0n)
+        await runGasCheck({ write, reads })
+
+        expect(balanceReadsOf(reads).sort()).toEqual(
+          [KEY.addr.toLowerCase(), ACCOUNT.toLowerCase()].sort()
+        )
+      })
+
+      it('rejects with the failed read where the account balance read fails, and the write reads that as a gas read error', async () => {
+        const failure = providerReadFailure('nativeBalance', new Error('node down'))
+        const reads = readsOf(1_000_000_000_000_000_000n, 0n)
+        reads.nativeBalance.mockImplementation(async (address: Address) => {
+          if (same(address, ACCOUNT)) {
+            throw failure
+          }
+          return 1_000_000_000_000_000_000n
+        })
+        const thrown = await runGasCheck({ write, reads }).catch((error: unknown) => error)
+
+        expect(thrown).toBe(failure)
+        const checking = writeReducer(initialWriteState(write), { type: 'start' })
+        const state = writeReducer(checking, { type: 'error', run: checking.run, error: thrown })
+        expect(state.status).toBe('gasReadError')
+      })
+    })
+  )
+
+  describe('the check at the amount asked', () => {
+    it('reads both balances again and passes an account that holds the amount asked', async () => {
+      const reads = readsOf(0n, ASKED)
+      const check = await runGasCheck({ write: 'save', reads, passBar: 'asked' })
+
+      expect(check.kind).toBe('enough')
+      expect(balanceReadsOf(reads).sort()).toEqual(
+        [KEY.addr.toLowerCase(), ACCOUNT.toLowerCase()].sort()
+      )
+    })
+
+    it("shows the key's deposit step where the account holds the bar to pass but less than the amount asked", async () => {
+      const step = stepOf(
+        await runGasCheck({ write: 'save', reads: readsOf(0n, BETWEEN), passBar: 'asked' })
+      )
+      expect(step.balance).toBe(0n)
+      expect(step.shortfall).toBe(ASKED)
+    })
+
+    it('passes the same account where the check runs at its default bar', async () => {
+      expect((await runGasCheck({ write: 'save', reads: readsOf(0n, BETWEEN) })).kind).toBe(
+        'enough'
+      )
+    })
+  })
+
+  describe('the check again after the sign screen read the payer short', () => {
+    it("reads the key alone where the account is left out of paying, and shows the key's deposit step though the account holds the amount asked", async () => {
+      const reads = readsOf(0n, ASKED)
+      const check = await runGasCheck({
+        write: 'save',
+        reads,
+        passBar: 'asked',
+        accountPays: false
+      })
+      const step = stepOf(check)
+
+      expect(balanceReadsOf(reads)).toEqual([KEY.addr.toLowerCase()])
+      expect(step.balance).toBe(0n)
+      expect(step.shortfall).toBe(ASKED)
+      expect(step.accountPays).toBe(false)
+    })
+  })
+
+  describe("a recovery call is paid by the recoverer's own key", () => {
+    const RECOVERY_CALLS: RecoveryCallCase[] = [
+      { name: 'a submission', write: 'submission', fastTrack: false },
+      { name: 'an execution', write: 'execution', fastTrack: false },
+      { name: 'a submission on the fast track', write: 'submission', fastTrack: true },
+      { name: 'an execution on the fast track', write: 'execution', fastTrack: true }
+    ]
+
+    RECOVERY_CALLS.forEach(({ name, write, fastTrack }) =>
+      it(`${name} reads the key's balance alone, and a funded account does not spare the key its deposit step`, async () => {
+        const reads = readsOf(0n, 1_000_000_000_000_000_000n)
+        const check = await runGasCheck({ write, fastTrack, reads })
+
+        expect(balanceReadsOf(reads)).toEqual([KEY.addr.toLowerCase()])
+        expect(stepOf(check).balance).toBe(0n)
+        expect(stepOf(check).accountPays).toBe(false)
+      })
+    )
   })
 })

@@ -60,14 +60,11 @@
 import type { Hex } from '@kohaku-eth/social-recovery'
 import {
   accountBatchRefusal,
+  isProviderReadFailure,
   providerReadFailure,
   readWithin
 } from '@web/modules/social-recovery/shared/client'
-import type {
-  FeeReading,
-  ProviderRead,
-  SendRequestState
-} from '@web/modules/social-recovery/shared/client'
+import type { ProviderRead, SendRequestState } from '@web/modules/social-recovery/shared/client'
 import type { RecordRead, SaveInFlightRecord } from '@web/modules/social-recovery/shared/records'
 import {
   apartFrom,
@@ -77,9 +74,11 @@ import {
   initialWriteState,
   intentOfRequest,
   mayStillLand,
+  shortAtSigning,
   writeReducer
 } from '@web/modules/social-recovery/shared/writes'
 import type {
+  GasCheck,
   UnknownReading,
   WriteEvent,
   WriteKind,
@@ -521,15 +520,25 @@ const storedSaveWithin = <T>(read: () => Promise<T>, limitMs: number): Promise<T
     () => new Error(`The stored save read did not answer in ${limitMs} ms.`)
   )
 
-/** Reads the account's setup at the start of a run; a setup found ends the run with nothing prepared. */
-const noSetupYet = async (store: ArmStore, steps: SaveSteps, run: number): Promise<boolean> => {
+/**
+ * Reads the account's setup at the start of a run; a setup found ends the run
+ * with nothing prepared. In a run whose gas check reads the key alone
+ * (`accountPays` at `false`), a read that fails keeps that, so its retry
+ * reads the key alone too.
+ */
+const noSetupYet = async (
+  store: ArmStore,
+  steps: SaveSteps,
+  run: number,
+  accountPays?: boolean
+): Promise<boolean> => {
   try {
     if (await steps.hasSetup()) {
       store.dispatch({ type: 'alreadySetUp', run })
       return false
     }
   } catch (error: unknown) {
-    writeEvent(store)({ type: 'error', run, error })
+    writeEvent(store)({ type: 'error', run, error, accountPays })
     return false
   }
   return inRun(store.state(), run) && store.state().write.status === 'checkingGas'
@@ -1178,18 +1187,19 @@ export const attachSteps = async (
   }
 }
 
-/** Whether the sign screen's estimation read no fee option the payer could cover, or an error. */
-const shortAtSigning = (reading: FeeReading | undefined): boolean =>
-  !!reading &&
-  (reading.error !== undefined || !reading.options.some(({ available }) => available === true))
-
 /**
  * After the sign screen read the batch short of gas and the save was not
  * sent: the gas check again on the same prepared save, against the amount the
  * step asks for rather than the lower bar to pass, since the sign screen's fee
- * ran above the estimate. Where the key holds less than that amount, a new run
+ * ran above the estimate. It reads the key's balance alone: the sign screen
+ * already read the account short at its own fee, so the account's balance
+ * passes nothing here. Where the key holds less than that amount, a new run
  * that reads the setup again shows the deposit step with the shortfall to it;
- * where the key holds it, the not-sent state stays as it was.
+ * where the key holds it, the not-sent state stays as it was. A read of that
+ * check that fails is never shown as the not-sent state: a new run that reads
+ * the setup again shows the read error, and its retry reads the key alone.
+ * Any other failure of that check keeps the not-sent state with its retry,
+ * as before the check ran.
  */
 const recheckAfterShortSigning = async (
   store: ArmStore,
@@ -1197,21 +1207,36 @@ const recheckAfterShortSigning = async (
   run: number,
   prepared: PreparedSave
 ): Promise<void> => {
-  const check = await steps.checkGas(prepared, 'asked').catch(() => null)
-  if (
-    check?.kind !== 'deposit' ||
-    !inRun(store.state(), run) ||
-    store.state().write.status !== 'failedNotSent'
-  ) {
+  const notSent = () => inRun(store.state(), run) && store.state().write.status === 'failedNotSent'
+  const nextRun = async (): Promise<number | undefined> => {
+    writeEvent(store)({ type: 'start' })
+    const next = store.state().write.run
+    if (next !== run + 1 || !(await noSetupYet(store, steps, next, false))) {
+      return undefined
+    }
+    store.dispatch({ type: 'prepared', run: next, prepared })
+    return next
+  }
+  let check: GasCheck
+  try {
+    check = await steps.checkGas(prepared, 'asked', false)
+  } catch (error: unknown) {
+    if (!isProviderReadFailure(error) || !notSent()) {
+      return
+    }
+    const next = await nextRun()
+    if (next !== undefined) {
+      writeEvent(store)({ type: 'error', run: next, error, accountPays: false })
+    }
     return
   }
-  writeEvent(store)({ type: 'start' })
-  const next = store.state().write.run
-  if (next !== run + 1 || !(await noSetupYet(store, steps, next))) {
+  if (check.kind !== 'deposit' || !notSent()) {
     return
   }
-  store.dispatch({ type: 'prepared', run: next, prepared })
-  writeEvent(store)({ type: 'gasChecked', run: next, check })
+  const next = await nextRun()
+  if (next !== undefined) {
+    writeEvent(store)({ type: 'gasChecked', run: next, check })
+  }
 }
 
 /** The send of a claimed save under its request id, with the first receipt wait's limit. */
@@ -1328,16 +1353,18 @@ const yieldClaim = async (
 }
 
 /**
- * The gas check of the run's prepared save; where the key holds enough, the
- * claim of the save in flight, then the send under the claim's id, or, where
- * another page's save is stored, that save followed with nothing sent; then
- * the check.
+ * The gas check of the run's prepared save; where the key or the account
+ * holds enough, the claim of the save in flight, then the send under the
+ * claim's id, or, where another page's save is stored, that save followed
+ * with nothing sent; then the check. With `accountPays` at `false` the check
+ * reads the key alone.
  */
 const checkAndSend = async (
   store: ArmStore,
   steps: SaveSteps,
   run: number,
-  options: ConfirmReadOptions
+  options: ConfirmReadOptions,
+  accountPays?: boolean
 ): Promise<void> => {
   const { prepared } = store.state()
   if (!prepared || !inRun(store.state(), run) || store.state().write.status !== 'checkingGas') {
@@ -1345,10 +1372,10 @@ const checkAndSend = async (
   }
   const dispatch = writeEvent(store)
   try {
-    const check = await steps.checkGas(prepared)
+    const check = await steps.checkGas(prepared, undefined, accountPays)
     dispatch({ type: 'gasChecked', run, check })
   } catch (error: unknown) {
-    dispatch({ type: 'error', run, error })
+    dispatch({ type: 'error', run, error, accountPays })
     return
   }
   if (!awaitingHashIn(store.state(), run)) {
@@ -1478,7 +1505,9 @@ const checkAndSend = async (
  * claims the save in flight and sends. A setup already on the account ends
  * the run with nothing prepared; a refusal of the prepare reads as never sent.
  * Does nothing where the save cannot start, nor after a refusal whose
- * operation may still land.
+ * operation may still land. The retry of a read that failed in a check that
+ * read the key alone reads the key alone again; every other start runs the
+ * check that reads the account too.
  */
 export const startSave = async (
   store: ArmStore,
@@ -1489,41 +1518,49 @@ export const startSave = async (
     return
   }
   await releaseWhereEnded(store, steps)
-  const before = store.state().write.run
+  const { write } = store.state()
+  const accountPays = write.status === 'gasReadError' && !write.accountPays ? false : undefined
+  const before = write.run
   writeEvent(store)({ type: 'start' })
   const { run } = store.state().write
-  if (run === before || !(await noSetupYet(store, steps, run))) {
+  if (run === before || !(await noSetupYet(store, steps, run, accountPays))) {
     return
   }
   try {
     const prepared = await steps.prepare()
     store.dispatch({ type: 'prepared', run, prepared })
   } catch (error: unknown) {
-    writeEvent(store)({ type: 'error', run, error })
+    writeEvent(store)({ type: 'error', run, error, accountPays })
     return
   }
-  await checkAndSend(store, steps, run, options)
+  await checkAndSend(store, steps, run, options, accountPays)
 }
 
 /**
  * From the deposit blocker: the account's setup read again, then the gas check
  * again on the same prepared save, then the claim and the send. A setup found
  * meanwhile, by another tab, ends the run with nothing checked or sent.
+ * A step that read the key alone, since the account could not pay when the
+ * wallet tried to send, keeps that reading: the check again reads the key
+ * alone too and passes only once the key holds enough, and a setup read that
+ * fails keeps it for the retry.
  */
 export const recheckGas = async (
   store: ArmStore,
   steps: SaveSteps,
   options: ConfirmReadOptions = {}
 ): Promise<void> => {
-  if (store.state().write.status !== 'needsDeposit') {
+  const { write } = store.state()
+  if (write.status !== 'needsDeposit') {
     return
   }
+  const accountPays = write.step.accountPays ? undefined : false
   writeEvent(store)({ type: 'recheck' })
   const { run } = store.state().write
-  if (!(await noSetupYet(store, steps, run))) {
+  if (!(await noSetupYet(store, steps, run, accountPays))) {
     return
   }
-  await checkAndSend(store, steps, run, options)
+  await checkAndSend(store, steps, run, options, accountPays)
 }
 
 /**

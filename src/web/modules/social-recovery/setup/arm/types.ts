@@ -222,9 +222,11 @@ export interface SaveSteps {
   prepare(): Promise<PreparedSave>
   /**
    * The gas check of the batch the controlling key sends, against the bar to
-   * pass, or against the amount asked with `passBar` at `asked`.
+   * pass, or against the amount asked with `passBar` at `asked`. It reads the
+   * key's balance and the account's, since the account may pay its own fee;
+   * with `accountPays` at `false` it reads the key's alone.
    */
-  checkGas(save: PreparedSave, passBar?: GasPassBar): Promise<GasCheck>
+  checkGas(save: PreparedSave, passBar?: GasPassBar, accountPays?: boolean): Promise<GasCheck>
   /** The account the save writes to. */
   account: Address
   /** A stored save as the run checks it: the draft and the prepared write it sent, and its calls. */

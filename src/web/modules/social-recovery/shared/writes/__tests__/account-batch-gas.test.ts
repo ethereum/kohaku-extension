@@ -104,10 +104,13 @@ const operatesFor = (deployed: boolean, factory?: Address) => ({
  * The client's own chain reads over a node that reverts an estimate of a
  * transaction to `factory` unless it comes from a simulation origin, and
  * answers `gas` for every other. `reverts` makes it revert every estimate.
- * Each estimate the node was asked for is kept in `asked`.
+ * It answers `accountBalance` for the account's balance and `balance` for the
+ * key's. Each estimate the node was asked for is kept in `asked`, each
+ * address whose balance it was asked for in `balanceOf`.
  */
 const spoofOriginNode = ({
   balance,
+  accountBalance = 0n,
   gas,
   factory = ACCOUNT_FACTORY,
   reverts = false
@@ -117,7 +120,7 @@ const spoofOriginNode = ({
   const provider = {
     getBalance: async (address: string) => {
       balanceOf.push(address)
-      return balance
+      return sameAddress(address, account.addr) ? accountBalance : balance
     },
     estimateGas: async (call: EstimateCall) => {
       const from = String(call.from)
@@ -145,7 +148,11 @@ describe("the gas check of an account's batch, over the library's transaction", 
     describe(`for an account ${title}`, () => {
       it('estimates that transaction itself, and answers enough for a key that holds enough', async () => {
         const transaction = transactionFor(deployed)
-        const reads = mockReads({ balance: 1_000_000_000_000_000_000n, gas: 250_000n })
+        const reads = mockReads({
+          balance: 1_000_000_000_000_000_000n,
+          account: account.addr as Address,
+          gas: 250_000n
+        })
         const check = await runGasCheck({
           write: 'save',
           prepared: SAVE,
@@ -159,10 +166,16 @@ describe("the gas check of an account's batch, over the library's transaction", 
           deployed ? transaction : { ...transaction, from: DEPLOYLESS_SIMULATION_FROM }
         )
         expect(reads.nativeBalance).toHaveBeenCalledWith(KEY.addr)
+        expect(reads.nativeBalance).toHaveBeenCalledWith(account.addr)
       })
 
-      it('answers the deposit step for a key that holds too little', async () => {
-        const reads = mockReads({ balance: 0n, gas: 250_000n, price: 2n * GWEI })
+      it('answers the deposit step where the key and the account both hold too little', async () => {
+        const reads = mockReads({
+          balance: 0n,
+          account: account.addr as Address,
+          gas: 250_000n,
+          price: 2n * GWEI
+        })
         const step = stepOf(
           await runGasCheck({
             write: 'save',
@@ -183,7 +196,7 @@ describe("the gas check of an account's batch, over the library's transaction", 
   })
 
   it('prices the transfer route for an account with code, and drops it for one with none', async () => {
-    const short = () => mockReads({ balance: 0n, gas: 250_000n })
+    const short = () => mockReads({ balance: 0n, account: account.addr as Address, gas: 250_000n })
     const withCode = stepOf(
       await runGasCheck({
         write: 'save',
@@ -239,7 +252,7 @@ describe("the gas check of an account's batch, over the library's transaction", 
 })
 
 describe('the deploy-and-execute of an account with no code, on a node that takes the stand-in signature from the simulation origins only', () => {
-  it("passes: the estimate runs from the simulation sender with the same target and calldata, the balance read is the key's, and a funded key holds enough", async () => {
+  it("passes: the estimate runs from the simulation sender with the same target and calldata, the balance reads are the key's and the account's, and a funded key holds enough", async () => {
     const transaction = transactionFor(false)
     const node = spoofOriginNode({ balance: 1_000_000_000_000_000_000n, gas: 310_000n })
     const check = await runGasCheck({
@@ -253,7 +266,7 @@ describe('the deploy-and-execute of an account with no code, on a node that take
     expect(node.asked).toEqual([
       { from: DEPLOYLESS_SIMULATION_FROM, to: transaction.to, data: transaction.data }
     ])
-    expect(node.balanceOf).toEqual([KEY.addr])
+    expect(node.balanceOf).toEqual([KEY.addr, account.addr])
   })
 
   it('answers the deposit step for an empty key, rather than a call never sent', async () => {
@@ -369,7 +382,7 @@ describe('the factory an account was created by', () => {
   it("prices the transfer route of an account with no code through the account's own factory, from the simulation sender", async () => {
     const transferTransaction = transferFor(false, otherFactoryAccount)
     expect(transferTransaction.to).toBe(OTHER_FACTORY)
-    const reads = mockReads({ balance: 0n, gas: 250_000n })
+    const reads = mockReads({ balance: 0n, account: account.addr as Address, gas: 250_000n })
     const step = stepOf(
       await runGasCheck({
         write: 'save',
@@ -404,7 +417,7 @@ describe('the factory an account was created by', () => {
   })
 
   it('estimates the batch and the transfer route of an account with code from the key, whatever factory the account names', async () => {
-    const reads = mockReads({ balance: 0n, gas: 250_000n })
+    const reads = mockReads({ balance: 0n, account: account.addr as Address, gas: 250_000n })
     await runGasCheck({
       write: 'save',
       prepared: SAVE,

@@ -22,6 +22,7 @@ import type { EditWorld } from '@web/modules/social-recovery/management/editor/_
 import type { AttemptRead, EditSession } from '@web/modules/social-recovery/management/editor/types'
 import type { PreparedSave, SaveSteps } from '@web/modules/social-recovery/setup/arm'
 import type { LastAttempt } from '@web/modules/social-recovery/shared/records'
+import type { GasCheck } from '@web/modules/social-recovery/shared/writes'
 
 /* eslint-disable @typescript-eslint/no-var-requires, global-require */
 const fixture: typeof import('@web/modules/social-recovery/management/editor/__fixtures__/world') = require('@web/modules/social-recovery/management/editor/__fixtures__/world')
@@ -952,5 +953,67 @@ describe('the bar the gas check passes at', () => {
     expect(atBar.kind).toBe('enough')
     expect(atAsked.kind === 'deposit' && atAsked.step.shortfall).toBe(ASKED - BETWEEN)
     expect(atAsked.kind === 'deposit' && atAsked.step.write).toBe('ownerWrite')
+  })
+})
+
+describe("the check again that leaves the account's balance out", () => {
+  const RICH = 1_000_000_000_000_000_000n
+
+  /** The key at zero and the account it operates far above any fee. */
+  const keyAtZero = (world: EditWorld) => {
+    const reads = chainReadsFor('enough')
+    reads.nativeBalance.mockImplementation(async (address: string) =>
+      address.toLowerCase() === KEY.addr.toLowerCase() ? 0n : RICH
+    )
+    return { world: { ...world, reads }, reads }
+  }
+
+  const checksOf = async (steps: SaveSteps) => {
+    const prepared = await steps.prepare()
+    return {
+      withAccount: await steps.checkGas(prepared, 'asked'),
+      keyAlone: await steps.checkGas(prepared, 'asked', false)
+    }
+  }
+
+  const expectKeysDepositStep = (check: GasCheck) => {
+    expect(check.kind).toBe('deposit')
+    if (check.kind !== 'deposit') {
+      return
+    }
+    expect(check.step.key.toLowerCase()).toBe(KEY.addr.toLowerCase())
+    expect(check.step.balance).toBe(0n)
+    expect(check.step.accountPays).toBe(false)
+  }
+
+  const balanceReadsOf = (reads: ReturnType<typeof keyAtZero>['reads']) =>
+    reads.nativeBalance.mock.calls.map(([address]) => String(address).toLowerCase())
+
+  it("the save of the changes: passes on the account's balance, and shows the key's deposit step where the key is read alone", async () => {
+    const lands = await fixture.worldOf('lands')
+    setRecoveryPassword(CHAIN_ID, lands.account, PASSWORD)
+    const baseline = await openAndEdit(lands)
+    const { world, reads } = keyAtZero(lands)
+    const { steps } = await editSteps(world, baseline)
+
+    const { withAccount, keyAlone } = await checksOf(steps)
+
+    expect(withAccount.kind).toBe('enough')
+    expectKeysDepositStep(keyAlone)
+    // Two reads for the check with the account, then the key's alone.
+    expect(balanceReadsOf(reads)).toHaveLength(3)
+    expect(balanceReadsOf(reads)[2]).toBe(KEY.addr.toLowerCase())
+  })
+
+  it("the removal: passes on the account's balance, and shows the key's deposit step where the key is read alone", async () => {
+    const { world, reads } = keyAtZero(await fixture.worldOf('lands'))
+
+    const { withAccount, keyAlone } = await checksOf(removalSteps(world))
+
+    expect(withAccount.kind).toBe('enough')
+    expectKeysDepositStep(keyAlone)
+    expect(keyAlone.kind === 'deposit' && keyAlone.step.write).toBe('ownerWrite')
+    expect(balanceReadsOf(reads)).toHaveLength(3)
+    expect(balanceReadsOf(reads)[2]).toBe(KEY.addr.toLowerCase())
   })
 })

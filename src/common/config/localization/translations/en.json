@@ -177,12 +177,12 @@
         "balanceWaiting": "Balance {{balance}} · waiting for funds…",
         "continuesOnItsOwn": "This screen continues on its own once the funds arrive.",
         "notEnoughGas": "Not enough gas",
-        "notEnoughGasAccountKey": "Not enough gas on your account's key",
+        "notEnoughGasAccountKey": "Not enough gas on your account or its key",
         "notEnoughGasSendingKey": "Not enough gas on the sending key",
-        "shortfall": "Your account's key holds too little to send this. It needs at least {{amount}} more.",
-        "shortfallSave": "Your account's key holds too little to send this save. It needs at least {{amount}} more.",
+        "shortfall": "Your account and its key hold too little to send this. The key needs at least {{amount}} more.",
+        "shortfallSave": "Your account and its key hold too little to send this save. The key needs at least {{amount}} more.",
         "shortfallSubmit": "Your key holds too little to send this. Fund it, then submit again.",
-        "shortfallCancel": "Your account's key holds too little to send this cancel. Fund it, then cancel again.",
+        "shortfallCancel": "Your account and its key hold too little to send this cancel. Fund one of them, then cancel again.",
         "transferRoute": "Transfer at least {{amount}} from {{account}} to its key",
         "transferRouteNote": "One transaction from your smart account to its own key.",
         "outsideRoute": "Or send at least {{amount}} to this key from outside this wallet.",
@@ -195,7 +195,10 @@
         "networkOwner": "Send on {{network}}, the network of this account.",
         "outsideRouteAlone": "Send at least {{amount}} to this key from outside this wallet.",
         "copyFailed": "Could not copy. Select the address by hand.",
-        "feeMayChange": "The network fee can change before the send, so the key may need a little more."
+        "feeMayChange": "The network fee can change before the send, so the key may need a little more.",
+        "accountCanPay": "Your account can pay the fee itself once it holds {{amount}}.",
+        "notEnoughGasKeyAlone": "Not enough gas on your account's key",
+        "shortfallKeyAlone": "Your account could not pay the fee when the wallet tried to send this. Its key needs at least {{amount}} more."
       },
       "revertedSave": "The transaction reached the chain and reverted. {{cause}} Nothing was saved, your recovery path is not active yet, and the gas it spent is gone. Everything you enrolled is still here.",
       "revertedSubmit": "The transaction reached the chain and reverted. {{cause}} No waiting period has started and the gas it spent is gone. Everything you collected is still here.",
@@ -435,10 +438,10 @@
       }
     },
     "costLines": {
-      "save": "Saving is one transaction your account's key pays.",
-      "saveDeploys": "Saving is one transaction your account's key pays. It also deploys your account, so it costs more gas.",
+      "save": "Saving is one transaction. Your account pays the fee, or its key does.",
+      "saveDeploys": "Saving is one transaction. Your account pays the fee, or its key does. It also deploys your account, so it costs more gas.",
       "recovery": "A recovery is sent and paid for by the recoverer's own key. It costs the account nothing.",
-      "cancel": "Cancelling a recovery is one transaction your account's key sends and pays for. That key needs gas it holds outside the account."
+      "cancel": "Cancelling a recovery is one transaction your account sends. Your account pays the fee, or its key does."
     },
     "honestyNote": "Recovery helps if you lose your key. It cannot stop someone who already has it.",
     "presets": {
@@ -1327,7 +1330,7 @@
       "otherDoors": "Other ways to control this account may exist outside the recovery module. This wallet cannot see them all.",
       "survived": "Your setup survived the recovery and the wallet refuses a second one. Edit it, or replace it.",
       "editOrReplace": "Edit or replace your recovery path",
-      "passwordChange": "If your Recovery Card was on a device you lost, change the recovery password in the editor. That is one transaction this account's key signs and pays for.",
+      "passwordChange": "If your Recovery Card was on a device you lost, change the recovery password in the editor. That is one transaction this account's key signs. Your account pays the fee, or its key does.",
       "synced": {
         "title": "If you lost a device: your synced passkey",
         "follows": "This passkey may still follow the account that syncs it. If a device signed into that account is lost, whoever holds it can start a recovery while it stays signed in.",

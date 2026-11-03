@@ -1,4 +1,17 @@
-import { accountBatchRefusal, isSendRefusal } from '@web/modules/social-recovery/shared/client'
+import i18n from '@common/config/localization'
+import {
+  accountBatchRefusal,
+  isSendRefusal,
+  providerReadFailure
+} from '@web/modules/social-recovery/shared/client'
+import { deferred } from '@web/modules/social-recovery/shared/chrome/__fixtures__/deferred'
+import {
+  canRetry,
+  GAS_KEYS,
+  renderDepositStep,
+  renderGasAmount
+} from '@web/modules/social-recovery/shared/writes'
+import type { DepositStep, GasCheck } from '@web/modules/social-recovery/shared/writes'
 import {
   attachCancelSteps,
   attemptReaderOf,
@@ -22,12 +35,18 @@ import {
 import {
   ACCOUNT,
   ATTEMPT,
+  checkOnBalances,
+  ENOUGH,
+  KEY,
+  KEY_ALONE_SHORT,
   LANDED_BLOCK,
   NEW_KEY,
   OTHER_HASH,
   PAYLOAD,
+  RICH,
   SEPOLIA,
   SHORT,
+  signsShort,
   START_BLOCK,
   TX_HASH,
   cancelOn,
@@ -989,5 +1008,207 @@ describe("the owner's cancel run", () => {
     })
     expect(world.sendAccountBatch).not.toHaveBeenCalled()
     detachCancelSteps(store, world.steps)
+  })
+})
+
+describe('the cancel the account can pay itself, and the sign screen that reads it short', () => {
+  let store: CancelStore
+
+  beforeEach(() => {
+    store = createCancelStore()
+  })
+
+  const readsOf = (nativeBalance: jest.Mock) =>
+    nativeBalance.mock.calls.map(([address]) => String(address).toLowerCase())
+
+  /** Whether the rendered step tells that the account can pay the fee itself. */
+  const showsAccountNote = (step: DepositStep) =>
+    renderDepositStep(step).notes.includes(
+      i18n.t(GAS_KEYS.accountCanPay, {
+        amount: renderGasAmount(step.estimate.asked, step.network.symbol)
+      })
+    )
+
+  const keyReadFails = () => providerReadFailure('nativeBalance', new Error('node down'))
+
+  it('sends the cancel with the key at zero where the account holds enough', async () => {
+    const world = runWorld()
+    const nativeBalance = checkOnBalances(world, { key: [0n], account: [RICH] })
+    await startCancel(store, world.steps, ATTEMPT)
+
+    expect(world.sendAccountBatch).toHaveBeenCalledTimes(1)
+    expect(readsOf(nativeBalance).sort()).toEqual([KEY.toLowerCase(), ACCOUNT.toLowerCase()].sort())
+    expect(store.state().after).toEqual(OWNED)
+  })
+
+  it("shows the key's deposit step in a new run, with no note that the account can pay, where the sign screen read every option short and nothing was sent", async () => {
+    const world = runWorld()
+    const nativeBalance = checkOnBalances(world, { key: [0n], account: [RICH] })
+    signsShort(world)
+    await startCancel(store, world.steps, ATTEMPT)
+    const { write } = store.state()
+
+    expect(write.status).toBe('needsDeposit')
+    expect(write.run).toBe(2)
+    if (write.status !== 'needsDeposit') {
+      return
+    }
+    expect(write.step.key.toLowerCase()).toBe(KEY.toLowerCase())
+    expect(write.step.balance).toBe(0n)
+    expect(write.step.accountPays).toBe(false)
+    expect(showsAccountNote(write.step)).toBe(false)
+    expect(world.checkGas.mock.calls[1].slice(1)).toEqual(['asked', false])
+    expect(store.state().targetAttempt?.attemptId).toBe(ATTEMPT)
+    expect(readsOf(nativeBalance)).toEqual([
+      KEY.toLowerCase(),
+      ACCOUNT.toLowerCase(),
+      KEY.toLowerCase()
+    ])
+    expect(world.sendAccountBatch).toHaveBeenCalledTimes(1)
+  })
+
+  it("stays on the key's deposit step with nothing sent where Continue finds the key still empty, however much the account holds", async () => {
+    const world = runWorld()
+    const nativeBalance = checkOnBalances(world, { key: [0n], account: [RICH] })
+    signsShort(world)
+    await startCancel(store, world.steps, ATTEMPT)
+    expect(store.state().write.status).toBe('needsDeposit')
+    const reads = nativeBalance.mock.calls.length
+
+    await recheckCancel(store, world.steps)
+    const { write } = store.state()
+
+    expect(write.status).toBe('needsDeposit')
+    expect(write.status === 'needsDeposit' && write.step.accountPays).toBe(false)
+    expect(readsOf(nativeBalance).slice(reads)).toEqual([KEY.toLowerCase()])
+    expect(world.sendAccountBatch).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends the cancel on Continue once the key holds the amount asked', async () => {
+    const world = runWorld()
+    const nativeBalance = checkOnBalances(world, { key: [0n, 0n, RICH], account: [RICH] })
+    signsShort(world)
+    await startCancel(store, world.steps, ATTEMPT)
+    expect(store.state().write.status).toBe('needsDeposit')
+    const reads = nativeBalance.mock.calls.length
+
+    await recheckCancel(store, world.steps)
+
+    expect(readsOf(nativeBalance).slice(reads)).toEqual([KEY.toLowerCase()])
+    expect(world.sendAccountBatch).toHaveBeenCalledTimes(2)
+    expect(store.state().after).toEqual(OWNED)
+  })
+
+  it("shows the read error in a new run, with the retry, where the key's balance read fails on the check again, and the retry reads the key alone", async () => {
+    const world = runWorld()
+    const nativeBalance = checkOnBalances(world, {
+      key: [0n, keyReadFails(), 0n],
+      account: [RICH]
+    })
+    signsShort(world)
+    await startCancel(store, world.steps, ATTEMPT)
+    const failed = store.state().write
+
+    expect(failed.status).toBe('gasReadError')
+    expect(failed.run).toBe(2)
+    expect(failed.status === 'gasReadError' && failed.accountPays).toBe(false)
+    expect(canRetry(failed)).toBe(true)
+    expect(world.sendAccountBatch).toHaveBeenCalledTimes(1)
+    const reads = nativeBalance.mock.calls.length
+
+    await startCancel(store, world.steps, ATTEMPT)
+    const { write } = store.state()
+
+    expect(write.status).toBe('needsDeposit')
+    expect(write.status === 'needsDeposit' && write.step.accountPays).toBe(false)
+    expect(readsOf(nativeBalance).slice(reads)).toEqual([KEY.toLowerCase()])
+    expect(world.sendAccountBatch).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the gone reading and no deposit step, with nothing more sent, where the attempt ends while the key-only check again waits', async () => {
+    const chain = openChain()
+    const world = runWorld(chain)
+    const recheck = deferred<GasCheck>()
+    world.checkGas.mockResolvedValueOnce(ENOUGH).mockImplementationOnce(() => recheck.promise)
+    signsShort(world)
+    const first = startCancel(store, world.steps, ATTEMPT)
+    await settled()
+    expect(store.state().write.status).toBe('failedNotSent')
+
+    executeOn(chain)
+    recheck.resolve(KEY_ALONE_SHORT)
+    await first
+
+    expect(store.state().write.status).toBe('idle')
+    expect(store.state().gone?.ended).toMatchObject({ road: 'executed', controller: NEW_KEY })
+    expect(world.sendAccountBatch).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the read error that keeps the key alone where the attempt read of the new run fails, and the retry reads the key alone', async () => {
+    const world = runWorld()
+    const nativeBalance = checkOnBalances(world, { key: [0n], account: [RICH] })
+    const check = world.checkGas.getMockImplementation()
+    const { readAttempt } = world.steps
+    let failNextAttemptRead = false
+    world.checkGas.mockImplementation((...args: unknown[]) => {
+      failNextAttemptRead = args[1] === 'asked'
+      return check?.(...args)
+    })
+    world.steps.readAttempt = async () => {
+      if (failNextAttemptRead) {
+        failNextAttemptRead = false
+        throw providerReadFailure('call', new Error('node down'))
+      }
+      return readAttempt()
+    }
+    signsShort(world)
+    await startCancel(store, world.steps, ATTEMPT)
+    const failed = store.state().write
+
+    expect(failed.status).toBe('gasReadError')
+    expect(failed.run).toBe(2)
+    expect(failed.status === 'gasReadError' && failed.accountPays).toBe(false)
+    expect(canRetry(failed)).toBe(true)
+    const reads = nativeBalance.mock.calls.length
+
+    await startCancel(store, world.steps, ATTEMPT)
+    const { write } = store.state()
+
+    expect(write.status).toBe('needsDeposit')
+    expect(write.status === 'needsDeposit' && write.step.accountPays).toBe(false)
+    expect(readsOf(nativeBalance).slice(reads)).toEqual([KEY.toLowerCase()])
+    expect(world.sendAccountBatch).toHaveBeenCalledTimes(1)
+  })
+
+  it("changes nothing where an earlier run's check again answers late, while the retry's own check runs", async () => {
+    const world = runWorld()
+    const late = deferred<GasCheck>()
+    const retryCheck = deferred<GasCheck>()
+    world.checkGas
+      .mockResolvedValueOnce(ENOUGH)
+      .mockImplementationOnce(() => late.promise)
+      .mockImplementationOnce(() => retryCheck.promise)
+    signsShort(world)
+    const first = startCancel(store, world.steps, ATTEMPT)
+    await settled()
+    expect(store.state().write.status).toBe('failedNotSent')
+    expect(world.checkGas).toHaveBeenCalledTimes(2)
+
+    const retry = startCancel(store, world.steps, ATTEMPT)
+    await settled()
+    expect(world.checkGas).toHaveBeenCalledTimes(3)
+    const checking = store.state()
+    expect(checking.write.status).toBe('checkingGas')
+
+    late.resolve(KEY_ALONE_SHORT)
+    await first
+    await settled()
+
+    expect(store.state()).toEqual(checking)
+
+    retryCheck.resolve(ENOUGH)
+    await retry
+    expect(world.sendAccountBatch).toHaveBeenCalledTimes(2)
+    expect(store.state().write.status).not.toBe('needsDeposit')
   })
 })

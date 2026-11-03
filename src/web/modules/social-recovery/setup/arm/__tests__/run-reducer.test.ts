@@ -57,7 +57,8 @@ const STEP: DepositStep = {
   estimate: ESTIMATE,
   balance: 0n,
   shortfall: 15n,
-  routes: [{ kind: 'outside', to: KEY.addr, amount: 15n }]
+  routes: [{ kind: 'outside', to: KEY.addr, amount: 15n }],
+  accountPays: false
 }
 const DEPOSIT: GasCheck = { kind: 'deposit', step: STEP }
 

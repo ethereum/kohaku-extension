@@ -5,12 +5,14 @@
  * after a landed receipt decides, down to the wipe of the six setup records on
  * the extension's records over an in-memory storage.
  */
+import i18n from '@common/config/localization'
 import type { Account } from '@ambire-common/interfaces/account'
 import type { SetupDraft } from '@kohaku-eth/social-recovery'
 import {
   accountBatchRefusal,
   accountBatchTransactionOf,
   privacyLevelOf,
+  providerReadFailure,
   recoveryKitMarkOf,
   sameAddress,
   shapeNoteOf
@@ -22,7 +24,14 @@ import {
   setRecoveryPassword,
   SETUP_RECORD_NAMES
 } from '@web/modules/social-recovery/shared/records'
-import { canRetry, mayStillLand } from '@web/modules/social-recovery/shared/writes'
+import {
+  canRetry,
+  GAS_KEYS,
+  mayStillLand,
+  renderDepositStep,
+  renderGasAmount
+} from '@web/modules/social-recovery/shared/writes'
+import type { DepositStep } from '@web/modules/social-recovery/shared/writes'
 
 import {
   armScreenOf,
@@ -47,7 +56,9 @@ import { CLAIMED_SETUP_READ_MS } from '@web/modules/social-recovery/setup/arm/co
 
 import {
   advanceTimers,
+  answerBalances,
   armingCallOf,
+  balanceReadsOf,
   CHAIN_ID,
   COMMIT,
   confirmation,
@@ -87,6 +98,11 @@ let account: Account
 beforeAll(async () => {
   account = await smartAccount()
 })
+
+/** A balance far above any save's gas. */
+const RICH = 1_000_000_000_000_000_000n
+/** Above the bar a save's estimate must pass, below the amount it asks after a short signing. */
+const BETWEEN_BARS = 700_000_000_000_000n
 
 const script = (overrides: Partial<SaveScript> = {}): SaveScript => ({
   ...HAPPY,
@@ -1407,12 +1423,21 @@ describe("the sign screen's estimation before a save never sent", () => {
     ['no available option', feeReading({ available: false })]
   ]
 
+  /** Scripts the key's balance reads and the account's, each in turn. */
+  const balancesOf = (
+    wired: ReturnType<typeof wireSave>,
+    key: readonly (bigint | Error)[],
+    held: readonly (bigint | Error)[]
+  ) =>
+    answerBalances(wired.reads, [
+      { address: KEY.addr, balances: key },
+      { address: wired.account, balances: held }
+    ])
+
   SHORT_READINGS.forEach(([named, estimation]) => {
     it(`runs the gas check again after a reading with ${named}, and shows the deposit step in a new run that read the setup`, async () => {
       const wired = wireSave(account, script({ send: 'refused', estimation }))
-      wired.reads.nativeBalance
-        .mockResolvedValueOnce(1_000_000_000_000_000_000n)
-        .mockResolvedValueOnce(0n)
+      balancesOf(wired, [RICH, 0n, RICH], [0n])
       const store = await runSave(wired.steps)
       const { write } = store.state()
 
@@ -1422,7 +1447,12 @@ describe("the sign screen's estimation before a save never sent", () => {
         return
       }
       expect(write.step.key.toLowerCase()).toBe(KEY.addr.toLowerCase())
-      expect(wired.reads.nativeBalance).toHaveBeenCalledTimes(2)
+      // The first check reads the key's balance and the account's; the check again the key's alone.
+      expect(balanceReadsOf(wired.reads)).toEqual([
+        KEY.addr.toLowerCase(),
+        wired.account.toLowerCase(),
+        KEY.addr.toLowerCase()
+      ])
       // The first run's read before its prepare and after its claim, then the new run's own.
       expect(wired.setupState).toHaveBeenCalledTimes(3)
       expect(wired.setupState.mock.invocationCallOrder[2]).toBeGreaterThan(
@@ -1450,20 +1480,22 @@ describe("the sign screen's estimation before a save never sent", () => {
     expect(write.status).toBe('failedNotSent')
     expect(write.run).toBe(1)
     expect(canRetry(write)).toBe(true)
-    expect(wired.reads.nativeBalance).toHaveBeenCalledTimes(2)
+    expect(balanceReadsOf(wired.reads)).toEqual([
+      KEY.addr.toLowerCase(),
+      wired.account.toLowerCase(),
+      KEY.addr.toLowerCase()
+    ])
     // No new run started: only the reads before the prepare and after the claim.
     expect(wired.setupState).toHaveBeenCalledTimes(2)
     expect(wired.port.sendAccountBatch).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps the not-sent state where the gas check again throws', async () => {
+  it('keeps the not-sent state where the gas check again throws something other than a failed read', async () => {
     const wired = wireSave(
       account,
       script({ send: 'refused', estimation: feeReading({ error: true }) })
     )
-    wired.reads.nativeBalance
-      .mockResolvedValueOnce(1_000_000_000_000_000_000n)
-      .mockRejectedValueOnce(new Error('node down'))
+    balancesOf(wired, [RICH, new Error('node down')], [0n])
     const store = await runSave(wired.steps)
 
     expect(store.state().write.status).toBe('failedNotSent')
@@ -1471,14 +1503,194 @@ describe("the sign screen's estimation before a save never sent", () => {
     expect(wired.port.sendAccountBatch).toHaveBeenCalledTimes(1)
   })
 
+  /** Whether the rendered step tells that the account can pay the fee itself. */
+  const showsAccountNote = (step: DepositStep) =>
+    renderDepositStep(step).notes.includes(
+      i18n.t(GAS_KEYS.accountCanPay, {
+        amount: renderGasAmount(step.estimate.asked, step.network.symbol)
+      })
+    )
+
+  /** A read of the key's balance that could not run. */
+  const keyReadFails = () => providerReadFailure('nativeBalance', new Error('node down'))
+
+  it("shows the read error in a new run, with the retry, where the account paid the first check and the key's balance read fails on the check again", async () => {
+    const wired = wireSave(
+      account,
+      script({ send: 'refused', estimation: feeReading({ error: true }) })
+    )
+    balancesOf(wired, [0n, keyReadFails()], [RICH])
+    const store = await runSave(wired.steps)
+    const { write } = store.state()
+
+    expect(write.status).toBe('gasReadError')
+    expect(write.run).toBe(2)
+    expect(write.status === 'gasReadError' && write.accountPays).toBe(false)
+    expect(canRetry(write)).toBe(true)
+    expect(balanceReadsOf(wired.reads)).toEqual([
+      KEY.addr.toLowerCase(),
+      wired.account.toLowerCase(),
+      KEY.addr.toLowerCase()
+    ])
+    // The first run's read before its prepare and after its claim, then the new run's own.
+    expect(wired.setupState).toHaveBeenCalledTimes(3)
+    expect(wired.port.sendAccountBatch).toHaveBeenCalledTimes(1)
+  })
+
+  it("retries a failed key-only check again on the key alone, and shows the key's deposit step with no note that the account can pay where the key is still empty", async () => {
+    const wired = wireSave(
+      account,
+      script({ send: 'refused', estimation: feeReading({ error: true }) })
+    )
+    balancesOf(wired, [0n, keyReadFails(), 0n], [RICH])
+    const store = await runSave(wired.steps)
+    expect(store.state().write.status).toBe('gasReadError')
+    const balances = wired.reads.nativeBalance.mock.calls.length
+
+    await restart(store, wired)
+    const { write } = store.state()
+
+    expect(write.status).toBe('needsDeposit')
+    if (write.status !== 'needsDeposit') {
+      return
+    }
+    expect(write.step.key.toLowerCase()).toBe(KEY.addr.toLowerCase())
+    expect(write.step.balance).toBe(0n)
+    expect(write.step.accountPays).toBe(false)
+    expect(showsAccountNote(write.step)).toBe(false)
+    expect(balanceReadsOf(wired.reads).slice(balances)).toEqual([KEY.addr.toLowerCase()])
+    expect(wired.port.sendAccountBatch).toHaveBeenCalledTimes(1)
+  })
+
+  /** A read of the account's setup that could not run. */
+  const setupReadFails = () => providerReadFailure('call', new Error('node down'))
+
+  /** The setup reads of the first run (before its prepare, after its claim) find none. */
+  const noSetupInTheFirstRun = (wired: ReturnType<typeof wireSave>) =>
+    wired.setupState
+      .mockResolvedValueOnce(setupStateOf(false))
+      .mockResolvedValueOnce(setupStateOf(false))
+
+  it("shows the read error that keeps the key alone where the key-only check again came up short and the new run's setup read fails, and the retry reads the key alone", async () => {
+    const wired = wireSave(
+      account,
+      script({ send: 'refused', estimation: feeReading({ error: true }) })
+    )
+    balancesOf(wired, [0n], [RICH])
+    noSetupInTheFirstRun(wired).mockRejectedValueOnce(setupReadFails())
+    const store = await runSave(wired.steps)
+    const failed = store.state().write
+
+    expect(failed.status).toBe('gasReadError')
+    expect(failed.run).toBe(2)
+    expect(failed.status === 'gasReadError' && failed.accountPays).toBe(false)
+    expect(wired.setupState).toHaveBeenCalledTimes(3)
+    const balances = wired.reads.nativeBalance.mock.calls.length
+
+    await restart(store, wired)
+    const { write } = store.state()
+
+    expect(write.status).toBe('needsDeposit')
+    expect(write.status === 'needsDeposit' && write.step.accountPays).toBe(false)
+    expect(balanceReadsOf(wired.reads).slice(balances)).toEqual([KEY.addr.toLowerCase()])
+    expect(wired.port.sendAccountBatch).toHaveBeenCalledTimes(1)
+  })
+
+  it("shows the read error that keeps the key alone where the key-only check again fails its read and the new run's setup read fails too", async () => {
+    const wired = wireSave(
+      account,
+      script({ send: 'refused', estimation: feeReading({ error: true }) })
+    )
+    balancesOf(wired, [0n, keyReadFails()], [RICH])
+    noSetupInTheFirstRun(wired).mockRejectedValueOnce(setupReadFails())
+    const store = await runSave(wired.steps)
+    const { write } = store.state()
+
+    expect(write.status).toBe('gasReadError')
+    expect(write.run).toBe(2)
+    expect(write.status === 'gasReadError' && write.accountPays).toBe(false)
+    expect(wired.port.sendAccountBatch).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the key alone through a retry whose setup read fails, and the next retry reads the key alone', async () => {
+    const wired = wireSave(
+      account,
+      script({ send: 'refused', estimation: feeReading({ error: true }) })
+    )
+    balancesOf(wired, [0n, keyReadFails(), 0n], [RICH])
+    const store = await runSave(wired.steps)
+    expect(store.state().write.status).toBe('gasReadError')
+    const balances = wired.reads.nativeBalance.mock.calls.length
+    wired.setupState.mockRejectedValueOnce(setupReadFails())
+
+    await restart(store, wired)
+    const failed = store.state().write
+
+    expect(failed.status).toBe('gasReadError')
+    expect(failed.run).toBe(3)
+    expect(failed.status === 'gasReadError' && failed.accountPays).toBe(false)
+    expect(wired.reads.nativeBalance).toHaveBeenCalledTimes(balances)
+
+    await restart(store, wired)
+    const { write } = store.state()
+
+    expect(write.status).toBe('needsDeposit')
+    expect(write.status === 'needsDeposit' && write.step.accountPays).toBe(false)
+    expect(balanceReadsOf(wired.reads).slice(balances)).toEqual([KEY.addr.toLowerCase()])
+    expect(wired.port.sendAccountBatch).toHaveBeenCalledTimes(1)
+  })
+
+  it("keeps the key alone where Continue from the key's deposit step finds its setup read failing, and the retry reads the key alone", async () => {
+    const wired = wireSave(
+      account,
+      script({ send: 'refused', estimation: feeReading({ error: true }) })
+    )
+    balancesOf(wired, [0n], [RICH])
+    const store = await runSave(wired.steps)
+    expect(store.state().write.status).toBe('needsDeposit')
+    const balances = wired.reads.nativeBalance.mock.calls.length
+    wired.setupState.mockRejectedValueOnce(setupReadFails())
+
+    await recheckGas(store, wired.steps, { timeoutMs: SHORT_TIMEOUT_MS })
+    const failed = store.state().write
+
+    expect(failed.status).toBe('gasReadError')
+    expect(failed.status === 'gasReadError' && failed.accountPays).toBe(false)
+    expect(wired.reads.nativeBalance).toHaveBeenCalledTimes(balances)
+
+    await restart(store, wired)
+    const { write } = store.state()
+
+    expect(write.status).toBe('needsDeposit')
+    expect(write.status === 'needsDeposit' && write.step.accountPays).toBe(false)
+    expect(balanceReadsOf(wired.reads).slice(balances)).toEqual([KEY.addr.toLowerCase()])
+    expect(wired.port.sendAccountBatch).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends the save on the retry of a failed key-only check again once the key holds the amount asked', async () => {
+    const wired = wireSave(
+      account,
+      script({ send: 'refused', estimation: feeReading({ error: true }) })
+    )
+    balancesOf(wired, [0n, keyReadFails(), RICH], [RICH])
+    const store = await runSave(wired.steps)
+    expect(store.state().write.status).toBe('gasReadError')
+    const balances = wired.reads.nativeBalance.mock.calls.length
+    wired.port.sendAccountBatch.mockResolvedValue(TX_HASH)
+
+    await restart(store, wired)
+
+    expect(balanceReadsOf(wired.reads).slice(balances)).toEqual([KEY.addr.toLowerCase()])
+    expect(wired.port.sendAccountBatch).toHaveBeenCalledTimes(2)
+    expect(isSaved(store.state())).toBe(true)
+  })
+
   it('ends as already set up, with no deposit step, where the gas check again is short and the account now holds a setup', async () => {
     const wired = wireSave(
       account,
       script({ send: 'refused', estimation: feeReading({ error: true }) })
     )
-    wired.reads.nativeBalance
-      .mockResolvedValueOnce(1_000_000_000_000_000_000n)
-      .mockResolvedValueOnce(0n)
+    balancesOf(wired, [RICH, 0n], [0n])
     // No setup before the prepare nor after the claim; the new run's read finds one.
     wired.setupState
       .mockResolvedValueOnce(setupStateOf(false))
@@ -1492,13 +1704,114 @@ describe("the sign screen's estimation before a save never sent", () => {
     expect(wired.port.sendAccountBatch).toHaveBeenCalledTimes(1)
   })
 
+  it("reads the key alone on the check again and shows the key's deposit step in a new run, with no note that the account can pay, where the account holds the amount asked and the key nothing", async () => {
+    const wired = wireSave(
+      account,
+      script({ send: 'refused', estimation: feeReading({ error: true }) })
+    )
+    balancesOf(wired, [0n], [RICH])
+    const store = await runSave(wired.steps)
+    const { write } = store.state()
+
+    expect(write.status).toBe('needsDeposit')
+    expect(write.run).toBe(2)
+    if (write.status !== 'needsDeposit') {
+      return
+    }
+    expect(write.step.key.toLowerCase()).toBe(KEY.addr.toLowerCase())
+    expect(write.step.balance).toBe(0n)
+    expect(write.step.shortfall).toBe(write.step.estimate.asked)
+    expect(write.step.accountPays).toBe(false)
+    expect(showsAccountNote(write.step)).toBe(false)
+    expect(balanceReadsOf(wired.reads)).toEqual([
+      KEY.addr.toLowerCase(),
+      wired.account.toLowerCase(),
+      KEY.addr.toLowerCase()
+    ])
+    expect(wired.setupState).toHaveBeenCalledTimes(3)
+    expect(wired.port.sendAccountBatch).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends the save on continue once the key holds the amount asked, after the account paid the first check and the sign screen read it short', async () => {
+    const wired = wireSave(
+      account,
+      script({ send: 'refused', estimation: feeReading({ error: true }) })
+    )
+    balancesOf(wired, [0n, 0n, RICH], [RICH])
+    const store = await runSave(wired.steps)
+    expect(store.state().write.status).toBe('needsDeposit')
+
+    wired.port.sendAccountBatch.mockResolvedValue(TX_HASH)
+    await recheckGas(store, wired.steps, { timeoutMs: SHORT_TIMEOUT_MS })
+
+    expect(wired.port.sendAccountBatch).toHaveBeenCalledTimes(2)
+    expect(isSaved(store.state())).toBe(true)
+    // Continue's check reads the key alone, as the step it continues from did.
+    expect(balanceReadsOf(wired.reads)).toEqual([
+      KEY.addr.toLowerCase(),
+      wired.account.toLowerCase(),
+      KEY.addr.toLowerCase(),
+      KEY.addr.toLowerCase()
+    ])
+  })
+
+  it("stays on the key's deposit step with nothing claimed or sent where Continue finds the key still empty, however much the account holds", async () => {
+    const wired = wireSave(
+      account,
+      script({ send: 'refused', estimation: feeReading({ error: true }) })
+    )
+    balancesOf(wired, [0n], [RICH])
+    const store = await runSave(wired.steps)
+    expect(store.state().write.status).toBe('needsDeposit')
+    const balances = wired.reads.nativeBalance.mock.calls.length
+    const setupReads = wired.setupState.mock.calls.length
+    const writes = jest.spyOn(wired.storage, 'set')
+
+    await recheckGas(store, wired.steps, { timeoutMs: SHORT_TIMEOUT_MS })
+    const { write } = store.state()
+
+    expect(write.status).toBe('needsDeposit')
+    if (write.status !== 'needsDeposit') {
+      return
+    }
+    expect(write.step.balance).toBe(0n)
+    expect(write.step.accountPays).toBe(false)
+    expect(showsAccountNote(write.step)).toBe(false)
+    expect(balanceReadsOf(wired.reads).slice(balances)).toEqual([KEY.addr.toLowerCase()])
+    // The setup read before the check, and none after a claim.
+    expect(wired.setupState).toHaveBeenCalledTimes(setupReads + 1)
+    expect(writes).not.toHaveBeenCalled()
+    expect(wired.port.sendAccountBatch).toHaveBeenCalledTimes(1)
+  })
+
+  it("shows the key's deposit step in a new run where the account passed the first check but holds less than the amount asked", async () => {
+    const wired = wireSave(
+      account,
+      script({ send: 'refused', estimation: feeReading({ error: true }) })
+    )
+    balancesOf(wired, [0n], [BETWEEN_BARS])
+    const store = await runSave(wired.steps)
+    const { write } = store.state()
+
+    expect(write.status).toBe('needsDeposit')
+    expect(write.run).toBe(2)
+    if (write.status !== 'needsDeposit') {
+      return
+    }
+    expect(write.step.key.toLowerCase()).toBe(KEY.addr.toLowerCase())
+    expect(write.step.balance).toBe(0n)
+    expect(write.step.shortfall).toBe(write.step.estimate.asked)
+    expect(showsAccountNote(write.step)).toBe(false)
+    expect(wired.port.sendAccountBatch).toHaveBeenCalledTimes(1)
+  })
+
   it('runs no gas check again after a reading that was fine', async () => {
     const wired = wireSave(account, script({ send: 'refused', estimation: feeReading() }))
     const store = await runSave(wired.steps)
 
     expect(store.state().write.status).toBe('failedNotSent')
     expect(canRetry(store.state().write)).toBe(true)
-    expect(wired.reads.nativeBalance).toHaveBeenCalledTimes(1)
+    expect(balanceReadsOf(wired.reads)).toHaveLength(2)
   })
 
   it('runs no gas check again after a short reading where the operation may still land', async () => {
@@ -1509,7 +1822,7 @@ describe("the sign screen's estimation before a save never sent", () => {
     const store = await runSave(wired.steps)
 
     expect(mayStillLand(store.state().write)).toBe(true)
-    expect(wired.reads.nativeBalance).toHaveBeenCalledTimes(1)
+    expect(balanceReadsOf(wired.reads)).toHaveLength(2)
   })
 
   it('runs no gas check again after a short reading where the sent transaction was replaced', async () => {
@@ -1521,7 +1834,7 @@ describe("the sign screen's estimation before a save never sent", () => {
     const { write } = store.state()
 
     expect(write.status === 'failedNotSent' && write.replaced).toBe('replaced')
-    expect(wired.reads.nativeBalance).toHaveBeenCalledTimes(1)
+    expect(balanceReadsOf(wired.reads)).toHaveLength(2)
   })
 
   it("does not carry a run's short reading into the next run", async () => {
@@ -1530,13 +1843,64 @@ describe("the sign screen's estimation before a save never sent", () => {
       script({ send: 'refused', estimation: feeReading({ error: true }) })
     )
     const store = await runSave(wired.steps)
-    expect(wired.reads.nativeBalance).toHaveBeenCalledTimes(2)
+    // The first check reads the key's balance and the account's; the check again the key's alone.
+    expect(balanceReadsOf(wired.reads)).toHaveLength(3)
     wired.port.sendAccountBatch.mockRejectedValue(accountBatchRefusal('refused', wired.account))
 
     await restart(store, wired)
 
     expect(store.state().write.status).toBe('failedNotSent')
     expect(store.state().write.run).toBe(2)
-    expect(wired.reads.nativeBalance).toHaveBeenCalledTimes(3)
+    // The next run's own check alone, with no check again.
+    expect(balanceReadsOf(wired.reads)).toHaveLength(5)
+  })
+})
+
+describe('the gas check of a save the account can pay itself', () => {
+  it('sends the save with the key at zero where the account holds enough, with no deposit step', async () => {
+    const wired = wireSave(account, script())
+    answerBalances(wired.reads, [
+      { address: KEY.addr, balances: [0n] },
+      { address: wired.account, balances: [RICH] }
+    ])
+    const store = await runSave(wired.steps)
+
+    expect(store.state().write.status).not.toBe('needsDeposit')
+    expect(wired.port.sendAccountBatch).toHaveBeenCalledTimes(1)
+    expect(isSaved(store.state())).toBe(true)
+    expect(balanceReadsOf(wired.reads).sort()).toEqual(
+      [KEY.addr.toLowerCase(), wired.account.toLowerCase()].sort()
+    )
+  })
+
+  it("shows the key's deposit step, with nothing sent, where neither the key nor the account holds enough", async () => {
+    const wired = wireSave(account, script({ gas: 'deposit' }))
+    const store = await runSave(wired.steps)
+    const { write } = store.state()
+
+    expect(write.status).toBe('needsDeposit')
+    expect(write.status === 'needsDeposit' && write.step.key.toLowerCase()).toBe(
+      KEY.addr.toLowerCase()
+    )
+    expect(balanceReadsOf(wired.reads).sort()).toEqual(
+      [KEY.addr.toLowerCase(), wired.account.toLowerCase()].sort()
+    )
+    expect(wired.port.sendAccountBatch).not.toHaveBeenCalled()
+  })
+
+  it("reads a failed read of the account's balance as a failed gas read, with the retry, and sends nothing", async () => {
+    const wired = wireSave(account, script())
+    answerBalances(wired.reads, [
+      { address: KEY.addr, balances: [RICH] },
+      {
+        address: wired.account,
+        balances: [providerReadFailure('nativeBalance', new Error('node down'))]
+      }
+    ])
+    const store = await runSave(wired.steps)
+
+    expect(store.state().write.status).toBe('gasReadError')
+    expect(canRetry(store.state().write)).toBe(true)
+    expect(wired.port.sendAccountBatch).not.toHaveBeenCalled()
   })
 })

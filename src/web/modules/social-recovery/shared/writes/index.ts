@@ -77,6 +77,7 @@ export {
   transferFeeOf,
   holdsEnough,
   reachesBar,
+  shortAtSigning,
   depositStepOf,
   checkGas
 } from './gas'
