@@ -23,7 +23,7 @@ interface Props {
   isLoading: boolean
   result: EnrichedSimulationResult | null
   error: string | null
-  isColibriAvailable: boolean
+  isSimulationAvailable: boolean
 }
 
 const AddressLink = ({
@@ -209,7 +209,7 @@ const EventSummaryLine = ({ log, explorerUrl }: { log: EnrichedLog; explorerUrl:
   )
 }
 
-const ColibriSimulationResult = ({ isLoading, result, error, isColibriAvailable }: Props) => {
+const ColibriSimulationResult = ({ isLoading, result, error, isSimulationAvailable }: Props) => {
   const { t } = useTranslation()
   const { styles, theme } = useTheme(getStyles)
   const { navigate } = useNavigation()
@@ -234,8 +234,8 @@ const ColibriSimulationResult = ({ isLoading, result, error, isColibriAvailable 
   if (error) {
     return (
       <View style={spacings.ptTy}>
-        <Alert type={isColibriAvailable ? 'error' : 'info'} size="sm" title={error} />
-        {!isColibriAvailable && (
+        <Alert type={isSimulationAvailable ? 'error' : 'info'} size="sm" title={error} />
+        {!isSimulationAvailable && (
           <Pressable
             onPress={() => navigate(WEB_ROUTES.networksSettings)}
             style={spacings.mtMi}
@@ -299,26 +299,32 @@ const ColibriSimulationResult = ({ isLoading, result, error, isColibriAvailable 
             {result.gasUsedDecimal}
           </Text>
         </View>
-        <View style={[flexbox.directionRow, flexbox.alignCenter]}>
-          <Text fontSize={10} appearance="secondaryText">
-            {t('simulated and verified by ')}
-          </Text>
-          <Pressable
-            onPress={() => {
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              openInTab({ url: COLIBRI_DOCS_URL })
-            }}
-          >
-            <Text
-              fontSize={10}
-              weight="semiBold"
-              color={theme.primary}
-              style={{ textDecorationLine: 'underline' }}
-            >
-              colibri
+        {result.source === 'colibri' ? (
+          <View style={[flexbox.directionRow, flexbox.alignCenter]}>
+            <Text fontSize={10} appearance="secondaryText">
+              {t('simulated and verified by ')}
             </Text>
-          </Pressable>
-        </View>
+            <Pressable
+              onPress={() => {
+                // eslint-disable-next-line @typescript-eslint/no-floating-promises
+                openInTab({ url: COLIBRI_DOCS_URL })
+              }}
+            >
+              <Text
+                fontSize={10}
+                weight="semiBold"
+                color={theme.primary}
+                style={{ textDecorationLine: 'underline' }}
+              >
+                colibri
+              </Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Text fontSize={10} appearance="secondaryText">
+            {t('Simulated by selected RPC')}
+          </Text>
+        )}
       </View>
 
       {result.statusLabel === 'reverted' && (

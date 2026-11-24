@@ -97,7 +97,7 @@ const OneClickEstimation = ({
     isLoading: isSimulating,
     result: simulationResult,
     error: simulationError,
-    isColibriAvailable,
+    isSimulationAvailable,
     isSimulationEnabled,
     simulate: handleSimulate
   } = useColibriSimulation(network, signAccountOpController?.accountOp)
@@ -160,7 +160,7 @@ const OneClickEstimation = ({
                   isLoading={isSimulating}
                   result={simulationResult}
                   error={simulationError}
-                  isColibriAvailable={isColibriAvailable}
+                  isSimulationAvailable={isSimulationAvailable}
                 />
               )}
             </ScrollView>
