@@ -122,7 +122,7 @@ const SignAccountOpScreen = () => {
     isLoading: isSimulating,
     result: simulationResult,
     error: simulationError,
-    isColibriAvailable,
+    isSimulationAvailable,
     isSimulationEnabled,
     simulate: handleSimulate
   } = useColibriSimulation(network, signAccountOpState?.accountOp)
@@ -300,7 +300,7 @@ const SignAccountOpScreen = () => {
                     isLoading={isSimulating}
                     result={simulationResult}
                     error={simulationError}
-                    isColibriAvailable={isColibriAvailable}
+                    isSimulationAvailable={isSimulationAvailable}
                   />
                 )}
 

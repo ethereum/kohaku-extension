@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 
 import { AbiCoder, Contract, formatUnits, Interface } from 'ethers'
 
@@ -74,13 +74,88 @@ export interface EnrichedSimulationResult {
   decodedError: string | null
   explorerUrl: string
   batchCallCount: number
+  source: 'colibri' | 'rpc'
 }
 
 export interface ColibriSimulationState {
   isLoading: boolean
   result: EnrichedSimulationResult | null
   error: string | null
-  isColibriAvailable: boolean
+}
+
+type SimulationTransaction = { from: string; to: string; data: string; value: string }
+
+type RpcSimulatedCall = {
+  status: string
+  gasUsed: string
+  returnData: string
+  logs?: SimulationLogRaw[]
+  error?: { data?: string }
+}
+
+const NATIVE_TRANSFER_LOG_ADDRESS = '0xfffffffffffffffffffffffffffffffffffffffe'
+const RPC_SIMULATION_EVENTS = new Interface([
+  'event Transfer(address indexed from, address indexed to, uint256 value)',
+  'event Deposit(address indexed dst, uint256 wad)',
+  'event Withdrawal(address indexed src, uint256 wad)'
+])
+
+function decodeRpcSimulationLog(raw: SimulationLogRaw): SimulationLog {
+  try {
+    const log = RPC_SIMULATION_EVENTS.parseLog(raw)
+    if (log && raw.topics.length === log.fragment.inputs.filter((input) => input.indexed).length + 1) {
+      return {
+        name: log.name,
+        inputs: log.fragment.inputs.map((input, index) => ({
+          name: input.name,
+          type: input.type,
+          value: String(log.args[index])
+        })),
+        raw
+      }
+    }
+  } catch {
+    // Preserve unrecognized logs for the details view.
+  }
+  return { name: 'Unknown event', inputs: [], raw }
+}
+
+async function simulateRpcTransaction(
+  provider: ReturnType<typeof getRpcProviderForUI>,
+  transaction: SimulationTransaction,
+  stateOverrides?: Record<string, unknown>
+): Promise<SimulationRawResult> {
+  const { from, to, data, value } = transaction
+  const blockStateCall = {
+    calls: [{ from, to, input: data, value }],
+    ...(stateOverrides && { stateOverrides })
+  }
+  const result: { calls: RpcSimulatedCall[] }[] = await provider.send('eth_simulateV1', [
+    { blockStateCalls: [blockStateCall], traceTransfers: true, validation: false },
+    'latest'
+  ])
+
+  const call = result?.[0]?.calls?.[0]
+  if (
+    !Array.isArray(result) ||
+    result.length !== 1 ||
+    !call ||
+    !Array.isArray(result[0].calls) ||
+    result[0].calls.length !== 1 ||
+    (call.status !== '0x0' && call.status !== '0x1') ||
+    typeof call.gasUsed !== 'string' ||
+    !/^0x[0-9a-f]+$/i.test(call.gasUsed) ||
+    typeof call.returnData !== 'string'
+  ) {
+    throw new Error('The selected RPC returned an invalid simulation result')
+  }
+
+  return {
+    status: call.status,
+    gasUsed: call.gasUsed,
+    returnValue: call.returnData === '0x' ? call.error?.data ?? call.returnData : call.returnData,
+    logs: (call.logs ?? []).map(decodeRpcSimulationLog)
+  }
 }
 
 const TOKEN_EVENTS = new Set(['Deposit', 'Transfer', 'Mint', 'Burn', 'Withdrawal'])
@@ -244,16 +319,11 @@ export default function useColibriSimulation(
   const [state, setState] = useState<ColibriSimulationState>({
     isLoading: false,
     result: null,
-    error: null,
-    isColibriAvailable: false
+    error: null
   })
 
-  const providerRef = useRef<any>(null)
-
-  const isColibriAvailable = useMemo(
-    () => network?.rpcProvider === 'colibri',
-    [network?.rpcProvider]
-  )
+  const source = network?.rpcProvider ?? 'rpc'
+  const isSimulationAvailable = !!network && (source === 'colibri' || source === 'rpc')
 
   const enrichLogs = useCallback(
     async (logs: SimulationLog[], provider: any): Promise<EnrichedLog[]> => {
@@ -274,7 +344,9 @@ export default function useColibriSimulation(
         let enrichedInputs = (log.inputs || []).map((input) => formatInputValue(input, contacts))
 
         if (isTokenEvent) {
-          const isNativeEth = /^0x0+$/.test(contractAddr)
+          const isNativeEth =
+            /^0x0+$/.test(contractAddr) ||
+            contractAddr.toLowerCase() === NATIVE_TRANSFER_LOG_ADDRESS
           let meta: { tokenName: string | null; tokenSymbol: string | null; tokenDecimals: number | null }
 
           if (isNativeEth) {
@@ -327,23 +399,21 @@ export default function useColibriSimulation(
       return
     }
 
-    if (!isColibriAvailable) {
+    if (source !== 'colibri' && source !== 'rpc') {
       setState((prev) => ({
         ...prev,
-        error: 'Simulation is only available when Colibri is selected as the RPC provider. You can change this in the network settings.'
+        error: 'Select Colibri or a direct RPC that supports transaction simulation.'
       }))
       return
     }
 
-    setState({ isLoading: true, result: null, error: null, isColibriAvailable: true })
+    setState({ isLoading: true, result: null, error: null })
 
+    let provider: ReturnType<typeof getRpcProviderForUI> | undefined
     try {
-      if (!providerRef.current) {
-        providerRef.current = getRpcProviderForUI(network, dispatch)
-      }
-      const provider = providerRef.current
+      provider = getRpcProviderForUI(network, dispatch)
 
-      let txParams: { from: string; to: string; data: string; value: string }
+      let txParams: SimulationTransaction
       let stateOverride: Record<string, unknown> | undefined
       if (accountOp.calls.length === 1) {
         const call = accountOp.calls[0]
@@ -365,13 +435,13 @@ export default function useColibriSimulation(
         stateOverride = getEoaSimulationStateOverride(accountOp.accountAddr)
       }
 
-      const simulateParams: unknown[] = [txParams, 'latest']
-      if (stateOverride) simulateParams.push(stateOverride)
-
-      const rawResult: SimulationRawResult = await provider.send(
-        'colibri_simulateTransaction',
-        simulateParams
-      )
+      const rawResult: SimulationRawResult =
+        source === 'colibri'
+          ? await provider.send(
+              'colibri_simulateTransaction',
+              stateOverride ? [txParams, 'latest', stateOverride] : [txParams, 'latest']
+            )
+          : await simulateRpcTransaction(provider, txParams, stateOverride)
 
       const enrichedLogs = await enrichLogs(rawResult.logs || [], provider)
 
@@ -389,27 +459,29 @@ export default function useColibriSimulation(
         returnValue: rawResult.returnValue,
         decodedError,
         explorerUrl: network.explorerUrl,
-        batchCallCount: accountOp.calls.length
+        batchCallCount: accountOp.calls.length,
+        source
       }
 
-      setState({ isLoading: false, result: enrichedResult, error: null, isColibriAvailable: true })
-    } catch (e: any) {
+      setState({ isLoading: false, result: enrichedResult, error: null })
+    } catch (error) {
       setState({
         isLoading: false,
         result: null,
-        error: e.message || 'Simulation failed',
-        isColibriAvailable: true
+        error: error instanceof Error ? error.message : 'Simulation failed'
       })
+    } finally {
+      provider?.destroy()
     }
-  }, [network, accountOp, isColibriAvailable, dispatch, enrichLogs])
+  }, [network, accountOp, source, dispatch, enrichLogs])
 
   const clear = useCallback(() => {
-    setState({ isLoading: false, result: null, error: null, isColibriAvailable })
-  }, [isColibriAvailable])
+    setState({ isLoading: false, result: null, error: null })
+  }, [])
 
   return {
     ...state,
-    isColibriAvailable,
+    isSimulationAvailable,
     isSimulationEnabled,
     simulate: isSimulationEnabled ? simulate : undefined,
     clear
